@@ -180,4 +180,78 @@ describe('catalog-backed AI order details', () => {
     expect(screen.queryByText('¥12.50')).not.toBeInTheDocument()
   })
 
+  it('translates specimen and examination types to Chinese and suppresses English codes in item identity', async () => {
+    const api = {
+      organization: { departments: vi.fn().mockResolvedValue([
+        { id: 'd1', organizationId: 'o1', name: '检验科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01' },
+      ]) },
+      encounters: { orderableMedications: vi.fn().mockResolvedValue([]) },
+      masterData: {
+        activeMedicationRoutes: vi.fn().mockResolvedValue([]),
+        activeOrderFrequencies: vi.fn().mockResolvedValue([]),
+        searchServices: vi.fn().mockImplementation((code) => {
+          if (code === 'DEMO-LAB-CRP') {
+            return Promise.resolve({
+              content: [{
+                id: 's-crp', unitCode: 'ITEM', specimenType: 'SERUM',
+                sdStatus: 'ACTIVE', sdUsageType: 'OUTPATIENT', orderable: true, chargeable: true, validFrom: '2020-01-01',
+                organizationAdoption: { organizationId: 'o1', defaultDepartmentId: 'd1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+                prices: [{ id: 'p1', organizationId: 'o1', sdPriceType: 'SALE', sdStatus: 'ACTIVE', price: 20, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+              }],
+            })
+          }
+          if (code === 'DEMO-EXAM-CHEST-DR') {
+            return Promise.resolve({
+              content: [{
+                id: 's-dr', unitCode: 'ITEM', examinationType: 'RADIOGRAPHY',
+                sdStatus: 'ACTIVE', sdUsageType: 'OUTPATIENT', orderable: true, chargeable: true, validFrom: '2020-01-01',
+                organizationAdoption: { organizationId: 'o1', defaultDepartmentId: 'd1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+                prices: [{ id: 'p2', organizationId: 'o1', sdPriceType: 'SALE', sdStatus: 'ACTIVE', price: 80, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+              }],
+            })
+          }
+          if (code === '25010101500') {
+            return Promise.resolve({
+              content: [{
+                id: 's-cbc', unitCode: 'ITEM',
+                sdStatus: 'ACTIVE', sdUsageType: 'OUTPATIENT', orderable: true, chargeable: true, validFrom: '2020-01-01',
+                organizationAdoption: { organizationId: 'o1', defaultDepartmentId: 'd1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+                prices: [{ id: 'p3', organizationId: 'o1', sdPriceType: 'SALE', sdStatus: 'ACTIVE', price: 18, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+              }],
+            })
+          }
+          return Promise.resolve({ content: [] })
+        }),
+      },
+    } as unknown as RhnApi
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <ClinicalAiTreatmentRows
+          items={[
+            { type: 'LABORATORY', catalogItemId: 's-cbc', code: '25010101500', name: '血常规（五分类）' },
+            { type: 'LABORATORY', catalogItemId: 's-crp', code: 'DEMO-LAB-CRP', name: 'C反应蛋白测定' },
+            { type: 'EXAMINATION', catalogItemId: 's-dr', code: 'DEMO-EXAM-CHEST-DR', name: '胸部数字化X线摄影', aiOriginalName: '胸部X线摄影(正位)' },
+          ]}
+          api={api}
+          encounter={{ id: 'e1', organizationId: 'o1', departmentId: 'd1' } as Encounter}
+          disabled={false}
+          onReview={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+
+    // 标本和检查类型需要显示中文
+    expect(await screen.findByText('标本：血清')).toBeInTheDocument()
+    expect(await screen.findByText('检查类型：X线检查')).toBeInTheDocument()
+    expect(screen.queryByText('标本：SERUM')).not.toBeInTheDocument()
+    expect(screen.queryByText('检查类型：RADIOGRAPHY')).not.toBeInTheDocument()
+
+    // 移除英文编码，但保留纯数字医保编码
+    expect(screen.getByText('25010101500')).toBeInTheDocument()
+    expect(screen.queryByText('DEMO-LAB-CRP')).not.toBeInTheDocument()
+    expect(screen.queryByText('DEMO-EXAM-CHEST-DR')).not.toBeInTheDocument()
+    expect(screen.getByText('AI 原建议：胸部X线摄影(正位)')).toBeInTheDocument()
+  })
 })

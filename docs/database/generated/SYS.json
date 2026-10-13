@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -753,6 +753,10 @@
       "codeReferences": [
         {
           "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/announcement/AnnouncementReadReceipt.java",
+          "line": 12
+        },
+        {
+          "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/maintenance/WorkMaintenanceTables.java",
           "line": 12
         }
       ]
@@ -7751,6 +7755,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/maintenance/WorkMaintenanceTables.java",
+          "line": 13
+        },
+        {
           "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/notification/PortalNotification.java",
           "line": 15
         }
@@ -8653,6 +8661,18 @@
           "comment": "关联标识",
           "logical": "correlation_id",
           "catalogComment": "关联标识"
+        },
+        {
+          "physical": "DES_REPRINT",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "补打原因；标本标签补打必填",
+          "logical": "reprint_reason",
+          "catalogComment": "补打原因；标本标签补打必填"
         }
       ],
       "kind": "BASE TABLE",
@@ -8670,7 +8690,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_SYS_PRINT_JOB_SYS_PRIN_PRIN_INDEX_E",
+          "name": "FK_SYS_PRINT_JOB_SYS_PRIN_PRIN_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -8686,7 +8706,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PRINT_JOB_SYS_PRIN_PR_1_INDEX_E",
+          "name": "FK_SYS_PRINT_JOB_SYS_PRIN_PR_1_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -8702,7 +8722,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PRINT_JOB_SYS_TNT_PRINT_INDEX_E",
+          "name": "FK_SYS_PRINT_JOB_SYS_TNT_PRINT_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -8713,7 +8733,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PRINT_JOB_SYS_USER_PRIN_INDEX_E",
+          "name": "FK_SYS_PRINT_JOB_SYS_USER_PRIN_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -8750,7 +8770,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_E3",
+          "name": "PRIMARY_KEY_D7",
           "columns": [
             {
               "position": 1,
@@ -8761,7 +8781,7 @@
           "unique": true
         },
         {
-          "name": "UK_SYS_PRINT_JOB_PRINT_JOB_TEN_INDEX_E",
+          "name": "UK_SYS_PRINT_JOB_PRINT_JOB_TEN_INDEX_D",
           "columns": [
             {
               "position": 1,
@@ -10256,6 +10276,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 36
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 21
         }
@@ -11262,6 +11286,10 @@
         {
           "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/announcement/SystemAnnouncement.java",
           "line": 17
+        },
+        {
+          "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/maintenance/WorkMaintenanceTables.java",
+          "line": 11
         }
       ]
     },
@@ -11429,6 +11457,10 @@
         {
           "path": "backend/rhn-app/src/main/java/com/rhn/portal/dashboard/PortalSummaryService.java",
           "line": 66
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 18
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/infrastructure/StandardCatalogEditionStore.java",
@@ -12316,6 +12348,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/maintenance/WorkMaintenanceTables.java",
+          "line": 15
+        },
+        {
           "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/task/WorkTaskHistory.java",
           "line": 12
         }
@@ -12927,6 +12963,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/maintenance/WorkMaintenanceTables.java",
+          "line": 14
+        },
         {
           "path": "backend/rhn-work/src/main/java/com/rhn/workmanagement/task/WorkTask.java",
           "line": 16
@@ -14178,6 +14218,1715 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/printing/domain/PrintDelivery.java",
           "line": 17
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_batch",
+      "legacy": "maintenance_batch",
+      "physical": "RHN_SYS_MAINT_BATCH",
+      "domain": "SYS",
+      "comment": "测试来源批次；一行代表一次有明确依据的测试对象登记，登记后不可修改",
+      "columns": [
+        {
+          "physical": "ID_MAINT_BATCH",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "测试来源批次主键",
+          "logical": "id",
+          "catalogComment": "测试来源批次主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "不可复用的请求幂等编码",
+          "logical": "command_code",
+          "catalogComment": "不可复用的请求幂等编码"
+        },
+        {
+          "physical": "CD_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "规范化请求指纹",
+          "logical": "request_hash",
+          "catalogComment": "规范化请求指纹"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "JSON_VIEW",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "批次范围及经核对的业务根对象；不含诊疗正文",
+          "logical": "view_json",
+          "catalogComment": "批次范围及经核对的业务根对象；不含诊疗正文"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_BATCH"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MAINT_BATCH_CMD",
+          "columns": [
+            "ID_TNT",
+            "CD_CMD"
+          ]
+        },
+        {
+          "name": "UK_MAINT_BATCH_TNT",
+          "columns": [
+            "ID_MAINT_BATCH",
+            "ID_TNT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_MAINT_BATCH_TIME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F67",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_BATCH",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_BATCH_CMD_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_BATCH_TNT_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_BATCH",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "测试来源批次；一行代表一次有明确依据的测试对象登记，登记后不可修改",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 26
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 29
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 42
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 45
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_plan",
+      "legacy": "maintenance_plan",
+      "physical": "RHN_SYS_MAINT_PLAN",
+      "domain": "SYS",
+      "comment": "维护预览计划；一行代表一个不可变范围、规则与影响快照",
+      "columns": [
+        {
+          "physical": "ID_MAINT_PLAN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "不可变维护预览计划主键",
+          "logical": "id",
+          "catalogComment": "不可变维护预览计划主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_EXPIRES",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "计划执行有效期",
+          "logical": "expires_at",
+          "catalogComment": "计划执行有效期"
+        },
+        {
+          "physical": "CD_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "计划及领域规则指纹",
+          "logical": "fingerprint",
+          "catalogComment": "计划及领域规则指纹"
+        },
+        {
+          "physical": "JSON_VIEW",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "影响摘要与阻断信息",
+          "logical": "view_json",
+          "catalogComment": "影响摘要与阻断信息"
+        },
+        {
+          "physical": "JSON_SEALED",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "绑定租户和计划标识的加密输入与领域对象快照",
+          "logical": "sealed_json",
+          "catalogComment": "绑定租户和计划标识的加密输入与领域对象快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_PLAN"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MAINT_PLAN_TNT",
+          "columns": [
+            "ID_MAINT_PLAN",
+            "ID_TNT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_MAINT_PLAN_TIME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_CE2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_PLAN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_PLAN_TNT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_PLAN",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "维护预览计划；一行代表一个不可变范围、规则与影响快照",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 50
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 55
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 58
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 72
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_task",
+      "legacy": "maintenance_task",
+      "physical": "RHN_SYS_MAINT_TASK",
+      "domain": "SYS",
+      "comment": "维护执行任务；一行代表一个计划的唯一执行命令，更新采用任务行锁",
+      "columns": [
+        {
+          "physical": "ID_MAINT_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "维护执行任务主键",
+          "logical": "id",
+          "catalogComment": "维护执行任务主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_MAINT_PLAN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "对应不可变预览计划",
+          "logical": "plan_id",
+          "catalogComment": "对应不可变预览计划"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "不可复用的执行请求幂等编码",
+          "logical": "command_code",
+          "catalogComment": "不可复用的执行请求幂等编码"
+        },
+        {
+          "physical": "CD_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "执行请求指纹",
+          "logical": "request_hash",
+          "catalogComment": "执行请求指纹"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "持久任务执行状态",
+          "logical": "status",
+          "catalogComment": "持久任务执行状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "登记时间",
+          "logical": "created_at",
+          "catalogComment": "登记时间"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "最近状态更新时间",
+          "logical": "updated_at",
+          "catalogComment": "最近状态更新时间"
+        },
+        {
+          "physical": "JSON_VIEW",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "任务范围、操作者和执行结果摘要",
+          "logical": "view_json",
+          "catalogComment": "任务范围、操作者和执行结果摘要"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_TASK"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MAINT_TASK_CMD",
+          "columns": [
+            "ID_TNT",
+            "CD_CMD"
+          ]
+        },
+        {
+          "name": "UK_MAINT_TASK_PLAN",
+          "columns": [
+            "ID_TNT",
+            "ID_MAINT_PLAN"
+          ]
+        },
+        {
+          "name": "UK_MAINT_TASK_TNT",
+          "columns": [
+            "ID_MAINT_TASK",
+            "ID_TNT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_MAINT_TASK_TIME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_CE2D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_TASK_CMD_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_TASK_PLAN_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_MAINT_PLAN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_TASK_TNT_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_MAINT_TASK_STATUS",
+          "expression": "\"sd_status\" IN('QUEUED', 'PREPARING', 'RUNNING', 'VERIFYING', 'SUCCEEDED', 'FAILED', 'CANCELLED')"
+        }
+      ],
+      "catalogComment": "维护执行任务；一行代表一个计划的唯一执行命令，更新采用任务行锁",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 65
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 68
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 77
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 82
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 84
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 86
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 91
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 97
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_backup",
+      "legacy": "maintenance_backup",
+      "physical": "RHN_SYS_MAINT_BACKUP",
+      "domain": "SYS",
+      "comment": "维护范围恢复快照；一行代表一个维护任务的加密恢复数据，按任务不可变保留，业务清理不可删除",
+      "columns": [
+        {
+          "physical": "ID_MAINT_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "对应维护任务；一任务一份范围恢复快照",
+          "logical": "id",
+          "catalogComment": "对应维护任务；一任务一份范围恢复快照"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "备份时间",
+          "logical": "created_at",
+          "catalogComment": "备份时间"
+        },
+        {
+          "physical": "JSON_SEALED",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "按任务和租户绑定加密的领域恢复快照",
+          "logical": "sealed_json",
+          "catalogComment": "按任务和租户绑定加密的领域恢复快照"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_TASK"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MAINT_BACKUP_TNT",
+          "columns": [
+            "ID_MAINT_TASK",
+            "ID_TNT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_MAINT_BACKUP_TIME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_D88",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_BACKUP_TNT_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "维护范围恢复快照；一行代表一个维护任务的加密恢复数据，按任务不可变保留，业务清理不可删除",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 102
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 106
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_audit",
+      "legacy": "maintenance_audit",
+      "physical": "RHN_SYS_MAINT_AUDIT",
+      "domain": "SYS",
+      "comment": "维护审计；一行代表一次维护操作或阶段记录，仅追加，业务清理不可删除",
+      "columns": [
+        {
+          "physical": "ID_MAINT_AUDIT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "追加式维护审计主键",
+          "logical": "id",
+          "catalogComment": "追加式维护审计主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RSRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "批次、计划或任务资源标识",
+          "logical": "resource_id",
+          "catalogComment": "批次、计划或任务资源标识"
+        },
+        {
+          "physical": "CD_ACTION",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "审计操作编码",
+          "logical": "action",
+          "catalogComment": "审计操作编码"
+        },
+        {
+          "physical": "NA_ACTOR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "业务操作者账号",
+          "logical": "actor",
+          "catalogComment": "业务操作者账号"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "记录时间",
+          "logical": "created_at",
+          "catalogComment": "记录时间"
+        },
+        {
+          "physical": "DES_DETAIL",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "必要操作摘要；不含完整诊疗正文",
+          "logical": "detail",
+          "catalogComment": "必要操作摘要；不含完整诊疗正文"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_AUDIT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MAINT_AUDIT_TNT",
+          "columns": [
+            "ID_MAINT_AUDIT",
+            "ID_TNT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IX_MAINT_AUDIT_TIME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F673",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_AUDIT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_AUDIT_TNT_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_AUDIT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "维护审计；一行代表一次维护操作或阶段记录，仅追加，业务清理不可删除",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 50
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 112
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 116
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_state",
+      "legacy": "maintenance_state",
+      "physical": "RHN_SYS_MAINT_STATE",
+      "domain": "SYS",
+      "comment": "租户写入维护屏障；一行代表一个租户的维护阻断状态，按租户行锁串行登记，不进入业务清理范围",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识及屏障主键",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识及屏障主键"
+        },
+        {
+          "physical": "ID_MAINT_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "当前阻断写入的维护任务；空表示可写",
+          "logical": "task_id",
+          "catalogComment": "当前阻断写入的维护任务；空表示可写"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_MAINT_STATE_TASK_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F77",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "租户写入维护屏障；一行代表一个租户的维护阻断状态，按租户行锁串行登记，不进入业务清理范围",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 17
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 21
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 22
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 24
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 40
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_write",
+      "legacy": "maintenance_write",
+      "physical": "RHN_SYS_MAINT_WRITE",
+      "domain": "SYS",
+      "comment": "在途业务写入凭据；一行代表一次被接纳的在途写入，请求或事务完成后精确删除，不能按时间推断事务结束",
+      "columns": [
+        {
+          "physical": "ID_MAINT_WRITE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "在途写入凭据主键",
+          "logical": "id",
+          "catalogComment": "在途写入凭据主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "DT_STARTED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "写入开始时间",
+          "logical": "started_at",
+          "catalogComment": "写入开始时间"
+        },
+        {
+          "physical": "CD_NODE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "OS进程命名空间；不同宿主或PID命名空间不得复用",
+          "logical": "process_namespace",
+          "catalogComment": "OS进程命名空间；不同宿主或PID命名空间不得复用"
+        },
+        {
+          "physical": "ID_PROC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "写入所属进程PID；仅在同一进程命名空间核对",
+          "logical": "process_id",
+          "catalogComment": "写入所属进程PID；仅在同一进程命名空间核对"
+        },
+        {
+          "physical": "NUM_PROC_START",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "进程启动时刻的Unix毫秒；用于识别PID复用",
+          "logical": "process_started",
+          "catalogComment": "进程启动时刻的Unix毫秒；用于识别PID复用"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_WRITE"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "IX_MAINT_WRITE_TNT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_STARTED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F7A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_WRITE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "在途业务写入凭据；一行代表一次被接纳的在途写入，请求或事务完成后精确删除，不能按时间推断事务结束",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 30
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 35
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 46
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceBarrierStore.java",
+          "line": 55
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_origin",
+      "legacy": "maintenance_origin",
+      "physical": "RHN_SYS_MAINT_ORIGIN",
+      "domain": "SYS",
+      "comment": "不可变测试来源标记；一行代表一个经明确依据登记的业务根对象来源，业务删除后保留，不依据名称或当前环境推断测试身份",
+      "columns": [
+        {
+          "physical": "ID_MAINT_ORIGIN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "不可变测试来源标记主键",
+          "logical": "id",
+          "catalogComment": "不可变测试来源标记主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "业务所属机构",
+          "logical": "organization_id",
+          "catalogComment": "业务所属机构"
+        },
+        {
+          "physical": "ID_MAINT_BATCH",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "明确测试用途的来源批次",
+          "logical": "batch_id",
+          "catalogComment": "明确测试用途的来源批次"
+        },
+        {
+          "physical": "SD_MODULE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "根业务模块",
+          "logical": "module",
+          "catalogComment": "根业务模块"
+        },
+        {
+          "physical": "SD_RSRC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "根业务对象类型",
+          "logical": "resource_type",
+          "catalogComment": "根业务对象类型"
+        },
+        {
+          "physical": "ID_RSRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "经核对的根业务对象标识",
+          "logical": "resource_id",
+          "catalogComment": "经核对的根业务对象标识"
+        },
+        {
+          "physical": "DT_TAGGED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "测试来源登记时间；子业务沿根业务继承用途",
+          "logical": "tagged_at",
+          "catalogComment": "测试来源登记时间；子业务沿根业务继承用途"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MAINT_ORIGIN"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_MAINT_ORIGIN_RSRC",
+          "columns": [
+            "ID_TNT",
+            "SD_RSRC_TYPE",
+            "ID_RSRC"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_MAINT_ORIGIN_BATCH_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_BATCH",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_EFA",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_ORIGIN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_MAINT_ORIGIN_RSRC_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_RSRC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_RSRC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "不可变测试来源标记；一行代表一个经明确依据登记的业务根对象来源，业务删除后保留，不依据名称或当前环境推断测试身份",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/DatabaseMaintenanceTestDataDirectory.java",
+          "line": 20
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/infrastructure/MaintenanceStore.java",
+          "line": 35
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_retirement",
+      "legacy": "maintenance_retirement",
+      "physical": "RHN_SYS_MAINT_RETIRE",
+      "domain": "SYS",
+      "comment": "已清理业务身份留痕；一行代表一个已清理业务对象身份，阻止迟到事件恢复已删除事实，不能随业务清理删除",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RSRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "已清理的全局业务对象标识；不可重新生成使用",
+          "logical": "resource_id",
+          "catalogComment": "已清理的全局业务对象标识；不可重新生成使用"
+        },
+        {
+          "physical": "ID_MAINT_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "关联维护任务；恢复数据时需同时核对业务身份状态",
+          "logical": "task_id",
+          "catalogComment": "关联维护任务；恢复数据时需同时核对业务身份状态"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_RSRC"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_MAINT_RETIRE_TASK_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MAINT_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F41",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RSRC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "已清理业务身份留痕；一行代表一个已清理业务对象身份，阻止迟到事件恢复已删除事实，不能随业务清理删除",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/eventing/application/EventMaintenanceContribution.java",
+          "line": 37
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/DatabaseMaintenanceResourceRetirement.java",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "logical": "sys.maintenance_organization_state",
+      "legacy": "maintenance_organization_state",
+      "physical": "RHN_SYS_MAINT_ORG_STATE",
+      "domain": "SYS",
+      "comment": "机构上线状态；一行代表一个租户内机构的上线确认，未登记视为未确认，正式上线不可回退，不进入清理范围",
+      "columns": [
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "SD_LFCYCL",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "上线前或正式上线状态；正式上线不可回退",
+          "logical": "lifecycle",
+          "catalogComment": "上线前或正式上线状态；正式上线不可回退"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "状态确认时间",
+          "logical": "updated_at",
+          "catalogComment": "状态确认时间"
+        },
+        {
+          "physical": "NA_ACTOR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "确认账号",
+          "logical": "actor",
+          "catalogComment": "确认账号"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_E2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_MAINT_ORG_LIFECYCLE",
+          "expression": "\"sd_lfcycl\" IN('PRELIVE', 'LIVE')"
+        }
+      ],
+      "catalogComment": "机构上线状态；一行代表一个租户内机构的上线确认，未登记视为未确认，正式上线不可回退，不进入清理范围",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/MaintenanceLifecycleService.java",
+          "line": 46
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/MaintenanceLifecycleService.java",
+          "line": 48
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/MaintenanceLifecycleService.java",
+          "line": 61
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/MaintenanceWorkspaceService.java",
+          "line": 40
         }
       ]
     }
@@ -20639,6 +22388,120 @@
       "targetTable": "RHN_SYS_TNT",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_MAINT_BACKUP_TASK",
+      "sourceTable": "RHN_SYS_MAINT_BACKUP",
+      "sourceColumns": [
+        "ID_MAINT_TASK",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_MAINT_TASK",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_MAINT_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_MAINT_ORG_STATE_ORG",
+      "sourceTable": "RHN_SYS_MAINT_ORG_STATE",
+      "sourceColumns": [
+        "ID_ORG",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_ORG",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_MAINT_ORIGIN_BATCH",
+      "sourceTable": "RHN_SYS_MAINT_ORIGIN",
+      "sourceColumns": [
+        "ID_MAINT_BATCH",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_MAINT_BATCH",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_MAINT_BATCH",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_MAINT_RETIRE_TASK",
+      "sourceTable": "RHN_SYS_MAINT_RETIRE",
+      "sourceColumns": [
+        "ID_MAINT_TASK",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_MAINT_TASK",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_MAINT_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_MAINT_STATE_TASK",
+      "sourceTable": "RHN_SYS_MAINT_STATE",
+      "sourceColumns": [
+        "ID_MAINT_TASK",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_MAINT_TASK",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_MAINT_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_MAINT_TASK_PLAN",
+      "sourceTable": "RHN_SYS_MAINT_TASK",
+      "sourceColumns": [
+        "ID_MAINT_PLAN",
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_MAINT_PLAN",
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_MAINT_PLAN",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
       "reviewState": "database",
       "evidence": "迁移验证库外键",
       "description": ""

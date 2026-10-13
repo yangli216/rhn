@@ -1,5 +1,8 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.platform.maintenance.api.MaintenanceWriteGuard;
+import com.rhn.shared.api.BusinessException;
+
 import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryReservationView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
@@ -94,6 +97,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     private final InventoryReceiptRoundingWriter receiptRoundingWriter;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
+    private final MaintenanceWriteGuard maintenanceWrites;
 
     public InventoryApplicationService(
             StockSiteRepository siteRepository, StockItemRepository itemRepository,
@@ -106,7 +110,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             CatalogLifecycleDirectory catalogDirectory, InventoryQuantityPolicy quantityPolicy,
             InventorySplitApplicationService splitService, InventoryReceiptRoundingWriter receiptRoundingWriter,
             DomainEventPublisher eventPublisher,
-            ExecutionContextProvider contextProvider) {
+            ExecutionContextProvider contextProvider, MaintenanceWriteGuard maintenanceWrites) {
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
         this.binRepository = binRepository; this.lotRepository = lotRepository;
         this.periodRepository = periodRepository; this.transactionRepository = transactionRepository;
@@ -115,7 +119,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         this.taskLineRepository = taskLineRepository; this.catalogDirectory = catalogDirectory;
         this.quantityPolicy = quantityPolicy; this.splitService = splitService;
         this.receiptRoundingWriter = receiptRoundingWriter;
-        this.eventPublisher = eventPublisher; this.contextProvider = contextProvider;
+        this.eventPublisher = eventPublisher; this.contextProvider = contextProvider; this.maintenanceWrites=maintenanceWrites;
     }
 
     @Transactional(readOnly = true)
@@ -407,21 +411,33 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                         stockStatus, item.baseUnitCode());
             }
             BigDecimal effectiveUnitCost = command.unitCost() == null && quantityDelta.signum() < 0
-                    ? balance.averageUnitCost() : command.unitCost();
-            if (quantityDelta.signum() > 0) balance.receive(quantityDelta, effectiveUnitCost);
+                    && !"MAINTENANCE_TASK".equals(sourceType) ? balance.averageUnitCost() : command.unitCost();
+            BigDecimal exactAmount = command.amountDelta();
+            if (exactAmount != null && (!"MAINTENANCE_TASK".equals(sourceType) || effectiveUnitCost == null
+                    || exactAmount.signum() != 0 && exactAmount.signum() != quantityDelta.signum()))
+                throw badRequest("INVENTORY_POSTING_AMOUNT_INVALID", "明确补偿金额只允许用于同方向的维护任务记账");
+            if (quantityDelta.signum() > 0) {
+                if (exactAmount != null) balance.receiveValue(quantityDelta, exactAmount);
+                else balance.receive(quantityDelta, effectiveUnitCost);
+            }
             else {
                 if (Set.of("ISSUE", "TRANSFER").contains(transactionType)) {
                     splitService.ensureSealedAvailable(context.tenantId(), bin.id(), item.id(), lot.id(),
                             balance.quantityOnHand(), quantityDelta.abs());
                 }
                 if (command.consumeReserved()) balance.dispenseReserved(quantityDelta.abs());
-                else balance.issueAvailable(quantityDelta.abs());
+                else if ("MAINTENANCE_TASK".equals(sourceType)) {
+                    BigDecimal issueValue = exactAmount != null ? exactAmount.abs()
+                            : effectiveUnitCost == null ? null : effectiveUnitCost.multiply(quantityDelta.abs());
+                    balance.issueValue(quantityDelta.abs(), issueValue);
+                } else balance.issueAvailable(quantityDelta.abs());
             }
             availabilityService.save(balance);
             persisted.add(transactionLineRepository.save(new InventoryTransactionLine(context.tenantId(),
                     transaction.id(), ++order, site.id(), bin.id(), item.id(), lot.id(), item.basePackageId(),
                     stockStatus, quantityDelta.abs(), item.baseUnitCode(), BigDecimal.ONE,
-                    quantityDelta, effectiveUnitCost)));
+                    quantityDelta, effectiveUnitCost, exactAmount == null && effectiveUnitCost != null
+                            ? effectiveUnitCost.multiply(quantityDelta) : exactAmount)));
         }
         try {
             transactionLineRepository.flush(); availabilityService.flush(); transactionRepository.flush();
@@ -649,6 +665,10 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
     public void expireDueReservations() {
         Instant now = Instant.now();
         for (InventoryReservationRepository.DueReservationKey key : reservationRepository.findDueKeys(now)) {
+            MaintenanceWriteGuard.Permit permit;
+            try { permit = maintenanceWrites.enter(key.getTenantId()); }
+            catch (BusinessException paused) { if ("MAINTENANCE_WRITE_PAUSED".equals(paused.code())) continue; throw paused; }
+            try (permit) {
             Long previousTenant = TenantContext.currentTenantId().orElse(null);
             TenantContext.set(key.getTenantId());
             try {
@@ -660,6 +680,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                 expireDueForTask(key.getTenantId(), task, line, now);
             } finally {
                 if (previousTenant == null) TenantContext.clear(); else TenantContext.set(previousTenant);
+            }
             }
         }
     }
@@ -728,6 +749,14 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         List<DocumentPostingLineCommand> orderedExpected = expected.stream().sorted(POSTING_LOCK_ORDER).toList();
         for (int index = 0; index < lines.size(); index++) {
             InventoryTransactionLine actual = lines.get(index); DocumentPostingLineCommand wanted = orderedExpected.get(index);
+            if ("MAINTENANCE_TASK".equals(sourceType)) {
+                BigDecimal expectedCost = wanted.unitCost() == null ? null : wanted.unitCost().setScale(6, RoundingMode.HALF_UP);
+                BigDecimal expectedAmount = wanted.amountDelta();
+                if (expectedCost == null ? actual.unitCost() != null : actual.unitCost() == null || expectedCost.compareTo(actual.unitCost()) != 0)
+                    throw conflict("INVENTORY_REQUEST_CODE_PAYLOAD_MISMATCH", "相同维护库存请求不能变更成本");
+                if (expectedAmount == null ? actual.amountDelta() != null : actual.amountDelta() == null || expectedAmount.compareTo(actual.amountDelta()) != 0)
+                    throw conflict("INVENTORY_REQUEST_CODE_PAYLOAD_MISMATCH", "相同维护库存请求不能变更金额");
+            }
             if (!actual.stockBinId().equals(wanted.stockBinId()) || !actual.stockItemId().equals(wanted.stockItemId())
                     || !actual.stockLotId().equals(wanted.stockLotId())
                     || actual.quantityDelta().compareTo(wanted.quantityDelta()) != 0
@@ -941,7 +970,12 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
                                          List<ReceiveDocumentLineCommand> lines) {}
     public record DocumentPostingLineCommand(Long stockBinId, Long stockItemId, Long stockLotId,
                                              String stockStatus, BigDecimal quantityDelta, BigDecimal unitCost,
-                                             boolean consumeReserved) {}
+                                             boolean consumeReserved, BigDecimal amountDelta) {
+        public DocumentPostingLineCommand(Long stockBinId, Long stockItemId, Long stockLotId, String stockStatus,
+                                          BigDecimal quantityDelta, BigDecimal unitCost, boolean consumeReserved) {
+            this(stockBinId, stockItemId, stockLotId, stockStatus, quantityDelta, unitCost, consumeReserved, null);
+        }
+    }
     public record DocumentPostingCommand(String requestCode, String transactionType, String sourceType,
                                          String sourceCode, Long stockSiteId, Instant occurredAt,
                                          String description, List<DocumentPostingLineCommand> lines) {}

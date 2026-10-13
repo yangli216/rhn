@@ -8,7 +8,13 @@ import { IconButton, Button, FormField, Icon, Select } from '../../../shared/ui'
 import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
 import { calculatePackageQuantity } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
-import { formatPackageUnit, formatUnitPrice } from '../orders/orderPresentation'
+import {
+  formatPackageUnit,
+  formatUnitPrice,
+  formatSpecimenType,
+  formatExaminationType,
+  shouldDisplayOrderCode,
+} from '../orders/orderPresentation'
 import { resolveDispensableOptions } from '../orders/dispensableOptions'
 import { useOrderExecutionDepartments } from '../orders/useOrderExecutionDepartments'
 import { defaultServiceExecutionDepartment } from '../orders/orderExecutionDepartment'
@@ -63,8 +69,10 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       const pricing = resolveServicePricing(service, encounter.organizationId)
       if (pricing.error) throw new Error(pricing.error)
       const price = pricing.price
-      const specification = [service.specimenType && `标本：${service.specimenType}`,
-        service.examinationType && `检查类型：${service.examinationType}`].filter(Boolean).join('；')
+      const specLabel = formatSpecimenType(service.specimenType)
+      const examLabel = formatExaminationType(service.examinationType)
+      const specification = [specLabel && `标本：${specLabel}`,
+        examLabel && `检查类型：${examLabel}`].filter(Boolean).join('；')
       const executionRequirements = [specification, service.examinationNotes, service.attention].filter(Boolean).join('；')
       return { price: price?.price, currencyCode: price?.currencyCode, unit: formatPackageUnit(undefined, service.unitCode || 'ITEM'),
         specification, executionRequirements, stockSiteName: undefined,
@@ -105,6 +113,9 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       const route = routes.data?.find((value) => value.code === details.routeCode)?.name || details.routeCode
       const frequency = frequencies.data?.find((value) => value.code === details.frequencyCode)?.name || details.frequencyCode
       const serviceExecution = [resolved?.specification, details.instruction].filter(Boolean).join('；')
+      const secondaryText = medication
+        ? resolved?.specification || item.specification || (shouldDisplayOrderCode(item.code) ? item.code : undefined)
+        : (shouldDisplayOrderCode(item.code) ? item.code : undefined)
       const open = editingKey === key
       return <div key={key} className="doctor-ai-treatment-item">
         <div className="doctor-unified-order-row is-ai-suggestion" role="row">
@@ -127,7 +138,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
               )}
             </div>
             {item.aiOriginalName && <small>AI 原建议：{item.aiOriginalName}</small>}
-            <small>{medication ? resolved?.specification || item.specification || item.code : item.code}</small>
+            {secondaryText && <small>{secondaryText}</small>}
           </span>
           <span className="doctor-unified-cell-directions" title={medication ? undefined : resolved?.executionRequirements || undefined}>{result.isPending ? '正在补齐目录用法…' : result.isError
             ? <span role="alert">{result.error.message}<Button variant="text" size="sm" onClick={() => void result.refetch()}>重试</Button></span>

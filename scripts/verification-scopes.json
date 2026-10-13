@@ -514,6 +514,35 @@
         "ClinicalAiConfigurationTest"
       ]
     },
+    "maintenance": {
+      "coverage": [
+        "业务初始化、租户/机构/模块范围、来源批次、临床清理、库存补偿、维护隔离、生命周期、范围快照及任务审计"
+      ],
+      "limitations": [
+        "自动化覆盖隔离H2及DOM；Oracle迁移执行、人工视觉和范围恢复演练需独立验收。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/settings/maintenance/BusinessMaintenance.test.tsx",
+        "src/app/AppShellContext.test.ts"
+      ],
+      "backend": [
+        "MaintenanceFoundationTest",
+        "MaintenanceInitializationTest",
+        "MaintenanceRelationalDataTest",
+        "MaintenanceBarrierRecoveryTest",
+        "MaintenanceClinicalCleanupTest",
+        "MaintenanceContractTest",
+        "ArchitectureTest",
+        "ModuleCatalogTest",
+        "SecurityAuthenticationResponseTest",
+        "InventoryLedgerReservationTest",
+        "InventoryTraceCodeTest",
+        "InpatientSupplyAutoGenerationTest",
+        "BillingSettlementTest",
+        "RhnPhysicalSchemaGovernanceTest"
+      ]
+    },
     "diagnostics": {
       "coverage": [
         "检验/检查工作台、报告草稿与签发、版本事实、门诊/住院医技闭环及退费边界"

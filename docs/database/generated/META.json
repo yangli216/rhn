@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",
@@ -406,6 +406,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 17
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientNoteFormVersion.java",
           "line": 16
@@ -928,6 +932,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 18
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientNoteTemplate.java",
           "line": 15
         }
@@ -1142,6 +1150,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 19
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
           "line": 12
@@ -1554,6 +1566,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 20
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
           "line": 37
         }
@@ -1819,6 +1835,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 21
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
           "line": 98
@@ -2346,6 +2366,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 22
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplate.java",
           "line": 13

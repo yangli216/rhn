@@ -2,6 +2,8 @@ package com.rhn.pharmacy.application;
 
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
+import com.rhn.platform.maintenance.api.MaintenanceWriteGuard;
+
 import com.rhn.pharmacy.api.InventoryAccuracyViews.ReconciliationLineView;
 import com.rhn.pharmacy.api.InventoryAccuracyViews.ReconciliationRunView;
 import com.rhn.pharmacy.domain.StockSite;
@@ -41,13 +43,14 @@ public class InventoryReconciliationApplicationService {
     private final StockSiteRepository siteRepository;
     private final ExecutionContextProvider contextProvider;
     private final TransactionTemplate transactions;
+    private final MaintenanceWriteGuard maintenanceWrites;
 
     public InventoryReconciliationApplicationService(JdbcTemplate jdbc, StockSiteRepository siteRepository,
                                                      ExecutionContextProvider contextProvider,
-                                                     TransactionTemplate transactions, BusinessNumberGenerator numbers) {
+                                                     TransactionTemplate transactions, BusinessNumberGenerator numbers, MaintenanceWriteGuard maintenanceWrites) {
         this.numbers = numbers;
         this.jdbc = jdbc; this.siteRepository = siteRepository; this.contextProvider = contextProvider;
-        this.transactions = transactions;
+        this.transactions = transactions; this.maintenanceWrites=maintenanceWrites;
     }
 
     @Transactional
@@ -71,7 +74,9 @@ public class InventoryReconciliationApplicationService {
     public void scheduledReconciliation() {
         for (StockSite site : siteRepository.findAll()) {
             if (!site.active()) continue;
-            try { transactions.executeWithoutResult(status -> runScheduled(site)); }
+            try { transactions.executeWithoutResult(status -> {
+                try (var permit = maintenanceWrites.enter(site.tenantId())) { runScheduled(site); }
+            }); }
             catch (RuntimeException error) {
                 // next site must still reconcile
                 log.warn("库存对账失败，站点 {}（租户 {}）本轮跳过：{}", site.id(), site.tenantId(), error.getMessage(), error);

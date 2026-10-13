@@ -181,6 +181,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         });
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<OrganizationView> listOrganizationUnits(Long tenantId) {
         requireTenant(tenantId);

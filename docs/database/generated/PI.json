@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "pi.resident_address",
@@ -363,6 +363,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 14
+        },
+        {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
           "line": 104
         }
@@ -574,6 +578,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 15
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
           "line": 19
@@ -906,6 +914,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 16
+        },
+        {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
           "line": 66
         }
@@ -1230,6 +1242,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 17
+        },
+        {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentIdentifier.java",
           "line": 12
         }
@@ -1501,6 +1517,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 18
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentMatchCandidate.java",
           "line": 14
@@ -1783,6 +1803,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 19
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentMergeHistory.java",
           "line": 17
@@ -2109,6 +2133,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 20
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
           "line": 149
@@ -2446,6 +2474,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 22
+        },
+        {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentSourceRecord.java",
           "line": 16
         }
@@ -2688,6 +2720,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 21
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentSplitHistory.java",
           "line": 15
@@ -3086,6 +3122,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
           "line": 253
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 13
         },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/Resident.java",

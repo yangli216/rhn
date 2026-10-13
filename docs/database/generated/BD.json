@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -1161,6 +1161,10 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MasterDataApplicationService.java",
           "line": 708
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/OrganizationCatalogInitializationParticipant.java",
+          "line": 109
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/MedicationProduct.java",
@@ -21099,6 +21103,277 @@
           "line": 24
         }
       ]
+    },
+    {
+      "logical": "bd.diagnostic_template_version",
+      "legacy": "diagnostic_template_versions",
+      "physical": "RHN_BD_DIAG_TPL",
+      "domain": "BD",
+      "comment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+      "columns": [
+        {
+          "physical": "ID_DIAG_TPL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "报告模板版本主键",
+          "logical": "id",
+          "catalogComment": "报告模板版本主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "模板所属机构",
+          "logical": "organization_id",
+          "catalogComment": "模板所属机构"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "诊疗项目目录身份",
+          "logical": "catalog_item_id",
+          "catalogComment": "诊疗项目目录身份"
+        },
+        {
+          "physical": "SN_VERSION",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "机构项目内不可变版本号",
+          "logical": "version",
+          "catalogComment": "机构项目内不可变版本号"
+        },
+        {
+          "physical": "SD_SVC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "检验或检查类型",
+          "logical": "service_type",
+          "catalogComment": "检验或检查类型"
+        },
+        {
+          "physical": "DA_VALID_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "版本生效日期",
+          "logical": "effective_from",
+          "catalogComment": "版本生效日期"
+        },
+        {
+          "physical": "DES_BASIS",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "机构规则确认与发布依据",
+          "logical": "publication_basis",
+          "catalogComment": "机构规则确认与发布依据"
+        },
+        {
+          "physical": "ID_USER_PUBLISH",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "实际发布主体",
+          "logical": "published_by",
+          "catalogComment": "实际发布主体"
+        },
+        {
+          "physical": "DT_PUBLISH",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "实际发布时间",
+          "logical": "published_at",
+          "catalogComment": "实际发布时间"
+        },
+        {
+          "physical": "CONTENT_JSON",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "",
+          "logical": "content",
+          "catalogComment": "不可变模板指标规则词条内容"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DIAG_TPL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BD_DIAG_TPL_VER",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "ID_CATALOG_ITEM",
+            "SN_VERSION"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BD_DIAG_TPL_ITEM_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CATALOG_ITEM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BD_DIAG_TPL_EFF",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_CATALOG_ITEM",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DA_VALID_FROM",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "SN_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B9",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_TPL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BD_DIAG_TPL_VER_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_CATALOG_ITEM",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SN_VERSION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BD_DIAG_TPL_TYPE",
+          "expression": "\"sd_svc_type\" IN('LABORATORY', 'EXAMINATION')"
+        },
+        {
+          "name": "CK_BD_DIAG_TPL_VER",
+          "expression": "\"sn_version\" > 0"
+        }
+      ],
+      "catalogComment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/DiagnosticTemplateVersion.java",
+          "line": 14
+        }
+      ]
     }
   ],
   "relations": [
@@ -21488,6 +21763,23 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BD_DIAG_TPL_ITEM",
+      "sourceTable": "RHN_BD_DIAG_TPL",
+      "sourceColumns": [
+        "ID_CATALOG_ITEM"
+      ],
+      "targetColumns": [
+        "ID_CATALOG_ITEM"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_CATALOG_ITEM",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -23727,6 +24019,23 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_BD_ORG_CATALOG_ITEM",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_REPORT_TPL",
+      "sourceTable": "RHN_EX_DIAG_REPORT",
+      "sourceColumns": [
+        "ID_DIAG_TPL"
+      ],
+      "targetColumns": [
+        "ID_DIAG_TPL"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_DIAG_TPL",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

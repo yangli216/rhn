@@ -1,7 +1,7 @@
 -- Actual specimens and immutable local signing receipts.
 create table RHN_EX_DIAG_SPEC (
     ID_DIAG_SPEC number(19),
-    REVISION number(19) not null default 0,
+    REVISION number(19) default 0 not null,
     ID_TNT number(19) not null,
     ID_ORG number(19) not null,
     ID_DEPT number(19) not null,

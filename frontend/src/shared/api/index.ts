@@ -1,4 +1,6 @@
 export * from './diagnosticTemplateTypes'
+import { createMaintenanceApi } from './maintenanceApi'
+export * from './maintenanceApi'
 import { createBusinessNumberingApi } from './businessNumberingApi'
 export * from './businessNumberingApi'
 import { createDecisionObservationApi } from './decisionObservationApi'
@@ -85,6 +87,7 @@ export * from './outpatientTriageApi'
 
 function createApiModules(client: ApiClient) {
   return {
+    maintenance: createMaintenanceApi(client),
     medicationWorkbench: createMedicationWorkbenchApi(client),
     clinicalSemanticImpact: createClinicalSemanticImpactApi(client),
     medicationStandardImpact: createMedicationStandardImpactApi(client),

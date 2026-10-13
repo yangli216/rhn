@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatServiceExecution, resolveExecutingDepartment, summarizeExecutingDepartments } from './orderPresentation'
+import {
+  formatServiceExecution,
+  resolveExecutingDepartment,
+  summarizeExecutingDepartments,
+  formatSpecimenType,
+  formatExaminationType,
+  shouldDisplayOrderCode,
+} from './orderPresentation'
 
 describe('execution destination facts', () => {
   it.each(['HERBAL', 'WESTERN', 'CHINESE_PATENT', undefined])('does not assign a pharmacy based on %s', type => {
@@ -33,5 +40,28 @@ describe('execution destination facts', () => {
     expect(formatServiceExecution('EXAMINATION')).toBe('检查项目')
     expect(formatServiceExecution(undefined)).toBe('项目类型待确认')
     expect(formatServiceExecution('UNKNOWN')).toBe('项目类型待确认')
+  })
+
+  it('translates specimen types and examination types to Chinese while preserving Chinese texts', () => {
+    expect(formatSpecimenType('SERUM')).toBe('血清')
+    expect(formatSpecimenType('serum')).toBe('血清')
+    expect(formatSpecimenType('WHOLE_BLOOD')).toBe('全血')
+    expect(formatSpecimenType('静脉血')).toBe('静脉血')
+    expect(formatSpecimenType(undefined)).toBe('')
+
+    expect(formatExaminationType('RADIOGRAPHY')).toBe('X线检查')
+    expect(formatExaminationType('radiography')).toBe('X线检查')
+    expect(formatExaminationType('CT')).toBe('CT检查')
+    expect(formatExaminationType('超声')).toBe('超声')
+    expect(formatExaminationType(undefined)).toBe('')
+  })
+
+  it('identifies whether an order code should be displayed, suppressing English codes', () => {
+    expect(shouldDisplayOrderCode('DEMO-EXAM-CHEST-DR')).toBe(false)
+    expect(shouldDisplayOrderCode('DEMO-LAB-CRP')).toBe(false)
+    expect(shouldDisplayOrderCode('LAB')).toBe(false)
+    expect(shouldDisplayOrderCode('25010101500')).toBe(true)
+    expect(shouldDisplayOrderCode('12345')).toBe(true)
+    expect(shouldDisplayOrderCode(undefined)).toBe(false)
   })
 })

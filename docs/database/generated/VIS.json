@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -698,6 +698,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/allergy/AllergyIntolerance.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 23
         }
       ]
     },
@@ -1489,6 +1493,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/clinicaldocument/ClinicalDocumentVersion.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 25
         }
       ]
     },
@@ -1887,6 +1895,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/clinicaldocument/ClinicalDocument.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 24
         }
       ]
     },
@@ -3144,6 +3156,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 187
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 38
         }
       ]
     },
@@ -3330,6 +3346,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 218
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 39
         }
       ]
     },
@@ -3987,6 +4007,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientReportSources.java",
           "line": 33
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 40
         }
       ]
     },
@@ -4450,6 +4474,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 130
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 41
         }
       ]
     },
@@ -4781,6 +4809,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 42
         }
       ]
     },
@@ -5420,6 +5452,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 51
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 43
         }
       ]
     },
@@ -5710,6 +5746,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 91
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 44
         }
       ]
     },
@@ -6442,6 +6482,18 @@
           "line": 56
         },
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientMaintenanceRootDirectory.java",
+          "line": 21
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientMaintenanceRootDirectory.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientMaintenanceRootDirectory.java",
+          "line": 44
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientAnalyticsAdapter.java",
           "line": 33
         },
@@ -6480,6 +6532,14 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientReportSources.java",
           "line": 40
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 23
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 37
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
@@ -6815,6 +6875,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 26
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/timeline/HealthEvent.java",
           "line": 14
@@ -11395,6 +11459,42 @@
           "comment": "科室标识",
           "logical": "department_id",
           "catalogComment": "科室标识"
+        },
+        {
+          "physical": "SD_VAL_COMPR",
+          "type": "CHARACTER VARYING",
+          "size": 8,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "数值比较符；EQ LT LE GT GE",
+          "logical": "value_comparator",
+          "catalogComment": "数值比较符；EQ LT LE GT GE"
+        },
+        {
+          "physical": "SD_RULE_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "判定状态；无规则不等于正常",
+          "logical": "rule_status",
+          "catalogComment": "判定状态；无规则不等于正常"
+        },
+        {
+          "physical": "RULE_SNAP",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "",
+          "logical": "rule_snapshot",
+          "catalogComment": "签发结果规则及患者匹配条件快照"
         }
       ],
       "kind": "BASE TABLE",
@@ -11412,7 +11512,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_VIS_OBS_PI_PAT_OBSERVATION__INDEX_D",
+          "name": "FK_VIS_OBS_PI_PAT_OBSERVATION__INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -11428,7 +11528,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_OBS_SYS_DEPT_INDEX_E",
+          "name": "FK_VIS_OBS_SYS_DEPT_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -11449,7 +11549,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_OBS_SYS_ORG_INDEX_E",
+          "name": "FK_VIS_OBS_SYS_ORG_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -11465,7 +11565,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_OBS_SYS_TNT_OBSERVATION_INDEX_D",
+          "name": "FK_VIS_OBS_SYS_TNT_OBSERVATION_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -11476,7 +11576,7 @@
           "unique": false
         },
         {
-          "name": "FK_VIS_OBS_VIS_ENC_OBSERVATION_INDEX_D",
+          "name": "FK_VIS_OBS_VIS_ENC_OBSERVATION_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -11560,7 +11660,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_D18E",
+          "name": "PRIMARY_KEY_603",
           "columns": [
             {
               "position": 1,
@@ -11571,7 +11671,7 @@
           "unique": true
         },
         {
-          "name": "UK_VIS_OBS_OBSERVATION_TENANT__INDEX_D",
+          "name": "UK_VIS_OBS_OBSERVATION_TENANT__INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -11588,6 +11688,10 @@
         }
       ],
       "checks": [
+        {
+          "name": "CK_VIS_OBS_COMPR",
+          "expression": "(\"sd_val_compr\" IN('EQ', 'LT', 'LE', 'GT', 'GE'))\n    OR (\"sd_val_compr\" IS NULL)"
+        },
         {
           "name": "CK_VIS_OBS_OBSERVATION_STATUS",
           "expression": "\"sd_status\" IN('PRELIMINARY', 'FINAL', 'CORRECTED', 'CANCELLED')"
@@ -11620,6 +11724,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/application/DiagnosticsMaintenanceContribution.java",
+          "line": 12
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/Observation.java",
           "line": 13

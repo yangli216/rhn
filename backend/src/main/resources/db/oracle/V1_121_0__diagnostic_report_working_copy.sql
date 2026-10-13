@@ -1,7 +1,7 @@
 -- Simple saved working copy and optional second signer; no approval state machine.
 create table RHN_EX_DIAG_DRAFT (
     ID_DIAG_DRAFT number(19),
-    REVISION number(19) not null default 0,
+    REVISION number(19) default 0 not null,
     ID_TNT number(19) not null,
     ID_DIAG_EXEC_TASK number(19) not null,
     JSON_CONTENT clob not null,

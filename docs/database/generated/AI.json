@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "ai.ai_suggestion_event",
@@ -424,6 +424,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/application/AiMaintenanceTables.java",
+          "line": 12
+        },
         {
           "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/domain/AiSuggestionEvent.java",
           "line": 14
@@ -1200,6 +1204,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/application/AiMaintenanceTables.java",
+          "line": 11
+        },
         {
           "path": "backend/rhn-intelligence/src/main/java/com/rhn/ai/domain/AiSuggestion.java",
           "line": 17

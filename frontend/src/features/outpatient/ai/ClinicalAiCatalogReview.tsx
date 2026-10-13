@@ -5,6 +5,7 @@ import type { MedicationKnowledge, ServiceCatalogItem } from '../../../shared/ap
 import { Button, ClinicalResourceSearch, Dialog, FormField, Select, StatusBadge, type ClinicalResourceOption, type ClinicalResource } from '../../../shared/ui'
 import { clinicalAiTreatmentMatchPresentation } from '../../../shared/presentation'
 import { resolveDispensableOptions } from '../orders/dispensableOptions'
+import { formatSpecimenType, formatExaminationType } from '../orders/orderPresentation'
 
 /** Pending identities never become selectable orders before explicit physician confirmation. */
 export function ClinicalAiCatalogReview({ matches, api, encounterId, organizationId, disabled, onResolved, layout = 'order-row' }: {
@@ -50,8 +51,9 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
       const item = option.raw as ServiceCatalogItem
       const type = item.sdServiceType
       if (type !== 'LABORATORY' && type !== 'EXAMINATION') return
+      const spec = formatSpecimenType(item.specimenType) || formatExaminationType(item.examinationType)
       setChoices(previous => ({ ...previous, [active.key]: { type, catalogItemId: item.id,
-        code: item.code, name: item.name, specification: item.specimenType || item.examinationType } }))
+        code: item.code, name: item.name, specification: spec || undefined } }))
     } else if ('products' in option.raw) {
       const item = option.raw as MedicationKnowledge
       const available = [...new Map(resolveDispensableOptions(item, organizationId ?? '').map(value => [value.product.id,

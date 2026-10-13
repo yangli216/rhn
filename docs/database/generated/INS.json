@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
+  "fingerprint": "d208881b7faae2e235e78dc350f30925cf87e52236e423fcaed92eaa54b713bc",
   "tables": [
     {
       "logical": "ins.insurance_claim_line",
@@ -350,6 +350,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 37
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InsuranceClaimLine.java",
           "line": 12
@@ -779,6 +783,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 38
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InsuranceClaimResponse.java",
           "line": 15
@@ -1523,6 +1531,14 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceContribution.java",
+          "line": 23
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 36
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/InsuranceClaim.java",
           "line": 15
         }
@@ -1829,6 +1845,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 12
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/mpi/ResidentProfileEntities.java",
           "line": 187

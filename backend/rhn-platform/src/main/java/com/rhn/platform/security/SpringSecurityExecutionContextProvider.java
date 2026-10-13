@@ -1,6 +1,7 @@
 package com.rhn.platform.security;
 
 import com.rhn.platform.tenant.TenantContext;
+import com.rhn.platform.maintenance.api.MaintenanceExecutionScope;
 import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
 import com.rhn.platform.identityaccess.api.WorkContextDirectory;
 import com.rhn.platform.identityaccess.api.WorkContextOption;
@@ -26,6 +27,8 @@ class SpringSecurityExecutionContextProvider implements ExecutionContextProvider
 
     @Override
     public ExecutionContext requireCurrent() {
+        var maintenance = MaintenanceExecutionScope.current();
+        if (maintenance.isPresent()) return maintenance.get();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String actor = authentication == null ? "system" : authentication.getName();
         Long userId = null;
