@@ -76,10 +76,18 @@ public class SecurityConfig {
     }
 
     @Bean
+    FilterRegistrationBean<MaintenanceWriteFilter> disableMaintenanceContainerRegistration(MaintenanceWriteFilter filter) {
+        FilterRegistrationBean<MaintenanceWriteFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonCodec jsonCodec,
                                             WorkContextAuthorizationFilter workContextAuthorizationFilter,
                                             ClientSessionRevocationFilter clientSessionRevocationFilter,
-                                            RefreshLoginAuthenticationFilter refreshLoginAuthenticationFilter) throws Exception {
+                                            RefreshLoginAuthenticationFilter refreshLoginAuthenticationFilter,
+                                            MaintenanceWriteFilter maintenanceWriteFilter) throws Exception {
         AuthenticationEntryPoint authenticationRequired = (request, response, exception) -> {
             Object correlationId = request.getAttribute(CorrelationIdFilter.ATTRIBUTE_NAME);
             response.setStatus(401);
@@ -101,6 +109,7 @@ public class SecurityConfig {
                 .addFilterBefore(refreshLoginAuthenticationFilter, BasicAuthenticationFilter.class)
                 .addFilterAfter(clientSessionRevocationFilter, BasicAuthenticationFilter.class)
                 .addFilterAfter(workContextAuthorizationFilter, ClientSessionRevocationFilter.class)
+                .addFilterAfter(maintenanceWriteFilter, WorkContextAuthorizationFilter.class)
                 .build();
     }
 

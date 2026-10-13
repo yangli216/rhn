@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -81,7 +81,7 @@
     {
       "code": "SYS",
       "name": "平台与组织",
-      "count": 41
+      "count": 51
     },
     {
       "code": "VIS",
@@ -2356,6 +2356,76 @@
       "logical": "aud.ai_decision_review",
       "domain": "AUD",
       "comment": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_SYS_MAINT_BATCH",
+      "logical": "sys.maintenance_batch",
+      "domain": "SYS",
+      "comment": "测试来源批次；一行代表一次有明确依据的测试对象登记，登记后不可修改",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_SYS_MAINT_PLAN",
+      "logical": "sys.maintenance_plan",
+      "domain": "SYS",
+      "comment": "维护预览计划；一行代表一个不可变范围、规则与影响快照",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_SYS_MAINT_TASK",
+      "logical": "sys.maintenance_task",
+      "domain": "SYS",
+      "comment": "维护执行任务；一行代表一个计划的唯一执行命令，更新采用任务行锁",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_SYS_MAINT_BACKUP",
+      "logical": "sys.maintenance_backup",
+      "domain": "SYS",
+      "comment": "维护范围恢复快照；一行代表一个维护任务的加密恢复数据，按任务不可变保留，业务清理不可删除",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_SYS_MAINT_AUDIT",
+      "logical": "sys.maintenance_audit",
+      "domain": "SYS",
+      "comment": "维护审计；一行代表一次维护操作或阶段记录，仅追加，业务清理不可删除",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_SYS_MAINT_STATE",
+      "logical": "sys.maintenance_state",
+      "domain": "SYS",
+      "comment": "租户写入维护屏障；一行代表一个租户的维护阻断状态，按租户行锁串行登记，不进入业务清理范围",
+      "columns": 2
+    },
+    {
+      "physical": "RHN_SYS_MAINT_WRITE",
+      "logical": "sys.maintenance_write",
+      "domain": "SYS",
+      "comment": "在途业务写入凭据；一行代表一次被接纳的在途写入，请求或事务完成后精确删除，不能按时间推断事务结束",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_SYS_MAINT_ORIGIN",
+      "logical": "sys.maintenance_origin",
+      "domain": "SYS",
+      "comment": "不可变测试来源标记；一行代表一个经明确依据登记的业务根对象来源，业务删除后保留，不依据名称或当前环境推断测试身份",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_SYS_MAINT_RETIRE",
+      "logical": "sys.maintenance_retirement",
+      "domain": "SYS",
+      "comment": "已清理业务身份留痕；一行代表一个已清理业务对象身份，阻止迟到事件恢复已删除事实，不能随业务清理删除",
+      "columns": 3
+    },
+    {
+      "physical": "RHN_SYS_MAINT_ORG_STATE",
+      "logical": "sys.maintenance_organization_state",
+      "domain": "SYS",
+      "comment": "机构上线状态；一行代表一个租户内机构的上线确认，未登记视为未确认，正式上线不可回退，不进入清理范围",
       "columns": 5
     }
   ]

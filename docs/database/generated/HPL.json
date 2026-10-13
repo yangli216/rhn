@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "logical": "hpl.care_task_event",
@@ -379,6 +379,10 @@
         {
           "path": "backend/rhn-care/src/main/java/com/rhn/healthplanning/domain/CareTaskEvent.java",
           "line": 13
+        },
+        {
+          "path": "backend/rhn-care/src/main/java/com/rhn/healthplanning/maintenance/CareMaintenanceTables.java",
+          "line": 12
         }
       ]
     },
@@ -998,6 +1002,10 @@
         {
           "path": "backend/rhn-care/src/main/java/com/rhn/healthplanning/domain/CareTask.java",
           "line": 15
+        },
+        {
+          "path": "backend/rhn-care/src/main/java/com/rhn/healthplanning/maintenance/CareMaintenanceTables.java",
+          "line": 11
         }
       ]
     },
@@ -1436,6 +1444,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/condition/Condition.java",
           "line": 15
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 11
         }
       ]
     },

@@ -147,6 +147,11 @@ public class InventorySplitApplicationService {
     public void returnFromDispense(ExecutionContext context, StockItem item, Long binId, Long lotId,
                                    BigDecimal baseQuantity, Long originalDispenseId, Long documentId, String documentNo,
                                    Instant occurredAt) {
+        returnFromDispense(context, item, binId, lotId, baseQuantity, originalDispenseId, documentId, documentNo, occurredAt, "MEDICATION_RETURN");
+    }
+    public void returnFromDispense(ExecutionContext context, StockItem item, Long binId, Long lotId,
+                                   BigDecimal baseQuantity, Long originalDispenseId, Long documentId, String documentNo,
+                                   Instant occurredAt, String documentType) {
         if (!item.splitAllowed()) return;
         BigDecimal remaining = quantityPolicy.require(context.tenantId(), item.baseUnitCode(), baseQuantity,
                 "SPLIT_RETURN_QUANTITY_PRECISION_INVALID", "拆零退药数量");
@@ -161,11 +166,13 @@ public class InventorySplitApplicationService {
             BigDecimal restored = value.restorableQuantity().min(sourceRestorable).min(remaining);
             if (restored.signum() <= 0) continue;
             if (value.traceCodeId() != null) traceService.restorePartial(context, value.traceCodeId(), binId,
-                    restored, documentId, documentNo, occurredAt);
+                    restored, documentId, documentNo, occurredAt, documentType);
             value.restore(restored, context.subjectId(), occurredAt); openRepository.save(value);
             eventRepository.save(new InventorySplitEvent(context.tenantId(), value.id(), "RETURN",
-                    "MEDICATION_DISPENSE_RETURN", originalDispenseId, documentNo, restored, value.remainingBaseQuantity(),
-                    occurredAt, context.subjectId(), "退药单 " + documentId + " 可再销售拆零退药恢复余量"));
+                    ("MAINTENANCE_TASK".equals(documentType) ? documentType : "MEDICATION_DISPENSE_RETURN"),
+                    "MAINTENANCE_TASK".equals(documentType) ? documentId : originalDispenseId, documentNo, restored, value.remainingBaseQuantity(),
+                    occurredAt, context.subjectId(), ("MAINTENANCE_TASK".equals(documentType) ? "维护任务 " : "退药单 ")
+                            + documentId + " 可再销售拆零退药恢复余量"));
             remaining = remaining.subtract(restored);
         }
         if (remaining.signum() != 0) throw conflict("OPEN_PACKAGE_RETURN_MISMATCH", "拆零退药数量超过原开包消耗量");

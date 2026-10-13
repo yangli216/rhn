@@ -29017,5 +29017,380 @@
         "comment": "研判结果原因和操作者快照；历史追加保留"
       }
     ]
+  },
+  {
+    "logical": "sys.maintenance_batch",
+    "legacy": "maintenance_batch",
+    "physical": "RHN_SYS_MAINT_BATCH",
+    "domain": "SYS",
+    "comment": "测试来源批次；一行代表一次有明确依据的测试对象登记，登记后不可修改",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_BATCH",
+        "comment": "测试来源批次主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_CMD",
+        "comment": "不可复用的请求幂等编码"
+      },
+      {
+        "logical": "request_hash",
+        "physical": "CD_HASH",
+        "comment": "规范化请求指纹"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "view_json",
+        "physical": "JSON_VIEW",
+        "comment": "批次范围及经核对的业务根对象；不含诊疗正文"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_plan",
+    "legacy": "maintenance_plan",
+    "physical": "RHN_SYS_MAINT_PLAN",
+    "domain": "SYS",
+    "comment": "维护预览计划；一行代表一个不可变范围、规则与影响快照",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_PLAN",
+        "comment": "不可变维护预览计划主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "expires_at",
+        "physical": "DT_EXPIRES",
+        "comment": "计划执行有效期"
+      },
+      {
+        "logical": "fingerprint",
+        "physical": "CD_HASH",
+        "comment": "计划及领域规则指纹"
+      },
+      {
+        "logical": "view_json",
+        "physical": "JSON_VIEW",
+        "comment": "影响摘要与阻断信息"
+      },
+      {
+        "logical": "sealed_json",
+        "physical": "JSON_SEALED",
+        "comment": "绑定租户和计划标识的加密输入与领域对象快照"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_task",
+    "legacy": "maintenance_task",
+    "physical": "RHN_SYS_MAINT_TASK",
+    "domain": "SYS",
+    "comment": "维护执行任务；一行代表一个计划的唯一执行命令，更新采用任务行锁",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_TASK",
+        "comment": "维护执行任务主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "plan_id",
+        "physical": "ID_MAINT_PLAN",
+        "comment": "对应不可变预览计划"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_CMD",
+        "comment": "不可复用的执行请求幂等编码"
+      },
+      {
+        "logical": "request_hash",
+        "physical": "CD_HASH",
+        "comment": "执行请求指纹"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "持久任务执行状态"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "登记时间"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最近状态更新时间"
+      },
+      {
+        "logical": "view_json",
+        "physical": "JSON_VIEW",
+        "comment": "任务范围、操作者和执行结果摘要"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_backup",
+    "legacy": "maintenance_backup",
+    "physical": "RHN_SYS_MAINT_BACKUP",
+    "domain": "SYS",
+    "comment": "维护范围恢复快照；一行代表一个维护任务的加密恢复数据，按任务不可变保留，业务清理不可删除",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_TASK",
+        "comment": "对应维护任务；一任务一份范围恢复快照"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "备份时间"
+      },
+      {
+        "logical": "sealed_json",
+        "physical": "JSON_SEALED",
+        "comment": "按任务和租户绑定加密的领域恢复快照"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_audit",
+    "legacy": "maintenance_audit",
+    "physical": "RHN_SYS_MAINT_AUDIT",
+    "domain": "SYS",
+    "comment": "维护审计；一行代表一次维护操作或阶段记录，仅追加，业务清理不可删除",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_AUDIT",
+        "comment": "追加式维护审计主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "resource_id",
+        "physical": "ID_RSRC",
+        "comment": "批次、计划或任务资源标识"
+      },
+      {
+        "logical": "action",
+        "physical": "CD_ACTION",
+        "comment": "审计操作编码"
+      },
+      {
+        "logical": "actor",
+        "physical": "NA_ACTOR",
+        "comment": "业务操作者账号"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "记录时间"
+      },
+      {
+        "logical": "detail",
+        "physical": "DES_DETAIL",
+        "comment": "必要操作摘要；不含完整诊疗正文"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_state",
+    "legacy": "maintenance_state",
+    "physical": "RHN_SYS_MAINT_STATE",
+    "domain": "SYS",
+    "comment": "租户写入维护屏障；一行代表一个租户的维护阻断状态，按租户行锁串行登记，不进入业务清理范围",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识及屏障主键"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_MAINT_TASK",
+        "comment": "当前阻断写入的维护任务；空表示可写"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_write",
+    "legacy": "maintenance_write",
+    "physical": "RHN_SYS_MAINT_WRITE",
+    "domain": "SYS",
+    "comment": "在途业务写入凭据；一行代表一次被接纳的在途写入，请求或事务完成后精确删除，不能按时间推断事务结束",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_WRITE",
+        "comment": "在途写入凭据主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "started_at",
+        "physical": "DT_STARTED",
+        "comment": "写入开始时间"
+      },
+      {
+        "logical": "process_namespace",
+        "physical": "CD_NODE",
+        "comment": "OS进程命名空间；不同宿主或PID命名空间不得复用"
+      },
+      {
+        "logical": "process_id",
+        "physical": "ID_PROC",
+        "comment": "写入所属进程PID；仅在同一进程命名空间核对"
+      },
+      {
+        "logical": "process_started",
+        "physical": "NUM_PROC_START",
+        "comment": "进程启动时刻的Unix毫秒；用于识别PID复用"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_origin",
+    "legacy": "maintenance_origin",
+    "physical": "RHN_SYS_MAINT_ORIGIN",
+    "domain": "SYS",
+    "comment": "不可变测试来源标记；一行代表一个经明确依据登记的业务根对象来源，业务删除后保留，不依据名称或当前环境推断测试身份",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MAINT_ORIGIN",
+        "comment": "不可变测试来源标记主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "业务所属机构"
+      },
+      {
+        "logical": "batch_id",
+        "physical": "ID_MAINT_BATCH",
+        "comment": "明确测试用途的来源批次"
+      },
+      {
+        "logical": "module",
+        "physical": "SD_MODULE",
+        "comment": "根业务模块"
+      },
+      {
+        "logical": "resource_type",
+        "physical": "SD_RSRC_TYPE",
+        "comment": "根业务对象类型"
+      },
+      {
+        "logical": "resource_id",
+        "physical": "ID_RSRC",
+        "comment": "经核对的根业务对象标识"
+      },
+      {
+        "logical": "tagged_at",
+        "physical": "DT_TAGGED",
+        "comment": "测试来源登记时间；子业务沿根业务继承用途"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_retirement",
+    "legacy": "maintenance_retirement",
+    "physical": "RHN_SYS_MAINT_RETIRE",
+    "domain": "SYS",
+    "comment": "已清理业务身份留痕；一行代表一个已清理业务对象身份，阻止迟到事件恢复已删除事实，不能随业务清理删除",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "resource_id",
+        "physical": "ID_RSRC",
+        "comment": "已清理的全局业务对象标识；不可重新生成使用"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_MAINT_TASK",
+        "comment": "关联维护任务；恢复数据时需同时核对业务身份状态"
+      }
+    ]
+  },
+  {
+    "logical": "sys.maintenance_organization_state",
+    "legacy": "maintenance_organization_state",
+    "physical": "RHN_SYS_MAINT_ORG_STATE",
+    "domain": "SYS",
+    "comment": "机构上线状态；一行代表一个租户内机构的上线确认，未登记视为未确认，正式上线不可回退，不进入清理范围",
+    "columns": [
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "lifecycle",
+        "physical": "SD_LFCYCL",
+        "comment": "上线前或正式上线状态；正式上线不可回退"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "状态确认时间"
+      },
+      {
+        "logical": "actor",
+        "physical": "NA_ACTOR",
+        "comment": "确认账号"
+      }
+    ]
   }
 ]

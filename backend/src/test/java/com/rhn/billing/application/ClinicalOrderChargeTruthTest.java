@@ -25,7 +25,7 @@ class ClinicalOrderChargeTruthTest {
     final LedgerEntryRepository ledger = mock(LedgerEntryRepository.class);
     final EventConsumptionRepository consumed = mock(EventConsumptionRepository.class);
     final ClinicalOrderChargeProjector projector = new ClinicalOrderChargeProjector(accounts, charges, components, ledger,
-            new IdempotentEventConsumer(consumed));
+            new IdempotentEventConsumer(consumed, tenant -> () -> {}, (tenant, resource) -> false));
     final Instant occurred = Instant.parse("2026-09-29T12:00:00.123456Z");
     ClinicalOrderChargeTruthTest() {
         when(accounts.save(any())).thenAnswer(call -> call.getArgument(0));

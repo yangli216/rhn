@@ -1,5 +1,8 @@
 package com.rhn.diagnostics.application;
 
+import com.rhn.platform.maintenance.api.MaintenanceWriteGuard;
+import com.rhn.shared.api.BusinessException;
+
 import com.rhn.diagnostics.api.CriticalValueAlertChanged;
 import com.rhn.diagnostics.api.CriticalValueAlertView;
 import com.rhn.diagnostics.domain.CriticalValueAlert;
@@ -44,6 +47,7 @@ public class CriticalValueAlertService {
     private final DomainEventPublisher domainEvents;
     private final ApplicationEventPublisher applicationEvents;
     private final Duration acknowledgementWindow;
+    private final MaintenanceWriteGuard maintenanceWrites;
 
     public CriticalValueAlertService(CriticalValueAlertRepository alerts,
                                      CriticalValueAlertEventRepository history,
@@ -51,10 +55,10 @@ public class CriticalValueAlertService {
                                      DomainEventPublisher domainEvents,
                                      ApplicationEventPublisher applicationEvents,
                                      @Value("${rhn.diagnostics.critical-value.acknowledgement-window:PT15M}")
-                                     Duration acknowledgementWindow) {
+                                     Duration acknowledgementWindow, MaintenanceWriteGuard maintenanceWrites) {
         this.alerts = alerts; this.history = history; this.contextProvider = contextProvider;
         this.domainEvents = domainEvents; this.applicationEvents = applicationEvents;
-        this.acknowledgementWindow = acknowledgementWindow;
+        this.acknowledgementWindow = acknowledgementWindow; this.maintenanceWrites=maintenanceWrites;
     }
 
     @Transactional
@@ -126,12 +130,17 @@ public class CriticalValueAlertService {
         for (CriticalValueAlert value : alerts
                 .findTop100ByStatusInAndAcknowledgeDeadlineAtBeforeOrderByAcknowledgeDeadlineAtAsc(
                         List.of(CriticalValueAlertStatus.OPEN), now)) {
+            MaintenanceWriteGuard.Permit permit;
+            try { permit = maintenanceWrites.enter(value.tenantId()); }
+            catch (BusinessException paused) { if ("MAINTENANCE_WRITE_PAUSED".equals(paused.code())) continue; throw paused; }
+            try (permit) {
             String previous = value.status().name(); value.escalate(now);
             history.save(new CriticalValueAlertEvent(value.tenantId(), value.id(), "ESCALATE", previous,
                     value.status().name(), null, "危急值超过确认时限", "critical-value-escalation", now));
             applicationEvents.publishEvent(new CriticalValueAlertChanged(value.id(), value.tenantId(),
                     value.organizationId(), value.departmentId(), value.recipientUserId(), value.id(),
                     value.encounterId(), "DIAGNOSTIC_CRITICAL_VALUE_ESCALATED", now));
+            }
         }
     }
 

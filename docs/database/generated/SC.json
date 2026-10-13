@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "logical": "sc.appointment_event",
@@ -310,6 +310,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 25
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/RegistrationEntities.java",
           "line": 154
@@ -1089,6 +1093,22 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 30
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 54
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 75
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 24
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/RegistrationEntities.java",
           "line": 19
         }
@@ -1637,6 +1657,10 @@
           "line": 33
         },
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 26
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/RegistrationEntities.java",
           "line": 189
         }
@@ -2048,6 +2072,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/application/QueueMaintenanceTables.java",
+          "line": 14
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/domain/ServiceQueue.java",
           "line": 13
         }
@@ -2233,6 +2261,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/application/QueueMaintenanceTables.java",
+          "line": 11
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/domain/QueueCounter.java",
           "line": 13
@@ -2510,6 +2542,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/application/QueueMaintenanceTables.java",
+          "line": 13
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/domain/QueueTicketEvent.java",
           "line": 12
@@ -3203,6 +3239,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/application/QueueMaintenanceTables.java",
+          "line": 12
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/queueing/domain/QueueTicket.java",
           "line": 19
         }
@@ -3524,6 +3564,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 27
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 202
@@ -3880,6 +3924,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 28
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 247
@@ -4318,6 +4366,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 29
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/ScheduleSlotHold.java",
           "line": 15
         }
@@ -4633,6 +4685,22 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 33
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 40
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 68
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 30
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 434
@@ -4954,6 +5022,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 32
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 153
@@ -5334,6 +5406,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 31
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 94
         }
@@ -5599,6 +5675,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 35
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 549
@@ -6409,6 +6489,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 34
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 303
         }
@@ -6772,6 +6856,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 33
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
           "line": 592

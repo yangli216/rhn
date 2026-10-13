@@ -1,0 +1,4 @@
+.maintenance-detail { display: flex; flex-direction: column; gap: var(--layout-section-gap); min-width: 0; }
+.maintenance-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-section-gap); }
+.maintenance-actions { display: flex; gap: var(--layout-panel-gap); flex-wrap: wrap; }
+.maintenance-check { display: flex; align-items: flex-start; gap: var(--layout-panel-gap); }

@@ -130,16 +130,32 @@ public class InventoryTraceCode {
 
     public void returnFromDispense(Long binId, InventoryTraceCodeStatus targetStatus, Long documentId,
                                    String documentNo, Long actorId) {
+        returnFromDispense(binId, targetStatus, "MEDICATION_RETURN", documentId, documentNo, actorId);
+    }
+
+    public void returnFromDispense(Long binId, InventoryTraceCodeStatus targetStatus, String documentType,
+                                   Long documentId, String documentNo, Long actorId) {
+        if (!java.util.Set.of("MEDICATION_RETURN", "MAINTENANCE_TASK").contains(documentType))
+            throw new IllegalArgumentException("追溯恢复来源类型不受支持");
         require(InventoryTraceCodeStatus.ISSUED);
         if (targetStatus != InventoryTraceCodeStatus.AVAILABLE && targetStatus != InventoryTraceCodeStatus.QUARANTINED
                 && targetStatus != InventoryTraceCodeStatus.DAMAGED) {
             throw new IllegalStateException("退药追溯码目标状态不受支持");
         }
         remainingBaseQuantity = baseQuantity; stockBinId = binId; status = targetStatus;
-        currentDocumentType = "MEDICATION_RETURN";
+        currentDocumentType = documentType;
         currentDocumentId = documentId; currentDocumentNo = documentNo; touch(actorId);
     }
 
+    public void restoreAvailableForMaintenance(Long bin,Long task,String taskNo,Long actor) {
+        if (!java.util.Set.of(InventoryTraceCodeStatus.ISSUED,InventoryTraceCodeStatus.AVAILABLE,InventoryTraceCodeStatus.QUARANTINED).contains(status))
+            throw new IllegalStateException("当前追溯状态不能恢复测试流转");
+        status=InventoryTraceCodeStatus.AVAILABLE; stockBinId=bin; remainingBaseQuantity=baseQuantity;
+        rebindMaintenanceReference(task,taskNo,actor);
+    }
+    public void rebindMaintenanceReference(Long task,String taskNo,Long actor) {
+        currentDocumentType="MAINTENANCE_TASK"; currentDocumentId=task; currentDocumentNo=taskNo; touch(actor);
+    }
     private void require(InventoryTraceCodeStatus expected) {
         if (expected != status) throw new IllegalStateException("追溯码当前状态不允许此操作：" + status);
     }

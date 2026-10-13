@@ -29,7 +29,7 @@ class MedicationReturnChargeTruthTest {
     final MedicationRequestDirectory requests = mock(MedicationRequestDirectory.class);
     final EventConsumptionRepository consumed = mock(EventConsumptionRepository.class);
     final MedicationReturnChargeService service = new MedicationReturnChargeService(charges, components, ledger, dispenses, requests);
-    final MedicationReturnChargeProjector projector = new MedicationReturnChargeProjector(service, new IdempotentEventConsumer(consumed));
+    final MedicationReturnChargeProjector projector = new MedicationReturnChargeProjector(service, new IdempotentEventConsumer(consumed, tenant -> () -> {}, (tenant, resource) -> false));
     final Instant occurred = Instant.parse("2026-10-03T08:30:00.123456Z");
     final List<ChargeItem> saved = new ArrayList<>();
     final Map<Long, LedgerEntry> entries = new HashMap<>();

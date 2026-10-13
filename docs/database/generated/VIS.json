@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "44eb885588d66429ac3199aa5815a439aaaecdd293a2a5a5dcd27292cebbf0ab",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -698,6 +698,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/allergy/AllergyIntolerance.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 23
         }
       ]
     },
@@ -1489,6 +1493,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/clinicaldocument/ClinicalDocumentVersion.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 25
         }
       ]
     },
@@ -1887,6 +1895,10 @@
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/clinicaldocument/ClinicalDocument.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 24
         }
       ]
     },
@@ -3144,6 +3156,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 187
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 38
         }
       ]
     },
@@ -3330,6 +3346,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 218
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 39
         }
       ]
     },
@@ -3987,6 +4007,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientReportSources.java",
           "line": 33
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 40
         }
       ]
     },
@@ -4450,6 +4474,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 130
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 41
         }
       ]
     },
@@ -4781,6 +4809,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 16
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 42
         }
       ]
     },
@@ -5420,6 +5452,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 51
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 43
         }
       ]
     },
@@ -5710,6 +5746,10 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientWorkstationFacts.java",
           "line": 91
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 44
         }
       ]
     },
@@ -6442,6 +6482,18 @@
           "line": 56
         },
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientMaintenanceRootDirectory.java",
+          "line": 21
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientMaintenanceRootDirectory.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/encounter/OutpatientMaintenanceRootDirectory.java",
+          "line": 44
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientAnalyticsAdapter.java",
           "line": 33
         },
@@ -6480,6 +6532,14 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/reporting/OutpatientReportSources.java",
           "line": 40
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceContribution.java",
+          "line": 23
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 37
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",
@@ -6815,6 +6875,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/maintenance/HealthCoreMaintenanceTables.java",
+          "line": 26
+        },
         {
           "path": "backend/rhn-health-core/src/main/java/com/rhn/healthcore/timeline/HealthEvent.java",
           "line": 14
@@ -11620,6 +11684,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/application/DiagnosticsMaintenanceContribution.java",
+          "line": 12
+        },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/Observation.java",
           "line": 13

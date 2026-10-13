@@ -2,6 +2,8 @@ package com.rhn.pharmacy.application;
 
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
+import com.rhn.platform.maintenance.api.MaintenanceWriteGuard;
+
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskView;
 import com.rhn.pharmacy.api.PharmacyViews.WardDeliveryView;
 import com.rhn.pharmacy.api.WardMedicationSupplyCandidateDirectory;
@@ -77,6 +79,7 @@ public class WardMedicationSupplyApplicationService {
     private final InventoryApplicationService inventory;
     private final DispenseApplicationService dispense;
     private final WardDeliveryApplicationService delivery;
+    private final MaintenanceWriteGuard maintenanceWrites;
 
     public WardMedicationSupplyApplicationService(
             InpatientMedicationSupplyBatchRepository batches,
@@ -94,7 +97,7 @@ public class WardMedicationSupplyApplicationService {
             PharmacyApplicationService pharmacy,
             InventoryApplicationService inventory,
             DispenseApplicationService dispense,
-            WardDeliveryApplicationService delivery, BusinessNumberGenerator numbers) {
+            WardDeliveryApplicationService delivery, BusinessNumberGenerator numbers, MaintenanceWriteGuard maintenanceWrites) {
         this.numbers = numbers;
         this.batches = batches;
         this.lines = lines;
@@ -111,7 +114,7 @@ public class WardMedicationSupplyApplicationService {
         this.pharmacy = pharmacy;
         this.inventory = inventory;
         this.dispense = dispense;
-        this.delivery = delivery;
+        this.delivery = delivery; this.maintenanceWrites=maintenanceWrites;
     }
 
     @Transactional
@@ -130,6 +133,7 @@ public class WardMedicationSupplyApplicationService {
     public AutomaticGenerationResult generateAutomatically(AutomaticGenerateCommand input) {
         Long tenantId = required(input.tenantId(),
                 "INPATIENT_SUPPLY_TENANT_REQUIRED", "自动供药任务缺少租户");
+        try (var permit = maintenanceWrites.enter(tenantId)) {
         StockSite site = requireAutomaticPharmacySite(tenantId, input.organizationId(), input.stockSiteId(),
                 input.businessDate());
         Long routeId = required(input.dispenseRouteId(),
@@ -145,6 +149,7 @@ public class WardMedicationSupplyApplicationService {
                 routeId, routeRevision, routingDimension);
         return new AutomaticGenerationResult(outcome.batch() == null ? null : outcome.batch().id(),
                 outcome.noDemand(), outcome.existing());
+        }
     }
 
     private GenerationOutcome generateAggregate(Long tenantId, StockSite site, Long nursingUnitDepartmentId,
