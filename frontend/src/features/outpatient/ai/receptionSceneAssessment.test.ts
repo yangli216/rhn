@@ -58,6 +58,35 @@ describe('assessReceptionScene', () => {
     expect(assessment.matchedConditions).toContain('高血压')
   })
 
+  it('identifies CHRONIC_REFILL on cold-start (completely blank chief complaint) when patient has chronic history', () => {
+    const blankEncounter: Encounter = {
+      ...baseEncounter,
+      chiefComplaint: '',
+    }
+    const assessment = assessReceptionScene({
+      encounter: blankEncounter,
+      historyEncounters: [
+        {
+          ...baseEncounter,
+          id: 'enc-100',
+          status: 'COMPLETED',
+          encounterNo: 'ENC-2026-0000',
+          registeredAt: '2026-08-15T09:00:00Z',
+          diagnoses: [
+            { code: 'I10', display: '原发性高血压', type: 'PRIMARY' },
+            { code: 'E11', display: '2型糖尿病', type: 'SECONDARY' },
+          ],
+        },
+      ],
+      diagnosticReports: [],
+      currentDraft: undefined,
+    })
+
+    expect(assessment.scene).toBe('CHRONIC_REFILL')
+    expect(assessment.sceneLabel).toBe('慢病复诊配药')
+    expect(assessment.matchedConditions).toEqual(expect.arrayContaining(['高血压', '糖尿病']))
+  })
+
   it('identifies REPORT_FOLLOW_UP when patient has diagnostic reports with abnormal values', () => {
     const abnormalReport: DiagnosticReport = {
       id: 'rep-01',

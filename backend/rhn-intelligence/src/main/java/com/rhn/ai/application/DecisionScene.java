@@ -4,7 +4,8 @@ package com.rhn.ai.application;
 public enum DecisionScene {
     ASSISTANT_RECOMMENDATIONS("assistant-recommendations", "辅诊建议", "辅诊建议中的院内目录模糊匹配", true),
     PLAN_COMPILATION("plan-compilation", "智能建方", "智能建方中检查检验项目的目录模糊匹配", false),
-    OUTPATIENT_TRIAGE("outpatient-triage", "预检分诊辅助", "科室建议与资料补充提示，不决定分级或绿色通道", false);
+    OUTPATIENT_TRIAGE("outpatient-triage", "预检分诊辅助", "科室建议与资料补充提示，不决定分级或绿色通道", false),
+    CHRONIC_REFILL_ASSESSMENT("chronic-refill-assessment", "慢病复诊评估", "研判复诊患者是否处于稳定期并适合原方续配与安全核查", true);
 
     private final String key;
     private final String label;

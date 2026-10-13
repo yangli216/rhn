@@ -217,6 +217,22 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals(List.of(410L, 411L), match.candidates().stream().map(TreatmentRecommendation::catalogItemId).toList());
         assertTrue(match.reason().contains("部位、检查方式"));
     }
+    @Test void chestXrayPositionIntentRecallsDigitalRadiographyCandidateForPhysicianReview() {
+        var dr = mock(MasterDataViews.ServiceView.class);
+        when(dr.id()).thenReturn(520L);
+        when(dr.name()).thenReturn("胸部数字化X线摄影");
+        when(dr.code()).thenReturn("DEMO-EXAM-CHEST-DR");
+        when(dr.examinationType()).thenReturn("RADIOGRAPHY");
+        when(services.searchOrderableServices(eq("胸部"), eq("EXAMINATION"), eq(3L), any()))
+                .thenReturn(List.of(dr));
+        var result = service.recommend(List.of(intent("EXAMINATION", "胸部X线摄影(正位)")), request, null);
+        assertTrue(result.items().isEmpty());
+        var match = result.matches().getFirst();
+        assertEquals("AMBIGUOUS", match.status());
+        assertEquals(520L, match.candidates().getFirst().catalogItemId());
+        assertEquals("胸部数字化X线摄影", match.candidates().getFirst().name());
+        assertTrue(match.reason().contains("部位、检查方式"));
+    }
     @Test void pulseOximetryCannotBeReplacedByBloodGasAnalysis() {
         var gas = mock(MasterDataViews.ServiceView.class);
         when(gas.name()).thenReturn("血气分析");

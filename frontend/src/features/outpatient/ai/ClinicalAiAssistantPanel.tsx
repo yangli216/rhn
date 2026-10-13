@@ -6,6 +6,7 @@ import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelect
 import { ClinicalEvidenceDrawer } from './ClinicalEvidenceDrawer'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
+import { ChronicRefillActionCard } from './ChronicRefillActionCard'
 import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
   ClinicalAiSuggestionEventType,
@@ -575,6 +576,22 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       setViewMode(value); setSelectedPlan(null); setLocalError('')
       if (value === 'history' && !selectedHistoryId) setSelectedHistoryId(history.data?.[0]?.id ?? null)
     }} />
+    {!historicalView && sceneAssessment.scene === 'CHRONIC_REFILL' && (
+      <div style={{ marginBottom: '12px' }}>
+        <ChronicRefillActionCard
+          encounter={encounter}
+          api={api}
+          sceneAssessment={sceneAssessment}
+          diagnosticReports={diagnosticReports}
+          disabled={disabled}
+          busy={actionPending || generate.isPending}
+          onApply={(selection) => applyInline(selection)}
+          onGenerate={async (focus) => (await generate.mutateAsync({ focus })).value.id}
+          onOpenHistory={onOpenHistory}
+          onNotice={(msg) => setLocalError(msg)}
+        />
+      </div>
+    )}
     {!historicalView && (
       <div className="doctor-ai-assistant__quick-bar">
         <div className="doctor-ai-assistant__quick-bar-actions">

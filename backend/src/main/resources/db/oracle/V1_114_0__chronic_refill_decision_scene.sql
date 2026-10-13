@@ -1,0 +1,4 @@
+-- Register the chronic refill scene with the same shared decision settings as the scene enum.
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796209, ID_PARAM_CAT, 'ai.clinical.decision-scene-chronic-refill-assessment-enabled', '慢病复诊评估', '受决策总开关控制，共用决策模型、独立密钥和置信度配置；仅供医生核对复诊及用药风险', 'BOOLEAN', 'SWITCH', to_clob('{"type":"boolean"}'), to_clob('true'), to_clob('["PLATFORM","TENANT"]'), 'BUSINESS', 1, 0, 0, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY='ai.clinical.decision-mode';

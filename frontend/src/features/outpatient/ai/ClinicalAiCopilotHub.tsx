@@ -11,6 +11,7 @@ import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
 import { useStableVoiceCopilot } from './useStableVoiceCopilot'
 import { clinicalAiContextFingerprint } from './aiDraftAdapter'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
+import { buildChronicRefillPrompt } from './chronicRefillPromptBuilder'
 
 export interface ClinicalAiCopilotHubProps {
   context: ClinicalAiDraftContext
@@ -328,13 +329,47 @@ export function ClinicalAiCopilotHub({
                   <>
                     <Button
                       size="sm"
+                      variant="primary"
+                      className="doctor-ai-quick-btn"
+                      disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
+                      onClick={() => {
+                        const promptData = buildChronicRefillPrompt({
+                          encounter: {
+                            systolic: (context as any).systolic,
+                            diastolic: (context as any).diastolic,
+                            diagnoses: context.diagnoses as any,
+                          } as any,
+                          matchedConditions: sceneAssessment?.matchedConditions ?? [],
+                          medications: [],
+                        })
+                        void generateAndApply(promptData.aiFocusPrompt)
+                        if (onOpenHistory) onOpenHistory()
+                      }}
+                      title="一键生成规范复诊病历草稿并自动联动调出历史处方"
+                    >
+                      <Icon name="sparkles" />
+                      <span>⚡ 慢病一键续方 (病历+医嘱)</span>
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="secondary"
                       className="doctor-ai-quick-btn"
                       disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
-                      onClick={() => generateAndApply('原发性慢病规律复诊配药，目前病情平稳，无特殊不适，要求按医嘱续开长期用药。')}
+                      onClick={() => {
+                        const promptData = buildChronicRefillPrompt({
+                          encounter: {
+                            systolic: (context as any).systolic,
+                            diastolic: (context as any).diastolic,
+                            diagnoses: context.diagnoses as any,
+                          } as any,
+                          matchedConditions: sceneAssessment?.matchedConditions ?? [],
+                          medications: [],
+                        })
+                        void generateAndApply(promptData.aiFocusPrompt)
+                      }}
                     >
                       <Icon name="sparkles" />
-                      <span>⚡ 慢病极速复诊病历</span>
+                      <span>仅生成复诊病历</span>
                     </Button>
                     {onOpenHistory && (
                       <Button
@@ -346,7 +381,7 @@ export function ClinicalAiCopilotHub({
                         }}
                       >
                         <Icon name="roadmap" />
-                        <span>💊 调入历史处方续方</span>
+                        <span>调入历史处方明细</span>
                       </Button>
                     )}
                   </>

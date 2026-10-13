@@ -110,9 +110,83 @@ public class ClinicalTreatmentCatalogResolver {
         return result;
     }
 
+    private static final List<String> ANATOMICAL_SITES = List.of(
+            "胸部", "腹部", "头颅", "颅脑", "盆腔", "颈部", "腰椎", "胸椎", "颈椎", "脊柱",
+            "骨盆", "双肺", "肺部", "膝关节", "肩关节", "肘关节", "腕关节", "髋关节", "踝关节",
+            "四肢", "心脏", "乳腺", "甲状腺", "前列腺", "子宫", "附件", "眼眶", "鼻窦"
+    );
+
+    private List<String> deriveQueries(String name, String type) {
+        var derived = new LinkedHashSet<String>();
+        String raw = text(name);
+        if (raw.isBlank()) return List.of();
+        derived.add(raw);
+        String withoutParen = raw.replaceAll("(?i)[\\(（\\[【][^\\)）\\]】]*[\\)）\\]】]", "").trim();
+        if (!withoutParen.isEmpty()) derived.add(withoutParen);
+
+        if ("EXAMINATION".equals(type)) {
+            String strippedPosition = withoutParen.replaceAll("(?:正位|反位|侧位|正侧位|立位|卧位|斜位|后前位|前后位|轴位|水平位|切线位|双向|双侧|左侧|右侧|单侧)$", "").trim();
+            if (!strippedPosition.isEmpty()) derived.add(strippedPosition);
+            for (String base : List.of(withoutParen, strippedPosition)) {
+                if (base.isEmpty()) continue;
+                if (base.contains("摄片")) derived.add(base.replace("摄片", "摄影"));
+                if (base.contains("X光")) derived.add(base.replace("X光", "X线"));
+                if (base.contains("平片")) derived.add(base.replace("平片", "摄影"));
+                if (base.contains("拍片")) derived.add(base.replace("拍片", "摄影"));
+            }
+        } else if ("LABORATORY".equals(type)) {
+            String base = withoutParen.replaceFirst("^血清", "血")
+                    .replaceFirst("(?:检查|检测|检验|测定|项目)$", "").trim();
+            if (!base.isEmpty()) {
+                derived.add(base);
+                derived.add(base + "测定");
+            }
+        }
+        return List.copyOf(derived);
+    }
+
+    private List<com.rhn.platform.masterdata.api.MasterDataViews.ServiceView> expandExaminationCandidates(
+            String intentName, Long organizationId, LocalDate date) {
+        if (intentName == null || intentName.isBlank()) return List.of();
+        for (String site : ANATOMICAL_SITES) {
+            if (intentName.contains(site)) {
+                var siteCandidates = services.searchOrderableServices(site, "EXAMINATION", organizationId, date);
+                if (siteCandidates.isEmpty()) continue;
+                if (intentName.matches("(?i).*(?:X线|X光|摄片|摄影|DR|CR|透视|平片|拍片|胸片).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && item.name().matches(".*(?:X线|摄影|DR|CR|透视|放射).*"))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                if (intentName.matches("(?i).*(?:CT|计算机断层).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && item.name().toUpperCase(Locale.ROOT).contains("CT"))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                if (intentName.matches("(?i).*(?:MRI|磁共振).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && (item.name().toUpperCase(Locale.ROOT).contains("MRI")
+                                    || item.name().contains("磁共振")))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+                if (intentName.matches(".*(?:超声|B超|彩超).*")) {
+                    var filtered = siteCandidates.stream()
+                            .filter(item -> item.name() != null && (item.name().contains("超声") || item.name().contains("彩超")))
+                            .toList();
+                    if (!filtered.isEmpty()) return filtered;
+                }
+            }
+        }
+        return List.of();
+    }
+
     private TreatmentMatch resolveService(String key, TreatmentRecommendation intent, String type, String query,
             Alias alias, ExecutionContext context, LocalDate date, Counts counts) {
-        var queries = new LinkedHashSet<String>(); queries.add(text(intent.name())); queries.add(query);
+        var queries = new LinkedHashSet<String>();
+        queries.addAll(deriveQueries(intent.name(), type));
+        if (!query.isBlank()) queries.addAll(deriveQueries(query, type));
         if (alias != null) queries.addAll(alias.queries());
         var candidates = new LinkedHashMap<String, TreatmentRecommendation>();
         var reviewIds = new HashSet<Long>();
@@ -126,6 +200,15 @@ public class ClinicalTreatmentCatalogResolver {
                         && (reviewName(service.name(), alias) || reviewName(localName, alias));
                 if (alias != null && !alias.broad() && !exactAlias && !requiresReview) continue;
                 if (requiresReview) reviewIds.add(service.id());
+                var item = new TreatmentRecommendation(type, service.id(), null, service.code(), service.name(),
+                        service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale());
+                candidates.putIfAbsent(type + ":" + service.id(), item);
+            }
+        }
+        if (candidates.isEmpty() && alias == null && "EXAMINATION".equals(type)) {
+            for (var service : expandExaminationCandidates(intent.name(), context.organizationId(), date)) {
+                counts.catalog++;
+                reviewIds.add(service.id());
                 var item = new TreatmentRecommendation(type, service.id(), null, service.code(), service.name(),
                         service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale());
                 candidates.putIfAbsent(type + ":" + service.id(), item);

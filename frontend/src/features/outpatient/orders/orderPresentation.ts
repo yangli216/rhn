@@ -23,6 +23,48 @@ export function formatPackageUnit(unitName?: string, unitCode?: string): string 
   return map[code] || unitName || unitCode || '单位'
 }
 
+export const SPECIMEN_TYPE_MAP: Record<string, string> = {
+  SERUM: '血清',
+  WHOLE_BLOOD: '全血',
+  PLASMA: '血浆',
+  URINE: '尿液',
+  STOOL: '粪便',
+  FECES: '粪便',
+  CSF: '脑脊液',
+  PLEURAL_FLUID: '胸腹水',
+  SECRETION: '分泌物',
+  SWAB: '咽拭子',
+  BONE_MARROW: '骨髓',
+}
+
+export const EXAMINATION_TYPE_MAP: Record<string, string> = {
+  RADIOGRAPHY: 'X线检查',
+  ULTRASOUND: '超声检查',
+  CT: 'CT检查',
+  MRI: 'MRI检查',
+  ECG: '心电检查',
+  ENDOSCOPY: '内镜检查',
+  PATHOLOGY: '病理检查',
+}
+
+export function formatSpecimenType(value?: string): string {
+  if (!value) return ''
+  const trimmed = value.trim()
+  return SPECIMEN_TYPE_MAP[trimmed.toUpperCase()] || trimmed
+}
+
+export function formatExaminationType(value?: string): string {
+  if (!value) return ''
+  const trimmed = value.trim()
+  return EXAMINATION_TYPE_MAP[trimmed.toUpperCase()] || trimmed
+}
+
+export function shouldDisplayOrderCode(code?: string): boolean {
+  if (!code) return false
+  // 移除英文编码：包含英文字母的技术/内部编码不展示在临床界面中
+  return !/[a-zA-Z]/.test(code)
+}
+
 export interface ExecutingDepartmentSource {
   kind: 'medication' | 'service'
   type?: string
