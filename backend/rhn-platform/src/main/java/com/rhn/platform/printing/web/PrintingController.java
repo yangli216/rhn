@@ -50,13 +50,15 @@ public class PrintingController {
     }
 
     @GetMapping("/records")
-    List<PrintRecordView> records(@RequestParam Long encounterId) {
+    List<PrintRecordView> records(@RequestParam Long encounterId, @RequestParam(required = false) String sourceType,
+                                 @RequestParam(required = false) Long sourceId) {
+        if (sourceType != null || sourceId != null) return printingService.recordsBySource(encounterId, sourceType, sourceId);
         return printingService.recordsByEncounter(encounterId);
     }
 
     @PostMapping("/jobs/{jobId}/reprints")
     PrintReceipt reprint(@PathVariable Long jobId, @Valid @RequestBody ReprintRequest request) {
-        return printingService.reprint(jobId, request.copies());
+        return printingService.reprint(jobId, request.copies(), request.reason(), request.idempotencyKey());
     }
 
     @GetMapping("/outputs/{outputId}/content")
@@ -71,7 +73,8 @@ public class PrintingController {
                 .body(body);
     }
 
-    record ReprintRequest(@Min(1) @Max(10) int copies) {}
+    record ReprintRequest(@Min(1) @Max(10) int copies, @Size(max = 500) String reason,
+                          @Size(max = 128) String idempotencyKey) {}
     record StandardTaskRequest(
             @NotBlank @Size(max = 100) String taskCode,
             @NotNull @Valid SourceRequest source,

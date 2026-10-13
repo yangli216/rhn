@@ -11,6 +11,9 @@ public final class PrintTaskCodes {
     public static final String INFUSION_LABEL = "TREATMENT.INFUSION_LABEL.PRINT";
     public static final String INFUSION_PATROL_CARD = "TREATMENT.INFUSION_PATROL_CARD.PRINT";
     public static final String OUTPATIENT_REGISTRATION_TICKET = "OP.REGISTRATION.TICKET.PRINT";
+    public static final String LABORATORY_REPORT = "DIAGNOSTICS.LABORATORY.REPORT.PRINT";
+    public static final String EXAMINATION_REPORT = "DIAGNOSTICS.EXAMINATION.REPORT.PRINT";
+    public static final String SPECIMEN_LABEL = "DIAGNOSTICS.SPECIMEN.LABEL.PRINT";
 
     private PrintTaskCodes() {}
 }

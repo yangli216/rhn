@@ -38,6 +38,17 @@ public class Observation {
     @Column(name = "NA_PRFRMR") private String performerName;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
+    @Column(name = "SD_VAL_COMPR") private String valueComparator;
+    @Column(name = "SD_RULE_STATUS") private String ruleStatus;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONG32VARCHAR)
+    @Column(name = "RULE_SNAP") private String ruleSnapshot;
+
+    public void recordRuleEvidence(String comparator, String status, String snapshot) {
+        this.valueComparator = comparator; this.ruleStatus = status; this.ruleSnapshot = snapshot;
+    }
+    public String valueComparator() { return valueComparator; }
+    public String ruleStatus() { return ruleStatus; }
+    public String ruleSnapshot() { return ruleSnapshot; }
     protected Observation() {}
 
     public Observation(Long tenantId, Long residentId, Long encounterId,

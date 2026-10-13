@@ -19,6 +19,7 @@
 | 决策旁路运行留痕、观察与人工研判 | [观察契约](decision-observation.md)、settings/DecisionRunObservation.tsx；quality/MedicationEvaluationLog.tsx | rhn-intelligence/ai/application/DecisionObservationService.java；rhn-quality/quality/medication/infrastructure/MedicationEvaluationStore.java | `./scripts/verify-scope.sh decision-observation`；API/迁移扩大验证 |
 | AI 推荐、院内匹配与待核对建议 | features/outpatient/ai/；临床编排见工作站边界 | rhn-intelligence/ai/application/ClinicalAssistantApplicationService.java、ClinicalAiContextAssembler.java、ClinicalTreatmentRecommendationService.java | `./scripts/verify-scope.sh ai-matching`；患者上下文变化组合 outpatient-draft |
 | 工作上下文、导航、页签 | app/AppShell.tsx | rhn-platform/platform/ 下对应 portal/security/organization 契约 | app/AppShellContext.test.ts；权限变更扩大后端验证 |
+| 检验/检查作业、草稿签发、标本与报告 | [医技领域边界](diagnostics.md)；features/diagnostics/ | rhn-clinical/diagnostics/；主数据、配置与打印使用平台公开 API | `./scripts/verify-scope.sh diagnostics`；接口/迁移/权限/资金扩大完整验证 |
 | 住院医嘱、护理、药品供应 | features/inpatient/ | rhn-clinical/inpatient/；pharmacy/ | `./scripts/verify-inpatient-main-flow.sh` |
 
 前端路径默认相对 frontend/src；表内未列出的模块用定向符号搜索定位，不能把任一 scope 当作全项目验证。

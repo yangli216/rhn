@@ -1,3 +1,4 @@
+export * from './diagnosticTemplateTypes'
 import { createBusinessNumberingApi } from './businessNumberingApi'
 export * from './businessNumberingApi'
 import { createDecisionObservationApi } from './decisionObservationApi'

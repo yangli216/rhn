@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -36,7 +36,7 @@
     {
       "code": "EX",
       "name": "医疗请求与执行",
-      "count": 17
+      "count": 22
     },
     {
       "code": "HPL",
@@ -375,7 +375,7 @@
       "logical": "ex.diagnostic_execution_task",
       "domain": "EX",
       "comment": "诊疗执行任务；一行代表一条诊疗执行任务记录",
-      "columns": 29
+      "columns": 32
     },
     {
       "physical": "RHN_EX_DIAG_REPORT_RESULT",
@@ -389,7 +389,7 @@
       "logical": "ex.diagnostic_report",
       "domain": "EX",
       "comment": "诊疗报告；一行代表一条诊疗报告记录",
-      "columns": 25
+      "columns": 31
     },
     {
       "physical": "RHN_BD_DICT_ATTR_DEF",
@@ -2356,6 +2356,41 @@
       "logical": "aud.ai_decision_review",
       "domain": "AUD",
       "comment": "共用决策人工研判；一行代表一次追加的人工意见，不改变临床处置",
+      "columns": 5
+    },
+    {
+      "physical": "RHN_EX_DIAG_DRAFT",
+      "logical": "ex.diagnostic_report_draft",
+      "domain": "EX",
+      "comment": "医技报告草稿；每个执行任务一份当前工作内容",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_EX_DIAG_SPEC",
+      "logical": "ex.diagnostic_specimen",
+      "domain": "EX",
+      "comment": "医技实际标本；一行代表一管实际标本及其当前作业事实",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_EX_DIAG_SPEC_TASK",
+      "logical": "ex.diagnostic_specimen_task",
+      "domain": "EX",
+      "comment": "医技标本申请关联；一行代表一管标本与一张申请的关联",
+      "columns": 4
+    },
+    {
+      "physical": "RHN_EX_DIAG_CMD",
+      "logical": "ex.diagnostic_local_command",
+      "domain": "EX",
+      "comment": "医技签发回执；一行代表一次本地签发命令与不可变报告的关联",
+      "columns": 6
+    },
+    {
+      "physical": "RHN_EX_SPEC_BATCH",
+      "logical": "ex.diagnostic_specimen_batch",
+      "domain": "EX",
+      "comment": "标本生成批次；一行代表一个机构内唯一的标本生成命令",
       "columns": 5
     }
   ]

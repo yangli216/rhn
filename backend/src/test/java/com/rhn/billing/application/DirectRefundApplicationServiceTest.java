@@ -81,7 +81,7 @@ class DirectRefundApplicationServiceTest {
         service = new DirectRefundApplicationService(
                 payments, accounts, charges, components, ledger,
                 settlements, receipts, pharmacy,
-                paymentOrchestration, receiptService, preCheckService, contextProvider
+                paymentOrchestration, receiptService, preCheckService, mock(com.rhn.billing.api.RefundDiagnosticDirectory.class), contextProvider
         );
     }
 

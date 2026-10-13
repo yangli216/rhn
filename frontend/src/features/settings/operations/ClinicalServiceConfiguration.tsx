@@ -1,3 +1,4 @@
+import { DiagnosticTemplateDialog } from './DiagnosticTemplateDialog'
 import type { CSSProperties } from 'react'
 import { requireClinicalConfiguration } from "../clinicalConfigurationTruth";
 import { examinationProfileForm, examinationProfileInput } from "../examinationProfileForm";
@@ -65,7 +66,8 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   return <Dialog title={`${service.name} · 执行与收费`} eyebrow="诊疗项目 · 执行与收费" size="xwide"
     className="clinical-project-dialog" onClose={onClose}
     description={description}
-    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
+    footer={<><Button variant="secondary" onClick={onClose}>关闭</Button>{supportedType && <Button variant="secondary"
+      onClick={() => setDialog(<DiagnosticTemplateDialog api={api} service={service} organizationId={organizationId} onClose={() => setDialog(undefined)} />)}>报告模板与规则</Button>}</>}>
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {operationError && <Alert>{operationError}</Alert>}
     {(configuration.error || aliases.error || services.error || units.error) && <Alert>

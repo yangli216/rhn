@@ -144,3 +144,12 @@
   justify-content: flex-end;
   gap: var(--space-1);
 }
+
+.diagnostic-task-list { display: grid; gap: var(--layout-panel-gap); }
+.diagnostic-task-list .ui-button { width: 100%; }
+.diagnostic-task-list small { display: block; }
+.diagnostic-editor, .diagnostic-operation-body { display: grid; gap: var(--layout-section-gap); }
+.diagnostic-editor-head { display: flex; align-items: center; justify-content: space-between; gap: var(--layout-panel-gap); }
+.diagnostic-indicator-table { overflow-x: auto; }
+.diagnostic-indicator-table .ui-data-table { min-width: 800px; }
+.diagnostic-editor-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: var(--color-surface); }

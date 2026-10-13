@@ -615,6 +615,7 @@ function FlowPreview({ config, selected, editable, onSelect }: {
       {block.type === 'fieldGrid' && <div className="print-flow-fields">{(block.fields as Array<Record<string, unknown>> ?? []).map((field, fieldIndex) => <div key={fieldIndex}><span>{String(field.label ?? '字段')}</span><strong>{sampleValue(String(field.path ?? ''))}</strong></div>)}</div>}
       {block.type === 'table' && <table><thead><tr>{(block.columns as Array<Record<string, unknown>> ?? []).map((column, columnIndex) => <th key={columnIndex}>{String(column.label ?? '')}</th>)}</tr></thead><tbody><tr>{(block.columns as Array<Record<string, unknown>> ?? []).map((column, columnIndex) => <td key={columnIndex}>{sampleTableValue(String(block.path ?? ''), String(column.path ?? ''))}</td>)}</tr></tbody></table>}
       {block.type === 'section' && <p>{sampleValue(String(block.path ?? '')) || '示例内容'}</p>}
+      {block.type === 'images' && <p>关键图像区域（保持比例，最大高度 {String(block.maxHeightMm ?? 120)}mm）；正式输出读取报告版本的授权图像。</p>}
       {block.type === 'signature' && <div className="print-flow-signature"><span>{String(block.leftLabel ?? '签名')}：________</span><span>{String(block.rightLabel ?? '核对')}：________</span></div>}
     </section>)}
   </article>
@@ -779,7 +780,7 @@ function flowBlockForField(field: PrintFieldPreset): Record<string, unknown> {
   ] }
   return { type: 'section', title: field.label, path: field.key }
 }
-function flowBlockTypeLabel(type: string) { return ({ fieldGrid: '基本信息', section: '段落', text: '文本', table: '明细表', signature: '签名' } as Record<string, string>)[type] ?? type }
+function flowBlockTypeLabel(type: string) { return ({ fieldGrid: '基本信息', section: '段落', text: '文本', table: '明细表', signature: '签名', images: '关键图像' } as Record<string, string>)[type] ?? type }
 function templateField(value: string) { return value.match(/\{\{([A-Za-z0-9_.-]+)}}/)?.[1] ?? '' }
 function sampleValue(key: string) {
   const value = key.split('.').reduce<unknown>((current, part) => current && typeof current === 'object'

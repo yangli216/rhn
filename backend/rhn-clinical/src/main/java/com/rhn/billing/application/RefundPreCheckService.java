@@ -223,6 +223,10 @@ public class RefundPreCheckService {
                     "已出报告 · 阻断(需医技撤销)", "danger",
                     "检验检查已出具诊断报告，严禁直接退款！需由医技科室撤销执行或作废报告。");
         }
+        if (diagnostics.hasExecutionForRequest(context.tenantId(), sourceId)) {
+            return refundItem(charge, sourceType, sourceId, "EXECUTED", "已采集或已执行", false,
+                    "已执行 · 需医技核对", "danger", "该申请已有实际采集或执行记录，不能作为未执行医嘱直接退费。");
+        }
 
         if (unexecutedDirectRefundAllowed) {
             return refundItem(charge, sourceType, sourceId,

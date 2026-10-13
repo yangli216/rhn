@@ -12,6 +12,7 @@ import { requirePortalNotifications } from './portalNotificationTruth'
 import type { Department, Session } from '../shared/model'
 import { createRhnApi, createRhnSessionApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
+import { useWorkspaceUnsavedPrompt } from './useWorkspaceUnsavedPrompt'
 import { formatTime } from '../shared/format'
 import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
 import { CriticalValueCenter } from '../shared/realtime/CriticalValueCenter'
@@ -73,6 +74,10 @@ const CashierCloseWorkspace = lazy(() => import('../features/billing/CashierClos
   .then((module) => ({ default: module.CashierCloseWorkspace })))
 const DiagnosticWorkspace = lazy(() => import('../features/diagnostics/DiagnosticWorkspace')
   .then((module) => ({ default: module.DiagnosticWorkspace })))
+const LaboratoryWorkspace = lazy(() => import('../features/diagnostics/laboratory/LaboratoryWorkspace')
+  .then((module) => ({ default: module.LaboratoryWorkspace })))
+const ExaminationWorkspace = lazy(() => import('../features/diagnostics/examination/ExaminationWorkspace')
+  .then((module) => ({ default: module.ExaminationWorkspace })))
 const TreatmentExecutionWorkspace = lazy(() => import('../features/treatment/TreatmentExecutionWorkspace')
   .then((module) => ({ default: module.TreatmentExecutionWorkspace })))
 const ClinicalPrintingWorkspace = lazy(() => import('../features/treatment/ClinicalPrintingWorkspace')
@@ -232,6 +237,8 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'outpatient-plan-templates', label: '临床模板库', icon: 'sparkles', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
       { id: 'diagnostics', label: '检查检验', icon: 'flask', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'laboratory', label: '检验工作台', icon: 'flask', to: '/diagnostics/laboratory', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'examination', label: '检查工作台', icon: 'clinical', to: '/diagnostics/examination', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'treatments', label: '治疗执行', icon: 'syringe', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'clinical-printing', label: '临床打印', icon: 'print', to: '/printing/batches', requiredAuthority: 'TREATMENT.ACCESS' },
@@ -322,13 +329,21 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
 ]
 
+export function canAccessDiagnosticWorkspace(path: string, authorities: Set<string>) {
+  const pathname = path.split('?')[0]
+  if (!pathname.startsWith('/diagnostics')) return true
+  const categories = pathname === '/diagnostics/laboratory' ? ['LABORATORY']
+    : pathname === '/diagnostics/examination' ? ['EXAMINATION'] : ['LABORATORY', 'EXAMINATION']
+  return authorities.has('ROLE_ADMIN') || categories.some((category) =>
+    ['VIEW', 'EXECUTE', 'EDIT', 'SIGN'].some((action) => authorities.has(`DIAGNOSTICS.${category}.${action}`)))
+}
 function filterNavigation(nodes: NavigationNode[], authorities: Set<string>): NavigationNode[] {
   const result: NavigationNode[] = []
   for (const node of nodes) {
     if (node.children) {
       const children = filterNavigation(node.children, authorities) as NavigationItem[]
       if (children.length) result.push({ ...node, children } as NavigationDirectory)
-    } else if (!node.requiredAuthority || authorities.has(node.requiredAuthority)) {
+    } else if ((!node.requiredAuthority || authorities.has(node.requiredAuthority)) && canAccessDiagnosticWorkspace(node.to, authorities)) {
       result.push(node)
     }
   }
@@ -397,6 +412,8 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/billing/query') return { id: pathname, path: pathname, title: '收费查询', icon: 'search', closeable: true }
   if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
   if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
+  if (pathname === '/diagnostics/laboratory') return { id: pathname, path: pathname, title: '检验工作台', icon: 'flask', closeable: true }
+  if (pathname === '/diagnostics/examination') return { id: pathname, path: pathname, title: '检查工作台', icon: 'clinical', closeable: true }
   if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'flask', closeable: true }
   if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'syringe', closeable: true }
   if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'syringe', closeable: true }
@@ -507,6 +524,7 @@ export function AppShell() {
   const navigationHoverOpenTimer = useRef<number | null>(null)
   const navigationHoverCloseTimer = useRef<number | null>(null)
   const [tabs, setTabs] = useState<WorkspaceTab[]>([HOME_TAB])
+  const { markDirty, confirmDiscard, prompt: unsavedPrompt } = useWorkspaceUnsavedPrompt()
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -702,6 +720,7 @@ export function AppShell() {
         : context.workContextType === contextType)
       && workContextKey(context) === contextKey)
     if (!selected) return
+    if (!await confirmDiscard(tabs.filter((tab) => workContextTypeForPath(tab.path) === contextType).map((tab) => tab.id))) return
     const organizations = await authenticated.api.organization.list()
     const organization = organizations.find((item) => item.id === selected.organizationId)
     if (!organization) return
@@ -723,9 +742,10 @@ export function AppShell() {
     await queryClient.invalidateQueries({ refetchType: 'active' })
   }
 
-  function closeTab(tabId: string) {
+  async function closeTab(tabId: string) {
     const index = tabs.findIndex((tab) => tab.id === tabId)
     if (index < 0 || !tabs[index].closeable) return
+    if (!await confirmDiscard([tabId])) return
     const remaining = tabs.filter((tab) => tab.id !== tabId)
     setTabs(remaining)
     if (tabId === activeTabId) {
@@ -733,9 +753,9 @@ export function AppShell() {
     }
   }
 
-  function manageTabs(action: WorkspaceTabAction, targetTabId = activeTabId) {
+  async function manageTabs(action: WorkspaceTabAction, targetTabId = activeTabId) {
     if (action === 'close-active') {
-      closeTab(targetTabId)
+      await closeTab(targetTabId)
       return
     }
     const targetIndex = tabs.findIndex((tab) => tab.id === targetTabId)
@@ -747,6 +767,7 @@ export function AppShell() {
       if (action === 'close-others') return tab.id === targetTabId
       return false
     })
+    if (!await confirmDiscard(tabs.filter((tab) => !remaining.some((kept) => kept.id === tab.id)).map((tab) => tab.id))) return
     setTabs(remaining)
     if (!remaining.some((tab) => tab.id === activeTabId)) {
       navigate(remaining.find((tab) => tab.id === targetTabId)?.path ?? HOME_TAB.path)
@@ -927,7 +948,7 @@ export function AppShell() {
             const tabAuthorities = new Set([...session.authorities, ...(tabSlot.option.authorities ?? [])])
             const requiredAuthority = tab.path === '/billing' ? 'BILLING.ACCESS'
               : requiredAuthorityForPath(NAVIGATION_NODES, tab.path)
-            const authorized = !requiredAuthority || tabAuthorities.has(requiredAuthority)
+            const authorized = (!requiredAuthority || tabAuthorities.has(requiredAuthority)) && canAccessDiagnosticWorkspace(tab.path, tabAuthorities)
             return <div id={`workspace-panel-${encodeURIComponent(tab.id)}`} key={tab.id}
               className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${encodeURIComponent(tab.id)}`}
               hidden={tab.id !== activeTabId}>
@@ -962,6 +983,14 @@ export function AppShell() {
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/daily-close" element={<CashierCloseWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/diagnostics/laboratory" element={<LaboratoryWorkspace api={tabSlot.api}
+                    authorities={[...tabAuthorities]}
+                    clinicalContext={tabSlot.clinicalContext} onDirtyChange={(value) => markDirty(tab.id, value)}
+                    onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/diagnostics/examination" element={<ExaminationWorkspace api={tabSlot.api}
+                    authorities={[...tabAuthorities]}
+                    clinicalContext={tabSlot.clinicalContext} onDirtyChange={(value) => markDirty(tab.id, value)}
+                    onNavigate={(path) => navigate(path)} />} />
                   <Route path="/diagnostics" element={<DiagnosticWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/skin-tests" element={<SkinTestManagementWorkspace api={tabSlot.api}
@@ -1079,6 +1108,7 @@ export function AppShell() {
               </div>
             </div>
           })}
+          {unsavedPrompt}
         </div>
       </main>
     </div>

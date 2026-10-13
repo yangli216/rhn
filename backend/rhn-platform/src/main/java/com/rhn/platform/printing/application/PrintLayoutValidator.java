@@ -16,7 +16,7 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 class PrintLayoutValidator {
     static final String CONTROLLED_SCHEMA = "RHN_PRINT_LAYOUT_V1";
     private static final Set<String> CANVAS_TYPES = Set.of("text", "line", "box", "barcode");
-    private static final Set<String> FLOW_TYPES = Set.of("fieldGrid", "section", "table", "signature", "text");
+    private static final Set<String> FLOW_TYPES = Set.of("fieldGrid", "section", "table", "signature", "text", "images");
     private static final Set<String> ALIGNMENTS = Set.of("", "LEFT", "CENTER", "RIGHT");
     private final JsonCodec jsonCodec;
 
@@ -92,6 +92,12 @@ class PrintLayoutValidator {
             if ("barcode".equals(type) && (width < 20 || height < 8)) {
                 invalid(index, "一维码区域至少需要 20mm x 8mm");
             }
+            if ("barcode".equals(type) && element.containsKey("moduleWidthMm")) {
+                double module = decimal(element.get("moduleWidthMm"), -1);
+                double quiet = decimal(element.get("quietZoneMm"), 2.5);
+                if (!Double.isFinite(module) || !Double.isFinite(quiet) || module < 0.2 || module > 0.6
+                        || quiet < module * 10 || quiet * 2 >= width) invalid(index, "条码模块宽度或静区无效");
+            }
             rejectExecutableText(element);
         }
     }
@@ -114,6 +120,12 @@ class PrintLayoutValidator {
             if ("table".equals(type)) {
                 List<?> columns = list(block.get("columns"));
                 if (columns.isEmpty() || columns.size() > 12) invalid(index, "表格列数必须在 1 到 12 之间");
+            }
+            if ("images".equals(type)) {
+                String path = text(block.get("path"));
+                double maxHeight = decimal(block.get("maxHeightMm"), 120);
+                if (!path.matches("[A-Za-z][A-Za-z0-9_.-]{0,99}") || !Double.isFinite(maxHeight) || maxHeight < 20 || maxHeight > 180)
+                    invalid(index, "图像块需要有效数据路径和 20–180mm 的最大高度");
             }
             rejectExecutableText(block);
         }

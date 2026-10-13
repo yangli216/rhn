@@ -22,6 +22,7 @@ import java.awt.Color;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +111,30 @@ class ConfigurablePdfRenderer {
     private void renderFlowBlock(Document document, Map<String, Object> block,
                                  Map<String, Object> snapshot) throws Exception {
         String type = text(block.get("type"));
+        if ("images".equals(type)) {
+            List<?> images = list(resolve(snapshot, text(block.get("path"))));
+            if (images.size() > 4) throw new IllegalArgumentException("At most four report images are supported");
+            for (Object item : images) {
+                Map<String, Object> source = map(item);
+                String encoded = text(source.get("contentBase64"));
+                if (encoded.isBlank() || encoded.length() > 14_000_000)
+                    throw new IllegalArgumentException("Missing or oversized report image");
+                byte[] bytes = Base64.getDecoder().decode(encoded);
+                String digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+                if (!digest.equals(text(source.get("contentHash"))))
+                    throw new IllegalArgumentException("Report image digest mismatch");
+                Image image = Image.getInstance(bytes);
+                if (image.getWidth() * image.getHeight() > 20_000_000)
+                    throw new IllegalArgumentException("Report image pixel limit exceeded");
+                image.scaleToFit(document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin(),
+                        mm(decimal(block.get("maxHeightMm"), 120)));
+                image.setAlignment(Element.ALIGN_CENTER);
+                document.add(image);
+                Paragraph caption = new Paragraph(text(source.get("caption")), font(9, false, MUTED));
+                caption.setAlignment(Element.ALIGN_CENTER); caption.setSpacingAfter(8); document.add(caption);
+            }
+            return;
+        }
         if ("fieldGrid".equals(type)) {
             int columns = integer(block.get("columns"), 2);
             PdfPTable table = new PdfPTable(columns * 2);
@@ -248,11 +273,19 @@ class ConfigurablePdfRenderer {
             barcode.setCode(code);
             barcode.setBarHeight(Math.max(8, height - (bool(element.get("showText"), false) ? 8 : 0)));
             barcode.setX(0.8f);
+            if (element.containsKey("moduleWidthMm")) barcode.setX(mm(decimal(element.get("moduleWidthMm"), 0.25)));
             barcode.setFont(bool(element.get("showText"), false) ? cjk : null);
             barcode.setSize(6);
             Image image = barcode.createImageWithBarcode(canvas, Color.BLACK, Color.BLACK);
-            image.scaleAbsolute(width, height);
-            image.setAbsolutePosition(x, yBottom);
+            if (element.containsKey("moduleWidthMm")) {
+                float quiet = mm(decimal(element.get("quietZoneMm"), 2.5));
+                if (quiet < barcode.getX() * 10 || image.getWidth() + quiet * 2 > width)
+                    throw new IllegalArgumentException("Barcode does not fit its configured module width and quiet zone");
+                image.setAbsolutePosition(x + (width - image.getWidth()) / 2, yBottom);
+            } else {
+                image.scaleAbsolute(width, height);
+                image.setAbsolutePosition(x, yBottom);
+            }
             canvas.addImage(image);
             return;
         }

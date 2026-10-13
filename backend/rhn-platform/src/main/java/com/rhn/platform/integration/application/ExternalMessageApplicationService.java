@@ -119,6 +119,14 @@ public class ExternalMessageApplicationService implements ExternalMessageService
         return values.stream().map(value -> receipt(value, false)).toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ExternalMessageReceipt requireMessage(Long messageId) {
+        ExternalMessage value = require(messageId);
+        requireScope(value.organizationId(), value.departmentId());
+        return receipt(value, false);
+    }
+
     private ExternalMessage require(Long id) {
         return repository.findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> notFound("EXTERNAL_MESSAGE_NOT_FOUND", "未找到外部交换消息"));

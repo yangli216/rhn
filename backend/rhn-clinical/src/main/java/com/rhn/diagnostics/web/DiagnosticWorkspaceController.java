@@ -5,6 +5,9 @@ import com.rhn.diagnostics.api.DiagnosticReportResponse;
 import com.rhn.diagnostics.application.DiagnosticExecutionService;
 import com.rhn.diagnostics.application.DiagnosticWorkspaceService;
 import com.rhn.diagnostics.application.DiagnosticWorkspaceService.LocalReportCommand;
+import com.rhn.diagnostics.application.DiagnosticWorkspaceService.LocalObservation;
+import com.rhn.diagnostics.application.DiagnosticWorkspaceService.DraftView;
+import com.rhn.diagnostics.application.DiagnosticWorkspaceService.IssueDraftCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -41,10 +44,23 @@ public class DiagnosticWorkspaceController {
         return execution.worklist(requestType, status);
     }
 
+    @GetMapping("/worklist-page")
+    com.rhn.shared.api.PageResult<DiagnosticExecutionTaskView> worklistPage(
+            @RequestParam String requestType, @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int page,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(100) int size,
+            @RequestParam(required = false) Long encounterId, @RequestParam(required = false) Long residentId) {
+        return execution.worklistPage(requestType, keyword, page, size, encounterId, residentId);
+    }
+
     @PostMapping("/tasks/{taskId}/collection")
     DiagnosticExecutionTaskView collect(@PathVariable Long taskId, @Valid @RequestBody CollectionRequest input) {
         return execution.collect(taskId, input.expectedRevision(), input.specimenNo(), input.note());
     }
+
+    @GetMapping("/tasks/{taskId}")
+    DiagnosticExecutionTaskView task(@PathVariable Long taskId) { return execution.task(taskId); }
 
     @PostMapping("/tasks/{taskId}/start")
     DiagnosticExecutionTaskView start(@PathVariable Long taskId, @Valid @RequestBody StartRequest input) {
@@ -55,6 +71,41 @@ public class DiagnosticWorkspaceController {
     @ResponseStatus(HttpStatus.CREATED)
     DiagnosticReportResponse report(@PathVariable Long taskId, @Valid @RequestBody LocalReportRequest input) {
         return workspace.recordLocalReport(taskId, input.command());
+    }
+
+    @GetMapping("/tasks/{taskId}/report-template")
+    com.rhn.platform.masterdata.api.DiagnosticTemplateDirectory.TemplateView template(@PathVariable Long taskId) {
+        return workspace.template(taskId);
+    }
+
+    @GetMapping("/tasks/{taskId}/report-draft")
+    DraftView draft(@PathVariable Long taskId) { return workspace.draft(taskId); }
+
+    @PostMapping("/tasks/{taskId}/report-draft")
+    DraftView saveDraft(@PathVariable Long taskId, @Valid @RequestBody LocalReportRequest input) {
+        return workspace.saveDraft(taskId, input.command());
+    }
+
+    @PostMapping("/tasks/{taskId}/report-draft/issue")
+    @ResponseStatus(HttpStatus.CREATED)
+    DiagnosticReportResponse issueDraft(@PathVariable Long taskId, @Valid @RequestBody IssueDraftRequest input) {
+        return workspace.issueDraft(taskId, new IssueDraftCommand(
+                input.expectedRevision(), input.expectedDraftRevision(), input.commandId()));
+    }
+
+    record IssueDraftRequest(@NotNull Long expectedRevision, @NotNull Long expectedDraftRevision,
+                             @NotBlank @Size(max = 64) String commandId) {}
+    record LocalObservationRequest(
+            @Size(max = 64) String observationCode, @Size(max = 200) String observationName,
+            @Pattern(regexp = "NUMBER|STRING|CODE") String valueType,
+            @Size(max = 1000) String observationValue, @Size(max = 64) String unitCode,
+            BigDecimal referenceRangeLow, BigDecimal referenceRangeHigh,
+            @Pattern(regexp = "N|NORMAL|H|HH|L|LL|A|CRITICAL|PANIC") String interpretationCode,
+            @Pattern(regexp = "EQ|LT|LE|GT|GE") String valueComparator,
+            @Size(max = 64) String instrumentCode, @Size(max = 64) String populationCode) {
+        LocalObservation command() { return new LocalObservation(observationCode, observationName, valueType,
+                observationValue, unitCode, referenceRangeLow, referenceRangeHigh, interpretationCode,
+                valueComparator, instrumentCode, populationCode, null, null); }
     }
 
     record CollectionRequest(@NotNull Long expectedRevision,
@@ -68,8 +119,14 @@ public class DiagnosticWorkspaceController {
             @Size(max = 64) String unitCode,
             BigDecimal referenceRangeLow, BigDecimal referenceRangeHigh,
             @Pattern(regexp = "N|NORMAL|H|HH|L|LL|A|CRITICAL|PANIC") String interpretationCode,
-            @Size(max = 20000) String conclusion) {
+            @Size(max = 20000) String conclusion,
+            @Size(max = 200) List<@Valid @NotNull LocalObservationRequest> observations,
+            @Size(max = 20000) String findings,
+            Long expectedDraftRevision, @Size(max = 1000) String correctionReason,
+            @Size(max = 64) String commandId, Long templateVersionId) {
         LocalReportCommand command() { return new LocalReportCommand(expectedRevision, valueType,
-                observationValue, unitCode, referenceRangeLow, referenceRangeHigh, interpretationCode, conclusion); }
+                observationValue, unitCode, referenceRangeLow, referenceRangeHigh, interpretationCode, conclusion,
+                observations == null ? null : observations.stream().map(LocalObservationRequest::command).toList(),
+                findings, expectedDraftRevision, correctionReason, commandId, templateVersionId, null); }
     }
 }

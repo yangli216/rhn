@@ -4,6 +4,7 @@ import com.rhn.platform.printing.api.PrintContent;
 import com.rhn.platform.printing.api.PrintDataProvider;
 import com.rhn.platform.printing.api.PrintDataRequest;
 import com.rhn.platform.printing.api.PrintDataSnapshot;
+import com.rhn.platform.printing.api.PrintTaskCodes;
 import com.rhn.platform.printing.api.PrintReceipt;
 import com.rhn.platform.printing.api.PrintRequest;
 import com.rhn.platform.printing.api.PrintRecordView;
@@ -185,18 +186,40 @@ public class PrintingApplicationService implements PrintingService {
     @Override
     @Transactional
     public PrintReceipt reprint(Long jobId, int copies) {
+        return reprint(jobId, copies, null, null);
+    }
+
+    @Override
+    @Transactional
+    public PrintReceipt reprint(Long jobId, int copies, String reason, String idempotencyKey) {
         ExecutionContext context = requireContext(); requireCopies(copies);
         PrintJob original = jobRepository.findByIdAndTenantId(jobId, context.tenantId())
                 .orElseThrow(() -> notFound("PRINT_JOB_NOT_FOUND", "未找到打印任务"));
         PrintOutput output = requireOutput(original.outputId(), context);
+        String explanation = Strings.trimToNull(reason);
+        if (PrintTaskCodes.SPECIMEN_LABEL.equals(output.taskCode()) && explanation == null)
+            throw badRequest("PRINT_REPRINT_REASON_REQUIRED", "标本标签补打必须填写原因");
+        if ("DiagnosticReport".equals(output.sourceType()) || "DiagnosticSpecimen".equals(output.sourceType()))
+            dataProviders.get("DIAGNOSTICS").load(new PrintDataRequest(output.taskCode(),
+                    new com.rhn.platform.printing.api.PrintSourceRef(output.sourceType(), output.sourceId(), output.encounterId())));
+        String key = Strings.trimToNull(idempotencyKey);
+        if (key != null) {
+            Map<String, Object> content = new LinkedHashMap<>();
+            content.put("jobId", jobId); content.put("copies", copies); content.put("reason", explanation);
+            var reservation = idempotencyService.reserve("STANDARD_REPRINT", key, jsonCodec.write(content));
+            if (reservation.replay()) return jsonCodec.read(reservation.responseJson(), PrintReceipt.class);
+        }
         PrintJob root = original.originalJobId() == null ? original
                 : jobRepository.findByIdAndTenantId(original.originalJobId(), context.tenantId()).orElse(original);
         PrintJob job = jobRepository.save(new PrintJob(context.tenantId(), output.id(), root.id(), "REPRINT",
                 copies, context.subjectId(), context.correlationId()));
+        job.recordReprintReason(explanation);
         PrintTemplate template = templateRepository.findById(output.templateId()).orElseThrow();
         PrintTemplateVersion version = versionRepository.findById(output.templateVersionId()).orElseThrow();
         PrintDelivery delivery = createDelivery(context, output.documentType(), version.mediaProfileId(), job.id());
-        return receipt(job, output, template, version, delivery, implementationCode(output), implementationScope(output));
+        var receipt = receipt(job, output, template, version, delivery, implementationCode(output), implementationScope(output));
+        if (key != null) idempotencyService.complete("STANDARD_REPRINT", key, "PRINT_JOB", job.id(), 201, jsonCodec.write(receipt));
+        return receipt;
     }
 
     @Override
@@ -217,6 +240,18 @@ public class PrintingApplicationService implements PrintingService {
         if (encounterId == null) throw badRequest("PRINT_ENCOUNTER_REQUIRED", "就诊标识不能为空");
         return outputRepository.findByTenantIdAndEncounterIdOrderByGeneratedAtDesc(context.tenantId(), encounterId)
                 .stream().map(output -> record(output, context)).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrintRecordView> recordsBySource(Long encounterId, String sourceType, Long sourceId) {
+        ExecutionContext context = requireContext();
+        if (encounterId == null || sourceId == null || Strings.trimToNull(sourceType) == null)
+            throw badRequest("PRINT_SOURCE_REQUIRED", "查询打印记录需要完整业务来源");
+        return outputRepository.findByTenantIdAndEncounterIdOrderByGeneratedAtDesc(context.tenantId(), encounterId)
+                .stream().filter(output -> sourceId.equals(output.sourceId()) && sourceType.equals(output.sourceType()))
+                .filter(output -> context.canAccessOrganization(output.organizationId()) && context.canAccessDepartment(output.departmentId()))
+                .map(output -> record(output, context)).toList();
     }
 
     @Override
@@ -339,7 +374,7 @@ public class PrintingApplicationService implements PrintingService {
         List<PrintRecordView.JobView> jobs = jobRepository
                 .findByTenantIdAndOutputIdOrderByRequestedAtDesc(context.tenantId(), output.id()).stream()
                 .map(job -> new PrintRecordView.JobView(job.id(), job.originalJobId(), job.requestType(),
-                        job.status(), job.copies(), job.requestedAt(), job.requestedBy()))
+                        job.status(), job.copies(), job.requestedAt(), job.requestedBy(), job.reprintReason()))
                 .toList();
         return new PrintRecordView(output.id(), output.sourceType(), output.sourceId(), output.sourceVersion(),
                 output.taskCode(), output.implementationId(), output.implementationBindingId(), output.payloadSchema(),

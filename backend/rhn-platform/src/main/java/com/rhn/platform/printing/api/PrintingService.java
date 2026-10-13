@@ -9,6 +9,8 @@ public interface PrintingService {
     @Deprecated(forRemoval = true)
     PrintReceipt generate(PrintRequest request);
     PrintReceipt reprint(Long jobId, int copies);
+    PrintReceipt reprint(Long jobId, int copies, String reason, String idempotencyKey);
+    java.util.List<PrintRecordView> recordsBySource(Long encounterId, String sourceType, Long sourceId);
     PrintContent output(Long outputId);
     List<PrintRecordView> recordsByEncounter(Long encounterId);
     List<PrintTemplateView> visibleTemplates();

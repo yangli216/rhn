@@ -32,7 +32,8 @@ class DiagnosticReportTruthTest {
     private final IdempotentDomainEventConsumer consumer = mock(IdempotentDomainEventConsumer.class);
     private final DiagnosticExecutionService service = new DiagnosticExecutionService(tasks, reports,
             mock(ServiceRequestDirectory.class), mock(ResidentDirectory.class), mock(SettlementAuthorizationDirectory.class),
-            mock(ExecutionContextProvider.class), consumer, false, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
+            mock(ExecutionContextProvider.class), consumer, false, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class),
+            mock(com.rhn.diagnostics.infrastructure.DiagnosticSpecimenRepository.class));
     private final DiagnosticExecutionTask task = new DiagnosticExecutionTask(1L, 2L, 3L, 4L, 5L, 6L,
             "REQ-1", "LABORATORY", "LAB", "检验", "BLOOD", null, false, Instant.now(), "TEST-DiagnosticExecutionTask");
 

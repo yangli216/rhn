@@ -55,6 +55,7 @@ public class DirectRefundApplicationService {
     private final PaymentOrchestrationService paymentOrchestration;
     private final ReceiptApplicationService receiptService;
     private final RefundPreCheckService preCheckService;
+    private final com.rhn.billing.api.RefundDiagnosticDirectory diagnostics;
     private final ExecutionContextProvider contextProvider;
 
     public DirectRefundApplicationService(PaymentRepository payments,
@@ -68,6 +69,7 @@ public class DirectRefundApplicationService {
                                           PaymentOrchestrationService paymentOrchestration,
                                           ReceiptApplicationService receiptService,
                                           RefundPreCheckService preCheckService,
+                                          com.rhn.billing.api.RefundDiagnosticDirectory diagnostics,
                                           ExecutionContextProvider contextProvider) {
         this.payments = payments;
         this.accounts = accounts;
@@ -80,6 +82,7 @@ public class DirectRefundApplicationService {
         this.paymentOrchestration = paymentOrchestration;
         this.receiptService = receiptService;
         this.preCheckService = preCheckService;
+        this.diagnostics = diagnostics;
         this.contextProvider = contextProvider;
     }
 
@@ -100,6 +103,9 @@ public class DirectRefundApplicationService {
                 .toList();
 
         assertPreCheckPasses(preCheck, itemsToCheck);
+        diagnostics.requireUnexecutedForRefund(context.tenantId(), itemsToCheck.stream()
+                .filter(item -> "SERVICE_REQUEST".equals(item.sourceType()) && item.sourceId() != null)
+                .map(RefundItemPreCheckView::sourceId).toList());
         ensureSufficientCredit(context, account, refundAmount, targetItemIds);
 
         PaymentOrderView refundOrder = paymentOrchestration.refund(

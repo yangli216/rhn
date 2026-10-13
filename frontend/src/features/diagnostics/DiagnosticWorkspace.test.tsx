@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { DiagnosticExecutionTask, DiagnosticReport } from '../../shared/api/diagnosticsApi'
 import type { RhnApi } from '../../shared/rhnApi'
-import { DiagnosticWorkspace } from './DiagnosticWorkspace'
+import { LaboratoryWorkspace } from './laboratory/LaboratoryWorkspace'
 
 const context = { organization: { id: 'org1', name: '测试机构' }, department: { id: 'dept1', name: '检验科' } } as ClinicalContext
 const task: DiagnosticExecutionTask = { id: 'task1', revision: 1, requestNo: 'SR26101300001', taskNo: 'DX123456', requestType: 'LABORATORY',
@@ -18,52 +18,53 @@ const report = { id: 'report1', requestId: 'req1', residentId: 'resident1', enco
   observations: [{ id: 'obs1', observationName: '检验指标', valueType: 'NUMBER', valueNumber: 5.8 }] } as DiagnosticReport
 
 function setup(tasks: DiagnosticExecutionTask[] = [task], overrides: Record<string, ReturnType<typeof vi.fn>> = {}) {
-  const diagnostics = { worklist: vi.fn().mockResolvedValue(tasks), reportsByRequest: vi.fn().mockResolvedValue([]),
+  const diagnostics = { reportTemplate: vi.fn().mockResolvedValue(null), worklistPage: vi.fn().mockResolvedValue({ content: tasks, totalElements: tasks.length, totalPages: 1, page: 0, size: 20 }), specimens: vi.fn().mockResolvedValue([]), generateSpecimens: vi.fn(), draft: vi.fn().mockResolvedValue({ revision: 0, doubleSignatureRequired: false }), reportsByRequest: vi.fn().mockResolvedValue([]),
     collect: vi.fn().mockResolvedValue(task), start: vi.fn().mockResolvedValue(task),
     recordLocalReport: vi.fn().mockResolvedValue(report), ...overrides }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(<QueryClientProvider client={client}><MemoryRouter>
-    <DiagnosticWorkspace api={{ diagnostics } as unknown as RhnApi} clinicalContext={context} onNavigate={vi.fn()} />
+    <LaboratoryWorkspace api={{ diagnostics } as unknown as RhnApi} clinicalContext={context} onNavigate={vi.fn()} />
   </MemoryRouter></QueryClientProvider>)
   return { diagnostics, client }
 }
 
 describe('diagnostic source facts', () => {
-  it('requires the real specimen number instead of generating one from the task', async () => {
+  it('uses actual specimen data and never turns a task or application number into a barcode', async () => {
     const { diagnostics } = setup()
-    const number = await screen.findByLabelText(/标本号/)
-    expect(number).toHaveValue('')
-    expect(screen.getByRole('button', { name: '确认采集' })).toBeDisabled()
-    fireEvent.change(number, { target: { value: 'ACTUAL-TUBE-1001' } })
-    fireEvent.click(screen.getByRole('button', { name: '确认采集' }))
-    await waitFor(() => expect(diagnostics.collect).toHaveBeenCalledWith('task1', 1, 'ACTUAL-TUBE-1001', undefined))
+    await screen.findByRole('button', { name: '生成标本条码' })
+    expect(screen.queryByRole('button', { name: '确认采集' })).not.toBeInTheDocument()
+    expect(screen.queryByText('DX123456')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/标本号/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '生成标本条码' }))
+    await waitFor(() => expect(diagnostics.generateSpecimens).toHaveBeenCalledWith(
+      [{ taskId: 'task1', expectedRevision: 1 }], expect.any(String)))
   })
 
   it('does not submit a normal interpretation unless it was explicitly selected', async () => {
     const { diagnostics } = setup([{ ...task, status: 'IN_PROGRESS' }])
-    await screen.findByLabelText(/结果值/)
-    expect(screen.getByLabelText('结果标志')).toHaveTextContent('未判定')
-    fireEvent.change(screen.getByLabelText(/结果值/), { target: { value: '5.8' } })
+    await screen.findByLabelText('指标1结果')
+    expect(screen.getByLabelText('指标1标志')).toHaveTextContent('未判定')
+    fireEvent.change(screen.getByLabelText('指标1结果'), { target: { value: '5.8' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
     await waitFor(() => expect(diagnostics.recordLocalReport).toHaveBeenCalledOnce())
     const input = diagnostics.recordLocalReport.mock.calls[0][1]
-    expect(input.observationValue).toBe('5.8')
-    expect(input.interpretationCode).toBeUndefined()
+    expect(input.observations[0].observationValue).toBe('5.8')
+    expect(input.observations[0].interpretationCode).toBeUndefined()
   })
 
   it('preserves explicitly selected interpretation and clears it on another patient', async () => {
     const second = { ...task, id: 'task2', requestId: 'req2', residentId: 'resident2', residentName: '患者乙', status: 'IN_PROGRESS' as const }
     const { diagnostics } = setup([{ ...task, status: 'IN_PROGRESS' }, second])
-    await screen.findByLabelText(/结果值/)
-    await userEvent.click(screen.getByLabelText('结果标志'))
+    await screen.findByLabelText('指标1结果')
+    await userEvent.click(screen.getByLabelText('指标1标志'))
     await userEvent.click(screen.getByRole('option', { name: '偏高' }))
-    fireEvent.change(screen.getByLabelText(/结果值/), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('指标1结果'), { target: { value: '12' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
-    await waitFor(() => expect(diagnostics.recordLocalReport).toHaveBeenCalledWith('task1', expect.objectContaining({ interpretationCode: 'H' })))
+    await waitFor(() => expect(diagnostics.recordLocalReport).toHaveBeenCalledWith('task1', expect.objectContaining({ observations: [expect.objectContaining({ interpretationCode: 'H' })] })))
     await screen.findByRole('button', { name: /患者乙/ })
     fireEvent.click(screen.getByRole('button', { name: /患者乙/ }))
-    expect(screen.getByLabelText('结果标志')).toHaveTextContent('未判定')
-    expect(screen.getByLabelText(/结果值/)).toHaveValue(null)
+    expect(await screen.findByLabelText('指标1标志')).toHaveTextContent('未判定')
+    expect(screen.getByLabelText('指标1结果')).toHaveValue('')
   })
 
   it('shows missing report facts as unknown rather than normal or an invented signer', async () => {
@@ -88,7 +89,7 @@ describe('diagnostic source facts', () => {
       : vi.fn().mockResolvedValue(state === 'invalid' ? null : state === 'empty' ? []
         : [{ ...report, ...(state === 'wrong-patient' ? { residentId: 'someone-else' } : { id: 'old-report' }) }])
     setup([{ ...task, status: 'COMPLETED', reportId: 'report1' }], { reportsByRequest: load })
-    await screen.findByText(['empty', 'wrong-report'].includes(state) ? '未查询到对应报告' : '报告加载失败')
+    await screen.findByText(['empty', 'wrong-report'].includes(state) ? /未查询到对应报告/ : /报告加载失败/)
     expect(screen.queryByText(/报告已接收，正在同步/)).not.toBeInTheDocument()
     expect(screen.queryByText('检验指标')).not.toBeInTheDocument()
     load.mockResolvedValue([report])
@@ -103,15 +104,15 @@ describe('diagnostic source facts', () => {
     await screen.findByText('检验指标')
     diagnostics.reportsByRequest.mockRejectedValue(new Error('报告刷新失败'))
     await act(async () => { await client.invalidateQueries({ queryKey: ['diagnostic-task-reports'] }) })
-    await screen.findByText('报告加载失败')
+    await screen.findByText(/报告加载失败/)
     expect(screen.queryByText('检验指标')).not.toBeInTheDocument()
   })
 
   it('does not show zero tasks after a queue failure', async () => {
-    setup([], { worklist: vi.fn().mockRejectedValue(new Error('队列服务不可用')) })
+    setup([], { worklistPage: vi.fn().mockRejectedValue(new Error('队列服务不可用')) })
     await screen.findByText('医技队列加载失败')
     expect(screen.queryByText('暂无检查检验任务')).not.toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: '医技任务摘要' })).getAllByText('—')).toHaveLength(3)
+    expect(screen.queryByText('暂无匹配任务')).not.toBeInTheDocument()
   })
 })
 

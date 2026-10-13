@@ -21,9 +21,9 @@ function setup(load = vi.fn().mockResolvedValue([report])) {
 describe('outpatient diagnostic results truth', () => {
   it('shows the actual false result and missing conclusion honestly', async () => {
     setup()
-    expect(await screen.findByText('布尔结果：否')).toBeInTheDocument()
+    expect((await screen.findByText('布尔结果')).closest('tr')).toHaveTextContent('否')
     expect(screen.getByText('未记录报告结论')).toBeInTheDocument()
-    expect(screen.getByText('正式报告')).toBeInTheDocument()
+    expect(screen.getAllByText('正式报告').length).toBeGreaterThan(0)
   })
 
   it('does not display zero or an empty report list while loading', () => {

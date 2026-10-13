@@ -48,6 +48,13 @@ public class DiagnosticExecutionTask {
     @Column(name = "DT_CNCLD") private Instant cancelledAt;
     @Column(name = "DES_EXCEPT_NOTE") private String exceptionNote;
 
+    @Column(name = "CD_REQ_NO_SNAP") private String requestNoSnapshot;
+    @Column(name = "NA_PAT_SNAP") private String residentNameSnapshot;
+    @Column(name = "CD_HR_NO_SNAP") private String healthRecordNoSnapshot;
+
+    public void snapshotResident(String name, String recordNo) {
+        residentNameSnapshot = name; healthRecordNoSnapshot = recordNo;
+    }
     protected DiagnosticExecutionTask() {}
 
     public DiagnosticExecutionTask(Long tenantId, Long organizationId, Long departmentId,
@@ -57,7 +64,7 @@ public class DiagnosticExecutionTask {
                                    Instant createdAt, String businessNumber) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.residentId = residentId; this.encounterId = encounterId;
-        this.requestId = requestId; this.taskNo = businessNumber; this.requestType = requestType;
+        this.requestId = requestId; this.requestNoSnapshot = requestNo; this.taskNo = businessNumber; this.requestType = requestType;
         this.itemCodeSnapshot = itemCode; this.itemNameSnapshot = itemName;
         this.specimenTypeSnapshot = specimenType; this.examinationTypeSnapshot = examinationType;
         this.status = settlementRequired
@@ -97,6 +104,23 @@ public class DiagnosticExecutionTask {
         if (!allowed) invalid("DIAGNOSTIC_START_STATE_INVALID",
                 "LABORATORY".equals(requestType) ? "检验项目需先完成标本采集" : "当前检查项目不能开始执行");
         status = DiagnosticExecutionTaskStatus.IN_PROGRESS; startedBy = actor; startedAt = occurredAt;
+    }
+
+    public void requireReadySpecimen() {
+        if (!"LABORATORY".equals(requestType) || status != DiagnosticExecutionTaskStatus.READY)
+            invalid("DIAGNOSTIC_SPECIMEN_TASK_STATE_INVALID", "只有待采集的检验任务可以生成标本");
+    }
+
+    public void recordSpecimenCollection(String number, Long actor, Instant occurredAt) {
+        if (collectedAt == null) { collectedAt = occurredAt; collectedBy = actor; specimenNo = number; }
+    }
+
+    public void rejectSpecimen(String reason) {
+        if (status != DiagnosticExecutionTaskStatus.READY && status != DiagnosticExecutionTaskStatus.COLLECTED)
+            invalid("DIAGNOSTIC_SPECIMEN_TASK_STATE_INVALID", "检测开始后不能按分析前拒收标本");
+        status = DiagnosticExecutionTaskStatus.READY;
+        exceptionNote = "标本拒收，待重新采集：" + reason;
+        // Preserve collectedAt / collectedBy as execution evidence for billing.
     }
 
     public void recordReport(DiagnosticReport report) {

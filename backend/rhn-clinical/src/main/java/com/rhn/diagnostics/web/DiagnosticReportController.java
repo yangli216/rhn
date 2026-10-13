@@ -11,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('DIAGNOSTICS.ACCESS','OUTPATIENT_RECEPTION.ACCESS','INPATIENT.ACCESS','ROLE_ADMIN')")
 public class DiagnosticReportController {
     private final DiagnosticExchangeService service;
     public DiagnosticReportController(DiagnosticExchangeService service) { this.service = service; }

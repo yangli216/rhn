@@ -1,3 +1,4 @@
+import type { DiagnosticTemplateVersion } from './diagnosticTemplateTypes'
 import type { ApiClient } from './httpClient'
 
 export type DiagnosticReportStatus = 'PRELIMINARY' | 'FINAL' | 'CORRECTED' | 'CANCELLED'
@@ -48,6 +49,9 @@ export interface DiagnosticObservation {
   interpretationCode?: string
   performerCode?: string
   performerName?: string
+  valueComparator?: 'EQ' | 'LT' | 'LE' | 'GT' | 'GE'
+  ruleStatus?: string
+  ruleSnapshot?: string
 }
 
 export interface DiagnosticReport {
@@ -66,6 +70,16 @@ export interface DiagnosticReport {
   issuedAt: string
   receivedAt: string
   conclusion?: string
+  findings?: string
+  authorId?: string
+  signerId?: string
+  signerName?: string
+  selfVerified?: boolean
+  correctionReason?: string
+  doubleSignatureRequired?: boolean
+  images?: DiagnosticImage[]
+  templateVersionId?: string
+  templateSnapshot?: string
   authorCode?: string
   authorName?: string
   contentDigestAlgorithm: string
@@ -145,15 +159,103 @@ export interface LocalDiagnosticReportInput {
   referenceRangeHigh?: number
   interpretationCode?: 'N' | 'H' | 'HH' | 'L' | 'LL' | 'A' | 'CRITICAL' | 'PANIC'
   conclusion?: string
+  findings?: string
+  observations?: LocalDiagnosticObservationInput[]
+  expectedDraftRevision?: number
+  correctionReason?: string
+  commandId?: string
+  templateVersionId?: string
+  templateSnapshot?: string
+}
+
+export interface LocalDiagnosticObservationInput {
+  observationCode: string
+  observationName: string
+  valueType: 'NUMBER' | 'STRING' | 'CODE'
+  observationValue: string
+  unitCode?: string
+  referenceRangeLow?: number
+  referenceRangeHigh?: number
+  interpretationCode?: LocalDiagnosticReportInput['interpretationCode']
+  valueComparator?: DiagnosticObservation['valueComparator']
+  instrumentCode?: string
+  populationCode?: string
+  ruleStatus?: string
+  ruleSnapshot?: string
+}
+
+export interface DiagnosticWorklistPage {
+  content: DiagnosticExecutionTask[]
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
+}
+
+export interface DiagnosticReportDraft {
+  revision: number
+  content?: LocalDiagnosticReportInput
+  authorId?: string
+  authorName?: string
+  updatedAt?: string
+  doubleSignatureRequired: boolean
+}
+
+export interface DiagnosticSpecimen {
+  id: string; revision: number; specimenNo: string; specimenType: string; specimenName: string
+  containerCode?: string; containerName?: string; status: 'READY' | 'COLLECTED' | 'RECEIVED' | 'REJECTED'
+  collectedAt?: string; receivedAt?: string; rejectionReason?: string; previousSpecimenId?: string; taskIds: string[]
+}
+
+export interface DiagnosticImage {
+  id: string; contentHash: string; mediaType: 'image/jpeg' | 'image/png'; byteSize: number
+  width: number; height: number; caption?: string; uploadedBy: string; uploadedAt: string
 }
 
 export function createDiagnosticsApi(client: ApiClient) {
   return {
+    reportTemplate: (taskId: string) => client.request<DiagnosticTemplateVersion | null>(`/api/diagnostics/tasks/${taskId}/report-template`),
+    draftImages: (taskId: string) => client.request<DiagnosticImage[]>(`/api/diagnostics/tasks/${taskId}/images`),
+    uploadImage: (taskId: string, expectedRevision: number, expectedDraftRevision: number,
+      commandId: string, file: File, caption: string) => {
+      const body = new FormData()
+      body.set('file', file); body.set('expectedRevision', String(expectedRevision))
+      body.set('expectedDraftRevision', String(expectedDraftRevision)); body.set('commandId', commandId); body.set('caption', caption)
+      return client.request<DiagnosticImage>(`/api/diagnostics/tasks/${taskId}/images`, { method: 'POST', body })
+    },
+    removeImage: (taskId: string, imageId: string, expectedRevision: number, expectedDraftRevision: number) =>
+      client.request<void>(`/api/diagnostics/tasks/${taskId}/images/${imageId}`, {
+        method: 'DELETE', body: JSON.stringify({ expectedRevision, expectedDraftRevision }),
+      }),
+    draftImageContent: (taskId: string, imageId: string) =>
+      client.download(`/api/diagnostics/tasks/${taskId}/images/${imageId}/content`),
+    reportImageContent: (reportId: string, imageId: string) =>
+      client.download(`/api/diagnostics/reports/${reportId}/images/${imageId}/content`),
+    task: (taskId: string) => client.request<DiagnosticExecutionTask>(`/api/diagnostics/tasks/${taskId}`),
+    specimens: (taskId: string) => client.request<DiagnosticSpecimen[]>(`/api/diagnostics/tasks/${taskId}/specimens`),
+    scanSpecimen: (specimenNo: string) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/scan?${new URLSearchParams({ specimenNo })}`),
+    generateSpecimens: (tasks: { taskId: string; expectedRevision: number; specimenConfigurationId?: string }[], commandId: string) =>
+      client.request<DiagnosticSpecimen[]>('/api/diagnostics/specimens', { method: 'POST', body: JSON.stringify({ tasks, commandId }) }),
+    collectSpecimen: (id: string, expectedRevision: number) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/${id}/collection`, {
+      method: 'POST', body: JSON.stringify({ expectedRevision }) }),
+    receiveSpecimen: (id: string, expectedRevision: number) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/${id}/receipt`, {
+      method: 'POST', body: JSON.stringify({ expectedRevision }) }),
+    rejectSpecimen: (id: string, expectedRevision: number, reason: string) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/${id}/rejection`, {
+      method: 'POST', body: JSON.stringify({ expectedRevision, reason }) }),
+    recollectSpecimen: (id: string, expectedRevision: number, commandId: string) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/${id}/recollection`, {
+      method: 'POST', body: JSON.stringify({ expectedRevision, commandId }) }),
     worklist: (requestType?: 'LABORATORY' | 'EXAMINATION', status?: DiagnosticTaskStatus) => {
       const query = new URLSearchParams()
       if (requestType) query.set('requestType', requestType)
       if (status) query.set('status', status)
       return client.request<DiagnosticExecutionTask[]>(`/api/diagnostics/worklist${query.size ? `?${query}` : ''}`)
+    },
+    worklistPage: (requestType: 'LABORATORY' | 'EXAMINATION', keyword: string, page: number, size = 20,
+      encounterId?: string, residentId?: string) => {
+      const query = new URLSearchParams({ requestType, keyword, page: String(page), size: String(size) })
+      if (encounterId) query.set('encounterId', encounterId)
+      if (residentId) query.set('residentId', residentId)
+      return client.request<DiagnosticWorklistPage>(`/api/diagnostics/worklist-page?${query}`)
     },
     collect: (taskId: string, expectedRevision: number, specimenNo: string, note?: string) =>
       client.request<DiagnosticExecutionTask>(`/api/diagnostics/tasks/${taskId}/collection`, {
@@ -166,6 +268,13 @@ export function createDiagnosticsApi(client: ApiClient) {
     recordLocalReport: (taskId: string, input: LocalDiagnosticReportInput) =>
       client.request<DiagnosticReport>(`/api/diagnostics/tasks/${taskId}/local-reports`, {
         method: 'POST', body: JSON.stringify(input),
+      }),
+    draft: (taskId: string) => client.request<DiagnosticReportDraft>(`/api/diagnostics/tasks/${taskId}/report-draft`),
+    saveDraft: (taskId: string, input: LocalDiagnosticReportInput) => client.request<DiagnosticReportDraft>(
+      `/api/diagnostics/tasks/${taskId}/report-draft`, { method: 'POST', body: JSON.stringify(input) }),
+    issueDraft: (taskId: string, expectedRevision: number, expectedDraftRevision: number, commandId: string) =>
+      client.request<DiagnosticReport>(`/api/diagnostics/tasks/${taskId}/report-draft/issue`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision, expectedDraftRevision, commandId }),
       }),
     dispatch: (requestId: string, endpointCode: 'LIS' | 'PACS') =>
       client.request<ExternalMessageReceipt>(

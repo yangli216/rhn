@@ -40,6 +40,7 @@ export interface PrintJobRecord {
   copies: number
   requestedAt: string
   requestedBy: string
+  reprintReason?: string
 }
 
 export interface PrintRecord {
@@ -432,13 +433,16 @@ export function createPrintingApi(client: ApiClient) {
           method: 'POST', body: JSON.stringify({ purpose, copies }),
         },
       ),
-    reprint: (jobId: string, copies = 1) => client.request<PrintReceipt>(
+    reprint: (jobId: string, copies = 1, reason?: string, idempotencyKey?: string) => client.request<PrintReceipt>(
       `/api/platform/printing/jobs/${jobId}/reprints`, {
-        method: 'POST', body: JSON.stringify({ copies }),
+        method: 'POST', body: JSON.stringify({ copies, reason, idempotencyKey }),
       },
     ),
     recordsByEncounter: (encounterId: string) => client.request<PrintRecord[]>(
       `/api/platform/printing/records?encounterId=${encodeURIComponent(encounterId)}`,
+    ),
+    recordsBySource: (encounterId: string, sourceType: string, sourceId: string) => client.request<PrintRecord[]>(
+      `/api/platform/printing/records?${new URLSearchParams({ encounterId, sourceType, sourceId })}`,
     ),
     clinicalPrintCandidates: (documentType: ClinicalPrintDocumentType, keyword?: string, mediaProfileId?: string) => {
       const query = new URLSearchParams({ documentType })

@@ -43,6 +43,7 @@ public class DiagnosticExecutionService {
 
     private final DiagnosticExecutionTaskRepository tasks;
     private final DiagnosticReportRepository reports;
+    private final com.rhn.diagnostics.infrastructure.DiagnosticSpecimenRepository specimens;
     private final ServiceRequestDirectory requests;
     private final ResidentDirectory residents;
     private final SettlementAuthorizationDirectory settlements;
@@ -58,8 +59,10 @@ public class DiagnosticExecutionService {
                                       ExecutionContextProvider contextProvider,
                                       IdempotentDomainEventConsumer eventConsumer,
                                       @Value("${rhn.diagnostics.require-settlement-authorization:true}")
-                                      boolean requireSettlementAuthorization, BusinessNumberGenerator numbers) {
+                                      boolean requireSettlementAuthorization, BusinessNumberGenerator numbers,
+                                      com.rhn.diagnostics.infrastructure.DiagnosticSpecimenRepository specimens) {
         this.numbers = numbers;
+        this.specimens = specimens;
         this.tasks = tasks; this.reports = reports; this.requests = requests; this.residents = residents; this.settlements = settlements;
         this.contextProvider = contextProvider; this.eventConsumer = eventConsumer;
         this.requireSettlementAuthorization = requireSettlementAuthorization;
@@ -69,12 +72,14 @@ public class DiagnosticExecutionService {
     public List<DiagnosticExecutionTaskView> worklist(String requestType, String status) {
         ExecutionContext context = requireWorkContext();
         String typeFilter = upper(requestType); String statusFilter = upper(status);
+        if (typeFilter != null) com.rhn.diagnostics.api.DiagnosticPermissions.requireRead(context, typeFilter);
         List<DiagnosticExecutionTask> values = tasks
                 .findTop100ByTenantIdAndOrganizationIdAndDepartmentIdOrderByCreatedAtDesc(
                         context.tenantId(), context.organizationId(), context.departmentId());
         values.forEach(this::reconcileSettlement);
         Map<Long, DiagnosticReport> latestReports = DiagnosticReportEvidence.latestCompletedReports(reports, context.tenantId(), values);
         return values.stream()
+                .filter(value -> com.rhn.diagnostics.api.DiagnosticPermissions.canRead(context, value.requestType()))
                 .filter(value -> typeFilter == null || typeFilter.equals(value.requestType()))
                 .filter(value -> statusFilter == null || statusFilter.equals(DiagnosticReportEvidence.status(value, latestReports).name()))
                 .map(value -> view(value, DiagnosticReportEvidence.status(value, latestReports))).toList();
@@ -83,7 +88,10 @@ public class DiagnosticExecutionService {
     @Transactional
     public DiagnosticExecutionTaskView collect(Long taskId, long expectedRevision, String specimenNo, String note) {
         ExecutionContext context = requireWorkContext(); DiagnosticExecutionTask task = requireAccessible(taskId, context);
+        com.rhn.diagnostics.api.DiagnosticPermissions.require(context,task.requestType(),"EXECUTE");
         reconcileSettlement(task);
+        if (!specimens.findForTask(context.tenantId(), taskId).isEmpty()) throw conflict(
+                "DIAGNOSTIC_SPECIMEN_ACTION_REQUIRED", "已生成实际标本，请逐管确认采集");
         String number = Strings.trimToNull(specimenNo);
         if (number == null) throw conflict("DIAGNOSTIC_SPECIMEN_NO_REQUIRED", "标本号不能为空");
         task.collect(expectedRevision, number, Strings.trimToNull(note), context.subjectId(), Instant.now());
@@ -91,22 +99,64 @@ public class DiagnosticExecutionService {
     }
 
     @Transactional
+    public com.rhn.shared.api.PageResult<DiagnosticExecutionTaskView> worklistPage(
+            String requestType, String keyword, int page, int size, Long encounterId, Long residentId) {
+        var context = requireWorkContext();
+        if (!Set.of("LABORATORY", "EXAMINATION").contains(requestType)) throw conflict(
+                "DIAGNOSTIC_REQUEST_TYPE_REQUIRED", "请选择检验或检查队列");
+        com.rhn.diagnostics.api.DiagnosticPermissions.requireRead(context, requestType);
+        String term = keyword == null ? "" : keyword.trim().toLowerCase(java.util.Locale.ROOT);
+        String escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        var values = tasks.pageForWorkContext(context.tenantId(), context.organizationId(), context.departmentId(),
+                requestType, term, "%" + escaped + "%", encounterId, residentId, org.springframework.data.domain.PageRequest.of(
+                        page, size, org.springframework.data.domain.Sort.by("createdAt", "id").descending()));
+        values.forEach(this::reconcileSettlement);
+        var latest = DiagnosticReportEvidence.latestCompletedReports(reports, context.tenantId(), values.getContent());
+        return new com.rhn.shared.api.PageResult<>(values.stream()
+                .map(task -> view(task, DiagnosticReportEvidence.status(task, latest))).toList(),
+                values.getTotalElements(), values.getTotalPages(), page, size);
+    }
+
+    @Transactional
     public DiagnosticExecutionTaskView start(Long taskId, long expectedRevision) {
         ExecutionContext context = requireWorkContext(); DiagnosticExecutionTask task = requireAccessible(taskId, context);
+        com.rhn.diagnostics.api.DiagnosticPermissions.require(context,task.requestType(),"EXECUTE");
         reconcileSettlement(task);
+        var activeSpecimens = specimens.findForTask(context.tenantId(), taskId).stream()
+                .filter(specimen -> !"REJECTED".equals(specimen.status())).toList();
+        if (!activeSpecimens.isEmpty() && activeSpecimens.stream().anyMatch(specimen -> !"RECEIVED".equals(specimen.status())))
+            throw conflict("DIAGNOSTIC_SPECIMEN_RECEIPT_REQUIRED", "请先接收全部实际标本再开始检测");
         task.start(expectedRevision, context.subjectId(), Instant.now());
         tasks.flush(); return view(task);
     }
 
     @Transactional
     public DiagnosticExecutionTask requireReportable(Long taskId, long expectedRevision) {
+        return requireLocalReportable(taskId, expectedRevision, false);
+    }
+
+    @Transactional
+    public DiagnosticExecutionTask requireLocalReportable(Long taskId, long expectedRevision, boolean correction) {
         ExecutionContext context = requireWorkContext(); DiagnosticExecutionTask task = requireAccessible(taskId, context);
         reconcileSettlement(task);
         if (task.revision() != expectedRevision) throw conflict(
                 "DIAGNOSTIC_TASK_REVISION_CONFLICT", "医技任务已被其他用户更新，请刷新后重试");
-        if (task.status() != DiagnosticExecutionTaskStatus.IN_PROGRESS) throw conflict(
+        if (task.status() != DiagnosticExecutionTaskStatus.IN_PROGRESS
+                && !(correction && task.status() == DiagnosticExecutionTaskStatus.COMPLETED)) throw conflict(
                 "DIAGNOSTIC_REPORT_STATE_INVALID", "只有执行中的医技任务可以录入报告");
         return task;
+    }
+
+    @Transactional
+    public DiagnosticExecutionTask requireLocalTask(Long taskId) {
+        var task = requireAccessible(taskId, requireWorkContext());
+        reconcileSettlement(task);
+        return task;
+    }
+
+    @Transactional
+    public DiagnosticExecutionTaskView task(Long taskId) {
+        return view(requireLocalTask(taskId));
     }
 
     @Transactional
@@ -168,12 +218,15 @@ public class DiagnosticExecutionService {
         BigDecimal amount = decimal(event.payload().get("totalAmount"));
         boolean settlementRequired = !inpatient && requireSettlementAuthorization
                 && amount != null && amount.signum() > 0;
-        tasks.save(new DiagnosticExecutionTask(event.tenantId(), event.organizationId(),
+        var task = new DiagnosticExecutionTask(event.tenantId(), event.organizationId(),
                 longValue(event.payload().get("performerDepartmentId")), event.subjectId(),
                 longValue(event.payload().get("encounterId")), event.aggregateId(),
                 text(event.payload().get("requestNo")), type, text(event.payload().get("itemCode")),
                 text(event.payload().get("itemName")), text(event.payload().get("specimenType")),
-                text(event.payload().get("examinationType")), settlementRequired, event.occurredAt(), null));
+                text(event.payload().get("examinationType")), settlementRequired, event.occurredAt(), null);
+        var resident = residents.requireSnapshot(event.tenantId(), event.subjectId());
+        task.snapshotResident(resident.fullName(), resident.healthRecordNo());
+        tasks.save(task);
     }
 
     private void updateSettlement(DomainEventEnvelope event, boolean finalized) {
@@ -194,10 +247,13 @@ public class DiagnosticExecutionService {
     private DiagnosticExecutionTask create(ServiceRequestDirectory.ServiceRequestSnapshot value) {
         boolean settlementRequired = requireSettlementAuthorization
                 && value.totalAmount() != null && value.totalAmount().signum() > 0;
-        return new DiagnosticExecutionTask(value.tenantId(), value.performerOrganizationId(),
+        var task = new DiagnosticExecutionTask(value.tenantId(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.residentId(), value.encounterId(), value.id(),
                 value.requestNo(), value.serviceType(), value.itemCode(), value.itemName(), value.specimenType(),
                 value.examinationType(), settlementRequired, value.authoredAt(), null);
+        var resident = residents.requireSnapshot(value.tenantId(), value.residentId());
+        task.snapshotResident(resident.fullName(), resident.healthRecordNo());
+        return task;
     }
 
     private void reconcileSettlement(DiagnosticExecutionTask task) {
@@ -215,6 +271,7 @@ public class DiagnosticExecutionService {
     }
 
     private void requireAccess(ExecutionContext context, DiagnosticExecutionTask value) {
+        com.rhn.diagnostics.api.DiagnosticPermissions.requireRead(context, value.requestType());
         if (!context.canAccessOrganization(value.organizationId()) || !context.canAccessDepartment(value.departmentId())) {
             throw forbidden("DIAGNOSTIC_TASK_FORBIDDEN", "无权访问当前工作上下文之外的医技任务");
         }

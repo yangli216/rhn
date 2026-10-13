@@ -109,6 +109,6 @@ describe('inpatient result value types', () => {
     setup([{ id: 'report1', encounterId: 'enc1', residentId: 'resident1', status: 'FINAL', reportName: '实际报告',
       observations: [{ id: 'obs1', observationName: '实际结果', ...value }] }])
     const label = await screen.findByText('实际结果')
-    expect(label.parentElement).toHaveTextContent(expected)
+    expect(label.closest('tr')).toHaveTextContent(expected)
   })
 })

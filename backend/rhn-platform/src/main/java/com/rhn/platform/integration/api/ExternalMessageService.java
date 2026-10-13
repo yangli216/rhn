@@ -12,6 +12,7 @@ public interface ExternalMessageService {
     ExternalMessageReceipt acknowledgeOutbound(String endpointCode, String businessMessageId,
                                                 boolean accepted, String errorCode, String errorMessage);
     List<ExternalMessageReceipt> listOutbound(String endpointCode, String status);
+    ExternalMessageReceipt requireMessage(Long messageId);
 
     record OutboundMessage(
             String endpointCode, String messageType, String businessMessageId, String correlationId,

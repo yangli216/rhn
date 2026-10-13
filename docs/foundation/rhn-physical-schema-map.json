@@ -3927,6 +3927,21 @@
         "logical": "exception_note",
         "physical": "DES_EXCEPT_NOTE",
         "comment": "例外备注"
+      },
+      {
+        "logical": "request_no_snapshot",
+        "physical": "CD_REQ_NO_SNAP",
+        "comment": "申请号快照"
+      },
+      {
+        "logical": "resident_name_snapshot",
+        "physical": "NA_PAT_SNAP",
+        "comment": "患者姓名快照"
+      },
+      {
+        "logical": "health_record_no_snapshot",
+        "physical": "CD_HR_NO_SNAP",
+        "comment": "健康档案号快照"
       }
     ]
   },
@@ -4093,6 +4108,51 @@
         "logical": "department_id",
         "physical": "ID_DEPT",
         "comment": "科室标识"
+      },
+      {
+        "logical": "findings",
+        "physical": "DES_FINDING",
+        "comment": "检查所见"
+      },
+      {
+        "logical": "author_id",
+        "physical": "ID_USER_AUTHOR",
+        "comment": "本地报告录入人主体"
+      },
+      {
+        "logical": "signer_id",
+        "physical": "ID_USER_SIGNER",
+        "comment": "实际签发人主体"
+      },
+      {
+        "logical": "signer_name",
+        "physical": "NA_SIGNER",
+        "comment": "签发人名称快照"
+      },
+      {
+        "logical": "self_verified",
+        "physical": "FG_SELF_SIGN",
+        "comment": "是否同人签发；历史和外部未知时为空"
+      },
+      {
+        "logical": "correction_reason",
+        "physical": "DES_CORRECT",
+        "comment": "报告更正原因"
+      },
+      {
+        "logical": "double_signature_required",
+        "physical": "FG_DOUBLE_SIGN",
+        "comment": "签发时机构是否要求双签；历史未知为空"
+      },
+      {
+        "logical": "template_version_id",
+        "physical": "ID_DIAG_TPL",
+        "comment": "实际采用报告模板版本；未知历史为空"
+      },
+      {
+        "logical": "template_snapshot",
+        "physical": "TPL_SNAP",
+        "comment": "签发时模板及机构规则不可变快照"
       }
     ]
   },
@@ -14428,6 +14488,21 @@
         "logical": "department_id",
         "physical": "ID_DEPT",
         "comment": "科室标识"
+      },
+      {
+        "logical": "value_comparator",
+        "physical": "SD_VAL_COMPR",
+        "comment": "数值比较符；EQ LT LE GT GE"
+      },
+      {
+        "logical": "rule_status",
+        "physical": "SD_RULE_STATUS",
+        "comment": "判定状态；无规则不等于正常"
+      },
+      {
+        "logical": "rule_snapshot",
+        "physical": "RULE_SNAP",
+        "comment": "签发结果规则及患者匹配条件快照"
       }
     ]
   },
@@ -17867,6 +17942,11 @@
         "logical": "correlation_id",
         "physical": "ID_CORR",
         "comment": "关联标识"
+      },
+      {
+        "logical": "reprint_reason",
+        "physical": "DES_REPRINT",
+        "comment": "补打原因；标本标签补打必填"
       }
     ]
   },
@@ -29015,6 +29095,473 @@
         "logical": "review_snapshot",
         "physical": "JSON_REVIEW",
         "comment": "研判结果原因和操作者快照；历史追加保留"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_report_draft",
+    "legacy": null,
+    "physical": "RHN_EX_DIAG_DRAFT",
+    "domain": "EX",
+    "comment": "医技报告草稿；一行代表一个执行任务的当前工作内容",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DIAG_DRAFT",
+        "comment": "报告草稿主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_DIAG_EXEC_TASK",
+        "comment": "医技执行任务"
+      },
+      {
+        "logical": "content",
+        "physical": "JSON_CONTENT",
+        "comment": "报告工作内容JSON"
+      },
+      {
+        "logical": "author_id",
+        "physical": "ID_USER_AUTHOR",
+        "comment": "最后录入人"
+      },
+      {
+        "logical": "author_name",
+        "physical": "NA_AUTHOR",
+        "comment": "录入人名称快照"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后更新时间"
+      },
+      {
+        "logical": "issued_report_id",
+        "physical": "ID_DIAG_REPORT",
+        "comment": "已签发的报告版本"
+      },
+      {
+        "logical": "issue_command_id",
+        "physical": "CD_CMD",
+        "comment": "签发请求幂等键"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_specimen",
+    "legacy": null,
+    "physical": "RHN_EX_DIAG_SPEC",
+    "domain": "EX",
+    "comment": "医技实际标本；一行代表一管实际标本及其当前作业事实",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DIAG_SPEC",
+        "comment": "标本主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "所属机构"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "执行科室"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "患者标识"
+      },
+      {
+        "logical": "encounter_id",
+        "physical": "ID_ENC",
+        "comment": "就诊标识"
+      },
+      {
+        "logical": "specimen_no",
+        "physical": "CD_SPEC_NO",
+        "comment": "标本业务号"
+      },
+      {
+        "logical": "specimen_type",
+        "physical": "SD_SPEC_TYPE",
+        "comment": "标本类型编码"
+      },
+      {
+        "logical": "specimen_name",
+        "physical": "NA_SPEC_TYPE",
+        "comment": "标本类型名称快照"
+      },
+      {
+        "logical": "container_code",
+        "physical": "SD_CONTNR",
+        "comment": "容器编码"
+      },
+      {
+        "logical": "container_name",
+        "physical": "NA_CONTNR",
+        "comment": "容器名称快照"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "READY/COLLECTED/RECEIVED/REJECTED"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "生成时间"
+      },
+      {
+        "logical": "collected_at",
+        "physical": "DT_COLLD",
+        "comment": "采集时间"
+      },
+      {
+        "logical": "collected_by",
+        "physical": "ID_USER_COLLD",
+        "comment": "采集人"
+      },
+      {
+        "logical": "received_at",
+        "physical": "DT_RECVD",
+        "comment": "接收时间"
+      },
+      {
+        "logical": "received_by",
+        "physical": "ID_USER_RECVD",
+        "comment": "接收人"
+      },
+      {
+        "logical": "rejected_at",
+        "physical": "DT_REJECT",
+        "comment": "拒收时间"
+      },
+      {
+        "logical": "rejected_by",
+        "physical": "ID_USER_REJECT",
+        "comment": "拒收人"
+      },
+      {
+        "logical": "rejection_reason",
+        "physical": "DES_REJECT",
+        "comment": "拒收原因"
+      },
+      {
+        "logical": "previous_specimen_id",
+        "physical": "ID_SPEC_PRIOR",
+        "comment": "被替代的拒收标本"
+      },
+      {
+        "logical": "creation_command",
+        "physical": "CD_CMD",
+        "comment": "生成命令标识"
+      },
+      {
+        "logical": "command_hash",
+        "physical": "HASH_CMD",
+        "comment": "生成命令内容摘要"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_specimen_task",
+    "legacy": null,
+    "physical": "RHN_EX_DIAG_SPEC_TASK",
+    "domain": "EX",
+    "comment": "医技标本申请关联；一行代表一管标本与一张申请的关联",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SPEC_TASK",
+        "comment": "关联主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "specimen_id",
+        "physical": "ID_DIAG_SPEC",
+        "comment": "实际标本"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_DIAG_EXEC_TASK",
+        "comment": "执行任务"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_local_command",
+    "legacy": null,
+    "physical": "RHN_EX_DIAG_CMD",
+    "domain": "EX",
+    "comment": "医技签发回执；一行代表一次本地签发命令与不可变报告的关联",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DIAG_CMD",
+        "comment": "签发回执主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_DIAG_EXEC_TASK",
+        "comment": "执行任务"
+      },
+      {
+        "logical": "command_id",
+        "physical": "CD_CMD",
+        "comment": "签发命令标识"
+      },
+      {
+        "logical": "content_hash",
+        "physical": "HASH_CMD",
+        "comment": "签发命令内容摘要"
+      },
+      {
+        "logical": "report_id",
+        "physical": "ID_DIAG_REPORT",
+        "comment": "正式报告版本"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_specimen_batch",
+    "legacy": null,
+    "physical": "RHN_EX_SPEC_BATCH",
+    "domain": "EX",
+    "comment": "标本生成批次；一行代表一个机构内唯一的标本生成命令",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SPEC_BATCH",
+        "comment": "标本生成批次主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "所属机构"
+      },
+      {
+        "logical": "command_id",
+        "physical": "CD_CMD",
+        "comment": "生成命令标识"
+      },
+      {
+        "logical": "command_hash",
+        "physical": "HASH_CMD",
+        "comment": "生成命令内容摘要"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_image",
+    "legacy": null,
+    "physical": "RHN_EX_DIAG_IMAGE",
+    "domain": "EX",
+    "comment": "医技关键图像；原图不可变",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DIAG_IMAGE",
+        "comment": "关键图像主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_DIAG_EXEC_TASK",
+        "comment": "医技执行任务"
+      },
+      {
+        "logical": "command_id",
+        "physical": "CD_CMD",
+        "comment": "上传命令幂等键"
+      },
+      {
+        "logical": "content_hash",
+        "physical": "HASH_CONTENT",
+        "comment": "原始图像SHA256摘要"
+      },
+      {
+        "logical": "media_type",
+        "physical": "SD_MEDIA_TYPE",
+        "comment": "由真实内容识别的媒体类型"
+      },
+      {
+        "logical": "byte_size",
+        "physical": "NUM_BYTES",
+        "comment": "原始内容字节数"
+      },
+      {
+        "logical": "width",
+        "physical": "NUM_WIDTH",
+        "comment": "图像像素宽度"
+      },
+      {
+        "logical": "height",
+        "physical": "NUM_HEIGHT",
+        "comment": "图像像素高度"
+      },
+      {
+        "logical": "caption",
+        "physical": "DES_CAPTION",
+        "comment": "图像说明快照"
+      },
+      {
+        "logical": "draft_active",
+        "physical": "FG_DRAFT",
+        "comment": "是否关联当前工作内容"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "上传时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "上传主体"
+      },
+      {
+        "logical": "content_base64",
+        "physical": "CONTENT_BASE64",
+        "comment": "数据库保存的原始图像内容"
+      }
+    ]
+  },
+  {
+    "logical": "ex.diagnostic_report_image",
+    "legacy": null,
+    "physical": "RHN_EX_REPORT_IMAGE",
+    "domain": "EX",
+    "comment": "报告版本冻结的图像关联",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_REPORT_IMAGE",
+        "comment": "报告图像关联主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "report_id",
+        "physical": "ID_DIAG_REPORT",
+        "comment": "不可变报告版本"
+      },
+      {
+        "logical": "image_id",
+        "physical": "ID_DIAG_IMAGE",
+        "comment": "不可变图像内容"
+      },
+      {
+        "logical": "sort_order",
+        "physical": "SN_SORT",
+        "comment": "报告内显示顺序"
+      }
+    ]
+  },
+  {
+    "logical": "bd.diagnostic_template_version",
+    "legacy": "diagnostic_template_versions",
+    "physical": "RHN_BD_DIAG_TPL",
+    "domain": "BD",
+    "comment": "机构诊疗项目报告模板；一行一个已发布不可变版本",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DIAG_TPL",
+        "comment": "报告模板版本主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "模板所属机构"
+      },
+      {
+        "logical": "catalog_item_id",
+        "physical": "ID_CATALOG_ITEM",
+        "comment": "诊疗项目目录身份"
+      },
+      {
+        "logical": "version",
+        "physical": "SN_VERSION",
+        "comment": "机构项目内不可变版本号"
+      },
+      {
+        "logical": "service_type",
+        "physical": "SD_SVC_TYPE",
+        "comment": "检验或检查类型"
+      },
+      {
+        "logical": "effective_from",
+        "physical": "DA_VALID_FROM",
+        "comment": "版本生效日期"
+      },
+      {
+        "logical": "publication_basis",
+        "physical": "DES_BASIS",
+        "comment": "机构规则确认与发布依据"
+      },
+      {
+        "logical": "published_by",
+        "physical": "ID_USER_PUBLISH",
+        "comment": "实际发布主体"
+      },
+      {
+        "logical": "published_at",
+        "physical": "DT_PUBLISH",
+        "comment": "实际发布时间"
+      },
+      {
+        "logical": "content",
+        "physical": "CONTENT_JSON",
+        "comment": "不可变模板指标规则词条内容"
       }
     ]
   }

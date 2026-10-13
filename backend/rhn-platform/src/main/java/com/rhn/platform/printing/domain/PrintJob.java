@@ -21,6 +21,7 @@ public class PrintJob {
     @Column(name = "DT_REQD", nullable = false) private Instant requestedAt;
     @Column(name = "ID_USER_REQD", nullable = false) private Long requestedBy;
     @Column(name = "ID_CORR", nullable = false) private String correlationId;
+    @Column(name = "DES_REPRINT") private String reprintReason;
 
     protected PrintJob() {}
 
@@ -41,4 +42,6 @@ public class PrintJob {
     public String status() { return status; }
     public Instant requestedAt() { return requestedAt; }
     public Long requestedBy() { return requestedBy; }
+    public void recordReprintReason(String reason) { this.reprintReason = reason; }
+    public String reprintReason() { return reprintReason; }
 }

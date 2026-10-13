@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkContextOption } from '../shared/rhnApi'
-import { selectableWarehouseContexts, selectableWorkContexts, tabForPath, workContextTypeForPath } from './AppShell'
+import { canAccessDiagnosticWorkspace, selectableWarehouseContexts, selectableWorkContexts, tabForPath, workContextTypeForPath } from './AppShell'
 
 describe('AppShell work context routing', () => {
+  it('requires category rights for medical technology menus and retained tab paths', () => {
+    const lab = new Set(['DIAGNOSTICS.ACCESS', 'DIAGNOSTICS.LABORATORY.VIEW'])
+    expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory?encounterId=e1', lab)).toBe(true)
+    expect(canAccessDiagnosticWorkspace('/diagnostics/examination', lab)).toBe(false)
+    expect(canAccessDiagnosticWorkspace('/diagnostics', lab)).toBe(true)
+    expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory', new Set(['DIAGNOSTICS.ACCESS']))).toBe(false)
+    expect(canAccessDiagnosticWorkspace('/diagnostics/examination', new Set(['DIAGNOSTICS.EXAMINATION.SIGN']))).toBe(true)
+  })
   it('routes inpatient workspaces to the ward context independently from outpatient clinics', () => {
     expect(workContextTypeForPath('/inpatient')).toBe('GENERAL')
     expect(workContextTypeForPath('/inpatient/orders?episodeId=1')).toBe('GENERAL')

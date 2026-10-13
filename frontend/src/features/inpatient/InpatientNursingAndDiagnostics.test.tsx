@@ -193,7 +193,7 @@ describe('InpatientDiagnosticResults', () => {
 
     expect(await screen.findByText('血细胞分析')).toBeInTheDocument()
     expect(screen.getByText('白细胞轻度升高')).toBeInTheDocument()
-    expect(screen.getByText('12.6 10^9/L')).toBeInTheDocument()
+    expect(screen.getByText('12.6').closest('tr')).toHaveTextContent('10^9/L')
     expect(container.querySelector('.is-abnormal')).toBeInTheDocument()
   })
 

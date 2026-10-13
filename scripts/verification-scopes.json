@@ -513,6 +513,47 @@
         "com.rhn.quality.MedicationWorkbenchShadowTest",
         "ClinicalAiConfigurationTest"
       ]
+    },
+    "diagnostics": {
+      "coverage": [
+        "检验/检查工作台、报告草稿与签发、版本事实、门诊/住院医技闭环及退费边界"
+      ],
+      "limitations": [
+        "接口、迁移、权限和资金改动扩大到完整CI；实体打印机、临床规则与视觉另需人工验收。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/diagnostics/DiagnosticWorkspace.test.tsx",
+        "src/features/diagnostics/shared/DiagnosticWorkbench.test.tsx",
+        "src/shared/clinical/diagnosticResults.test.ts",
+        "src/features/outpatient/OutpatientDiagnosticResults.test.tsx",
+        "src/features/inpatient/InpatientDiagnosticResults.truth.test.tsx",
+        "src/features/inpatient/InpatientNursingAndDiagnostics.test.tsx",
+        "src/app/AppShellContext.test.ts",
+        "src/features/diagnostics/DiagnosticEntry.test.tsx",
+        "src/shared/clinical/DiagnosticPrintAction.test.tsx",
+        "src/app/useWorkspaceUnsavedPrompt.test.tsx",
+        "src/shared/api/printingApi.test.ts",
+        "src/features/settings/PrintTemplateManagement.test.tsx",
+        "src/features/diagnostics/shared/DiagnosticTemplateSelection.test.tsx",
+        "src/features/settings/operations/DiagnosticTemplateDialog.test.tsx"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "DiagnosticExecutionWorkflowTest",
+        "DiagnosticExchangeTest",
+        "DiagnosticReportWorkingCopyTest",
+        "DiagnosticSpecimenWorkflowTest",
+        "InpatientDiagnosticExecutionFlowTest",
+        "com.rhn.diagnostics.application.DiagnosticReportTruthTest",
+        "com.rhn.diagnostics.application.DiagnosticFlowTruthTest",
+        "com.rhn.billing.application.DirectRefundApplicationServiceTest",
+        "com.rhn.platform.printing.application.DiagnosticImagePdfRendererTest",
+        "com.rhn.platform.printing.application.PrintLayoutValidatorTest",
+        "ControlledPrintingTest",
+        "DiagnosticTemplateWorkflowTest",
+        "com.rhn.diagnostics.application.LaboratoryRuleEvaluatorTest"
+      ]
     }
   }
 }

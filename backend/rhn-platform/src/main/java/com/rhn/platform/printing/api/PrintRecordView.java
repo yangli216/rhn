@@ -37,6 +37,7 @@ public record PrintRecordView(
             String status,
             int copies,
             Instant requestedAt,
-            Long requestedBy
+            Long requestedBy,
+            String reprintReason
     ) {}
 }

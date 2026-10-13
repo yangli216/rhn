@@ -6,7 +6,6 @@ import com.rhn.diagnostics.application.DiagnosticExchangeService.Acknowledgement
 import com.rhn.diagnostics.application.DiagnosticExchangeService.AcknowledgementReceipt;
 import com.rhn.diagnostics.application.DiagnosticExchangeService.ObservationCommand;
 import com.rhn.diagnostics.application.DiagnosticExchangeService.ReportCommand;
-import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.platform.integration.api.ExternalMessageService.ExternalMessageReceipt;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -15,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,37 +32,44 @@ import java.util.List;
 @RequestMapping("/api/integration/diagnostics")
 public class DiagnosticExchangeController {
     private final DiagnosticExchangeService diagnostics;
-    private final ExternalMessageService messages;
 
-    public DiagnosticExchangeController(DiagnosticExchangeService diagnostics, ExternalMessageService messages) {
-        this.diagnostics = diagnostics; this.messages = messages;
+    public DiagnosticExchangeController(DiagnosticExchangeService diagnostics) {
+        this.diagnostics = diagnostics;
     }
 
     @PostMapping("/requests/{requestId}/outbound-messages")
+    @PreAuthorize(com.rhn.diagnostics.api.DiagnosticPermissions.INTEGRATION)
     @ResponseStatus(HttpStatus.CREATED)
     ExternalMessageReceipt dispatch(@PathVariable Long requestId, @Valid @RequestBody DispatchRequest input) {
         return diagnostics.dispatch(requestId, input.endpointCode());
     }
 
     @GetMapping("/outbound-messages")
+    @PreAuthorize(com.rhn.diagnostics.api.DiagnosticPermissions.INTEGRATION)
     List<ExternalMessageReceipt> outbound(@RequestParam String endpointCode,
                                           @RequestParam(required = false) String status) {
-        return messages.listOutbound(endpointCode, status);
+        return diagnostics.outbound(endpointCode, status);
     }
 
     @PostMapping("/outbound-messages/{messageId}/delivery")
+    @PreAuthorize(com.rhn.diagnostics.api.DiagnosticPermissions.INTEGRATION)
     ExternalMessageReceipt delivery(@PathVariable Long messageId, @Valid @RequestBody DeliveryRequest input) {
-        return messages.markDelivery(messageId, input.delivered(), input.errorCode(), input.errorMessage());
+        return diagnostics.delivery(messageId, input.delivered(), input.errorCode(), input.errorMessage());
     }
 
     @PostMapping("/inbound/acknowledgements")
+    @PreAuthorize(com.rhn.diagnostics.api.DiagnosticPermissions.INTEGRATION)
     AcknowledgementReceipt acknowledge(@Valid @RequestBody AcknowledgementRequest input) {
         return diagnostics.acknowledge(input.toCommand());
     }
 
     @PostMapping("/inbound/reports")
+    @PreAuthorize(com.rhn.diagnostics.api.DiagnosticPermissions.INTEGRATION)
     @ResponseStatus(HttpStatus.CREATED)
     DiagnosticReportResponse report(@Valid @RequestBody DiagnosticReportRequest input) {
+        if ("RHN-LOCAL".equalsIgnoreCase(input.endpointCode())) {
+            throw com.rhn.shared.api.BusinessErrors.forbidden("DIAGNOSTIC_LOCAL_ENDPOINT_RESERVED", "本地报告必须从工作台签发");
+        }
         return diagnostics.ingestReport(input.toCommand());
     }
 

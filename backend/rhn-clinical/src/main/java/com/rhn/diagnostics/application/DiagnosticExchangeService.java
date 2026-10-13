@@ -1,6 +1,7 @@
 package com.rhn.diagnostics.application;
 
 import com.rhn.diagnostics.api.DiagnosticReportResponse;
+import com.rhn.diagnostics.api.DiagnosticImageView;
 import com.rhn.diagnostics.api.DiagnosticReportDirectory;
 import com.rhn.diagnostics.domain.DiagnosticReport;
 import com.rhn.diagnostics.domain.DiagnosticReportResult;
@@ -52,6 +53,9 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
+    private final DiagnosticInboundPolicy inboundPolicy;
+    private final DiagnosticImageService images;
+    private final DiagnosticReportAccess reportAccess;
 
     public DiagnosticExchangeService(ServiceRequestDirectory requestDirectory,
                                      EncounterCareSettingDirectory encounterCareSettings,
@@ -62,20 +66,25 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
                                      CriticalValueAlertService criticalValueAlerts,
                                      DiagnosticExecutionService execution,
                                      DomainEventPublisher eventPublisher,
-                                     ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
+                                     ExecutionContextProvider contextProvider, JsonCodec jsonCodec, DiagnosticInboundPolicy inboundPolicy,
+                                     DiagnosticImageService images, DiagnosticReportAccess reportAccess) {
         this.requestDirectory = requestDirectory;
+        this.images = images;
+        this.reportAccess = reportAccess;
         this.encounterCareSettings = encounterCareSettings;
         this.messageService = messageService; this.reportRepository = reportRepository;
         this.observationRepository = observationRepository; this.resultRepository = resultRepository;
         this.criticalValueAlerts = criticalValueAlerts;
         this.execution = execution;
         this.eventPublisher = eventPublisher; this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
+        this.inboundPolicy = inboundPolicy;
     }
 
     @Transactional
     public ExternalMessageReceipt dispatch(Long requestId, String endpointCode) {
         var request = requestDirectory.requireForDiagnosticExchange(requestId);
         requireDiagnosticType(request.serviceType());
+        inboundPolicy.requireTrusted(contextProvider.requireCurrent(), request.performerOrganizationId(), request.serviceType(), endpointCode);
         execution.requireExchangeAllowed(requestId);
         if (!"ACTIVE".equals(request.status())) {
             throw conflict("DIAGNOSTIC_REQUEST_NOT_ACTIVE", "只有生效中的检查检验申请可以进入外部交换队列");
@@ -94,19 +103,16 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
     public AcknowledgementReceipt acknowledge(AcknowledgementCommand input) {
         var request = requestDirectory.requireForDiagnosticExchange(input.requestNo());
         requireDiagnosticType(request.serviceType());
+        inboundPolicy.requireTrusted(contextProvider.requireCurrent(),request.performerOrganizationId(),request.serviceType(),input.endpointCode());
         ExternalMessageReceipt inbound = messageService.receiveInbound(new ExternalMessageService.InboundMessage(
                 input.endpointCode(), "DIAGNOSTIC_REQUEST_ACK", input.businessMessageId(), input.correlationId(),
                 request.performerOrganizationId(), request.performerDepartmentId(), input));
-        if (inbound.duplicate() && inbound.relatedResourceId() != null) {
-            ExternalMessageReceipt outbound = messageService.acknowledgeOutbound(input.endpointCode(),
-                    input.outboundBusinessMessageId(), input.accepted(), input.errorCode(), input.errorMessage());
-            return new AcknowledgementReceipt(inbound, outbound);
-        }
         ExternalMessageReceipt outbound = messageService.acknowledgeOutbound(input.endpointCode(),
                 input.outboundBusinessMessageId(), input.accepted(), input.errorCode(), input.errorMessage());
         if (!request.id().equals(outbound.relatedResourceId())) {
             throw conflict("DIAGNOSTIC_ACK_REQUEST_MISMATCH", "回执引用的外发消息不属于当前申请");
         }
+        if (inbound.duplicate() && inbound.relatedResourceId() != null) return new AcknowledgementReceipt(inbound,outbound);
         inbound = messageService.markProcessed(inbound.id(), "ServiceRequest", request.id(), request.revision());
         publish(request, input.accepted() ? "DIAGNOSTIC_REQUEST_ACKNOWLEDGED" : "DIAGNOSTIC_REQUEST_REJECTED",
                 input.accepted() ? "检查检验申请已被外部系统接收" : "检查检验申请被外部系统拒绝",
@@ -115,14 +121,49 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         return new AcknowledgementReceipt(inbound, outbound);
     }
 
+    @Transactional(readOnly = true)
+    public List<ExternalMessageReceipt> outbound(String endpointCode, String status) {
+        inboundPolicy.requireEndpointAccess(contextProvider.requireCurrent(), endpointCode);
+        return messageService.listOutbound(endpointCode, status).stream().filter(message ->
+                "DIAGNOSTIC_REQUEST".equals(message.messageType()) && "ServiceRequest".equals(message.relatedResourceType()))
+                .peek(this::requireDiagnosticMessage).toList();
+    }
+
+    @Transactional
+    public ExternalMessageReceipt delivery(Long messageId, boolean delivered, String errorCode, String errorMessage) {
+        var message = messageService.requireMessage(messageId);
+        requireDiagnosticMessage(message);
+        return messageService.markDelivery(messageId, delivered, errorCode, errorMessage);
+    }
+
+    private void requireDiagnosticMessage(ExternalMessageReceipt message) {
+        if (!"OUTBOUND".equals(message.direction()) || !"DIAGNOSTIC_REQUEST".equals(message.messageType())
+                || !"ServiceRequest".equals(message.relatedResourceType()) || message.relatedResourceId() == null)
+            throw forbidden("DIAGNOSTIC_MESSAGE_TYPE_FORBIDDEN", "此消息不属于医技申请交换");
+        var request = requestDirectory.requireForDiagnosticExchange(message.relatedResourceId());
+        inboundPolicy.requireTrusted(contextProvider.requireCurrent(), request.performerOrganizationId(), request.serviceType(), message.endpointCode());
+    }
+
     @Transactional
     public DiagnosticReportResponse ingestReport(ReportCommand input) {
+        return ingest(input, null);
+    }
+
+    @Transactional
+    public DiagnosticReportResponse ingestLocalReport(ReportCommand input, LocalSignature signature) {
+        return ingest(input, signature);
+    }
+
+    private DiagnosticReportResponse ingest(ReportCommand input, LocalSignature signature) {
         var request = requestDirectory.requireForDiagnosticExchange(input.requestNo());
         requireDiagnosticType(request.serviceType());
+        if(signature==null) inboundPolicy.requireTrusted(contextProvider.requireCurrent(),request.performerOrganizationId(),request.serviceType(),input.endpointCode());
         validateReport(input, request.serviceType());
         ExternalMessageReceipt inbound = messageService.receiveInbound(new ExternalMessageService.InboundMessage(
                 input.endpointCode(), "DIAGNOSTIC_REPORT", input.businessMessageId(), input.correlationId(),
-                request.performerOrganizationId(), request.performerDepartmentId(), input));
+                request.performerOrganizationId(), request.performerDepartmentId(),
+                signature == null ? input : Map.of("report", input, "signature", signature,
+                        "signerId", contextProvider.requireCurrent().subjectId())));
         if (inbound.duplicate() && inbound.relatedResourceId() != null) {
             return response(reportRepository.findByIdAndTenantId(inbound.relatedResourceId(), request.tenantId())
                     .orElseThrow(() -> notFound("DIAGNOSTIC_REPORT_NOT_FOUND", "幂等消息关联的报告不存在")));
@@ -140,6 +181,11 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
                 input.status(), input.reportCode(), input.reportName(), input.issuedAt(), Strings.trimToNull(input.conclusion()),
                 Strings.trimToNull(input.authorCode()), Strings.trimToNull(input.authorName()), inbound.payloadDigest(), inbound.id(),
                 context.subjectId()));
+        if (signature != null) {
+            report.recordLocalSignature(signature.findings(), signature.authorId(), context.subjectId(),
+                    context.actor(), signature.correctionReason(), signature.doubleSignatureRequired());
+            report.recordTemplate(signature.templateVersionId(), signature.templateSnapshot());
+        }
         int order = 0; List<Observation> savedObservations = new ArrayList<>();
         for (ObservationCommand item : safe(input.observations())) {
             validateObservation(item, input.status());
@@ -152,6 +198,7 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
                     item.valueBoolean(), Strings.trimToNull(item.valueCode()), item.valueDateTime(), Strings.trimToNull(item.unitCode()),
                     item.referenceRangeLow(), item.referenceRangeHigh(), Strings.trimToNull(item.interpretationCode()),
                     Strings.trimToNull(item.performerCode()), Strings.trimToNull(item.performerName())));
+            observation.recordRuleEvidence(item.valueComparator(), item.ruleStatus(), item.ruleSnapshot());
             resultRepository.save(new DiagnosticReportResult(request.tenantId(), report.id(), observation.id(), ++order));
             savedObservations.add(observation);
         }
@@ -167,6 +214,7 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         return response(report);
     }
 
+
     @Transactional(readOnly = true)
     @Override
     public List<DiagnosticReportResponse> listByEncounter(Long encounterId) {
@@ -177,14 +225,28 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
             throw forbidden("ENCOUNTER_FORBIDDEN", "无权访问当前工作上下文之外的就诊");
         }
         return reportRepository.findByTenantIdAndEncounterIdOrderByIssuedAtDescReportVersionDesc(
-                context.tenantId(), encounterId).stream().map(this::response).toList();
+                context.tenantId(), encounterId).stream()
+                .filter(report -> canReadClinical(context) || com.rhn.diagnostics.api.DiagnosticPermissions.canRead(context,
+                        "LABORATORY".equals(report.reportType()) ? "LABORATORY" : "EXAMINATION"))
+                .map(this::response).toList();
     }
 
     @Transactional(readOnly = true)
     public List<DiagnosticReportResponse> listByRequest(Long requestId) {
         var request = requestDirectory.requireForDiagnosticExchange(requestId);
+        if (!canReadClinical(contextProvider.requireCurrent()))
+            com.rhn.diagnostics.api.DiagnosticPermissions.requireRead(contextProvider.requireCurrent(), request.serviceType());
         return reportRepository.findByTenantIdAndRequestIdOrderByReportVersionDesc(request.tenantId(), requestId)
                 .stream().map(this::response).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DiagnosticReportResponse readReport(Long reportId) {
+        return response(reportAccess.require(reportId));
+    }
+
+    private boolean canReadClinical(ExecutionContext context) {
+        return context.hasAuthority("OUTPATIENT_RECEPTION.ACCESS") || context.hasAuthority("INPATIENT.ACCESS") || context.hasAuthority("ROLE_ADMIN");
     }
 
     private DiagnosticReportResponse response(DiagnosticReport report) {
@@ -200,13 +262,16 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
                             value.status(), value.valueType(), value.effectiveAt(), value.valueString(), value.valueNumber(),
                             value.valueBoolean(), value.valueCode(), value.valueDateTime(), value.unitCode(),
                             value.referenceRangeLow(), value.referenceRangeHigh(), value.interpretationCode(),
-                            value.performerCode(), value.performerName());
+                            value.performerCode(), value.performerName(), value.valueComparator(), value.ruleStatus(), value.ruleSnapshot());
                 }).toList();
         return new DiagnosticReportResponse(report.id(), report.residentId(), report.encounterId(), report.requestId(),
                 report.endpointCode(), report.externalReportId(), report.reportVersion(), report.replacesReportId(),
                 report.reportType(), report.status(), report.reportCode(), report.reportName(), report.issuedAt(),
                 report.receivedAt(), report.conclusion(), report.authorCode(), report.authorName(),
-                report.contentDigestAlgorithm(), report.contentDigest(), report.inboundMessageId(), result);
+                report.contentDigestAlgorithm(), report.contentDigest(), report.inboundMessageId(), result,
+                report.findings(), report.authorId(), report.signerId(), report.signerName(),
+                report.selfVerified(), report.correctionReason(), report.doubleSignatureRequired(),
+                images.reportImages(report.tenantId(), report.id()), report.templateVersionId(), report.templateSnapshot());
     }
 
     private EncounterSnapshot clinicalEncounter(ServiceRequestSnapshot request) {
@@ -272,6 +337,8 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
     }
 
     private void validateObservation(ObservationCommand item, String reportStatus) {
+        if (item.valueComparator() != null && (!java.util.Set.of("EQ", "LT", "LE", "GT", "GE").contains(item.valueComparator())
+                || !"NUMBER".equals(item.valueType()))) throw badRequest("OBSERVATION_COMPARATOR_INVALID", "只有数值结果支持有效比较符");
         if (!VALUE_TYPES.contains(item.valueType())) throw badRequest("OBSERVATION_VALUE_TYPE_INVALID", "观察结果值类型不受支持");
         int values = (Strings.trimToNull(item.valueString()) == null ? 0 : 1) + (item.valueNumber() == null ? 0 : 1)
                 + (item.valueBoolean() == null ? 0 : 1) + (Strings.trimToNull(item.valueCode()) == null ? 0 : 1)
@@ -348,5 +415,22 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
             String valueType, Instant effectiveAt, String valueString, BigDecimal valueNumber,
             Boolean valueBoolean, String valueCode, Instant valueDateTime, String unitCode,
             BigDecimal referenceRangeLow, BigDecimal referenceRangeHigh, String interpretationCode,
-            String performerCode, String performerName) {}
+            String performerCode, String performerName, String valueComparator, String ruleStatus, String ruleSnapshot) {
+        public ObservationCommand(String codeSystemUri, String codeRelease, String observationCode, String observationName,
+                String valueType, Instant effectiveAt, String valueString, BigDecimal valueNumber, Boolean valueBoolean,
+                String valueCode, Instant valueDateTime, String unitCode, BigDecimal referenceRangeLow,
+                BigDecimal referenceRangeHigh, String interpretationCode, String performerCode, String performerName) {
+            this(codeSystemUri,codeRelease,observationCode,observationName,valueType,effectiveAt,valueString,valueNumber,
+                valueBoolean,valueCode,valueDateTime,unitCode,referenceRangeLow,referenceRangeHigh,interpretationCode,
+                performerCode,performerName,null,null,null);
+        }
+    }
+    public record LocalSignature(String findings, Long authorId, String correctionReason,
+                                 boolean doubleSignatureRequired, List<DiagnosticImageView> images,
+                                 Long templateVersionId, String templateSnapshot) {
+        public LocalSignature(String findings, Long authorId, String correctionReason,
+                boolean doubleSignatureRequired, List<DiagnosticImageView> images) {
+            this(findings,authorId,correctionReason,doubleSignatureRequired,images,null,null);
+        }
+    }
 }

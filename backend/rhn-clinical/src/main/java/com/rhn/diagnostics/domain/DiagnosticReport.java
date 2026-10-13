@@ -5,6 +5,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
@@ -37,7 +39,19 @@ public class DiagnosticReport {
     @Column(name = "ID_EXT_MSG_INBOUND", nullable = false) private Long inboundMessageId;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "DES_FINDING") private String findings;
+    @Column(name = "ID_USER_AUTHOR") private Long authorId;
+    @Column(name = "ID_USER_SIGNER") private Long signerId;
+    @Column(name = "NA_SIGNER") private String signerName;
+    @Column(name = "FG_SELF_SIGN") private Boolean selfVerified;
+    @Column(name = "FG_DOUBLE_SIGN") private Boolean doubleSignatureRequired;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "DES_CORRECT") private String correctionReason;
 
+    @Column(name = "ID_DIAG_TPL") private Long templateVersionId;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "TPL_SNAP") private String templateSnapshot;
+    public void recordTemplate(Long id, String snapshot) { this.templateVersionId = id; this.templateSnapshot = snapshot; }
+    public Long templateVersionId() { return templateVersionId; }
+    public String templateSnapshot() { return templateSnapshot; }
     protected DiagnosticReport() {}
 
     public DiagnosticReport(Long tenantId, Long residentId, Long encounterId, Long requestId,
@@ -61,6 +75,20 @@ public class DiagnosticReport {
     }
 
     public Long id() { return id; } public Long tenantId() { return tenantId; }
+    public void recordLocalSignature(String findings, Long authorId, Long signerId, String signerName,
+                                     String correctionReason, boolean doubleSignatureRequired) {
+        this.findings = findings; this.authorId = authorId; this.signerId = signerId;
+        this.signerName = signerName; this.selfVerified = authorId.equals(signerId);
+        this.correctionReason = correctionReason;
+        this.doubleSignatureRequired = doubleSignatureRequired;
+    }
+    public String findings() { return findings; }
+    public Long authorId() { return authorId; }
+    public Long signerId() { return signerId; }
+    public String signerName() { return signerName; }
+    public Boolean selfVerified() { return selfVerified; }
+    public Boolean doubleSignatureRequired() { return doubleSignatureRequired; }
+    public String correctionReason() { return correctionReason; }
     public Long residentId() { return residentId; } public Long encounterId() { return encounterId; }
     public Long requestId() { return requestId; }
     public Long organizationId() { return organizationId; } public Long departmentId() { return departmentId; }

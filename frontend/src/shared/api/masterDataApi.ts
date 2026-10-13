@@ -1,3 +1,4 @@
+import type { DiagnosticTemplateVersion, DiagnosticTemplatePublication } from './diagnosticTemplateTypes'
 import type { ApiClient } from './httpClient'
 import type { components } from './generated'
 // Explicit business projections inherit primitive wire fields from the generated contract.
@@ -1128,6 +1129,10 @@ function queryString(values: Record<string, string | undefined>) {
 
 export function createMasterDataApi(client: ApiClient) {
   return {
+    diagnosticTemplates: (serviceId: string) => client.request<DiagnosticTemplateVersion[]>(
+      `/api/platform/master-data/operations/services/${serviceId}/report-templates`),
+    publishDiagnosticTemplate: (serviceId: string, input: DiagnosticTemplatePublication) => client.request<DiagnosticTemplateVersion>(
+      `/api/platform/master-data/operations/services/${serviceId}/report-templates`, { method: 'POST', body: JSON.stringify(input) }),
     itemTypes: (subjectType = '') => client.request<ItemType[]>(
       `/api/platform/master-data/item-types${queryString({ subjectType })}`,
     ),

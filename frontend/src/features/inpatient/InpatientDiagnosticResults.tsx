@@ -2,12 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { formatTime } from '../../shared/format'
 import { requireActiveCriticalValues } from '../../shared/clinical/criticalValueFacts'
-import { diagnosticObservationValue, requireDiagnosticReports } from '../../shared/clinical/diagnosticResults'
-import type { CriticalValueAlert, DiagnosticObservation, DiagnosticReport } from '../../shared/api/diagnosticsApi'
+import { requireDiagnosticReports } from '../../shared/clinical/diagnosticResults'
+import type { CriticalValueAlert } from '../../shared/api/diagnosticsApi'
 import type { InpatientEpisode } from '../../shared/api/inpatientApi'
-import { criticalValueStatusPresentation, diagnosticReportStatusPresentation } from '../../shared/presentation'
+import { criticalValueStatusPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
+import { DiagnosticReportViewer } from '../../shared/clinical/DiagnosticReportViewer'
 import './inpatient-diagnostics.css'
 
 export function InpatientDiagnosticResults({ api, episode }: { api: RhnApi; episode: InpatientEpisode }) {
@@ -49,7 +50,7 @@ export function InpatientDiagnosticResults({ api, episode }: { api: RhnApi; epis
         : values.length === 0 ? <EmptyState icon="clinical" title="暂无检查检验报告"
           copy="住院诊疗医嘱在医技科室完成后，报告会显示在这里。" />
           : <div className="inpatient-diagnostic-results__list">{values.map((report) =>
-            <DiagnosticReportCard key={report.id} value={report} />)}</div>}
+            <DiagnosticReportViewer key={report.id} api={api} report={report} historical={values.some((other) => other.replacesReportId === report.id)} />)}</div>}
   </Panel>
 }
 
@@ -103,26 +104,4 @@ function CriticalValueCard({ api, value, encounterId, refreshing }: {
         : <Button busy={acknowledge.isPending} disabled={refreshing} onClick={() => acknowledge.mutate()}>确认已知晓</Button>}
     </div>
   </article>
-}
-
-function DiagnosticReportCard({ value }: { value: DiagnosticReport }) {
-  const status = diagnosticReportStatusPresentation(value.status)
-  return <article><header><div><span>{value.reportType === 'LABORATORY' ? '检验' : '检查'}</span>
-    <strong>{value.reportName}</strong><small>{value.reportCode} · {formatTime(value.issuedAt)}</small></div>
-    <StatusBadge tone={status.tone}>{status.label}</StatusBadge></header>
-    {value.conclusion && <p><b>结论：</b>{value.conclusion}</p>}
-    {value.observations.length > 0 && <div className="inpatient-diagnostic-results__observations">
-      {value.observations.map((item) => <ObservationRow key={item.id} value={item} />)}
-    </div>}
-    <footer>{value.authorName || '报告人未记录'} · 版本 {value.reportVersion}
-      {value.status === 'CORRECTED' ? '（更正）' : ''}</footer>
-  </article>
-}
-
-function ObservationRow({ value }: { value: DiagnosticObservation }) {
-  const abnormal = ['H', 'HH', 'L', 'LL', 'A', 'CRITICAL', 'PANIC'].includes(value.interpretationCode ?? '')
-  return <span className={abnormal ? 'is-abnormal' : ''}><strong>{value.observationName}</strong>
-    <b>{diagnosticObservationValue(value)}{value.unitCode ? ` ${value.unitCode}` : ''}</b>
-    {(value.referenceRangeLow !== undefined || value.referenceRangeHigh !== undefined) && <small>
-      参考 {value.referenceRangeLow ?? '—'}–{value.referenceRangeHigh ?? '—'}</small>}</span>
 }

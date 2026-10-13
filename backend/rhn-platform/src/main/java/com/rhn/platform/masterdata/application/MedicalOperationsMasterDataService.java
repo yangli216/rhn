@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 import static com.rhn.shared.api.BusinessErrors.*;
 
 @Service
-public class MedicalOperationsMasterDataService {
+public class MedicalOperationsMasterDataService implements com.rhn.platform.masterdata.api.LaboratorySpecimenDirectory {
     private static final Set<String> STATUSES = Set.of("ACTIVE", "INACTIVE");
     private final ServiceCatalogItemRepository serviceRepository;
     private final LaboratoryServiceRepository laboratoryRepository;

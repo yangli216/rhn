@@ -1,5 +1,5 @@
 {
-  "fingerprint": "67d7542e7e52f9348bc41d477dc784cfbba969ee49d4cbe9c85db950411f6cac",
+  "fingerprint": "a660ea62968ca27c59fd7442858f95f9428b479d57f82fa09dcc418ad446b4e3",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -1381,6 +1381,42 @@
           "comment": "例外备注",
           "logical": "exception_note",
           "catalogComment": "例外备注"
+        },
+        {
+          "physical": "CD_REQ_NO_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "申请号快照；队列查询",
+          "logical": "request_no_snapshot",
+          "catalogComment": "申请号快照"
+        },
+        {
+          "physical": "NA_PAT_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 31,
+          "comment": "申请时患者姓名；队列查询",
+          "logical": "resident_name_snapshot",
+          "catalogComment": "患者姓名快照"
+        },
+        {
+          "physical": "CD_HR_NO_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 32,
+          "comment": "申请时健康档案号；队列查询",
+          "logical": "health_record_no_snapshot",
+          "catalogComment": "健康档案号快照"
         }
       ],
       "kind": "BASE TABLE",
@@ -1405,7 +1441,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_EX_DIAG_EXEC_T_BIL_STL_DIAG_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_BIL_STL_DIAG_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1421,7 +1457,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_EX_DIAG_DIAG_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_EX_DIAG_DIAG_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1437,7 +1473,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_PI_PAT_DIAG__INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_PI_PAT_DIAG__INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1453,7 +1489,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_SYS_DEPT_DIA_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_SYS_DEPT_DIA_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1474,7 +1510,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_SYS_ORG_DIAG_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_SYS_ORG_DIAG_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1490,7 +1526,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_SYS_TNT_DIAG_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_SYS_TNT_DIAG_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1501,7 +1537,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_SYS_USER_DIA_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_SYS_USER_DIA_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1517,7 +1553,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_SYS_USER_D_1_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_SYS_USER_D_1_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1533,7 +1569,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_SYS_USER_D_2_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_SYS_USER_D_2_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1549,7 +1585,7 @@
           "unique": false
         },
         {
-          "name": "FK_EX_DIAG_EXEC_T_VIS_ENC_DIAG_INDEX_3",
+          "name": "FK_EX_DIAG_EXEC_T_VIS_ENC_DIAG_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1617,7 +1653,38 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_34",
+          "name": "IX_EX_DIAG_QUEUE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_REQ_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_94",
           "columns": [
             {
               "position": 1,
@@ -1628,7 +1695,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_RE_INDEX_3",
+          "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_RE_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -1644,7 +1711,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_TE_INDEX_3",
+          "name": "UK_EX_DIAG_EXEC_T_DIAG_TASK_TE_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2184,6 +2251,78 @@
           "comment": "科室标识",
           "logical": "department_id",
           "catalogComment": "科室标识"
+        },
+        {
+          "physical": "DES_FINDING",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "",
+          "logical": "findings",
+          "catalogComment": "检查所见"
+        },
+        {
+          "physical": "ID_USER_AUTHOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "本地报告录入人主体",
+          "logical": "author_id",
+          "catalogComment": "本地报告录入人主体"
+        },
+        {
+          "physical": "ID_USER_SIGNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "实际签发人主体",
+          "logical": "signer_id",
+          "catalogComment": "实际签发人主体"
+        },
+        {
+          "physical": "NA_SIGNER",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "签发人名称快照",
+          "logical": "signer_name",
+          "catalogComment": "签发人名称快照"
+        },
+        {
+          "physical": "FG_SELF_SIGN",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "是否同人签发；历史和外部未知时为空",
+          "logical": "self_verified",
+          "catalogComment": "是否同人签发；历史和外部未知时为空"
+        },
+        {
+          "physical": "DES_CORRECT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 31,
+          "comment": "",
+          "logical": "correction_reason",
+          "catalogComment": "报告更正原因"
         }
       ],
       "kind": "BASE TABLE",
@@ -2493,7 +2632,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticReport.java",
-          "line": 13
+          "line": 15
         }
       ]
     },
@@ -9072,6 +9211,1140 @@
           "line": 18
         }
       ]
+    },
+    {
+      "logical": "ex.diagnostic_report_draft",
+      "legacy": null,
+      "physical": "RHN_EX_DIAG_DRAFT",
+      "domain": "EX",
+      "comment": "医技报告草稿；每个执行任务一份当前工作内容",
+      "columns": [
+        {
+          "physical": "ID_DIAG_DRAFT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "报告草稿主键",
+          "logical": "id",
+          "catalogComment": "报告草稿主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_DIAG_EXEC_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "医技执行任务",
+          "logical": "task_id",
+          "catalogComment": "医技执行任务"
+        },
+        {
+          "physical": "JSON_CONTENT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "",
+          "logical": "content",
+          "catalogComment": "报告工作内容JSON"
+        },
+        {
+          "physical": "ID_USER_AUTHOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "最后录入人",
+          "logical": "author_id",
+          "catalogComment": "最后录入人"
+        },
+        {
+          "physical": "NA_AUTHOR",
+          "type": "CHARACTER VARYING",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "录入人名称快照",
+          "logical": "author_name",
+          "catalogComment": "录入人名称快照"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "最后更新时间",
+          "logical": "updated_at",
+          "catalogComment": "最后更新时间"
+        },
+        {
+          "physical": "ID_DIAG_REPORT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "已签发的报告版本",
+          "logical": "issued_report_id",
+          "catalogComment": "已签发的报告版本"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "签发请求幂等键",
+          "logical": "issue_command_id",
+          "catalogComment": "签发请求幂等键"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DIAG_DRAFT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_DIAG_DRAFT_TASK",
+          "columns": [
+            "ID_TNT",
+            "ID_DIAG_EXEC_TASK"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_EX_DIAG_DRAFT_REPORT_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_REPORT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_EX_DIAG_DRAFT_TASK_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_A6A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_DRAFT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_DIAG_DRAFT_TASK_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "医技报告草稿；一行代表一个执行任务的当前工作内容",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticReportDraft.java",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "ex.diagnostic_specimen",
+      "legacy": null,
+      "physical": "RHN_EX_DIAG_SPEC",
+      "domain": "EX",
+      "comment": "医技实际标本；一行代表一管实际标本及其当前作业事实",
+      "columns": [
+        {
+          "physical": "ID_DIAG_SPEC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "标本主键",
+          "logical": "id",
+          "catalogComment": "标本主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "所属机构",
+          "logical": "organization_id",
+          "catalogComment": "所属机构"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "执行科室",
+          "logical": "department_id",
+          "catalogComment": "执行科室"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "ID_ENC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "就诊标识",
+          "logical": "encounter_id",
+          "catalogComment": "就诊标识"
+        },
+        {
+          "physical": "CD_SPEC_NO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "标本业务号",
+          "logical": "specimen_no",
+          "catalogComment": "标本业务号"
+        },
+        {
+          "physical": "SD_SPEC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "标本类型编码",
+          "logical": "specimen_type",
+          "catalogComment": "标本类型编码"
+        },
+        {
+          "physical": "NA_SPEC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "标本类型名称快照",
+          "logical": "specimen_name",
+          "catalogComment": "标本类型名称快照"
+        },
+        {
+          "physical": "SD_CONTNR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "容器编码",
+          "logical": "container_code",
+          "catalogComment": "容器编码"
+        },
+        {
+          "physical": "NA_CONTNR",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "容器名称快照",
+          "logical": "container_name",
+          "catalogComment": "容器名称快照"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 20,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "READY/COLLECTED/RECEIVED/REJECTED",
+          "logical": "status",
+          "catalogComment": "READY/COLLECTED/RECEIVED/REJECTED"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "生成时间",
+          "logical": "created_at",
+          "catalogComment": "生成时间"
+        },
+        {
+          "physical": "DT_COLLD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "采集时间",
+          "logical": "collected_at",
+          "catalogComment": "采集时间"
+        },
+        {
+          "physical": "ID_USER_COLLD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "采集人",
+          "logical": "collected_by",
+          "catalogComment": "采集人"
+        },
+        {
+          "physical": "DT_RECVD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "接收时间",
+          "logical": "received_at",
+          "catalogComment": "接收时间"
+        },
+        {
+          "physical": "ID_USER_RECVD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "接收人",
+          "logical": "received_by",
+          "catalogComment": "接收人"
+        },
+        {
+          "physical": "DT_REJECT",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "拒收时间",
+          "logical": "rejected_at",
+          "catalogComment": "拒收时间"
+        },
+        {
+          "physical": "ID_USER_REJECT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "拒收人",
+          "logical": "rejected_by",
+          "catalogComment": "拒收人"
+        },
+        {
+          "physical": "DES_REJECT",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "拒收原因",
+          "logical": "rejection_reason",
+          "catalogComment": "拒收原因"
+        },
+        {
+          "physical": "ID_SPEC_PRIOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "被替代的拒收标本",
+          "logical": "previous_specimen_id",
+          "catalogComment": "被替代的拒收标本"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "生成命令标识",
+          "logical": "creation_command",
+          "catalogComment": "生成命令标识"
+        },
+        {
+          "physical": "HASH_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "生成命令内容摘要",
+          "logical": "command_hash",
+          "catalogComment": "生成命令内容摘要"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DIAG_SPEC"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_DIAG_SPEC_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_SPEC_NO"
+          ]
+        },
+        {
+          "name": "UK_EX_SPEC_PRIOR",
+          "columns": [
+            "ID_TNT",
+            "ID_SPEC_PRIOR"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_EX_SPEC_PRIOR_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SPEC_PRIOR",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_EX_SPEC_CMD",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_46",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_SPEC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_DIAG_SPEC_NO_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_SPEC_NO",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SPEC_PRIOR_INDEX_4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SPEC_PRIOR",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_EX_DIAG_SPEC_ST",
+          "expression": "\"sd_status\" IN('READY', 'COLLECTED', 'RECEIVED', 'REJECTED')"
+        }
+      ],
+      "catalogComment": "医技实际标本；一行代表一管实际标本及其当前作业事实",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticSpecimen.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "ex.diagnostic_specimen_task",
+      "legacy": null,
+      "physical": "RHN_EX_DIAG_SPEC_TASK",
+      "domain": "EX",
+      "comment": "医技标本申请关联；一行代表一管标本与一张申请的关联",
+      "columns": [
+        {
+          "physical": "ID_SPEC_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "关联主键",
+          "logical": "id",
+          "catalogComment": "关联主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_DIAG_SPEC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "实际标本",
+          "logical": "specimen_id",
+          "catalogComment": "实际标本"
+        },
+        {
+          "physical": "ID_DIAG_EXEC_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "执行任务",
+          "logical": "task_id",
+          "catalogComment": "执行任务"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SPEC_TASK"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_SPEC_TASK",
+          "columns": [
+            "ID_TNT",
+            "ID_DIAG_SPEC",
+            "ID_DIAG_EXEC_TASK"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_EX_SPEC_TASK_EXEC_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_EX_SPEC_TASK_SPEC_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_SPEC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_EX_SPEC_TASK_EXEC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_11",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SPEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SPEC_TASK_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DIAG_SPEC",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "医技标本申请关联；一行代表一管标本与一张申请的关联",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticSpecimenTask.java",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "logical": "ex.diagnostic_local_command",
+      "legacy": null,
+      "physical": "RHN_EX_DIAG_CMD",
+      "domain": "EX",
+      "comment": "医技签发回执；一行代表一次本地签发命令与不可变报告的关联",
+      "columns": [
+        {
+          "physical": "ID_DIAG_CMD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "签发回执主键",
+          "logical": "id",
+          "catalogComment": "签发回执主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_DIAG_EXEC_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "执行任务",
+          "logical": "task_id",
+          "catalogComment": "执行任务"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "签发命令标识",
+          "logical": "command_id",
+          "catalogComment": "签发命令标识"
+        },
+        {
+          "physical": "HASH_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "签发命令内容摘要",
+          "logical": "content_hash",
+          "catalogComment": "签发命令内容摘要"
+        },
+        {
+          "physical": "ID_DIAG_REPORT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "正式报告版本",
+          "logical": "report_id",
+          "catalogComment": "正式报告版本"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DIAG_CMD"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_DIAG_CMD",
+          "columns": [
+            "ID_TNT",
+            "ID_DIAG_EXEC_TASK",
+            "CD_CMD"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_EX_DIAG_CMD_REPORT_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_REPORT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_EX_DIAG_CMD_TASK_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_54",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DIAG_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_DIAG_CMD_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DIAG_EXEC_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "医技签发回执；一行代表一次本地签发命令与不可变报告的关联",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticLocalCommand.java",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "logical": "ex.diagnostic_specimen_batch",
+      "legacy": null,
+      "physical": "RHN_EX_SPEC_BATCH",
+      "domain": "EX",
+      "comment": "标本生成批次；一行代表一个机构内唯一的标本生成命令",
+      "columns": [
+        {
+          "physical": "ID_SPEC_BATCH",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "标本生成批次主键",
+          "logical": "id",
+          "catalogComment": "标本生成批次主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "所属机构",
+          "logical": "organization_id",
+          "catalogComment": "所属机构"
+        },
+        {
+          "physical": "CD_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "生成命令标识",
+          "logical": "command_id",
+          "catalogComment": "生成命令标识"
+        },
+        {
+          "physical": "HASH_CMD",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "生成命令内容摘要",
+          "logical": "command_hash",
+          "catalogComment": "生成命令内容摘要"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SPEC_BATCH"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_SPEC_BATCH_CMD",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_CMD"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_A5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SPEC_BATCH",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SPEC_BATCH_CMD_INDEX_A",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_CMD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "标本生成批次；一行代表一个机构内唯一的标本生成命令",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/domain/DiagnosticSpecimenBatch.java",
+          "line": 11
+        }
+      ]
     }
   ],
   "relations": [
@@ -9318,6 +10591,74 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_VIS_ENC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_CMD_REPORT",
+      "sourceTable": "RHN_EX_DIAG_CMD",
+      "sourceColumns": [
+        "ID_DIAG_REPORT"
+      ],
+      "targetColumns": [
+        "ID_DIAG_REPORT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_REPORT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_CMD_TASK",
+      "sourceTable": "RHN_EX_DIAG_CMD",
+      "sourceColumns": [
+        "ID_DIAG_EXEC_TASK"
+      ],
+      "targetColumns": [
+        "ID_DIAG_EXEC_TASK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_EXEC_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_DRAFT_REPORT",
+      "sourceTable": "RHN_EX_DIAG_DRAFT",
+      "sourceColumns": [
+        "ID_DIAG_REPORT"
+      ],
+      "targetColumns": [
+        "ID_DIAG_REPORT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_REPORT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_DIAG_DRAFT_TASK",
+      "sourceTable": "RHN_EX_DIAG_DRAFT",
+      "sourceColumns": [
+        "ID_DIAG_EXEC_TASK"
+      ],
+      "targetColumns": [
+        "ID_DIAG_EXEC_TASK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_EXEC_TASK",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -9717,6 +11058,57 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_VIS_OBS",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SPEC_PRIOR",
+      "sourceTable": "RHN_EX_DIAG_SPEC",
+      "sourceColumns": [
+        "ID_SPEC_PRIOR"
+      ],
+      "targetColumns": [
+        "ID_DIAG_SPEC"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_SPEC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SPEC_TASK_EXEC",
+      "sourceTable": "RHN_EX_DIAG_SPEC_TASK",
+      "sourceColumns": [
+        "ID_DIAG_EXEC_TASK"
+      ],
+      "targetColumns": [
+        "ID_DIAG_EXEC_TASK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_EXEC_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SPEC_TASK_SPEC",
+      "sourceTable": "RHN_EX_DIAG_SPEC_TASK",
+      "sourceColumns": [
+        "ID_DIAG_SPEC"
+      ],
+      "targetColumns": [
+        "ID_DIAG_SPEC"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_DIAG_SPEC",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

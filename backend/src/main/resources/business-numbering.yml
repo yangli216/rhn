@@ -35,6 +35,11 @@ rhn:
         date-format: "yyMMdd"
         sequence-width: 5
         scope: ORGANIZATION
+      diagnostic-specimen:
+        prefix: SP
+        date-format: "yyMMdd"
+        sequence-width: 6
+        scope: ORGANIZATION
       prescription:
         prefix: RX
         date-format: "yyMMdd"

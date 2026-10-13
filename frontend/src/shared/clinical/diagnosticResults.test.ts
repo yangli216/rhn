@@ -5,6 +5,11 @@ import { diagnosticObservationValue } from './diagnosticResults'
 describe('diagnostic observation source values', () => {
   it.each([
     [{ valueType: 'NUMBER', valueNumber: 0 }, '0'],
+    [{ valueType: 'NUMBER', valueNumber: 2.8, valueComparator: 'LT' }, '<2.8'],
+    [{ valueType: 'NUMBER', valueNumber: 2.8, valueComparator: 'LE' }, '≤2.8'],
+    [{ valueType: 'NUMBER', valueNumber: 22.2, valueComparator: 'GT' }, '>22.2'],
+    [{ valueType: 'NUMBER', valueNumber: 5, valueComparator: 'UNKNOWN' }, '结果数据异常，请核对'],
+    [{ valueType: 'CODE', valueCode: 'POS', valueComparator: 'LT' }, '结果数据异常，请核对'],
     [{ valueType: 'NUMBER', valueNumber: -2.3 }, '-2.3'],
     [{ valueType: 'STRING', valueString: '实际所见' }, '实际所见'],
     [{ valueType: 'CODE', valueCode: 'NEG' }, 'NEG'],

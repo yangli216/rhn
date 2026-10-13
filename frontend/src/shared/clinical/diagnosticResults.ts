@@ -12,9 +12,11 @@ export function diagnosticObservationValue(value: DiagnosticObservation): string
     && !(typeof value[field] === 'string' && !value[field].trim()))
   if (populated.length === 0) return '结果缺失'
   if (populated.length !== 1) return '结果数据异常，请核对'
+  if (value.valueComparator != null && (!['EQ', 'LT', 'LE', 'GT', 'GE'].includes(value.valueComparator) || value.valueType !== 'NUMBER'))
+    return '结果数据异常，请核对'
   switch (value.valueType) {
     case 'NUMBER':
-      if (typeof value.valueNumber === 'number' && Number.isFinite(value.valueNumber)) return String(value.valueNumber)
+      if (typeof value.valueNumber === 'number' && Number.isFinite(value.valueNumber)) return `${diagnosticComparator(value.valueComparator)}${value.valueNumber}`
       break
     case 'STRING':
       if (typeof value.valueString === 'string' && value.valueString.trim()) return value.valueString
@@ -49,4 +51,14 @@ export function requireDiagnosticReports(result: DiagnosticReport[], scope: {
     throw new Error('报告结果不完整或与当前患者、申请不一致，请重新查询')
   }
   return result
+}
+
+export function diagnosticComparator(value?: DiagnosticObservation['valueComparator']): string {
+  return value ? ({ EQ: '', LT: '<', LE: '≤', GT: '>', GE: '≥' })[value] ?? '' : ''
+}
+export function diagnosticRuleStatus(value?: string): string {
+  const labels: Record<string, string> = { NO_RULE: '未配置适用规则', NO_RANGE: '未配置参考区间',
+    AMBIGUOUS_RULE: '规则冲突，待核对', POSSIBLE_CRITICAL: '可能涉及危急范围，待核对',
+    BOUNDARY_UNCERTAIN: '测量边界未能判定', MISSING_VALUE: '结果未填写', MANUAL_UNVERIFIED: '人工录入，未绑定机构规则' }
+  return value ? labels[value] || '' : ''
 }
