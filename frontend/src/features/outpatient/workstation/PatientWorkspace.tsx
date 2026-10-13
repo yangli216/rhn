@@ -74,6 +74,11 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   const [aiContext, setAiContext] = useState<ClinicalAiDraftContext | null>(null)
   const [aiDraft, setAiDraft] = useState<ClinicalAiDraftRequest | null>(null)
   const aiPlanHandler = useRef<PrepareAiPlan | null>(null)
+  const aiTreatmentBatchDiscard = useRef<(() => (() => void) | undefined) | null>(null)
+  const registerTreatmentBatchDiscard = useCallback((capture: (() => (() => void) | undefined) | null) => {
+    aiTreatmentBatchDiscard.current = capture
+  }, [])
+  const captureTreatmentBatchDiscard = useCallback(() => aiTreatmentBatchDiscard.current?.(), [])
   const registerAiPlan = useCallback((handler: PrepareAiPlan | null) => { aiPlanHandler.current = handler }, [])
   const prepareAiPlan = useCallback<PrepareAiPlan>(request => {
     if (!aiPlanHandler.current) return Promise.reject(new Error('当前病历编辑器不可用，AI 方案未带入。'))
@@ -444,6 +449,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                 onSaveDraftNotice={handleSaveDraftNotice}
                 aiFieldStream={aiFieldStream} aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={() => setAiOrderReview(null)}
                 onTreatmentKeysChange={setExistingTreatmentKeys}
+                onCaptureTreatmentBatchDiscard={captureTreatmentBatchDiscard}
                 onRegisterAiPlan={registerAiPlan} aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
                 onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh}
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
@@ -465,6 +471,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                   onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
                   onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onPreparePlan={prepareAiPlan} onFieldStream={setAiFieldStream}
                   existingTreatmentKeys={existingTreatmentKeys}
+                  onRegisterTreatmentBatchDiscard={registerTreatmentBatchDiscard}
                   onReviewTreatment={(items, onCompleted, onFailed) => setAiOrderReview({
                     id: crypto.randomUUID(), encounterId: encounter.id, items, onCompleted, onFailed,
                   })}
@@ -581,6 +588,6 @@ export function UnsavedPatientWorkDialog({ residentName, action, labels, saving,
     <div className="doctor-unsaved-work-list" role="list" aria-label="未保存内容">
       {labels.map((label) => <div role="listitem" key={label}><Icon name="warning" /><span>{label}</span></div>)}
     </div>
-    {completionBlocked && <Alert>保存将同步病历、诊断和医嘱草稿；校验通过后自动进入诊毕核对。</Alert>}
+    {completionBlocked && <Alert placement="inline" tone="info">保存将同步病历、诊断和医嘱草稿；校验通过后自动进入诊毕核对。</Alert>}
   </Dialog>
 }

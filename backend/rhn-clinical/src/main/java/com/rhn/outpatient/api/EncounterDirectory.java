@@ -9,6 +9,8 @@ public interface EncounterDirectory {
     EncounterSnapshot requireOrganizationAccessible(Long encounterId);
     EncounterServiceSnapshot requireOrganizationAccessibleService(Long encounterId);
     EncounterSnapshot requireActiveForOrdering(Long encounterId);
+    /** Serializes medication writes and the subsequent encounter-wide safety evaluation in the caller's transaction. */
+    EncounterSnapshot lockActiveForOrdering(Long encounterId);
     List<EncounterSnapshot> findAccessible(Collection<Long> encounterIds);
     List<EncounterSnapshot> findOrganizationAccessible(Collection<Long> encounterIds);
     /** Current organization/department's completed outpatient visits, filtered before the ten-visit limit. */

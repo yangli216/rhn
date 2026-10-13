@@ -55,6 +55,7 @@ class OutpatientInventoryRoutingTruthTest {
     }
 
     @Test void absentRouteDoesNotChooseAnExistingPharmacy() {
+        assertThat(service.findDispensingPharmacy(1L, 2L, 3L, "WESTERN", today)).isEmpty();
         assertThatThrownBy(() -> service.findOrderableMedications(1L, 2L, 3L, ""))
                 .hasMessageContaining("发药路由");
         var inspected = service.inspectMedicationAvailability(1L, 2L, 3L, 101L, null);
@@ -62,6 +63,29 @@ class OutpatientInventoryRoutingTruthTest {
         assertThat(inspected.stockSiteId()).isNull();
         assertThatThrownBy(() -> service.freezePrescription(command())).hasMessageContaining("发药路由");
         verifyNoInteractions(sites, items, availability, freezes);
+    }
+
+    @Test void savedDestinationsUseReservationFactsAndDoNotResolveCurrentRoutesOrChooseAnAmbiguousSite() {
+        StockSite first = site(2L, "OUTPATIENT"), second = site(2L, "OUTPATIENT");
+        var released = new PrescriptionInventoryFreeze(1L, 50L, 6L, first.id(), 20L, 30L, 40L,
+                BigDecimal.ONE, "片", 8L);
+        released.release(8L, "历史释放");
+        var anotherLot = new PrescriptionInventoryFreeze(1L, 50L, 6L, first.id(), 20L, 30L, 41L,
+                BigDecimal.ONE, "片", 8L);
+        var mixedFirst = new PrescriptionInventoryFreeze(1L, 51L, 7L, first.id(), 20L, 30L, 40L,
+                BigDecimal.ONE, "片", 8L);
+        var mixedSecond = new PrescriptionInventoryFreeze(1L, 51L, 7L, second.id(), 21L, 31L, 42L,
+                BigDecimal.ONE, "片", 8L);
+        when(freezes.findByTenantIdAndRequestIdIn(1L, java.util.Set.of(6L, 7L)))
+                .thenReturn(List.of(released, anotherLot, mixedFirst, mixedSecond));
+        when(sites.findByTenantIdAndIdIn(1L, java.util.Set.of(first.id(), second.id())))
+                .thenReturn(List.of(first, second));
+        var result = service.savedDispensingPharmacies(1L, java.util.Set.of(6L, 7L));
+        assertThat(result).hasSize(1);
+        assertThat(result.get(6L).id()).isEqualTo(first.id());
+        assertThat(result.get(6L).name()).isEqualTo(first.name());
+        assertThat(result).doesNotContainKey(7L);
+        verifyNoInteractions(routes, catalogs, availability, items);
     }
 
     @Test void medicationSpecificRouteWinsOverAnUnrelatedEarlierRoute() {

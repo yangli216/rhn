@@ -25,7 +25,7 @@ export function ClinicalRecordReferences({ api, encounterId, diagnoses, medicati
         <p>{diagnoses.map((item) => `${item.display} [${item.code}]`).join('；') || '暂无诊断，请在诊断工作区维护'}</p>
       </section>
       <section><h3>诊疗计划（医嘱引用）</h3>
-        {(medications.error || services.error) && <Alert tone="warning">医嘱引用加载失败，请在医嘱工作区核对。</Alert>}
+        {(medications.error || services.error) && <Alert placement="inline" tone="warning">医嘱引用加载失败，请在医嘱工作区核对。</Alert>}
         {(medications.isPending || services.isPending) && <p>正在加载已保存医嘱…</p>}
         {savedMedications.map((item) => <p key={`med-${item.id}`}>
           {item.medicationName} · 每次 {item.doseValue}{item.doseUnit} · {item.routeCode} · {item.frequencyCode}

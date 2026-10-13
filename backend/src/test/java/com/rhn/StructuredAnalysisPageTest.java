@@ -77,7 +77,7 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
         for (int i = 0; i < expected.length; i++) {
             assertEquals(expected[i], series.path(i).path("total").asInt());
             assertEquals(expected[i], series.path(i).path("points").path(0).path("value").asInt());
-            assertEquals(DEPARTMENT, series.path(i).path("points").path(0).path("key").asText());
+            assertEquals(DEPARTMENT, series.path(i).path("points").path(0).path("key").asString());
         }
     }
     @Test void independently_aggregates_orders_charge_reversals_and_global_distinct_without_fanout() throws Exception {
@@ -185,7 +185,7 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/analytics/pages/generate").with(rhnWorkContext()).contentType("application/json").content(objectMapper.writeValueAsString(request))).andExpect(status().isBadRequest());
         verifyNoInteractions(ai);
         var saved=mockMvc.perform(post("/api/analytics/pages/saved").with(rhnWorkContext()).contentType("application/json").content(objectMapper.writeValueAsString(revised))).andExpect(status().isOk()).andReturn();
-        assertEquals("LAST_MONTH",json(saved.getResponse().getContentAsString()).path("spec").path("period").path("kind").asText());
+        assertEquals("LAST_MONTH",json(saved.getResponse().getContentAsString()).path("spec").path("period").path("kind").asString());
     }
     @Test void last_month_handles_year_and_leap_boundaries() {
         var p=new com.rhn.analytics.api.AnalysisPage.Period(com.rhn.analytics.api.AnalysisPage.PeriodKind.LAST_MONTH,null,null);

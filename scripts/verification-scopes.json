@@ -355,12 +355,15 @@
         "src/features/pharmacy/inventoryLedgerTruth.test.ts",
         "src/features/pharmacy/procurementTruth.test.ts",
         "src/features/pharmacy/warehousePrices.test.ts",
+        "src/features/outpatient/orders/SavedOrderPharmacy.test.tsx",
         "src/shared/ui/ActionMenu.test.tsx"
       ],
       "backend": [
         "ArchitectureTest",
         "InventoryLedgerReservationTest",
         "OutpatientPrescriptionInventoryFreezeIntegrationTest",
+        "com.rhn.outpatient.ordering.PrescriptionSplitEngineTest",
+        "OrderDraftSaveContractTest",
         "InventoryProcurementWorkflowTest",
         "InventoryTraceCodeTest",
         "InventoryPriceAdjustmentWorkflowTest",
@@ -407,6 +410,7 @@
         "MedicationSafetyFoundationTest",
         "MedicationSafetyGovernanceTest",
         "MedicationSafetySemanticIntegrationTest",
+        "com.rhn.outpatient.ordering.PrescriptionSafetySnapshotServiceTest",
         "MedicationSafetyCategoryTest",
         "MedicationWorkbenchTest",
         "MedicationKnowledgeDraftTest",

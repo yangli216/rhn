@@ -237,7 +237,6 @@ class RegistrationBillingIntentTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     CompletionPlan beginById(Long intentId, Long paymentOrderId) {
-        ExecutionContext context = contextProvider.requireCurrent();
         return beginLocked(intentId, paymentOrderId, null);
     }
 

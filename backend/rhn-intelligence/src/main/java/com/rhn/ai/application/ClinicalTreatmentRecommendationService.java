@@ -51,7 +51,7 @@ public class ClinicalTreatmentRecommendationService {
             var suggested = valid ? highestCandidate(match.candidates(), answer) : null;
             String status = match.candidates().isEmpty() ? "NO_CANDIDATES" : valid ? "COMPLETED"
                     : attempt != null && attempt.alerts().isEmpty() && raw == null ? "DISABLED" : "UNAVAILABLE";
-            String detail = "NO_CANDIDATES".equals(status) ? "暂无院内候选可供 Jev 核查。"
+            String detail = "NO_CANDIDATES".equals(status) ? "当前机构可开立目录中未找到候选，请调整名称检索或核对院内项目配置。"
                     : "COMPLETED".equals(status) ? ("NONE".equals(answer.choice())
                         ? "Jev 未确认等价项；最高概率院内备选仅供预选核对，不代表已匹配或临床适用。"
                         : "最高概率院内候选仅供预选，仍需医生确认；目录匹配不代表临床适用性。")

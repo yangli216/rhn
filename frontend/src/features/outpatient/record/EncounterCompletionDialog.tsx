@@ -129,7 +129,7 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
       {(error || billingOperation.error)
         && <Alert duration={null}>{errorMessage(error || billingOperation.error)}</Alert>}
       {factsError && <Alert duration={null}>诊毕资料加载失败：{errorMessage(factsError)}</Alert>}
-      {billingError && <Alert tone="warning" duration={null}>费用信息加载失败：{errorMessage(billingError)}。不影响签署和诊毕</Alert>}
+      {billingError && <Alert placement="inline" tone="warning" duration={null}>费用信息加载失败：{errorMessage(billingError)}。不影响签署和诊毕</Alert>}
 
       <div className="doctor-completion-banner" role="status">
         <div className="doctor-completion-banner__content">

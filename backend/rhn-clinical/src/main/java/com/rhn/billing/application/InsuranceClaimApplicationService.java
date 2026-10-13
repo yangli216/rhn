@@ -1,10 +1,6 @@
 package com.rhn.billing.application;
 
 import com.rhn.billing.api.InsuranceResultDirectory;
-import com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView;
-import com.rhn.billing.api.InsuranceResultDirectory.PersonInfoQuery;
-import com.rhn.billing.api.InsuranceResultDirectory.PersonInfoView;
-import com.rhn.billing.api.InsuranceResultDirectory.VerifiedInsuranceResult;
 import com.rhn.billing.api.InsuranceSettlementAdapter;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceQuery;
@@ -19,7 +15,6 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.idempotency.CommandCodes;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

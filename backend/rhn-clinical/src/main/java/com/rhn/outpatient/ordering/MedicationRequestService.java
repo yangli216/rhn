@@ -54,6 +54,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final JsonCodec jsonCodec;
     private final MedicationSemanticDirectory semantics;
     private final OutpatientAllergyVerificationPolicy allergyVerificationPolicy;
+    private final com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventory;
 
     MedicationRequestService(MedicationRequestRepository repository,
                              PrescriptionRepository prescriptionRepository,
@@ -69,7 +70,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              DomainEventPublisher eventPublisher,
                              ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
                              MedicationSemanticDirectory semantics,
-                             OutpatientAllergyVerificationPolicy allergyVerificationPolicy, BusinessNumberGenerator numbers) {
+                             OutpatientAllergyVerificationPolicy allergyVerificationPolicy,
+                             com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventory,
+                             BusinessNumberGenerator numbers) {
+        this.inventory = inventory;
         this.numbers = numbers;
         this.semantics = semantics;
         this.allergyVerificationPolicy = allergyVerificationPolicy;
@@ -86,7 +90,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     @Transactional
     MedicationRequestResponse create(Long encounterId, CreateMedicationRequest input) {
-        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
         ExecutionContext context = contextProvider.requireCurrent();
         Long tenantId = TenantContext.requireTenantId();
         LocalDate businessDate = input.businessDate() == null ? LocalDate.now() : input.businessDate();
@@ -418,8 +422,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     @Transactional(readOnly = true)
     List<MedicationRequestResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
-        return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId)
-                .stream().map(this::response).toList();
+        return responses(repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId));
     }
 
     @Transactional
@@ -534,6 +537,33 @@ class MedicationRequestService implements MedicationRequestDirectory {
     }
 
     MedicationRequestResponse response(MedicationRequest value) {
+        return responses(List.of(value)).getFirst();
+    }
+
+    List<MedicationRequestResponse> responses(List<MedicationRequest> values) {
+        if (values.isEmpty()) return List.of();
+        var saved = inventory.savedDispensingPharmacies(values.getFirst().tenantId(), values.stream()
+                .filter(value -> !value.selfProvided()).map(MedicationRequest::id).collect(java.util.stream.Collectors.toSet()));
+        var planned = new java.util.HashMap<String, com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.DispensingPharmacy>();
+        return values.stream().map(value -> {
+            var pharmacy = value.selfProvided() ? null : saved.get(value.id());
+            String source = pharmacy == null ? null : "RESERVATION";
+            if (pharmacy == null && !value.selfProvided() && value.status() == MedicationRequestStatus.DRAFT) {
+                String key = value.encounterId() + "|" + value.medicationTypeSnapshot();
+                if (!planned.containsKey(key)) {
+                    var encounter = encounterDirectory.requireAccessible(value.encounterId());
+                    planned.put(key, inventory.findDispensingPharmacy(value.tenantId(), encounter.organizationId(),
+                            encounter.departmentId(), value.medicationTypeSnapshot(), LocalDate.now()).orElse(null));
+                }
+                pharmacy = planned.get(key);
+                if (pharmacy != null) source = "ROUTING";
+            }
+            return response(value, pharmacy, source);
+        }).toList();
+    }
+
+    private MedicationRequestResponse response(MedicationRequest value,
+            com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.DispensingPharmacy pharmacy, String pharmacySource) {
         return new MedicationRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
                 value.requestNo(), value.status().name(), value.requestGroupId(), value.parentRequestId(),
                 value.catalogItemId(), value.medicationId(),
@@ -554,6 +584,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.quantity(), value.quantityUnit(),
                 value.baseQuantity(), value.baseUnit(), value.packageFactorSnapshot(), value.packageUnitNameSnapshot(),
                 value.packageSpecSnapshot(), value.substitutionAllowed(), value.selfProvided(), value.medicationInstruction(),
+                pharmacy == null ? null : pharmacy.id(), pharmacy == null ? null : pharmacy.name(), pharmacySource,
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
                 value.itemAttributeHash(), value.itemAttributeResolvedAt(), jsonCodec.readTree(value.standardMappingSnapshot()),
                 value.cancelledAt(), value.cancelledBy(), value.cancelReason());

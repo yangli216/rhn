@@ -168,12 +168,12 @@ class EncounterQueryTest extends RhnIntegrationTestSupport {
 
     private boolean containsEncounter(JsonNode content, String encounterId) {
         return StreamSupport.stream(content.spliterator(), false)
-                .anyMatch(node -> encounterId.equals(node.path("id").asText()));
+                .anyMatch(node -> encounterId.equals(node.path("id").asString()));
     }
 
     private JsonNode findEncounter(JsonNode content, String encounterId) {
         return StreamSupport.stream(content.spliterator(), false)
-                .filter(node -> encounterId.equals(node.path("id").asText()))
+                .filter(node -> encounterId.equals(node.path("id").asString()))
                 .findFirst()
                 .orElse(null);
     }

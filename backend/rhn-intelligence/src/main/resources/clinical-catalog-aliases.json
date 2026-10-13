@@ -5,9 +5,13 @@
   {"type":"LABORATORY","name":"C反应蛋白测定","aliases":["C反应蛋白","CRP","C反应蛋白测定（CRP）"],"queries":["C反应蛋白","CRP"],"broad":false},
   {"type":"LABORATORY","name":"超敏C反应蛋白测定","aliases":["超敏CRP","hs-CRP","hsCRP","超敏C反应蛋白"],"queries":["C反应蛋白","CRP"],"broad":false},
   {"type":"LABORATORY","name":"降钙素原测定","aliases":["降钙素原","PCT","降钙素原检测"],"queries":["降钙素原"],"broad":false},
+  {"type":"LABORATORY","name":"葡萄糖测定","aliases":["血糖","血糖测定","血糖检测","血葡萄糖测定"],"queries":["葡萄糖测定"],"broad":false},
+  {"type":"LABORATORY","name":"胰岛素释放试验","aliases":["胰岛素释放试验检查"],"queries":["胰岛素释放","血清胰岛素测定"],"broad":false,"reviewNames":["血清胰岛素测定"]},
+  {"type":"LABORATORY","name":"肝肾功能","aliases":["肝肾功能检查","肝肾功能检测"],"queries":["肝功能","肾功能","血清丙氨酸氨基转移酶","血清天门冬氨酸氨基转移酶","肌酐","尿素"],"broad":false,"reviewNames":["血清丙氨酸氨基转移酶测定","血清天门冬氨酸氨基转移酶测定","肌酐测定","尿素测定","尿素氮测定"]},
   {"type":"LABORATORY","name":"痰涂片革兰染色","aliases":["痰涂片革兰染色检查","痰革兰染色"],"queries":["一般细菌涂片检查","细菌涂片"],"broad":false,"reviewNames":["一般细菌涂片检查"]},
   {"type":"LABORATORY","name":"痰培养","aliases":["痰细菌培养","痰细菌培养及鉴定"],"queries":["一般细菌培养及鉴定","细菌培养"],"broad":false,"reviewNames":["一般细菌培养及鉴定"]},
   {"type":"EXAMINATION","name":"胸部CT","aliases":["胸部CT检查"],"queries":["胸部CT","胸部","CT"],"broad":false,"reviewNames":["胸部CT平扫","胸部CT增强扫描","胸部CT平扫及增强扫描","CT平扫（一个部位）","CT增强扫描（一个部位）","螺旋CT平扫（一个部位）","螺旋CT增强扫描（一个部位）"]},
   {"type":"EXAMINATION","name":"肺功能检查","aliases":["肺功能检测","肺功能测定"],"queries":["肺功能"],"broad":false},
+  {"type":"EXAMINATION","name":"心电图","aliases":["心电图检查","ECG"],"queries":["心电图","心电"],"broad":false,"reviewNames":["常规心电图","常规心电图检查","常规心电图检查（十二导联）","十二导联心电图","十二导联心电图检查","12导联心电图","12导联心电图检查"]},
   {"type":"EXAMINATION","name":"指脉氧饱和度监测","aliases":["指脉氧监测","指脉氧饱和度测定","指脉氧饱和度检测"],"queries":["指脉氧","脉氧"],"broad":false}
 ]

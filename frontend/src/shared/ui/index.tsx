@@ -281,13 +281,16 @@ function notificationViewport(host: Element) {
 
 export function Alert({
   tone = 'error',
+  placement = 'toast',
   children,
   className = '',
   duration,
-  dismissible = true,
+  dismissible,
   onDismiss,
 }: PropsWithChildren<{
   tone?: AlertTone
+  /** 操作反馈用 toast；局部说明和警示用 inline，默认持续显示。 */
+  placement?: 'toast' | 'inline'
   className?: string
   /** 自动关闭毫秒数；传 null 时持续显示，直到用户关闭或业务状态解除。 */
   duration?: number | null
@@ -299,18 +302,20 @@ export function Alert({
   const onDismissRef = useRef(onDismiss)
   const [target, setTarget] = useState<HTMLElement | null>(null)
   const [visible, setVisible] = useState(true)
-  const messageKey = `${tone}:${alertText(children)}`
-  const resolvedDuration = duration === undefined ? defaultAlertDuration[tone] : duration
+  const isToast = placement === 'toast'
+  const canDismiss = dismissible ?? isToast
+  const messageKey = `${placement}:${tone}:${alertText(children)}`
+  const resolvedDuration = duration === undefined ? (isToast ? defaultAlertDuration[tone] : null) : duration
 
   useLayoutEffect(() => {
     onDismissRef.current = onDismiss
   }, [onDismiss])
 
   useLayoutEffect(() => {
-    if (!anchorRef.current) return
+    if (!isToast || !anchorRef.current) { setTarget(null); return }
     const workspace = anchorRef.current.closest('.workspace-panel')
     setTarget(notificationViewport(workspace ?? document.body))
-  }, [])
+  }, [isToast])
 
   useEffect(() => {
     setVisible(true)
@@ -327,21 +332,24 @@ export function Alert({
     onDismissRef.current?.()
   }
 
+  const notice = <div
+    className={`ui-alert ui-alert--${tone} ${isToast ? 'ui-toast' : 'ui-alert--inline'} ${className}`}
+    role={assertive ? 'alert' : 'status'}
+    aria-live={assertive ? 'assertive' : 'polite'}
+  >
+    <Icon className="ui-alert__icon" name={alertIcons[tone]} />
+    <div className="ui-alert__content">{children}</div>
+    {canDismiss && <button className="ui-toast__close" type="button" aria-label="关闭提示" onClick={dismiss}>
+      <Icon name="close" />
+    </button>}
+    {isToast && resolvedDuration !== null && resolvedDuration > 0 && <span className="ui-toast__timer" aria-hidden="true"
+      style={{ '--ui-toast-duration': `${resolvedDuration}ms` } as CSSProperties} />}
+  </div>
+
+  if (!isToast) return visible ? notice : null
   return <>
     <span ref={anchorRef} className="ui-alert-anchor" aria-hidden="true" />
-    {visible && target && createPortal(<div
-      className={`ui-alert ui-alert--${tone} ui-toast ${className}`}
-      role={assertive ? 'alert' : 'status'}
-      aria-live={assertive ? 'assertive' : 'polite'}
-    >
-      <Icon className="ui-alert__icon" name={alertIcons[tone]} />
-      <div className="ui-alert__content">{children}</div>
-      {dismissible && <button className="ui-toast__close" type="button" aria-label="关闭提示" onClick={dismiss}>
-        <Icon name="close" />
-      </button>}
-      {resolvedDuration !== null && resolvedDuration > 0 && <span className="ui-toast__timer" aria-hidden="true"
-        style={{ '--ui-toast-duration': `${resolvedDuration}ms` } as CSSProperties} />}
-    </div>, target)}
+    {visible && target && createPortal(notice, target)}
   </>
 }
 

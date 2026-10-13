@@ -287,7 +287,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
         )}
       </div>
       {editing && diagnosisError && <small className="ui-field__message ui-field__error">{diagnosisError}</small>}
-      {diagnoses.some((item) => hasConfirmedDiagnosisManagement(item) && item.managementPrograms?.length) && <Alert tone="warning"
+      {diagnoses.some((item) => hasConfirmedDiagnosisManagement(item) && item.managementPrograms?.length) && <Alert placement="inline" tone="warning"
         className="doctor-diagnosis-management-alert">
         <strong>公共卫生管理提示</strong>
         <span>{Array.from(new Set(diagnoses.filter(hasConfirmedDiagnosisManagement).flatMap((item) => item.managementPrograms?.map((program) =>

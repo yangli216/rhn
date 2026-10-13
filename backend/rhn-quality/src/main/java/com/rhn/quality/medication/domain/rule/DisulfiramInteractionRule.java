@@ -83,8 +83,8 @@ public final class DisulfiramInteractionRule implements MedicationSafetyRule {
                 throw new MissingSafetyDataException();
             }
 
-            String name = med.path("name").asText(med.path("medicationName").asText(""));
-            String spec = med.path("preparationSpec").asText("");
+            String name = med.path("name").asString(med.path("medicationName").asString(""));
+            String spec = med.path("preparationSpec").asString("");
             Long medId = med.hasNonNull("id") ? med.path("id").asLong() : null;
 
             if (isDisulfiramInducer(tenantId, medId, name)) {

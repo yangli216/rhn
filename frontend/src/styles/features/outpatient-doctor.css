@@ -157,7 +157,7 @@
 .doctor-workspace-tools .doctor-tool-label { display: grid; gap: 0; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); line-height: var(--line-height-small); text-align: center; }
 .doctor-workspace-tools .doctor-tool-label > span { display: block; white-space: nowrap; }
 .doctor-workspace-drawer { position: absolute; z-index: var(--z-modal); top: var(--space-1); right: 3.25rem; width: min(29rem, calc(100% - 3.7rem)); max-height: calc(100vh - 14.5rem); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-modal); }
-.doctor-workspace-drawer.is-history { width: min(52rem, calc(100% - 3.7rem)); }
+.doctor-workspace-drawer.is-history { width: min(68rem, calc(100% - 3.7rem)); height: calc(100dvh - 14.5rem); }
 .doctor-workspace-drawer.is-plans { width: min(84rem, calc(100% - 3.7rem)); height: var(--doctor-plan-drawer-height, calc(100dvh - 8rem)); max-height: none; }
 .doctor-workspace-drawer.is-allergy { width: min(40rem, calc(100% - 3.7rem)); }
 .doctor-workspace-drawer.is-prints { width: min(46rem, calc(100% - 3.7rem)); }
@@ -405,6 +405,8 @@
 .doctor-diag-badge.is-composer { background: var(--color-brand-soft); color: var(--color-brand-primary); }
 
 .doctor-diag-name-wrap { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.doctor-ai-diagnosis-main { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.doctor-ai-diagnosis-reason { font-size: var(--font-size-small); color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .doctor-diag-name { font-size: var(--font-size-body); color: var(--color-text-primary); font-weight: var(--font-weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doctor-diag-code-pill { font-family: var(--font-mono, monospace); font-size: var(--font-size-small); color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-xs); padding: calc(var(--space-1) * 0.2) calc(var(--space-1) * 1.4); }
 
@@ -458,15 +460,14 @@
 .doctor-diagnosis-management-alert { margin-top: var(--space-2); display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--font-size-body); }
 
 /* 医嘱模块与连续录入表格 */
-.doctor-orders-content { min-width: 0; max-width: 100%; min-height: 0; overflow: hidden; padding: var(--space-3) var(--space-3) calc(var(--space-1) * 7); flex: 1; display: flex; flex-direction: column; gap: var(--space-2); background: var(--color-surface); }
+.doctor-orders-content { min-width: 0; max-width: 100%; min-height: 0; overflow: hidden; padding: var(--space-3); flex: 1; display: flex; flex-direction: column; gap: var(--space-2); background: var(--color-surface); }
 .doctor-order-head-actions { display: flex; align-items: center; gap: var(--space-2); }
 .doctor-unified-orders { min-width: 0; max-width: 100%; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
 
 .doctor-unified-orders > .doctor-table-wrap { min-height: 0; flex: 1; display: flex; flex-direction: column; }
-.doctor-orders-panel > .ui-panel__head, .doctor-orders-panel > .doctor-document-summary { flex: none; }
+.doctor-orders-panel > .ui-panel__head { flex: none; }
 .doctor-unified-orders > .doctor-table-wrap > .doctor-unified-order-list { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; }
 .doctor-unified-order-head { position: sticky; top: 0; z-index: var(--z-sticky); }
-.doctor-table-wrap > .doctor-unified-order-row.is-launcher { flex: none; }
 
 /* 医嘱录入模式控制栏：智能模式 / 前缀模式切换及操作指引 */
 .doctor-order-search-mode-bar {
@@ -864,8 +865,7 @@
 }
 
 /* 倒置 Tab 页新增挂件（Inverted Hanging Tab Launcher）：从列表底边正中向下平滑滑出延伸，零布局抖动（Zero Layout Shift） */
-.doctor-diagnosis-row.is-launcher,
-.doctor-unified-order-row.is-launcher {
+.doctor-diagnosis-row.is-launcher {
   position: absolute;
   top: calc(100% - 1px);
   left: 50%;
@@ -896,25 +896,15 @@
               background-color var(--motion-fast);
 }
 
-.doctor-diagnosis-row.is-launcher:hover,
-.doctor-unified-order-row.is-launcher:hover {
+.doctor-diagnosis-row.is-launcher:hover {
   background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-surface));
   border-color: var(--color-brand-primary);
   box-shadow: var(--shadow-hover);
   transform: translateX(-50%) translateY(0);
 }
 
-.doctor-diagnosis-row.is-launcher:hover .doctor-table-launcher-btn,
-.doctor-unified-order-row.is-launcher:hover .doctor-table-launcher-btn {
+.doctor-diagnosis-row.is-launcher:hover .doctor-table-launcher-btn {
   color: var(--color-brand-strong);
-}
-
-.doctor-unified-launcher-cell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-width: 0;
 }
 
 .doctor-table-launcher-btn {
@@ -956,8 +946,7 @@
 }
 
 /* 悬浮滑出显现机制（Hover-slide-down）：非空时默认收起在列表底边后方，鼠标移入面板时向下滑动展开 */
-.doctor-diagnosis-panel:not(.is-empty) .doctor-diagnosis-row.is-launcher,
-.doctor-orders-panel:not(.is-empty) .doctor-unified-order-row.is-launcher {
+.doctor-diagnosis-panel:not(.is-empty) .doctor-diagnosis-row.is-launcher {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%) translateY(-100%);
@@ -966,20 +955,24 @@
 .doctor-diagnosis-panel.is-hovered .doctor-diagnosis-row.is-launcher,
 .doctor-diagnosis-panel:not(.is-empty):hover .doctor-diagnosis-row.is-launcher,
 .doctor-diagnosis-panel:not(.is-empty):focus-within .doctor-diagnosis-row.is-launcher,
-.doctor-orders-panel.is-hovered .doctor-unified-order-row.is-launcher,
-.doctor-orders-panel:not(.is-empty):hover .doctor-unified-order-row.is-launcher,
-.doctor-orders-panel:not(.is-empty):focus-within .doctor-unified-order-row.is-launcher,
-.doctor-diagnosis-panel.is-empty .doctor-diagnosis-row.is-launcher,
-.doctor-orders-panel.is-empty .doctor-unified-order-row.is-launcher {
+.doctor-diagnosis-panel.is-empty .doctor-diagnosis-row.is-launcher {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%) translateY(0);
 }
-.doctor-unified-order-launcher { min-width: 72rem; width: 100%; box-sizing: border-box; border-top: 2px solid color-mix(in srgb, var(--color-brand-primary) 48%, var(--color-border)); background: color-mix(in srgb, var(--color-brand-soft) 10%, var(--color-surface)); }
-.doctor-unified-order-launcher > button { width: 100%; min-height: 3.5rem; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: center; gap: var(--space-2); border: 0; color: var(--color-brand-strong); background: transparent; cursor: pointer; font: inherit; }
-.doctor-unified-order-launcher > button:hover { background: color-mix(in srgb, var(--color-brand-soft) 42%, var(--color-surface)); }
-.doctor-unified-order-launcher > button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: -2px; }
-.doctor-unified-order-launcher .ui-icon { width: 1rem; height: 1rem; }
+/* 医嘱追加入口紧接末条医嘱，随列表滚动。 */
+.doctor-unified-order-launcher {
+  min-width: 72rem;
+  width: 100%;
+  min-height: 3.5rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
 .doctor-unified-inline-composer { min-height: 4.25rem; border-top: 2px solid color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-border)); background: color-mix(in srgb, var(--color-brand-soft) 14%, var(--color-surface)); }
 .doctor-unified-inline-composer.is-unselected {
   border-top: 1px dashed color-mix(in srgb, var(--color-brand-primary) 45%, var(--color-border));
@@ -4699,68 +4692,6 @@
   background: var(--color-surface-subtle);
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
-}
-
-.doctor-history-print-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-2);
-}
-
-.doctor-history-print-list article {
-  min-height: 3.25rem;
-  padding: var(--space-2) var(--space-3);
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(7rem, 0.9fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-subtle);
-  transition: border-color var(--transition-fast), background-color var(--transition-fast);
-}
-
-.doctor-history-print-list article:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface);
-}
-
-.doctor-history-print-list article > span,
-.doctor-history-print-list article > div {
-  min-width: 0;
-}
-
-.doctor-history-print-list strong {
-  display: block;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.doctor-history-print-list small {
-  display: block;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: var(--space-0-5);
-}
-
-.doctor-history-print-list article > div:last-child {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: auto;
-}
-
-.doctor-history-print-list article > div:last-child button {
-  height: 2rem;
 }
 
 /* 门诊就诊文书批量受控打印 */

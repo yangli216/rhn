@@ -65,8 +65,8 @@ public final class DrugAllergyRule implements MedicationSafetyRule {
             } catch (RuntimeException ex) {
                 throw new MissingSafetyDataException();
             }
-            String code = med.path("code").asText("");
-            String name = med.path("name").asText(med.path("medicationName").asText("处方药品"));
+            String code = med.path("code").asString("");
+            String name = med.path("name").asString(med.path("medicationName").asString("处方药品"));
 
             for (var allergy : allergies) {
                 boolean match = false;

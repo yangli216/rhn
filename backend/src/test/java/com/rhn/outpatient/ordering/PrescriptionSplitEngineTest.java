@@ -98,6 +98,19 @@ class PrescriptionSplitEngineTest {
     }
 
     @Test
+    void same_batch_western_oral_drugs_share_the_real_pharmacy_and_document() {
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "奥美拉唑", "WESTERN", false));
+        when(catalogDirectory.requireMedication(1L, 2L)).thenReturn(mockMedication(2L, "雷贝拉唑", "WESTERN", false));
+        var plans = engine.plan(encounter, List.of(
+                createItem(1L, "奥美拉唑", "WESTERN", "PO", "NONE", null, null, "待确认"),
+                createItem(2L, "雷贝拉唑", "WESTERN", "PO", "NONE", null, null, "未知药房")));
+        assertThat(plans).hasSize(1);
+        assertThat(plans.getFirst().stockSiteId()).isEqualTo(10L);
+        assertThat(plans.getFirst().stockSiteName()).isEqualTo("真实药房10");
+        assertThat(plans.getFirst().items()).hasSize(2);
+    }
+
+    @Test
     @DisplayName("测试规则1与规则2：西药、中成药与草药按大类和药房隔离分方")
     void shouldSplitByCategoryAndStockSite() {
         // 2个西药（西药房），1个中成药（中药房），2个草药饮片（草药房）

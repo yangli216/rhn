@@ -34,6 +34,17 @@ describe('OrderDocumentReviewCard', () => {
     },
   ]
 
+  it('opens the selected document fields immediately and keeps other documents collapsed', () => {
+    render(<OrderDocumentReviewList>
+      {['selected', 'other'].map((cardKey) => <OrderDocumentReviewCard key={cardKey} cardKey={cardKey}
+        title={cardKey} kind="lab" items={[{ name: '血常规', quantityText: '1 次' }]}
+        info={buildDefaultDocumentInfo(mockEncounter, 'service')} onChangeInfo={vi.fn()}
+        encounter={mockEncounter} defaultExpanded={cardKey === 'selected'} />)}
+    </OrderDocumentReviewList>)
+    expect(within(screen.getByRole('rowgroup', { name: 'selected单据' })).getByRole('button', { name: '收起' })).toHaveAttribute('aria-expanded', 'true')
+    expect(within(screen.getByRole('rowgroup', { name: 'other单据' })).getByRole('button', { name: '修改' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
   it('shows split reasons only when hovering or focusing the information icon', async () => {
     const user = userEvent.setup()
     render(<OrderDocumentReviewCard cardKey="preview" title="西1" kind="western" items={defaultItems}

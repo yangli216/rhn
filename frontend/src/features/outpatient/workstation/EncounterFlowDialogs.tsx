@@ -43,7 +43,7 @@ export function EncounterTerminationDialog({ encounter, api, busy, error, onClos
         placeholder="记录患者离院、拒绝继续诊疗或转诊等具体情况" /></FormField>
     </div>
     {readiness.isPending && <LoadingState label="正在核对费用及诊后任务…" />}
-    {readiness.data?.ready && <Alert>当前没有未处置的费用、药房、医技或治疗任务，可以终止本次接诊。</Alert>}
+    {readiness.data?.ready && <Alert placement="inline" tone="info">当前没有未处置的费用、药房、医技或治疗任务，可以终止本次接诊。</Alert>}
     {issues.length > 0 && <div className="doctor-completion-checklist doctor-completion-checklist--dialog">
       {issues.map((issue) => <span key={issue.code}><Icon name="warning" className="ui-icon-inline" /> {issue.message}</span>)}
     </div>}

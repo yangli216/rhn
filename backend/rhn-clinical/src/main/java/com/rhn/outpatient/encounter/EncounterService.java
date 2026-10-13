@@ -572,7 +572,16 @@ public class EncounterService implements EncounterDirectory {
     @Override
     @Transactional(readOnly = true)
     public EncounterSnapshot requireActiveForOrdering(Long encounterId) {
-        Encounter encounter = requireEncounter(encounterId);
+        return orderableSnapshot(requireEncounter(encounterId));
+    }
+
+    @Override
+    @Transactional
+    public EncounterSnapshot lockActiveForOrdering(Long encounterId) {
+        return orderableSnapshot(requireEncounterWithLock(encounterId));
+    }
+
+    private EncounterSnapshot orderableSnapshot(Encounter encounter) {
         if (encounter.status() != EncounterStatus.IN_PROGRESS) {
             throw conflict("ENCOUNTER_NOT_ORDERABLE", "只有接诊中的就诊可以开立诊疗请求");
         }

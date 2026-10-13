@@ -5,7 +5,6 @@ import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptAction;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptInstruction;
 import com.rhn.billing.api.FiscalReceiptAdapter.ReceiptResult;
 import com.rhn.billing.api.FiscalReceiptResultDirectory;
-import com.rhn.billing.api.FiscalReceiptResultDirectory.VerifiedReceiptResult;
 import com.rhn.billing.api.ReceiptViews.ReceiptView;
 import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.shared.context.ExecutionContext;
@@ -235,8 +234,6 @@ public class ReceiptApplicationService implements FiscalReceiptResultDirectory {
     private String operationCommand(String prefix, String value) {
         return CommandCodes.prefixed(prefix, required(value));
     }
-
-    private String normalize(String value) { return value == null ? null : value.trim().toUpperCase(); }
 
     private String message(RuntimeException exception) {
         return exception.getMessage() == null || exception.getMessage().isBlank()

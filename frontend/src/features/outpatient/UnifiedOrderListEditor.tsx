@@ -1036,7 +1036,7 @@ export function UnifiedOrderListEditor({
 
       <SavedOrderList savedEntries={savedEntries} draftEntries={draftEntries} allDocuments={allDocuments}
         prescriptions={prescriptions} documentRows={documentRows} activeDocKey={activeDocKey}
-        handleSelectDoc={handleSelectDoc} onSavedDocument={onSavedDocument} encounter={encounter} api={api}
+        handleSelectDoc={onOpenDocument ? handleSelectDoc : undefined} onSavedDocument={onSavedDocument} encounter={encounter} api={api}
         readOnly={readOnly} busy={busy} documentEditing={documentEditing} currentDept={currentDept}
         onCancelService={onCancelService} onPrintService={onPrintService}
         onCancelMedication={onCancelMedication} onPrint={onPrint} skinTestByRequest={skinTestByRequest}
@@ -1059,21 +1059,17 @@ export function UnifiedOrderListEditor({
         allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} />}
 
       {!readOnly && isComposerActive && !groupingComposerTarget && !(entryType === 'HERBAL' && draftHerbalCount > 0) && renderComposer()}
-      </div>
-
       {!readOnly && !isComposerActive && !editingDraft && (
-        <div className="doctor-unified-order-row is-launcher" role="row" onClick={openComposer}>
-          <div className="doctor-unified-launcher-cell">
-            <button type="button" className="doctor-table-launcher-btn" aria-label="新增医嘱" onClick={(e) => {
-              e.stopPropagation()
-              openComposer()
-            }}>
+        <div className="doctor-unified-order-launcher" role="row">
+          <div role="cell">
+            <Button size="sm" variant="secondary" disabled={busy} onClick={openComposer}>
               <Icon name="add" />
-              <span><strong>新增医嘱</strong></span>
-            </button>
+              新增医嘱
+            </Button>
           </div>
         </div>
       )}
+      </div>
     </div>
 
     <MedicalInsertViewerModal

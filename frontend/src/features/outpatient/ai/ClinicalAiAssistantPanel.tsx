@@ -1,5 +1,5 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { clinicalAiPreview, type ClinicalAiPreview, type ClinicalAiFieldStream } from '../../../shared/api/clinicalAiStream'
 import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelection } from './ClinicalAiInlineWorkspace'
@@ -44,7 +44,7 @@ interface AiAdoptionIntent {
 
 export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies, allergyState, api, disabled,
   onAdoptionBusyChange, onApply, onPreparePlan, surfaces, onOpenDetail, onOpenHistory, onOpenResults, historyEncounters, onFieldStream,
-  onReviewTreatment, onReviewRecommendedPlan, existingTreatmentKeys = [] }: {
+  onReviewTreatment, onReviewRecommendedPlan, existingTreatmentKeys = [], onRegisterTreatmentBatchDiscard }: {
   encounter: Encounter
   currentContext: ClinicalAiDraftContext
   allergies: AllergyIntolerance[]
@@ -63,6 +63,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[], onCompleted: (acceptedKeys: string[]) => void, onFailed?: (message: string) => void) => void
   onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   existingTreatmentKeys?: string[]
+  onRegisterTreatmentBatchDiscard?: (capture: (() => (() => void) | undefined) | null) => void
 }) {
   const queryClient = useQueryClient()
   const reportsQuery = useQuery({
@@ -97,11 +98,23 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const [suggestionInputKey, setSuggestionInputKey] = useState('')
   const [suggestionVoiceTranscript, setSuggestionVoiceTranscript] = useState('')
   const [storedSuggestion, setCurrentSuggestion] = useState<ClinicalAiSuggestion | null>(null)
+  const latestSuggestionId = useRef<string | null>(null)
+  latestSuggestionId.current = storedSuggestion?.id ?? null
   const generationCoreFingerprint = useRef<string | null>(null)
   const adoptedContinuation = useRef<{ id: string; coreFingerprint: string; fullFingerprint: string; controls: string } | null>(null)
   const treatmentContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
   const [acceptedTreatmentKeys, setAcceptedTreatmentKeys] = useState<string[]>([])
   const [dismissedDiagnosisBatchId, setDismissedDiagnosisBatchId] = useState<string | null>(null)
+  const [dismissedTreatmentBatchId, setDismissedTreatmentBatchId] = useState<string | null>(null)
+  const captureTreatmentBatchDiscard = useCallback(() => {
+    const id = storedSuggestion?.id
+    if (!id) return undefined
+    return () => { if (latestSuggestionId.current === id) setDismissedTreatmentBatchId(id) }
+  }, [storedSuggestion?.id])
+  useEffect(() => {
+    onRegisterTreatmentBatchDiscard?.(captureTreatmentBatchDiscard)
+    return () => onRegisterTreatmentBatchDiscard?.(null)
+  }, [captureTreatmentBatchDiscard, onRegisterTreatmentBatchDiscard])
   const controlsKey = stableClinicalAiFingerprint('ai-controls', { question: question.trim(), voiceTranscript: voiceTranscript.trim(),
     diagnosticReports })
   const currentClinicalFingerprint = clinicalContextWithoutOrdersFingerprint(currentContext)
@@ -117,8 +130,12 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       && generationCoreFingerprint.current
       && generationCoreFingerprint.current === currentCoreFingerprint
       && voiceTranscript.trim() === suggestionVoiceTranscript)))
-  const currentSuggestion = storedSuggestion && continuation
-    ? { ...storedSuggestion, clientContextFingerprint: clinicalAiContextFingerprint({ ...currentContext, busy: false }) } : storedSuggestion
+  const currentSuggestion = useMemo(() => {
+    const scopedSuggestion = storedSuggestion && continuation
+      ? { ...storedSuggestion, clientContextFingerprint: clinicalAiContextFingerprint({ ...currentContext, busy: false }) } : storedSuggestion
+    return scopedSuggestion && dismissedTreatmentBatchId === scopedSuggestion.id
+      ? { ...scopedSuggestion, treatmentRecommendations: [], treatmentMatches: [] } : scopedSuggestion
+  }, [storedSuggestion, continuation, currentContext, dismissedTreatmentBatchId])
   const streamContext = useRef<string>('')
   const [, refreshExpiry] = useState(0)
   useEffect(() => {
@@ -897,6 +914,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     <ClinicalAiInlineWorkspace api={api} encounter={encounter} surfaces={surfaces}
       context={currentContext} capability={capability} suggestion={currentSuggestion} current={liveCurrent}
       diagnosisBatchDismissed={dismissedDiagnosisBatchId === currentSuggestion?.id}
+      treatmentBatchDismissed={dismissedTreatmentBatchId === currentSuggestion?.id}
+      onDiscardTreatments={() => { if (currentSuggestion) setDismissedTreatmentBatchId(currentSuggestion.id) }}
       busy={actionPending} inputBusy={inputBusy} generating={generate.isPending}
       preview={preview}
       onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}

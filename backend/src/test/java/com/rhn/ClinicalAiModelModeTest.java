@@ -324,10 +324,11 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.diagnosisCandidates.length()").value(1))
                 .andExpect(jsonPath("$.diagnosisCandidates[0].code").value("I10"))
                 .andExpect(jsonPath("$.diagnosisCandidates[0].display").value("原发性高血压"))
+                .andExpect(jsonPath("$.diagnosisCandidates[0].rationale").value("依据当前资料"))
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.safetyAlerts[1].level").value("WARNING"))
                 .andExpect(jsonPath("$.recommendedPlans.length()").value(0))
-                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V12"))
+                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V14"))
                 .andExpect(jsonPath("$.disclaimer").value(org.hamcrest.Matchers.containsString("院内术语")))
                 .andReturn().getResponse().getContentAsString());
 

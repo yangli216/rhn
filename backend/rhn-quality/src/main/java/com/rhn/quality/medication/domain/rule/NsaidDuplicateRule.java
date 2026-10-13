@@ -77,8 +77,8 @@ public final class NsaidDuplicateRule implements MedicationSafetyRule {
                 throw new MissingSafetyDataException();
             }
 
-            String name = med.path("name").asText(med.path("medicationName").asText(""));
-            String doseForm = med.path("doseForm").asText("");
+            String name = med.path("name").asString(med.path("medicationName").asString(""));
+            String doseForm = med.path("doseForm").asString("");
             Long medId = med.hasNonNull("id") ? med.path("id").asLong() : null;
 
             if (isSystemicNsaid(tenantId, medId, name, doseForm)) {

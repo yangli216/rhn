@@ -76,11 +76,11 @@ class PrescriptionService {
 
     @Transactional
     List<PrescriptionResponse> batchOrder(Long encounterId, BatchOrderPrescriptionRequest request) {
-        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
         ExecutionContext context = contextProvider.requireCurrent();
         Long tenantId = TenantContext.requireTenantId();
         List<SplitPrescriptionPlan> plans = splitEngine.plan(encounter, request.items());
-        List<PrescriptionResponse> createdPrescriptions = new java.util.ArrayList<>();
+        List<Prescription> createdPrescriptions = new java.util.ArrayList<>();
 
         for (SplitPrescriptionPlan plan : plans) {
             Long organizationId = encounter.organizationId();
@@ -139,15 +139,20 @@ class PrescriptionService {
                 }
             }
 
+            createdPrescriptions.add(prescription);
+        }
+        // Build the entire batch before evaluation, including drugs split into a different document.
+        List<PrescriptionResponse> responses = new java.util.ArrayList<>();
+        for (Prescription prescription : createdPrescriptions) {
             if (request.autoSubmit()) {
-                createdPrescriptions.add(submit(encounterId, prescription.id(),
-                        new PrescriptionAction(prescription.revision(), null)));
+                responses.add(submit(encounterId, prescription.id(), new PrescriptionAction(prescription.revision(), null)));
             } else {
-                createdPrescriptions.add(response(prescription));
+                var evaluation = safetyEvaluations.evaluateShadow(encounterId, prescription.id());
+                enforceMedicationSafetyGate(evaluation, null);
+                responses.add(response(prescription, evaluation));
             }
         }
-
-        return createdPrescriptions;
+        return List.copyOf(responses);
     }
 
     @Transactional
@@ -192,7 +197,7 @@ class PrescriptionService {
 
     @Transactional
     PrescriptionResponse submit(Long encounterId, Long prescriptionId, PrescriptionAction action) {
-        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
         ExecutionContext context = contextProvider.requireCurrent();
         Prescription value = requirePrescription(encounter.tenantId(), encounterId, prescriptionId);
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
@@ -277,8 +282,8 @@ class PrescriptionService {
     }
 
     private PrescriptionResponse response(Prescription value, MedicationSafetyDecision safetyEvaluation) {
-        List<MedicationRequestResponse> requests = medicationService
-                .prescriptionRequests(value.tenantId(), value.id()).stream().map(medicationService::response).toList();
+        List<MedicationRequestResponse> requests = medicationService.responses(
+                medicationService.prescriptionRequests(value.tenantId(), value.id()));
         return new PrescriptionResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
                 value.groupNo(), value.categoryCode(), value.status().name(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.authoredAt(), value.authoredBy(), value.submittedAt(),
@@ -292,10 +297,15 @@ class PrescriptionService {
             throw conflict("MEDICATION_SAFETY_UNAVAILABLE", "正式合理用药规则暂无法完成评价，请核对缺失资料或联系规则管理员后重试");
         }
         if (evaluation.decision() == MedicationSafetyDecision.Status.BLOCK) {
-            throw conflict("MEDICATION_SAFETY_BLOCKED", "合理用药审查未通过，当前处方不能提交");
+            String findings = evaluation.findings().stream()
+                    .filter(finding -> finding.decision() == MedicationSafetyDecision.Status.BLOCK)
+                    .map(MedicationSafetyDecision.Finding::message).distinct()
+                    .collect(java.util.stream.Collectors.joining("；"));
+            throw conflict("MEDICATION_SAFETY_BLOCKED", "合理用药审查未通过，当前处方不能提交"
+                    + (findings.isBlank() ? "" : "：" + findings));
         }
         if (evaluation.decision() == MedicationSafetyDecision.Status.REQUIRE_OVERRIDE
-                && Strings.trimToNull(action.reason()) == null) {
+                && action != null && Strings.trimToNull(action.reason()) == null) {
             throw conflict("MEDICATION_SAFETY_OVERRIDE_REASON_REQUIRED", "合理用药审查要求填写继续开立理由");
         }
     }

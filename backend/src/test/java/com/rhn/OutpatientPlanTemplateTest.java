@@ -34,7 +34,7 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"scopeType":"DEPARTMENT","name":"上感整体方案-%s","noteTemplateId":"%s",
                                  "diagnoses":[{"code":"J06.9","display":"急性上呼吸道感染","type":"PRIMARY"}]}
-                                """.formatted(suffix, note.get("id").asText())))
+                                """.formatted(suffix, note.get("id").asString())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.noteTemplateId").value(note.get("id").asLong()))
                 .andReturn().getResponse().getContentAsString());

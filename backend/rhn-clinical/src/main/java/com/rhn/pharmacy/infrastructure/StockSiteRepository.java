@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface StockSiteRepository extends JpaRepository<StockSite, Long> {
     Optional<StockSite> findByIdAndTenantId(Long id, Long tenantId);
+    List<StockSite> findByTenantIdAndIdIn(Long tenantId, java.util.Set<Long> ids);
     Optional<StockSite> findByTenantIdAndOrganizationIdAndDepartmentId(Long tenantId, Long organizationId, Long departmentId);
     boolean existsByTenantIdAndOrganizationIdAndDepartmentId(Long tenantId, Long organizationId, Long departmentId);
     boolean existsByTenantIdAndOrganizationIdAndCode(Long tenantId, Long organizationId, String code);

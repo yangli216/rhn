@@ -33,8 +33,8 @@ export interface InlineAiSelection {
 
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
-  generating, inputBusy, preview, diagnosisBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
-  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading }: {
+  generating, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
+  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading }: {
   api: RhnApi
   encounter: Encounter
   surfaces: ClinicalAiSurfaces
@@ -47,6 +47,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   inputBusy: boolean
   preview: ClinicalAiPreview
   diagnosisBatchDismissed?: boolean
+  treatmentBatchDismissed?: boolean
   onView: () => void
   disabled: boolean
   canAdopt: boolean
@@ -59,6 +60,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   onGenerate: (focus?: string) => Promise<string>
   onApply: (selection: InlineAiSelection) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[]) => void
+  onDiscardTreatments?: () => void
   existingTreatmentKeys?: string[]
   stableVoiceTranscript?: string
   planInputKey?: string
@@ -87,11 +89,12 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   const selectedDiagnoses = diagnoses.filter((item) => !excludedDiagnoses.includes(item.code))
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
-  const treatmentItems = [...(generating ? preview.treatmentRecommendations ?? [] : suggestion?.treatmentRecommendations ?? []), ...resolvedCatalog.items]
+  const treatmentItems = !generating && treatmentBatchDismissed ? []
+    : [...(generating ? preview.treatmentRecommendations ?? [] : suggestion?.treatmentRecommendations ?? []), ...resolvedCatalog.items]
   const availableTreatmentItems = planFeature
     ? [...new Map(treatmentItems.map(item => [treatmentKey(item), item])).values()]
       .filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
-  const pendingMatches = planFeature && !generating ? (suggestion?.treatmentMatches ?? [])
+  const pendingMatches = planFeature && !generating && !treatmentBatchDismissed ? (suggestion?.treatmentMatches ?? [])
     .filter(match => !resolvedCatalog.keys.includes(match.key)) : []
   const portal = (node: ReactNode, target: HTMLDivElement | null, key: string) => target ? createPortal(node, target, key) : null
 
@@ -143,7 +146,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
                 disabled={disabled || busy || generating || !canAdopt} onChange={() => setDiagnosisSelection({ session,
                   excluded: excludedDiagnoses.includes(item.code) ? excludedDiagnoses.filter((code) => code !== item.code) : [...excludedDiagnoses, item.code] })} />
               <span className="doctor-ai-pending-badge">AI 建议</span></label></span>
-            <span className="doctor-diag-col-main"><span className="doctor-diag-name-wrap">
+            <span className="doctor-diag-col-main doctor-ai-diagnosis-main"><span className="doctor-diag-name-wrap">
               <strong className="doctor-diag-name">{item.display}</strong>
               <span className="doctor-diag-code-pill">{item.code}</span>
               <IconButton icon="book-open" label="指南"
@@ -153,7 +156,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
                   setViewingGuideline(item.display)
                 }}
               />
-            </span></span>
+            </span><small className="doctor-ai-diagnosis-reason">
+              {item.rationale?.trim() ? `依据：${item.rationale.trim()}` : '本条未提供患者事实依据，请核对后再确认。'}
+            </small></span>
             <span className="doctor-diag-col-domain"><span className="doctor-diag-badge is-secondary">待医生确认</span></span>
             <span className="doctor-diag-col-management">—</span>
             <span className="doctor-diag-col-actions">
@@ -172,6 +177,10 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
 
     {(suggestion || generating) && planFeature && portal(
       <div hidden={!(current || generating) || (!availableTreatmentItems.length && !pendingMatches.length)}>
+        {!generating && onDiscardTreatments && <div className="doctor-ai-order-batch">
+          <span>本轮医嘱推荐，保存医嘱后未构建项将自动丢弃。</span>
+          <Button size="sm" variant="text" disabled={disabled || busy} onClick={onDiscardTreatments}>丢弃本轮推荐</Button>
+        </div>}
         <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} api={api} encounterId={encounter.id} organizationId={encounter.organizationId}
           disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
           onResolved={(keys, items) => setCatalogSelection({ session, keys: [...resolvedCatalog.keys, ...keys],

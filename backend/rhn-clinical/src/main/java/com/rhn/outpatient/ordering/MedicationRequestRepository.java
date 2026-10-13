@@ -9,6 +9,21 @@ import java.util.List;
 import java.util.Optional;
 
 interface MedicationRequestRepository extends JpaRepository<MedicationRequest, Long> {
+    @Query("""
+            select request from MedicationRequest request
+            left join Prescription prescription on prescription.id = request.requestGroupId
+              and prescription.tenantId = request.tenantId and prescription.encounterId = request.encounterId
+            where request.tenantId = :tenantId and request.encounterId = :encounterId
+              and request.requestKind = 'MEDICATION'
+              and (request.requestGroupId = :prescriptionId or
+                (request.status in (com.rhn.outpatient.ordering.MedicationRequestStatus.DRAFT,
+                                    com.rhn.outpatient.ordering.MedicationRequestStatus.ACTIVE)
+                 and (request.requestGroupId is null or prescription.status in
+                    (com.rhn.outpatient.ordering.PrescriptionStatus.DRAFT,
+                     com.rhn.outpatient.ordering.PrescriptionStatus.ACTIVE))))
+            order by request.id
+            """)
+    List<MedicationRequest> findSafetyContext(Long tenantId, Long encounterId, Long prescriptionId);
     @Query("select request from MedicationRequest request where request.tenantId = :tenantId "
             + "and request.id in :ids and request.requestKind = 'MEDICATION'")
     List<MedicationRequest> findOriginsByIds(Long tenantId, java.util.Set<Long> ids);

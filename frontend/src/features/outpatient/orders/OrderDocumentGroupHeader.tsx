@@ -1,5 +1,5 @@
 import { Button, Popconfirm } from '../../../shared/ui'
-import { IconAlertCircle, IconFlask, IconPill, IconPlant2, IconPrinter, IconScan, IconTrash, IconFileText } from '@tabler/icons-react'
+import { IconAlertCircle, IconFlask, IconPill, IconPlant2, IconPrinter, IconScan, IconTrash, IconFileText, IconEdit } from '@tabler/icons-react'
 import { formatOrderSubtotal, type OrderSubtotal } from './orderSubtotal'
 
 export function OrderDocumentGroupHeader({
@@ -16,6 +16,8 @@ export function OrderDocumentGroupHeader({
   onPrint,
   canCancel,
   onCancel,
+  onEdit,
+  editDisabled,
   children,
 }: {
   title: string
@@ -33,6 +35,8 @@ export function OrderDocumentGroupHeader({
   onPrint?: () => void
   canCancel?: boolean
   onCancel?: () => void
+  onEdit?: () => void
+  editDisabled?: boolean
   children?: React.ReactNode
 }) {
   const renderIcon = () => {
@@ -74,6 +78,12 @@ export function OrderDocumentGroupHeader({
           小计 <strong>{formatOrderSubtotal(subtotal)}</strong>
         </span>
         <div className="doctor-group-actions">
+          {onEdit && (
+            <Button size="sm" variant="text" onClick={onEdit} disabled={editDisabled}
+              aria-label={`编辑${title}`} title={`编辑${title}`}>
+              <IconEdit size={16} stroke={1.75} />
+            </Button>
+          )}
           {canCancel && onCancel && (
             <Popconfirm
               title={`确认撤销“${title}”整单医嘱？`}

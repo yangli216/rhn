@@ -241,7 +241,9 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         AtomicReference<String> requestBody = new AtomicReference<>();
         AtomicReference<String> authorization = new AtomicReference<>();
         SuggestionContent modelContent = new SuggestionContent("结构化分析完成",
-                new RecordDraft(null, "现病史草稿", null, null, null), List.of(), List.of(),
+                new RecordDraft(null, "现病史草稿", null, null, null),
+                List.of(new com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisCandidate("R50.9", "发热", "PRIMARY", .8,
+                        "口述发热3天，病因尚需核对")), List.of(),
                 List.of("补问持续时间"), List.of(), List.of(), "模型原始声明",
                 List.of(new com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation("LABORATORY", null, null, null,
                         "血常规", null, "结合本次已知异常评估感染线索")));
@@ -266,12 +268,17 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
 
         assertEquals("结构化分析完成", result.summary());
         assertEquals("现病史草稿", result.recordDraft().presentIllness());
+        assertEquals("口述发热3天，病因尚需核对", result.diagnosisCandidates().getFirst().rationale());
         assertEquals("结合本次已知异常评估感染线索", result.treatmentRecommendations().getFirst().rationale());
         assertEquals("Bearer secret-key", authorization.get());
         assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V9"));
         assertTrue(requestBody.get().contains("语音转写内容"));
         var sent = jsonCodec.readTree(requestBody.get());
         var context = jsonCodec.readTree(sent.get("messages").get(1).get("content").asString());
+        assertEquals("补全病历", context.get("question").asString());
+        assertEquals("语音转写内容", context.get("voiceTranscript").asString());
+        assertEquals("高血压病史", context.get("draft").get("medicalHistory").asString());
+        assertEquals(160, context.get("draft").get("systolic").asInt());
         assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asString());
         assertEquals("OUTPATIENT", context.get("careContext").get("setting").asString());
         assertEquals("IN_PROGRESS", context.get("careContext").get("visitPhase").asString());
@@ -286,14 +293,14 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertEquals("{\"code\":\"BID\",\"frequencyCount\":2}", historicalUsage.get("frequencyRuleSnapshot").asString());
         assertEquals(10, context.get("receptionSceneContext").get("selectedReportIds").get(0).asInt());
         assertEquals(10, context.get("diagnosticReports").get(0).get("reportId").asInt());
-        assertEquals("1988-08-08", context.get("patient").get("birthDate").asText());
+        assertEquals("1988-08-08", context.get("patient").get("birthDate").asString());
         assertEquals(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString(),
-                context.get("patient").get("ageCalculationDate").asText());
-        assertEquals("VALID_ON_CURRENT_DATE", context.get("patient").get("birthDateStatus").asText());
+                context.get("patient").get("ageCalculationDate").asString());
+        assertEquals("VALID_ON_CURRENT_DATE", context.get("patient").get("birthDateStatus").asString());
         assertEquals(38, context.get("patient").get("ageYears").asInt());
-        assertEquals("38岁", context.get("patient").get("ageText").asText());
+        assertEquals("38岁", context.get("patient").get("ageText").asString());
         assertEquals(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString(),
-                context.get("temporalContext").get("currentDate").asText());
+                context.get("temporalContext").get("currentDate").asString());
         assertTrue(sent.get("messages").get(0).get("content").asString().contains("不得将默认既往体健或否认过敏、慢病作为已确认事实"));
         assertTrue(sent.get("messages").get(0).get("content").asString().contains("已有预设不改为缺失提示"));
         String writingPrompt = sent.get("messages").get(0).get("content").asString();
@@ -305,10 +312,16 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("已知当前危险征象写入 safetyAlerts"));
         assertTrue(writingPrompt.contains("不能把与疑似病种相关的项目全部作为常规套餐"));
         assertTrue(writingPrompt.contains("生命体征观察不默认转为收费医嘱"));
-        assertTrue(writingPrompt.contains("diagnosisCandidates.rationale 留空"));
+        assertFalse(writingPrompt.contains("diagnosisCandidates.rationale 留空"));
+        assertTrue(writingPrompt.contains("每条 diagnosisCandidates 必须有独立的本次患者事实依据"));
+        assertTrue(writingPrompt.contains("不能追加“未特指的血糖过多 [R73.9]”"));
+        assertTrue(writingPrompt.contains("疑似低血糖等未证实原因只进入 differentialDiagnoses 或 safetyAlerts"));
+        assertTrue(writingPrompt.contains("不作为已明确2型糖尿病常规复诊的默认套餐"));
+        assertTrue(writingPrompt.contains("普通血糖化验写“葡萄糖测定”"));
+        assertTrue(writingPrompt.contains("心电图必须区分普通、动态或运动试验"));
         assertTrue(writingPrompt.contains("每项只输出与目录条目一致的 type、catalogItemId"));
         assertTrue(writingPrompt.contains("不输出 rationale 或重复目录名称、编码、规格"));
-        assertTrue(writingPrompt.contains("diagnosisCandidates[{code,display,type,confidence}]"));
+        assertTrue(writingPrompt.contains("diagnosisCandidates[{code,display,type,confidence,rationale}]"));
         assertTrue(writingPrompt.contains("CATALOG_TREATMENT 使用 [{type,catalogItemId}]"));
         assertTrue(writingPrompt.contains("RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale}]"));
         assertTrue(writingPrompt.contains("已有结果能覆盖本次目的时优先复用"));
@@ -317,6 +330,11 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("最多12项是数量上限，不是推荐目标"));
         assertTrue(writingPrompt.contains("每项必须有独立检查目的"));
         assertTrue(writingPrompt.contains("不引用目录匹配置信度证明临床适宜性"));
+        assertTrue(writingPrompt.contains("先综合医生本次录入的 question、voiceTranscript、draft 中已确认的事实与 patient"));
+        assertTrue(writingPrompt.contains("未提供时间不能编造"));
+        assertTrue(writingPrompt.contains("历史诊断、历史处方及历史检查不自动成为本次确诊"));
+        assertTrue(writingPrompt.contains("已知禁忌或明确冲突的方向不推荐"));
+        assertTrue(writingPrompt.contains("当前输入明确正在使用的药品不重复列为新增用药"));
         assertFalse(writingPrompt.contains("有有效临床输入时生成五个段落"));
         assertFalse(writingPrompt.contains("没有事实且没有既有预设时写"));
         assertTrue(requestBody.get().contains("FEMALE"));
