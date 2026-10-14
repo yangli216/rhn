@@ -80,7 +80,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                                 {
                                   "practitionerId":"362387869790223","catalogItemId":"362387869795104",
                                   "dateFrom":"%s","dateTo":"%s","weekdays":[%d],"dayParts":["MORNING"],
-                                  "morningStart":"08:00","morningEnd":"12:00","capacity":5,
+                                  "morningStart":"00:00","morningEnd":"23:59","capacity":5,
                                   "locationName":"全科门诊一诊室","idempotencyCode":"reception-schedule-%s"
                                 }
                                 """.formatted(today, today, today.getDayOfWeek().getValue(), suffix)))

@@ -128,7 +128,9 @@
                 <configuration>
                     <workingDirectory>${project.basedir}/..</workingDirectory>
                     <failIfNoSpecifiedTests>true</failIfNoSpecifiedTests>
-                    <argLine>-Xmx4g</argLine>
+                    <!-- Business dates and sessions are Asia/Shanghai (organization default); pin the test JVM so
+                         LocalDate.now() in tests and server code agree regardless of the machine or CI timezone. -->
+                    <argLine>-Xmx4g -Duser.timezone=Asia/Shanghai</argLine>
                     <systemPropertyVariables>
                         <spring.test.context.cache.maxSize>8</spring.test.context.cache.maxSize>
                     </systemPropertyVariables>

@@ -91,6 +91,8 @@
                     <configuration>
                         <!-- Focused test selectors must also work across library modules without tests. -->
                         <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                        <!-- Same business timezone as rhn-app tests; modules may extend but should keep it. -->
+                        <argLine>-Duser.timezone=Asia/Shanghai</argLine>
                     </configuration>
                 </plugin>
             </plugins>

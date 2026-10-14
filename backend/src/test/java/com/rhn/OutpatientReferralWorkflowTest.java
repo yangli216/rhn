@@ -21,6 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Tag("outpatient-main-flow")
 class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
+    private static final java.util.concurrent.atomic.AtomicInteger IDENTIFIER_SEQUENCE =
+            new java.util.concurrent.atomic.AtomicInteger(java.util.concurrent.ThreadLocalRandom.current().nextInt(9000));
     private static final String TARGET_DEPARTMENT = "362387869899001";
     private static final String PHARMACY_DEPARTMENT = "362387869799103";
     @Autowired JdbcTemplate jdbc;
@@ -168,7 +170,8 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
     }
 
     private String preparedEncounter(String suffix, String residentName) throws Exception {
-        String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
+        // Unique within the class's database lifetime; random 4-digit draws could collide (RESIDENT_DUPLICATE).
+        String digits = "%04d".formatted(IDENTIFIER_SEQUENCE.incrementAndGet() % 10000);
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"%s","identifiers":[{"system":"9","value":"33010219950505%s","useType":"SECONDARY"}],
