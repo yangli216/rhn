@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @ActiveProfiles("test")
 class PhysicalColumnAbbreviationMigrationTest {
-    private static final String BASELINE = "B1_84_0__rhn_schema_and_metadata.sql";
+    private static final String BASELINE = "B1_128_0__rhn_schema_and_metadata.sql";
 
     @Test
     void governed_abbreviation_renames_are_applied_by_the_flattened_baseline() throws Exception {

@@ -15,10 +15,12 @@ import pypinyin
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CSV_PATH = os.path.join(ROOT_DIR, "docs", "terminology", "icd10_chs_v2.0.csv")
-BASELINE_PG_PATH = os.path.join(ROOT_DIR, "backend", "src", "main", "resources", "db", "migration", "B1_84_0__rhn_schema_and_metadata.sql")
+BASELINE_PG_PATH = os.path.join(ROOT_DIR, "backend", "src", "main", "resources", "db", "migration", "B1_128_0__rhn_schema_and_metadata.sql")
 
-TARGET_PG_PATH = os.path.join(ROOT_DIR, "backend", "src", "main", "resources", "db", "migration", "V1_85_0__national_healthcare_security_icd10_catalog.sql")
-TARGET_ORA_PATH = os.path.join(ROOT_DIR, "backend", "src", "main", "resources", "db", "oracle", "V1_85_0__national_healthcare_security_icd10_catalog.sql")
+# The published catalog is part of the squashed baseline (B1_128_0). Outputs go to .runtime/generated for review;
+# apply a change as a new migration with the next free version, never by rewriting a published file.
+TARGET_PG_PATH = os.path.join(ROOT_DIR, ".runtime", "generated", "icd10", "migration", "V1_85_0__national_healthcare_security_icd10_catalog.sql")
+TARGET_ORA_PATH = os.path.join(ROOT_DIR, ".runtime", "generated", "icd10", "oracle", "V1_85_0__national_healthcare_security_icd10_catalog.sql")
 
 ROMAN_CHAPTERS = {
     '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
@@ -216,6 +218,7 @@ def main():
 
     # Generate PostgreSQL / H2 migration file
     print(f"Writing PostgreSQL migration to {TARGET_PG_PATH}...")
+    os.makedirs(os.path.dirname(TARGET_PG_PATH), exist_ok=True)
     with open(TARGET_PG_PATH, 'w', encoding='utf-8') as f:
         f.write("-- V1_85_0: Import National Healthcare Security ICD-10 Catalog (CHS-ICD10 v2.0)\n")
         f.write("-- Replaces legacy 56 baseline demo diagnoses with full 45,523 standard concepts\n")
@@ -267,6 +270,7 @@ def main():
 
     # Generate Oracle migration file
     print(f"Writing Oracle migration to {TARGET_ORA_PATH}...")
+    os.makedirs(os.path.dirname(TARGET_ORA_PATH), exist_ok=True)
     with open(TARGET_ORA_PATH, 'w', encoding='utf-8') as f:
         f.write("-- V1_85_0: Import National Healthcare Security ICD-10 Catalog (CHS-ICD10 v2.0)\n")
         f.write("-- Replaces legacy 56 baseline demo diagnoses with full 45,523 standard concepts\n")

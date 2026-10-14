@@ -1,4 +1,0 @@
--- Phase 1 only supplies department advice and collection prompts. Disabled unless explicitly enabled.
-insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
-select 362387869796208, ID_PARAM_CAT, 'ai.clinical.decision-scene-outpatient-triage-enabled', '预检分诊辅助', '默认关闭；先旁路观察，辅助模式仅提供科室建议与资料补充提示，不决定分级或绿色通道；共用决策模型、独立密钥和置信度配置', 'BOOLEAN', 'SWITCH', '{"type":"boolean"}', 'false', '["PLATFORM","TENANT"]', 'BUSINESS', true, false, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
-from RHN_SYS_PARAM_DEF where CD_PARAM_KEY='ai.clinical.decision-mode';

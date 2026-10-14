@@ -1,5 +1,5 @@
 {
-  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
+  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
   "tables": [
     {
       "logical": "sc.appointment_event",

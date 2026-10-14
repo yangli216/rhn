@@ -31,9 +31,9 @@
 
 ## 数据库基线与开发样例
 
-现有起点为 **1.84.0 全量基线**，其后仍有增量迁移；不能只执行三个基线/样例脚本或将旧的“下一版本”作为当前编号。实际文件位于 `backend/src/main/resources/db/`：
+现有起点为 **1.128.0 全量基线**（2026-10-14 第二次压平，生成与验证方式及 Oracle 待验证说明见 [db/README](../../backend/src/main/resources/db/README.md)）；新迁移使用高于 1.128.2 的版本号。实际文件位于 `backend/src/main/resources/db/`：
 
-- `migration/B1_84_0__rhn_schema_and_metadata.sql` 与后续 `V*`：公共结构与元数据。
+- `migration/B1_128_0__rhn_schema_and_metadata.sql` 与后续 `V*`：公共结构与元数据。
 - `oracle/`：Oracle 对等变更。
 - `local/` 与 `oracle-local/`：开发医院样例数据。
 - `h2/`：H2 兼容适配。

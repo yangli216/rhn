@@ -1,5 +1,5 @@
 {
-  "fingerprint": "454d16651c8f480303c91c5af6b76566a40f7beed2e45177a27a0bacf8cd3bac",
+  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -919,7 +919,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_CARE_REQ_ORG_NO_INDEX_6",
+          "name": "UK_EX_CARE_REQ_ORG_NO_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -1688,7 +1688,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_94",
+          "name": "PRIMARY_KEY_944",
           "columns": [
             {
               "position": 1,
@@ -6925,7 +6925,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_145E",
+          "name": "PRIMARY_KEY_145F",
           "columns": [
             {
               "position": 1,
@@ -6936,7 +6936,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_REQ_GRP_ORG_NO_INDEX_B",
+          "name": "UK_EX_REQ_GRP_ORG_NO_INDEX_1",
           "columns": [
             {
               "position": 1,

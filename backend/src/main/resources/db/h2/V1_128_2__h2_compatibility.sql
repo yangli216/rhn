@@ -1,3 +1,17 @@
+-- RHN H2 compatibility adjustments
+-- GENERATED FILE. Regenerate with scripts/schema-squash/SquashMigrations.java; do not edit by hand.
+-- Applies only to empty schemas; existing databases keep their applied history.
+-- Scope: H2-only column type adjustments for test databases.
+-- Target migration version: 1.128.2
+-- Source migrations:
+--   backend/src/main/resources/db/h2/V1_84_2__h2_clob_types.sql sha256=a78e774ead7d95aafad276ac117b22c0627ab2f23198447308f2070e02c68f5f
+--   backend/src/main/resources/db/h2/V1_121_1__diagnostic_report_clob_types.sql sha256=d16dc0499c801ff54ed55baae18c16612beb2521869b1835f2855df3ad7d8552
+--   backend/src/main/resources/db/h2/V1_125_1__diagnostic_image_clob.sql sha256=1eca969ae7f5fc2b86466b94443df7487fba5f8db7a7c71079d511f141e13e5e
+--   backend/src/main/resources/db/h2/V1_127_1__diagnostic_rule_clob.sql sha256=b7283257991468fd1751b67f6e9ee59609c37dd6bc560f986c5439976e96afb5
+
+-- =============================================================================
+-- Source: V1_84_2__h2_clob_types.sql
+-- =============================================================================
 -- RHN H2 rebuild compatibility types
 -- GENERATED FILE. H2-only CLOB conversions for the 1.78 fresh-schema package.
 -- The physical column rename is already part of B1_79_0, so source identifiers are rewritten by table.
@@ -175,3 +189,30 @@ COMMENT ON COLUMN RHN_EX_CARE_REQ.JSON_DOC_INFO IS '诊疗申请单据信息JSON
 -- SOURCE backend/src/main/resources/db/h2/V1_74_1__prescription_medication_safety_clob.sql sha256=e4d4b29205ca354b90d8ddbebe35df21ddef6121873ca9319115ff48982b1773
 alter table RHN_EX_REQ_GRP alter column JSON_SAFETY_REVIEW clob;
 comment on column RHN_EX_REQ_GRP.JSON_SAFETY_REVIEW is '处方提交时合理用药提示、涉及药品及医生处理理由，供药师审方核对';
+
+-- =============================================================================
+-- Source: V1_121_1__diagnostic_report_clob_types.sql
+-- =============================================================================
+-- H2 compatibility for LONG32VARCHAR / CLOB-backed report working content.
+alter table RHN_EX_DIAG_DRAFT alter column JSON_CONTENT clob;
+alter table RHN_EX_DIAG_REPORT alter column DES_FINDING clob;
+alter table RHN_EX_DIAG_REPORT alter column DES_CORRECT clob;
+comment on column RHN_EX_DIAG_DRAFT.JSON_CONTENT is '报告工作内容JSON';
+comment on column RHN_EX_DIAG_REPORT.DES_FINDING is '检查所见';
+comment on column RHN_EX_DIAG_REPORT.DES_CORRECT is '报告更正原因';
+
+-- =============================================================================
+-- Source: V1_125_1__diagnostic_image_clob.sql
+-- =============================================================================
+alter table RHN_EX_DIAG_IMAGE alter column CONTENT_BASE64 clob not null;
+comment on column RHN_EX_DIAG_IMAGE.CONTENT_BASE64 is '数据库保存的原始图像内容';
+
+-- =============================================================================
+-- Source: V1_127_1__diagnostic_rule_clob.sql
+-- =============================================================================
+alter table RHN_BD_DIAG_TPL alter column CONTENT_JSON clob;
+alter table RHN_VIS_OBS alter column RULE_SNAP clob;
+alter table RHN_EX_DIAG_REPORT alter column TPL_SNAP clob;
+comment on column RHN_BD_DIAG_TPL.CONTENT_JSON is '不可变模板指标规则词条内容';
+comment on column RHN_VIS_OBS.RULE_SNAP is '签发结果规则及患者匹配条件快照';
+comment on column RHN_EX_DIAG_REPORT.TPL_SNAP is '签发时模板及机构规则不可变快照';
