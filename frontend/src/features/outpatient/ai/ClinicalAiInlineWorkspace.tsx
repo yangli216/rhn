@@ -13,6 +13,7 @@ import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 
 import { ClinicalAiCopilotHub } from './ClinicalAiCopilotHub'
+import type { ChronicRefillController } from './useChronicRefill'
 
 export interface ClinicalAiSurfaces {
   summary: HTMLDivElement | null
@@ -34,7 +35,7 @@ export interface InlineAiSelection {
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
   generating, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
-  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading }: {
+  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading, chronicRefill }: {
   api: RhnApi
   encounter: Encounter
   surfaces: ClinicalAiSurfaces
@@ -72,6 +73,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   onOpenEvidenceChain?: (diagnosis: { code: string; display: string }) => void
   sceneAssessment?: ReceptionSceneAssessment
   sceneLoading?: boolean
+  chronicRefill?: ChronicRefillController
 }) {
   const session = `${context.encounterId}:${generating ? 'generating' : suggestion?.id ?? ''}`
   const [viewingGuideline, setViewingGuideline] = useState<string | null>(null)
@@ -130,6 +132,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
         sceneAssessment={sceneAssessment}
         sceneLoading={sceneLoading}
         surfaces={surfaces}
+        chronicRefill={chronicRefill}
       />,
       surfaces.note,
       'copilot-hub'

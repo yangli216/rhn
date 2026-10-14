@@ -12,6 +12,8 @@ import { useStableVoiceCopilot } from './useStableVoiceCopilot'
 import { clinicalAiContextFingerprint } from './aiDraftAdapter'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
 import { buildChronicRefillPrompt } from './chronicRefillPromptBuilder'
+import { ChronicRefillQuickPanel } from './ChronicRefillQuickPanel'
+import type { ChronicRefillController } from './useChronicRefill'
 
 export interface ClinicalAiCopilotHubProps {
   context: ClinicalAiDraftContext
@@ -43,13 +45,15 @@ export interface ClinicalAiCopilotHubProps {
   sceneAssessment?: ReceptionSceneAssessment
   sceneLoading?: boolean
   surfaces: ClinicalAiSurfaces
+  /** Shared chronic refill session; drives the auto-opened quick panel. */
+  chronicRefill?: ChronicRefillController
 }
 
 export function ClinicalAiCopilotHub({
   context, capability, suggestion, current, busy, generating, inputBusy, preview,
   onView, disabled, canAdopt, error, voiceInput, interimTranscript, question,
   onQuestionChange, onClearVoice, onGenerate, planInputKey, stableVoiceTranscript, onFindPlans, onReviewRecommendedPlan, onApply, onOpenDetail, onOpenHistory,
-  onOpenResults, sceneAssessment, sceneLoading, surfaces,
+  onOpenResults, sceneAssessment, sceneLoading, surfaces, chronicRefill,
 }: ClinicalAiCopilotHubProps) {
   const [findingPlans, setFindingPlans] = useState(false)
   const [planError, setPlanError] = useState('')
@@ -64,6 +68,8 @@ export function ClinicalAiCopilotHub({
   }, [inputIdentity])
   useEffect(() => () => { requestSequence.current++ }, [])
   const [hubOpen, setHubOpen] = useState(false)
+  const [refillPanelOpen, setRefillPanelOpen] = useState(false)
+  const refillAutoShownFor = useRef<string | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [fields, setFields] = useState<string[]>([])
@@ -208,6 +214,62 @@ export function ClinicalAiCopilotHub({
 
   // Determine pill scene tag & label
   const isChronic = sceneAssessment?.scene === 'CHRONIC_REFILL'
+  const refillReady = Boolean(isChronic && chronicRefill?.ready && chronicRefill.encounterId === context.encounterId)
+  const refillBlocked = disabled || busy || !canAdopt || !recordFeature || Boolean(sceneLoading)
+
+  // Lightweight refill shortcut: auto-open once per encounter, only when a refillable stable plan exists.
+  useEffect(() => { setRefillPanelOpen(false) }, [context.encounterId])
+  useEffect(() => {
+    if (!refillReady || refillBlocked || chronicRefill?.adopted || hubOpen) return
+    if (refillAutoShownFor.current === context.encounterId) return
+    refillAutoShownFor.current = context.encounterId
+    setRefillPanelOpen(true)
+  }, [refillReady, refillBlocked, chronicRefill?.adopted, hubOpen, context.encounterId])
+  useEffect(() => {
+    // Opening the full hub counts as having seen the shortcut for this encounter.
+    if (hubOpen) refillAutoShownFor.current = context.encounterId
+    if (hubOpen || chronicRefill?.adopted || !refillReady) setRefillPanelOpen(false)
+  }, [hubOpen, chronicRefill?.adopted, refillReady, context.encounterId])
+  useEffect(() => {
+    if (!refillPanelOpen) return
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setRefillPanelOpen(false) }
+    const outside = (event: MouseEvent) => {
+      if (hubRef.current && !hubRef.current.contains(event.target as Node)) setRefillPanelOpen(false)
+    }
+    document.addEventListener('keydown', escape)
+    document.addEventListener('mousedown', outside)
+    return () => {
+      document.removeEventListener('keydown', escape)
+      document.removeEventListener('mousedown', outside)
+    }
+  }, [refillPanelOpen])
+
+  /** Routes refill generation through the hub so the record draft is adopted when it returns. */
+  const generateRefillRecord = async (focus?: string) => {
+    appliedSuggestionId.current = null
+    incrementalAdoption.current = false
+    const id = await onGenerate(focus)
+    appliedSuggestionId.current = id || null
+    return id
+  }
+  const runChronicRefill = () => {
+    if (!chronicRefill || refillBlocked) return
+    chronicRefill.applyRefill(generateRefillRecord)
+  }
+  const generateChronicRecord = () => {
+    const promptData = buildChronicRefillPrompt({
+      encounter: {
+        systolic: (context as any).systolic,
+        diastolic: (context as any).diastolic,
+        diagnoses: context.diagnoses as any,
+      } as any,
+      matchedConditions: sceneAssessment?.matchedConditions ?? [],
+      medications: chronicRefill?.medications ?? [],
+      safetyAssessment: chronicRefill?.safetyAssessment,
+    })
+    void generateAndApply(promptData.aiFocusPrompt)
+  }
+
   const isReport = sceneAssessment?.scene === 'REPORT_FOLLOW_UP'
   const scenePillText = isChronic ? '慢病复诊'
     : isReport ? `报告回诊${sceneAssessment?.selectedReportIds.length ? ` (${sceneAssessment.selectedReportIds.length})` : ''}`
@@ -243,6 +305,16 @@ export function ClinicalAiCopilotHub({
         ) : null}
         <Icon name={hubOpen ? 'chevron-up' : 'chevron-down'} className="doctor-ai-copilot-pill__caret" />
       </button>
+
+      {refillPanelOpen && chronicRefill && !hubOpen && (
+        <ChronicRefillQuickPanel
+          refill={chronicRefill}
+          onRefill={runChronicRefill}
+          refillDisabled={refillBlocked}
+          onClose={() => setRefillPanelOpen(false)}
+          onOpenHub={() => { setRefillPanelOpen(false); setHubOpen(true); onView() }}
+        />
+      )}
 
       {/* Floating Command Palette Popover */}
       {hubOpen && (
@@ -333,16 +405,8 @@ export function ClinicalAiCopilotHub({
                       className="doctor-ai-quick-btn"
                       disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
                       onClick={() => {
-                        const promptData = buildChronicRefillPrompt({
-                          encounter: {
-                            systolic: (context as any).systolic,
-                            diastolic: (context as any).diastolic,
-                            diagnoses: context.diagnoses as any,
-                          } as any,
-                          matchedConditions: sceneAssessment?.matchedConditions ?? [],
-                          medications: [],
-                        })
-                        void generateAndApply(promptData.aiFocusPrompt)
+                        if (refillReady) { runChronicRefill(); return }
+                        generateChronicRecord()
                         if (onOpenHistory) onOpenHistory()
                       }}
                       title="一键生成规范复诊病历草稿并自动联动调出历史处方"
@@ -355,18 +419,7 @@ export function ClinicalAiCopilotHub({
                       variant="secondary"
                       className="doctor-ai-quick-btn"
                       disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
-                      onClick={() => {
-                        const promptData = buildChronicRefillPrompt({
-                          encounter: {
-                            systolic: (context as any).systolic,
-                            diastolic: (context as any).diastolic,
-                            diagnoses: context.diagnoses as any,
-                          } as any,
-                          matchedConditions: sceneAssessment?.matchedConditions ?? [],
-                          medications: [],
-                        })
-                        void generateAndApply(promptData.aiFocusPrompt)
-                      }}
+                      onClick={generateChronicRecord}
                     >
                       <Icon name="sparkles" />
                       <span>仅生成复诊病历</span>

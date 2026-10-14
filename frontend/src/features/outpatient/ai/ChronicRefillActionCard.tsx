@@ -1,14 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { DiagnosticReport } from '../../../shared/api/diagnosticsApi'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
-import { assessChronicMedicationSafety, type ChronicSafetyAssessment } from './chronicSafetyVerification'
 import { Button, Icon, StatusBadge } from '../../../shared/ui'
 import type { InlineAiSelection } from './ClinicalAiInlineWorkspace'
-
-import { buildChronicRefillPrompt } from './chronicRefillPromptBuilder'
+import { chronicRefillActionLabel, useChronicRefill, type ChronicRefillController } from './useChronicRefill'
 
 export interface ChronicRefillActionCardProps {
   encounter: Encounter
@@ -21,45 +17,16 @@ export interface ChronicRefillActionCardProps {
   onGenerate?: (focus?: string) => Promise<string>
   onOpenHistory?: () => void
   onNotice?: (msg: string) => void
+  /** Shared refill session; when provided the card does not fetch or own adoption state. */
+  controller?: ChronicRefillController
 }
 
-export function ChronicRefillActionCard({
-  encounter,
-  api,
-  sceneAssessment,
-  diagnosticReports,
-  disabled,
-  busy,
-  onApply,
-  onGenerate,
-  onOpenHistory,
-  onNotice,
-}: ChronicRefillActionCardProps) {
-  const [adopted, setAdopted] = useState(false)
-  const [overrideWarning, setOverrideWarning] = useState(false)
+export function ChronicRefillActionCard({ controller, ...options }: ChronicRefillActionCardProps) {
+  const own = useChronicRefill({ ...options, enabled: !controller })
+  const refill = controller ?? own
+  const { stablePlan, safetyAssessment, tone, toneLabel } = refill
 
-  // 1. Fetch historical stable plan
-  const stablePlanQuery = useQuery({
-    queryKey: ['historical-stable-plan', encounter.id, encounter.residentId],
-    queryFn: () => api.outpatientPlanTemplates.getHistoricalStablePlan(encounter.id),
-    staleTime: 60_000,
-  })
-
-  const stablePlan = stablePlanQuery.data
-  const medications = useMemo(() => stablePlan?.medications.map((item) => ({
-    ...item, medicationName: item.medicationName?.trim() || '药品待核对',
-  })) ?? [], [stablePlan])
-
-  // 2. Compute medication safety assessment against recent reports
-  const safetyAssessment: ChronicSafetyAssessment | undefined = useMemo(() => {
-    if (!stablePlan || !stablePlan.medications.length) return undefined
-    return assessChronicMedicationSafety({
-      medications,
-      reports: diagnosticReports,
-    })
-  }, [stablePlan, medications, diagnosticReports])
-
-  if (stablePlanQuery.isLoading) {
+  if (refill.loading) {
     return (
       <div className="doctor-ai-chronic-card is-loading">
         <span className="doctor-ai-copilot-pill__pulse" aria-hidden="true" />
@@ -68,81 +35,9 @@ export function ChronicRefillActionCard({
     )
   }
 
-  if (!stablePlan || !stablePlan.medications.length) {
+  if (!stablePlan || !refill.ready) {
     return null
   }
-
-  const conditionsText = sceneAssessment.matchedConditions.length
-    ? sceneAssessment.matchedConditions.join('、')
-    : stablePlan.conditionTitle || '慢性病'
-
-  const handleApplyFullRefill = () => {
-    if (disabled || busy || adopted) return
-
-    // If critical blocker exists, warn and allow doctor override if confirmed
-    if (safetyAssessment?.hasCriticalBlockers && !overrideWarning) {
-      setOverrideWarning(true)
-      onNotice?.('⚠️ 检测到近期化验指标高危警示，请先确认风险后再续方')
-      return
-    }
-
-    const promptData = buildChronicRefillPrompt({
-      encounter,
-      matchedConditions: sceneAssessment.matchedConditions,
-      medications,
-      safetyAssessment,
-    })
-
-    if (onGenerate) {
-      // Leverage AI model generation for personalized, clinically deep SOAP note
-      void onGenerate(promptData.aiFocusPrompt).catch(() => undefined)
-    } else {
-      // Deterministic compliant fallback
-      const annotations = [
-        {
-          field: 'chiefComplaint' as const,
-          text: promptData.fallbackChiefComplaint,
-          source: 'AI' as const,
-          kind: 'IMPORTANT' as const,
-        },
-        {
-          field: 'presentIllness' as const,
-          text: promptData.fallbackPresentIllness,
-          source: 'AI' as const,
-          kind: 'IMPORTANT' as const,
-        },
-      ]
-
-      onApply({
-        recordDraft: {
-          chiefComplaint: promptData.fallbackChiefComplaint,
-          presentIllness: promptData.fallbackPresentIllness,
-          annotations,
-        },
-        incrementalRecord: false,
-      })
-    }
-
-    setAdopted(true)
-    onNotice?.(`已采纳【${conditionsText}】复诊病历草稿，请在历史处方中确认医嘱明细`)
-
-    // Open history drawer for final confirmation if available
-    if (onOpenHistory) {
-      onOpenHistory()
-    }
-  }
-
-  const tone = safetyAssessment?.overallStatus === 'CRITICAL'
-    ? 'danger'
-    : safetyAssessment?.overallStatus === 'WARNING'
-    ? 'warning'
-    : 'success'
-
-  const toneLabel = safetyAssessment?.overallStatus === 'CRITICAL'
-    ? '高危用药风险'
-    : safetyAssessment?.overallStatus === 'WARNING'
-    ? '随访超期建议'
-    : '指标核查平稳'
 
   return (
     <section className={`doctor-ai-chronic-refill-card is-${tone}`} aria-label="慢病智能续方">
@@ -203,23 +98,17 @@ export function ChronicRefillActionCard({
         <Button
           size="sm"
           variant={safetyAssessment?.hasCriticalBlockers ? 'secondary' : 'primary'}
-          disabled={disabled || busy || adopted}
-          onClick={handleApplyFullRefill}
+          disabled={refill.actionDisabled}
+          onClick={() => refill.applyRefill()}
         >
           <Icon name="sparkles" />
-          <span>
-            {adopted
-              ? '✓ 已采纳续方方案'
-              : safetyAssessment?.hasCriticalBlockers && !overrideWarning
-              ? '⚠️ 确认风险并一键续方'
-              : '⚡ 一键安全续方 (病历+医嘱)'}
-          </span>
+          <span>{chronicRefillActionLabel(refill)}</span>
         </Button>
-        {onOpenHistory && (
+        {refill.openHistory && (
           <Button
             size="sm"
             variant="text"
-            onClick={onOpenHistory}
+            onClick={refill.openHistory}
             title="查看完整历史就诊记录与历史处方"
           >
             <span>微调处方明细</span>

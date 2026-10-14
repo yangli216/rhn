@@ -7,6 +7,7 @@ import { ClinicalEvidenceDrawer } from './ClinicalEvidenceDrawer'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import { ChronicRefillActionCard } from './ChronicRefillActionCard'
+import { useChronicRefill } from './useChronicRefill'
 import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
   ClinicalAiSuggestionEventType,
@@ -423,6 +424,14 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   })
   const actionPending = generate.isPending
     || adoptDraft.isPending || ignoreSuggestion.isPending
+  const chronicRefill = useChronicRefill({
+    encounter, api, sceneAssessment, diagnosticReports, disabled, busy: actionPending,
+    onApply: (selection) => applyInline(selection),
+    onGenerate: async (focus) => (await generate.mutateAsync({ focus })).value.id,
+    onOpenHistory,
+    onNotice: (msg) => setLocalError(msg),
+    enabled: sceneAssessment.scene === 'CHRONIC_REFILL',
+  })
   useEffect(() => {
     onFieldStream?.(generate.isPending && !disabled && !currentContext.busy
       ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft: preview.recordDraft } : null)
@@ -589,6 +598,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
           onGenerate={async (focus) => (await generate.mutateAsync({ focus })).value.id}
           onOpenHistory={onOpenHistory}
           onNotice={(msg) => setLocalError(msg)}
+          controller={chronicRefill}
         />
       </div>
     )}
@@ -967,7 +977,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
 
       sceneAssessment={sceneAssessment}
-      sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)} />
+      sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)}
+      chronicRefill={chronicRefill} />
     {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
     {sharedDrawersAndModals}
   </>
