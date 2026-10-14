@@ -23358,6 +23358,8 @@ export interface components {
             /** @enum {string} */
             receptionScene?: "FIRST_VISIT" | "CHRONIC_REFILL" | "REPORT_FOLLOW_UP";
             receptionSceneContext?: components["schemas"]["ReceptionSceneContext"];
+            /** @enum {string} */
+            intent?: "FULL_ANALYSIS" | "RECORD_EXPANSION";
         };
         ReceptionSceneContext: {
             selectedConditions?: string[];

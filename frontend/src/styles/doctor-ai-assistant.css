@@ -1635,3 +1635,15 @@
 .doctor-ai-catalog-review.is-compact .doctor-unified-cell-dept,
 .doctor-ai-catalog-review.is-compact .doctor-unified-cell-instruction,
 .doctor-ai-catalog-review.is-compact .doctor-unified-cell-price { display: none; }
+
+/* Chief-complaint expansion shortcut: aligned with the record field column, hidden when the hub renders nothing. */
+.doctor-record-expand-slot:empty { display: none; }
+.doctor-record-expand-slot { margin-left: calc(var(--doctor-record-label-width, 6em) + var(--space-2)); margin-top: calc(var(--space-1) * -1); }
+.doctor-record-expand { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.doctor-record-expand__key {
+  display: inline-flex; align-items: center; height: 1.25rem; padding: 0 var(--space-1);
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle);
+  color: var(--color-text-secondary); font: var(--font-size-small) var(--font-mono, monospace);
+}
+.doctor-record-expand__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-record-expand__error { color: var(--color-danger); font-size: var(--font-size-small); }

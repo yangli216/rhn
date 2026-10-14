@@ -8,6 +8,7 @@ import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation;
 import com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisCandidate;
 import com.rhn.ai.api.ClinicalAssistantContracts.DiagnosisInput;
 import com.rhn.ai.api.ClinicalAssistantContracts.Draft;
+import com.rhn.ai.api.ClinicalAssistantContracts.GenerationIntent;
 import com.rhn.ai.api.ClinicalAssistantContracts.EvidenceChainQuery;
 import com.rhn.ai.api.ClinicalAssistantContracts.Event;
 import com.rhn.ai.api.ClinicalAssistantContracts.EventRequest;
@@ -73,6 +74,9 @@ public class ClinicalAssistantApplicationService {
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V14";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
+    /** Record-only expansion of a short chief complaint; never retrieves plans or drafts diagnoses/orders. */
+    private static final String RECORD_EXPANSION_PROMPT_VERSION = "RHN-RECORD-EXPANSION-V1";
+    private static final String RECORD_EXPANSION_STAGE = "RECORD_EXPANSION";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
     /** 发热提示阈值（℃）。 */
@@ -358,13 +362,15 @@ public class ClinicalAssistantApplicationService {
         long phaseStarted = System.nanoTime();
         requireAvailable(runtime, requestContext);
         Access access = requireAccess(encounterId, true);
+        requireRecordExpansionInput(input, runtime);
         Instant now = Instant.now();
         var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
         ServerContext serverContext = contextAssembler.load(access.context(), access.encounter(), true);
         timing.contextLoadMs = elapsedMillis(phaseStarted);
 
         phaseStarted = System.nanoTime();
-        List<ClinicalPlanRetrievalService.Match> recalled = retrievePlans(input, serverContext.plans());
+        List<ClinicalPlanRetrievalService.Match> recalled = input.recordExpansion() ? List.of()
+                : retrievePlans(input, serverContext.plans());
         var candidates = planDirectory.visibleByIds(recalled.stream().map(match -> match.plan().id()).toList())
                 .stream().collect(java.util.stream.Collectors.toMap(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot::id, plan -> plan));
         List<ClinicalPlanRetrievalService.Match> planMatches = recalled.stream()
@@ -395,7 +401,9 @@ public class ClinicalAssistantApplicationService {
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("source", runtime.mode().name());
-        evidence.put("promptVersion", runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : null);
+        evidence.put("promptVersion", runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? promptVersion(input) : null);
+        evidence.put("intent", input.recordExpansion() ? GenerationIntent.RECORD_EXPANSION
+                : GenerationIntent.FULL_ANALYSIS);
         evidence.put("parentSuggestionId", input.parentSuggestionId());
         evidence.put("receptionScene", input.receptionScene());
         evidence.put("receptionSceneContext", input.receptionSceneContext());
@@ -417,7 +425,7 @@ public class ClinicalAssistantApplicationService {
                         access.encounter().id(), access.encounter().organizationId(), access.encounter().departmentId(),
                         input.clientContextFingerprint().trim(), contextHash, jsonCodec.write(content), jsonCodec.write(evidence),
                         serverContext.hash(), analysis.riskLevel(), runtime.provider(), runtime.model(),
-                        runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : LOCAL_PROMPT_VERSION,
+                        runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? promptVersion(input) : LOCAL_PROMPT_VERSION,
                         access.context().practitionerId(), access.context().subjectId(), now,
                         now.plus(runtime.suggestionTtl())));
                 events.save(new AiSuggestionEvent(saved.tenantId(), saved.id(), "GENERATED", null, "GENERATED",
@@ -559,13 +567,13 @@ public class ClinicalAssistantApplicationService {
         SuggestionContent raw;
         long modelStarted = System.nanoTime();
         try {
-            var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
+            var request = new ClinicalAiModelGateway.ModelRequest(promptVersion(input),
                     Strings.trimToNull(input.question()), Strings.trimToNull(input.voiceTranscript()), input.draft(),
                     serverContext.resident(), serverContext.allergies(),
                     planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
                     serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion,
-                    input.receptionScene(), input.receptionSceneContext())
-                    .withTemporalContext(temporalContext);
+                    input.receptionScene(), input.receptionSceneContext(),
+                    input.recordExpansion() ? RECORD_EXPANSION_STAGE : "RECORD_DIAGNOSIS", List.of(), temporalContext);
             raw = onDelta == null ? modelGateway.analyze(request, runtime)
                     : modelGateway.analyzeStreaming(request, runtime, onDelta);
         } catch (RuntimeException exception) {
@@ -589,6 +597,7 @@ public class ClinicalAssistantApplicationService {
         List<SafetyAlert> alerts = safetyAlerts(input.draft(), serverContext.allergies());
         alerts.addAll(validatedBirthDateAlerts(raw.safetyAlerts(), serverContext.resident(), temporalContext.currentDate()));
         alerts = distinctAlerts(alerts, 10);
+        if (input.recordExpansion()) return recordExpansionAnalysis(raw, input, alerts);
         List<String> missing = distinctStrings(merge(missingInformation(input.draft()), raw.missingInformation()), 10, 300);
         List<DiagnosisCandidate> candidates = validatedDiagnosisCandidates(raw.diagnosisCandidates(), 3);
         List<DiagnosisCandidate> differentials = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
@@ -623,6 +632,42 @@ public class ClinicalAssistantApplicationService {
                     alerts, plans, MODEL_DISCLAIMER, treatment.items(), treatment.matches());
         }
         if (onStage != null) onStage.accept(new GenerationStage("TREATMENTS", input.clientContextFingerprint().trim(), content));
+        String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
+                : alerts.isEmpty() ? "INFO" : "MEDIUM";
+        return new Analysis(content, risk);
+    }
+
+    private void requireRecordExpansionInput(GenerateRequest input, ClinicalAssistantSettings runtime) {
+        if (!input.recordExpansion()) return;
+        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) {
+            throw conflict("AI_RECORD_EXPANSION_MODEL_REQUIRED", "主诉扩写病历仅在模型辅助模式下可用");
+        }
+        if (input.parentSuggestionId() != null) {
+            throw badRequest("AI_RECORD_EXPANSION_FOLLOW_UP_UNSUPPORTED", "主诉扩写病历不支持连续追问");
+        }
+        if (blank(input.draft().chiefComplaint())) {
+            throw badRequest("AI_RECORD_EXPANSION_CHIEF_COMPLAINT_REQUIRED", "请先填写主诉后再扩写病历");
+        }
+    }
+
+    private String promptVersion(GenerateRequest input) {
+        return input.recordExpansion() ? RECORD_EXPANSION_PROMPT_VERSION : PROMPT_VERSION;
+    }
+
+    /** Keeps only the record sections expansion owns; diagnoses, plans and orders stay with the full analysis. */
+    private Analysis recordExpansionAnalysis(SuggestionContent raw, GenerateRequest input, List<SafetyAlert> alerts) {
+        RecordDraft validated = validatedRecordDraft(raw.recordDraft());
+        RecordDraft scoped = new RecordDraft(validated.chiefComplaint(), validated.presentIllness(),
+                validated.medicalHistory(), validated.physicalExam(), null, validated.temperature(),
+                validated.pulseRate(), validated.respiratoryRate(), validated.systolic(), validated.diastolic(),
+                validated.oxygenSaturation(), validated.heightCm(), validated.weightKg(), validated.allergyHistory(),
+                null, null, null, null, validated.annotations());
+        RecordDraft recordDraft = enrichRecordDraftFromInput(scoped, input);
+        List<String> missing = distinctStrings(raw.missingInformation() == null ? List.of() : raw.missingInformation(), 8, 300);
+        String summary = clipped(raw.summary(), 1000);
+        if (blank(summary)) summary = "已按主诉扩写门诊病历草稿；蓝色标记为 AI 推荐书写内容，请逐项核实后保存。";
+        SuggestionContent content = new SuggestionContent(summary, recordDraft, List.of(), List.of(), missing,
+                alerts, List.of(), MODEL_DISCLAIMER);
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
                 : alerts.isEmpty() ? "INFO" : "MEDIUM";
         return new Analysis(content, risk);
@@ -1065,6 +1110,7 @@ public class ClinicalAssistantApplicationService {
         canonical.put("parentSuggestionId", input.parentSuggestionId());
         canonical.put("receptionScene", input.receptionScene());
         canonical.put("receptionSceneContext", input.receptionSceneContext());
+        if (input.recordExpansion()) canonical.put("intent", input.intent());
         canonical.put("draft", input.draft());
         return sha256(canonical);
     }

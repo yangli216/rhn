@@ -5,7 +5,7 @@ import { ClinicalAiCatalogReview } from './ClinicalAiCatalogReview'
 import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import type { ClinicalAiCapabilities, ClinicalAiDraftContext, ClinicalAiRecordDraft,
+import type { ClinicalAiCapabilities, ClinicalAiDraftContext, ClinicalAiGenerationIntent, ClinicalAiRecordDraft,
   ClinicalAiSuggestion, ClinicalAiRecommendedPlan, ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
 import { IconButton, Button, Icon } from '../../../shared/ui'
@@ -21,10 +21,17 @@ export interface ClinicalAiSurfaces {
   diagnoses: HTMLDivElement | null
   plans: HTMLDivElement | null
   detail: HTMLDivElement | null
+  /** Inline slot under the chief complaint for the record-expansion shortcut. */
+  chiefComplaint?: HTMLDivElement | null
 }
 
 export type ClinicalAiSurfaceRefs = Pick<Record<keyof ClinicalAiSurfaces,
-  (element: HTMLDivElement | null) => void>, 'note' | 'diagnoses' | 'plans'>
+  (element: HTMLDivElement | null) => void>, 'note' | 'diagnoses' | 'plans' | 'chiefComplaint'>
+
+/** Optional generation mode; omitted means the full record/diagnosis/order analysis. */
+export interface ClinicalAiGenerateOptions {
+  intent?: ClinicalAiGenerationIntent
+}
 
 export interface InlineAiSelection {
   recordDraft?: ClinicalAiRecordDraft
@@ -58,7 +65,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   question: string
   onQuestionChange: (value: string) => void
   onClearVoice?: () => void
-  onGenerate: (focus?: string) => Promise<string>
+  onGenerate: (focus?: string, options?: ClinicalAiGenerateOptions) => Promise<string>
   onApply: (selection: InlineAiSelection) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[]) => void
   onDiscardTreatments?: () => void

@@ -531,6 +531,7 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
           <AnnotatedRecordField {...annotatedField('chiefComplaint', '主诉')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={1} />
         </FormField>
+        {!signed && <div ref={aiSurfaceRefs.chiefComplaint} className="doctor-record-expand-slot" />}
         <FormField appearance="document" className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
           <AnnotatedRecordField {...annotatedField('presentIllness', '现病史')} {...streamingField('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
         </FormField>

@@ -147,7 +147,7 @@ public final class ClinicalAssistantSettings {
                 "TERMINOLOGY_VALIDATION", "DIFFERENTIAL_DIAGNOSIS", "PLAN_RECOMMENDATIONS",
                 "REPORT_INTERPRETATION", "CLINICAL_FOLLOW_UP", "FACT_CHECK",
                 "DIAGNOSIS_REASONING", "CONVERSATION_FOLLOW_UP", "LONGITUDINAL_HISTORY", "AUDIT_TRAIL",
-                "PLAN_COMPILATION"));
+                "PLAN_COMPILATION", "RECORD_EXPANSION"));
         if (speechAvailable()) features.add("VOICE_TRANSCRIPTION");
         if (knowledgeAvailable()) features.add("KNOWLEDGE_RETRIEVAL");
         return List.copyOf(features);

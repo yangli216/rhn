@@ -14,6 +14,9 @@ import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWo
 import { buildChronicRefillPrompt } from './chronicRefillPromptBuilder'
 import { ChronicRefillQuickPanel } from './ChronicRefillQuickPanel'
 import type { ChronicRefillController } from './useChronicRefill'
+import { RecordExpansionTrigger } from './RecordExpansionTrigger'
+import { canExpandRecord, pickRecordExpansion, recordExpansionTargets } from './recordExpansion'
+import type { ClinicalAiGenerateOptions } from './ClinicalAiInlineWorkspace'
 
 export interface ClinicalAiCopilotHubProps {
   context: ClinicalAiDraftContext
@@ -33,7 +36,7 @@ export interface ClinicalAiCopilotHubProps {
   question: string
   onQuestionChange: (value: string) => void
   onClearVoice?: () => void
-  onGenerate: (focus?: string) => Promise<string>
+  onGenerate: (focus?: string, options?: ClinicalAiGenerateOptions) => Promise<string>
   stableVoiceTranscript?: string
   planInputKey?: string
   onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
@@ -76,10 +79,19 @@ export function ClinicalAiCopilotHub({
   const [edited, setEdited] = useState<Record<string, string>>({})
   const appliedSuggestionId = useRef<string | null>(null)
   const incrementalAdoption = useRef(false)
+  /** Suggestion id whose adoption is limited to the chief complaint and still-empty expansion targets. */
+  const expansionSuggestionId = useRef<string | null>(null)
+  const latestContext = useRef(context)
+  latestContext.current = context
+  const [expanding, setExpanding] = useState(false)
+  const [expansionError, setExpansionError] = useState('')
   const awaitingTemplate = useRef<string | null>(null)
   const hubRef = useRef<HTMLDivElement>(null)
   const composerInputId = useId()
-  useEffect(() => { awaitingTemplate.current = null; appliedSuggestionId.current = null }, [context.encounterId])
+  useEffect(() => {
+    awaitingTemplate.current = null; appliedSuggestionId.current = null; expansionSuggestionId.current = null
+    setExpansionError('')
+  }, [context.encounterId])
 
   useEffect(() => {
     setFields([])
@@ -99,6 +111,7 @@ export function ClinicalAiCopilotHub({
   }, [current, reviewOpen, summaryOpen, onView])
 
   const recordFeature = capability.features.includes('RECORD_COMPLETENESS')
+  const expansionAvailable = recordFeature && capability.features.includes('RECORD_EXPANSION') && canExpandRecord(context)
   const entries = recordFeature && current ? aiRecordDraftFields.filter((field) =>
     aiRecordDraftValue(field, suggestion?.recordDraft[field]) !== undefined) : []
   const editedValue = (field: AiRecordDraftField) => {
@@ -163,6 +176,27 @@ export function ClinicalAiCopilotHub({
     }
   }
 
+  const expansionBlocked = disabled || busy || generating || findingPlans || !canAdopt || Boolean(sceneLoading)
+  const expandRecord = async () => {
+    if (!expansionAvailable || expansionBlocked || expanding) return
+    setExpanding(true); setExpansionError('')
+    appliedSuggestionId.current = null
+    expansionSuggestionId.current = null
+    try {
+      const id = await onGenerate(undefined, { intent: 'RECORD_EXPANSION' })
+      expansionSuggestionId.current = id || null
+      appliedSuggestionId.current = id || null
+    } catch (failure) {
+      appliedSuggestionId.current = null
+      // Cancellation follows the doctor editing the record; only real failures are worth surfacing here.
+      if ((failure as Error)?.name !== 'AbortError') {
+        setExpansionError(failure instanceof Error && failure.message ? failure.message : '扩写病历失败，请重试。')
+      }
+    } finally {
+      setExpanding(false)
+    }
+  }
+
   const generateFromSpeech = async (skipPlans = false) => {
     setHubOpen(true)
     if (!skipPlans && await offerPlans(true, 'VOICE')) return
@@ -188,6 +222,13 @@ export function ClinicalAiCopilotHub({
   useEffect(() => {
     if (!appliedSuggestionId.current || !current || !suggestion || appliedSuggestionId.current !== suggestion.id) return
     appliedSuggestionId.current = null
+    if (expansionSuggestionId.current === suggestion.id) {
+      expansionSuggestionId.current = null
+      // Overwrite only replaces the chief complaint; every other picked field is still empty in the editor.
+      const recordDraft = pickRecordExpansion(suggestion.recordDraft, recordExpansionTargets(latestContext.current))
+      if (Object.keys(recordDraft).some((field) => field !== 'annotations')) onApply({ recordDraft, incrementalRecord: false })
+      return
+    }
     const validEntries = aiRecordDraftFields.filter((field) =>
       aiRecordDraftValue(field, suggestion.recordDraft[field]) !== undefined)
     if (validEntries.length === 0) return
@@ -277,6 +318,10 @@ export function ClinicalAiCopilotHub({
 
   return (
     <div className={`doctor-ai-copilot-hub ${hubOpen ? 'is-expanded' : ''}`} ref={hubRef}>
+      {surfaces.chiefComplaint && (expansionAvailable || expanding) && (
+        <RecordExpansionTrigger surface={surfaces.chiefComplaint} disabled={expansionBlocked} expanding={expanding}
+          error={expansionError} onExpand={() => { void expandRecord() }} />
+      )}
       {/* Title Bar Compact Pill Entry */}
       <button
         type="button"

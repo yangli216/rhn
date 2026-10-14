@@ -8,9 +8,11 @@ import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalIns
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import { ChronicRefillActionCard } from './ChronicRefillActionCard'
 import { useChronicRefill } from './useChronicRefill'
+import { pickRecordExpansion, recordExpansionTargets } from './recordExpansion'
+import type { AiRecordDraftField } from './aiDraftAdapter'
 import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
-  ClinicalAiSuggestionEventType,
+  ClinicalAiSuggestionEventType, ClinicalAiGenerationIntent,
 } from '../../../shared/api/clinicalAiApi'
 import { canonicalizeAiDiagnoses } from './canonicalAiDiagnoses'
 import { diagnosisIdentityKey } from '../record/diagnosisIdentity'
@@ -139,6 +141,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       ? { ...scopedSuggestion, treatmentRecommendations: [], treatmentMatches: [] } : scopedSuggestion
   }, [storedSuggestion, continuation, currentContext, dismissedTreatmentBatchId])
   const streamContext = useRef<string>('')
+  const expansionTargets = useRef<AiRecordDraftField[] | null>(null)
   const [, refreshExpiry] = useState(0)
   useEffect(() => {
     if (!currentSuggestion) return
@@ -274,14 +277,15 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     }
   }, [])
   const generate = useMutation({
-    mutationFn: async ({ parentSuggestionId, focus }: {
-      parentSuggestionId?: string; focus?: string
+    mutationFn: async ({ parentSuggestionId, focus, intent }: {
+      parentSuggestionId?: string; focus?: string; intent?: ClinicalAiGenerationIntent
     }) => {
       const context = latestContext.current
       if (disabled || context.busy || context.encounterId !== encounter.id
         || context.residentId !== encounter.residentId) throw new Error('当前就诊上下文正在变化，请稍后再分析。')
       const key = latestInputKey.current
       streamContext.current = clinicalAiContextFingerprint(context)
+      expansionTargets.current = intent === 'RECORD_EXPANSION' ? recordExpansionTargets(context) : null
       adoptedContinuation.current = null
       treatmentContinuation.current = null
       generationController.current?.abort()
@@ -295,6 +299,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         receptionScene: sceneAssessment.scene,
         receptionSceneContext: { selectedConditions: sceneAssessment.matchedConditions, selectedReportIds: sceneAssessment.selectedReportIds },
         voiceTranscript: transcript || undefined, draft: clinicalAiDraftInput(context), parentSuggestionId,
+        ...(intent ? { intent } : {}),
       }
       let text = '', lastPaint = 0
       try {
@@ -433,8 +438,11 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     enabled: sceneAssessment.scene === 'CHRONIC_REFILL',
   })
   useEffect(() => {
+    // Expansion only previews the fields it may write, so doctor-written sections never flash model text.
+    const recordDraft = expansionTargets.current ? pickRecordExpansion(preview.recordDraft, expansionTargets.current)
+      : preview.recordDraft
     onFieldStream?.(generate.isPending && !disabled && !currentContext.busy
-      ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft: preview.recordDraft } : null)
+      ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft } : null)
   }, [generate.isPending, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
   useEffect(() => () => onFieldStream?.(null), [onFieldStream])
   const inputBusy = adoptDraft.isPending || ignoreSuggestion.isPending
@@ -970,7 +978,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         return plans
       } : undefined}
       onReviewRecommendedPlan={onReviewRecommendedPlan}
-      onGenerate={async (focus) => (await generate.mutateAsync({ focus })).value.id} onApply={applyInline}
+      onGenerate={async (focus, options) => (await generate.mutateAsync({ focus, intent: options?.intent })).value.id} onApply={applyInline}
       onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory} onOpenResults={onOpenResults}
       onOpenEvidenceChain={setEvidenceDiagnosis}
       onReviewTreatment={reviewTreatments}

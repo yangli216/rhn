@@ -35,6 +35,9 @@ public final class ClinicalAssistantContracts {
             @Size(max = 12) List<@NotBlank @Size(max = 100) String> selectedConditions,
             @Size(max = 50) List<@NotNull @Positive Long> selectedReportIds) {}
 
+    /** FULL_ANALYSIS (default) drafts record, diagnoses and orders; RECORD_EXPANSION only expands the record. */
+    public enum GenerationIntent { FULL_ANALYSIS, RECORD_EXPANSION }
+
     @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAssistantGenerateRequest")
     public record GenerateRequest(
             @NotBlank @Size(max = 128) String clientContextFingerprint,
@@ -43,11 +46,19 @@ public final class ClinicalAssistantContracts {
             @NotNull @Valid Draft draft,
             @Positive Long parentSuggestionId,
             ReceptionScene receptionScene,
-            @Valid ReceptionSceneContext receptionSceneContext) {
+            @Valid ReceptionSceneContext receptionSceneContext,
+            GenerationIntent intent) {
         public GenerateRequest(String clientContextFingerprint, String question, String voiceTranscript,
                                Draft draft, Long parentSuggestionId) {
-            this(clientContextFingerprint, question, voiceTranscript, draft, parentSuggestionId, null, null);
+            this(clientContextFingerprint, question, voiceTranscript, draft, parentSuggestionId, null, null, null);
         }
+        public GenerateRequest(String clientContextFingerprint, String question, String voiceTranscript,
+                               Draft draft, Long parentSuggestionId, ReceptionScene receptionScene,
+                               ReceptionSceneContext receptionSceneContext) {
+            this(clientContextFingerprint, question, voiceTranscript, draft, parentSuggestionId, receptionScene,
+                    receptionSceneContext, null);
+        }
+        public boolean recordExpansion() { return intent == GenerationIntent.RECORD_EXPANSION; }
     }
 
     public record Transcription(String text, String provider, String model, String contentType,

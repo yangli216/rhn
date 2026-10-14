@@ -2,6 +2,7 @@ import type { RecordAnnotation } from './recordAnnotations'
 import type { DiagnosisInput } from './encountersApi'
 import type { ApiClient } from './httpClient'
 import { consumeClinicalAiStream, type ClinicalAiStreamStage } from './clinicalAiStream'
+import type { components } from './generated'
 
 export type ClinicalAiMode = 'DISABLED' | 'LOCAL_ASSIST' | 'MODEL'
 export type ClinicalAiConfigurationScope = 'PLATFORM' | 'TENANT'
@@ -207,6 +208,8 @@ export interface ClinicalAiSuggestion {
 }
 
 export type ReceptionSceneType = 'FIRST_VISIT' | 'CHRONIC_REFILL' | 'REPORT_FOLLOW_UP'
+/** RECORD_EXPANSION expands a short chief complaint into record sections only (no diagnoses or orders). */
+export type ClinicalAiGenerationIntent = NonNullable<components['schemas']['ClinicalAssistantGenerateRequest']['intent']>
 
 export interface GenerateClinicalAiSuggestionInput {
   receptionScene?: ReceptionSceneType
@@ -216,6 +219,7 @@ export interface GenerateClinicalAiSuggestionInput {
   voiceTranscript?: string
   draft: ClinicalAiDraftInput
   parentSuggestionId?: string
+  intent?: ClinicalAiGenerationIntent
 }
 
 export interface ClinicalAiTranscription {

@@ -114,6 +114,33 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
     }
 
     @Test
+    void recordExpansionUsesItsOwnPromptAndMarksRecommendedWritingAsAi() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", "{\"recordDraft\":{\"chiefComplaint\":\"咳嗽3天\"}}"))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        ModelRequest base = request();
+        ModelRequest expansion = new ModelRequest("RHN-RECORD-EXPANSION-V1", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "RECORD_EXPANSION", List.of(),
+                base.temporalContext());
+        var answer = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec).analyze(expansion, settings("secret-key"));
+        assertEquals("咳嗽3天", answer.recordDraft().chiefComplaint());
+        JsonNode sent = jsonCodec.readTree(requestBody.get());
+        String prompt = sent.get("messages").get(0).get("content").asString();
+        assertTrue(prompt.contains("generationStage=RECORD_EXPANSION"));
+        assertTrue(prompt.contains("label=\"AI推荐·待核实\""));
+        assertTrue(prompt.contains("严禁编造阳性症状、阳性体征"));
+        assertTrue(prompt.contains("已登记过敏不得写“否认过敏史”"));
+        assertEquals("RECORD_EXPANSION", jsonCodec.readTree(sent.get("messages").get(1).get("content").asString())
+                .get("generationStage").asString());
+    }
+
+    @Test
     void planCompilationCallsConfiguredModelAndParsesOnlyItsStructuredAnswer() throws Exception {
         AtomicReference<String> requestBody = new AtomicReference<>();
         startServer(exchange -> {

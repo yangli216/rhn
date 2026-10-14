@@ -89,11 +89,12 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   const [aiDiagnoses, setAiDiagnoses] = useState<HTMLDivElement | null>(null)
   const [aiPlans, setAiPlans] = useState<HTMLDivElement | null>(null)
   const [aiDetail, setAiDetail] = useState<HTMLDivElement | null>(null)
+  const [aiChiefComplaint, setAiChiefComplaint] = useState<HTMLDivElement | null>(null)
   const [recommendedPlanId, setRecommendedPlanId] = useState<string>()
   const [planTemplateDrawerHost, setPlanTemplateDrawerHost] = useState<HTMLDivElement | null>(null)
   const workspaceDrawerRef = useRef<HTMLElement | null>(null)
   const aiSurfaceRefs = useMemo<ClinicalAiSurfaceRefs>(() => ({
-    note: setAiNote, diagnoses: setAiDiagnoses, plans: setAiPlans,
+    note: setAiNote, diagnoses: setAiDiagnoses, plans: setAiPlans, chiefComplaint: setAiChiefComplaint,
   }), [])
   const [draftState, setDraftState] = useState<EncounterDraftState>(emptyDraftState)
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
@@ -465,7 +466,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                   encounter={encounter} currentContext={aiContext} allergies={allergies.data ?? []}
                   allergyState={allergyState} api={api}
                   disabled={outpatientNote?.status === 'SIGNED' || draftState.busy}
-                  surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail }}
+                  surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail,
+                    chiefComplaint: aiChiefComplaint }}
                   onOpenDetail={() => setActiveTool('assistant')}
                   onReviewRecommendedPlan={(plan) => { setRecommendedPlanId(plan.templateId); setActiveTool('plans') }}
                   onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
