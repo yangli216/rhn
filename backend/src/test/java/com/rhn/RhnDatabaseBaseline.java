@@ -49,6 +49,9 @@ final class RhnDatabaseBaseline {
     /** Seed INSERT statements per quoted table name; tables without rows have no entry. */
     private Map<String, byte[]> tableData = Map.of();
     private Map<String, Long> cleanMarks = Map.of();
+    /** Seed row counts, only kept when -Drhn.test.reset.verify=true audits per-table restores. */
+    private Map<String, Long> seedCounts = Map.of();
+    private final boolean verify = Boolean.getBoolean("rhn.test.reset.verify");
     private String structure;
     private int lastRestoredTables;
     private boolean lastRestoreFull;
@@ -77,7 +80,33 @@ final class RhnDatabaseBaseline {
             if (dirty.isEmpty()) return;
             restoreTables(connection, dirty);
             cleanMarks = marks(connection);
+            if (verify) verifyCounts(connection, dirty);
         }
+    }
+
+    /** Audit mode: a clean-marked table whose row count drifted means a modification was not detected. */
+    private void verifyCounts(Connection connection, List<String> restored) throws SQLException {
+        var drifted = new ArrayList<String>();
+        var current = counts(connection);
+        seedCounts.forEach((table, count) -> {
+            if (!count.equals(current.get(table))) drifted.add(table + " expected=" + count + " actual=" + current.get(table));
+        });
+        if (!drifted.isEmpty()) {
+            throw new IllegalStateException("Per-table reset left drifted tables " + drifted + " after restoring " + restored);
+        }
+    }
+
+    private Map<String, Long> counts(Connection connection) throws SQLException {
+        var result = new LinkedHashMap<String, Long>();
+        try (var statement = connection.createStatement()) {
+            for (String table : cleanMarks.keySet()) {
+                try (var rows = statement.executeQuery("SELECT COUNT(*) FROM " + table)) {
+                    rows.next();
+                    result.put(table, rows.getLong(1));
+                }
+            }
+        }
+        return result;
     }
 
     /** Diagnostics for isolation tests: how the most recent reset restored the database. */
@@ -118,6 +147,7 @@ final class RhnDatabaseBaseline {
         tableData = Map.copyOf(data);
         cleanMarks = marks(connection);
         structure = structure(connection);
+        if (verify) seedCounts = counts(connection);
     }
 
     private void restoreAll(Connection connection) throws Exception {
