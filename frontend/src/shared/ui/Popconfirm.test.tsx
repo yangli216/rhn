@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -57,6 +58,22 @@ describe('Popconfirm', () => {
     await userEvent.click(confirmBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps the caller ref on the trigger while anchoring the popover', async () => {
+    const objectRef = createRef<HTMLButtonElement>()
+    const callbackRef = vi.fn()
+    const warn = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { rerender } = render(
+      <Popconfirm title="确认？" onConfirm={vi.fn()}><button ref={objectRef}>对象引用</button></Popconfirm>,
+    )
+    expect(objectRef.current).toBe(screen.getByRole('button', { name: '对象引用' }))
+    rerender(<Popconfirm title="确认？" onConfirm={vi.fn()}><button ref={callbackRef}>回调引用</button></Popconfirm>)
+    expect(callbackRef).toHaveBeenLastCalledWith(screen.getByRole('button', { name: '回调引用' }))
+    await userEvent.click(screen.getByRole('button', { name: '回调引用' }))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(warn.mock.calls.flat().join(' ')).not.toMatch(/element\.ref/)
+    warn.mockRestore()
   })
 
   it('closes on Escape key press', async () => {

@@ -11,6 +11,12 @@ import type {
 import type { WardDelivery } from './api/pharmacyApi'
 
 export type SemanticTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral'
+const semanticTones: readonly SemanticTone[] = ['success', 'info', 'warning', 'danger', 'neutral']
+
+/** Narrows a server-provided tone string; unknown values fall back instead of reaching component props. */
+export function semanticTone(value: string | undefined, fallback: SemanticTone = 'neutral'): SemanticTone {
+  return semanticTones.find((tone) => tone === value) ?? fallback
+}
 
 // 分类名称由字典提供，此处仅维护视觉语义。
 export function chargeCategoryTone(code: string): SemanticTone {

@@ -10,6 +10,13 @@ describe('outpatient plan text streaming', () => {
     })
   })
 
+  it('previews a partially streamed item only when its kind is a known plan task kind', () => {
+    expect(planTextStreamPreview('{"name":"方案","items":[{"kind":"MEDICATION","name":"阿莫西林胶囊","details":"').items)
+      .toEqual([{ kind: 'MEDICATION', text: '阿莫西林胶囊', origin: 'SUGGESTED', details: '正在生成细节...' }])
+    expect(planTextStreamPreview('{"name":"方案","items":[{"kind":"MEDIC","name":"阿莫西林胶囊","details":"').items)
+      .toEqual([])
+  })
+
   it('delivers model deltas before accepting the completed clinical review items', async () => {
     let stream!: ReadableStreamDefaultController<Uint8Array>
     const response = new Response(new ReadableStream({ start(controller) { stream = controller } }))

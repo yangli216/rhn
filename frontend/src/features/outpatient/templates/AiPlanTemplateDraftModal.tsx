@@ -24,6 +24,7 @@ import { useTemplateApplication } from './useTemplateApplication'
 import { searchTemplateDiagnoses, searchTemplateMedications, searchTemplateServices,
   type TemplateDiagnosisCandidate, type TemplateMedicationCandidate, type TemplateServiceCandidate } from './templateCatalogSearch'
 import { TemplateCatalogSearchStatus, useTemplateCatalogSearch } from './useTemplateCatalogSearch'
+import { speechRecognitionConstructor, type BrowserSpeechRecognition } from '../../../shared/utils/speechRecognition'
 
 
 interface AiPlanTemplateDraftModalProps {
@@ -282,7 +283,7 @@ export function AiPlanTemplateDraftModal({
   })
   const compileAbortRef = useRef<AbortController | null>(null)
   const chatThreadRef = useRef<HTMLDivElement | null>(null)
-  const speechRecognitionRef = useRef<any>(null)
+  const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [chipsMoreOpen, setChipsMoreOpen] = useState(false)
@@ -425,8 +426,7 @@ export function AiPlanTemplateDraftModal({
     }
   }, [chipsMoreOpen])
 
-  const isRealtimeSupported = typeof window !== 'undefined' &&
-    Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+  const isRealtimeSupported = Boolean(speechRecognitionConstructor())
 
   const toggleSpeech = () => {
     if (isListening) {
@@ -435,7 +435,7 @@ export function AiPlanTemplateDraftModal({
       return
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SpeechRecognition = speechRecognitionConstructor()
     if (!SpeechRecognition) {
       setError('当前浏览器环境不支持实时语音听写，推荐使用 Chrome 或 Edge 浏览器并允许麦克风权限。')
       return
@@ -453,7 +453,7 @@ export function AiPlanTemplateDraftModal({
         setError(null)
       }
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event) => {
         let finalChunk = ''
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const res = event.results[i]
@@ -467,7 +467,7 @@ export function AiPlanTemplateDraftModal({
         }
       }
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event) => {
         console.warn('Speech recognition error', event?.error)
         setIsListening(false)
         if (event?.error === 'not-allowed') {

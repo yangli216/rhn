@@ -8,6 +8,7 @@ import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalIns
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import { ChronicRefillActionCard } from './ChronicRefillActionCard'
 import { useChronicRefill } from './useChronicRefill'
+import { speechRecognitionConstructor, type BrowserSpeechRecognition } from '../../../shared/utils/speechRecognition'
 import { pickRecordExpansion, recordExpansionTargets } from './recordExpansion'
 import type { AiRecordDraftField } from './aiDraftAdapter'
 import type {
@@ -187,10 +188,9 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   })
   const [realtimeListening, setRealtimeListening] = useState(false)
   const [interimTranscript, setInterimTranscript] = useState('')
-  const speechRecognitionRef = useRef<any>(null)
+  const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null)
 
-  const isRealtimeSupported = typeof window !== 'undefined' &&
-    Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+  const isRealtimeSupported = Boolean(speechRecognitionConstructor())
 
   const toggleRealtimeSpeech = () => {
     if (realtimeListening) {
@@ -200,7 +200,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       return
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SpeechRecognition = speechRecognitionConstructor()
     if (!SpeechRecognition) {
       setLocalError('当前浏览器环境不支持 Web 实时语音听写，推荐使用 Chrome 或 Edge 浏览器并允许麦克风权限。')
       return
@@ -224,7 +224,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         setLocalError('')
       }
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event) => {
         if (!ownsSpeech()) return
         let finalChunk = ''
         let interimChunk = ''
@@ -248,7 +248,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         }
       }
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event) => {
         if (!ownsSpeech()) return
         if (event.error !== 'no-speech') {
           setLocalError(`实时语音提示：${event.error === 'not-allowed' ? '请在浏览器地址栏允许麦克风权限' : event.error}`)

@@ -102,6 +102,13 @@ export interface PlanTextDraft {
   noteTemplateContent?: OutpatientNoteTemplateContent
 }
 
+const planTaskKinds: readonly OutpatientPlanTask['kind'][] = ['DIAGNOSIS', 'MEDICATION', 'LABORATORY', 'EXAMINATION',
+  'EDUCATION', 'FOLLOW_UP', 'CONDITION']
+
+function planTaskKind(value: string): OutpatientPlanTask['kind'] | undefined {
+  return planTaskKinds.find((kind) => kind === value)
+}
+
 export interface PlanTextReviewItem {
   kind: OutpatientPlanTask['kind']
   text: string
@@ -215,9 +222,11 @@ function extractStreamingItems(source: string): PlanTextReviewItem[] {
         const partialStr = source.slice(start)
         const kindMatch = /"kind"\s*:\s*"([^"]+)"/.exec(partialStr)
         const nameMatch = /"name"\s*:\s*"([^"]+)"/.exec(partialStr)
-        if (kindMatch && nameMatch) {
+        // A partially streamed kind may be truncated; preview only recognized kinds.
+        const kind = kindMatch ? planTaskKind(kindMatch[1]) : undefined
+        if (kind && nameMatch) {
           items.push({
-            kind: kindMatch[1] as any,
+            kind,
             text: nameMatch[1],
             origin: 'SUGGESTED',
             details: '正在生成细节...',

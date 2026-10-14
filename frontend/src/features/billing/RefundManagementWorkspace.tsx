@@ -7,6 +7,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { RefundItemPreCheckView } from '../../shared/api/billingApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { semanticTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { requireRefundPreCheck, requireRefundStatement } from './refundVerification'
 
@@ -372,7 +373,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                           <td>{item.quantity} {item.unitCode}</td>
                           <td><strong>{money(item.totalAmount, currency)}</strong></td>
                           <td>
-                            <StatusBadge tone={item.statusTone as any}>
+                            <StatusBadge tone={semanticTone(item.statusTone)}>
                               {item.statusBadgeText}
                             </StatusBadge>
                           </td>

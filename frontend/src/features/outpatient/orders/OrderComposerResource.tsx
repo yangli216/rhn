@@ -8,6 +8,15 @@ import { AdministrationGroupBracket } from './OrderRowDecorations'
 import { orderTypeLabel } from './orderPresentation'
 import { focusResource } from './orderEditorControls'
 
+/** Search results mix medications, services, diagnoses and item groups; only some carry each type field. */
+function medicationType(item: ClinicalResource) {
+  return 'sdMedicationType' in item ? item.sdMedicationType : undefined
+}
+
+function serviceType(item: ClinicalResource) {
+  return 'sdServiceType' in item ? item.sdServiceType : undefined
+}
+
 export function OrderComposerResource({
   entryType, changeType, hasEnteredOrder, isMedication, selectedProduct, grouping, api, encounter,
   searchMode, changeSearchMode, medicationOption, service, handleOrderResourceSelect, onInspectMedication, disabled = false
@@ -64,7 +73,7 @@ export function OrderComposerResource({
           onSearchModeChange={changeSearchMode}
           organizationId={encounter.organizationId}
           encounterId={encounter.id}
-          value={isMedication ? (medicationOption as any) : (service as any)}
+          value={isMedication ? medicationOption : service}
           aria-label={
             entryType === 'HERBAL' ? '搜索中草药名称/拼音'
             : entryType === 'WESTERN' ? '搜索西药名称/拼音'
@@ -75,11 +84,11 @@ export function OrderComposerResource({
           }
           filterResult={
             entryType === 'ALL' ? undefined
-            : entryType === 'WESTERN' ? (item) => !('sdMedicationType' in (item as any)) || (item as any)?.sdMedicationType === 'WESTERN'
-            : entryType === 'CHINESE_PATENT' ? (item) => (item as any)?.sdMedicationType === 'CHINESE_PATENT'
-            : entryType === 'HERBAL' ? (item) => (item as any)?.sdMedicationType === 'HERBAL'
-            : entryType === 'MEDICATION' ? (item) => !('sdMedicationType' in (item as any)) || (item as any)?.sdMedicationType !== 'HERBAL'
-            : (item) => (item as any)?.sdServiceType === entryType
+            : entryType === 'WESTERN' ? (item) => !('sdMedicationType' in item) || item.sdMedicationType === 'WESTERN'
+            : entryType === 'CHINESE_PATENT' ? (item) => medicationType(item) === 'CHINESE_PATENT'
+            : entryType === 'HERBAL' ? (item) => medicationType(item) === 'HERBAL'
+            : entryType === 'MEDICATION' ? (item) => !('sdMedicationType' in item) || item.sdMedicationType !== 'HERBAL'
+            : (item) => serviceType(item) === entryType
           }
           placeholder={
             entryType === 'HERBAL' ? '搜索中草药名称/拼音'
@@ -93,8 +102,8 @@ export function OrderComposerResource({
       </div>
       {isMedication && (selectedProduct || medicationOption) && (
         <div className="doctor-inline-spec-hint"
-          title={selectedProduct ? `${selectedProduct.itemPackage?.packageSpec || selectedProduct.label}${selectedProduct.product.manufacturerName ? ` / ${selectedProduct.product.manufacturerName}` : ''}` : (medicationOption as any)?.label}>
-          <span>{selectedProduct ? (selectedProduct.itemPackage?.packageSpec || selectedProduct.label) : (medicationOption as any)?.label}</span>
+          title={selectedProduct ? `${selectedProduct.itemPackage?.packageSpec || selectedProduct.label}${selectedProduct.product.manufacturerName ? ` / ${selectedProduct.product.manufacturerName}` : ''}` : medicationOption?.label}>
+          <span>{selectedProduct ? (selectedProduct.itemPackage?.packageSpec || selectedProduct.label) : medicationOption?.label}</span>
           {selectedProduct?.product?.manufacturerName && (
             <>
               <span className="doctor-subtext-divider">/</span>
@@ -103,10 +112,10 @@ export function OrderComposerResource({
           )}
           {onInspectMedication && (
             <IconButton icon="file-text" label="说明书"
-              title={`在临床知识库中查阅《${selectedProduct?.product?.name || (medicationOption as any)?.label || ''}》药品资料`}
+              title={`在临床知识库中查阅《${selectedProduct?.product?.name || medicationOption?.label || ''}》药品资料`}
               onClick={(e) => {
                 e.stopPropagation()
-                const medName = selectedProduct?.product?.name || (medicationOption as any)?.label || ''
+                const medName = selectedProduct?.product?.name || medicationOption?.label || ''
                 if (medName) onInspectMedication(medName)
               }}
             />

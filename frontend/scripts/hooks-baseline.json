@@ -24,12 +24,7 @@
     },
     "src/features/billing/BillingWorkspace.tsx": {
       "792b9b1e7dffb2c7edbe40c5": 1,
-      "ac9044b57486cf9714c82e33": 1,
-      "c4f2be281bbfd31612c75814": 1
-    },
-    "src/features/diagnostics/DiagnosticWorkspace.tsx": {
-      "72d26f37f527bbb80bc43b2f": 1,
-      "c265f924948fc8b9b9b4ed8f": 1
+      "ac9044b57486cf9714c82e33": 1
     },
     "src/features/inpatient/CanvasMedicalRecordEditor.tsx": {
       "0550299ef63bd9d78f92ffbb": 1
@@ -57,7 +52,6 @@
       "0ae92d4346af4b7f4856b792": 1
     },
     "src/features/outpatient/ai/ClinicalAiAssistantPanel.tsx": {
-      "8ab5c38864cd8f337b48130d": 1,
       "7fa9e6cfee14a3a9fe4313ed": 1,
       "1fdfb9998b9aff22b51728d5": 1,
       "fe2ce804047df38c87802cb0": 2
@@ -111,9 +105,6 @@
       "9e469b0dae2f4af9003e491c": 1,
       "34daa74b2dd1e53551b00138": 1,
       "702e40ec58bce393dadaf0a3": 1
-    },
-    "src/features/quality/MedicationWorkbench.tsx": {
-      "c562525eefff00d778267366": 1
     },
     "src/features/settings/DictionaryManagement.tsx": {
       "854cb9e9d69991fe490436dd": 1

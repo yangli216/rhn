@@ -8,6 +8,7 @@ import {
   useState,
   type ReactElement,
   type ReactNode,
+  type Ref,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, type ButtonVariant } from './index'
@@ -157,16 +158,17 @@ export function Popconfirm({
   if (!isValidElement(children)) return children
 
   const child = children as ReactElement<{
-    ref?: (node: HTMLElement | null) => void
+    ref?: Ref<HTMLElement>
     onClick?: (e: React.MouseEvent) => void
   }>
+  // React 19 keeps the caller's ref in props; element.ref is deprecated.
+  const originalRef = child.props.ref
 
   const trigger = cloneElement(child, {
     ref: (node: HTMLElement | null) => {
       triggerRef.current = node
-      const originalRef = (child as any).ref
       if (typeof originalRef === 'function') originalRef(node)
-      else if (originalRef && typeof originalRef === 'object') originalRef.current = node
+      else if (originalRef) originalRef.current = node
     },
     onClick: (e: React.MouseEvent) => {
       if (!disabled) {

@@ -1341,7 +1341,7 @@ export function OutpatientTriageWorkspace({
                         title={gc.desc}
                         aria-pressed={isSelected}
                       >
-                        <Icon name={gc.icon as any} />
+                        <Icon name={gc.icon} />
                         <span>{gc.label}</span>
                       </button>
                     )

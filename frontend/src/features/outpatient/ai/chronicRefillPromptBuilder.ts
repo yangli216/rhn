@@ -2,7 +2,8 @@ import type { Encounter } from '../../../shared/model'
 import type { ChronicSafetyAssessment } from './chronicSafetyVerification'
 
 export interface ChronicRefillPromptInput {
-  encounter: Encounter
+  /** Only the measured blood pressure is read; callers may pass a full encounter or draft vitals. */
+  encounter: Pick<Encounter, 'systolic' | 'diastolic'>
   matchedConditions: string[]
   medications: Array<{ medicationName: string; doseAmount?: number; doseUnit?: string; frequencyName?: string }>
   safetyAssessment?: ChronicSafetyAssessment

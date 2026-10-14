@@ -21,21 +21,30 @@ const today = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
 
-const genderOptions = [
+type GenderFilter = '' | 'MALE' | 'FEMALE' | 'UNKNOWN'
+type StatusFilter = '' | 'ACTIVE' | 'MERGED' | 'INACTIVE'
+type DeceasedFilter = 'ALL' | 'ALIVE' | 'DECEASED'
+
+/** Select reports plain strings; accept only values that exist in the given options. */
+function optionValue<T extends string>(options: ReadonlyArray<{ value: T }>, value: string, fallback: T): T {
+  return options.find((option) => option.value === value)?.value ?? fallback
+}
+
+const genderOptions: Array<{ value: GenderFilter; label: string }> = [
   { value: '', label: '全部性别' },
   { value: 'MALE', label: '男' },
   { value: 'FEMALE', label: '女' },
   { value: 'UNKNOWN', label: '未知' },
 ]
 
-const statusOptions = [
+const statusOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: '', label: '全部状态' },
   { value: 'ACTIVE', label: '有效居民' },
   { value: 'MERGED', label: '已合并' },
   { value: 'INACTIVE', label: '已停用' },
 ]
 
-const deceasedOptions = [
+const deceasedOptions: Array<{ value: DeceasedFilter; label: string }> = [
   { value: 'ALL', label: '全部存活状态' },
   { value: 'ALIVE', label: '仅健在' },
   { value: 'DECEASED', label: '已登记死亡' },
@@ -47,9 +56,9 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
   const [showEdit, setShowEdit] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
-  const [genderFilter, setGenderFilter] = useState<'MALE' | 'FEMALE' | 'UNKNOWN' | ''>('')
-  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'MERGED' | 'INACTIVE' | ''>('')
-  const [deceasedFilter, setDeceasedFilter] = useState<'ALL' | 'ALIVE' | 'DECEASED'>('ALL')
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
+  const [deceasedFilter, setDeceasedFilter] = useState<DeceasedFilter>('ALL')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(20)
 
@@ -143,7 +152,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
             placeholder="全部性别"
             searchable={false}
             clearable={false}
-            onChange={(val) => { setGenderFilter(val as any); setPage(0) }}
+            onChange={(val) => { setGenderFilter(optionValue(genderOptions, val, '')); setPage(0) }}
           />
         </FormField>
         <FormField label="档案状态">
@@ -153,7 +162,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
             placeholder="全部状态"
             searchable={false}
             clearable={false}
-            onChange={(val) => { setStatusFilter(val as any); setPage(0) }}
+            onChange={(val) => { setStatusFilter(optionValue(statusOptions, val, '')); setPage(0) }}
           />
         </FormField>
         <FormField label="存活状态">
@@ -163,7 +172,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
             placeholder="全部存活状态"
             searchable={false}
             clearable={false}
-            onChange={(val) => { setDeceasedFilter(val as any); setPage(0) }}
+            onChange={(val) => { setDeceasedFilter(optionValue(deceasedOptions, val, 'ALL')); setPage(0) }}
           />
         </FormField>
         <div className="ui-query-filters__actions">

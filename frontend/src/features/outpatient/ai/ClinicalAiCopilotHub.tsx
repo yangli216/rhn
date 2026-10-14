@@ -299,11 +299,7 @@ export function ClinicalAiCopilotHub({
   }
   const generateChronicRecord = () => {
     const promptData = buildChronicRefillPrompt({
-      encounter: {
-        systolic: (context as any).systolic,
-        diastolic: (context as any).diastolic,
-        diagnoses: context.diagnoses as any,
-      } as any,
+      encounter: { systolic: context.systolic, diastolic: context.diastolic },
       matchedConditions: sceneAssessment?.matchedConditions ?? [],
       medications: chronicRefill?.medications ?? [],
       safetyAssessment: chronicRefill?.safetyAssessment,
