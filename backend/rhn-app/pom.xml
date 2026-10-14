@@ -104,6 +104,11 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <properties>
+        <!-- 3 forks halve the full backend suite locally (918s -> 454s); CI passes a smaller value. -->
+        <rhn.test.forks>3</rhn.test.forks>
+    </properties>
+
     <build>
         <finalName>rhn-application-${project.version}</finalName>
         <testSourceDirectory>${project.basedir}/../src/test/java</testSourceDirectory>
@@ -131,6 +136,10 @@
                     <!-- Business dates and sessions are Asia/Shanghai (organization default); pin the test JVM so
                          LocalDate.now() in tests and server code agree regardless of the machine or CI timezone. -->
                     <argLine>-Xmx4g -Duser.timezone=Asia/Shanghai</argLine>
+                    <!-- Separate JVMs, each with its own context cache and random H2 databases; JUnit
+                         in-JVM parallelism stays off (database reset requires it). Override with -Drhn.test.forks=N. -->
+                    <forkCount>${rhn.test.forks}</forkCount>
+                    <reuseForks>true</reuseForks>
                     <systemPropertyVariables>
                         <spring.test.context.cache.maxSize>8</spring.test.context.cache.maxSize>
                     </systemPropertyVariables>

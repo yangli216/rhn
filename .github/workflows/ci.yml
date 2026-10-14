@@ -35,7 +35,8 @@ jobs:
       - name: Verify backend
         run: |
           mkdir -p ../artifacts
-          mvn --batch-mode verify 2>&1 | tee ../artifacts/backend-verify.log
+          # Two test JVMs (4g heap each) fit the 4-core / 16 GB hosted runner.
+          mvn --batch-mode -Drhn.test.forks=2 verify 2>&1 | tee ../artifacts/backend-verify.log
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
