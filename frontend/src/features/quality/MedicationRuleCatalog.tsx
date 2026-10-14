@@ -140,54 +140,7 @@ export function MedicationRuleCatalog({
   const rule = data?.rules.find(r => r.key === selected)
   const version = rule?.versions.find(v => v.id === versionId) ?? rule?.versions[0]
 
-  const loadCatalog = async (): Promise<RuleCatalog> => {
-    const service = api.medicationWorkbench as any
-    if (typeof service.catalog === 'function') return service.catalog()
-    const legacy = await service.activeRules()
-    return {
-      organizationId: null,
-      departmentId: null,
-      rules: legacy.map((r: any) => ({
-        key: `BUILTIN:${r.ruleCode}`,
-        code: r.ruleCode,
-        name: r.ruleName,
-        origin: 'BUILTIN',
-        revision: 1,
-        versions: [{
-          id: r.ruleVersionId,
-          version: r.version,
-          name: r.ruleName,
-          reviewStatus: 'APPROVED',
-          testsPassed: true,
-          origin: 'BUILTIN',
-          candidate: null,
-          builtin: {
-            id: r.ruleVersionId,
-            version: r.version,
-            ruleSetVersion: r.ruleSetVersion,
-            implementationKey: r.implementation,
-            decision: r.decision,
-            severity: r.severity,
-            definition: { id: r.ruleId, code: r.ruleCode, category: r.category, title: r.ruleName },
-            evidence: r.evidence
-          },
-          review: {
-            versionId: r.ruleVersionId,
-            status: 'APPROVED',
-            action: r.decision,
-            evidence: r.evidence,
-            standardVerified: true,
-            evidenceVerified: true,
-            actorId: '',
-            recordedAt: r.effectiveFrom,
-            reason: ''
-          }
-        }],
-        deployments: [],
-        history: []
-      }))
-    }
-  }
+  const loadCatalog = (): Promise<RuleCatalog> => api.medicationWorkbench.catalog()
 
   async function reload(prefer?: string) {
     setLoading(true)
@@ -826,11 +779,7 @@ export function MedicationRuleCatalog({
           catalog={data}
           onClose={() => setAction(undefined)}
           onSave={async body => {
-            if (typeof (api.medicationWorkbench as any).catalogCommand !== 'function') {
-              setNotice('规则目录兼容视图仅支持查看，请使用最新接口。')
-              return
-            }
-            const updated = await (api.medicationWorkbench as any).catalogCommand(rule.key, body)
+            const updated = await api.medicationWorkbench.catalogCommand(rule.key, body)
             setAction(undefined)
             setNotice('规则目录已更新，操作及发布版本已留痕。')
             setData(old => old ? { ...old, rules: old.rules.map(r => r.key === updated.key ? updated : r) } : old)
@@ -1050,14 +999,9 @@ function RuleDraftDialog({
   const [catLoading, setCatLoading] = useState(false)
 
   useEffect(() => {
-    const service = api.medicationWorkbench as any
-    if (typeof service?.listSafetyCategories === 'function') {
-      service.listSafetyCategories('', '')
-        .then((cats: any[]) => {
-          setSafetyCategories(cats.map(c => ({ id: c.id, name: c.name, code: c.code, memberCount: c.memberCount })))
-        })
-        .catch(() => {})
-    }
+    api.medicationWorkbench.listSafetyCategories('', '')
+      .then((cats) => setSafetyCategories(cats.map(c => ({ id: c.id, name: c.name, code: c.code, memberCount: c.memberCount }))))
+      .catch(() => {})
   }, [api])
 
   async function handleLoadCategoryMembers(catId: string) {
@@ -1066,22 +1010,20 @@ function RuleDraftDialog({
     setCatLoading(true)
     setError('')
     try {
-      const service = api.medicationWorkbench as any
-      if (typeof service?.listSafetyCategoryMembers === 'function') {
-        const result = await service.listSafetyCategoryMembers(catId)
-        const memberIds = (result?.members ?? []).map((m: any) => String(m.medicationId)).slice(0, 10)
-        // 查找或合并已有药品
-        const matched = await api.medicationWorkbench.medications('')
-        const validMeds = matched.filter(m => memberIds.includes(String(m.medication.id)) && m.standardReference?.status === 'LINKED')
-        if (validMeds.length > 0) {
-          setMeds(prev => {
-            const map = new Map<string, MedicationKnowledge>()
-            prev.forEach(item => map.set(item.medication.id, item))
-            validMeds.forEach(item => map.set(item.medication.id, item))
-            return Array.from(map.values())
-          })
-          setIds(validMeds.map(m => m.medication.id))
-        }
+      // The members endpoint returns a plain array (List<MemberView>), not a { members } wrapper.
+      const members = await api.medicationWorkbench.listSafetyCategoryMembers(catId)
+      const memberIds = members.map(m => String(m.medicationId)).slice(0, 10)
+      // 查找或合并已有药品
+      const matched = await api.medicationWorkbench.medications('')
+      const validMeds = matched.filter(m => memberIds.includes(String(m.medication.id)) && m.standardReference?.status === 'LINKED')
+      if (validMeds.length > 0) {
+        setMeds(prev => {
+          const map = new Map<string, MedicationKnowledge>()
+          prev.forEach(item => map.set(item.medication.id, item))
+          validMeds.forEach(item => map.set(item.medication.id, item))
+          return Array.from(map.values())
+        })
+        setIds(validMeds.map(m => m.medication.id))
       }
     } catch (e) {
       setError(`从安全分类载入药品失败: ${errorMessage(e)}`)

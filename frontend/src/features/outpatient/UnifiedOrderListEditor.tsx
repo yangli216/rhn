@@ -75,7 +75,7 @@ export function UnifiedOrderListEditor({
   onPrint?: (value: Prescription) => void
   onPrintService?: (value: ServiceRequest) => void
 }) {
-  const currentDept = currentDepartmentName || (encounter as any).departmentName || '当前科室'
+  const currentDept = currentDepartmentName || '当前科室'
   const [internalDocKey, setInternalDocKey] = useState<string | null>(null)
   const activeDocKey = selectedDocumentKey !== undefined ? selectedDocumentKey : internalDocKey
   const handleSelectDoc = (key: string | null) => {
@@ -475,19 +475,19 @@ export function UnifiedOrderListEditor({
       return
     }
 
-    const raw = option.raw as any
+    const raw = option.raw
     // 1. 组套 (ItemGroup) 一键批量展开
     if (raw && ('groupType' in raw || 'members' in raw)) {
-      const group = raw as ItemGroup
       setSuccessToast('')
-      void groupImport.start(group)
+      void groupImport.start(raw as ItemGroup)
       return
     }
 
     // 2. 药品 (MedicationKnowledge / OrderableMedicationKnowledge)
     if (raw && ('sdMedicationType' in raw || 'preparationSpec' in raw || 'products' in raw)) {
-      const medType: OrderEntryType = raw.sdMedicationType === 'HERBAL' ? 'HERBAL'
-        : raw.sdMedicationType === 'CHINESE_PATENT' ? 'CHINESE_PATENT'
+      const medicationType = 'sdMedicationType' in raw ? raw.sdMedicationType : undefined
+      const medType: OrderEntryType = medicationType === 'HERBAL' ? 'HERBAL'
+        : medicationType === 'CHINESE_PATENT' ? 'CHINESE_PATENT'
         : 'WESTERN'
       setEntryType(medType)
       selectMedication(option as ClinicalResourceOption<MedicationKnowledge>)
@@ -495,9 +495,9 @@ export function UnifiedOrderListEditor({
     }
 
     // 3. 诊疗项目 (ServiceCatalogItem)
-    if (raw && ('sdServiceType' in raw || 'serviceType' in raw)) {
-      const sType = raw.sdServiceType || raw.serviceType
-      const srvType: OrderEntryType = ['LABORATORY', 'EXAMINATION', 'TREATMENT'].includes(sType)
+    if (raw && 'sdServiceType' in raw) {
+      const sType = raw.sdServiceType
+      const srvType: OrderEntryType = sType === 'LABORATORY' || sType === 'EXAMINATION' || sType === 'TREATMENT'
         ? sType : 'TREATMENT'
       setEntryType(srvType)
       setService(option as ClinicalResourceOption<ServiceCatalogItem>)

@@ -85,27 +85,21 @@ export function PharmacyQueryPanel({ model }: { model: ReturnType<typeof usePhar
                 <span>执行数量</span><span>用法用量</span><span>发药人员</span><span>状态</span>
               </div>
               {pagedPharmacyQueryInbox.map((item) => {
-                const snapshot = item.request.medicationSnapshot as Record<string, unknown> | undefined
                 const resId = item.request.residentId || ''
                 const resInfo = residentMap.get(resId) || residentMap.get(item.healthRecordNo)
+                // Patient facts come from the resident directory; medication snapshots carry no patient data.
                 const gender = resInfo?.gender
-                  || (snapshot?.gender as string | undefined)
-                  || (snapshot?.residentGender as string | undefined)
                 const birthDate = resInfo?.birthDate
-                  || (snapshot?.birthDate as string | undefined)
-                  || (snapshot?.residentBirthDate as string | undefined)
                 const genderStr = gender ? genderText(gender) : undefined
                 const ageStr = birthDate ? ageText(birthDate) : undefined
                 const patientMeta = [genderStr, ageStr].filter(Boolean).join(' · ')
 
                 const productName = item.selectedProductName
                   || item.request.itemName
-                  || (snapshot?.productName as string | undefined)
                   || item.request.medicationName
                 const genericName = item.request.medicationName
                 const spec = item.request.packageSpec ?? item.request.preparationSpec
-                const manufacturer = (item.request.manufacturerName
-                  ?? snapshot?.manufacturerName ?? (snapshot as any)?.manufacturer ?? '') as string
+                const manufacturer = item.request.manufacturerName ?? ''
                 const dispenseUnit = displayUnitName(item.dispenseUnitCode ?? item.request.quantityUnit)
 
                 const specAndMfr = [spec, manufacturer].filter(Boolean).join(' · ')

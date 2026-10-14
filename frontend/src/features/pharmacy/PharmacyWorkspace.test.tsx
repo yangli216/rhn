@@ -543,7 +543,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
             quantity: 1, quantityUnit: 'BOX', packageUnitName: '盒', packageFactor: 24, baseQuantity: 24, baseUnit: 'CAPSULE',
             routeCode: '口服', frequencyCode: 'TID', authoredAt: '2026-09-18T06:03:40Z', itemAttributeSnapshot: {},
             packageSpec: '0.25g*24粒/盒', doseValue: 2, doseUnit: 'CAPSULE',
-            itemAttributeHash: 'HASH-INTERNAL', medicationSnapshot: { manufacturerName: '示范制药有限公司' },
+            itemAttributeHash: 'HASH-INTERNAL', manufacturerName: '示范制药有限公司', medicationSnapshot: {},
           },
           taskId: 'task-query-1', taskNo: 'TASK-INTERNAL-001', taskStatus: 'COMPLETED',
           residentName: '李梅', healthRecordNo: 'HR20260001', residentPhone: '13800000000',

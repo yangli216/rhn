@@ -79,6 +79,53 @@ const mockRules = [
   }
 ]
 
+/** Mirrors the server rule catalog for the built-in baseline (formerly a client-side fallback). */
+function catalogFromActiveRules(rules: typeof mockRules) {
+  return {
+    organizationId: null,
+    departmentId: null,
+    rules: rules.map((r: any) => ({
+      key: `BUILTIN:${r.ruleCode}`,
+      code: r.ruleCode,
+      name: r.ruleName,
+      origin: 'BUILTIN',
+      revision: 1,
+      versions: [{
+        id: r.ruleVersionId,
+        version: r.version,
+        name: r.ruleName,
+        reviewStatus: 'APPROVED',
+        testsPassed: true,
+        origin: 'BUILTIN',
+        candidate: null,
+        builtin: {
+          id: r.ruleVersionId,
+          version: r.version,
+          ruleSetVersion: r.ruleSetVersion,
+          implementationKey: r.implementation,
+          decision: r.decision,
+          severity: r.severity,
+          definition: { id: r.ruleId, code: r.ruleCode, category: r.category, title: r.ruleName },
+          evidence: r.evidence
+        },
+        review: {
+          versionId: r.ruleVersionId,
+          status: 'APPROVED',
+          action: r.decision,
+          evidence: r.evidence,
+          standardVerified: true,
+          evidenceVerified: true,
+          actorId: '',
+          recordedAt: r.effectiveFrom,
+          reason: ''
+        }
+      }],
+      deployments: [],
+      history: []
+    }))
+  }
+}
+
 const mockEvaluations = [
   {
     evaluationId: '8001',
@@ -135,6 +182,7 @@ function setup(available: boolean, saved: unknown[] = []) {
     medications: vi.fn().mockResolvedValue([med]),
     candidates: vi.fn().mockResolvedValue(saved),
     activeRules: vi.fn().mockResolvedValue(mockRules),
+    catalog: vi.fn().mockResolvedValue(catalogFromActiveRules(mockRules)),
     activeRuleTrial: vi.fn().mockResolvedValue({
       mode: 'ACTIVE_RULE_SANDBOX',
       scope: 'SELECTED',

@@ -228,7 +228,7 @@ export function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyConte
     if (historicalPlanQuery.data) {
       setCheckedHistDiagnosisCodes(new Set(historicalPlanQuery.data.diagnoses.map((d) => d.code)))
       setCheckedHistMedicationKeys(new Set(historicalPlanQuery.data.medications.map((m, idx) => `${m.medicationId}-${idx}`)))
-      setCheckedHistServiceKeys(new Set(historicalPlanQuery.data.services.map((s, idx) => `${s.catalogItemId || (s as any).serviceCode || ''}-${idx}`)))
+      setCheckedHistServiceKeys(new Set(historicalPlanQuery.data.services.map((s, idx) => `${s.catalogItemId || ''}-${idx}`)))
     } else {
       setCheckedHistDiagnosisCodes(new Set())
       setCheckedHistMedicationKeys(new Set())
@@ -398,7 +398,7 @@ export function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyConte
       ...historicalPlanQuery.data,
       diagnoses: historicalPlanQuery.data.diagnoses.filter((d) => checkedHistDiagnosisCodes.has(d.code)),
       medications: historicalPlanQuery.data.medications.filter((m, idx) => checkedHistMedicationKeys.has(`${m.medicationId}-${idx}`)),
-      services: historicalPlanQuery.data.services.filter((s, idx) => checkedHistServiceKeys.has(`${s.catalogItemId || (s as any).serviceCode || ''}-${idx}`)),
+      services: historicalPlanQuery.data.services.filter((s, idx) => checkedHistServiceKeys.has(`${s.catalogItemId || ''}-${idx}`)),
     }
     applyHistoricalMutation.mutate(filtered)
   }
