@@ -42,4 +42,4 @@
 ## 本轮之后的边界
 
 当前已分离草稿模型、保存协调、医嘱持久化和频次解释；病历 UI 与 AI 采纳按 [record/README](../../frontend/src/features/outpatient/record/README.md) 选入口。医嘱已拆出连续录入字段、已开立／待确认列表、行编辑、草药整方、输液组规则、包装解析和 AI 目录核对，按 [orders/README](../../frontend/src/features/outpatient/orders/README.md) 选入口。跨区草稿协调在 `workstation/PatientWorkspace.tsx`，医嘱 UI 在 `orders/OrdersPanel.tsx`；统一医嘱的当前条目校验／构建、目录选择与组方会话，继续按自然边界迭代；药房状态协调已独立到 `workspace/usePharmacyWorkspace.ts`，各模式展示分离，但跨接方/发药/退药的副作用仍统一协调，不能为了行数分散库存动作。
-进一步重构的证据见 [2026-09-21 审计](../architecture/代码坏味道与AI迭代成本审计-2026-09-21.md)；不需要每次实现都重读完整审计。
+进一步重构的证据见 [2026-09-21 审计](../归档文档索引.md)；不需要每次实现都重读完整审计。

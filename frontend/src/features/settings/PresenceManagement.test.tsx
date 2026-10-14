@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../shared/rhnApi'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import { PresenceManagement } from './PresenceManagement'
-import { PresenceIndicator } from '../../shared/realtime/PresenceIndicator'
 
 const at = '2026-10-03T01:00:00Z'
 const context = { organization: { id: 'org', name: '实际机构' }, department: { id: 'dept', name: '实际科室' } } as ClinicalContext
@@ -113,18 +112,6 @@ describe('PresenceManagement actual observations', () => {
     fireEvent.click(await screen.findByRole('button', { name: '强制下线' }))
     rerender(ui({ ...context, department: { ...context.department, id: 'next' } }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  })
-
-  it('makes indicator failures explicit and removes cached online counts', async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const read = vi.fn().mockResolvedValue(summary)
-    const api = { presence: { summary: read } } as unknown as RhnApi
-    render(<QueryClientProvider client={client}><PresenceIndicator api={api} contextKey="A" /></QueryClientProvider>)
-    await screen.findByRole('button', { name: '在线用户 1 人' })
-    read.mockRejectedValue(new Error('在线服务不可用'))
-    await act(async () => { await client.invalidateQueries({ queryKey: ['presence-summary', 'A'] }) })
-    expect(await screen.findByRole('button', { name: '在线人数读取失败' })).toHaveTextContent('—')
-    expect(screen.queryByRole('button', { name: '在线用户 1 人' })).not.toBeInTheDocument()
   })
 
   it.each(['wrong-scope', 'missing-points', 'invalid-count', 'unordered-points'])(

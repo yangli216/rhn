@@ -87,7 +87,7 @@ AI 随访以“患者正在本次门诊就诊”为上下文，面向本次评�
 
 V13 提示词要求每条诊断有独立患者事实依据，沿既有 `rationale` 传递并在 AI 诊断行显示；旧建议无依据时明确提示核对，不由界面补写。ICD-10 归一化只验证目录身份，不能证明临床诊断成立。已有确诊病史不自动衍生异常结果或并发症诊断；无血糖升高证据的糖尿病复诊不追加 R73.9，未证实的低血糖只作鉴别／风险核查。慢病检查区分当前症状、长期控制、用药安全与分型评估，不默认推荐动态功能试验或未明确内容的全套检查。传输回归不代表实际模型输出已通过临床验收。
 
-V14 进一步要求综合医生本次输入与患者年龄、性别、过敏、已知用药和报告，区分当前与历史事实，不按病种标签套用通用医嘱套餐；复核边界见 [辅诊提示词审查](../../../../../docs/ai/clinical-assistant-prompt-review-2026-10-12.md#本次患者事实与推荐生命周期复核v14)。
+V14 进一步要求综合医生本次输入与患者年龄、性别、过敏、已知用药和报告，区分当前与历史事实，不按病种标签套用通用医嘱套餐；复核边界见 [辅诊提示词审查](../../../../../docs/归档文档索引.md)。
 
 ## 行内来源与变量标记
 
@@ -97,7 +97,7 @@ V14 进一步要求综合医生本次输入与患者年龄、性别、过敏、�
 
 `recordAnnotations.ts` 负责锚点验证、编辑重定位和语义变量更新。相同数字不能全局替换；后续口述可更新同一绑定的既有口述片段，遇到手工修改保留原文并生成冲突提示。未确认模板/AI 预设单独投影，不用作本次推理事实。服务端 `Draft.evidence()` 同步执行这一投影，模型分别收到 `draft`、`writingDraft` 和 `writingAnnotations`。模型声明的口述/上下文来源必须包含输入中存在的原文引用，失效标记丢弃，不按具体临床句式过滤正文。
 
-相关验证：`recordAnnotations.test.ts`、`AnnotatedTextarea.test.tsx`、`DoctorWorkstation.test.tsx` 中模板带入—行内调整—保存确认用例；后端 `RecordAnnotationTest`、`ClinicalRecordAnnotationContractTest`、`OutpatientNoteTemplateTest`、`ClinicalAiPlanCompilationTest`、`OpenAiCompatibleClinicalAiModelGatewayTest`。推荐索引与连续口述调度的剩余范围见 `docs/ai/template-copilot/README.md`。
+相关验证：`recordAnnotations.test.ts`、`AnnotatedTextarea.test.tsx`、`DoctorWorkstation.test.tsx` 中模板带入—行内调整—保存确认用例；后端 `RecordAnnotationTest`、`ClinicalRecordAnnotationContractTest`、`OutpatientNoteTemplateTest`、`ClinicalAiPlanCompilationTest`、`OpenAiCompatibleClinicalAiModelGatewayTest`。推荐索引与连续口述调度的原实施记录已归档，见 [归档文档索引](../../../../../docs/归档文档索引.md)。
 
 连续口述由 `ai/useStableVoiceCopilot.ts` 仅对已稳定识别片段触发；900 ms 合并停顿，普通键盘输入不自动分析。模板优先推荐，无匹配走现有流式生成。自动采纳使用 `overwriteRecord=false`，只填空白字段或按语义绑定更新；非空且无法可靠定位的新信息保留在对照建议，手工修改冲突继续显示行内标记。模板内容、患者/输入版本及取消信号共同防止迟到结果覆盖当前工作。相关工作流测试在 `ClinicalAiQuietWorkflow.test.tsx` 与 `useClinicalAiDraft.test.tsx`。
 
