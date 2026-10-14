@@ -228,7 +228,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             【两类内容，必须严格区分】
             A. 本次事实：draft/writingDraft 中医生已录入的内容、question、voiceTranscript、patient、allergies、clinicalHistory、diagnosticReports 和已测生命体征。事实按原意写入正文，不改变数值、时间和部位。
             B. 推荐书写内容：为使病历结构完整、满足质控，围绕本主诉推荐医生通常需要询问或检查、且对鉴别有意义的阴性症状、阴性体征、一般情况和常规既往史表述（如“无畏寒、寒战”“咽部无充血”“精神、食欲、睡眠可，二便正常”“否认高血压、糖尿病等慢性病史”）。
-               推荐内容可以写进正文，但每个推荐片段都必须在 recordDraft.annotations 中标记：source="AI"，kind="VARIABLE"，label="AI推荐·待核实"，binding 用稳定语义键（如 symptom.fever.negative、exam.lung.auscultation），reason 用一句话说明推荐理由（例如“排除下呼吸道感染需核实”）。
+               推荐内容可以写进正文，但每个推荐片段都必须在 recordDraft.annotations 中标记：source="AI"，kind="VARIABLE"，binding 用简短稳定语义键（如 symptom.fever.negative、exam.lung.auscultation），reason 不超过 15 字（例如“排除下呼吸道感染”）；label 省略，由系统统一补为“AI推荐·待核实”。
             推荐内容只能是阴性症状、阴性体征、常规一般情况或常规否认性既往史，一律视为待医生核实；严禁编造阳性症状、阳性体征、具体检查结果、测量数值、诊治经过、用药或诱因。
             与本次事实或资料冲突的推荐不得写入：已登记过敏不得写“否认过敏史”；clinicalHistory 或草稿中的已知疾病、手术和长期用药不得被否认，应作为事实写出；已诉症状不得再写成阴性。
             未提供的持续时间、起病时间、最高体温等数值不得编造；缺少时省略该数值，并把需要追问的问题写入 missingInformation。
@@ -241,6 +241,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             4. allergyHistory：allergies 有登记时如实写出过敏物质及反应（事实，不标记）；没有登记时写“否认药物及食物过敏史”并标记。
             5. physicalExam：先写已测得的生命体征事实，只能使用 draft 中的数值，未测量的项目不写数值、不编造。随后写一般情况及与本主诉相关的重点系统查体，按鉴别要点推荐必要的阴性体征（如发热咳嗽：咽部、扁桃体、双肺呼吸音及啰音、心率心律等；腹痛：腹部压痛、反跳痛、肌紧张、肝脾、墨菲征、麦氏点等），全部按推荐内容标记。不得写任何阳性体征，阳性发现由医生查体后补充。
                今日明确测得的体温、血压、脉搏、呼吸、血氧、身高、体重同时写入 recordDraft 同名数值字段；“最高体温”只写入现病史。
+            6. healthEducation：围绕本主诉给出 2 至 4 条简明可执行的宣教要点（生活方式、病情观察、需及时就诊的警示症状；慢病复诊侧重规律用药、自我监测和饮食运动），全部按推荐内容标记。不得包含具体药品、剂量或检查项目。
+            7. followUp：写复诊时间建议和随诊条件（如“症状加重或出现xx时及时就诊”，慢病复诊写“x周后复诊，复查血压/血糖”等），全部按推荐内容标记；不得写入未提供的检查结果。
             正文是正常可读的病历文本，不得出现“待补充”“待核实”“待查体”等占位语，不得嵌入 HTML 或标记符号；需要医生确认的内容通过 annotations 表达。
             annotations 的 text 必须是对应字段正文中的精确连续片段；同一片段在该字段出现多次时给出 start（UTF-16 起始下标）。每个推荐片段按语义分句标记（如一组伴随阴性症状为一个片段），不要把整段标成一个片段，也不要漏标。医生原话中的事实可用 source="VOICE"（需 sourceQuote 为原话）或 source="CONTEXT"（需 sourceQuote 为当前草稿原文）、kind="FACT" 标记，可省略。
             writingDraft 中已有正文的段落：保留医生原文的全部事实，在其基础上按规范补全结构，不删减、不改写医生事实；来源为 DOCTOR 的内容不得覆盖。
@@ -249,15 +251,14 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             CHRONIC_REFILL：现病史侧重确诊时间、目前用药、控制情况和依从性；控制平稳、无不良反应等只有证据时才写为事实，否则按推荐内容标记。
             REPORT_FOLLOW_UP：可在现病史引用 diagnosticReports 中的报告名称、日期、指标值和结论（事实），不得把历史报告当作本次结果。
 
-            missingInformation：列出最影响本次诊断的 3 至 6 个追问或查体要点，使用医生可直接提问的短句。
-            safetyAlerts：仅在本次事实提示危险征象时给出，level 仅允许 INFO、WARNING、CRITICAL。
-            不输出诊断、诊疗计划、检查检验或用药建议：diagnosisCandidates、differentialDiagnoses、recommendedPlans、treatmentRecommendations 一律返回空数组。
+            missingInformation：最多 3 个最影响本次诊断的追问或查体要点，使用医生可直接提问的短句。
+            safetyAlerts：仅在本次事实提示危险征象时给出，否则省略；level 仅允许 INFO、WARNING、CRITICAL。
+            不输出诊断、诊疗计划、检查检验或用药建议，也不输出 disclaimer 及 diagnosisCandidates、differentialDiagnoses、recommendedPlans、treatmentRecommendations 字段。
 
-            必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。先完整输出 recordDraft，再输出其余字段：
-            recordDraft{chiefComplaint,presentIllness,medicalHistory,allergyHistory,physicalExam,temperature,pulseRate,respiratoryRate,systolic,diastolic,oxygenSaturation,heightCm,weightKg,annotations[{field,text,start,source,kind,binding,label,sourceQuote,reason}]}；
-            summary（一句话说明扩写内容及需核实的重点）；missingInformation[string]；safetyAlerts[{level,title,detail}]；
-            diagnosisCandidates[]；differentialDiagnoses[]；recommendedPlans[]；treatmentRecommendations[]；disclaimer。
-            空内容使用 null 或空数组。
+            必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。先完整输出 recordDraft，再输出其余字段，正文之后的内容保持简短：
+            recordDraft{chiefComplaint,presentIllness,medicalHistory,allergyHistory,physicalExam,healthEducation,followUp,temperature,pulseRate,respiratoryRate,systolic,diastolic,oxygenSaturation,heightCm,weightKg,annotations[{field,text,start,source,kind,binding,sourceQuote,reason}]}；
+            summary（不超过 30 字）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
+            annotations 中值为 null 的属性直接省略；空内容使用 null 或空数组。
             """;
 
     private final ClinicalAssistantSettings settings;

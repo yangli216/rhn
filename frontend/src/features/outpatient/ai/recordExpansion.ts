@@ -2,7 +2,9 @@ import type { ClinicalAiDraftContext, ClinicalAiRecordDraft } from '../../../sha
 import { aiRecordDraftFields, aiRecordDraftValue, isAiVitalField, type AiRecordDraftField } from './aiDraftAdapter'
 
 /** Record sections the chief-complaint expansion may fill; the server returns the same scope. */
-export const recordExpansionSections = ['presentIllness', 'medicalHistory', 'allergyHistory', 'physicalExam'] as const
+export const recordExpansionSections = [
+  'presentIllness', 'medicalHistory', 'allergyHistory', 'physicalExam', 'healthEducation', 'followUp',
+] as const
 
 /** A "short" chief complaint; longer text is already a narrative and is not offered for expansion. */
 export const RECORD_EXPANSION_MAX_CHIEF_COMPLAINT = 60
@@ -14,11 +16,15 @@ function filled(context: ExpansionContext, field: AiRecordDraftField) {
   return isAiVitalField(field) ? value != null : typeof value === 'string' && value.trim() !== ''
 }
 
-/** Offered only for a short chief complaint while at least one target section is still empty. */
+/**
+ * Offered only while the record is still just a short chief complaint: once the present illness is written —
+ * by the doctor, an expansion, a chronic follow-up draft or any other AI adoption — the record has its narrative
+ * and the shortcut gets out of the way. Remaining empty sections are completed through the full AI assistant.
+ */
 export function canExpandRecord(context: ExpansionContext) {
   const chiefComplaint = context.chiefComplaint?.trim() ?? ''
   return chiefComplaint.length > 0 && chiefComplaint.length <= RECORD_EXPANSION_MAX_CHIEF_COMPLAINT
-    && recordExpansionSections.some((field) => !filled(context, field))
+    && !filled(context, 'presentIllness')
 }
 
 /**

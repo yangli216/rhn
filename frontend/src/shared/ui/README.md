@@ -8,7 +8,7 @@
 
 | 组件 | 用途 | 已内建能力 |
 |---|---|---|
-| `Button` | 主、次、文字、危险操作 | 尺寸、禁用、稳定加载态、重复提交防护 |
+| `Button` | 主、次、文字、轻量品牌（`soft`，静态即文字按钮悬停态，用于字段旁的辅助操作）、危险操作 | 尺寸、禁用、稳定加载态、重复提交防护 |
 | `IconButton` / `Icon` | 功能图标和装饰图标 | 统一 SVG、可访问名称、交互目标尺寸 |
 | `PageHeader` | 一级页面标题区 | 眉题、唯一 H1、描述、操作区；PC 维护页支持紧凑模式 |
 | `Panel` / `PanelHead` | 任务或信息集合 | 统一表面、标题层级、元数据位置 |
@@ -309,7 +309,7 @@ const nodes = categories.map((item) => ({
 ## 开发约束
 
 - 颜色、字号、间距、圆角、阴影和层级只使用 `styles/tokens.css` 中的语义令牌。
-- 公共样式进入 `styles/components.css` 或 `styles/layout.css`；业务专用布局进入 `styles/features.css`，后续规模增大时按领域拆分。
+- 公共样式进入 `styles/components.css` 或 `styles/layout.css`；业务专用布局进入 `styles/features/<领域>.css`（如 `outpatient-doctor.css`），或与功能目录同置的样式文件。
 - 新的通用模式在第二个业务模块复用前必须提炼为共享组件。
 - 异步功能必须覆盖加载、空、失败、无权限和成功反馈。
 - 提交型 `Button` 必须显式设置 `type="submit"`；其余按钮默认 `type="button"`。

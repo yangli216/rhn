@@ -25,15 +25,19 @@ describe('record expansion targets', () => {
     expect(canExpandRecord(context)).toBe(true)
     expect(canExpandRecord({ ...context, chiefComplaint: '  ' })).toBe(false)
     expect(canExpandRecord({ ...context, chiefComplaint: '咳'.repeat(61) })).toBe(false)
-    expect(canExpandRecord({ ...context, presentIllness: '已写', allergyHistory: '已写', physicalExam: '已写' })).toBe(false)
+    // A written present illness (doctor or any AI draft, e.g. a chronic follow-up record) retires the shortcut,
+    // even while other sections such as health education are still empty.
+    expect(canExpandRecord({ ...context, presentIllness: '高血压病史5年，规律服药。' })).toBe(false)
+    expect(canExpandRecord({ ...context, presentIllness: '  ' })).toBe(true)
   })
 
   it('writes the chief complaint and only still-empty sections and vitals', () => {
     const targets = recordExpansionTargets(context)
-    expect(targets).toEqual(expect.arrayContaining(['chiefComplaint', 'presentIllness', 'allergyHistory', 'physicalExam', 'pulseRate']))
+    expect(targets).toEqual(expect.arrayContaining(['chiefComplaint', 'presentIllness', 'allergyHistory', 'physicalExam',
+      'healthEducation', 'followUp', 'pulseRate']))
     expect(targets).not.toContain('medicalHistory')
     expect(targets).not.toContain('temperature')
-    expect(targets).not.toContain('healthEducation')
+    expect(recordExpansionTargets({ ...context, followUp: '1周后复诊' })).not.toContain('followUp')
     const picked = pickRecordExpansion(expansionDraft, targets)
     expect(picked).toMatchObject({ chiefComplaint: '咳嗽、发热3天', presentIllness: expansionDraft.presentIllness, pulseRate: 88 })
     expect(picked.medicalHistory).toBeUndefined()
@@ -60,7 +64,7 @@ function renderHub(props: Partial<ClinicalAiCopilotHubProps> = {}) {
 }
 
 const suggestion = { id: 's-expand', status: 'GENERATED', contextHash: 'h', clientContextFingerprint: 'c', provider: 'test',
-  promptVersion: 'RHN-RECORD-EXPANSION-V1', generatedAt: '', expiresAt: '', summary: '', recordDraft: expansionDraft,
+  promptVersion: 'RHN-RECORD-EXPANSION-V2', generatedAt: '', expiresAt: '', summary: '', recordDraft: expansionDraft,
   diagnosisCandidates: [], differentialDiagnoses: [], missingInformation: [], safetyAlerts: [], recommendedPlans: [],
   disclaimer: '' } satisfies ClinicalAiSuggestion
 
@@ -69,8 +73,8 @@ describe('record expansion shortcut in the copilot hub', () => {
 
   it('runs from the button and from Ctrl/⌘+Enter in the chief complaint only', async () => {
     const { props, input, slot } = renderHub()
-    expect(slot).toHaveTextContent('AI 扩写病历')
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI 扩写病历/ })) })
+    expect(slot).toHaveTextContent(/AI扩写\((Ctrl|⌘)\+Enter\)/)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI扩写/ })) })
     expect(props.onGenerate).toHaveBeenCalledWith(undefined, { intent: 'RECORD_EXPANSION' })
 
     vi.mocked(props.onGenerate).mockClear()
@@ -86,23 +90,23 @@ describe('record expansion shortcut in the copilot hub', () => {
     view.rerender({ capability, context: { ...context, chiefComplaint: '' } })
     expect(view.slot).toBeEmptyDOMElement()
     view.rerender({ capability, busy: true })
-    expect(screen.getByRole('button', { name: /AI 扩写病历/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /AI扩写/ })).toBeDisabled()
   })
 
   it('shows a failed expansion beside the shortcut but stays quiet when cancelled', async () => {
     const onGenerate = vi.fn().mockRejectedValueOnce(new Error('模型辅助暂时不可用，请稍后重试'))
       .mockRejectedValueOnce(new DOMException('已取消过期分析', 'AbortError'))
     const { slot } = renderHub({ onGenerate })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI 扩写病历/ })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI扩写/ })) })
     expect(screen.getByRole('alert')).toHaveTextContent('模型辅助暂时不可用，请稍后重试')
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI 扩写病历/ })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI扩写/ })) })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(slot).toHaveTextContent('请逐项核实')
+    expect(slot).toHaveTextContent(/AI扩写\((Ctrl|⌘)\+Enter\)/)
   })
 
   it('adopts the normalized chief complaint and fills only empty sections', async () => {
     const view = renderHub()
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI 扩写病历/ })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /AI扩写/ })) })
     view.rerender({ suggestion, current: true })
     expect(view.props.onApply).toHaveBeenCalledTimes(1)
     const selection = vi.mocked(view.props.onApply).mock.calls[0][0]

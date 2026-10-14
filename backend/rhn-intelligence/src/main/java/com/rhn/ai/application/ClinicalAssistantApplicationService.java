@@ -75,8 +75,9 @@ public class ClinicalAssistantApplicationService {
     private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V14";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
     /** Record-only expansion of a short chief complaint; never retrieves plans or drafts diagnoses/orders. */
-    private static final String RECORD_EXPANSION_PROMPT_VERSION = "RHN-RECORD-EXPANSION-V1";
+    private static final String RECORD_EXPANSION_PROMPT_VERSION = "RHN-RECORD-EXPANSION-V2";
     private static final String RECORD_EXPANSION_STAGE = "RECORD_EXPANSION";
+    private static final String RECORD_EXPANSION_RECOMMENDATION_LABEL = "AI推荐·待核实";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
     /** 发热提示阈值（℃）。 */
@@ -661,7 +662,8 @@ public class ClinicalAssistantApplicationService {
                 validated.medicalHistory(), validated.physicalExam(), null, validated.temperature(),
                 validated.pulseRate(), validated.respiratoryRate(), validated.systolic(), validated.diastolic(),
                 validated.oxygenSaturation(), validated.heightCm(), validated.weightKg(), validated.allergyHistory(),
-                null, null, null, null, validated.annotations());
+                null, null, validated.healthEducation(), validated.followUp(),
+                labeledRecommendations(validated.annotations()));
         RecordDraft recordDraft = enrichRecordDraftFromInput(scoped, input);
         List<String> missing = distinctStrings(raw.missingInformation() == null ? List.of() : raw.missingInformation(), 8, 300);
         String summary = clipped(raw.summary(), 1000);
@@ -671,6 +673,17 @@ public class ClinicalAssistantApplicationService {
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
                 : alerts.isEmpty() ? "INFO" : "MEDIUM";
         return new Analysis(content, risk);
+    }
+
+    /** The expansion prompt omits the fixed label to shorten output; the server restores it for AI recommendations. */
+    private static List<com.rhn.outpatient.api.RecordAnnotation> labeledRecommendations(
+            List<com.rhn.outpatient.api.RecordAnnotation> values) {
+        if (values == null) return null;
+        return values.stream().map(value -> value == null || !blank(value.label()) || !"AI".equals(value.source())
+                || !"VARIABLE".equals(value.kind()) ? value
+                : new com.rhn.outpatient.api.RecordAnnotation(value.field(), value.text(), value.start(), value.source(),
+                value.kind(), value.binding(), RECORD_EXPANSION_RECOMMENDATION_LABEL, value.sourceQuote(),
+                value.reason(), value.confirmed())).toList();
     }
 
     private static long elapsedMillis(long startedNanos) {

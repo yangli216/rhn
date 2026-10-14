@@ -53,7 +53,7 @@ AI 方案弹窗的手动目录检索通过 `../templates/templateCatalogSearch.t
 验证：根目录 `./scripts/verify-scope.sh outpatient-draft`；先查看命令可加 `--list`。
 验收重点：主要诊断、结构化必填、切换患者、失败重试、AI 采纳与撤销、签署及完成就诊。
 
-主诉扩写病历（`../ai/recordExpansion.ts`、`../ai/RecordExpansionTrigger.tsx`）：模型模式且主诉不超过 60 字、现病史／既往史／过敏史／查体仍有空段时，主诉下方提供“AI 扩写病历”按钮及 Ctrl/⌘+Enter 快捷键，请求 `intent=RECORD_EXPANSION`。服务端使用独立提示词 `RHN-RECORD-EXPANSION-V1`，不召回方案、不生成诊断或医嘱，只返回上述段落和生命体征。事实照录；为满足质控推荐的阴性症状、阴性体征和常规否认性既往史以 `source=AI, kind=VARIABLE, label=AI推荐·待核实` 标记（蓝色），不得编造阳性发现或与已登记过敏、既往疾病冲突。采纳时主诉替换为规范写法，其余只填空段和未测生命体征，医生已写内容不覆盖；流式预览同样只显示这些字段，撤销沿用病历采纳快照。验证见 `../ai/recordExpansion.test.tsx` 与后端 `ClinicalAiModelModeTest`。
+主诉扩写病历（`../ai/recordExpansion.ts`、`../ai/RecordExpansionTrigger.tsx`）：模型模式、主诉不超过 60 字且现病史仍为空时（医生或任一 AI 草稿写入现病史后即隐藏，如慢病复诊病历），主诉下方提供轻量按钮“AI扩写(Ctrl+Enter)”（共享 Button `soft` 变体；macOS 自动显示 ⌘+Enter），请求 `intent=RECORD_EXPANSION`。服务端使用独立提示词 `RHN-RECORD-EXPANSION-V2`，不召回方案、不生成诊断或医嘱，只返回上述段落和生命体征；健康宣教与随访复诊全部按 AI 推荐标记，不含具体药品、剂量或检查项目。正文之后的输出（批注、摘要、追问）保持精简，不输出免责声明和空的诊断/方案数组，固定标签由服务端补齐，以缩短正文结束到采纳的等待。事实照录；为满足质控推荐的阴性症状、阴性体征和常规否认性既往史以 `source=AI, kind=VARIABLE` 标记（蓝色，服务端补 `label=AI推荐·待核实`），不得编造阳性发现或与已登记过敏、既往疾病冲突。采纳时主诉替换为规范写法，其余只填空段和未测生命体征，医生已写内容不覆盖；流式预览同样只显示这些字段，撤销沿用病历采纳快照。验证见 `../ai/recordExpansion.test.tsx` 与后端 `ClinicalAiModelModeTest`。
 
 AI 共写入口先按问诊要点检索当前医生可见的整体诊疗方案。命中时先展示方案选择，医生进入原有临床模板面板核对配套病历、诊断、药品与诊疗项目；不采用或无匹配时才进入原有病历生成与逐项采纳流程。医嘱列表不再承载整体方案推荐。匹配阶段不持久化建议或临床草稿；输入变化会使待选方案失效。
 

@@ -44,6 +44,8 @@
 }
 .ui-button--text { color: var(--color-text-secondary); background: transparent; border-color: transparent; box-shadow: none; }
 .ui-button--text:hover:not(:disabled) { color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.ui-button--soft { color: var(--color-brand-primary); background: var(--color-brand-soft); border-color: transparent; box-shadow: none; }
+.ui-button--soft:hover:not(:disabled) { background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-brand-soft)); }
 .ui-button--danger {
   color: var(--color-text-inverse);
   background: linear-gradient(180deg, var(--color-danger) 0%, var(--color-danger-strong) 100%);
@@ -65,6 +67,7 @@
   border-color: var(--color-border);
 }
 .ui-button--text:disabled { color: var(--color-text-disabled); background: transparent; border-color: transparent; }
+.ui-button--soft:disabled { color: var(--color-text-disabled); background: var(--color-surface-muted); border-color: transparent; }
 .ui-button.is-busy .ui-button__label { visibility: hidden; }
 .ui-button__label { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); color: inherit; }
 .ui-button span { color: inherit; }

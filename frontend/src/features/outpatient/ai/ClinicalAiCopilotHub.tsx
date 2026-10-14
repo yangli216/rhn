@@ -257,20 +257,23 @@ export function ClinicalAiCopilotHub({
   const isChronic = sceneAssessment?.scene === 'CHRONIC_REFILL'
   const refillReady = Boolean(isChronic && chronicRefill?.ready && chronicRefill.encounterId === context.encounterId)
   const refillBlocked = disabled || busy || !canAdopt || !recordFeature || Boolean(sceneLoading)
+  // The guide waits for the stable-plan query so it opens once in its final form (refill or record-only).
+  const chronicGuideReady = Boolean(isChronic && chronicRefill && !chronicRefill.loading
+    && chronicRefill.encounterId === context.encounterId)
 
-  // Lightweight refill shortcut: auto-open once per encounter, only when a refillable stable plan exists.
+  // Lightweight chronic follow-up guide: auto-open once per encounter as soon as the scene is recognized.
   useEffect(() => { setRefillPanelOpen(false) }, [context.encounterId])
   useEffect(() => {
-    if (!refillReady || refillBlocked || chronicRefill?.adopted || hubOpen) return
+    if (!chronicGuideReady || refillBlocked || chronicRefill?.adopted || hubOpen) return
     if (refillAutoShownFor.current === context.encounterId) return
     refillAutoShownFor.current = context.encounterId
     setRefillPanelOpen(true)
-  }, [refillReady, refillBlocked, chronicRefill?.adopted, hubOpen, context.encounterId])
+  }, [chronicGuideReady, refillBlocked, chronicRefill?.adopted, hubOpen, context.encounterId])
   useEffect(() => {
     // Opening the full hub counts as having seen the shortcut for this encounter.
     if (hubOpen) refillAutoShownFor.current = context.encounterId
-    if (hubOpen || chronicRefill?.adopted || !refillReady) setRefillPanelOpen(false)
-  }, [hubOpen, chronicRefill?.adopted, refillReady, context.encounterId])
+    if (hubOpen || chronicRefill?.adopted || !chronicGuideReady) setRefillPanelOpen(false)
+  }, [hubOpen, chronicRefill?.adopted, chronicGuideReady, context.encounterId])
   useEffect(() => {
     if (!refillPanelOpen) return
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setRefillPanelOpen(false) }
@@ -297,14 +300,17 @@ export function ClinicalAiCopilotHub({
     if (!chronicRefill || refillBlocked) return
     chronicRefill.applyRefill(generateRefillRecord)
   }
-  const generateChronicRecord = () => {
-    const promptData = buildChronicRefillPrompt({
-      encounter: { systolic: context.systolic, diastolic: context.diastolic },
-      matchedConditions: sceneAssessment?.matchedConditions ?? [],
-      medications: chronicRefill?.medications ?? [],
-      safetyAssessment: chronicRefill?.safetyAssessment,
-    })
-    void generateAndApply(promptData.aiFocusPrompt)
+  const chronicRecordFocus = () => buildChronicRefillPrompt({
+    encounter: { systolic: context.systolic, diastolic: context.diastolic },
+    matchedConditions: sceneAssessment?.matchedConditions ?? [],
+    medications: chronicRefill?.medications ?? [],
+    safetyAssessment: chronicRefill?.safetyAssessment,
+  }).aiFocusPrompt
+  const generateChronicRecord = () => { void generateAndApply(chronicRecordFocus()) }
+  /** Guide shortcut: generate and auto-adopt the follow-up record right away, without the plan-choice detour. */
+  const generateChronicRecordNow = () => {
+    if (refillBlocked) return
+    void generateRefillRecord(chronicRecordFocus()).catch(() => undefined)
   }
 
   const isReport = sceneAssessment?.scene === 'REPORT_FOLLOW_UP'
@@ -352,6 +358,8 @@ export function ClinicalAiCopilotHub({
           refill={chronicRefill}
           onRefill={runChronicRefill}
           refillDisabled={refillBlocked}
+          onGenerateRecord={() => { setRefillPanelOpen(false); generateChronicRecordNow() }}
+          sceneSummary={sceneAssessment?.summaryText}
           onClose={() => setRefillPanelOpen(false)}
           onOpenHub={() => { setRefillPanelOpen(false); setHubOpen(true); onView() }}
         />

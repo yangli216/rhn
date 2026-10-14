@@ -67,7 +67,8 @@ export {
   type TabsVariant,
 } from './Workspace'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'danger'
+/** `soft`: lightweight brand action that looks like a hovered text button at rest. */
+export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'soft' | 'danger'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export function Button({

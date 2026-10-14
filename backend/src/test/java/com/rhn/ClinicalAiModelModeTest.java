@@ -201,16 +201,16 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
         String encounterId = createStartedEncounter();
         String exam = "体温38.2℃。咽部无充血，双肺呼吸音清，未闻及干湿啰音。";
         var recommended = new com.rhn.outpatient.api.RecordAnnotation("physicalExam", "咽部无充血，双肺呼吸音清，未闻及干湿啰音",
-                null, "AI", "VARIABLE", "exam.respiratory.negative", "AI推荐·待核实", null, "排除下呼吸道感染需核实", null);
+                null, "AI", "VARIABLE", "exam.respiratory.negative", null, null, "排除下呼吸道感染", null);
         when(modelGateway.analyzeStreaming(any(), any(), any())).thenAnswer(invocation -> {
             ClinicalAiModelGateway.ModelRequest request = invocation.getArgument(0);
             org.junit.jupiter.api.Assertions.assertEquals("RECORD_EXPANSION", request.generationStage());
-            org.junit.jupiter.api.Assertions.assertEquals("RHN-RECORD-EXPANSION-V1", request.promptVersion());
+            org.junit.jupiter.api.Assertions.assertEquals("RHN-RECORD-EXPANSION-V2", request.promptVersion());
             org.junit.jupiter.api.Assertions.assertTrue(request.availablePlans().isEmpty());
             return new SuggestionContent("已扩写",
                     new RecordDraft("发热、咳嗽3天", "患者3天前无明显诱因出现发热、咳嗽。", "否认慢性病史。", exam, "不应保留的计划",
                             null, null, null, null, null, null, null, null, "否认药物及食物过敏史", "不应保留的用药史",
-                            null, "不应保留的宣教", "不应保留的随访", List.of(recommended)),
+                            null, "多饮水，注意休息。", "3天后复诊，症状加重及时就诊。", List.of(recommended)),
                     List.of(new DiagnosisCandidate("J06.900", "急性上呼吸道感染", "PRIMARY", 0.8, "不应保留")),
                     List.of(), List.of("是否有咳痰及痰色"), List.of(),
                     List.of(new RecommendedPlan(1L, "不应保留", null, null)), "待核对",
@@ -224,12 +224,14 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         org.junit.jupiter.api.Assertions.assertFalse(stream.contains("event: stage"));
         JsonNode complete = json(stream.substring(stream.indexOf("data:", stream.indexOf("event: complete")) + 5).trim());
-        org.junit.jupiter.api.Assertions.assertEquals("RHN-RECORD-EXPANSION-V1", complete.get("promptVersion").asString());
+        org.junit.jupiter.api.Assertions.assertEquals("RHN-RECORD-EXPANSION-V2", complete.get("promptVersion").asString());
         org.junit.jupiter.api.Assertions.assertEquals("发热、咳嗽3天", complete.at("/recordDraft/chiefComplaint").asString());
         org.junit.jupiter.api.Assertions.assertEquals(exam, complete.at("/recordDraft/physicalExam").asString());
         org.junit.jupiter.api.Assertions.assertEquals("否认药物及食物过敏史", complete.at("/recordDraft/allergyHistory").asString());
         org.junit.jupiter.api.Assertions.assertEquals(38.2, complete.at("/recordDraft/temperature").asDouble());
-        for (String field : List.of("treatmentPlan", "medicationHistory", "healthEducation", "followUp")) {
+        org.junit.jupiter.api.Assertions.assertEquals("多饮水，注意休息。", complete.at("/recordDraft/healthEducation").asString());
+        org.junit.jupiter.api.Assertions.assertEquals("3天后复诊，症状加重及时就诊。", complete.at("/recordDraft/followUp").asString());
+        for (String field : List.of("treatmentPlan", "medicationHistory")) {
             org.junit.jupiter.api.Assertions.assertTrue(complete.at("/recordDraft/" + field).isNull()
                     || complete.at("/recordDraft/" + field).isMissingNode(), field);
         }

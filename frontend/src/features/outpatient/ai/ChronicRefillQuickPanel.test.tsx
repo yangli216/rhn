@@ -40,6 +40,7 @@ function renderHub(props: Partial<ClinicalAiCopilotHubProps> = {}) {
 }
 
 const panel = () => screen.queryByRole('region', { name: '慢病快捷续方' })
+const guide = () => screen.queryByRole('region', { name: '慢病复诊引导' })
 
 describe('ChronicRefillQuickPanel in the copilot hub', () => {
   afterEach(cleanup)
@@ -58,14 +59,37 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     editor.remove()
   })
 
-  it('does not auto-open without refillable medication, while loading scene, or when not chronic', () => {
-    const { rerender } = renderHub({ chronicRefill: controller({ ready: false }) })
+  it('does not auto-open while the scene or stable plan is loading, or when not chronic', () => {
+    const { rerender } = renderHub({ chronicRefill: controller(), sceneLoading: true })
     expect(panel()).not.toBeInTheDocument()
-    rerender({ chronicRefill: controller(), sceneLoading: true })
-    expect(panel()).not.toBeInTheDocument()
+    expect(guide()).not.toBeInTheDocument()
+    rerender({ chronicRefill: controller({ loading: true, ready: false, stablePlan: undefined }), sceneLoading: false })
+    expect(guide()).not.toBeInTheDocument()
     rerender({ chronicRefill: controller(), sceneLoading: false,
       sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' } })
     expect(panel()).not.toBeInTheDocument()
+  })
+
+  it('auto-opens a record guide without a refillable plan and generates only the follow-up record', async () => {
+    const onGenerate = vi.fn().mockResolvedValue('s-1')
+    const onOpenHistory = vi.fn()
+    const onFindPlans = vi.fn().mockResolvedValue([])
+    const onQuestionChange = vi.fn()
+    const refill = controller({ ready: false, stablePlan: undefined, medications: [], openHistory: onOpenHistory })
+    renderHub({ chronicRefill: refill, onGenerate, onFindPlans, onQuestionChange })
+    expect(panel()).not.toBeInTheDocument()
+    expect(guide()).toBeInTheDocument()
+    expect(screen.getByText('近90天病史提示高血压；暂无可直接续用的历史稳定方案。')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '查看历史处方' }))
+    expect(onOpenHistory).toHaveBeenCalled()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '生成复诊病历' })) })
+    // Generates immediately: no plan-choice detour and no prompt parked in the question box.
+    expect(onGenerate).toHaveBeenCalledWith(expect.stringContaining('高血压'))
+    expect(onFindPlans).not.toHaveBeenCalled()
+    expect(onQuestionChange).not.toHaveBeenCalled()
+    expect(refill.applyRefill).not.toHaveBeenCalled()
+    expect(guide()).not.toBeInTheDocument()
   })
 
   it('routes one-click refill through the hub generator', () => {

@@ -125,7 +125,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
             exchange.close();
         });
         ModelRequest base = request();
-        ModelRequest expansion = new ModelRequest("RHN-RECORD-EXPANSION-V1", null, null, base.draft(), base.resident(),
+        ModelRequest expansion = new ModelRequest("RHN-RECORD-EXPANSION-V2", null, null, base.draft(), base.resident(),
                 base.allergies(), List.of(), List.of(), List.of(), null, null, null, "RECORD_EXPANSION", List.of(),
                 base.temporalContext());
         var answer = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec).analyze(expansion, settings("secret-key"));
@@ -133,7 +133,10 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         JsonNode sent = jsonCodec.readTree(requestBody.get());
         String prompt = sent.get("messages").get(0).get("content").asString();
         assertTrue(prompt.contains("generationStage=RECORD_EXPANSION"));
-        assertTrue(prompt.contains("label=\"AI推荐·待核实\""));
+        assertTrue(prompt.contains("由系统统一补为“AI推荐·待核实”"));
+        assertTrue(prompt.contains("6. healthEducation"));
+        assertTrue(prompt.contains("7. followUp"));
+        assertFalse(prompt.contains("disclaimer。"));
         assertTrue(prompt.contains("严禁编造阳性症状、阳性体征"));
         assertTrue(prompt.contains("已登记过敏不得写“否认过敏史”"));
         assertEquals("RECORD_EXPANSION", jsonCodec.readTree(sent.get("messages").get(1).get("content").asString())
