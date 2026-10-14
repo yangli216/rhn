@@ -25,7 +25,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"门诊重试患者","identifiers":[{"system":"9","value":"RETRY%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1991-05-06"}
+                                 "gender":"2","birthDate":"1991-05-06"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())

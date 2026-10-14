@@ -43,7 +43,7 @@ class ClinicalPdfRendererTest {
 
         Map<String, Object> resident = new LinkedHashMap<>();
         resident.put("fullName", "张三");
-        resident.put("gender", "MALE");
+        resident.put("gender", "1");
         resident.put("birthDate", "1988-05-12");
         resident.put("healthRecordNo", "HRN330102001");
         snapshot.put("resident", resident);
@@ -106,7 +106,7 @@ class ClinicalPdfRendererTest {
 
         Map<String, Object> resident = new LinkedHashMap<>();
         resident.put("fullName", "李四");
-        resident.put("gender", "FEMALE");
+        resident.put("gender", "2");
         resident.put("birthDate", "1995-08-20");
         snapshot.put("resident", resident);
 
@@ -164,7 +164,7 @@ class ClinicalPdfRendererTest {
 
         Map<String, Object> resident = new LinkedHashMap<>();
         resident.put("fullName", "王五");
-        resident.put("gender", "FEMALE");
+        resident.put("gender", "2");
         resident.put("birthDate", "1975-03-15");
         snapshot.put("resident", resident);
 

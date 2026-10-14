@@ -31,7 +31,7 @@
 
 ## 数据库基线与开发样例
 
-现有起点为 **1.128.0 全量基线**（2026-10-14 第二次压平，生成与验证方式及 Oracle 待验证说明见 [db/README](../../backend/src/main/resources/db/README.md)）；新迁移使用高于 1.128.2 的版本号。实际文件位于 `backend/src/main/resources/db/`：
+现有起点为 **1.128.0 全量基线**（2026-10-14 第二次压平，生成方式与 Oracle 空库演练结果见 [db/README](../../backend/src/main/resources/db/README.md)）；新迁移使用高于 1.128.2 的版本号。实际文件位于 `backend/src/main/resources/db/`：
 
 - `migration/B1_128_0__rhn_schema_and_metadata.sql` 与后续 `V*`：公共结构与元数据。
 - `oracle/`：Oracle 对等变更。

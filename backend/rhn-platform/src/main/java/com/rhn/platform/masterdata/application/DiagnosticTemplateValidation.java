@@ -36,7 +36,7 @@ final class DiagnosticTemplateValidation {
             for (ReferenceRule rule : indicator.rules()) {
                 if (rule == null) invalid("参考规则不能为空");
                 code(rule.code()); if (!rules.add(rule.code())) invalid("参考规则代码重复");
-                if (rule.gender() != null && !Set.of("MALE", "FEMALE").contains(rule.gender())) invalid("性别条件仅支持MALE或FEMALE，未知性别不套用专属规则");
+                if (rule.gender() != null && !Set.of("1", "2").contains(rule.gender())) invalid("性别条件仅支持1（男）或2（女），未知性别不套用专属规则");
                 if (rule.minimumAgeDays() != null && rule.minimumAgeDays() < 0 || rule.maximumAgeDays() != null && rule.maximumAgeDays() <= 0
                         || rule.minimumAgeDays() != null && rule.maximumAgeDays() != null && rule.maximumAgeDays() <= rule.minimumAgeDays()) invalid("年龄日数区间须为非负、下限含上限不含");
                 if (rule.instrumentCode() != null) code(rule.instrumentCode());

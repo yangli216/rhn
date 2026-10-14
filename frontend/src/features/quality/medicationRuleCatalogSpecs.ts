@@ -247,7 +247,7 @@ then
   message: "患者为育龄期女性（{age}岁），禁忌使用妊娠期高危致畸药物【{medNames}】。"`,
     parameters: [
       { label: '规则模型', value: '模板 B · 分类与特殊人群禁忌', badgeTone: 'warning' },
-      { label: '目标性别', value: '女性 (FEMALE)', badgeTone: 'info' },
+      { label: '目标性别', value: '女性 (2)', badgeTone: 'info' },
       { label: '育龄年龄段', value: '12 ~ 50 周岁 (未填写年龄默认防御拦截)', badgeTone: 'danger' },
       { label: '挂载分类', value: 'PREGNANCY_CONTRA_CATEGORY_X (妊娠期禁用致畸药)' },
       { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }

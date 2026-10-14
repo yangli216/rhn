@@ -9,7 +9,7 @@ import { DischargeDialog } from './InpatientWorkspace'
 
 const episode: InpatientEpisode = {
   id: 'episode-1', revision: 3, episodeNo: 'ZY20260831001', status: 'ADMITTED', residentId: 'resident-1',
-  residentName: '张三', healthRecordNo: 'HR001', gender: 'MALE', organizationId: 'org-1',
+  residentName: '张三', healthRecordNo: 'HR001', gender: '1', organizationId: 'org-1',
   departmentId: 'dept-1', departmentName: '综合病区', encounterId: 'encounter-1', encounterNo: 'E001',
   bedId: 'bed-1', bedNo: '01床', admittedAt: '2026-08-30T08:00:00+08:00',
 }

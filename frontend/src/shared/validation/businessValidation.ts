@@ -29,7 +29,7 @@ export function parseChineseResidentId(input: string) {
   return {
     normalized: value,
     birthDate: `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-    gender: Number(value[16]) % 2 === 1 ? 'MALE' as const : 'FEMALE' as const,
+    gender: Number(value[16]) % 2 === 1 ? '1' as const : '2' as const,
   }
 }
 

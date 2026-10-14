@@ -1,3 +1,4 @@
+import { genderLabel } from '../../../shared/format'
 import { displayUnitName } from "../medicationDisplay";
 import type { PersonnelAssignment } from "../../../shared/api/organizationApi";
 import type { PharmacyInboxItem, PharmacyReviewResult } from "../../../shared/api/pharmacyApi";
@@ -257,7 +258,7 @@ export function formatQuantityWithUnit(value: number, unit: string) {
 }
 
 export function genderText(value?: string) {
-  return { MALE: '男', FEMALE: '女', UNKNOWN: '未知' }[value ?? ''] ?? '未知'
+  return genderLabel(value)
 }
 
 export function ageText(birthDate?: string) {

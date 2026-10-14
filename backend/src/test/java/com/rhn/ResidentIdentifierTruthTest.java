@@ -114,7 +114,7 @@ class ResidentIdentifierTruthTest extends RhnIntegrationTestSupport {
     private JsonNode create(String identifiers) throws Exception {
         return json(mockMvc.perform(post("/api/residents").with(rhn()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"fullName":"证件类型测试","gender":"MALE","birthDate":"1966-01-01","identifiers":[%s]}
+                                {"fullName":"证件类型测试","gender":"1","birthDate":"1966-01-01","identifiers":[%s]}
                                 """.formatted(identifiers)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
@@ -128,7 +128,7 @@ class ResidentIdentifierTruthTest extends RhnIntegrationTestSupport {
     private String sourcePayload(String recordId, String identifiers) {
         return """
                 {"sourceOrganizationId":"%s","sourceSystem":"TYPE-TRUTH","sourceRecordId":"%s",
-                "fullName":"外部来源记录","gender":"MALE","birthDate":"1966-01-01","identifiers":[%s]}
+                "fullName":"外部来源记录","gender":"1","birthDate":"1966-01-01","identifiers":[%s]}
                 """.formatted(ORGANIZATION, recordId, identifiers);
     }
 

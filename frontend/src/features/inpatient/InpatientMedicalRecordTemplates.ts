@@ -65,7 +65,7 @@ function baseBlocks(episode: InpatientEpisode): ITemplateSchema['blocks'] {
     fields: [
       { ...field('bedNo', '床号', 'text', '', false, episode.bedNo ?? '', true), width: 70 },
       { ...field('gender', '性别', 'text', '', false,
-        episode.gender === 'MALE' ? '男' : episode.gender === 'FEMALE' ? '女' : '未知', true), width: 55 },
+        episode.gender === '1' ? '男' : episode.gender === '2' ? '女' : '未知', true), width: 55 },
       { ...field('age', '年龄', 'text', '', false, ageOf(episode.birthDate), true), width: 65 },
     ],
   }, {

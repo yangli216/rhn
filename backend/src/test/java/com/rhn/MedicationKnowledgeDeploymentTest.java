@@ -79,7 +79,7 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
     PrescriptionSafetySnapshot.MedicationItem item(long id) {return item(id,"C","1","a".repeat(64),"E","S","ACTIVE");}
     PrescriptionSafetySnapshot snapshot(Long department,PrescriptionSafetySnapshot.MedicationItem... rows) {
         return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,department,"DRAFT",List.of(rows),
-            new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"UNKNOWN"),
+            new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),30,"0"),
             new PrescriptionSafetySnapshot.EvaluationTiming(LocalDate.of(2026,1,10),"Asia/Shanghai"));
     }
     @Test void explicit_shadow_uses_approved_frozen_program_and_records_complete_observations() {
@@ -170,7 +170,7 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(T,doctor.id(),"doctor","test",Set.of("MASTER_DATA.MANAGE","OUTPATIENT_REGISTRATION.ACCESS","OUTPATIENT_RECEPTION.ACCESS"),O,D,"DEPARTMENT",Set.of(),Set.of(),doctor.practitionerId()));
         String medication=linkStandardMedication("STD-04D8635B1192769EBA24309B","MED-2026-W185").path("id").asString();
         String resident=json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
-            {"fullName":"合成旁路提交","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"MALE","birthDate":"1988-06-18"}
+            {"fullName":"合成旁路提交","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"1","birthDate":"1988-06-18"}
             """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asString();
         String encounter=json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
             {"residentId":"%s","organizationId":"%s","departmentId":"%s"}

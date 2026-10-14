@@ -104,7 +104,7 @@ class DecisionObservationTest extends RhnIntegrationTestSupport {
         assertThat(list(0,20).records().content().getFirst().equal()).isNull();
         when(baseline.assess(any())).thenReturn(new BaselineAssessment(new RuleAssessment("LEVEL_4_NON_URGENT","合成规则",List.of(),List.of()),
                 List.of(new DepartmentRecommendation(101L,"合成科室",90,"规则",1,null,true)),List.of(new CandidateDepartment(101L,"合成科室",1,true))));
-        var input=new AssessmentRequest("合成主诉",null,null,null,null,null,null,null,null,null,null,30,"MALE",false);
+        var input=new AssessmentRequest("合成主诉",null,null,null,null,null,null,null,null,null,null,30,"1",false);
         assertThat(triage.assess(input).department()).isNull();
         var row=list(0,20).records().content().getFirst();assertThat(row.comparison()).isEqualTo("COMPARABLE");assertThat(row.equal()).isTrue();
         assertThat(observations.detail(row.id()).run().input().toString()).contains("合成主诉");

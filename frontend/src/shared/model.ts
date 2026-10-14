@@ -31,7 +31,7 @@ export interface Resident extends RequiredFields<Contract['ResidentResponse'], '
   healthRecordNo: string
   fullName: string
   maskedNationalId?: string | null
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  gender: '1' | '2' | '0' | '9'
   genderText?: string
   birthDate: string
   phone?: string

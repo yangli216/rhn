@@ -144,7 +144,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"预约管理患者%s","identifiers":[{"system":"9","value":"33010219900101%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1990-01-01"}
+                                 "gender":"2","birthDate":"1990-01-01"}
                                 """.formatted(suffix, digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

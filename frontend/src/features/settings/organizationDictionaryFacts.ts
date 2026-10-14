@@ -20,7 +20,7 @@ export function profileDictionaryCodes(section: OrganizationProfileSection, depa
     case 'contact': return [codes.contactType, codes.contactUse]
     case 'address': return [codes.addressType]
     case 'relation': return [department ? codes.departmentRelationType : codes.relationType]
-    case 'capability': return [department ? codes.departmentCapabilityType : codes.capabilityType, codes.verifyStatus]
+    case 'capability': return [codes.capabilityType, codes.verifyStatus]
     case 'responsibility': return [department ? codes.departmentResponsibilityType : codes.responsibilityType]
   }
 }

@@ -36,7 +36,7 @@ final class ResidentIdentifierValidator {
             throw badRequest("RESIDENT_NATIONAL_ID_BIRTH_DATE_MISMATCH", "出生日期与居民身份证号码不一致");
         }
         boolean male = Character.digit(value.charAt(16), 10) % 2 == 1;
-        if ("MALE".equals(gender) && !male || "FEMALE".equals(gender) && male) {
+        if ("1".equals(gender) && !male || "2".equals(gender) && male) {
             throw badRequest("RESIDENT_NATIONAL_ID_GENDER_MISMATCH", "性别与居民身份证号码不一致");
         }
     }

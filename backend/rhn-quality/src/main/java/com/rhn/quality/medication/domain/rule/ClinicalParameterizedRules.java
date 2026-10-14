@@ -137,7 +137,7 @@ public final class ClinicalParameterizedRules {
                 "QMED.PREGNANCY_CONTRA",
                 "java:category-population:pregnancy-contra:1",
                 "PREGNANCY_CONTRA_CATEGORY_X",
-                "FEMALE",
+                "2",
                 12,
                 50,
                 null,

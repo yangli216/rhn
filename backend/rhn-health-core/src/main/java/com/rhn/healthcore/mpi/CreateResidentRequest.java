@@ -18,7 +18,7 @@ import java.util.List;
 public record CreateResidentRequest(
         @NotBlank(message = "姓名不能为空") @Size(max = 100) String fullName,
         @Size(max = 18) String nationalId,
-        @NotBlank(message = "性别不能为空") @Pattern(regexp = "MALE|FEMALE|UNKNOWN", message = "性别值不正确") String gender,
+        @NotBlank(message = "性别不能为空") @Pattern(regexp = "0|1|2|9", message = "性别值不正确") String gender,
         @NotNull(message = "出生日期不能为空") @PastOrPresent(message = "出生日期不能晚于今天") LocalDate birthDate,
         @Pattern(regexp = "^$|^[0-9+ -]{6,32}$", message = "联系电话格式不正确") String phone,
         @Size(max = 10) List<@Valid ResidentIdentifierInput> identifiers,

@@ -12,17 +12,17 @@ class ResidentIdentifierValidatorTest {
     @Test
     void acceptsValidNationalIdAndMatchingDemographics() {
         assertDoesNotThrow(() -> ResidentIdentifierValidator.validateNationalId(
-                "330102195403151215", LocalDate.of(1954, 3, 15), "MALE"));
+                "330102195403151215", LocalDate.of(1954, 3, 15), "1"));
     }
 
     @Test
     void rejectsChecksumBirthDateAndGenderMismatch() {
         assertCode("RESIDENT_NATIONAL_ID_CHECKSUM_INVALID", () -> ResidentIdentifierValidator.validateNationalId(
-                "330102195403151218", LocalDate.of(1954, 3, 15), "MALE"));
+                "330102195403151218", LocalDate.of(1954, 3, 15), "1"));
         assertCode("RESIDENT_NATIONAL_ID_BIRTH_DATE_MISMATCH", () -> ResidentIdentifierValidator.validateNationalId(
-                "330102195403151215", LocalDate.of(1954, 3, 16), "MALE"));
+                "330102195403151215", LocalDate.of(1954, 3, 16), "1"));
         assertCode("RESIDENT_NATIONAL_ID_GENDER_MISMATCH", () -> ResidentIdentifierValidator.validateNationalId(
-                "330102195403151215", LocalDate.of(1954, 3, 15), "FEMALE"));
+                "330102195403151215", LocalDate.of(1954, 3, 15), "2"));
     }
 
     private void assertCode(String code, Runnable action) {

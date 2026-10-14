@@ -147,7 +147,7 @@ describe('ClinicalResourceSearch', () => {
     expect(option.textContent).not.toContain('药房:')
   })
 
-  it('renders service items with unit price and tags', async () => {
+  it('renders service items with the subtype label, unit price and tags', async () => {
     const user = userEvent.setup()
     const mockService = {
       id: 'srv-1', sdStatus: 'ACTIVE', validFrom: '2020-01-01',
@@ -155,7 +155,7 @@ describe('ClinicalResourceSearch', () => {
       name: '血常规五分类',
       unitCode: '次',
       sdServiceTypeText: '检验',
-      serviceSubtype: '血液学',
+      serviceSubtype: 'HEMATOLOGY',
       medicalTechnology: true,
       prices: [
         {
@@ -182,7 +182,9 @@ describe('ClinicalResourceSearch', () => {
     await user.type(searchInput, '血常规')
 
     const option = await screen.findByRole('option', { name: /血常规五分类/ })
-    expect(option.textContent).toContain('检验 · 血液学 · 参考销售价：CNY 20.00/次')
+    // The subtype is a code; doctors see its label, never the raw code.
+    expect(option.textContent).toContain('检验 · 血液体液检测 · 参考销售价：CNY 20.00/次')
+    expect(option.textContent).not.toContain('HEMATOLOGY')
     expect(option.textContent).not.toContain('单价:')
     expect(option.textContent).not.toContain('单位:')
     expect(option.textContent).toContain('医疗技术')

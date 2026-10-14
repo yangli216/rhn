@@ -293,7 +293,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                                 {
                                   "code":"PRACT_%s",
                                   "fullName":"测试医生%s",
-                                  "sdPractGender":"MALE"
+                                  "sdPractGender":"1"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())

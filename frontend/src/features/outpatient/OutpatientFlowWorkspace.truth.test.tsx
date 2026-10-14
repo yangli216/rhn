@@ -14,7 +14,7 @@ function board(): OutpatientFlowBoard {
     summary: { totalCount: 1, waitingConsultationCount: 0, inConsultationCount: 0,
       downstreamPendingCount: 0, exceptionCount: 0, completedCount: 1 },
     visits: [{ encounterId: 'enc-1', encounterNo: 'OP-1', residentId: 'resident-1', residentName: '待核验患者',
-      healthRecordNo: 'HR-1', gender: 'FEMALE', clinicalStatus: 'COMPLETED', flowStatus: 'COMPLETED', flowStatusText: '流程完成',
+      healthRecordNo: 'HR-1', gender: '2', clinicalStatus: 'COMPLETED', flowStatus: 'COMPLETED', flowStatusText: '流程完成',
       nextDestination: '可以离院', attentionReason: '接诊及诊后环节均已完成', pendingMinutes: 0, outstandingAmount: 0,
       registeredAt: '2026-10-03T07:00:00Z', stages: [
         { stageCode: 'CLINICAL', stageName: '接诊', status: 'COMPLETED', statusText: '诊毕', totalCount: 1, pendingCount: 0 },

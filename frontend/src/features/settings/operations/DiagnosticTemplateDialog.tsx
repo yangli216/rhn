@@ -120,8 +120,8 @@ function RuleFields({ value, index, disabled, coded, numeric, onChange, onRemove
   return <section><h3>参考规则{index + 1}</h3><div className="master-data-form-grid master-data-form-grid--2">
     <FormField label="规则代码"><input disabled={disabled} value={value.code} onChange={(e) => onChange({ code: e.target.value })} /></FormField>
     <FormField label="适用性别"><Select disabled={disabled} value={value.gender || ''} searchable={false}
-      options={[{ value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]} placeholder="不限定性别"
-      onChange={(gender) => onChange({ gender: gender ? gender as 'MALE' | 'FEMALE' : undefined })} /></FormField>
+      options={[{ value: '1', label: '男' }, { value: '2', label: '女' }]} placeholder="不限定性别"
+      onChange={(gender) => onChange({ gender: gender ? gender as '1' | '2' : undefined })} /></FormField>
     {(['minimumAgeDays', 'maximumAgeDays', 'referenceLow', 'referenceHigh', 'criticalLow', 'criticalHigh'] as const).map((field) => <FormField key={field}
       label={{ minimumAgeDays: '最小年龄（日，含）', maximumAgeDays: '最大年龄（日，不含）', referenceLow: '参考下限（含）', referenceHigh: '参考上限（含）', criticalLow: '危急低阈值（小于）', criticalHigh: '危急高阈值（大于）' }[field]}>
       <input type="number" disabled={disabled || !numeric && !field.endsWith('Days')} value={value[field] ?? ''}

@@ -109,7 +109,7 @@ class PaymentRoundingIntegrationTest extends RhnIntegrationTestSupport {
         String key = UUID.randomUUID().toString();
         long residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"fullName":"舍入校验患者","gender":"FEMALE","birthDate":"1992-02-02",
+                        {"fullName":"舍入校验患者","gender":"2","birthDate":"1992-02-02",
                          "identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}]}
                         """.formatted(key))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asLong();
         var account = accounts.saveAndFlush(new PatientAccount(Long.valueOf(TENANT), residentId, null,

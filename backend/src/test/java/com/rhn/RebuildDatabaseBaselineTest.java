@@ -65,7 +65,8 @@ class RebuildDatabaseBaselineTest {
             assertEquals(1, count(sql, "select count(*) from information_schema.columns"
                     + " where table_schema = current_schema() and table_name = 'rhn_bd_allergen'"
                     + " and column_name = 'id_alrgn'"));
-            assertEquals(247, count(sql, "select count(*) from RHN_BD_MED"
+            // Prior 247 quarantined imports plus the truncated "每支装" specification.
+            assertEquals(248, count(sql, "select count(*) from RHN_BD_MED"
                     + " where SD_STATUS = 'RETIRED' and CD_MED like 'MED-2026-%'"));
             assertEquals(4, count(sql, "select count(*) from RHN_BD_MED"
                     + " where SD_STATUS = 'ACTIVE' and CD_MED in"

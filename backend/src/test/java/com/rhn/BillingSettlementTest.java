@@ -522,7 +522,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"收费验收患者","identifiers":[{"system":"9","value":"33010219920202%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1992-02-02"}
+                                 "gender":"2","birthDate":"1992-02-02"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
@@ -541,7 +541,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
     private Reviewer createReviewer(String suffix) throws Exception {
         JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"BIL-P-%s\",\"fullName\":\"收费联动药师\",\"sdPractGender\":\"FEMALE\"}"
+                        .content("{\"code\":\"BIL-P-%s\",\"fullName\":\"收费联动药师\",\"sdPractGender\":\"2\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())

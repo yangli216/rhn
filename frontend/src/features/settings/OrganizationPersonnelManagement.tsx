@@ -1529,7 +1529,7 @@ function profileInput(value: ProfileForm): OrganizationProfileInput {
 const practitionerSchema = z.object({
   code: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/, '请输入有效人员代码（以字母开头）'),
   fullName: z.string().trim().min(1, '请输入人员姓名').max(100),
-  sdPractGender: z.enum(['MALE', 'FEMALE', 'UNKNOWN']),
+  sdPractGender: z.enum(['1', '2', '0', '9']),
   idCard: z.string().max(18).optional(),
   phone: z.string().max(20).optional(),
   education: z.string().max(100).optional(),
@@ -1659,7 +1659,7 @@ function PractitionerDialog({
     defaultValues: {
       code: value?.code ?? '',
       fullName: value?.fullName ?? '',
-      sdPractGender: value?.sdPractGender ?? 'UNKNOWN',
+      sdPractGender: value?.sdPractGender ?? '0',
       idCard: '',
       phone: '',
       education: '',

@@ -112,7 +112,7 @@ class ParameterizedRuleEngineTest {
     }
 
     private PrescriptionSafetySnapshot createSnapshot(Integer patientAge, List<PrescriptionSafetySnapshot.MedicationItem> items) {
-        return createSnapshot(patientAge, "MALE", items);
+        return createSnapshot(patientAge, "1", items);
     }
 
     private PrescriptionSafetySnapshot createSnapshot(Integer patientAge, String gender, List<PrescriptionSafetySnapshot.MedicationItem> items) {
@@ -295,7 +295,7 @@ class ParameterizedRuleEngineTest {
 
         // 7. 育龄期女性开立妊娠期高危致畸药物（利巴韦林、阿托伐他汀） -> 命中
         var pregRule = com.rhn.quality.medication.domain.rule.ClinicalParameterizedRules.pregnancyContraindication(json, membership);
-        var pregWomanSnapshot = createSnapshot(28, "FEMALE", List.of(
+        var pregWomanSnapshot = createSnapshot(28, "2", List.of(
                 createItem(901L, "利巴韦林颗粒", "ACTIVE")
         ));
         var pregFindings = pregRule.evaluate(pregWomanSnapshot, mockVersion);
@@ -313,26 +313,26 @@ class ParameterizedRuleEngineTest {
         assertTrue(statinFindings.getFirst().message().contains("阿托伐他汀钙片"));
 
         // 9. 男性开立利巴韦林 / 他汀 -> 放行（不触发妊娠禁忌）
-        var maleSnapshot = createSnapshot(28, "MALE", List.of(
+        var maleSnapshot = createSnapshot(28, "1", List.of(
                 createItem(901L, "利巴韦林颗粒", "ACTIVE"),
                 createItem(902L, "阿托伐他汀钙片", "ACTIVE")
         ));
         assertTrue(pregRule.evaluate(maleSnapshot, mockVersion).isEmpty());
 
         // 10. 65岁绝经期老年女性开立他汀 -> 放行（超出育龄期）
-        var elderlyWomanSnapshot = createSnapshot(65, "FEMALE", List.of(
+        var elderlyWomanSnapshot = createSnapshot(65, "2", List.of(
                 createItem(902L, "阿托伐他汀钙片", "ACTIVE")
         ));
         assertTrue(pregRule.evaluate(elderlyWomanSnapshot, mockVersion).isEmpty());
 
         // 11. 8岁女童开立利巴韦林 -> 放行（未进入育龄期）
-        var youngGirlSnapshot = createSnapshot(8, "FEMALE", List.of(
+        var youngGirlSnapshot = createSnapshot(8, "2", List.of(
                 createItem(901L, "利巴韦林颗粒", "ACTIVE")
         ));
         assertTrue(pregRule.evaluate(youngGirlSnapshot, mockVersion).isEmpty());
 
         // 12. 女性患者但年龄未知（null）开立致畸高危药 -> 防御性命中
-        var unknownAgeWoman = createSnapshot(null, "FEMALE", List.of(
+        var unknownAgeWoman = createSnapshot(null, "2", List.of(
                 createItem(901L, "利巴韦林颗粒", "ACTIVE")
         ));
         var unknownAgeFindings = pregRule.evaluate(unknownAgeWoman, mockVersion);

@@ -79,7 +79,7 @@ class DiagnosisOwnershipPersistenceTest extends RhnIntegrationTestSupport {
     private long encounter() throws Exception {
         var resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"fullName":"诊断归属核查","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1970-01-01"}
+                        {"fullName":"诊断归属核查","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"2","birthDate":"1970-01-01"}
                         """.formatted(UUID.randomUUID())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         var encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

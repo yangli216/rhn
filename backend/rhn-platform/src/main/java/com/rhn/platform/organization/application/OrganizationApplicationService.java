@@ -449,7 +449,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
             return assignmentView(assignment, organization.name(), department.name(),
                     position.name(), position.positionType(),
                     practitioner.id(), practitioner.code(), practitioner.fullName(),
-                    practitioner.gender() != null ? practitioner.gender().name() : null);
+                    practitioner.gender() != null ? practitioner.gender().code() : null);
         } catch (IllegalArgumentException exception) {
             throw badRequest("VALIDITY_PERIOD_INVALID", "任职结束日期不能早于开始日期");
         }
@@ -482,7 +482,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                     requireDepartmentEntity(tenantId, value.organizationId(), value.departmentId()).name(),
                     position.name(), position.positionType(),
                     practitioner.id(), practitioner.code(), practitioner.fullName(),
-                    practitioner.gender() != null ? practitioner.gender().name() : null);
+                    practitioner.gender() != null ? practitioner.gender().code() : null);
         }).toList();
         return new StaffDetailView(practitioner.toView(), employmentViews, assignmentViews);
     }
@@ -712,7 +712,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                     practitioner != null ? practitioner.id() : null,
                     practitioner != null ? practitioner.code() : "",
                     practitioner != null ? practitioner.fullName() : "",
-                    practitioner != null && practitioner.gender() != null ? practitioner.gender().name() : null);
+                    practitioner != null && practitioner.gender() != null ? practitioner.gender().code() : null);
         }).toList();
     }
 

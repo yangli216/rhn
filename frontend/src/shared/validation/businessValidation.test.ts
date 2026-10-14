@@ -54,7 +54,7 @@ describe('businessValidation', () => {
       const res = parseChineseResidentId('330102196601011138')
       expect(res).not.toBeNull()
       expect(res?.birthDate).toBe('1966-01-01')
-      expect(res?.gender).toBe('MALE')
+      expect(res?.gender).toBe('1')
     })
   })
 })

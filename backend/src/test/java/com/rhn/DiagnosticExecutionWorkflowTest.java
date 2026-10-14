@@ -120,7 +120,7 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"医技闭环测试居民","identifiers":[{"system":"9","value":"DIAG-%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1992-08-08"}
+                                 "gender":"2","birthDate":"1992-08-08"}
                                 """.formatted(tail)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

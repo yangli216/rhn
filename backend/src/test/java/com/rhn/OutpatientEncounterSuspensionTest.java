@@ -29,7 +29,7 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"门诊暂挂患者%s","identifiers":[{"system":"9","value":"33010219880808%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1988-08-08","phone":"13800138000"
+                                  "gender":"2","birthDate":"1988-08-08","phone":"13800138000"
                                 }
                                 """.formatted(suffix, digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();

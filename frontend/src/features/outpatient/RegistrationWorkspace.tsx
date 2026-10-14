@@ -190,7 +190,7 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
 }) {
   const [fullName, setFullName] = useState('')
   const [nationalId, setNationalId] = useState('')
-  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'UNKNOWN'>('MALE')
+  const [gender, setGender] = useState<'1' | '2' | '0' | '9'>('1')
   const [birthDate, setBirthDate] = useState('1990-01-01')
   const [phone, setPhone] = useState('')
   const [coverageType, setCoverageType] = useState('SELF_PAY')
@@ -245,7 +245,7 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
           title="请输入18位有效身份证号" /></FormField>
       </div>
       <div className="ui-form-row">
-        <FormField label="性别" required><Select value={gender} onChange={(v) => setGender(v as typeof gender)} options={[{ value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }, { value: 'UNKNOWN', label: '未知' }]} /></FormField>
+        <FormField label="性别" required><Select value={gender} onChange={(v) => setGender(v as typeof gender)} options={[{ value: '1', label: '男' }, { value: '2', label: '女' }, { value: '0', label: '未知的性别' }, { value: '9', label: '未说明的性别' }]} /></FormField>
         <FormField label="出生日期" required><input type="date" value={birthDate} max={businessDate()} onChange={(e) => setBirthDate(e.target.value)} required /></FormField>
         <FormField label="联系电话"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号码" maxLength={20} /></FormField>
       </div>
@@ -1057,7 +1057,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         {selected ? (
           <div className="registration-intake-strip__identity">
             <div className="registration-patient-identity">
-              <span className={`resident-avatar registration-patient-identity__avatar ${selected.gender.toLowerCase()}`}>
+              <span className={`resident-avatar registration-patient-identity__avatar ${selected.gender === '1' ? 'male' : selected.gender === '2' ? 'female' : ''}`}>
                 {selected.fullName.slice(-1)}
               </span>
               <div className="registration-patient-identity__content">

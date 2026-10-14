@@ -184,7 +184,7 @@ export interface ReceptionQueueItem {
   healthRecordNo: string
   residentName: string
   phone?: string
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  gender: '1' | '2' | '0' | '9'
   genderText?: string
   birthDate: string
   registrationNo: string

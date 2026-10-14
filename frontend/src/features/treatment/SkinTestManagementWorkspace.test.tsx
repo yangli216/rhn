@@ -322,7 +322,7 @@ describe('SkinTestManagementWorkspace', () => {
   it('displays patient demographics (gender and age) in queue item and header', async () => {
     const itemWithDemographics: SkinTestWorkItem = {
       ...dilutedItem,
-      gender: 'MALE',
+      gender: '1',
       genderText: '男',
       birthDate: '1992-05-10',
     }

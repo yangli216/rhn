@@ -163,7 +163,7 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"排队测试患者%s","identifiers":[{"system":"9","value":"QUEUE%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1990-01-02"
+                                  "gender":"2","birthDate":"1990-01-02"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())

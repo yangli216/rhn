@@ -50,7 +50,7 @@ class EncounterQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"就诊查询测试%s","identifiers":[{"system":"9","value":"ENC-QUERY-%s","useType":"SECONDARY"}],
-                                  "gender":"MALE","birthDate":"1988-08-18","phone":"13900139088"
+                                  "gender":"1","birthDate":"1988-08-18","phone":"13900139088"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())

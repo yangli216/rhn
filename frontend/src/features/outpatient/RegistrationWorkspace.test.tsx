@@ -14,7 +14,7 @@ import { OutpatientRegistrationWorkspace, queueItemStatusLabel, queueItemStatusT
 
 const resident: Resident = {
   id: 'resident-1', healthRecordNo: 'HR0001', fullName: '张三', maskedNationalId: '3301********1234',
-  gender: 'MALE', birthDate: '1990-01-01', deceased: false, createdAt: '2026-08-29T01:00:00Z',
+  gender: '1', birthDate: '1990-01-01', deceased: false, createdAt: '2026-08-29T01:00:00Z',
   status: 'ACTIVE', version: 0, identifiers: [],
 }
 
@@ -164,7 +164,7 @@ describe('OutpatientRegistrationWorkspace', () => {
   it('supports 30s quick registration dialog flow and auto-fills selected patient', async () => {
     const createdResident: Resident = {
       id: 'resident-quick', healthRecordNo: 'HR0099', fullName: '李小龙', maskedNationalId: '3301********9999',
-      gender: 'MALE', birthDate: '1985-05-05', deceased: false, createdAt: '2026-08-29T01:00:00Z',
+      gender: '1', birthDate: '1985-05-05', deceased: false, createdAt: '2026-08-29T01:00:00Z',
       status: 'ACTIVE', version: 0, identifiers: [],
     }
     const createResident = vi.fn().mockResolvedValue(createdResident)

@@ -186,9 +186,10 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("INACTIVE", "已停用", "不再用于新业务", 50),
                             item("MERGED", "已合并", "已合并到其他机构", 60))),
             definition(PRACT_GENDER, "从业人员性别", "人员主档中的性别代码", List.of(
-                            item("MALE", "男", "男性", 10),
-                            item("FEMALE", "女", "女性", 20),
-                            item("UNKNOWN", "未知", "未登记或未知", 30))),
+                            item("1", "男", "GB/T 2261.1-2003", 10),
+                            item("2", "女", "GB/T 2261.1-2003", 20),
+                            item("0", "未知的性别", "GB/T 2261.1-2003", 0),
+                            item("9", "未说明的性别", "GB/T 2261.1-2003", 90))),
             definition(PERSONNEL_STATUS, "人员业务状态", "人员、聘用、岗位和任职的当前状态", List.of(
                             item("ACTIVE", "已启用", "可用于当前业务", 10),
                             item("INACTIVE", "已停用", "不再用于新业务", 20))),
@@ -273,9 +274,10 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("CONTAINS", "模糊匹配", "在名称或简码任意位置匹配", 20),
                             item("SIMILARITY", "相似度", "按编辑距离计算相似结果", 30))),
             definition(RESIDENT_GENDER, "居民性别", "居民主档中的性别代码", List.of(
-                            item("MALE", "男", "男性", 10),
-                            item("FEMALE", "女", "女性", 20),
-                            item("UNKNOWN", "未知", "未登记或未知", 30))),
+                            item("1", "男", "GB/T 2261.1-2003", 10),
+                            item("2", "女", "GB/T 2261.1-2003", 20),
+                            item("0", "未知的性别", "GB/T 2261.1-2003", 0),
+                            item("9", "未说明的性别", "GB/T 2261.1-2003", 90))),
             definition(BED_DISPLAY_STATUS, "床位显示状态", "住院床位在床位图上的展示状态", List.of(
                             item("AVAILABLE", "空床", "当前可收治患者", 10),
                             item("OCCUPIED", "占用", "已有患者占用", 20),

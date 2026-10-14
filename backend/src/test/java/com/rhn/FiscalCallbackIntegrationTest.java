@@ -153,7 +153,7 @@ class FiscalCallbackIntegrationTest extends RhnIntegrationTestSupport {
     Receipt fixture(String operation) throws Exception {
         String key=UUID.randomUUID().toString();
         long residentId=json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"fullName\":\"财政回执校验\",\"gender\":\"FEMALE\",\"birthDate\":\"1992-02-02\",\"identifiers\":[{\"system\":\"9\",\"value\":\""+key+"\",\"useType\":\"SECONDARY\"}]}"))
+                .content("{\"fullName\":\"财政回执校验\",\"gender\":\"2\",\"birthDate\":\"1992-02-02\",\"identifiers\":[{\"system\":\"9\",\"value\":\""+key+"\",\"useType\":\"SECONDARY\"}]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asLong();
         var account=accounts.saveAndFlush(new PatientAccount(Long.valueOf(TENANT),residentId,null,Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"CNY"));
         var invoice=invoices.saveAndFlush(new Invoice(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),"INV-"+key,"CNY",BigDecimal.TEN,Instant.now(),362387869790222L));

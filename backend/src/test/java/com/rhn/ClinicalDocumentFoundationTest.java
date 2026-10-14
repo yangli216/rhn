@@ -24,7 +24,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"fullName":"签署居民","identifiers":[{"system":"9","value":"330102198801011288","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1988-01-01"}
+                                 "gender":"2","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String residentId = objectMapper.readTree(residentBody).get("id").asString();
@@ -100,7 +100,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                                 {
                                   "fullName":"赵青",
                                   "identifiers":[{"system":"9","value":"330102198801011199","useType":"SECONDARY"}],
-                                  "gender":"FEMALE",
+                                  "gender":"2",
                                   "birthDate":"1988-01-01"
                                 }
                                 """))
@@ -180,7 +180,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"fullName":"多病程居民","identifiers":[{"system":"9","value":"330102198801011377","useType":"SECONDARY"}],
-                                 "gender":"MALE","birthDate":"1988-01-01"}
+                                 "gender":"1","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String residentId = objectMapper.readTree(residentBody).get("id").asString();

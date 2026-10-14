@@ -25,7 +25,7 @@ import { installTemplateCatalog } from './templates/resolveTemplateOrders.testFi
 const mockResident: Resident = {
   id: 'resident-1',
   fullName: '张建国',
-  gender: 'MALE',
+  gender: '1',
   birthDate: '1975-06-15',
   healthRecordNo: 'HR362387869900101',
   phone: '13800000001',
@@ -92,7 +92,7 @@ const mockQueueItem: ReceptionQueueItem = {
   residentId: 'resident-1',
   healthRecordNo: 'HR362387869900101',
   residentName: '张建国',
-  gender: 'MALE',
+  gender: '1',
   birthDate: '1975-06-15',
   registrationNo: 'REG20260902001',
   ticketNo: 'A001',

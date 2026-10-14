@@ -15,7 +15,7 @@ import java.util.List;
 public record UpdateResidentProfileRequest(
         @PositiveOrZero long expectedVersion,
         @NotBlank @Size(max = 100) String fullName,
-        @NotBlank @Pattern(regexp = "MALE|FEMALE|UNKNOWN") String gender,
+        @NotBlank @Pattern(regexp = "0|1|2|9") String gender,
         @NotNull @PastOrPresent LocalDate birthDate,
         @Pattern(regexp = "^$|^[0-9+ -]{6,32}$", message = "联系电话格式不正确") String phone,
         boolean deceased,

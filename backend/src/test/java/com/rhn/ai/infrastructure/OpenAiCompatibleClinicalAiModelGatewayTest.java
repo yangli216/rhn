@@ -367,7 +367,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("当前输入明确正在使用的药品不重复列为新增用药"));
         assertFalse(writingPrompt.contains("有有效临床输入时生成五个段落"));
         assertFalse(writingPrompt.contains("没有事实且没有既有预设时写"));
-        assertTrue(requestBody.get().contains("FEMALE"));
+        assertTrue(requestBody.get().contains("2"));
         assertTrue(requestBody.get().contains("血常规"));
         assertTrue(requestBody.get().contains("白细胞计数"));
         assertTrue(requestBody.get().contains("12.5"));
@@ -673,7 +673,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                                 "{\"code\":\"BID\",\"frequencyCount\":2}"))), List.of());
         return new ModelRequest("RHN-CLINICAL-ASSISTANT-V9", "补全病历", "语音转写内容",
                 new Draft("头晕", "", "高血压病史", "", "", 160, 100, null, 80, 18, 98, List.of()),
-                new ResidentDirectory.ResidentSnapshot(1L, "HRN001", "测试患者", "FEMALE",
+                new ResidentDirectory.ResidentSnapshot(1L, "HRN001", "测试患者", "2",
                         LocalDate.of(1988, 8, 8), "13800000000", false),
                 List.of(), List.of(plan), List.of(report()), List.of(history), null,
                 com.rhn.ai.api.ClinicalAssistantContracts.ReceptionScene.REPORT_FOLLOW_UP,

@@ -108,7 +108,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
         JsonNode attachmentConfiguration = json(mockMvc.perform(post(
                         "/api/platform/master-data/operations/services/362387869795103/examination-attachments")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
-                        {"attachmentCatalogItemId":"362387869795102","triggerType":"MULTI_SITE",
+                        {"attachmentCatalogItemId":"362387890000297","triggerType":"MULTI_SITE",
                          "quantityBasis":"PER_SITE","quantity":1,"requiredAttachment":true,
                          "separatelyChargeable":true,"sortOrder":10,"description":"多部位附件",
                          "status":"ACTIVE"}
@@ -141,7 +141,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                          "requiredSpecimen":true,"sortOrder":10,"collectionDescription":"EDTA分管",
                          "status":"ACTIVE","tubeGroupCode":"EDTA_HEMATOLOGY",
                          "tubeSharingMode":"BY_TEST_COUNT","baseTubeCount":1,"maxTestsPerTube":3,
-                         "tubeChargeMode":"PER_TUBE","tubeChargeItemId":"362387869795102",
+                         "tubeChargeMode":"PER_TUBE","tubeChargeItemId":"362387890000297",
                          "includedTubeCount":0,"tubeChargeQuantity":1}
                         """.formatted(specimen.get("revision").asLong(), specimen.get("specimenItemId").asString(),
                         specimen.get("containerItemId").asString())))
@@ -266,7 +266,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                         {"code":"LIS-%s","name":"入院检验组套","groupType":"LIS","pointOfCare":false,
                          "status":"ACTIVE","validFrom":"2026-01-01","members":[
                            {"catalogItemId":"362387869795101","sortOrder":10,"quantity":1,"requiredMember":true},
-                           {"catalogItemId":"362387869795102","sortOrder":20,"quantity":1,"requiredMember":true}]}
+                           {"catalogItemId":"362387890000297","sortOrder":20,"quantity":1,"requiredMember":true}]}
                         """.formatted(suffix)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.members.length()").value(2))
@@ -278,7 +278,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                          "groupType":"LIS","usageType":"INPATIENT","pointOfCare":false,"status":"ACTIVE",
                          "validFrom":"2026-01-01","members":[
                            {"catalogItemId":"362387869795101","sortOrder":10,"quantity":2,"unitCode":"EA","requiredMember":true,"memberDescription":"采集两管"},
-                           {"catalogItemId":"362387869795102","sortOrder":20,"quantity":1,"requiredMember":false}]}
+                           {"catalogItemId":"362387890000297","sortOrder":20,"quantity":1,"requiredMember":false}]}
                         """.formatted(group.get("revision").asLong(), suffix)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("入院检验组套（修订）"))

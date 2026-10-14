@@ -276,7 +276,11 @@ function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit)
 
   // Route
   let defaultRoute = null;
-  if (sdDoseForm.startsWith("EYE_")) {
+  if (isInjectionDoseForm(sdDoseForm)) {
+    // A catalog dosage form cannot establish IM/IV/SC administration. In particular,
+    // insulin, contrast agents and ocular injections must not inherit a generic IM route.
+    defaultRoute = null;
+  } else if (sdDoseForm.startsWith("EYE_")) {
     defaultRoute = "OPHTHALMIC";
   } else if (sdDoseForm === "EAR_DROPS") {
     defaultRoute = "OTIC";
@@ -288,15 +292,15 @@ function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit)
     defaultRoute = "VAGINAL";
   } else if (sdDoseForm === "ENEMA") {
     defaultRoute = "RECTAL";
-  } else if (isInjectionDoseForm(sdDoseForm)) {
-    defaultRoute = (["粉末", "浓溶液", "氯化钠", "葡萄糖"].some(value => formName.includes(value))
-      || name.includes("氯化钠") || name.includes("葡萄糖")) ? "IVGTT" : "IM";
   } else if (isOralDoseForm(sdDoseForm) || formName.includes("丸")) {
     defaultRoute = "ORAL";
   } else if (["CREAM", "OINTMENT", "GEL", "TOPICAL_SOLUTION", "LINIMENT", "PASTE"].includes(sdDoseForm)) {
     defaultRoute = "TOPICAL";
   } else if (sdDoseForm === "DROPS") {
-    defaultRoute = (formName.includes("眼") || name.includes("眼")) ? "OPHTHALMIC" : "OTIC";
+    if (formName.includes("眼") || name.includes("眼")) defaultRoute = "OPHTHALMIC";
+    else if (formName.includes("鼻") || name.includes("鼻")) defaultRoute = "NASAL";
+    else if (formName.includes("耳") || name.includes("耳")) defaultRoute = "OTIC";
+    // Unqualified drops may be oral; they are not automatically ear drops.
   } else if (sdDoseForm === "AEROSOL" || sdDoseForm.includes("INHAL") || sdDoseForm.includes("NEBUL")) {
     defaultRoute = (formName.includes("溶液") || formName.includes("混悬")) ? "NEB" : "INHALATION";
   } else if (sdDoseForm === "SUPPOSITORY") {
@@ -306,17 +310,9 @@ function determineDrugAttributes(item, formName, specDesc, sdDoseForm, prepUnit)
   }
 
   // Frequency
-  let defaultFreq = defaultRoute ? "BID" : null;
-  if (isAntimicrobial) {
-    defaultFreq = isOralDoseForm(sdDoseForm) ? "TID" : "QD";
-  } else if (chronic) {
-    defaultFreq = "QD";
-  } else if (["对乙酰氨基酚", "布洛芬", "氨茶碱", "硝酸甘油"].some(w => name.includes(w))) {
-    defaultFreq = "PRN";
-  } else {
-    defaultFreq = isTcm ? "TID" : "BID";
-  }
-  if (!defaultRoute) defaultFreq = null;
+  // Directory membership and therapeutic category are not prescribing instructions.
+  // Frequency requires a maintained product/clinical configuration, not a name heuristic.
+  const defaultFreq = null;
 
   // Storage
   let storage = "ROOM_TEMPERATURE";
@@ -443,7 +439,7 @@ for (const v of uniqueVarieties) {
       defaultFrequency: attrs.defaultFreq,
       chronicDiseaseDrug: attrs.chronic,
       singleOrder: true,
-      status: "ACTIVE"
+      status: e.spec.trim() === "每支装" ? "RETIRED" : "ACTIVE"
     });
   });
 }
@@ -502,7 +498,7 @@ for (const it of items) {
     escapeCsv(it.defaultFrequency),
     it.chronicDiseaseDrug ? "是" : "否",
     "是",
-    "ACTIVE"
+    it.status
   ].join(","));
 }
 
@@ -560,7 +556,7 @@ for (let i = 0; i < items.length; i++) {
     it.skinTestRequired ? "true" : "false", "null", "null",
     sqlStr(it.defaultRoute), sqlStr(it.defaultFrequency),
     it.chronicDiseaseDrug ? "true" : "false", "true",
-    "'ACTIVE'", "timestamp with time zone '2026-01-01 00:00:00+08'", userId,
+    sqlStr(it.status), "timestamp with time zone '2026-01-01 00:00:00+08'", userId,
     "timestamp with time zone '2026-01-01 00:00:00+08'", userId,
     itemTypeId, "null", "null", "null",
     it.amOutpatient ? "true" : "false",
@@ -591,7 +587,7 @@ for (let i = 0; i < items.length; i++) {
     it.skinTestRequired ? 1 : 0, "null", "null",
     sqlStr(it.defaultRoute), sqlStr(it.defaultFrequency),
     it.chronicDiseaseDrug ? 1 : 0, 1,
-    "'ACTIVE'", "timestamp '2026-01-01 00:00:00'", userId,
+    sqlStr(it.status), "timestamp '2026-01-01 00:00:00'", userId,
     "timestamp '2026-01-01 00:00:00'", userId,
     itemTypeId, "null", "null", "null",
     it.amOutpatient ? 1 : 0,

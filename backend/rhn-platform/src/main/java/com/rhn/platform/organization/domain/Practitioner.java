@@ -3,6 +3,7 @@ package com.rhn.platform.organization.domain;
 import com.rhn.platform.organization.api.StaffView;
 import com.rhn.shared.api.StaleRevisionException;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,7 +20,7 @@ public class Practitioner {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "CD_PRACT", nullable = false) private String code;
     @Column(name = "NA_FULL", nullable = false) private String fullName;
-    @Enumerated(EnumType.STRING) @Column(name = "SD_GENDER") private PractitionerGender gender;
+    @Convert(converter = PractitionerGenderConverter.class) @Column(name = "SD_GENDER") private PractitionerGender gender;
     @Column(name = "HASH_IDENT") private String identityHash;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -77,7 +78,7 @@ public class Practitioner {
     public long revision() { return revision; }
 
     public StaffView toView() {
-        return new StaffView(id, revision, code, fullName, gender == null ? null : gender.name(),
+        return new StaffView(id, revision, code, fullName, gender == null ? null : gender.code(),
                 status.name(), createdAt, updatedAt);
     }
 }

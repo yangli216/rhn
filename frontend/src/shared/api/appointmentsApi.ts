@@ -15,7 +15,7 @@ export interface Appointment {
   residentId: string
   healthRecordNo: string
   residentName: string
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  gender: '1' | '2' | '0' | '9'
   genderText?: string
   birthDate: string
   scheduleId: string

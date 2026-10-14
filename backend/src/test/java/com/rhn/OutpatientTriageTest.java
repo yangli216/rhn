@@ -40,7 +40,7 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"patientName":"待评估患者","gender":"MALE",
+                                {"patientName":"待评估患者","gender":"1",
                                  "fever":false,"triageLevel":"LEVEL_4_NON_URGENT"}
                                 """))
                 .andExpect(status().isOk())
@@ -68,7 +68,7 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
                 null,
                 null,
                 "张建国",
-                "MALE",
+                "1",
                 58,
                 LocalDate.of(1968, 5, 20),
                 "13800138000",
@@ -173,7 +173,7 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
                                   "pulseRate":102,
                                   "consciousness":"ALERT",
                                   "age":35,
-                                  "gender":"MALE",
+                                  "gender":"1",
                                   "aiEnhancement":true
                                 }
                                 """))
@@ -188,7 +188,7 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
     @Test
     void shouldRaiseSubmittedLevelToServerRuleBaseline() throws Exception {
         CreateTriageRequest request = new CreateTriageRequest(
-                Long.valueOf(ORGANIZATION), null, null, null, "安全基线患者", "MALE", 45, null,
+                Long.valueOf(ORGANIZATION), null, null, null, "安全基线患者", "1", 45, null,
                 null, null, null, "WALK_IN", "NONE", "头晕", "", BigDecimal.valueOf(36.8),
                 BigDecimal.valueOf(80), BigDecimal.valueOf(18), BigDecimal.valueOf(190),
                 BigDecimal.valueOf(115), BigDecimal.valueOf(98), null, 1, "ALERT", false, null, null,

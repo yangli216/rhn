@@ -55,7 +55,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
           itemAttributeHash: 'hash-1',
           medicationSnapshot: {
             residentName: '晓康',
-            gender: 'MALE',
+            gender: '1',
             birthDate: '1945-05-11',
             nationalId: '230208194505119377',
             phone: '13367581545',
@@ -134,15 +134,15 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
       },
       residents: {
         page: vi.fn().mockResolvedValue({
-          items: [{ id: 'res-1', fullName: '晓康', gender: 'MALE', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' }],
+          items: [{ id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' }],
           total: 1,
         }),
         get: vi.fn().mockResolvedValue({
-          id: 'res-1', fullName: '晓康', gender: 'MALE', birthDate: '1945-05-11', phone: '13367581545',
+          id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545',
           maskedNationalId: '230208194505119377', nationalId: '230208194505119377',
         }),
         profile: vi.fn().mockResolvedValue({
-          resident: { id: 'res-1', fullName: '晓康', gender: 'MALE', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' },
+          resident: { id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' },
           demographicProfile: { ethnicityCodeText: '汉族' },
           addresses: [{ addressText: '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑', primary: true }],
           coverages: [{ sdCoverageType: 'SELF_PAY', sdCoverageTypeText: '自费' }],
@@ -345,7 +345,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
           itemAttributeHash: 'hash-2',
           medicationSnapshot: {
             residentName: '晓康',
-            gender: 'MALE',
+            gender: '1',
             birthDate: '1945-05-11',
             manufacturerName: '示范制药有限公司',
           },
@@ -573,7 +573,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
       },
       residents: {
         page: vi.fn().mockResolvedValue({
-          content: [{ id: 'resident-1', fullName: '李梅', gender: 'FEMALE', birthDate: '1985-06-15', phone: '13800000000', healthRecordNo: 'HR20260001' }],
+          content: [{ id: 'resident-1', fullName: '李梅', gender: '2', birthDate: '1985-06-15', phone: '13800000000', healthRecordNo: 'HR20260001' }],
         }),
       },
     } as unknown as RhnApi

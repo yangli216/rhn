@@ -11,7 +11,7 @@ import { RegistrationQueryWorkspace } from './RegistrationQueryWorkspace'
 
 const waitingRegistration: ReceptionQueueItem = {
   registrationId: 'registration-1', scheduleId: 'schedule-1', encounterId: 'encounter-1', residentId: 'resident-1',
-  healthRecordNo: 'HR0001', residentName: '张三', gender: 'MALE', birthDate: '1990-01-01',
+  healthRecordNo: 'HR0001', residentName: '张三', gender: '1', birthDate: '1990-01-01',
   registrationNo: 'REG001', ticketNo: 'A001', sequenceNo: 1, priority: 0, registrationSource: 'WINDOW',
   visitType: 'GENERAL', registrationStatus: 'REGISTERED', status: 'WAITING', practitionerName: '李医生',
   serviceName: '全科门诊', locationName: '诊室 1', registeredAt: '2026-08-31T01:30:00Z',
@@ -21,7 +21,7 @@ const waitingRegistration: ReceptionQueueItem = {
 const completedRegistration: ReceptionQueueItem = {
   ...waitingRegistration,
   registrationId: 'registration-2', encounterId: 'encounter-2', residentId: 'resident-2',
-  healthRecordNo: 'HR0002', residentName: '王芳', gender: 'FEMALE', birthDate: '1986-03-08',
+  healthRecordNo: 'HR0002', residentName: '王芳', gender: '2', birthDate: '1986-03-08',
   registrationNo: 'REG002', ticketNo: 'A002', sequenceNo: 2, registrationStatus: 'REGISTERED',
   status: 'COMPLETED', registeredAt: '2026-08-31T02:00:00Z',
 }

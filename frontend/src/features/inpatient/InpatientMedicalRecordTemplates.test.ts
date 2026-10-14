@@ -5,7 +5,7 @@ import { createInpatientDocumentTemplate, inpatientDocumentDefinitions } from '.
 
 const episode: InpatientEpisode = {
   id: '100', revision: 0, episodeNo: 'IP202608300001', status: 'ADMITTED',
-  residentId: '200', residentName: '住院模板测试居民', healthRecordNo: 'HR001', gender: 'FEMALE',
+  residentId: '200', residentName: '住院模板测试居民', healthRecordNo: 'HR001', gender: '2',
   birthDate: '1988-02-03', organizationId: '300', departmentId: '400', departmentName: '综合病区',
   encounterId: '500', encounterNo: 'IPE202608300001', bedId: '600', bedNo: '01床',
   admittedAt: '2026-08-30T08:00:00+08:00',

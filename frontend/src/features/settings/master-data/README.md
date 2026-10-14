@@ -15,6 +15,8 @@
 | 检验检查规格、标本、规则和试算 | ../operations/ClinicalServiceConfiguration.tsx、SpecimenConfigurationDialog.tsx、ExaminationRules.tsx、LaboratoryTubeSimulator.tsx、ExaminationChargeSimulator.tsx |
 | 组合/组套、耗材、单位、频次 | ../operations/ItemGroupDialog.tsx、SupplyDialog.tsx、UnitMaintenance.tsx、FrequencyMaintenance.tsx |
 
+诊疗项目子类（`SD_SVC_SUBTYPE`）是编码，中文显示统一用 `shared/presentation/serviceSubtype.ts`；排班依赖 `OUTPATIENT_VISIT`，执行科室按检查类型（`SD_EXAM_TYPE`）路由。导入或生成目录时不得把收费清单的中文类别写入子类，映射见 `scripts/build-primary-medical-services.py` 与迁移 `V1_129_0`。同名同类型的启用项目只保留一个，重复项按目录生命周期停用，不改名共存。
+
 只读主数据查询使用当前机构、业务日期、状态与有效期；不能只根据项目名称或硬编码科室 ID 判断可开立性。价格/启用/包装变更继续携带当前版本和变更原因，保存后刷新相应缓存；布局拆分不改变这些行为。
 
 后端仍由 `MasterDataApplicationService` 协调写事务、版本核对、目录/语义投影。字典、给药途径/频次及抗菌药/皮试校验集中在 `CatalogCommandValidation`，该单元不持有仓储或写事务。不要把校验下沉到 UI 后取消服务端检查。

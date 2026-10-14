@@ -1,5 +1,5 @@
 export interface DiagnosticReferenceRule {
-  code: string; gender?: 'MALE' | 'FEMALE'; minimumAgeDays?: number; maximumAgeDays?: number
+  code: string; gender?: '1' | '2'; minimumAgeDays?: number; maximumAgeDays?: number
   instrumentCode?: string; populationCode?: string; referenceLow?: number; referenceHigh?: number
   criticalLow?: number; criticalHigh?: number; criticalCodes: string[]
 }

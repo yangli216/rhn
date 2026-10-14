@@ -625,7 +625,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"库存并发患者","identifiers":[{"system":"9","value":"33010219910101%s","useType":"SECONDARY"}],
-                                 "gender":"MALE","birthDate":"1991-01-01"}
+                                 "gender":"1","birthDate":"1991-01-01"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
@@ -644,7 +644,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
     private Reviewer createReviewer(String suffix) throws Exception {
         JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"INV-P-%s\",\"fullName\":\"库存药师\",\"sdPractGender\":\"FEMALE\"}"
+                        .content("{\"code\":\"INV-P-%s\",\"fullName\":\"库存药师\",\"sdPractGender\":\"2\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())

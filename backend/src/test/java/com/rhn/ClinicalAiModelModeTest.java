@@ -513,7 +513,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                                 {
                                   "fullName":"模型模式测试居民",
                                   "identifiers":[{"system":"9","value":"MODEL%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1988-08-08"
+                                  "gender":"2","birthDate":"1988-08-08"
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());

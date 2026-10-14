@@ -85,7 +85,7 @@ class ClinicalAiPlanPreflightTest extends RhnIntegrationTestSupport {
                                 {
                                   "fullName":"AI预检测试患者",
                                   "identifiers":[{"system":"9","value":"AIPF%s","useType":"SECONDARY"}],
-                                  "gender":"MALE","birthDate":"1975-06-18"
+                                  "gender":"1","birthDate":"1975-06-18"
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();

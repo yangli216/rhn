@@ -347,7 +347,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"药房验收患者","identifiers":[{"system":"9","value":"PHARMACY-%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1988-12-12"
+                                  "gender":"2","birthDate":"1988-12-12"
                                 }
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
@@ -371,7 +371,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
     private Reviewer createReviewer(String suffix, String positionType) throws Exception {
         JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"code":"PHARM-%s","fullName":"验收药师%s","sdPractGender":"FEMALE"}
+                                {"code":"PHARM-%s","fullName":"验收药师%s","sdPractGender":"2"}
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())

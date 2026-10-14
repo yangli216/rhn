@@ -30,7 +30,7 @@ public record DepartmentProfileView(
 
     public record DepartmentCapability(
             Long id,
-            @DictionaryBinding(OrganizationDictionaryCodes.DEPARTMENT_CAPABILITY_TYPE) String sdCapabilityType,
+            @DictionaryBinding(OrganizationDictionaryCodes.CAPABILITY_TYPE) String sdCapabilityType,
             String qualificationBasisCode, String capabilityScope, LocalDate validFrom, LocalDate validTo,
             @DictionaryBinding(OrganizationDictionaryCodes.VERIFY_STATUS) String sdVerifyStatus,
             @DictionaryBinding(OrganizationDictionaryCodes.DETAIL_STATUS) String sdDetailStatus

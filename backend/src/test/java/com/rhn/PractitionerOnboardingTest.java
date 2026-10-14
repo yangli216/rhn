@@ -108,7 +108,7 @@ class PractitionerOnboardingTest extends RhnIntegrationTestSupport {
     private Map<String, Object> input() {
         var input = new LinkedHashMap<String, Object>();
         input.put("code", "ONBOARD_" + UUID.randomUUID().toString().replace("-", ""));
-        input.put("fullName", "入职测试人员"); input.put("sdPractGender", "UNKNOWN");
+        input.put("fullName", "入职测试人员"); input.put("sdPractGender", "0");
         input.put("organizationId", ORGANIZATION); input.put("departmentId", DEPARTMENT);
         input.put("positionId", jdbc.queryForObject("SELECT MIN(ID_POS) FROM RHN_SYS_POS WHERE ID_TNT = ? AND SD_STATUS = 'ACTIVE'", Long.class, Long.valueOf(TENANT)).toString());
         input.put("hireDate", "2026-10-03"); return input;

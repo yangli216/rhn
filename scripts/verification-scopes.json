@@ -333,7 +333,15 @@
         "ServiceExecutionDepartmentDefaultTest",
         "ServiceCatalogSearchCompletenessTest",
         "ItemAliasMasterDataTest",
-        "CatalogLifecycleReceiptTest"
+        "CatalogLifecycleReceiptTest",
+        "ServiceCatalogStandardizationTest",
+        "DictionaryConformanceTest",
+        "DevelopmentSeedRealismTest",
+        "DictionaryManagementFoundationTest",
+        "TerminologyGovernanceTest",
+        "ResidentIdentifierTruthTest",
+        "PractitionerOnboardingTest",
+        "OrganizationCatalogSharingIntegrationTest"
       ]
     },
     "inventory": {

@@ -39,7 +39,7 @@ class PrescriptionSafetySnapshotServiceTest {
                         70L, 71L, "ALLERGY", "DRUG", "HIGH", null, "local", "PENICILLIN", "青霉素", null)));
         when(residents.requireSnapshot(1L, 4L)).thenReturn(
                 new com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot(
-                        4L, "R", "患者", "MALE", java.time.LocalDate.now().minusYears(30), null, false));
+                        4L, "R", "患者", "1", java.time.LocalDate.now().minusYears(30), null, false));
         var active = request(12L, MedicationRequestStatus.ACTIVE);
         when(active.skinTestExempt()).thenReturn(true);
         when(active.skinTestExemptReason()).thenReturn("既有阴性记录");
@@ -64,7 +64,7 @@ class PrescriptionSafetySnapshotServiceTest {
         assertEquals("既有阴性记录", item.skinTestExemptReason());
         assertEquals(88L, item.exemptEvidenceEventId());
         assertEquals(30, snapshot.patientContext().patientAgeYears());
-        assertEquals("MALE", snapshot.patientContext().gender());
+        assertEquals("1", snapshot.patientContext().gender());
         assertTrue(snapshot.patientContext().allergyStatusRecorded());
         assertEquals("PENICILLIN", snapshot.patientContext().activeAllergies().getFirst().substanceCode());
         assertEquals(1L, snapshot.tenantId());

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { onlyPrimary, requireOrganizationUnits, requirePersonnelAssignments, requirePositions, requirePractitionerDetail, requirePractitioners } from './organizationPersonnelFacts'
 
-const person = { id: 'person', revision: 1, code: 'P001', fullName: '测试医生', sdPractGender: 'MALE', sdPractGenderText: '男',
+const person = { id: 'person', revision: 1, code: 'P001', fullName: '测试医生', sdPractGender: '1', sdPractGenderText: '男',
   sdPersonnelStatus: 'ACTIVE', sdPersonnelStatusText: '正常', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }
 const employment = { id: 'employment', revision: 1, code: 'E001', practitionerId: 'person', organizationId: 'org', organizationName: '机构',
   sdEmploymentType: 'PERMANENT', sdEmploymentTypeText: '正式', primaryEmployment: true, hireDate: '2026-01-01',
   sdPersonnelStatus: 'ACTIVE', sdPersonnelStatusText: '正常' }
 const assignment = { id: 'assignment', revision: 1, code: 'A001', employmentId: 'employment', practitionerId: 'person', practitionerCode: 'P001',
-  practitionerName: '测试医生', sdPractGender: 'MALE', organizationId: 'org', organizationName: '机构', departmentId: 'dept', departmentName: '科室',
+  practitionerName: '测试医生', sdPractGender: '1', organizationId: 'org', organizationName: '机构', departmentId: 'dept', departmentName: '科室',
   positionId: 'position', positionName: '岗位', sdPositionType: 'CLINICAL', sdPositionTypeText: '临床', sdAssignmentType: 'PRIMARY',
   sdAssignmentTypeText: '主任职', primaryAssignment: true, workloadPercent: 100, sdPersonnelStatus: 'ACTIVE', sdPersonnelStatusText: '正常', validFrom: '2026-01-01' }
 const position = { id: 'position', revision: 1, code: 'POS', name: '岗位', sdPositionType: 'CLINICAL', sdPositionTypeText: '临床',
@@ -77,7 +77,7 @@ describe('organization personnel authoritative reads', () => {
     expect(() => requirePractitionerDetail(source, 'person')).toThrow(/人员档案/)
   })
   it.each([{ employmentId: 'other' }, { practitionerId: 'other' }, { practitionerCode: 'OTHER' }, { practitionerName: '其他人' },
-    { sdPractGender: 'FEMALE' }, { organizationId: 'other' }, { validFrom: '2025-01-01' },
+    { sdPractGender: '2' }, { organizationId: 'other' }, { validFrom: '2025-01-01' },
   ])('verifies detail relationship ownership and effective dates %j', patch => {
     expect(() => requirePractitionerDetail({ ...detail, assignments: [{ ...assignment, ...patch }] }, 'person')).toThrow()
   })

@@ -202,7 +202,7 @@ public class ParameterizedCategoryPopulationRule implements MedicationSafetyRule
         if (target == null || target.isBlank()) {
             return true;
         }
-        if (patientGender == null || patientGender.isBlank()) {
+        if (patientGender == null || patientGender.isBlank() || "0".equals(patientGender) || "9".equals(patientGender)) {
             return false;
         }
         boolean targetIsFemale = isFemale(target);
@@ -213,7 +213,7 @@ public class ParameterizedCategoryPopulationRule implements MedicationSafetyRule
     private static boolean isFemale(String gender) {
         if (gender == null) return false;
         String trimmed = gender.trim();
-        return "FEMALE".equalsIgnoreCase(trimmed)
+        return "2".equalsIgnoreCase(trimmed)
                 || "F".equalsIgnoreCase(trimmed)
                 || "女".equals(trimmed)
                 || "女性".equals(trimmed);

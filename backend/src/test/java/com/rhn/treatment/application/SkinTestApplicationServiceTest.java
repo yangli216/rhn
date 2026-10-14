@@ -57,7 +57,7 @@ class SkinTestApplicationServiceTest {
         lenient().when(events.findByTenantIdAndMedicationRequestIdInOrderByStartedAtDesc(1L, List.of(100L)))
                 .thenReturn(List.of());
         lenient().when(residents.requireSnapshot(30L)).thenReturn(new ResidentDirectory.ResidentSnapshot(
-                30L, "HR001", "测试患者", "FEMALE", LocalDate.of(1990, 1, 1), null, false));
+                30L, "HR001", "测试患者", "2", LocalDate.of(1990, 1, 1), null, false));
         service = new SkinTestApplicationService(events, medicationRequests, residents, settlements,
                 fulfillment, allergies, contextProvider, eventPublisher);
     }
@@ -70,7 +70,7 @@ class SkinTestApplicationServiceTest {
         var item = service.worklist(null, null, null).getFirst();
 
         assertThat(item.status()).isEqualTo("PENDING");
-        assertThat(item.gender()).isEqualTo("FEMALE");
+        assertThat(item.gender()).isEqualTo("2");
         assertThat(item.birthDate()).isEqualTo(LocalDate.of(1990, 1, 1));
         assertThat(item.configuredSolutionMode()).isEqualTo("DILUTED_SOLUTION");
         assertThat(item.settlementRequiredBeforeStart()).isFalse();

@@ -53,7 +53,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"挂号日期边界患者%s","identifiers":[{"system":"9","value":"QUEUE-DATE-%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138086"
+                                  "gender":"2","birthDate":"1990-01-02","phone":"13800138086"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())
@@ -87,7 +87,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"本人视角患者%s","identifiers":[{"system":"9","value":"QUEUE-OWN-%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138087"
+                                  "gender":"2","birthDate":"1990-01-02","phone":"13800138087"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())
@@ -131,7 +131,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"本人挂号流水%s","identifiers":[{"system":"9","value":"REG-SELF-%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138086"}
+                                 "gender":"2","birthDate":"1990-01-02","phone":"13800138086"}
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
@@ -172,7 +172,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"分页测试患者%s","identifiers":[{"system":"9","value":"QUEUE-PAGE-%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138099"
+                                  "gender":"2","birthDate":"1990-01-02","phone":"13800138099"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())
@@ -248,7 +248,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"时间排序患者A%s","identifiers":[{"system":"9","value":"SORT-A-%s","useType":"SECONDARY"}],
-                                  "gender":"MALE","birthDate":"1992-05-01","phone":"13800138111"
+                                  "gender":"1","birthDate":"1992-05-01","phone":"13800138111"
                                 }
                                 """.formatted(suffix1, suffix1)))
                 .andExpect(status().isCreated())
@@ -269,7 +269,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"时间排序患者B%s","identifiers":[{"system":"9","value":"SORT-B-%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1994-06-01","phone":"13800138222"
+                                  "gender":"2","birthDate":"1994-06-01","phone":"13800138222"
                                 }
                                 """.formatted(suffix2, suffix2)))
                 .andExpect(status().isCreated())
@@ -316,7 +316,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"普通科室号患者%s","identifiers":[{"system":"9","value":"QUEUE-GEN-%s","useType":"SECONDARY"}],
-                                  "gender":"MALE","birthDate":"1992-03-04","phone":"13800138077"
+                                  "gender":"1","birthDate":"1992-03-04","phone":"13800138077"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())

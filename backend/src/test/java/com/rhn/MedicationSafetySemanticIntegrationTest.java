@@ -19,7 +19,7 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                   {"fullName":"儿童合理用药联调","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],
-                   "gender":"MALE","birthDate":"2020-09-10"}
+                   "gender":"1","birthDate":"2020-09-10"}
                 """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn()
                 .getResponse().getContentAsString()).path("id").asString();
         String encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
@@ -65,7 +65,7 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                   {"fullName":"用药版本联调","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],
-                   "gender":"MALE","birthDate":"1988-06-18"}
+                   "gender":"1","birthDate":"1988-06-18"}
                 """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asString();
         String encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""

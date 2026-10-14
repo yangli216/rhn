@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { PractitionerOnboardingInput } from '../../shared/api/organizationApi'
 import { requireOnboardedPractitioner } from './practitionerOnboarding'
 
-const input: PractitionerOnboardingInput = { code: ' p001 ', fullName: ' 新医生 ', sdPractGender: 'UNKNOWN',
+const input: PractitionerOnboardingInput = { code: ' p001 ', fullName: ' 新医生 ', sdPractGender: '0',
   organizationId: 'org', departmentId: 'dept', positionId: 'position', hireDate: '2026-10-03' }
 const result = {
-  practitioner: { id: 'person', revision: 0, code: 'P001', fullName: '新医生', sdPractGender: 'UNKNOWN', sdPersonnelStatus: 'ACTIVE' },
+  practitioner: { id: 'person', revision: 0, code: 'P001', fullName: '新医生', sdPractGender: '0', sdPersonnelStatus: 'ACTIVE' },
   employments: [{ id: 'employment', revision: 0, practitionerId: 'person', organizationId: 'org', code: 'EMP_person',
     sdEmploymentType: 'PERMANENT', primaryEmployment: true, hireDate: input.hireDate, sdPersonnelStatus: 'ACTIVE' }],
   assignments: [{ id: 'assignment', revision: 0, practitionerId: 'person', employmentId: 'employment', organizationId: 'org',
@@ -21,7 +21,7 @@ describe('atomic practitioner onboarding receipt', () => {
     { ...result, employments: [result.employments[0], result.employments[0]] },
   ])('rejects incomplete receipts %j', source => expect(() => requireOnboardedPractitioner(source, input)).toThrow(/未确认/))
   it.each([{ id: undefined }, { revision: '0' }, { code: 'OTHER' }, { fullName: '旧名称' },
-    { sdPractGender: 'MALE' }, { sdPersonnelStatus: 'INACTIVE' }])('checks the practitioner %j', patch => {
+    { sdPractGender: '1' }, { sdPersonnelStatus: 'INACTIVE' }])('checks the practitioner %j', patch => {
     expect(() => requireOnboardedPractitioner({ ...result, practitioner: { ...result.practitioner, ...patch } }, input)).toThrow()
   })
   it.each([{ practitionerId: 'other' }, { organizationId: 'other' }, { code: 'other' }, { sdEmploymentType: 'CONTRACT' },

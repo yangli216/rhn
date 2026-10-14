@@ -8,20 +8,20 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LaboratoryRuleEvaluatorTest {
     @Test void exact_values_use_inclusive_reference_bounds_and_strict_critical_bounds() {
-        var indicator = number(List.of(rule("adult", "FEMALE", 6570, null)));
-        var person = new LaboratoryRuleEvaluator.PatientConditions("FEMALE", 12000L, null, null);
+        var indicator = number(List.of(rule("adult", "2", 6570, null)));
+        var person = new LaboratoryRuleEvaluator.PatientConditions("2", 12000L, null, null);
         assertEquals("N", evaluate(indicator,"3.9","EQ",person).interpretationCode());
         assertEquals("L", evaluate(indicator,"2.8","EQ",person).interpretationCode());
         assertEquals("LL", evaluate(indicator,"2.79","EQ",person).interpretationCode());
         assertEquals("HH", evaluate(indicator,"22.21","EQ",person).interpretationCode());
     }
     @Test void age_upper_bound_and_unknown_sex_never_use_an_adult_reference() {
-        var adult = number(List.of(rule("adult", "FEMALE", 6570, null)));
-        assertEquals("NO_RULE", evaluate(adult,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions("FEMALE",6569L,null,null)).status());
+        var adult = number(List.of(rule("adult", "2", 6570, null)));
+        assertEquals("NO_RULE", evaluate(adult,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions("2",6569L,null,null)).status());
         assertEquals("NO_RULE", evaluate(adult,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions(null,10000L,null,null)).status());
-        assertEquals("NO_RULE", evaluate(adult,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions("FEMALE",null,null,null)).status());
+        assertEquals("NO_RULE", evaluate(adult,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions("2",null,null,null)).status());
         var child = number(List.of(rule("child",null,0,6570)));
-        assertEquals("NO_RULE", evaluate(child,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions("FEMALE",6570L,null,null)).status());
+        assertEquals("NO_RULE", evaluate(child,"5","EQ",new LaboratoryRuleEvaluator.PatientConditions("2",6570L,null,null)).status());
     }
     @Test void censored_values_do_not_become_exact_values_or_normal_results() {
         var indicator = number(List.of(rule("all",null,null,null)));
@@ -35,8 +35,8 @@ class LaboratoryRuleEvaluatorTest {
         assertEquals("L", evaluate(number(List.of(withoutCritical)),"3.9","LT",person).interpretationCode());
     }
     @Test void conflicting_rules_and_missing_ranges_never_imply_normality() {
-        var person = new LaboratoryRuleEvaluator.PatientConditions("FEMALE",10000L,null,null);
-        assertEquals("AMBIGUOUS_RULE", evaluate(number(List.of(rule("all",null,null,null),rule("female","FEMALE",0,null))),"5","EQ",person).status());
+        var person = new LaboratoryRuleEvaluator.PatientConditions("2",10000L,null,null);
+        assertEquals("AMBIGUOUS_RULE", evaluate(number(List.of(rule("all",null,null,null),rule("female","2",0,null))),"5","EQ",person).status());
         assertNull(evaluate(number(List.of()),"5","EQ",person).interpretationCode());
         var empty = new ReferenceRule("empty",null,null,null,null,null,null,null,null,null,List.of());
         assertEquals("NO_RANGE",evaluate(number(List.of(empty)),"5","EQ",person).status());

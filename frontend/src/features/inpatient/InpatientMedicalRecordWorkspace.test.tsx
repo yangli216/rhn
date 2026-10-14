@@ -29,7 +29,7 @@ vi.mock('./CanvasMedicalRecordEditor', async () => {
 
 const episode: InpatientEpisode = {
   id: 'episode-1', revision: 1, episodeNo: 'ZY20260830001', status: 'ADMITTED', residentId: 'resident-1',
-  residentName: '张三', healthRecordNo: 'HR001', gender: 'MALE', birthDate: '1980-01-01',
+  residentName: '张三', healthRecordNo: 'HR001', gender: '1', birthDate: '1980-01-01',
   organizationId: 'org-1', departmentId: 'dept-1', departmentName: '综合病区', encounterId: 'encounter-1',
   encounterNo: 'E001', bedId: 'bed-1', bedNo: '01床', admittedAt: '2026-08-30T08:00:00+08:00',
 }

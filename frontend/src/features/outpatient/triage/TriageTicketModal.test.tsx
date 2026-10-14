@@ -5,7 +5,7 @@ import type { TriageRecord } from '../../../shared/api/outpatientTriageApi'
 import { TriageTicketModal } from './TriageTicketModal'
 
 const record = { id: 'triage-1', triageNo: 'TRI-001', organizationId: 'org-1',
-  triageTime: '2026-10-03T00:00:00Z', patientName: '患者甲', gender: 'UNKNOWN',
+  triageTime: '2026-10-03T00:00:00Z', patientName: '患者甲', gender: '0',
   triageLevel: 'LEVEL_2_URGENT', consciousness: 'ALERT', greenChannel: 'NONE',
 } as TriageRecord
 

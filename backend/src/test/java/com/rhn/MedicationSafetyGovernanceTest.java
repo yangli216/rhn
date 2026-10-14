@@ -73,7 +73,7 @@ class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"类别过敏测试患者","identifiers":[{"system":"9","value":"CLASS%s",
-                                "useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1990-01-01"}
+                                "useType":"SECONDARY"}],"gender":"2","birthDate":"1990-01-01"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
@@ -149,7 +149,7 @@ class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"抗菌药规则患者","identifiers":[{"system":"9","value":"33010219990909%s",
-                                "useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1999-09-09"}
+                                "useType":"SECONDARY"}],"gender":"2","birthDate":"1999-09-09"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())

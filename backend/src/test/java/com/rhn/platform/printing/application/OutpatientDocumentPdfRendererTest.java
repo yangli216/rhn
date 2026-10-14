@@ -117,7 +117,7 @@ class OutpatientDocumentPdfRendererTest {
 
     @Test void age_is_at_document_date_and_unknown_facts_are_not_filled_from_defaults() throws Exception {
         Map<String, Object> data = patient();
-        data.put("resident", Map.of("fullName", "测试婴儿", "birthDate", "2026-09-03", "gender", "UNKNOWN"));
+        data.put("resident", Map.of("fullName", "测试婴儿", "birthDate", "2026-09-03", "gender", "0"));
         data.put("authoredByName", ""); data.put("medications", List.of(Map.of("medicationName", "测试药品")));
         byte[] pdf = render("OUTPATIENT_PRESCRIPTION", data, 148, 210);
         try (PdfReader reader = new PdfReader(pdf)) {
@@ -133,7 +133,7 @@ class OutpatientDocumentPdfRendererTest {
     private Map<String, Object> patient() {
         Map<String, Object> d = new LinkedHashMap<>();
         d.put("organizationName", "仁和社区卫生服务中心"); d.put("departmentName", "全科门诊");
-        d.put("resident", Map.of("fullName", "林清玄", "gender", "MALE", "birthDate", "1990-05-12"));
+        d.put("resident", Map.of("fullName", "林清玄", "gender", "1", "birthDate", "1990-05-12"));
         d.put("encounterNo", "OP20261003000123"); d.put("prescriptionNo", "RX20261003000123");
         d.put("authoredAt", "2026-10-03T01:35:00Z"); d.put("signedAt", "2026-10-03T01:35:00Z");
         d.put("authoredBy", "987654321"); d.put("signedBy", "987654321");

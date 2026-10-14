@@ -50,6 +50,38 @@ TREATMENT_CATEGORIES = {
     "引流管冲洗", "灌肠", "导尿", "肛管排气", "院前急救费", "救护车费"
 }
 
+# SD_SVC_SUBTYPE is a code (frontend SERVICE_SUBTYPE_MAP; scheduling requires OUTPATIENT_VISIT), not the price-list
+# category. Same mapping as migration V1_129_0; categories without a code keep their text until the vocabulary grows.
+SUBTYPE_BY_CATEGORY = {
+    ("LABORATORY", c): "HEMATOLOGY" for c in ("血液一般", "凝血检查", "血型与配血", "尿液检查", "粪便检查", "体液分泌物", "寄生虫检查")
+} | {
+    ("LABORATORY", c): "BIOCHEMISTRY" for c in ("肝功能", "肾功能", "电解质", "血脂检查", "糖代谢", "心肌酶/心脏标志物", "其他血清酶", "蛋白质测定")
+} | {
+    ("LABORATORY", c): "IMMUNOASSAY" for c in ("感染免疫", "免疫功能", "自身免疫", "肿瘤标志物", "激素检查", "维生素/叶酸")
+} | {
+    ("LABORATORY", "微生物镜检/培养"): "MICROBIOLOGY", ("LABORATORY", "药敏试验"): "MICROBIOLOGY",
+    ("LABORATORY", "分子生物学"): "MOLECULAR",
+    ("EXAMINATION", "X线摄影"): "RADIOGRAPHY", ("EXAMINATION", "X线透视"): "RADIOGRAPHY", ("EXAMINATION", "X线造影"): "RADIOGRAPHY",
+    ("EXAMINATION", "CT扫描"): "CT", ("EXAMINATION", "磁共振MRI"): "MRI",
+    ("EXAMINATION", "B超检查"): "ULTRASOUND", ("EXAMINATION", "彩超检查"): "ULTRASOUND", ("EXAMINATION", "心脏超声"): "ULTRASOUND",
+    ("EXAMINATION", "A超"): "ULTRASOUND", ("EXAMINATION", "多普勒(TCD)"): "ULTRASOUND",
+    ("TREATMENT", "注射"): "INJECTION", ("TREATMENT", "雾化吸入"): "NEBULIZATION",
+    ("TREATMENT", "换药（包括拆线、术后清创换药）"): "DRESSING", ("OTHER", "床位费"): "BED_DAY",
+}
+# Base consultation fees only; surcharges (加收) and observation fees are not schedulable visit services.
+OUTPATIENT_VISIT_CODES = {"11020000100", "11020000111", "11020000102", "11020000103"}
+INPATIENT_VISIT_CODES = {"11020000501", "11020000502", "11020000503", "11020000504"}
+EXAM_TYPE_CODES = {"RADIOGRAPHY", "CT", "MRI", "ULTRASOUND"}  # BD_EXAM_TYPE, used for execution-department routing
+
+
+def service_subtype(svc_type, category, code):
+    if code in OUTPATIENT_VISIT_CODES:
+        return "OUTPATIENT_VISIT"
+    if code in INPATIENT_VISIT_CODES:
+        return "INPATIENT_VISIT"
+    return SUBTYPE_BY_CATEGORY.get((svc_type, category), category)
+
+
 def clean_unit(unit):
     if unit in UNIT_MAPPING:
         return UNIT_MAPPING[unit]
@@ -211,7 +243,9 @@ def derive_metadata(item):
     item["item_type_id"] = item_type_id
     item["acctg_cat"] = acctg_cat
     item["is_medical_tech"] = is_medical_tech
-    item["usage_type"] = usage_type
+    item["subtype"] = service_subtype(svc_type, cat, code)
+    item["exam_type"] = item["subtype"] if svc_type == "EXAMINATION" and item["subtype"] in EXAM_TYPE_CODES else None
+    item["usage_type"] = "INPATIENT" if code in INPATIENT_VISIT_CODES else usage_type
     item["dept_id"] = dept_id
     item["pinyin"] = get_pinyin_initials(item["name"])
     return item
@@ -236,7 +270,8 @@ def generate_sql(items, dialect="oracle"):
         code = sql_escape(item["code"])
         name = sql_escape(item["name"])
         unit = sql_escape(item["unit"])
-        category = sql_escape(item["category"])
+        category = sql_escape(item["subtype"])
+        exam_type = sql_escape(item["exam_type"])
         pinyin = sql_escape(item["pinyin"])
         attention = sql_escape(item["notes"])
         exam_notes = sql_escape(item["connotation"])
@@ -264,7 +299,7 @@ def generate_sql(items, dialect="oracle"):
         # 2. RHN_BD_SVC_ITEM
         lines.append(
             f"insert into RHN_BD_SVC_ITEM select {cat_item_id}, {TENANT_ID}, '{item['svc_type']}', {category}, '{item['usage_type']}', "
-            f"{b_med_tech}, {b_false}, {b_true}, null, null, '{item['acctg_cat']}', null, null, null, null, null, "
+            f"{b_med_tech}, {b_false}, {b_true}, null, {exam_type}, '{item['acctg_cat']}', null, null, null, null, null, "
             f"{b_false}, {attention}, {exam_notes} {from_clause} (select 1 from RHN_BD_SVC_ITEM where ID_CATALOG_ITEM = {cat_item_id});"
         )
 

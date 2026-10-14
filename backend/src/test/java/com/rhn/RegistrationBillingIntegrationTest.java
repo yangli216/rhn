@@ -914,7 +914,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"挂号收费验收患者","identifiers":[{"system":"9","value":"33010219920303%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1992-03-03"}
+                                 "gender":"2","birthDate":"1992-03-03"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

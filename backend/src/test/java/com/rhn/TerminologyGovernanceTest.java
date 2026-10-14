@@ -19,7 +19,26 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].system").value("RHN.COMMON.CS.GENDER"))
                 .andExpect(jsonPath("$[0].systemVersion").value("2026.01"))
                 .andExpect(jsonPath("$[*].code").value(org.hamcrest.Matchers.contains(
-                        "MALE", "FEMALE", "UNKNOWN")));
+                        "0", "1", "2", "9")));
+    }
+
+    @Test
+    void resident_contract_accepts_unknown_and_unspecified_but_rejects_legacy_and_invalid_gender() throws Exception {
+        for (String code : java.util.List.of("0", "9", "MALE", "3")) {
+            var result = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                            {"fullName":"性别编码回归","gender":"%s","birthDate":"1990-01-01"}
+                            """.formatted(code)));
+            if (code.equals("0") || code.equals("9")) {
+                result.andExpect(status().isCreated()).andExpect(jsonPath("$.gender").value(code))
+                        .andExpect(jsonPath("$.genderText").value(code.equals("0") ? "未知的性别" : "未说明的性别"));
+            } else result.andExpect(status().isBadRequest());
+        }
+        for (String dictionary : java.util.List.of("PRACT_GENDER", "RESIDENT_GENDER")) {
+            mockMvc.perform(get("/api/platform/dictionaries/system-enums/{code}", dictionary).with(rhnWorkContext()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[*].code").value(org.hamcrest.Matchers.containsInAnyOrder("0", "1", "2", "9")));
+        }
     }
 
     @Test

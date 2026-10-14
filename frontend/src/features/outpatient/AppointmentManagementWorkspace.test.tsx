@@ -12,7 +12,7 @@ import { AppointmentManagementWorkspace } from './AppointmentManagementWorkspace
 
 const appointment: Appointment = {
   id: 'appointment-1', revision: 0, appointmentNo: 'AP1001', residentId: 'resident-1',
-  healthRecordNo: 'HR1001', residentName: '张三', gender: 'MALE', birthDate: '1990-01-01',
+  healthRecordNo: 'HR1001', residentName: '张三', gender: '1', birthDate: '1990-01-01',
   scheduleId: 'schedule-1', scheduleCode: 'SCH1001', serviceDate: '2099-08-31',
   sdDayPart: 'MORNING', sdDayPartText: '上午', startAt: '2099-08-31T00:00:00Z',
   endAt: '2099-08-31T04:00:00Z', practitionerId: 'doctor-1', practitionerName: '李医生',
@@ -82,7 +82,7 @@ describe('AppointmentManagementWorkspace', () => {
     const resident = {
       id: 'resident-99',
       fullName: '王建国',
-      gender: 'MALE',
+      gender: '1',
       birthDate: '1960-05-15',
       healthRecordNo: 'HR8888',
       phone: '13912345678',
@@ -302,7 +302,7 @@ describe('AppointmentManagementWorkspace', () => {
     const resident = {
       id: 'resident-88',
       fullName: '刘德华',
-      gender: 'MALE',
+      gender: '1',
       birthDate: '1970-09-27',
       healthRecordNo: 'HR6666',
       phone: '13800008888',
@@ -418,7 +418,7 @@ describe('AppointmentManagementWorkspace', () => {
     const resident = {
       id: 'resident-77',
       fullName: '陈建华',
-      gender: 'MALE',
+      gender: '1',
       birthDate: '1975-03-20',
       healthRecordNo: 'HR7777',
       phone: '13800007777',

@@ -6,7 +6,7 @@ import type { Resident, Encounter } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
 import { DirectVisitDialog } from './DirectVisitDialog'
 
-const resident = { id: 'resident', fullName: '测试患者', birthDate: '1992-03-04', gender: 'FEMALE',
+const resident = { id: 'resident', fullName: '测试患者', birthDate: '1992-03-04', gender: '2',
   healthRecordNo: 'HR12345678' } as Resident
 const encounter = { id: 'encounter', encounterNo: 'ENC1', residentId: resident.id,
   registeredAt: '2026-09-18T08:00:00Z', status: 'IN_PROGRESS' } as Encounter

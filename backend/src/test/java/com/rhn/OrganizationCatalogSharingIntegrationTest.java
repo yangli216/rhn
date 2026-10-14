@@ -111,7 +111,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
                 Long.valueOf(childId), null, "SALE", LocalDate.parse("2026-09-06")).adoption()).isNull();
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions",
-                                "362387869795102").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                "362387890000297").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","localCode":"CHILD-LAB-GLU",
                                   "orderable":true,"executable":true,"chargeable":true,
@@ -121,7 +121,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
                                 """.formatted(childId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.currentAdoption.organizationId").value(childId));
-        assertThat(catalogLifecycleDirectory.resolve(Long.valueOf(TENANT), 362387869795102L,
+        assertThat(catalogLifecycleDirectory.resolve(Long.valueOf(TENANT), 362387890000297L,
                 Long.valueOf(childId), null, "SALE", LocalDate.parse("2026-09-06"))
                 .adoption().localCode()).isEqualTo("CHILD-LAB-GLU");
 
@@ -146,7 +146,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
         String requestCode = UUID.randomUUID().toString();
         String request = """
                 {"requestCode":"%s","operationType":"ADOPT","organizationId":"%s","businessDate":"2026-10-03",
-                 "catalogItemIds":["362387869795101","362387869795102"],
+                 "catalogItemIds":["362387869795101","362387890000297"],
                  "template":{"orderable":true,"executable":true,"chargeable":true,"purchasable":false,
                   "stocked":false,"dispensable":false,"returnable":false,"status":"ACTIVE"}}
                 """.formatted(requestCode, id);
@@ -174,7 +174,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
         JsonNode read = json(mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/batches/{id}", batch.get("id").asString())
                         .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(read).isEqualTo(replay);
-        mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/catalog-items/362387869795102")
+        mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/catalog-items/362387890000297")
                         .param("organizationId", id).param("businessDate", "2026-10-03").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.adoptionHistory.length()").value(1))
                 .andExpect(jsonPath("$.currentAdoption.id").value(batch.get("rows").get(1).get("targetId").asString()));

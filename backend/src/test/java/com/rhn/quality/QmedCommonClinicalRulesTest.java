@@ -117,7 +117,7 @@ class QmedCommonClinicalRulesTest {
         var aspirinItem = createItem(2, 2002L, aspirin);
 
         // 1. 15岁青少年开立左氧氟沙星 -> 触发 18 岁以下禁用阻断
-        var minorContext = new PatientSafetyContext(true, true, null, List.of(), 15, "MALE");
+        var minorContext = new PatientSafetyContext(true, true, null, List.of(), 15, "1");
         var snapshot1 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
                 20L, 30L, 1L, 1L, "DRAFT", List.of(levoItem), minorContext);
         var result1 = engine.evaluate(snapshot1, ruleVersions, Instant.now());
@@ -125,14 +125,14 @@ class QmedCommonClinicalRulesTest {
                 && f.message().contains("未满18周岁") && f.message().contains("左氧氟沙星片")));
 
         // 2. 25岁成年人开立左氧氟沙星 -> 不拦截
-        var adultContext = new PatientSafetyContext(true, true, null, List.of(), 25, "MALE");
+        var adultContext = new PatientSafetyContext(true, true, null, List.of(), 25, "1");
         var snapshot2 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
                 20L, 30L, 1L, 1L, "DRAFT", List.of(levoItem), adultContext);
         var result2 = engine.evaluate(snapshot2, ruleVersions, Instant.now());
         assertFalse(result2.findings().stream().anyMatch(f -> f.rule().definition().code().equals(AgeContraindicationRule.CODE)));
 
         // 3. 7岁儿童开立阿司匹林 -> 触发 12 岁以下瑞氏综合征禁忌阻断
-        var childContext = new PatientSafetyContext(true, true, null, List.of(), 7, "FEMALE");
+        var childContext = new PatientSafetyContext(true, true, null, List.of(), 7, "2");
         var snapshot3 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
                 20L, 30L, 1L, 1L, "DRAFT", List.of(aspirinItem), childContext);
         var result3 = engine.evaluate(snapshot3, ruleVersions, Instant.now());
@@ -155,7 +155,7 @@ class QmedCommonClinicalRulesTest {
                 {"id":2004,"code":"GEN","name":"硫酸庆大霉素注射液","doseForm":"注射剂"}
                 """;
         var gentItem = createItem(4, 2004L, gentamicin);
-        var babyContext = new PatientSafetyContext(true, true, null, List.of(), 5, "MALE");
+        var babyContext = new PatientSafetyContext(true, true, null, List.of(), 5, "1");
         var snapshot5 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
                 20L, 30L, 1L, 1L, "DRAFT", List.of(gentItem), babyContext);
         var result5 = engine.evaluate(snapshot5, ruleVersions, Instant.now());

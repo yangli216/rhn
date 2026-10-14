@@ -27,7 +27,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"基层门诊患者%s","identifiers":[{"system":"9","value":"33010219900101%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1990-01-01","phone":"13800138088"
+                                  "gender":"2","birthDate":"1990-01-01","phone":"13800138088"
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())
@@ -38,12 +38,12 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(put("/api/residents/{residentId}/profile", residentId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "expectedVersion":0,"fullName":"基层门诊患者%s","gender":"FEMALE",
+                                  "expectedVersion":0,"fullName":"基层门诊患者%s","gender":"2",
                                   "birthDate":"1990-01-01","phone":"13800138088","deceased":false,
                                   "demographicProfile":{"nationalityCode":"CN","ethnicityCode":"01",
-                                    "sdResidencyType":"HOUSEHOLD","sdMaritalStatus":"2",
+                                    "sdResidencyType":"HOUSEHOLD","sdMaritalStatus":"20",
                                     "sdEducationLevel":"30","sdOccupationType":"200",
-                                    "sdBloodType":"A","sdRhType":"POSITIVE"},
+                                    "sdBloodType":"1","sdRhType":"2"},
                                   "addresses":[{"sdUse":"HOME","provinceCode":"330000000000","cityCode":"330100000000",
                                     "districtCode":"330102000000","addressText":"示范街道一号","postalCode":"310000",
                                     "primary":true,"validFrom":"2020-01-01"}],
@@ -56,7 +56,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resident.version").value(1))
-                .andExpect(jsonPath("$.demographicProfile.sdMaritalStatus").value("2"))
+                .andExpect(jsonPath("$.demographicProfile.sdMaritalStatus").value("20"))
                 .andExpect(jsonPath("$.demographicProfile.sdMaritalStatusText").value("已婚"))
                 .andExpect(jsonPath("$.demographicProfile.sdResidencyTypeText").value("户籍人口"))
                 .andExpect(jsonPath("$.demographicProfile.sdEducationLevelText").value("大学专科教育"))
@@ -165,15 +165,15 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"完整建档居民%s","nationalId":"",
-                                  "gender":"MALE","birthDate":"1988-01-01","phone":"1380013%s",
+                                  "gender":"1","birthDate":"1988-01-01","phone":"1380013%s",
                                   "identifiers":[
                                     {"system":"6","value":"P%s","useType":"OFFICIAL"},
                                     {"system":"9","value":"JK%s","useType":"SECONDARY"}
                                   ],
                                   "demographicProfile":{"nationalityCode":"CN","ethnicityCode":"01",
-                                    "sdResidencyType":"NON_HOUSEHOLD","sdMaritalStatus":"2",
+                                    "sdResidencyType":"NON_HOUSEHOLD","sdMaritalStatus":"20",
                                     "sdEducationLevel":"20","sdOccupationType":"200",
-                                    "sdBloodType":"O","sdRhType":"POSITIVE"},
+                                    "sdBloodType":"3","sdRhType":"2"},
                                   "addresses":[{"sdUse":"HOME","addressText":"幸福街道健康路 8 号",
                                     "primary":true,"validFrom":"2024-01-01"}],
                                   "relatedPersons":[{"fullName":"紧急联系人","sdRelationship":"1",

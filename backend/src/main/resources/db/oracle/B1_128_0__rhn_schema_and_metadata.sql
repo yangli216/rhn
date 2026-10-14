@@ -6643,7 +6643,7 @@ create table RHN_VIS_INP_BED_PROF (
     constraint PK_VIS_INP_BED_PROF_PK primary key (ID_SVC_LOC_BED),
     constraint UK_VIS_INP_BED_PR_INP_BED_TENA unique (ID_TNT, ID_SVC_LOC_BED),
     constraint CK_VIS_INP_BED_PR_INP_BED_TYPE check (SD_BED_TYPE in ('PHYSICAL','EXTRA','VIRTUAL','HOME')),
-    constraint CK_VIS_INP_BED_PR_INP_BED_GEND check (SD_GENDER_RESTRICTION in ('ANY','MALE','FEMALE')),
+    constraint CK_VIS_INP_BED_PR_INP_BED_GEND check (SD_GENDER_RESTRICTION in ('ANY','1','2')),
     constraint CK_VIS_INP_BED_PR_INP_BED_STAT check (SD_OPERATIONAL_STATUS in ('AVAILABLE','CLEANING','BLOCKED','MAINTENANCE')),
     constraint CK_VIS_INP_BED_PR_INP_BED_RATE check (PRICE_BED_DAY is null or PRICE_BED_DAY >= 0)
 );
@@ -7387,7 +7387,7 @@ create table RHN_AN_AUDIT_EVT (
 );
 
 -- Standard metadata (no hospital demo records).
-insert into RHN_BD_CODE_SYSTEM values (362387869790214, 'PRODUCT', 0, 'RHN.COMMON.CS.GENDER', 'RHN 性别编码体系', 'urn:rhn:codesystem:gender', '2026.01', 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'COMMON', 'RHN', '国家标准化与平台标准性别编码体系', 'MANUAL', 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'NATIONAL', null, null, null);
+insert into RHN_BD_CODE_SYSTEM values (362387869790214, 'PRODUCT', 0, 'RHN.COMMON.CS.GENDER', '人的性别代码', 'urn:rhn:codesystem:gender', '2026.01', 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'COMMON', 'RHN', 'GB/T 2261.1-2003 人的性别代码；0 未知的性别、1 男、2 女、9 未说明的性别', 'MANUAL', 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'NATIONAL', null, null, null);
 insert into RHN_BD_CODE_SYSTEM values (362387869795001, 'PRODUCT', 0, 'WHO.BD.CS.ICD10', 'ICD-10 疾病分类', 'http://hl7.org/fhir/sid/icd-10', '2019', 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'DISEASE', '世界卫生组织', '全国标准化ICD-10高频临床疾病目录', 'EXTERNAL_IMPORT', 0, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'NATIONAL', null, null, 'WESTERN_MEDICINE');
 insert into RHN_BD_CODE_SYSTEM values (362387869929001, 'PRODUCT', 0, 'RHN.EX.CS.MEDICATION_ROUTE', 'RHN 给药途径', 'urn:rhn:codesystem:medication-route', '1.0', 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'COMMON', 'RHN', '药物进入人体的给药途径。给药方式与给药部位另行建模。', 'MANUAL', 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'INTERNAL', null, null, null);
 insert into RHN_BD_CODE_SYSTEM values (362387870125001, 'PRODUCT', 0, 'RHN.BD.CS.TCM_DISEASE', '中医病名标准目录', 'urn:rhn:codesystem:tcm-disease', '2026.09', 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'DISEASE', 'RHN', '中医临床常用病名标准术语', 'MANUAL', 0, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'INTERNAL', null, null, 'TCM_DISEASE');
@@ -7446,9 +7446,10 @@ insert into RHN_SYS_PARAM_CAT values (362387869794040, null, 'PHARMACY', '药事
 insert into RHN_SYS_PARAM_CAT values (362387869794050, null, 'BILLING', '收费与结算', '门诊收费、住院结算、预交金与退费等财务业务策略', 30, 1, 0, to_timestamp_tz('2026-09-04 22:38:12.852605 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.852605 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222);
 insert into RHN_SYS_PARAM_CAT values (362387869794060, null, 'CLINICAL_SAFETY', '临床安全', '跨门诊、住院和护理场景共用的临床安全提示策略', 25, 1, 0, to_timestamp_tz('2026-09-05 10:00:00.000 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-05 10:00:00.000 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222);
 insert into RHN_SYS_PARAM_CAT values (362387869794070, null, 'CLINICAL_AI', 'AI辅助诊疗', '模型辅助诊疗的运行模式、模型连接、生成限制、能力开关与灰度策略', 27, 1, 0, to_timestamp_tz('2026-09-15 13:51:07.584447 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-15 13:51:07.584447 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222);
-insert into RHN_BD_CONCEPT values (362387869790215, 362387869790214, 'MALE', '男', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'NAN', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
-insert into RHN_BD_CONCEPT values (362387869790216, 362387869790214, 'FEMALE', '女', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'NV', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
-insert into RHN_BD_CONCEPT values (362387869790217, 362387869790214, 'UNKNOWN', '未知', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'WZ', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
+insert into RHN_BD_CONCEPT values (362387869790215, 362387869790214, '1', '男', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'NAN', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
+insert into RHN_BD_CONCEPT values (362387869790216, 362387869790214, '2', '女', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'NV', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
+insert into RHN_BD_CONCEPT values (362387869790217, 362387869790214, '0', '未知的性别', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'WZ', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
+insert into RHN_BD_CONCEPT values (362387869912104, 362387869790214, '9', '未说明的性别', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'CONCEPT', null, null, null, 'WSM', 'MANUAL', null, 0, to_timestamp_tz('2026-09-15 13:51:07.497968 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
 insert into RHN_BD_CONCEPT values (362387869795011, 362387869795001, 'I10', '原发性高血压', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'DISEASE', '高血压', 'IX', '循环系统疾病', 'YFXGXY', 'EXTERNAL_IMPORT', null, 0, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
 insert into RHN_BD_CONCEPT values (362387869795012, 362387869795001, 'E11.9', '2型糖尿病，不伴并发症', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'DISEASE', '2型糖尿病', 'IV', '内分泌、营养和代谢疾病', '2XTNB', 'EXTERNAL_IMPORT', null, 0, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
 insert into RHN_BD_CONCEPT values (362387869795013, 362387869795001, 'I20.9', '心绞痛，未特指', null, 'ACTIVE', date '2026-01-01', null, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'DISEASE', '心绞痛', 'IX', '循环系统疾病', 'XJT', 'EXTERNAL_IMPORT', null, 0, to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
@@ -7593,12 +7594,12 @@ insert into RHN_SYS_POS values (362387869899024, 362387869790209, 'CHIEF_TCM', '
 insert into RHN_SYS_POS values (362387869899025, 362387869790209, 'ATTENDING_GYN', '妇科主治医师', 'CLINICAL', '妇科常见病与围产期保健', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
 insert into RHN_SYS_PRACT values (362387869790223, 362387869790209, 'P-DEMO-DOCTOR', '示范全科医生', null, null, 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.102633 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.102633 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
 insert into RHN_SYS_PRACT values (362387869799301, 362387869790209, 'P-DEMO-PHARMACIST', '示范药师', null, null, 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.114791 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.114791 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
-insert into RHN_SYS_PRACT values (362387869899011, 362387869790209, 'P-DEMO-WANG', '王建国', 'MALE', 'hash-wang-jg', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
-insert into RHN_SYS_PRACT values (362387869899012, 362387869790209, 'P-DEMO-CHEN-XY', '陈秀英', 'FEMALE', 'hash-chen-xy', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
-insert into RHN_SYS_PRACT values (362387869899013, 362387869790209, 'P-DEMO-ZHANG-M', '张敏', 'FEMALE', 'hash-zhang-m', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
-insert into RHN_SYS_PRACT values (362387869899014, 362387869790209, 'P-DEMO-LIU-HP', '刘海平', 'MALE', 'hash-liu-hp', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
-insert into RHN_SYS_PRACT values (362387869899015, 362387869790209, 'P-DEMO-CHEN-GH', '陈国华', 'MALE', 'hash-chen-gh', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
-insert into RHN_SYS_PRACT values (362387869899016, 362387869790209, 'P-DEMO-ZHAO-XM', '赵雪梅', 'FEMALE', 'hash-zhao-xm', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
+insert into RHN_SYS_PRACT values (362387869899011, 362387869790209, 'P-DEMO-WANG', '王建国', '1', 'hash-wang-jg', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
+insert into RHN_SYS_PRACT values (362387869899012, 362387869790209, 'P-DEMO-CHEN-XY', '陈秀英', '2', 'hash-chen-xy', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
+insert into RHN_SYS_PRACT values (362387869899013, 362387869790209, 'P-DEMO-ZHANG-M', '张敏', '2', 'hash-zhang-m', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
+insert into RHN_SYS_PRACT values (362387869899014, 362387869790209, 'P-DEMO-LIU-HP', '刘海平', '1', 'hash-liu-hp', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
+insert into RHN_SYS_PRACT values (362387869899015, 362387869790209, 'P-DEMO-CHEN-GH', '陈国华', '1', 'hash-chen-gh', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
+insert into RHN_SYS_PRACT values (362387869899016, 362387869790209, 'P-DEMO-ZHAO-XM', '赵雪梅', '2', 'hash-zhao-xm', 'ACTIVE', to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-04 22:38:12.789205 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, 0);
 insert into RHN_BD_GRID_ADDR_NODE values (362387869850001, 0, 362387869850000, 'CITY', '320100000000', '南京市', '南京', 'NJS', '江苏省/南京市', 10, 'ACTIVE', 1, to_timestamp_tz('2026-09-04 22:38:12.217368 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), null, to_timestamp_tz('2026-09-04 22:38:12.217368 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), null);
 insert into RHN_BD_GRID_ADDR_NODE values (362387869850010, 0, 362387869850009, 'CITY', '330100000000', '杭州市', '杭州', 'HZS', '浙江省/杭州市', 10, 'ACTIVE', 1, to_timestamp_tz('2026-09-04 22:38:12.217368 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), null, to_timestamp_tz('2026-09-04 22:38:12.217368 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), null);
 insert into RHN_HPL_DISEASE_MGMT_RULE values (362387870127001, 362387870123001, 'INCLUDE', 'WESTERN_MEDICINE', 362387869795001, 'DISEASE', null, 'I10', 'I15.9', '按 ICD-10 编码范围识别高血压相关疾病', to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
@@ -7647,7 +7648,8 @@ insert into RHN_SYS_PARAM_DEF values (362387869795104, 362387869794070, 'ai.clin
 insert into RHN_SYS_PARAM_DEF values (362387869795105, 362387869794070, 'ai.clinical.knowledge-api-key', '医学知识API Key', '医学知识服务独立访问凭据；未配置时继承模型API Key', 'STRING', 'SECRET_REFERENCE', null, null, null, null, null, to_clob('["PLATFORM","TENANT"]'), 'BUSINESS', 1, 0, 1, 'SECRET', 'MASKED', 'ACTIVE', 0, to_timestamp_tz('2026-09-15 13:51:07.584447 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, to_timestamp_tz('2026-09-15 13:51:07.584447 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 362387869790222, null, null, 'DISABLE_AND_SUPPRESS');
 insert into RHN_BD_VAL_SET_MEMBER values (362387869790219, 362387869790218, 362387869790215, 10, to_timestamp_tz('2026-09-04 22:38:11.394305 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
 insert into RHN_BD_VAL_SET_MEMBER values (362387869790220, 362387869790218, 362387869790216, 20, to_timestamp_tz('2026-09-04 22:38:11.394305 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
-insert into RHN_BD_VAL_SET_MEMBER values (362387869790221, 362387869790218, 362387869790217, 30, to_timestamp_tz('2026-09-04 22:38:11.394305 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
+insert into RHN_BD_VAL_SET_MEMBER values (362387869790221, 362387869790218, 362387869790217, 0, to_timestamp_tz('2026-09-04 22:38:11.394305 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
+insert into RHN_BD_VAL_SET_MEMBER values (362387869912204, 362387869790218, 362387869912104, 90, to_timestamp_tz('2026-09-04 22:38:11.394305 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'));
 insert into RHN_BD_CONCEPT_ALIAS values (362387869795501, 362387869795011, 'SYNONYM', '高血压病', 'GXYB', 'ACTIVE');
 insert into RHN_BD_CONCEPT_ALIAS values (362387869795502, 362387869795011, 'SYNONYM', '高血压', 'GXY', 'ACTIVE');
 insert into RHN_HPL_DISEASE_MGMT_MEMBER values (362387870124001, 362387870123001, 362387869795011, 'ACTIVE', date '2026-01-01', null, 'ICD-10 I10 高血压管理', to_timestamp_tz('2026-09-15 13:51:07.52759 +08:00', 'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'), 'INCLUDE');
@@ -8730,9 +8732,10 @@ insert into RHN_BD_DICT_ITEM values (362387869793296, 362387869791115, 'DEPUTY_D
 insert into RHN_BD_DICT_ITEM values (362387869793297, 362387869791115, 'NURSE_MANAGER', '护士长', '科室护理负责人', 30, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869793298, 362387869791115, 'BUSINESS_OWNER', '业务负责人', '科室专项业务负责人', 40, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869793299, 362387869791115, 'SAFETY_OWNER', '安全责任人', '科室安全责任人', 50, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869792059, 362387869791014, 'MALE', '男', '男性', 10, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869792060, 362387869791014, 'FEMALE', '女', '女性', 20, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869792061, 362387869791014, 'UNKNOWN', '未知', '未登记或未知', 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869792059, 362387869791014, '1', '男', 'GB/T 2261.1-2003', 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869792060, 362387869791014, '2', '女', 'GB/T 2261.1-2003', 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869792061, 362387869791014, '0', '未知的性别', 'GB/T 2261.1-2003', 0, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869912004, 362387869791014, '9', '未说明的性别', 'GB/T 2261.1-2003', 90, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869792062, 362387869791015, 'ACTIVE', '已启用', '可用于当前业务', 10, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869792063, 362387869791015, 'INACTIVE', '已停用', '不再用于新业务', 20, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869792064, 362387869791016, 'PERMANENT', '正式聘用', '正式劳动聘用关系', 10, 'ACTIVE', null);
@@ -9187,9 +9190,9 @@ insert into RHN_BD_DICT_ITEM values (362387869841543, 362387869841111, 'CN', '�
 insert into RHN_BD_DICT_ITEM values (362387869841544, 362387869841111, 'HK', '中国香港', 'HONG KONG', 450, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841545, 362387869841111, 'MO', '中国澳门', 'MACAU', 460, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841546, 362387869841111, 'TW', '中国台湾', 'TAIWAN, PROVINCE OF CHINA', 470, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869841547, 362387869841111, 'CS', '圣诞岛', 'CHRISTMAS ISLAND', 480, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869841547, 362387869841111, 'CX', '圣诞岛', 'CHRISTMAS ISLAND', 480, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841548, 362387869841111, 'CC', '科科斯(基林)群岛', 'COCOS(KEELING) ISLANDS', 490, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869841549, 362387869841111, 'Co', '哥伦比亚', 'COLOMBIA', 500, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869841549, 362387869841111, 'CO', '哥伦比亚', 'COLOMBIA', 500, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841550, 362387869841111, 'KM', '科摩罗', 'COMOROS', 510, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841551, 362387869841111, 'CG', '刚果（布）', 'CONGO', 520, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841552, 362387869841111, 'CD', '刚果（金）', 'CONGO, THE DEMOCRATIC REPUBLIC OF THE', 530, 'ACTIVE', null);
@@ -9398,7 +9401,7 @@ insert into RHN_BD_DICT_ITEM values (362387869841815, 362387869841112, '16', '�
 insert into RHN_BD_DICT_ITEM values (362387869841816, 362387869841112, '17', '哈萨克族', null, 170, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841817, 362387869841112, '18', '傣族', null, 180, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841818, 362387869841112, '19', '黎族', null, 190, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869841819, 362387869841112, '20', '僳僳族', null, 200, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869841819, 362387869841112, '20', '傈僳族', null, 200, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841820, 362387869841112, '21', '佤族', null, 210, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841821, 362387869841112, '22', '畲族', null, 220, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841822, 362387869841112, '23', '高山族', null, 230, 'ACTIVE', null);
@@ -9413,8 +9416,8 @@ insert into RHN_BD_DICT_ITEM values (362387869841830, 362387869841112, '31', '�
 insert into RHN_BD_DICT_ITEM values (362387869841831, 362387869841112, '32', '仫佬族', null, 320, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841832, 362387869841112, '33', '羌族', null, 330, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841833, 362387869841112, '34', '布朗族', null, 340, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869841834, 362387869841112, '35', '撤拉族', null, 350, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869841835, 362387869841112, '36', '毛难族', null, 360, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869841834, 362387869841112, '35', '撒拉族', null, 350, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869841835, 362387869841112, '36', '毛南族', null, 360, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841836, 362387869841112, '37', '仡佬族', null, 370, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841837, 362387869841112, '38', '锡伯族', null, 380, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841838, 362387869841112, '39', '阿昌族', null, 390, 'ACTIVE', null);
@@ -9424,7 +9427,7 @@ insert into RHN_BD_DICT_ITEM values (362387869841841, 362387869841112, '42', '�
 insert into RHN_BD_DICT_ITEM values (362387869841842, 362387869841112, '43', '乌孜别克族', null, 430, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841843, 362387869841112, '44', '俄罗斯族', null, 440, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841844, 362387869841112, '45', '鄂温克族', null, 450, 'ACTIVE', null);
-insert into RHN_BD_DICT_ITEM values (362387869841845, 362387869841112, '46', '崩龙族', null, 460, 'ACTIVE', null);
+insert into RHN_BD_DICT_ITEM values (362387869841845, 362387869841112, '46', '德昂族', null, 460, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841846, 362387869841112, '47', '保安族', null, 470, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841847, 362387869841112, '48', '裕固族', null, 480, 'ACTIVE', null);
 insert into RHN_BD_DICT_ITEM values (362387869841848, 362387869841112, '49', '京族', null, 490, 'ACTIVE', null);
@@ -83151,6 +83154,44 @@ comment on column RHN_INS_CLAIM_RESP.AMT_PAT_CASH is '患者现金自付金额�
 comment on column RHN_INS_CLAIM_RESP.AMT_OTHER_FUND is '其他基金金额；缺失保留空值；历史金额须结合来源标识核实';
 
 -- =============================================================================
+-- Fresh-schema repair (Oracle rehearsal 2026-10-14): the original Oracle history
+-- omitted public V1_103_0__common_investigation_aliases.sql. Restore its equivalent
+-- metadata before development data updates the same alias/search identities.
+-- =============================================================================
+-- Common clinician terms resolve to the institution's maintained default catalog items.
+insert into RHN_BD_ITEM_ALIAS
+    (ID_ITEM_ALIAS, ID_TNT, ID_CATALOG_ITEM, SD_ALIAS_TYPE, NA_ALIAS,
+     CD_PINYIN, CD_WUBI, CD_MNEM, FG_PRIMARY_ALIAS, SD_STATUS)
+select 362387895000003, 362387869790209, 362387890000270, 'SYNONYM', '血常规',
+       'XCG', null, null, 0, 'ACTIVE'
+from dual where not exists (select 1 from RHN_BD_ITEM_ALIAS where ID_ITEM_ALIAS = 362387895000003);
+
+insert into RHN_BD_ITEM_ALIAS
+    (ID_ITEM_ALIAS, ID_TNT, ID_CATALOG_ITEM, SD_ALIAS_TYPE, NA_ALIAS,
+     CD_PINYIN, CD_WUBI, CD_MNEM, FG_PRIMARY_ALIAS, SD_STATUS)
+select 362387895000004, 362387869790209, 362387890000296, 'SYNONYM', 'C反应蛋白测定',
+       'CFYDBCD', null, null, 0, 'ACTIVE'
+from dual where not exists (select 1 from RHN_BD_ITEM_ALIAS where ID_ITEM_ALIAS = 362387895000004);
+
+insert into RHN_BD_SEARCH_ENTRY
+    (ID_SEARCH_ENTRY, REVISION, SD_SCOPE_TYPE, ID_SCOPE, ID_TNT, SD_TARGET_TYPE, ID_TARGET,
+     SD_NAME_TYPE, CD_SOURCE_KEY, NA_SEARCH, CD_PINYIN, CD_WUBI, CD_MNEM, FG_PRIMARY,
+     CD_GEN_VER, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387895000003, 0, 'TENANT', 362387869790209, 362387869790209, 'CATALOG_ITEM',
+       362387890000270, 'ALIAS', 'ITEM_ALIAS:362387895000003', '血常规', 'XCG', null, null,
+       0, 'search-code-v1', 'ACTIVE', current_timestamp, null, current_timestamp, null
+from dual where not exists (select 1 from RHN_BD_SEARCH_ENTRY where ID_SEARCH_ENTRY = 362387895000003);
+
+insert into RHN_BD_SEARCH_ENTRY
+    (ID_SEARCH_ENTRY, REVISION, SD_SCOPE_TYPE, ID_SCOPE, ID_TNT, SD_TARGET_TYPE, ID_TARGET,
+     SD_NAME_TYPE, CD_SOURCE_KEY, NA_SEARCH, CD_PINYIN, CD_WUBI, CD_MNEM, FG_PRIMARY,
+     CD_GEN_VER, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387895000004, 0, 'TENANT', 362387869790209, 362387869790209, 'CATALOG_ITEM',
+       362387890000296, 'ALIAS', 'ITEM_ALIAS:362387895000004', 'C反应蛋白测定', 'CFYDBCD', null, null,
+       0, 'search-code-v1', 'ACTIVE', current_timestamp, null, current_timestamp, null
+from dual where not exists (select 1 from RHN_BD_SEARCH_ENTRY where ID_SEARCH_ENTRY = 362387895000004);
+
+-- =============================================================================
 -- Source: V1_104_0__medication_safety_categories.sql
 -- =============================================================================
 -- V1_104_0__medication_safety_categories.sql
@@ -84333,3 +84374,21 @@ alter table RHN_EX_DIAG_REPORT add TPL_SNAP clob;
 comment on column RHN_EX_DIAG_REPORT.TPL_SNAP is '签发时模板及机构规则不可变快照';
 alter table RHN_VIS_OBS add constraint CK_VIS_OBS_COMPR check (SD_VAL_COMPR is null or SD_VAL_COMPR in ('EQ','LT','LE','GT','GE'));
 alter table RHN_EX_DIAG_REPORT add constraint FK_EX_REPORT_TPL foreign key (ID_DIAG_TPL) references RHN_BD_DIAG_TPL(ID_DIAG_TPL);
+
+-- Fresh-schema catalog review (2026-10-14): source directories do not establish
+-- a prescribing frequency or the injection route. Keep curated development products separate.
+update RHN_BD_MED set DEFAULT_FREQ = null, ID_ORDER_FREQ_DEFAULT = null
+where CD_MED like 'MED-2026-%';
+update RHN_BD_MED set DEFAULT_ROUTE = null, ID_CONCEPT_DEFAULT_ROUTE = null
+where CD_MED like 'MED-2026-%'
+  and (DOSE_FORM like '%INJECTION%' or DOSE_FORM like 'POWDER_FOR_%');
+-- A truncated specification is retained for traceability but cannot be an active specification.
+update RHN_BD_MED set SD_STATUS = 'RETIRED' where CD_MED = 'MED-2026-T108-03' and PREP_SPEC = '每支装';
+
+-- Generic drops are not automatically otic: use explicit eye/nose/ear labels only.
+update RHN_BD_MED set DEFAULT_ROUTE = case
+  when NA_MED like '%眼%' then 'OPHTHALMIC'
+  when NA_MED like '%鼻%' then 'NASAL'
+  when NA_MED like '%耳%' then 'OTIC'
+  else null end, ID_CONCEPT_DEFAULT_ROUTE = null
+where CD_MED like 'MED-2026-%' and DOSE_FORM = 'DROPS';

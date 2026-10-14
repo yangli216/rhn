@@ -306,7 +306,7 @@ class ArchitectureTest {
      *
      * <ul>
      *   <li>{@code InsuranceResultDirectory.PersonInfoView#gender}：医保接口口径的 {@code 1/2} 编码，
-     *       与居民性别 {@code MALE/FEMALE/UNKNOWN} 值域不同，不能共用居民性别字典。</li>
+     *       与居民性别 {@code 0/1/2/9} 值域不同，不能共用居民性别字典。</li>
      *   <li>{@code StandardMedicationCatalogContracts.MedicationRecord#relationType}：值为
      *       {@code CANONICAL/HISTORICAL} 的领域枚举，不是平台字典项。</li>
      * </ul>

@@ -64,7 +64,7 @@ class MaintenanceClinicalCleanupTest extends RhnIntegrationTestSupport {
         when(workContexts.authoritiesFor(TENANT_ID, ACTOR_ID, ORG_ID, Long.valueOf(DEPARTMENT))).thenReturn(GRANTS);
         jdbc.update("delete from RHN_SYS_MAINT_WRITE");
         jdbc.update("delete from RHN_SYS_MAINT_STATE");
-        String body = "{\"fullName\":\"维护功能测试患者\",\"gender\":\"MALE\",\"birthDate\":\"1988-06-18\","
+        String body = "{\"fullName\":\"维护功能测试患者\",\"gender\":\"1\",\"birthDate\":\"1988-06-18\","
                 + "\"identifiers\":[{\"system\":\"9\",\"value\":\"" + GlobalIds.next() + "\",\"useType\":\"SECONDARY\"}]}";
         String response = mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
@@ -312,7 +312,7 @@ class MaintenanceClinicalCleanupTest extends RhnIntegrationTestSupport {
     }
     @Test void cleanup_of_one_tracked_split_preserves_an_unclassified_peers_consumption_in_the_same_package() throws Exception {
         var selected=prescription(true,true,7,null); dispense(selected);
-        String body="{\"fullName\":\"保留业务患者\",\"gender\":\"MALE\",\"birthDate\":\"1988-06-18\",\"identifiers\":[{\"system\":\"9\",\"value\":\""+GlobalIds.next()+"\",\"useType\":\"SECONDARY\"}]}";
+        String body="{\"fullName\":\"保留业务患者\",\"gender\":\"1\",\"birthDate\":\"1988-06-18\",\"identifiers\":[{\"system\":\"9\",\"value\":\""+GlobalIds.next()+"\",\"useType\":\"SECONDARY\"}]}";
         patient=Long.valueOf(json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString());
         var peer=prescription(true,true,3,new PharmacyFixture(selected.itemId().toString())); var issuedPeer=dispense(peer);
@@ -366,7 +366,7 @@ class MaintenanceClinicalCleanupTest extends RhnIntegrationTestSupport {
         JsonNode appointment=json(mockMvc.perform(post("/api/outpatient/appointments").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"residentId\":\"%s\",\"scheduleId\":\"%s\",\"bookingSource\":\"WINDOW\",\"idempotencyCode\":\"book-%s\"}".formatted(patient,scheduleId,suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String peerBody="{\"fullName\":\"保留预约患者\",\"gender\":\"FEMALE\",\"birthDate\":\"1988-06-18\",\"identifiers\":[{\"system\":\"9\",\"value\":\""+GlobalIds.next()+"\",\"useType\":\"SECONDARY\"}]}";
+        String peerBody="{\"fullName\":\"保留预约患者\",\"gender\":\"2\",\"birthDate\":\"1988-06-18\",\"identifiers\":[{\"system\":\"9\",\"value\":\""+GlobalIds.next()+"\",\"useType\":\"SECONDARY\"}]}";
         String peer=json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(peerBody))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         JsonNode retained=json(mockMvc.perform(post("/api/outpatient/appointments").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -565,7 +565,7 @@ class MaintenanceClinicalCleanupTest extends RhnIntegrationTestSupport {
     private Reviewer createReviewer(String suffix) throws Exception {
         JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"INV-P-%s\",\"fullName\":\"库存药师\",\"sdPractGender\":\"FEMALE\"}"
+                        .content("{\"code\":\"INV-P-%s\",\"fullName\":\"库存药师\",\"sdPractGender\":\"2\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())

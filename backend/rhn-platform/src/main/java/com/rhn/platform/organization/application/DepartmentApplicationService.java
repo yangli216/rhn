@@ -228,7 +228,7 @@ public class DepartmentApplicationService {
         Department department = requireEntity(currentTenant(), id);
         validatePeriod(from, to);
         String normalizedType = dictionaryItem(department.tenantId(),
-                OrganizationDictionaryCodes.DEPARTMENT_CAPABILITY_TYPE, type, "科室能力类型");
+                OrganizationDictionaryCodes.CAPABILITY_TYPE, type, "科室能力类型");
         String normalizedVerify = dictionaryItem(department.tenantId(), OrganizationDictionaryCodes.VERIFY_STATUS,
                 verifyStatus, "核验状态");
         return save(() -> {

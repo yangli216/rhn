@@ -5,7 +5,7 @@ export type OrganizationType = 'TOWNSHIP_HEALTH_CENTER' | 'COMMUNITY_HEALTH_CENT
   | 'CAMPUS' | 'CLINICAL_DEPARTMENT' | 'ADMINISTRATIVE_DEPARTMENT'
   | 'MEDICAL_TECHNOLOGY_DEPARTMENT' | 'NURSING_UNIT'
 export type OrganizationStatus = 'DRAFT' | 'PENDING_ACTIVE' | 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'MERGED'
-export type PractitionerGender = 'MALE' | 'FEMALE' | 'UNKNOWN'
+export type PractitionerGender = '1' | '2' | '0' | '9'
 export type PersonnelStatus = 'ACTIVE' | 'INACTIVE'
 export type EmploymentType = 'PERMANENT' | 'CONTRACT' | 'DISPATCHED' | 'TEMPORARY'
 export type PositionType = 'CLINICAL' | 'NURSING' | 'PHARMACY' | 'MEDICAL_TECHNOLOGY' | 'ADMINISTRATIVE'
@@ -23,7 +23,7 @@ export const ORGANIZATION_DICTIONARY = {
   contactType: 'ORG_CONTACT_TYPE', contactUse: 'ORG_CONTACT_USE', addressType: 'ORG_ADDRESS_TYPE',
   relationType: 'ORG_RELATION_TYPE', capabilityType: 'ORG_CAPABILITY_TYPE',
   responsibilityType: 'ORG_RESPONSIBILITY_TYPE', verifyStatus: 'ORG_VERIFY_STATUS',
-  departmentRelationType: 'DEPT_RELATION_TYPE', departmentCapabilityType: 'DEPT_CAPABILITY_TYPE',
+  departmentRelationType: 'DEPT_RELATION_TYPE',
   departmentResponsibilityType: 'DEPT_RESPONSIBILITY_TYPE',
 } as const
 

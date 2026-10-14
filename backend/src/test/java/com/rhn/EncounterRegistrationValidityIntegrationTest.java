@@ -38,7 +38,7 @@ class EncounterRegistrationValidityIntegrationTest extends RhnIntegrationTestSup
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"效期测试患者%s","identifiers":[{"system":"9","value":"33010219900101%s","useType":"SECONDARY"}],
-                                  "gender":"MALE","birthDate":"1990-01-01","phone":"13900139000"
+                                  "gender":"1","birthDate":"1990-01-01","phone":"13900139000"
                                 }
                                 """.formatted(suffix, digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();

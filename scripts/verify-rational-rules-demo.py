@@ -57,7 +57,7 @@ test_scenarios = [
         "title": "PPI质子泵抑制剂重复用药",
         "description": "同时开立奥美拉唑与雷贝拉唑",
         "med_codes": ["MED-2026-W231-02", "MED-2026-W233-02"],
-        "patient": {"patientAgeYears": 45, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 45, "gender": "1", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "PPI"
     },
@@ -66,7 +66,7 @@ test_scenarios = [
         "title": "RASI降压药重复用药",
         "description": "ACEI依那普利联合ARB缬沙坦，增加高钾血症与肾损害风险",
         "med_codes": ["MED-2026-W174-03", "MED-2026-W177-01"],
-        "patient": {"patientAgeYears": 55, "gender": "FEMALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 55, "gender": "2", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "RASI"
     },
@@ -75,7 +75,7 @@ test_scenarios = [
         "title": "NSAID解热镇痛重复用药",
         "description": "布洛芬与双氯芬酸钠同时开立，消化道溃疡出血风险激增",
         "med_codes": ["MED-2026-W078-02", "MED-2026-W079-02"],
-        "patient": {"patientAgeYears": 38, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 38, "gender": "1", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "NSAID"
     },
@@ -84,7 +84,7 @@ test_scenarios = [
         "title": "双硫仑样反应严重相互作用",
         "description": "头孢克肟与含40%乙醇的藿香正气水联合开立",
         "med_codes": ["MED-2026-W013-03", "MED-2026-T030-03"],
-        "patient": {"patientAgeYears": 35, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 35, "gender": "1", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "DISULFIRAM"
     },
@@ -93,7 +93,7 @@ test_scenarios = [
         "title": "他汀与大环内酯相互作用",
         "description": "克拉霉素(强CYP3A4抑制剂)联合辛伐他汀，易致横纹肌溶解",
         "med_codes": ["MED-2026-W022-02", "MED-2026-W200-02"],
-        "patient": {"patientAgeYears": 62, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 62, "gender": "1", "activeAllergies": []},
         "expected_decision": "REQUIRE_OVERRIDE",
         "rule_pattern": "STATIN"
     },
@@ -102,7 +102,7 @@ test_scenarios = [
         "title": "镇静催眠药叠加重复用药",
         "description": "地西泮与佐匹克隆联合开立，加剧中枢过度镇静与呼吸抑制",
         "med_codes": ["MED-2026-W139-01", "MED-2026-W147-01"],
-        "patient": {"patientAgeYears": 50, "gender": "FEMALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 50, "gender": "2", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "SEDATIVE"
     },
@@ -111,7 +111,7 @@ test_scenarios = [
         "title": "18岁以下儿童禁用氟喹诺酮",
         "description": "10岁儿童患者开立盐酸左氧氟沙星片，影响软骨发育",
         "med_codes": ["MED-2026-W030-02"],
-        "patient": {"patientAgeYears": 10, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 10, "gender": "1", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "PED"
     },
@@ -120,7 +120,7 @@ test_scenarios = [
         "title": "8岁以下儿童禁用四环素类",
         "description": "6岁儿童开立盐酸多西环素片，易导致四环素牙与骨发育迟缓",
         "med_codes": ["MED-2026-W018-02"],
-        "patient": {"patientAgeYears": 6, "gender": "FEMALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 6, "gender": "2", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "PED"
     },
@@ -129,7 +129,7 @@ test_scenarios = [
         "title": "儿童病毒感染禁用阿司匹林",
         "description": "5岁儿童开立阿司匹林片，诱发瑞氏综合征(Reye's syndrome)致死风险",
         "med_codes": ["MED-2026-W077-03"],
-        "patient": {"patientAgeYears": 5, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 5, "gender": "1", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "PED"
     },
@@ -138,7 +138,7 @@ test_scenarios = [
         "title": "育龄期及妊娠致畸X级绝对禁忌",
         "description": "育龄期女性开立甲氨蝶呤或利巴韦林，致畸胎或死胎风险极高",
         "med_codes": ["MED-2026-W365-02"],
-        "patient": {"patientAgeYears": 28, "gender": "FEMALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 28, "gender": "2", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "PREG"
     },
@@ -147,7 +147,7 @@ test_scenarios = [
         "title": "同一通用药多条医嘱重复开立",
         "description": "同一处方重复录入两条辛伐他汀20mg，触发同方同药重复预警",
         "med_codes": ["MED-2026-W200-02", "MED-2026-W200-02"],
-        "patient": {"patientAgeYears": 60, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 60, "gender": "1", "activeAllergies": []},
         "expected_decision": "WARN",
         "rule_pattern": "EXACT"
     },
@@ -156,7 +156,7 @@ test_scenarios = [
         "title": "同大类ARB双重重复用药",
         "description": "同时开立缬沙坦片与厄贝沙坦片，双重同类降压药重复开立",
         "med_codes": ["MED-2026-W177-01", "MED-2026-W179-02"],
-        "patient": {"patientAgeYears": 58, "gender": "MALE", "activeAllergies": []},
+        "patient": {"patientAgeYears": 58, "gender": "1", "activeAllergies": []},
         "expected_decision": "BLOCK",
         "rule_pattern": "RASI"
     }

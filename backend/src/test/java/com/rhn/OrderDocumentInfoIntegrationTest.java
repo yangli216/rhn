@@ -77,7 +77,7 @@ class OrderDocumentInfoIntegrationTest extends RhnIntegrationTestSupport {
     private String encounter() throws Exception {
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                {"fullName":"单据信息测试","gender":"FEMALE","birthDate":"1988-08-08",
+                {"fullName":"单据信息测试","gender":"2","birthDate":"1988-08-08",
                  "identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}]}
                 """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn()
                 .getResponse().getContentAsString()).path("id").asString();

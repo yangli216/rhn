@@ -219,7 +219,7 @@ class DiagnosisDomainTruthTest extends RhnIntegrationTestSupport {
 
     private String encounter() throws Exception {
         var resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
-                {"fullName":"诊断体系核查","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1992-03-04"}
+                {"fullName":"诊断体系核查","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"2","birthDate":"1992-03-04"}
                 """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         var encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                 {"residentId":"%s","organizationId":"%s","departmentId":"%s","idempotencyCode":"%s"}

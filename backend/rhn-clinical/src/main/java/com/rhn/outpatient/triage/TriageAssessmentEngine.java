@@ -128,7 +128,7 @@ public class TriageAssessmentEngine implements OutpatientTriageAssessmentDirecto
                 List.of("消化", "内科", "外科", "全科"), 87, "存在消化系统或腹部症状", containsAny(text, "便血", "黑便") ? "便血或黑便需排查消化道出血" : null);
         if (containsAny(text, "外伤", "摔伤", "扭伤", "骨折", "跌倒", "关节痛")) addMatching(result, departments,
                 List.of("骨科", "外科", "急诊", "全科"), 91, "存在创伤或运动系统症状", null);
-        if (("FEMALE".equalsIgnoreCase(input.gender()) || "女".equals(input.gender()))
+        if (("2".equalsIgnoreCase(input.gender()) || "女".equals(input.gender()))
                 && containsAny(text, "月经", "停经", "下腹痛", "阴道流血", "妊娠", "孕")) addMatching(result, departments,
                 List.of("妇产", "妇科"), 93, "存在妇产科相关症状", null);
         if (result.isEmpty()) addMatching(result, departments, List.of("全科", "内科"), 80,

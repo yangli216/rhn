@@ -49,7 +49,7 @@ class MedicationKnowledgeReplayTest extends RhnIntegrationTestSupport {
     }
     PrescriptionSafetySnapshot snapshot(List<PrescriptionSafetySnapshot.MedicationItem> rows,Integer age,boolean timing) {
         return new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,T,1000L,2,2000L,3000L,O,D,"ACTIVE",rows,
-                new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),age,"UNKNOWN"),timing?new PrescriptionSafetySnapshot.EvaluationTiming(DATE,"Asia/Shanghai"):null);
+                new PrescriptionSafetySnapshot.PatientSafetyContext(true,true,null,List.of(),age,"0"),timing?new PrescriptionSafetySnapshot.EvaluationTiming(DATE,"Asia/Shanghai"):null);
     }
     Long source(PrescriptionSafetySnapshot snapshot) {
         Long id=GlobalIds.next();String hash=PrescriptionSafetyHasher.hash(snapshot,json);var now=Instant.now();

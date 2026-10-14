@@ -343,7 +343,7 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"治疗闭环测试居民","identifiers":[{"system":"9","value":"33010219920808%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1992-08-08"}
+                                 "gender":"2","birthDate":"1992-08-08"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

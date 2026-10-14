@@ -21,7 +21,7 @@ describe('OutpatientFlowWorkspace composite visit', () => {
       },
       visits: [{
         encounterId: 'encounter-composite', encounterNo: 'OP-COMPOSITE', residentId: 'resident-composite',
-        residentName: '复合门诊居民', healthRecordNo: 'RHN-COMPOSITE', gender: 'FEMALE',
+        residentName: '复合门诊居民', healthRecordNo: 'RHN-COMPOSITE', gender: '2',
         clinicalStatus: 'COMPLETED', flowStatus: 'COMPLETED', flowStatusText: '流程完成',
         nextDestination: '可以离院', attentionReason: reason, pendingMinutes: 0,
         outstandingAmount: 0, registeredAt: '2026-08-30T12:00:00Z',
@@ -68,7 +68,7 @@ describe('OutpatientFlowWorkspace composite visit', () => {
       residentId: `res-${i + 1}`,
       residentName: `患者${i + 1}`,
       healthRecordNo: `HR${i + 1}`,
-      gender: 'MALE' as const,
+      gender: '1' as const,
       clinicalStatus: 'REGISTERED' as const,
       flowStatus: 'WAITING_CONSULTATION' as const,
       flowStatusText: '候诊中',

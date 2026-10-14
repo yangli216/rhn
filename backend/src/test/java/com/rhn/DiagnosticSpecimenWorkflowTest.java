@@ -105,7 +105,7 @@ class DiagnosticSpecimenWorkflowTest extends RhnIntegrationTestSupport {
     }
     private JsonNode readyTask(int quantity) throws Exception {
         String suffix = UUID.randomUUID().toString();
-        var resident = postJson("/api/residents", "{\"fullName\":\"标本测试\",\"gender\":\"FEMALE\",\"birthDate\":\"1992-08-08\",\"identifiers\":[{\"system\":\"9\",\"value\":\"SPEC-" + suffix + "\",\"useType\":\"SECONDARY\"}]}");
+        var resident = postJson("/api/residents", "{\"fullName\":\"标本测试\",\"gender\":\"2\",\"birthDate\":\"1992-08-08\",\"identifiers\":[{\"system\":\"9\",\"value\":\"SPEC-" + suffix + "\",\"useType\":\"SECONDARY\"}]}");
         var encounter = postJson("/api/encounters", "{\"residentId\":\"" + resident.get("id").asString() + "\",\"organizationId\":\"" + ORGANIZATION + "\",\"departmentId\":\"" + DEPARTMENT + "\"}");
         mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString())).andExpect(status().isOk());
         var request = postJson("/api/encounters/" + encounter.get("id").asString() + "/service-requests", "{\"catalogItemId\":\"362387869795101\",\"quantity\":" + quantity + ",\"priceType\":\"SALE\",\"performerDepartmentId\":\"" + DEPARTMENT + "\",\"pricingRequired\":true,\"reason\":\"测试\"}");

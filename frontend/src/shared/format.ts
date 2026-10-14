@@ -2,7 +2,7 @@ import type { Encounter, Resident } from './model'
 import { encounterStatusPresentation } from './presentation'
 
 export function genderLabel(gender?: Resident['gender'] | string) {
-  return gender === 'MALE' ? '男' : gender === 'FEMALE' ? '女' : '未知'
+  return gender === '1' ? '男' : gender === '2' ? '女' : gender === '9' ? '未说明的性别' : '未知的性别'
 }
 
 export function age(birthDate: string) {

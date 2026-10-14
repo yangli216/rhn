@@ -16,7 +16,7 @@ export interface InpatientBed {
   code: string
   bedNo: string
   bedType: 'PHYSICAL' | 'EXTRA' | 'VIRTUAL' | 'HOME'
-  genderRestriction: 'ANY' | 'MALE' | 'FEMALE'
+  genderRestriction: 'ANY' | '1' | '2'
   operationalStatus: Exclude<InpatientBedStatus, 'OCCUPIED'>
   displayStatus: InpatientBedStatus
   nursingGroupCode?: string
@@ -35,7 +35,7 @@ export interface InpatientEpisode {
   residentId: string
   residentName: string
   healthRecordNo: string
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  gender: '1' | '2' | '0' | '9'
   genderText?: string
   birthDate?: string
   organizationId: string

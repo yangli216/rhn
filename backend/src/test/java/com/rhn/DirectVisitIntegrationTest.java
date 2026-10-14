@@ -269,7 +269,7 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
     }
     private String resident(String birthDate) throws Exception {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of("fullName", "直接接诊患者", "gender", "FEMALE", "birthDate", birthDate,
+                .content(objectMapper.writeValueAsString(Map.of("fullName", "直接接诊患者", "gender", "2", "birthDate", birthDate,
                     "identifiers", java.util.List.of(Map.of("system", "9", "value", "DV" + UUID.randomUUID(), "useType", "SECONDARY"))))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

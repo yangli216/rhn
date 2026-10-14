@@ -90,7 +90,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                                   "sourceSystem":"HIS-A",
                                   "sourceRecordId":"PATIENT-90001",
                                   "fullName":"陈晨",
-                                  "gender":"MALE",
+                                  "gender":"1",
                                   "birthDate":"1966-01-01",
                                   "identifiers":[
                                     {"system":"HOSPITAL_MRN","value":"MRN-90001","useType":"SECONDARY"}
@@ -135,7 +135,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/residents/page")
                         .with(rhn())
                         .queryParam("query", testName + "甲")
-                        .queryParam("gender", "MALE")
+                        .queryParam("gender", "1")
                         .queryParam("status", "ACTIVE")
                         .queryParam("page", "0")
                         .queryParam("size", "10"))
@@ -145,7 +145,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
 
         mockMvc.perform(get("/api/residents/page")
                         .with(rhn())
-                        .queryParam("gender", "FEMALE")
+                        .queryParam("gender", "2")
                         .queryParam("query", testName))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0))
@@ -162,7 +162,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                         .content("""
                                 {
                                   "fullName":"%s",
-                                  "gender":"MALE",
+                                  "gender":"1",
                                   "birthDate":"1990-01-01",
                                   "phone":"13600000001"%s
                                 }
@@ -207,7 +207,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                                 {
                                   "fullName":"%s",
                                   %s
-                                  "gender":"MALE",
+                                  "gender":"1",
                                   "birthDate":"1966-01-01",
                                   "phone":"13800139001"%s
                                 }

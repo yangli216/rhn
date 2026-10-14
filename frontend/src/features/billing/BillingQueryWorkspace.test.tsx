@@ -9,7 +9,7 @@ import { BillingQueryWorkspace } from './BillingQueryWorkspace'
 
 const record: SettlementRecord = {
   id: 'settlement-1', patientAccountId: 'account-1', residentId: 'resident-1', encounterId: 'encounter-1',
-  departmentId: 'department-1', residentName: '王建国', healthRecordNo: 'JMD-0001', gender: 'MALE',
+  departmentId: 'department-1', residentName: '王建国', healthRecordNo: 'JMD-0001', gender: '1',
   birthDate: '1976-03-12', encounterNo: 'MZ20260908001', departmentName: '全科门诊',
   settlementNo: 'STL-20260908-001', settlementType: 'NORMAL',
   settlementScene: 'OUTPATIENT', terminalScene: 'CASHIER', status: 'SETTLED', grossAmount: 86,

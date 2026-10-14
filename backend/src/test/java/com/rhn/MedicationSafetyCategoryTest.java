@@ -329,7 +329,7 @@ class MedicationSafetyCategoryTest extends RhnIntegrationTestSupport {
                 101L, 201L, 362387869790211L, 362387869790212L,
                 "DRAFT", items,
                 new PrescriptionSafetySnapshot.PatientSafetyContext(
-                        true, true, null, List.of(), ageYears, "MALE"
+                        true, true, null, List.of(), ageYears, "1"
                 )
         );
     }

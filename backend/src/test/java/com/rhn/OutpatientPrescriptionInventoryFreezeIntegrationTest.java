@@ -345,7 +345,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                 {
                                   "fullName":"门诊库存测试患者",
                                   "identifiers":[{"system":"9","value":"33010219880618%s","useType":"SECONDARY"}],
-                                  "gender":"MALE","birthDate":"1988-06-18"
+                                  "gender":"1","birthDate":"1988-06-18"
                                 }
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();

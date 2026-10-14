@@ -23,7 +23,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         String resident = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"门诊重建患者","identifiers":[{"system":"9","value":"OPD%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1992-03-04"}
+                                 "gender":"2","birthDate":"1992-03-04"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String residentId = json(resident).get("id").asString();
@@ -105,7 +105,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"过敏核对患者","identifiers":[{"system":"9","value":"SAFE%s","useType":"SECONDARY"}],
-                                 "gender":"MALE","birthDate":"1988-06-08"}
+                                 "gender":"1","birthDate":"1988-06-08"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())

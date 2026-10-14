@@ -61,7 +61,7 @@ class ServiceExecutionDepartmentDefaultTest extends RhnIntegrationTestSupport {
     private String encounter() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         var resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"fullName\":\"执行科室测试\",\"gender\":\"MALE\",\"birthDate\":\"1990-01-01\",\"identifiers\":[{\"system\":\"9\",\"value\":\"EXEC"+suffix+"\",\"useType\":\"SECONDARY\"}]}"))
+                        .content("{\"fullName\":\"执行科室测试\",\"gender\":\"1\",\"birthDate\":\"1990-01-01\",\"identifiers\":[{\"system\":\"9\",\"value\":\"EXEC"+suffix+"\",\"useType\":\"SECONDARY\"}]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         var encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"residentId\":\""+resident.path("id").asString()+"\",\"organizationId\":\""+ORGANIZATION+"\",\"departmentId\":\""+DEPARTMENT+"\",\"idempotencyCode\":\"EXEC"+suffix+"\"}"))

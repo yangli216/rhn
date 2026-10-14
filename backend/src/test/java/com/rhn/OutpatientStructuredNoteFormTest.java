@@ -90,7 +90,7 @@ class OutpatientStructuredNoteFormTest extends RhnIntegrationTestSupport {
         String resident = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"结构化病历居民","identifiers":[{"system":"9","value":"NOTE-FORM-198801011488","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1988-01-01"}
+                                 "gender":"2","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String residentId = objectMapper.readTree(resident).get("id").asString();

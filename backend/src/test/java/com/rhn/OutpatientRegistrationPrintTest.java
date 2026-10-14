@@ -169,7 +169,7 @@ class OutpatientRegistrationPrintTest extends RhnIntegrationTestSupport {
         String nationalId = "11010119900101" + suffix.substring(0, 4);
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"挂号打印测试患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1990-01-01"}
+                                {"fullName":"挂号打印测试患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"2","birthDate":"1990-01-01"}
                                 """.formatted(nationalId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

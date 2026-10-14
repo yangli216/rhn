@@ -84,7 +84,7 @@ class DiagnosticTemplateWorkflowTest extends RhnIntegrationTestSupport {
         return """
                 {"expectedVersion":%d,"effectiveFrom":"2020-01-01","publicationBasis":"虚构规则仅用于隔离测试",
                 "content":{"indicators":[{"code":"GLU","name":"血糖","valueType":"NUMBER","unitCode":"MMOL_L_TEST","precision":2,
-                "required":true,"methodCode":"HEXOKINASE","allowedCodes":[],"rules":[{"code":"FEMALE","gender":"FEMALE",
+                "required":true,"methodCode":"HEXOKINASE","allowedCodes":[],"rules":[{"code":"FEMALE","gender":"2",
                 "minimumAgeDays":0,"referenceLow":3.9,"referenceHigh":%s,"criticalLow":2.8,"criticalHigh":22.2,"criticalCodes":[]}]}],
                 "phrases":[],"requiredChecks":[],"minimumImages":0}}
                 """.formatted(expected,high);
@@ -102,7 +102,7 @@ class DiagnosticTemplateWorkflowTest extends RhnIntegrationTestSupport {
     }
     private JsonNode startedTask(String catalog,boolean lab) throws Exception {
         String suffix=UUID.randomUUID().toString().substring(0,8);
-        var resident=postJson("/api/residents","{\"fullName\":\"医技草稿测试\",\"gender\":\"FEMALE\",\"birthDate\":\"1992-08-08\",\"identifiers\":[{\"system\":\"9\",\"value\":\"DRAFT-"+suffix+"\",\"useType\":\"SECONDARY\"}]}",201);
+        var resident=postJson("/api/residents","{\"fullName\":\"医技草稿测试\",\"gender\":\"2\",\"birthDate\":\"1992-08-08\",\"identifiers\":[{\"system\":\"9\",\"value\":\"DRAFT-"+suffix+"\",\"useType\":\"SECONDARY\"}]}",201);
         var encounter=postJson("/api/encounters","{\"residentId\":\""+resident.get("id").asString()+"\",\"organizationId\":\""+ORGANIZATION+"\",\"departmentId\":\""+DEPARTMENT+"\"}",201);
         mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString())).andExpect(status().isOk());
         var request=postJson("/api/encounters/"+encounter.get("id").asString()+"/service-requests","{\"catalogItemId\":\""+catalog+"\",\"quantity\":1,\"priceType\":\"SALE\",\"performerDepartmentId\":\""+DEPARTMENT+"\",\"pricingRequired\":true,\"reason\":\"测试复查\"}",201);

@@ -41,7 +41,7 @@ class ClinicalTriageDecisionServiceTest {
     }
     private void mode(String mode) { when(policy.text(1L, "decision-mode", "DISABLED")).thenReturn(mode); }
     private static AssessmentRequest input(String complaint) {
-        return new AssessmentRequest(complaint, null, null, null, null, null, null, null, null, null, null, 35, "MALE", true);
+        return new AssessmentRequest(complaint, null, null, null, null, null, null, null, null, null, null, 35, "1", true);
     }
     private static BaselineAssessment assessment(List<CandidateDepartment> departments) {
         return new BaselineAssessment(new RuleAssessment("LEVEL_1_CRITICAL", "规则", List.of("规则"), List.of("危险")),

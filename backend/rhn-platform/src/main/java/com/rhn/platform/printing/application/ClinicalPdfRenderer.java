@@ -706,7 +706,7 @@ class ClinicalPdfRenderer {
         if (value == null) return "-";
         try { return new BigDecimal(value.toString()).stripTrailingZeros().toPlainString(); } catch (Exception ignored) { return value.toString(); }
     }
-    private String gender(String value) { return switch (value) { case "MALE", "男" -> "男"; case "FEMALE", "女" -> "女"; default -> "未知"; }; }
+    private String gender(String value) { return switch (value) { case "1", "男" -> "男"; case "2", "女" -> "女"; case "0" -> "未知的性别"; case "9" -> "未说明的性别"; default -> "未知"; }; }
 
     private static final class PageFooter extends PdfPageEventHelper {
         private final Font font;

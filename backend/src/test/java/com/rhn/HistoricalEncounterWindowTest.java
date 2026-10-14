@@ -163,7 +163,7 @@ class HistoricalEncounterWindowTest extends RhnIntegrationTestSupport {
         var response = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                 {"fullName":"历史窗口测试患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],
-                 "gender":"FEMALE","birthDate":"1992-03-04"}
+                 "gender":"2","birthDate":"1992-03-04"}
                 """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn().getResponse();
         TenantContext.set(Long.valueOf(TENANT));
         return Long.valueOf(json(response.getContentAsString()).get("id").asString());

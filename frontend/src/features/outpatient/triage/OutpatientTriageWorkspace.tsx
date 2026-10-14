@@ -1,3 +1,4 @@
+import { genderLabel } from '../../../shared/format'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -137,7 +138,7 @@ export function OutpatientTriageWorkspace({
 
   // 基础身份表单
   const [patientName, setPatientName] = useState('')
-  const [gender, setGender] = useState('MALE')
+  const [gender, setGender] = useState('1')
   const [age, setAge] = useState<number | ''>('')
   const [birthDate, setBirthDate] = useState('')
   const [phone, setPhone] = useState('')
@@ -348,7 +349,7 @@ export function OutpatientTriageWorkspace({
     setActiveTriageNo(null)
     setReassessmentPreviousLevel(null)
     setPatientName('')
-    setGender('MALE')
+    setGender('1')
     setAge('')
     setBirthDate('')
     setPhone('')
@@ -395,7 +396,7 @@ export function OutpatientTriageWorkspace({
     setActiveRegistrationId(item.registrationId)
     setActiveResidentId(item.residentId)
     setPatientName(item.residentName)
-    setGender(item.gender || 'MALE')
+    setGender(item.gender || '1')
     if (item.age) setAge(item.age)
     if (item.birthDate) setBirthDate(item.birthDate)
     if (item.phone) setPhone(item.phone)
@@ -837,7 +838,7 @@ export function OutpatientTriageWorkspace({
                       </div>
                       <div className="triage-queue-card__body">
                         <span>{item.departmentName}</span>
-                        <span>{item.gender === 'MALE' ? '男' : '女'} · {item.age}岁</span>
+                        <span>{genderLabel(item.gender)} · {item.age}岁</span>
                       </div>
                       <div className="triage-queue-card__footer">
                         <span className="triage-queue-card__meta">序号：{item.sequenceNo}号</span>
@@ -882,7 +883,7 @@ export function OutpatientTriageWorkspace({
                       </div>
                       <div className="triage-queue-card__body">
                         <span>{item.departmentName}</span>
-                        <span>{item.gender === 'MALE' ? '男' : '女'} · {item.age}岁</span>
+                        <span>{genderLabel(item.gender)} · {item.age}岁</span>
                       </div>
                       <div className="triage-queue-card__footer">
                         <span className="triage-queue-card__meta">{item.ticketNo}</span>
@@ -952,7 +953,7 @@ export function OutpatientTriageWorkspace({
                   <div className="triage-patient-strip__info">
                     <h3>{patientName}</h3>
                     <span className="triage-patient-strip__sub">
-                      {gender === 'MALE' ? '男' : '女'} · {age ? `${age}岁` : '年龄未知'}
+                      {genderLabel(gender)} · {age ? `${age}岁` : '年龄未知'}
                       {phone ? ` · 电话：${phone}` : ''} · 档案号：{healthRecordNo || '临时分诊'}
                     </span>
                   </div>

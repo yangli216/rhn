@@ -287,7 +287,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         String nationalId = "33010219900101" + ("0000" + digits).substring(("0000" + digits).length() - 4);
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"打印测试居民","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1990-01-01"}
+                                {"fullName":"打印测试居民","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"2","birthDate":"1990-01-01"}
                                 """.formatted(nationalId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }

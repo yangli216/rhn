@@ -18,12 +18,12 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([
           { encounterId: 'encounter-first', residentId: 'resident-first', status: 'PENDING_CHARGE',
-            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', genderText: '女', birthDate: '1988-08-08',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: '2', genderText: '女', birthDate: '1988-08-08',
             encounterNo: 'MZ20260830001',
             sourceEventCount: 1, chargedEventCount: 0, accountBalance: 0, currencyCode: 'CNY',
             latestOccurredAt: '2026-08-30T01:00:00Z' },
           { encounterId: 'encounter-target', residentId: 'resident-target', status: 'PENDING_PAYMENT',
-            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: 'MALE', genderText: '男', birthDate: '1976-03-12',
+            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: '1', genderText: '男', birthDate: '1976-03-12',
             encounterNo: 'MZ20260830002',
             sourceEventCount: 2, chargedEventCount: 2, accountBalance: 28.6, currencyCode: 'CNY',
             latestOccurredAt: '2026-08-30T02:00:00Z' },
@@ -97,7 +97,7 @@ describe('BillingWorkspace deep link', () => {
     const api = {
       billing: {
         worklist: vi.fn().mockResolvedValue([{ encounterId: 'encounter-1', residentId: 'resident-1',
-          residentName: '王建国', healthRecordNo: 'JMD-0001', gender: 'MALE', birthDate: '1976-03-12',
+          residentName: '王建国', healthRecordNo: 'JMD-0001', gender: '1', birthDate: '1976-03-12',
           encounterNo: 'MZ20260831001', accountId: 'account-1', status: 'PENDING_INVOICE', sourceEventCount: 1,
           chargedEventCount: 1, latestSourceNo: 'REQ-1', latestOccurredAt: '2026-08-31T01:00:00Z',
           chargeAmount: 28.6, accountBalance: 28.6, currencyCode: 'CNY' }]),
@@ -242,7 +242,7 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([{
           encounterId: 'encounter-new', residentId: 'resident-new', status: 'PENDING_CHARGE',
-          residentName: '赵新生', healthRecordNo: 'JMD-0003', gender: 'MALE', birthDate: '1995-05-05',
+          residentName: '赵新生', healthRecordNo: 'JMD-0003', gender: '1', birthDate: '1995-05-05',
           encounterNo: 'MZ20260830003', sourceEventCount: 1, chargedEventCount: 0, accountBalance: 0,
           currencyCode: 'CNY', latestOccurredAt: '2026-08-30T03:00:00Z',
         }]),
@@ -270,12 +270,12 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([
           { encounterId: 'enc-1', residentId: 'res-1', status: 'PENDING_PAYMENT',
-            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', genderText: '女', birthDate: '1988-08-08',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: '2', genderText: '女', birthDate: '1988-08-08',
             encounterNo: 'MZ20260830001', accountId: 'acc-1',
             sourceEventCount: 1, chargedEventCount: 1, accountBalance: 15, currencyCode: 'CNY',
             latestOccurredAt: '2026-08-30T01:00:00Z' },
           { encounterId: 'enc-2', residentId: 'res-2', status: 'PENDING_PAYMENT',
-            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: 'MALE', genderText: '男', birthDate: '1976-03-12',
+            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: '1', genderText: '男', birthDate: '1976-03-12',
             encounterNo: 'MZ20260830002', accountId: 'acc-2',
             sourceEventCount: 2, chargedEventCount: 2, accountBalance: 28.6, currencyCode: 'CNY',
             latestOccurredAt: '2026-08-30T02:00:00Z' },
@@ -322,12 +322,12 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([
           { encounterId: 'enc-1', residentId: 'res-1', status: 'PENDING_PAYMENT',
-            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', genderText: '女', birthDate: '1988-08-08',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: '2', genderText: '女', birthDate: '1988-08-08',
             encounterNo: 'MZ20260830001', accountId: 'acc-1',
             sourceEventCount: 1, chargedEventCount: 1, accountBalance: 15, currencyCode: 'CNY',
             latestOccurredAt: '2026-08-30T01:00:00Z' },
           { encounterId: 'enc-2', residentId: 'res-2', status: 'PENDING_PAYMENT',
-            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: 'MALE', genderText: '男', birthDate: '1976-03-12',
+            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: '1', genderText: '男', birthDate: '1976-03-12',
             encounterNo: 'MZ20260830002', accountId: 'acc-2',
             sourceEventCount: 2, chargedEventCount: 2, accountBalance: 28.6, currencyCode: 'CNY',
             latestOccurredAt: '2026-08-30T02:00:00Z' },
@@ -373,7 +373,7 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([{
           encounterId: 'encounter-group', residentId: 'resident-group', status: 'PENDING_PAYMENT',
-          residentName: '钱多宝', healthRecordNo: 'JMD-0009', gender: 'MALE', birthDate: '1985-05-05',
+          residentName: '钱多宝', healthRecordNo: 'JMD-0009', gender: '1', birthDate: '1985-05-05',
           encounterNo: 'MZ20260830009', accountId: 'acc-group',
           sourceEventCount: 2, chargedEventCount: 2, accountBalance: 58.6, currencyCode: 'CNY',
           latestOccurredAt: '2026-08-30T01:00:00Z',
@@ -484,7 +484,7 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([
           { encounterId: 'encounter-done', residentId: 'resident-1', accountId: 'acc-done', status: 'SETTLED',
-            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', genderText: '女', birthDate: '1988-08-08',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: '2', genderText: '女', birthDate: '1988-08-08',
             encounterNo: 'MZ20260904001', sourceEventCount: 1, chargedEventCount: 1, accountBalance: 0,
             currencyCode: 'CNY', latestOccurredAt: '2026-09-04T01:00:00Z' },
         ]),
@@ -605,7 +605,7 @@ describe('BillingWorkspace deep link', () => {
       billing: {
         worklist: vi.fn().mockResolvedValue([
           { encounterId: 'enc-mix', residentId: 'res-mix', status: 'PENDING_PAYMENT',
-            residentName: '陈明远', healthRecordNo: 'HR-3301', gender: 'MALE', genderText: '男', birthDate: '2020-09-10',
+            residentName: '陈明远', healthRecordNo: 'HR-3301', gender: '1', genderText: '男', birthDate: '2020-09-10',
             encounterNo: 'OP-20261009', accountId: 'acc-mix',
             sourceEventCount: 3, chargedEventCount: 3, accountBalance: 40, currencyCode: 'CNY',
             latestOccurredAt: '2026-10-09T01:30:00Z' },

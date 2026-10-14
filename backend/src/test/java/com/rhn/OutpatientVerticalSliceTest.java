@@ -379,7 +379,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 {
                                   "fullName": "张建国",
                                   "nationalId": "%s",
-                                  "gender": "MALE",
+                                  "gender": "1",
                                   "birthDate": "1990-01-01",
                                   "phone": "13800138000"
                                 }
@@ -497,7 +497,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                         {
                           "fullName": "王小禾",
                           "nationalId": "%s",
-                          "gender": "FEMALE",
+                          "gender": "2",
                           "birthDate": "1977-01-01",
                           "phone": "13800138001"
                         }
@@ -508,7 +508,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         String body = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"目录快照患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE",
+                                  "fullName":"目录快照患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"2",
                                   "birthDate":"1988-12-12","phone":"13800138009"
                                 }
                                 """.formatted(nationalId)))

@@ -92,7 +92,7 @@ class OutpatientTriageServiceTest {
         when(request.organizationId()).thenReturn(null);
         when(request.encounterId()).thenReturn(null);
         when(request.patientName()).thenReturn("测试患者");
-        when(request.gender()).thenReturn("UNKNOWN");
+        when(request.gender()).thenReturn("0");
         when(request.triageLevel()).thenReturn("LEVEL_4_NON_URGENT");
         when(assessments.assessRules(any())).thenReturn(new RuleAssessment("LEVEL_4_NON_URGENT", "普通", List.of(), List.of()));
         when(triageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -103,7 +103,7 @@ class OutpatientTriageServiceTest {
 
     @Test
     void existingRecordCannotBypassOrganizationAuthorization() {
-        var record = new OutpatientTriageRecord(TENANT_ID, 999L, "TR-TEST", "测试患者", "UNKNOWN");
+        var record = new OutpatientTriageRecord(TENANT_ID, 999L, "TR-TEST", "测试患者", "0");
         when(triageRepository.findByTenantIdAndId(TENANT_ID, 1L)).thenReturn(Optional.of(record));
         assertThatThrownBy(() -> service.getTriageRecord(1L)).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> service.bindEncounter(1L, 2L, 3L)).isInstanceOf(BusinessException.class);
@@ -143,7 +143,7 @@ class OutpatientTriageServiceTest {
                                                 Long departmentId, String phone) {
         return new ReceptionQueueItem(
                 registrationId, null, null, encounterId, registrationId + 100, registrationId + 200,
-                registrationId + 300, "HR" + registrationId, "患者" + registrationId, "MALE",
+                registrationId + 300, "HR" + registrationId, "患者" + registrationId, "1",
                 LocalDate.of(1985, 12, 20), "RG" + registrationId, "A" + registrationId, 1,
                 0, "WINDOW", "GENERAL", registrationStatus, queueStatus, null, "普通门诊服务",
                 "一楼诊区", Instant.parse("2026-09-11T01:00:00Z"), null, null, null,

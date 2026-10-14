@@ -3,7 +3,7 @@ import { createOrganizationApi, type OrganizationProfileInput, type Practitioner
 import type { ApiClient } from './httpClient'
 
 describe('organization onboarding API', () => {
-  const input: PractitionerOnboardingInput = { code: 'P001', fullName: '测试人员', sdPractGender: 'UNKNOWN',
+  const input: PractitionerOnboardingInput = { code: 'P001', fullName: '测试人员', sdPractGender: '0',
     organizationId: '98648483543646208', departmentId: '98648483543646209', positionId: '98648483543646210', hireDate: '2026-10-03' }
 
   it('uses one atomic request and preserves large relationship IDs in both directions', async () => {

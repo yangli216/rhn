@@ -175,7 +175,7 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"%s","identifiers":[{"system":"9","value":"33010219950505%s","useType":"SECONDARY"}],
-                                 "gender":"FEMALE","birthDate":"1995-05-05"}
+                                 "gender":"2","birthDate":"1995-05-05"}
                                 """.formatted(residentName, digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())

@@ -12088,7 +12088,7 @@ export interface components {
             expectedRevision?: number;
             fullName: string;
             /** @enum {string} */
-            sdPractGender: "MALE" | "FEMALE" | "UNKNOWN";
+            sdPractGender: "0" | "1" | "2" | "9";
         };
         StaffView: {
             /** @example 824633720832983041 */
@@ -16855,7 +16855,7 @@ export interface components {
             code: string;
             fullName: string;
             /** @enum {string} */
-            sdPractGender: "MALE" | "FEMALE" | "UNKNOWN";
+            sdPractGender: "0" | "1" | "2" | "9";
             /** @example 824633720832983041 */
             organizationId: string;
             /** @example 824633720832983041 */
@@ -16915,7 +16915,7 @@ export interface components {
             code: string;
             fullName: string;
             /** @enum {string} */
-            sdPractGender: "MALE" | "FEMALE" | "UNKNOWN";
+            sdPractGender: "0" | "1" | "2" | "9";
             practitionerIdentifier?: string;
         };
         CreatePositionRequest: {
@@ -18540,7 +18540,7 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
-            /** @description 字典 DEPT_CAPABILITY_TYPE 的显示文本 */
+            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
             readonly sdCapabilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;

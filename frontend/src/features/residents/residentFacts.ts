@@ -18,7 +18,7 @@ export function requireCoverageFacts(values: ResidentCoverageInput[]): void {
 function requireResident(value: unknown): asserts value is Resident {
   if (!object(value) || !text(value.id) || !text(value.healthRecordNo) || !text(value.fullName)
     || !['ACTIVE', 'MERGED', 'INACTIVE'].includes(value.status as string) || typeof value.deceased !== 'boolean'
-    || !['MALE', 'FEMALE', 'UNKNOWN'].includes(value.gender as string)
+    || !['1', '2', '0', '9'].includes(value.gender as string)
     || !text(value.birthDate) || !/^\d{4}-\d{2}-\d{2}$/.test(value.birthDate)
     || !Number.isFinite(Date.parse(value.birthDate)) || new Date(value.birthDate).toISOString().slice(0, 10) !== value.birthDate
     || !Number.isSafeInteger(value.version) || (value.version as number) < 0

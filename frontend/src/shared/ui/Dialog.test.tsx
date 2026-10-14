@@ -16,7 +16,7 @@ describe('Dialog form keyboard navigation', () => {
           <input aria-label="证件号" pattern="[0-9]{3}" />
         </FormField>
         <FormField label="性别" required>
-          <Select value="MALE" onChange={vi.fn()} options={[{ value: 'MALE', label: '男' }]} />
+          <Select value="1" onChange={vi.fn()} options={[{ value: '1', label: '男' }]} />
         </FormField>
       </form>
     </Dialog>)

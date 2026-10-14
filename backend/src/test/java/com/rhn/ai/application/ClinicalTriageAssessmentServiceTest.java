@@ -137,7 +137,7 @@ class ClinicalTriageAssessmentServiceTest {
     private static AssessmentRequest request(boolean aiEnhancement) {
         return new AssessmentRequest("发热咳嗽", "发热,咳嗽", BigDecimal.valueOf(38.6),
                 BigDecimal.valueOf(90), BigDecimal.valueOf(18), BigDecimal.valueOf(190),
-                BigDecimal.valueOf(80), BigDecimal.valueOf(98), null, 2, "ALERT", 35, "MALE", aiEnhancement);
+                BigDecimal.valueOf(80), BigDecimal.valueOf(98), null, 2, "ALERT", 35, "1", aiEnhancement);
     }
 
     private static ClinicalAssistantSettings settings(String mode) {

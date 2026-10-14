@@ -21,7 +21,7 @@ const today = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
 
-type GenderFilter = '' | 'MALE' | 'FEMALE' | 'UNKNOWN'
+type GenderFilter = '' | '1' | '2' | '0' | '9'
 type StatusFilter = '' | 'ACTIVE' | 'MERGED' | 'INACTIVE'
 type DeceasedFilter = 'ALL' | 'ALIVE' | 'DECEASED'
 
@@ -32,9 +32,9 @@ function optionValue<T extends string>(options: ReadonlyArray<{ value: T }>, val
 
 const genderOptions: Array<{ value: GenderFilter; label: string }> = [
   { value: '', label: '全部性别' },
-  { value: 'MALE', label: '男' },
-  { value: 'FEMALE', label: '女' },
-  { value: 'UNKNOWN', label: '未知' },
+  { value: '1', label: '男' },
+  { value: '2', label: '女' },
+  { value: '0', label: '未知的性别' }, { value: '9', label: '未说明的性别' },
 ]
 
 const statusOptions: Array<{ value: StatusFilter; label: string }> = [
@@ -244,7 +244,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                   <tr key={resident.id} className="resident-table-row">
                     <td>
                       <div className="resident-cell-name">
-                        <span className={`resident-avatar ${(resident.gender || '').toLowerCase()}`}>
+                        <span className={`resident-avatar ${resident.gender === '1' ? 'male' : resident.gender === '2' ? 'female' : ''}`}>
                           {resident.fullName ? resident.fullName.slice(-1) : '居'}
                         </span>
                         <strong>{resident.fullName}</strong>
@@ -421,7 +421,7 @@ function ResidentProfileDialog({ api, profile, available, checking, onRefresh, o
         <div className="ui-form-row">
           <FormField className="ui-field--grow" label="姓名" required><input {...register('fullName')} required /></FormField>
           <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select aria-label="性别"
-            options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
+            options={[{ value: '0', label: '未知的性别' }, { value: '9', label: '未说明的性别' }, { value: '1', label: '男' }, { value: '2', label: '女' }]}
             value={field.value} onChange={field.onChange} showValue />}/></FormField>
           <FormField label="出生日期" required><input type="date" max={today()} {...register('birthDate')} required /></FormField>
           <FormField label="联系电话"><input {...register('phone')} placeholder="手机/座机号" /></FormField>
@@ -696,7 +696,7 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
 }) {
   const { control, register, handleSubmit, getValues, setValue } = useForm<CreateResidentInput>({
     defaultValues: {
-      fullName: '', nationalId: '', gender: 'UNKNOWN', birthDate: '', phone: '',
+      fullName: '', nationalId: '', gender: '0', birthDate: '', phone: '',
       identifiers: [{ system: '1', value: '', useType: 'OFFICIAL' }],
       demographicProfile: {},
       addresses: [], relatedPersons: [], coverages: [], employments: [],
@@ -744,7 +744,7 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
           </FormField>
           <FormField label="性别" required>
             <Controller control={control} name="gender" render={({ field }) => <Select aria-label="性别"
-              options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
+              options={[{ value: '0', label: '未知的性别' }, { value: '9', label: '未说明的性别' }, { value: '1', label: '男' }, { value: '2', label: '女' }]}
               value={field.value} onChange={field.onChange} showValue />} />
           </FormField>
           <FormField label="出生日期" required>

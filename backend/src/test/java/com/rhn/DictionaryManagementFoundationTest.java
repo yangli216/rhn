@@ -455,12 +455,12 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(26));
 
-        mockMvc.perform(get("/api/platform/dictionaries/resolve/{code}", "COMMON_YES_NO").with(rhn()))
+        mockMvc.perform(get("/api/platform/dictionaries/resolve/{code}", "BD_SHELF_LIFE_UNIT").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("YES"))
-                .andExpect(jsonPath("$[0].name").value("是"))
-                .andExpect(jsonPath("$[1].code").value("NO"))
-                .andExpect(jsonPath("$[1].name").value("否"));
+                .andExpect(jsonPath("$[0].code").value("DAY"))
+                .andExpect(jsonPath("$[0].name").value("天"))
+                .andExpect(jsonPath("$[1].code").value("MONTH"))
+                .andExpect(jsonPath("$[1].name").value("月"));
     }
 
     @Test

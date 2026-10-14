@@ -6,6 +6,7 @@ import { errorMessage } from '../api/httpClient'
 import type { RhnApi } from '../rhnApi'
 import { RemoteSearchSelect, type RemoteSearchOption, type RemoteSearchSelectProps } from './RemoteSearchSelect'
 import { matchesPinyinOrText } from './pinyinInitials'
+import { serviceSubtypeLabel } from '../presentation/serviceSubtype'
 
 export type ClinicalResourceType = 'diagnosis' | 'medication' | 'service' | 'mixed'
 export type ClinicalResource = DiseaseConcept | MedicationKnowledge | ServiceCatalogItem | OrderableMedicationKnowledge | ItemGroup
@@ -82,7 +83,7 @@ function matchServiceItem(item: ServiceCatalogItem, query: string): boolean {
     matchesPinyinOrText(item.organizationAdoption?.localName, query) ||
     matchesPinyinOrText(item.organizationAdoption?.localCode, query) ||
     matchesPinyinOrText(item.sdServiceTypeText, query) ||
-    matchesPinyinOrText(item.serviceSubtype, query)
+    matchesPinyinOrText(serviceSubtypeLabel(item.serviceSubtype), query)
   )
 }
 
@@ -349,7 +350,7 @@ function mapResourceOption(
     value: value.id,
     label: value.organizationAdoption?.localName || value.name,
     code: value.organizationAdoption?.localCode || value.code,
-    description: [value.sdServiceTypeText, value.serviceSubtype, priceText].filter(Boolean).join(' · '),
+    description: [value.sdServiceTypeText, serviceSubtypeLabel(value.serviceSubtype), priceText].filter(Boolean).join(' · '),
     tags: tags.length ? tags : undefined,
     raw: value,
   }

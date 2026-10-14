@@ -91,7 +91,7 @@ class DomainEventProjectionTest extends RhnIntegrationTestSupport {
                                 {
                                   "fullName":"幂等测试居民",
                                   "identifiers":[{"system":"9","value":"EVENT-199901019999","useType":"SECONDARY"}],
-                                  "gender":"UNKNOWN",
+                                  "gender":"0",
                                   "birthDate":"1999-01-01"
                                 }
                                 """))

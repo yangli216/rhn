@@ -348,7 +348,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "fullName":"门诊主流程患者","identifiers":[{"system":"9","value":"33010219880808%s","useType":"SECONDARY"}],
-                                  "gender":"FEMALE","birthDate":"1988-08-08","phone":"13800138000"
+                                  "gender":"2","birthDate":"1988-08-08","phone":"13800138000"
                                 }
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
@@ -455,7 +455,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
     private Reviewer createReviewer(String suffix) throws Exception {
         JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"code":"OPD-PHARM-%s","fullName":"门诊主流程药师","sdPractGender":"FEMALE"}
+                                {"code":"OPD-PHARM-%s","fullName":"门诊主流程药师","sdPractGender":"2"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())

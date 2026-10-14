@@ -10,7 +10,7 @@ export interface ResidentIdentifierInput {
 export interface CreateResidentInput {
   fullName: string
   nationalId?: string
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  gender: '1' | '2' | '0' | '9'
   birthDate: string
   phone?: string
   identifiers?: ResidentIdentifierInput[]
@@ -155,7 +155,7 @@ export interface AllergenTerm {
 export interface UpdateResidentProfileInput {
   expectedVersion: number
   fullName: string
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  gender: '1' | '2' | '0' | '9'
   birthDate: string
   phone?: string
   deceased: boolean

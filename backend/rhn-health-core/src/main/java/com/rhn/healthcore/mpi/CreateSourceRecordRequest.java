@@ -15,7 +15,7 @@ public record CreateSourceRecordRequest(
         @NotBlank @Size(max = 100) String sourceSystem,
         @NotBlank @Size(max = 200) String sourceRecordId,
         @NotBlank @Size(max = 100) String fullName,
-        @NotBlank @Pattern(regexp = "MALE|FEMALE|UNKNOWN") String gender,
+        @NotBlank @Pattern(regexp = "0|1|2|9") String gender,
         @NotNull @PastOrPresent LocalDate birthDate,
         @Size(max = 32) String phone,
         List<@Valid ResidentIdentifierInput> identifiers
