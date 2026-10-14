@@ -1,8 +1,10 @@
 # 健域智枢 · Regional Health Nexus（RHN）
 
-面向县域医共体的医疗与公共卫生一体化平台。当前已完成领域基础 Foundation 1.0、持续开发底座 Foundation 1.1，以及工作门户与任务协同底座 Foundation 1.2，并以一条可运行的门诊纵向切片验证基础契约。
+面向县域医共体的医疗与公共卫生一体化平台。已完成领域基础 Foundation 1.0、持续开发底座 Foundation 1.1 和工作门户与任务协同底座 Foundation 1.2，并在此基础上建设门诊、药事收费、医技、住院、照护、质控、AI 辅助与统计等业务域。
 
 ## 当前可运行范围
+
+### 基础底座
 
 - 统一门户工作台、独立居民中心与门诊接诊工作台
 - 租户、机构、科室、人员与任职主数据
@@ -26,7 +28,21 @@
 居民建档/档案维护 → 简易排班 → 号源占用/挂号 → 候诊 → 接诊 → 结构化临床文档/诊断 → 完成就诊 → 健康时间轴
 ```
 
-基础范围、完成定义和明确非目标见 [基础底座 1.0](docs/foundation/基础底座1.0.md) 与 [基础底座 1.1](docs/foundation/基础底座1.1.md)。业务模块接入字典和参数时统一遵循 [字典与参数接入指南](docs/foundation/字典与参数接入指南.md)，字典和值域编码遵循 [字典与术语命名规范](docs/foundation/字典与术语命名规范.md)。后续业务界面的视觉、交互、响应式、无障碍和验收要求统一遵循 [用户界面设计与开发规范](docs/用户界面设计与开发规范.md)。目标表结构的前置约束与后续门禁见 [目标表结构与基础底座对齐](docs/foundation/目标表结构与基础底座对齐.md)，认证框架决策见 [架构决策-002](docs/architecture/架构决策-002-认证与授权.md)，密码证据边界见 [架构决策-003](docs/architecture/架构决策-003-密码证据.md)，参数实现见 [参数管理设计](docs/foundation/参数管理设计.md) 与 [架构决策-004](docs/architecture/架构决策-004-分层参数配置.md)，主键规范见 [架构决策-005](docs/architecture/架构决策-005-雪花算法标识.md)。后续按 [建设路线图](docs/建设路线图.md) 接入医嘱、处方、药房、收费、照护计划和任务中心。
+### 已有业务域
+
+以下业务域均有 PC 页面与后端实现；入口文件、实现位置和验证命令见 [模块导航](docs/ai/module-map.md)，阶段进度与非目标见 [建设路线图](docs/建设路线图.md)。
+
+- 门诊医疗：预检分诊、病历与诊断、医嘱/处方、诊疗项目、病历签署与受控打印
+- 药事与费用：审方、批次库存、发退药、计价、收费、退费与日结对账（普通门诊纵向切片）
+- 医技与处置：检验/检查执行、标本与报告、处置与皮试
+- 住院：入院、住院医嘱、护理与病区药品供应
+- 照护：高血压候选识别、照护任务与证据（M4.1）
+- 质控：合理用药规则建设、旁路评价与观察留痕
+- AI 辅助：分诊建议、病历/医嘱草稿、院内目录匹配，结果均需人工核对采纳
+- 统计分析：语义模型、通用模板与可视化方案（试验开关控制）
+- 系统管理：主数据、参数、编码规则、业务初始化与测试数据清理
+
+基础范围、完成定义和明确非目标见 [基础底座 1.0](docs/foundation/基础底座1.0.md) 与 [基础底座 1.1](docs/foundation/基础底座1.1.md)。业务模块接入字典和参数时统一遵循 [字典与参数接入指南](docs/foundation/字典与参数接入指南.md)，字典和值域编码遵循 [字典与术语命名规范](docs/foundation/字典与术语命名规范.md)。后续业务界面的视觉、交互、响应式、无障碍和验收要求统一遵循 [用户界面设计与开发规范](docs/用户界面设计与开发规范.md)。目标表结构的前置约束与后续门禁见 [目标表结构与基础底座对齐](docs/foundation/目标表结构与基础底座对齐.md)，认证框架决策见 [架构决策-002](docs/architecture/架构决策-002-认证与授权.md)，密码证据边界见 [架构决策-003](docs/architecture/架构决策-003-密码证据.md)，参数实现见 [参数管理设计](docs/foundation/参数管理设计.md) 与 [架构决策-004](docs/architecture/架构决策-004-分层参数配置.md)，主键规范见 [架构决策-005](docs/architecture/架构决策-005-雪花算法标识.md)。后续按 [建设路线图](docs/建设路线图.md) 推进照护计划、公卫纳管随访及试点上线。
 
 工作门户与任务协同的详细边界和接入规则见 [基础底座 1.2](docs/foundation/基础底座1.2.md)。居民中心与门诊接诊的职责、数据链和开发门禁见 [居民中心与门诊接诊边界](docs/foundation/居民中心与门诊接诊边界.md)。
 
@@ -59,13 +75,13 @@ PostgreSQL 专属迁移通过临时 `text` domain 兼容历史 `clob` 声明，�
 
 ### Oracle 人工验证环境
 
-两套长期人工验证环境均使用 `oracle-local`。主工作区使用后端 `8080` / 前端 `5173`，统计工作区使用后端 `18086` / 前端 `15176`。已运行的服务请保留；需要恢复主工作区后端时，在项目根目录执行：
+长期人工验证环境为主工作区，使用 `oracle-local`，后端 `8080` / 前端 `5173`。已运行的服务请保留；需要恢复后端时，在项目根目录执行：
 
 ```bash
 RHN_SERVER_PORT=8080 ./scripts/run-oracle-local.sh
 ```
 
-统计工作区在自身根目录执行 `RHN_SERVER_PORT=18086 ./scripts/run-oracle-local.sh`（需要统计试验开关时使用 `./scripts/run-analytics-preview.sh`）。脚本读取忽略的 `.env.oracle.local`，构建全部模块并使用内容哈希命名的运行副本。
+需要统计试验开关时改用 `./scripts/run-analytics-preview.sh`。脚本读取忽略的 `.env.oracle.local`，构建全部模块并使用内容哈希命名的运行副本。
 
 多模块构建入口仍为 `backend/pom.xml`，可执行制品位于 `backend/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar`。需要直接使用 Spring Boot 开发运行命令时，先安装当前反应堆依赖，再指定应用模块：
 
@@ -85,7 +101,7 @@ npm install
 npm run dev
 ```
 
-统计工作区默认前端地址为 <http://localhost:15176>，后端地址为 <http://localhost:18086>，健康检查为 <http://localhost:18086/actuator/health>。主工作区通过忽略的 `frontend/.env.local` 使用 <http://localhost:5173> 和 <http://localhost:8080>。前端通过 Vite 将 `/api` 和 `/actuator` 代理到此后端。`npm run dev` 和 `npm run preview` 默认使用 15176，按各工作区的 `RHN_FRONTEND_PORT` 覆盖；端口被占用时会报错，不会自动换端口。
+主工作区通过忽略的 `frontend/.env.local` 使用 <http://localhost:5173> 和 <http://localhost:8080>，健康检查为 <http://localhost:8080/actuator/health>。前端通过 Vite 将 `/api` 和 `/actuator` 代理到此后端。未设置时默认即为前端 `5173`、后端 `8080`，按工作区的 `RHN_FRONTEND_PORT` / `RHN_API_TARGET` 覆盖；端口被占用时会报错，不会自动换端口。独立 worktree 的隔离沙箱建议使用后端 `18086` / 前端 `15176`，规则见 [任务隔离](docs/ai/collaboration-reference.md#任务隔离)。
 
 后端可通过 `RHN_PORT` 覆盖端口；Oracle 启动脚本优先使用 `RHN_SERVER_PORT`，其次使用 `RHN_PORT`。更换后端端口时，前端需同步设置 `RHN_API_TARGET`。统计体验脚本也使用相同默认端口，支持 `RHN_ANALYTICS_PORT` 优先覆盖。
 
@@ -138,7 +154,7 @@ cd frontend && npm run check
 
 本地/测试配置会启用 `development-jca` 以验证完整链路；它不是合规密码产品。默认生产配置不启用任何密码提供者，并对关键数据写入失败关闭。接入真实数据前必须通过 `RHN_CRYPTO_ACTIVE_PROVIDER` 配置经项目核验的 SM2/SM3 密码服务适配器，并完成个人证书、可信时间戳、密钥生命周期和密码应用方案评估。
 
-前端端口可通过各工作区忽略的 `frontend/.env.local` 设置 `RHN_FRONTEND_PORT` 和 `RHN_API_TARGET`。统计分析工作区默认 `15176` / `http://localhost:18086`；原主工作区使用 `5173` / `http://localhost:8080`，并保持后端 `oracle-local` 服务运行。
+前端端口可通过各工作区忽略的 `frontend/.env.local` 设置 `RHN_FRONTEND_PORT` 和 `RHN_API_TARGET`。主工作区使用 `5173` / `http://localhost:8080`，并保持后端 `oracle-local` 服务运行。
 
 ## 仓库维护
 

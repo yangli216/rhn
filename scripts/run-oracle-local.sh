@@ -15,7 +15,7 @@ if [[ -f "$rhn_oracle_env_file" ]]; then
 fi
 
 # Explicit launch settings take priority over checkout-local defaults.
-rhn_server_port="${rhn_requested_server_port:-${RHN_SERVER_PORT:-${RHN_PORT:-18086}}}"
+rhn_server_port="${rhn_requested_server_port:-${RHN_SERVER_PORT:-${RHN_PORT:-8080}}}"
 
 for rhn_required_variable in RHN_ORACLE_URL RHN_ORACLE_USER RHN_ORACLE_PASSWORD; do
   if [[ -z "${!rhn_required_variable:-}" ]]; then

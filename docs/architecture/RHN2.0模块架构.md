@@ -1,7 +1,7 @@
 # RHN 2.0 模块架构基线
 
 - 决策日期：2026-09-15
-- 状态：采纳；本轮落地物理模块和依赖门禁，公卫与质控业务按后续切片建设
+- 状态：采纳；物理模块和依赖门禁已落地，质控已落地首个合理用药切片，公卫业务按后续切片建设
 - 讨论来源：[评估模块化单体架构](https://chatgpt.com/c/6aa8b86d-953c-83e8-8af5-f2e7b3a484b0)
 - 配套决策：[ADR-006](架构决策-006-物理模块化与依赖倒置.md)
 
@@ -26,7 +26,7 @@ Maven 工程代表部署内的粗粒度能力组，逻辑包代表领域边界�
 | rhn-clinical | outpatient、inpatient、pharmacy、billing、diagnostics、treatment、queueing | 接诊、医嘱、处方、库存、费用、检查检验、处置、排队等业务事实 |
 | rhn-public-health | publichealth | 本轮仅工程骨架；后续拥有公卫档案、纳管、随访和专项服务记录 |
 | rhn-care | healthplanning、coordination | 候选识别、照护任务及证据、医疗协同；后续照护计划、目标、干预与异常闭环 |
-| rhn-quality | quality | 本轮仅工程骨架；后续拥有规则版本、评价、问题、证据和整改关联 |
+| rhn-quality | quality | 已落地合理用药（`quality.medication`）：规则目录与版本、旁路评价、知识草稿及评价留痕；病历质控、档案质控按后续切片建设 |
 | rhn-intelligence | ai | 模型接入、建议、语音、提示与运行记录；不拥有病历、诊断、处方或随访事实 |
 | rhn-analytics | analytics | 分析方案、审计和统计能力；保留现有统计工作，不并入医疗交易模型 |
 | rhn-app | RhnApplication、portal | Spring Boot 装配、门户聚合及当前用户工作区偏好 |
@@ -40,7 +40,7 @@ flowchart TB
     App[RHN App / PC 门户] --> Clinical[Clinical]
     App --> Care[Care]
     App --> PH[Public Health 骨架]
-    App --> Quality[Quality 骨架]
+    App --> Quality[Quality]
     App --> AI[Intelligence]
     App --> Analytics[Analytics]
     Care --> Clinical
@@ -48,6 +48,7 @@ flowchart TB
     Quality --> Clinical
     Quality --> PH
     AI --> Clinical
+    AI --> Quality
     Analytics --> AI
     Clinical --> Health[Health Core]
     PH --> Health
@@ -59,7 +60,7 @@ flowchart TB
     Platform --> Kernel[Kernel]
 ```
 
-箭头表示编译依赖，运行调用可以通过依赖倒置反向进入实现。例如医疗调用自身定义的筛查 Port，由 Care 实现；医疗 Jar 不依赖 Care Jar。运行装配必须提供这些 Port 的实现，当前 rhn-app 完整提供，不支持随意移除 Jar。
+箭头表示编译依赖，运行调用可以通过依赖倒置反向进入实现。例如医疗调用自身定义的筛查 Port，由 Care 实现；医疗 Jar 不依赖 Care Jar。Care → Public Health 是为公卫业务版本预留的编译依赖：Module Catalog 暂未放行 healthplanning/coordination 引用 publichealth，M4.2 落地纳管/随访时再同步登记允许方向。Intelligence 依赖 Quality，是为了实现 Quality 定义的规则编写 AI Port（`MedicationRuleAuthoringAi`），Quality 不依赖 Intelligence。运行装配必须提供这些 Port 的实现，当前 rhn-app 完整提供，不支持随意移除 Jar。
 
 ## 依赖和数据规则
 
@@ -126,4 +127,4 @@ mvn verify
 
 前一命令验证所有生产模块，包含新包登记、工程归属、公开 API、Entity/Repository 边界和循环依赖；反例测试证明未知包和外部仓库访问会失败。后一命令运行集中回归并生成可执行制品。模块源码迁移不自动提交或推送。
 
-长期人工环境保持主工作区 `8080/5173`、统计工作区 `18086/15176`，两个后端均为 oracle-local。自动回归使用 test + 随机 H2；打包烟测使用专用临时端口，仅清理本任务启动的进程。CI 的 OpenAPI 烟测同样使用 test + 随机 H2。
+长期人工环境为主工作区 `8080/5173`，后端为 oracle-local；独立 worktree 的隔离沙箱建议使用 `18086/15176`，见[任务隔离](../ai/collaboration-reference.md#任务隔离)。自动回归使用 test + 随机 H2；打包烟测使用专用临时端口，仅清理本任务启动的进程。CI 的 OpenAPI 烟测同样使用 test + 随机 H2。

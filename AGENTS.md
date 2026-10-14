@@ -33,5 +33,6 @@
 
 - Main checkout `/Users/yangl/IdeaProjects/rhn`: persistent backend `8080` uses `oracle-local`; frontend `5173`. Never replace the backend with `local`/`test` or restart healthy services just to finish a task.
 - Tests use isolated `test` with random H2 databases, never the manual Oracle schema or persistent ports. Temporary services use dedicated ports; track and stop only exact processes started by this task, never `pkill`/`killall`.
+- Isolated worktree sandboxes (outside the main checkout) are recommended to use backend `18086` / frontend `15176` via that worktree's ignored `frontend/.env.local` and `RHN_SERVER_PORT`; see `docs/ai/collaboration-reference.md#任务隔离`. Defaults are `8080`/`5173`, so a sandbox must set its ports explicitly.
 - Ignored `frontend/.env.local` can set `RHN_FRONTEND_PORT` and `RHN_API_TARGET`. Before handoff, check backend `/actuator/health` and frontend URL; restore unavailable services under these rules and report runtime limitations.
 - No real-system browser QA unless explicitly requested. For browser work use `ego-browser`/ego-lite by default; explain before switching if unavailable or explicitly requested. Browser cleanup must preserve persistent services.

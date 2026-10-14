@@ -9,9 +9,9 @@
 | 表结构、设计规范、业务语义与人机共建 | [数据库协作入口](../database/README.md)、`/schema-workbench.html`；开发端 `src/dev/schema-workbench/`；统计端 `features/analytics/SemanticWorkbench.tsx` | 开发采集与文件服务：`scripts/schema-workbench/`；统计资产：rhn-analytics 的 `semantic/outpatient-ontology.v1.yaml` | `cd frontend && npm run schema:test && npm run schema:check`；UI 追加门禁、受影响前端回归与构建；统计资产变化追加 semantic 模块测试 |
 | 新增页面、布局、基础组件与 UI 一致性 | [前端开发入口](frontend-ui.md)、[组件目录](../../frontend/src/shared/ui/README.md)、[可运行页面模板](../../frontend/src/shared/ui/templates/README.md) | 仅 UI 改动无需读取后端；涉及业务按下列领域继续定位 | 选业务 scope 的 `--frontend-only`；共享组件追加消费者，完整 CI 保留 |
 | 预检分诊、科室建议与资料补充 | [triage/README](../../frontend/src/features/outpatient/triage/README.md)、OutpatientTriageWorkspace.tsx | rhn-clinical/outpatient/triage/；rhn-intelligence/ai/application/ClinicalTriageDecisionService.java | `./scripts/verify-scope.sh triage`；契约/迁移扩大验证 |
-| 门诊病历、诊断、草稿保存 | [record/README](../../frontend/src/features/outpatient/record/README.md)、DoctorWorkstation.tsx | rhn-clinical/outpatient/encounter/EncounterService.java | `./scripts/verify-scope.sh outpatient-draft` |
+| 门诊病历、诊断、草稿保存 | [record/README](../../frontend/src/features/outpatient/record/README.md)、features/outpatient/DoctorWorkstation.tsx | rhn-clinical/outpatient/encounter/EncounterService.java | `./scripts/verify-scope.sh outpatient-draft` |
 | 频次、医嘱行编辑／分组、AI 医嘱草稿 | [frequencySemantics](../../frontend/src/shared/clinical/frequencySemantics.ts)、[orders/README](../../frontend/src/features/outpatient/orders/README.md) | rhn-platform/platform/masterdata/api/ClinicalFrequencySemantics.java；application/OrderFrequencyService.java | `./scripts/verify-scope.sh frequency`；涉及工作站集成用 `round1` |
-| 药房审方、发药、退药 | [药房边界](../../frontend/src/features/pharmacy/workspace/README.md)、medicationDisplay.ts | rhn-clinical/pharmacy/application/PharmacyApplicationService.java、DispenseApplicationService.java | `./scripts/verify-scope.sh inventory`；涉及医嘱或合理用药再组合对应 scope |
+| 药房审方、发药、退药 | [药房边界](../../frontend/src/features/pharmacy/workspace/README.md)、features/pharmacy/medicationDisplay.ts | rhn-clinical/pharmacy/application/PharmacyApplicationService.java、DispenseApplicationService.java | `./scripts/verify-scope.sh inventory`；涉及医嘱或合理用药再组合对应 scope |
 | 主数据、药品目录 | [主数据边界](../../frontend/src/features/settings/master-data/README.md)；shared/api/masterDataApi.ts | rhn-platform/platform/masterdata/application/MasterDataApplicationService.java | `./scripts/verify-scope.sh master-data`；契约和迁移扩大到完整 CI |
 | 合理用药知识建设 | features/quality/MedicationKnowledgeDrafts.tsx、MedicationWorkbench.tsx | rhn-quality/quality/medication/application/ | `./scripts/verify-scope.sh medication-safety`；[领域说明](../architecture/rational-medication/README.md) |
 | 收费、结算、退费 | features/billing/；shared/api/billingApi.ts | rhn-clinical/billing/ | `./scripts/verify-scope.sh billing`；资金/权限变更扩大检查 |
@@ -20,6 +20,7 @@
 | AI 推荐、院内匹配与待核对建议 | features/outpatient/ai/；临床编排见工作站边界 | rhn-intelligence/ai/application/ClinicalAssistantApplicationService.java、ClinicalAiContextAssembler.java、ClinicalTreatmentRecommendationService.java | `./scripts/verify-scope.sh ai-matching`；患者上下文变化组合 outpatient-draft |
 | 工作上下文、导航、页签 | app/AppShell.tsx | rhn-platform/platform/ 下对应 portal/security/organization 契约 | app/AppShellContext.test.ts；权限变更扩大后端验证 |
 | 检验/检查作业、草稿签发、标本与报告 | [医技领域边界](diagnostics.md)；features/diagnostics/ | rhn-clinical/diagnostics/；主数据、配置与打印使用平台公开 API | `./scripts/verify-scope.sh diagnostics`；接口/迁移/权限/资金扩大完整验证 |
+| 业务初始化、测试数据清理与机构生命周期 | [设计与实施记录](../architecture/业务初始化与数据清理功能设计.md)、[操作说明](../operations/业务初始化与清理操作说明.md)；features/settings/maintenance/ | rhn-platform/platform/maintenance/；各领域 `*MaintenanceContribution` 适配器 | `./scripts/verify-scope.sh maintenance`；涉及收费/库存补偿组合 billing,inventory |
 | 住院医嘱、护理、药品供应 | features/inpatient/ | rhn-clinical/inpatient/；pharmacy/ | `./scripts/verify-inpatient-main-flow.sh` |
 
 前端路径默认相对 frontend/src；表内未列出的模块用定向符号搜索定位，不能把任一 scope 当作全项目验证。
@@ -35,7 +36,7 @@
 - 验证脚本将完整日志存入忽略的 .runtime/verification，仅输出摘要／失败末尾；需要时再读完整文件。
 - 验证前后源码快照也存入该日志目录；源码或版本变化时退出 `2`，不能作为固定版本通过证据。并行任务隔离、共享资产串行集成与人工服务版本记录见 [协作约定](../../CONTRIBUTING.md)。
 - 公开 API、迁移、权限、库存、收费或公共框架变化要扩大测试，CI 完整验证继续保留。
-- 领域映射的单一来源为 `scripts/verification-scopes.json`；可组合如 `./scripts/verify-scope.sh billing,inventory --list`，合并测试并去重公共阶段。共享基础设施/契约变化可直接加 `--full`，执行全量前端测试及 Maven verify；数据库采集与 runtime API 同步仍另检。执行后查看 `summary.json` 的覆盖/限制/源码归属及 `timings.tsv`，不要将选中的 scope 当成全项目证明。
+- 领域映射的单一来源为 `scripts/verification-scopes.json`；可组合如 `./scripts/verify-scope.sh billing,inventory --list`，合并测试并去重公共阶段。共享基础设施/契约变化可直接加 `--full`，执行全量前端测试、Maven verify 及 API 契约检查；数据库采集仍另检。非全量模式在相对 `origin/main` 改动后端 `src/main`、OpenAPI 或 generated.ts 时自动追加 `api-contract`，可用 `--contract` / `--no-contract` 覆盖。执行后查看 `summary.json` 的覆盖/限制/源码归属及 `timings.tsv`，不要将选中的 scope 当成全项目证明。
 - 工作区变更先看范围；不把其他任务的未提交修改当成本次成果，不自动 commit/push。
 
 ## 本轮之后的边界
