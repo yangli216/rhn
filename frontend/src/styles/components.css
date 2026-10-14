@@ -42,7 +42,8 @@
   transform: translateY(-1px);
   box-shadow: var(--shadow-panel);
 }
-.ui-button--text { color: var(--color-text-secondary); background: transparent; border-color: transparent; box-shadow: none; }
+/* Text buttons must read as actions at rest: brand color, never the body/secondary text color. */
+.ui-button--text { color: var(--color-brand-primary); background: transparent; border-color: transparent; box-shadow: none; }
 .ui-button--text:hover:not(:disabled) { color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .ui-button--soft { color: var(--color-brand-primary); background: var(--color-brand-soft); border-color: transparent; box-shadow: none; }
 .ui-button--soft:hover:not(:disabled) { background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-brand-soft)); }

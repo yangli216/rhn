@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { ClinicalAiTreatmentMatch, ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
 import type { MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
-import { Button, ClinicalResourceSearch, Dialog, FormField, Select, StatusBadge, type ClinicalResourceOption, type ClinicalResource } from '../../../shared/ui'
+import { Button, ClinicalResourceSearch, Dialog, FormField, IconButton, Select, StatusBadge, type ClinicalResourceOption, type ClinicalResource } from '../../../shared/ui'
 import { clinicalAiTreatmentMatchPresentation } from '../../../shared/presentation'
 import { resolveDispensableOptions } from '../orders/dispensableOptions'
 import { formatSpecimenType, formatExaminationType } from '../orders/orderPresentation'
 
 /** Pending identities never become selectable orders before explicit physician confirmation. */
-export function ClinicalAiCatalogReview({ matches, api, encounterId, organizationId, disabled, onResolved, layout = 'order-row' }: {
+export function ClinicalAiCatalogReview({ matches, api, encounterId, organizationId, disabled, onResolved, layout = 'order-row', showIntro = true }: {
   layout?: 'order-row' | 'compact'
+  /** False when the host already explains the dashed pending rows (e.g. in its recommendation header). */
+  showIntro?: boolean
   matches: ClinicalAiTreatmentMatch[]
   api: RhnApi
   encounterId: string
@@ -100,7 +102,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
   }
   if (!matches.length) return null
   return <div className={`doctor-ai-catalog-review${layout === 'compact' ? ' is-compact' : ''}`} aria-label="AI 医嘱目录待核对">
-    <div className="doctor-ai-catalog-review__intro"><small>虚线项目尚未完成院内目录核对，暂不可勾选；核对后可带入医嘱。</small></div>
+    {showIntro && <div className="doctor-ai-catalog-review__intro"><small>{CATALOG_PENDING_HINT}</small></div>}
     {rows.map(match => {
       const status = clinicalAiTreatmentMatchPresentation(match.status)
       const preview = chosenCandidate(match)
@@ -111,10 +113,9 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
             <span className="doctor-ai-pending-badge">{match.intent.type === 'MEDICATION' ? '药品' : match.intent.type === 'LABORATORY' ? '检验' : '检查'}</span>
           </label></span>
           <span className="doctor-unified-cell-name"><span className="doctor-ai-catalog-review__name">
-            <strong>{preview?.name ?? match.intent.name}</strong><Button size="sm" variant="text" disabled={disabled}
-              aria-label={`核对目录 ${match.intent.name}`} onClick={() => open(match)}>匹配</Button>
-          </span>{preview && <small>AI 原建议：{match.intent.name} · 待确认院内项目</small>}<small>{match.intent.specification ? `建议规格：${match.intent.specification}` : '待核对院内目录'}</small>
-            <DecisionReview review={match.decisionReview} />
+            <strong>{preview?.name ?? match.intent.name}</strong><IconButton icon="search" className="doctor-ai-catalog-review__match"
+              disabled={disabled} label={`核对目录 ${match.intent.name}`} onClick={() => open(match)} />
+          </span><CatalogRowMeta match={match} preview={preview} />
           </span>
           <span className="doctor-unified-cell-directions" title={match.reason}><span className="doctor-ai-catalog-review__reason">{match.reason}</span></span>
           <span className="doctor-unified-cell-qty">—</span><span className="doctor-unified-cell-dept">—</span>
@@ -166,6 +167,35 @@ function defaultCandidate(match: ClinicalAiTreatmentMatch) {
     || review.confidence < 0 || review.confidence > 1 || !review.suggestedItem) return undefined
   return match.candidates.find(item => item.type === review.suggestedItem?.type
     && item.catalogItemId === review.suggestedItem.catalogItemId)
+}
+
+/** Shown in place of the intro when the host header carries it, so the wording stays in one place. */
+export const CATALOG_PENDING_HINT = '虚线项目需先核对院内目录才能勾选'
+
+/**
+ * One summary line under the name. It omits what the row already shows: the AI name when it equals the
+ * preselected item, and "pending catalog" (the dashed row and status column say so).
+ */
+function CatalogRowMeta({ match, preview }: { match: ClinicalAiTreatmentMatch; preview?: ClinicalAiTreatmentRecommendation }) {
+  const review = match.decisionReview
+  const percent = (value: number) => `${Math.round(value * 100)}%`
+  const completed = review?.status === 'COMPLETED' && typeof review.confidence === 'number'
+  const decision = !review ? '院内目录待核查'
+    : !completed ? review.detail
+      : review.choice === 'NONE' ? '未确认等价项，需人工核对'
+        // Provider confidence is the concentration of Jev's whole answer (incl. NONE), not the preselected item's probability.
+        : preview && review.suggestedItem ? `Jev 判断集中度 ${percent(review.confidence!)}${typeof review.threshold === 'number'
+          && review.confidence! < review.threshold ? '，低于阈值需核对' : ''}`
+          : '无唯一可预选候选'
+  const parts = [
+    preview && preview.name !== match.intent.name ? `AI 建议：${match.intent.name}` : '',
+    match.intent.specification ? `建议规格：${match.intent.specification}` : '',
+    decision,
+  ].filter(Boolean)
+  const title = completed ? ['集中度表示 Jev 在各候选及“无等价项”之间判断的集中程度，不是名称相似度或临床正确率',
+    typeof review!.threshold === 'number' ? `自动采用阈值 ${percent(review!.threshold)}` : '', review!.detail]
+    .filter(Boolean).join('；') : undefined
+  return <small className="doctor-ai-catalog-review__meta" title={title}>{parts.join(' · ')}</small>
 }
 
 function DecisionReview({ review, detailed = false }: { review?: ClinicalAiTreatmentMatch['decisionReview']; detailed?: boolean }) {

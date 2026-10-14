@@ -1602,7 +1602,8 @@
 
 .doctor-ai-catalog-review__name { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .doctor-ai-catalog-review__name strong { overflow: hidden; text-overflow: ellipsis; }
-.doctor-ai-catalog-review__name > .ui-button { flex-shrink: 0; }
+.doctor-ai-catalog-review__name > .ui-icon-button { flex-shrink: 0; width: var(--control-height-sm); height: var(--control-height-sm); margin-block: calc(var(--space-1) * -1); }
+.doctor-ai-catalog-review__meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); }
 
 .doctor-ai-catalog-panel.ui-dialog--panel {
   width: min(42rem, calc(100vw - 2 * var(--space-4)));

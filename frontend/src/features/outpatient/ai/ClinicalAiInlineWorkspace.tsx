@@ -1,7 +1,7 @@
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { ClinicalAiTreatmentRows } from './ClinicalAiTreatmentRows'
-import { ClinicalAiCatalogReview } from './ClinicalAiCatalogReview'
+import { CATALOG_PENDING_HINT, ClinicalAiCatalogReview } from './ClinicalAiCatalogReview'
 import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -188,10 +188,10 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
     {(suggestion || generating) && planFeature && portal(
       <div hidden={!(current || generating) || (!availableTreatmentItems.length && !pendingMatches.length)}>
         {!generating && onDiscardTreatments && <div className="doctor-ai-order-batch">
-          <span>本轮医嘱推荐，保存医嘱后未构建项将自动丢弃。</span>
+          <span>本轮医嘱推荐，保存医嘱后未构建项将自动丢弃{pendingMatches.length ? `；${CATALOG_PENDING_HINT}` : ''}。</span>
           <Button size="sm" variant="text" disabled={disabled || busy} onClick={onDiscardTreatments}>丢弃本轮推荐</Button>
         </div>}
-        <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} api={api} encounterId={encounter.id} organizationId={encounter.organizationId}
+        <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} showIntro={generating || !onDiscardTreatments} api={api} encounterId={encounter.id} organizationId={encounter.organizationId}
           disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
           onResolved={(keys, items) => setCatalogSelection({ session, keys: [...resolvedCatalog.keys, ...keys],
             items: [...new Map([...resolvedCatalog.items, ...items].map(item => [treatmentKey(item), item])).values()] })} />

@@ -25,7 +25,6 @@ export function ChronicRefillQuickPanel({ refill, onRefill, refillDisabled, onGe
         <header className="doctor-ai-refill-quick__head">
           <span className="doctor-ai-refill-quick__icon" aria-hidden="true"><Icon name="sparkles" /></span>
           <strong className="doctor-ai-refill-quick__title">识别为慢病复诊 · {refill.conditionsText}</strong>
-          <StatusBadge tone="info">待核对方案</StatusBadge>
           <IconButton icon="close" label="关闭慢病复诊引导" onClick={onClose} />
         </header>
         <p className="doctor-ai-refill-quick__summary">
@@ -34,17 +33,17 @@ export function ChronicRefillQuickPanel({ refill, onRefill, refillDisabled, onGe
         <footer className="doctor-ai-refill-quick__actions">
           <Button size="sm" variant="primary" disabled={refillDisabled} onClick={onGenerateRecord}>
             <Icon name="sparkles" />
-            <span>生成复诊病历</span>
+            <span>生成病历</span>
           </Button>
           {refill.openHistory && (
             <Button size="sm" variant="text" onClick={refill.openHistory}>
-              <span>查看历史处方</span>
+              <span>历史处方</span>
               <Icon name="chevron-right" />
             </Button>
           )}
           {onOpenHub && (
-            <Button size="sm" variant="text" className="doctor-ai-refill-quick__hub" onClick={onOpenHub}>
-              更多 AI 辅诊
+            <Button size="sm" variant="text" className="doctor-ai-refill-quick__hub" title="展开 AI 辅诊中心" onClick={onOpenHub}>
+              更多
             </Button>
           )}
         </footer>
@@ -95,13 +94,13 @@ export function ChronicRefillQuickPanel({ refill, onRefill, refillDisabled, onGe
         </Button>
         {refill.openHistory && (
           <Button size="sm" variant="text" onClick={refill.openHistory}>
-            <span>微调处方明细</span>
+            <span>调整处方</span>
             <Icon name="chevron-right" />
           </Button>
         )}
         {onOpenHub && (
-          <Button size="sm" variant="text" className="doctor-ai-refill-quick__hub" onClick={onOpenHub}>
-            更多 AI 辅诊
+          <Button size="sm" variant="text" className="doctor-ai-refill-quick__hub" title="展开 AI 辅诊中心" onClick={onOpenHub}>
+            更多
           </Button>
         )}
       </footer>

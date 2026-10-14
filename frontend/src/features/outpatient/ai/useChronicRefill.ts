@@ -136,7 +136,7 @@ export function useChronicRefill({
 }
 
 export function chronicRefillActionLabel(controller: Pick<ChronicRefillController, 'adopted' | 'overrideWarning' | 'safetyAssessment'>) {
-  if (controller.adopted) return '✓ 已采纳续方方案'
-  if (controller.safetyAssessment?.hasCriticalBlockers && !controller.overrideWarning) return '⚠️ 确认风险并一键续方'
-  return '⚡ 一键安全续方 (病历+医嘱)'
+  if (controller.adopted) return '已续方'
+  if (controller.safetyAssessment?.hasCriticalBlockers && !controller.overrideWarning) return '确认风险后续方'
+  return '一键续方'
 }

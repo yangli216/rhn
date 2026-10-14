@@ -1,6 +1,6 @@
 import type { Encounter, Resident } from './model'
 import type { ClinicalDocument, ClinicalDocumentVersion } from './api/clinicalDocumentsApi'
-import type { CriticalValueAlert, DiagnosticReport } from './api/diagnosticsApi'
+import type { CriticalValueAlert, DiagnosticReport, DiagnosticTaskStatus } from './api/diagnosticsApi'
 import type {
   InpatientAdmissionDiagnosis,
   InpatientOrder,
@@ -301,6 +301,19 @@ export function criticalValueStatusPresentation(value: CriticalValueAlert['statu
     SUPERSEDED: { label: '报告已替代', tone: 'neutral' },
   }
   return states[value] ?? { label: '危急值状态未知', tone: 'warning' }
+}
+
+export function diagnosticTaskStatusPresentation(value: DiagnosticTaskStatus, laboratory = false): StatusPresentation {
+  const states: Record<DiagnosticTaskStatus, StatusPresentation> = {
+    WAITING_SETTLEMENT: { label: '待结算', tone: 'neutral' },
+    READY: { label: laboratory ? '待采集' : '待检查', tone: 'warning' },
+    COLLECTED: { label: '待检验', tone: 'warning' },
+    IN_PROGRESS: { label: laboratory ? '检验中' : '检查中', tone: 'info' },
+    COMPLETED: { label: '已出报告', tone: 'success' },
+    CANCELLED: { label: '已取消', tone: 'neutral' },
+    EXCEPTION: { label: '待核对', tone: 'danger' },
+  }
+  return states[value] ?? { label: '状态待核对', tone: 'warning' }
 }
 
 export function diagnosticReportStatusPresentation(value: DiagnosticReport['status']): StatusPresentation {

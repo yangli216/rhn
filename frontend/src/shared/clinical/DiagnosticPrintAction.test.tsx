@@ -27,13 +27,48 @@ describe('diagnostic platform printing', () => {
   it('requires a reason for an existing label and uses the platform reprint receipt', async () => {
     const api = setup({ recordsBySource: vi.fn().mockResolvedValue([{ sourceId: 'source1', sourceType: 'DiagnosticSpecimen',
       encounterId: 'enc1', taskCode: 'DIAGNOSTICS.SPECIMEN.LABEL.PRINT', jobs: [{ jobId: 'original' }] }]) }, true)
+    expect(screen.queryByLabelText(/标签补打原因/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('下载标本标签 PDF'))
     await screen.findByText('此标本已生成标签，请填写补打原因')
     expect(api.reprint).not.toHaveBeenCalled()
-    fireEvent.change(screen.getByLabelText('标签补打原因'), { target: { value: '标签污损' } })
-    fireEvent.click(screen.getByText('下载标本标签 PDF'))
+    expect(screen.getByRole('button', { name: '确认补打并下载' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(/标签补打原因/), { target: { value: '标签污损' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认补打并下载' }))
     await waitFor(() => expect(api.reprint).toHaveBeenCalledWith('original', 1, '标签污损', expect.any(String)))
     expect(api.submitTask).not.toHaveBeenCalled()
+  })
+  it('downloads the first label without asking for a reprint reason', async () => {
+    const api = setup({}, true)
+    fireEvent.click(screen.getByText('下载标本标签 PDF'))
+    await waitFor(() => expect(api.download).toHaveBeenCalledOnce())
+    expect(screen.queryByLabelText(/标签补打原因/)).not.toBeInTheDocument()
+    expect(api.submitTask).toHaveBeenCalledWith(expect.objectContaining({ purpose: 'CLINICAL_USE' }))
+    expect(api.reprint).not.toHaveBeenCalled()
+  })
+  it('requires a new confirmation after cancelling a label reprint', async () => {
+    const api = setup({ recordsBySource: vi.fn().mockResolvedValue([{ sourceId: 'source1', sourceType: 'DiagnosticSpecimen',
+      encounterId: 'enc1', taskCode: 'DIAGNOSTICS.SPECIMEN.LABEL.PRINT', jobs: [{ jobId: 'original' }] }]) }, true)
+    fireEvent.click(screen.getByText('下载标本标签 PDF'))
+    fireEvent.change(await screen.findByLabelText(/标签补打原因/), { target: { value: '已取消的原因' } })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    fireEvent.click(screen.getByText('下载标本标签 PDF'))
+    expect(await screen.findByLabelText(/标签补打原因/)).toHaveValue('')
+    expect(api.reprint).not.toHaveBeenCalled()
+    expect(api.download).not.toHaveBeenCalled()
+  })
+  it('preserves a failed reprint reason and retries download without creating another job', async () => {
+    const api = setup({ recordsBySource: vi.fn().mockResolvedValue([{ sourceId: 'source1', sourceType: 'DiagnosticSpecimen',
+      encounterId: 'enc1', taskCode: 'DIAGNOSTICS.SPECIMEN.LABEL.PRINT', jobs: [{ jobId: 'original' }] }]),
+    download: vi.fn().mockRejectedValueOnce(new Error('下载失败')).mockResolvedValue(undefined) }, true)
+    fireEvent.click(screen.getByText('下载标本标签 PDF'))
+    fireEvent.change(await screen.findByLabelText(/标签补打原因/), { target: { value: '标签污损' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认补打并下载' }))
+    await screen.findByText('下载失败')
+    expect(screen.getByLabelText(/标签补打原因/)).toHaveValue('标签污损')
+    fireEvent.click(screen.getByRole('button', { name: '确认补打并下载' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.reprint).toHaveBeenCalledOnce()
+    expect(api.download).toHaveBeenCalledTimes(2)
   })
   it('refuses a print history associated with another source', async () => {
     const api = setup({ recordsBySource: vi.fn().mockResolvedValue([{ sourceId: 'wrong-source', sourceType: 'DiagnosticReport', encounterId: 'enc1' }]) })

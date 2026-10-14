@@ -18,10 +18,23 @@ public interface DiagnosticExecutionTaskRepository extends JpaRepository<Diagnos
             Long tenantId, Long organizationId, Long departmentId);
     @Query("""
             select task from DiagnosticExecutionTask task
+            left join DiagnosticReport report on report.id = task.reportId
+              and report.tenantId = task.tenantId and report.requestId = task.requestId
+              and report.residentId = task.residentId and report.encounterId = task.encounterId
+              and report.organizationId = task.organizationId and report.departmentId = task.departmentId
+              and report.reportType = case when task.requestType = 'EXAMINATION' then 'IMAGING' else task.requestType end
+              and report.status in ('FINAL', 'CORRECTED')
+              and not exists (select newer.id from DiagnosticReport newer
+                where newer.tenantId = task.tenantId and newer.requestId = task.requestId
+                  and (newer.receivedAt > report.receivedAt or (newer.receivedAt = report.receivedAt and newer.id > report.id)))
             where task.tenantId = :tenantId and task.organizationId = :organizationId
               and task.departmentId = :departmentId and task.requestType = :requestType
               and (:encounterId is null or task.encounterId = :encounterId)
               and (:residentId is null or task.residentId = :residentId)
+              and (:createdFrom is null or task.createdAt >= :createdFrom)
+              and (:createdBefore is null or task.createdAt < :createdBefore)
+              and (:status is null or (case when task.status = 'COMPLETED'
+                and report.id is null then 'EXCEPTION' else cast(task.status as string) end) = :status)
               and (:keyword = '' or lower(task.itemNameSnapshot) like :keywordPattern escape '!'
                 or lower(task.specimenNo) like :keywordPattern escape '!'
                 or lower(task.requestNoSnapshot) like :keywordPattern escape '!'
@@ -30,7 +43,9 @@ public interface DiagnosticExecutionTaskRepository extends JpaRepository<Diagnos
             """)
     org.springframework.data.domain.Page<DiagnosticExecutionTask> pageForWorkContext(
             Long tenantId, Long organizationId, Long departmentId, String requestType,
-            String keyword, String keywordPattern, Long encounterId, Long residentId, org.springframework.data.domain.Pageable pageable);
+            String keyword, String keywordPattern, Long encounterId, Long residentId,
+            String status, java.time.Instant createdFrom,
+            java.time.Instant createdBefore, org.springframework.data.domain.Pageable pageable);
     List<DiagnosticExecutionTask> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

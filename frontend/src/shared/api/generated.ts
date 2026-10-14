@@ -21919,6 +21919,11 @@ export interface components {
             completionNote?: string;
             exceptionNote?: string;
             requestNo?: string;
+            gender?: string;
+            /** Format: date */
+            birthDate?: string;
+            /** @description 字典 RESIDENT_GENDER 的显示文本 */
+            readonly genderText?: string;
             /** @description 字典 BD_EXAM_TYPE 的显示文本 */
             readonly examinationTypeText?: string;
         };
@@ -52491,6 +52496,9 @@ export interface operations {
                 size?: number;
                 encounterId?: string;
                 residentId?: string;
+                status?: "WAITING_SETTLEMENT" | "READY" | "COLLECTED" | "IN_PROGRESS" | "COMPLETED" | "EXCEPTION" | "CANCELLED";
+                createdFrom?: string;
+                createdBefore?: string;
             };
             header: {
                 /** @description 当前县域医共体租户标识 */

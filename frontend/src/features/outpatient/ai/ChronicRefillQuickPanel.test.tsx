@@ -81,9 +81,9 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     expect(guide()).toBeInTheDocument()
     expect(screen.getByText('近90天病史提示高血压；暂无可直接续用的历史稳定方案。')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '查看历史处方' }))
+    fireEvent.click(screen.getByRole('button', { name: '历史处方' }))
     expect(onOpenHistory).toHaveBeenCalled()
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '生成复诊病历' })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '生成病历' })) })
     // Generates immediately: no plan-choice detour and no prompt parked in the question box.
     expect(onGenerate).toHaveBeenCalledWith(expect.stringContaining('高血压'))
     expect(onFindPlans).not.toHaveBeenCalled()
@@ -95,7 +95,7 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
   it('routes one-click refill through the hub generator', () => {
     const refill = controller()
     renderHub({ chronicRefill: refill })
-    fireEvent.click(screen.getByRole('button', { name: /一键安全续方/ }))
+    fireEvent.click(screen.getByRole('button', { name: /一键续方/ }))
     expect(refill.applyRefill).toHaveBeenCalledWith(expect.any(Function))
   })
 
@@ -115,7 +115,7 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
 
   it('closes after adoption and hands over to the full hub', () => {
     const { rerender } = renderHub()
-    fireEvent.click(screen.getByRole('button', { name: '更多 AI 辅诊' }))
+    fireEvent.click(screen.getByRole('button', { name: '更多' }))
     expect(panel()).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'AI 临床辅诊中枢' })).toBeInTheDocument()
 

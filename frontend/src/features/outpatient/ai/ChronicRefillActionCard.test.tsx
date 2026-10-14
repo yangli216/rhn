@@ -89,7 +89,7 @@ describe('ChronicRefillActionCard', () => {
       expect(screen.getByText('5mg 口服，每日一次')).toBeInTheDocument()
     })
 
-    const applyButton = screen.getByRole('button', { name: /一键安全续方/ })
+    const applyButton = screen.getByRole('button', { name: /一键续方/ })
     fireEvent.click(applyButton)
 
     expect(handleApply).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('ChronicRefillActionCard', () => {
       expect(screen.getByText('慢病智能续方推荐')).toBeInTheDocument()
     })
 
-    const applyButton = screen.getByRole('button', { name: /一键安全续方/ })
+    const applyButton = screen.getByRole('button', { name: /一键续方/ })
     fireEvent.click(applyButton)
 
     expect(handleGenerate).toHaveBeenCalledWith(

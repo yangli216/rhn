@@ -35,6 +35,47 @@ class DiagnosticReportWorkingCopyTest extends RhnIntegrationTestSupport {
     @MockitoSpyBean WorkContextDirectory workContexts;
 
     @Test
+    void worklist_filters_before_paging_and_keeps_report_evidence_exceptions_searchable() throws Exception {
+        var old = startedTask("362387869795101", true);
+        var current = startedTask("362387869795101", true);
+        var broken = startedTask("362387869795101", true);
+        var completed = startedTask("362387869795101", true);
+        postJson("/api/diagnostics/tasks/" + completed.get("id").asString() + "/local-reports",
+                "{\"expectedRevision\":" + completed.get("revision").asLong() + ",\"observationValue\":\"5.8\"}", 201);
+        jdbc.update("update RHN_EX_DIAG_EXEC_TASK set DT_CREATED=? where ID_DIAG_EXEC_TASK=?",
+                java.sql.Timestamp.from(java.time.Instant.parse("2026-10-13T18:00:00Z")), completed.get("id").asLong());
+        jdbc.update("update RHN_EX_DIAG_EXEC_TASK set DT_CREATED=?, SD_STATUS='COMPLETED', ID_DIAG_REPORT=null where ID_DIAG_EXEC_TASK=?",
+                java.sql.Timestamp.from(java.time.Instant.parse("2026-10-13T12:00:00Z")), broken.get("id").asLong());
+        jdbc.update("update RHN_EX_DIAG_EXEC_TASK set DT_CREATED=? where ID_DIAG_EXEC_TASK=?",
+                java.sql.Timestamp.from(java.time.Instant.parse("2026-10-12T12:00:00Z")), old.get("id").asLong());
+        jdbc.update("update RHN_EX_DIAG_EXEC_TASK set DT_CREATED=? where ID_DIAG_EXEC_TASK=?",
+                java.sql.Timestamp.from(java.time.Instant.parse("2026-10-13T00:00:00Z")), current.get("id").asLong());
+        mockMvc.perform(get("/api/diagnostics/worklist-page").with(rhnWorkContext())
+                .param("requestType", "LABORATORY").param("status", "IN_PROGRESS").param("size", "1")
+                .param("createdFrom", "2026-10-13T00:00:00Z").param("createdBefore", "2026-10-14T00:00:00Z"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(current.get("id").asString()))
+                .andExpect(jsonPath("$.content[0].gender").exists()).andExpect(jsonPath("$.content[0].birthDate").exists());
+        mockMvc.perform(get("/api/diagnostics/worklist-page").with(rhnWorkContext())
+                .param("requestType", "LABORATORY").param("status", "EXCEPTION").param("size", "1")
+                .param("createdFrom", "2026-10-13T00:00:00Z").param("createdBefore", "2026-10-14T00:00:00Z"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(broken.get("id").asString()))
+                .andExpect(jsonPath("$.content[0].status").value("EXCEPTION"));
+        mockMvc.perform(get("/api/diagnostics/worklist-page").with(rhnWorkContext())
+                .param("requestType", "LABORATORY").param("status", "COMPLETED")
+                .param("createdFrom", "2026-10-13T00:00:00Z").param("createdBefore", "2026-10-14T00:00:00Z"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(completed.get("id").asString()));
+        mockMvc.perform(get("/api/diagnostics/worklist-page").with(rhnWorkContext())
+                .param("requestType", "LABORATORY").param("createdBefore", "2026-10-13T00:00:00Z"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[?(@.id == '%s')]".formatted(current.get("id").asString())).isEmpty());
+        mockMvc.perform(get("/api/diagnostics/worklist-page").with(rhnWorkContext())
+                .param("requestType", "LABORATORY").param("createdFrom", "2026-10-14T00:00:00Z").param("createdBefore", "2026-10-13T00:00:00Z"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DIAGNOSTIC_DATE_RANGE_INVALID"));
+    }
+
+    @Test
     void signed_images_are_frozen_and_remain_readable_after_a_correction_removes_them() throws Exception {
         var task = startedTask("362387869795103", false);
         String id = task.get("id").asString();

@@ -29,6 +29,7 @@ export function createMaintenanceApi(client: ApiClient) {
     preview: (body: MaintenancePreviewRequest) => post<MaintenancePlan>('/plans', body),
     execute: (id: string, body: MaintenanceExecuteRequest) => post<MaintenanceTask>(`/plans/${id}/execute`, body),
     tasks: () => client.request<MaintenanceTask[]>(base + '/tasks'),
+    task: (id: string) => client.request<MaintenanceTask>(`${base}/tasks/${id}`),
     audit: (id: string) => client.request<MaintenanceAudit[]>(`${base}/tasks/${id}/audit`),
     cancel: (id: string) => post<MaintenanceTask>(`/tasks/${id}/cancel`),
     retryVerification: (id: string) => post<MaintenanceTask>(`/tasks/${id}/retry-verification`),

@@ -130,6 +130,9 @@ export interface DiagnosticExecutionTask {
   residentId: string
   residentName: string
   healthRecordNo: string
+  gender?: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  genderText?: string
+  birthDate?: string
   encounterId: string
   requestId: string
   organizationId: string
@@ -140,6 +143,7 @@ export interface DiagnosticExecutionTask {
   itemName: string
   specimenType?: string
   examinationType?: string
+  examinationTypeText?: string
   createdAt: string
   collectedAt?: string
   specimenNo?: string
@@ -190,6 +194,12 @@ export interface DiagnosticWorklistPage {
   totalPages: number
   page: number
   size: number
+}
+
+export interface DiagnosticWorklistFilters {
+  status?: DiagnosticTaskStatus
+  createdFrom?: string
+  createdBefore?: string
 }
 
 export interface DiagnosticReportDraft {
@@ -251,10 +261,13 @@ export function createDiagnosticsApi(client: ApiClient) {
       return client.request<DiagnosticExecutionTask[]>(`/api/diagnostics/worklist${query.size ? `?${query}` : ''}`)
     },
     worklistPage: (requestType: 'LABORATORY' | 'EXAMINATION', keyword: string, page: number, size = 20,
-      encounterId?: string, residentId?: string) => {
+      encounterId?: string, residentId?: string, filters?: DiagnosticWorklistFilters) => {
       const query = new URLSearchParams({ requestType, keyword, page: String(page), size: String(size) })
       if (encounterId) query.set('encounterId', encounterId)
       if (residentId) query.set('residentId', residentId)
+      if (filters?.status) query.set('status', filters.status)
+      if (filters?.createdFrom) query.set('createdFrom', filters.createdFrom)
+      if (filters?.createdBefore) query.set('createdBefore', filters.createdBefore)
       return client.request<DiagnosticWorklistPage>(`/api/diagnostics/worklist-page?${query}`)
     },
     collect: (taskId: string, expectedRevision: number, specimenNo: string, note?: string) =>

@@ -100,15 +100,19 @@ public class DiagnosticExecutionService {
 
     @Transactional
     public com.rhn.shared.api.PageResult<DiagnosticExecutionTaskView> worklistPage(
-            String requestType, String keyword, int page, int size, Long encounterId, Long residentId) {
+            String requestType, String keyword, int page, int size, Long encounterId, Long residentId,
+            DiagnosticExecutionTaskStatus status, Instant createdFrom, Instant createdBefore) {
         var context = requireWorkContext();
         if (!Set.of("LABORATORY", "EXAMINATION").contains(requestType)) throw conflict(
                 "DIAGNOSTIC_REQUEST_TYPE_REQUIRED", "请选择检验或检查队列");
         com.rhn.diagnostics.api.DiagnosticPermissions.requireRead(context, requestType);
+        if (createdFrom != null && createdBefore != null && !createdFrom.isBefore(createdBefore)) throw conflict(
+                "DIAGNOSTIC_DATE_RANGE_INVALID", "申请开始日期必须早于结束边界");
         String term = keyword == null ? "" : keyword.trim().toLowerCase(java.util.Locale.ROOT);
         String escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_");
         var values = tasks.pageForWorkContext(context.tenantId(), context.organizationId(), context.departmentId(),
-                requestType, term, "%" + escaped + "%", encounterId, residentId, org.springframework.data.domain.PageRequest.of(
+                requestType, term, "%" + escaped + "%", encounterId, residentId, status == null ? null : status.name(), createdFrom, createdBefore,
+                org.springframework.data.domain.PageRequest.of(
                         page, size, org.springframework.data.domain.Sort.by("createdAt", "id").descending()));
         values.forEach(this::reconcileSettlement);
         var latest = DiagnosticReportEvidence.latestCompletedReports(reports, context.tenantId(), values.getContent());
@@ -291,7 +295,8 @@ public class DiagnosticExecutionService {
                 value.specimenTypeSnapshot(), value.examinationTypeSnapshot(), value.createdAt(),
                 value.collectedAt(), value.specimenNo(), value.collectionNote(), value.startedAt(),
                 inconsistent ? null : value.completedAt(), inconsistent ? null : value.completionNote(),
-                inconsistent ? "任务完成标记与最新有效报告不一致，请核对报告记录" : value.exceptionNote(), requests.requireForDiagnosticExchange(value.requestId()).requestNo());
+                inconsistent ? "任务完成标记与最新有效报告不一致，请核对报告记录" : value.exceptionNote(),
+                requests.requireForDiagnosticExchange(value.requestId()).requestNo(), resident.gender(), resident.birthDate());
     }
 
     private ExecutionContext requireWorkContext() {

@@ -50,8 +50,11 @@ public class DiagnosticWorkspaceController {
             @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int page,
             @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1)
             @jakarta.validation.constraints.Max(100) int size,
-            @RequestParam(required = false) Long encounterId, @RequestParam(required = false) Long residentId) {
-        return execution.worklistPage(requestType, keyword, page, size, encounterId, residentId);
+            @RequestParam(required = false) Long encounterId, @RequestParam(required = false) Long residentId,
+            @RequestParam(required = false) com.rhn.diagnostics.domain.DiagnosticExecutionTaskStatus status,
+            @RequestParam(required = false) java.time.Instant createdFrom,
+            @RequestParam(required = false) java.time.Instant createdBefore) {
+        return execution.worklistPage(requestType, keyword, page, size, encounterId, residentId, status, createdFrom, createdBefore);
     }
 
     @PostMapping("/tasks/{taskId}/collection")

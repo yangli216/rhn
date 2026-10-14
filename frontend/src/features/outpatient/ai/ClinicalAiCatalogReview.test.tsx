@@ -33,7 +33,7 @@ describe('unresolved AI catalog intents', () => {
     const match = { ...ambiguous, key: 'ct', intent: { type: 'EXAMINATION', name: '胸部CT' },
       status: 'NO_ORDERABLE_SERVICE', reason: '本院可开立目录未匹配，仅供医生评估医嘱方向；可调整名称重新检索。', candidates: [] }
     render(<ClinicalAiCatalogReview matches={[match]} api={{} as RhnApi} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    expect(screen.getByText('虚线项目尚未完成院内目录核对，暂不可勾选；核对后可带入医嘱。')).toBeInTheDocument()
+    expect(screen.getByText('虚线项目需先核对院内目录才能勾选')).toBeInTheDocument()
     expect(screen.getByRole('row', { name: '胸部CT · 未匹配本院项目' })).toHaveClass('doctor-unified-order-row', 'is-catalog-pending')
     const checkbox = screen.getByRole('checkbox', { name: '选择 胸部CT' })
     expect(checkbox).toBeDisabled()
@@ -67,7 +67,7 @@ describe('unresolved AI catalog intents', () => {
     const match = { ...ambiguous, status: 'SPECIFICATION_REVIEW', intent: { type: 'MEDICATION', name: '测试药品', specification: '250mg' },
       candidates: [{ type: 'MEDICATION' as const, catalogItemId: 'p1', medicationId: 'm1', code: 'M', name: '测试药品', specification: '0.5g' }] }
     render(<ClinicalAiCatalogReview matches={[match]} api={{} as RhnApi} encounterId="e1" disabled={false} onResolved={vi.fn()} />)
-    expect(screen.getByText('建议规格：250mg')).toBeInTheDocument()
+    expect(screen.getByText(/建议规格：250mg/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '核对目录 测试药品' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
   })
@@ -101,7 +101,8 @@ describe('unresolved AI catalog intents', () => {
       confidence: .73, threshold: .9, suggestedItem: candidates[1], detail: '仅核查目录语义匹配，需医生确认。' } }
     const onResolved = vi.fn()
     render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    expect(screen.getByText('Jev 目录判断置信度 73.0%')).toBeInTheDocument()
+    // One meta line: the AI name repeats only when it differs from the preselected item.
+    expect(screen.getByText('AI 建议：血常规 · Jev 判断集中度 73%，低于阈值需核对')).toBeInTheDocument()
     const row = screen.getByRole('row')
     await userEvent.click(within(row).getByRole('button', { name: '核对目录 血常规' }))
     const panel = screen.getByRole('dialog')

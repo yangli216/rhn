@@ -6,7 +6,7 @@ export function genderLabel(gender?: Resident['gender'] | string) {
 }
 
 export function age(birthDate: string) {
-  const birth = new Date(birthDate)
+  const birth = new Date(/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ? `${birthDate}T00:00:00` : birthDate)
   const now = new Date()
   return now.getFullYear() - birth.getFullYear()
     - (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0)
