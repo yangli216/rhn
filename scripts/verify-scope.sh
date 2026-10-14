@@ -7,13 +7,15 @@ rhn_scope="${1:-}"
 rhn_option=""
 rhn_frontend_only=0
 rhn_full=0
+rhn_contract_option=""
 if [[ $# -gt 0 ]]; then shift; fi
 for rhn_arg in "$@"; do
   case "$rhn_arg" in
     --list) rhn_option=--list ;;
     --frontend-only) rhn_frontend_only=1 ;;
     --full) rhn_full=1 ;;
-    *) echo "Usage: $0 <scope[,scope...]> [--frontend-only|--full] [--list]" >&2; exit 2 ;;
+    --contract|--no-contract) rhn_contract_option="$rhn_arg" ;;
+    *) echo "Usage: $0 <scope[,scope...]> [--frontend-only|--full] [--contract|--no-contract] [--list]" >&2; exit 2 ;;
   esac
 done
 
@@ -21,16 +23,20 @@ rhn_plan_frontend_only=""
 rhn_plan_full=""
 if [[ "$rhn_full" == 1 ]]; then rhn_plan_full=--full; fi
 if [[ "$rhn_frontend_only" == 1 ]]; then rhn_plan_frontend_only=--frontend-only; fi
-if ! rhn_plan="$(python3 "$rhn_root/scripts/verification-scope-plan.py" "$rhn_scope" ${rhn_plan_frontend_only:+"$rhn_plan_frontend_only"} ${rhn_plan_full:+"$rhn_plan_full"})"; then exit 2; fi
+if ! rhn_plan="$(python3 "$rhn_root/scripts/verification-scope-plan.py" "$rhn_scope" ${rhn_plan_frontend_only:+"$rhn_plan_frontend_only"} ${rhn_plan_full:+"$rhn_plan_full"} ${rhn_contract_option:+"$rhn_contract_option"})"; then exit 2; fi
 rhn_frontend_tests=()
 rhn_backend_classes=()
 rhn_coverage=""
+rhn_contract=0
+rhn_contract_reason=""
 while IFS=$'\t' read -r rhn_kind rhn_value; do
   case "$rhn_kind" in
     frontend_only) rhn_frontend_only="$rhn_value" ;;
     frontend) rhn_frontend_tests+=("$rhn_value") ;;
     backend) rhn_backend_classes+=("$rhn_value") ;;
     coverage) rhn_coverage="$rhn_value" ;;
+    contract) rhn_contract="$rhn_value" ;;
+    contract_reason) rhn_contract_reason="$rhn_value" ;;
     *) echo "Invalid scope plan" >&2; exit 2 ;;
   esac
 done <<< "$rhn_plan"
@@ -42,7 +48,8 @@ if [[ "$rhn_option" != --list ]]; then
   mkdir -p "$rhn_logs"
   echo "Scope: $rhn_scope; logs: $rhn_logs"
   echo "Coverage: $rhn_coverage"
-  python3 "$rhn_root/scripts/verification-scope-plan.py" "$rhn_scope" ${rhn_plan_frontend_only:+"$rhn_plan_frontend_only"} ${rhn_plan_full:+"$rhn_plan_full"} --format json > "$rhn_logs/scope-plan.json"
+  echo "API contract check: $([[ "$rhn_contract" == 1 ]] && echo on || echo off) ($rhn_contract_reason)"
+  python3 "$rhn_root/scripts/verification-scope-plan.py" "$rhn_scope" ${rhn_plan_frontend_only:+"$rhn_plan_frontend_only"} ${rhn_plan_full:+"$rhn_plan_full"} ${rhn_contract_option:+"$rhn_contract_option"} --format json > "$rhn_logs/scope-plan.json"
   printf 'stage\tstatus\tseconds\n' > "$rhn_logs/timings.tsv"
   # Record bytes as well as HEAD: a dirty worktree's HEAD alone is insufficient.
   rhn_snapshot_started=$SECONDS
@@ -92,6 +99,10 @@ fi
 if [[ "$rhn_full" == 0 && "$rhn_frontend_only" == 0 ]]; then
   run_check backend-tests "$rhn_root/backend" mvn -q -pl rhn-app -am \
     -Dspring.profiles.active=test "-Dtest=$rhn_backend_tests" test || rhn_failed=1
+fi
+if [[ "$rhn_contract" == 1 ]]; then
+  # Same script as CI; diagnostics stay beside this run's logs.
+  run_check api-contract "$rhn_root" scripts/verify-api-contract.sh "${rhn_logs:-.runtime/verification/api-contract}" || rhn_failed=1
 fi
 run_check ui-standards "$rhn_root/frontend" npm run ui:check || rhn_failed=1
 run_check code-quality "$rhn_root/frontend" npm run code:check || rhn_failed=1

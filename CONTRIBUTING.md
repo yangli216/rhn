@@ -51,6 +51,7 @@ AI 负责定位规范、检查工作区、简述改动依据、实施和验证�
 - 纯文档：检查差异、链接和一致性，不跑应用测试或构建。
 - 纯前端：可在上述命令后加 `--frontend-only`；前端修改依托 Vite 5173 HMR 毫秒级热更新，不得在中间轮次重复触发 `npm run build`，严禁无故重启后端持久服务。
 - 接口、迁移、权限、库存、资金或共享基础设施：扩大验证，AI 先说明原因；完整 CI 保留。
+- API 契约：相对 `origin/main` 改动了后端 `src/main`、`docs/api/openapi.json` 或 `generated.ts` 时，scope 自动追加 `api-contract`（与 CI 同一脚本 `scripts/verify-api-contract.sh`，约 1 分钟）；`--contract` 强制、`--no-contract` 跳过。失败时按提示从 `/v3/api-docs` 刷新契约并 `npm run api:generate`。
 - 修改后重跑受影响项；通过后停止重复验证。未执行的人工验收明确标注。
 
 ## 3. 收尾：明确是否提交

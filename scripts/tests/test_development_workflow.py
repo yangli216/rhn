@@ -280,7 +280,8 @@ class ScopePlanTest(unittest.TestCase):
     def test_all_maintained_scopes_reference_real_tests(self):
         scopes = json.loads((ROOT / "scripts/verification-scopes.json").read_text())["scopes"]
         self.assertEqual(set(scopes), {"frequency", "outpatient-draft", "round1", "knowledge-panel",
-                                      "billing", "master-data", "inventory", "medication-safety", "ai-matching", "triage", "decision-observation"})
+                                      "billing", "master-data", "inventory", "medication-safety", "ai-matching", "triage", "decision-observation",
+                                      "maintenance", "diagnostics"})
         for scope in scopes:
             with self.subTest(scope=scope):
                 planned = self.plan(ROOT, scope)
@@ -323,6 +324,55 @@ class ScopePlanTest(unittest.TestCase):
         self.assertIn("verify", result.stdout)
         self.assertNotIn("-Dtest=", result.stdout)
 
+    def test_contract_check_follows_flags_full_and_detected_changes(self):
+        forced = self.plan(ROOT, "ai-matching", contract=True)
+        self.assertTrue(forced["contract_check"])
+        self.assertIn("api-contract", forced["common_checks"])
+        skipped = self.plan(ROOT, "ai-matching", contract=False)
+        self.assertFalse(skipped["contract_check"])
+        self.assertNotIn("api-contract", skipped["common_checks"])
+        self.assertTrue(self.plan(ROOT, "ai-matching", full=True)["contract_check"])
+        self.assertFalse(self.plan(ROOT, "knowledge-panel")["contract_check"])
+        with self.assertRaisesRegex(ValueError, "do not combine"):
+            self.plan(ROOT, "ai-matching", frontend_only=True, contract=True)
+        with patch.dict(self.plan.__globals__, contract_triggers=lambda root: ["docs/api/openapi.json"]):
+            detected = self.plan(ROOT, "ai-matching")
+            self.assertTrue(detected["contract_check"])
+            self.assertIn("docs/api/openapi.json", detected["contract_reason"])
+            self.assertFalse(self.plan(ROOT, "ai-matching", frontend_only=True)["contract_check"])
+        with patch.dict(self.plan.__globals__, contract_triggers=lambda root: None):
+            unresolved = self.plan(ROOT, "ai-matching")
+            self.assertFalse(unresolved["contract_check"])
+            self.assertIn("--contract", unresolved["contract_reason"])
+
+    def test_contract_triggers_cover_committed_uncommitted_and_untracked_changes(self):
+        triggers = self.plan.__globals__["contract_triggers"]
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git = lambda *args: subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+            git("init", "-q")
+            git("config", "user.email", "fixture@example.com")
+            git("config", "user.name", "fixture")
+            for name in ("backend/rhn-ai/src/main/A.java", "backend/src/main/resources/app.yml",
+                         "frontend/src/App.tsx", "backend/src/test/java/ATest.java"):
+                (repo / name).parent.mkdir(parents=True, exist_ok=True)
+                (repo / name).write_text("base")
+            git("add", "-A")
+            git("commit", "-q", "-m", "base")
+            self.assertIsNone(triggers(repo))
+            git("update-ref", "refs/remotes/origin/main", "HEAD")
+            self.assertEqual(triggers(repo), [])
+            (repo / "frontend/src/App.tsx").write_text("ui only")
+            (repo / "backend/src/test/java/ATest.java").write_text("tests only")
+            self.assertEqual(triggers(repo), [])
+            (repo / "backend/rhn-ai/src/main/A.java").write_text("committed")
+            git("commit", "-q", "-am", "unpushed")
+            (repo / "backend/src/main/resources/app.yml").write_text("uncommitted")
+            (repo / "docs/api").mkdir(parents=True)
+            (repo / "docs/api/openapi.json").write_text("{}")
+            self.assertEqual(triggers(repo), ["backend/rhn-ai/src/main/A.java", "backend/src/main/resources/app.yml",
+                                              "docs/api/openapi.json"])
+
     def test_unknown_empty_and_stale_scopes_fail(self):
         for name in ("", "billing,", "unknown", "../billing"):
             with self.assertRaises(ValueError):
@@ -347,6 +397,76 @@ class ScopePlanTest(unittest.TestCase):
             self.assertEqual(self.summary(root, {})["status"], "FAIL")
             (root / "source-after.json").write_text(json.dumps({"comparison": {"status": "SOURCE_CHANGED"}}))
             self.assertEqual(self.summary(root, {})["status"], "INVALID")
+
+
+class ApiContractScriptTest(unittest.TestCase):
+    """Runs the shared CI/local script against stubs; no backend is packaged or started."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        base = Path(self.temporary.name)
+        self.repo = base / "repo"
+        (self.repo / "scripts").mkdir(parents=True)
+        shutil.copyfile(ROOT / "scripts/verify-api-contract.sh", self.repo / "scripts/verify-api-contract.sh")
+        (self.repo / "docs/api").mkdir(parents=True)
+        (self.repo / "docs/api/openapi.json").write_text('{"openapi":"3.1.0","paths":{"/a":{}}}')
+        (self.repo / "frontend/src/shared/api").mkdir(parents=True)
+        (self.repo / "frontend/src/shared/api/generated.ts").write_text("export interface paths {}\n")
+        (self.repo / "backend/rhn-app/target").mkdir(parents=True)
+        (self.repo / "backend/rhn-app/target/rhn-application-0.1.0.jar").write_text("jar")
+        binary = base / "bin"
+        binary.mkdir()
+        stubs = {
+            "java": 'exec sleep 30\n',
+            "curl": 'out=""; while [[ $# -gt 0 ]]; do [[ "$1" == -o ]] && out="$2"; shift; done\n'
+                    'printf %s "$FIXTURE_RUNTIME" > "$out"\n',
+            "npx": 'out=""; while [[ $# -gt 0 ]]; do [[ "$1" == -o ]] && out="$2"; shift; done\n'
+                   'printf %s "$FIXTURE_GENERATED" > "$out"\n',
+        }
+        for name, body in stubs.items():
+            (binary / name).write_text("#!/usr/bin/env bash\n" + body)
+            (binary / name).chmod(0o755)
+        import socket
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        self.environment = {**os.environ, "PATH": str(binary) + os.pathsep + os.environ["PATH"],
+                            "RHN_CONTRACT_SKIP_PACKAGE": "1", "RHN_CONTRACT_PORT": str(port),
+                            "FIXTURE_RUNTIME": '{"paths":{"/a":{}},"openapi":"3.1.0"}',
+                            "FIXTURE_GENERATED": "export interface paths {}\n"}
+
+    def run_script(self, **overrides):
+        return subprocess.run(["bash", "scripts/verify-api-contract.sh", "out"], cwd=self.repo,
+                              env={**self.environment, **overrides}, capture_output=True, text=True, timeout=60)
+
+    def test_reordered_runtime_schema_and_current_types_pass_without_touching_sources(self):
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("API contract in sync", result.stdout)
+        self.assertEqual((self.repo / "frontend/src/shared/api/generated.ts").read_text(), "export interface paths {}\n")
+        self.assertTrue((self.repo / "out/api-contract-runtime.canonical.json").is_file())
+
+    def test_runtime_drift_fails_with_refresh_instructions(self):
+        result = self.run_script(FIXTURE_RUNTIME='{"openapi":"3.1.0","paths":{"/a":{},"/b":{}}}')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("differs from the runtime contract", result.stderr)
+        self.assertIn('"/b"', (self.repo / "out/api-contract-openapi.diff").read_text())
+
+    def test_stale_generated_types_fail(self):
+        result = self.run_script(FIXTURE_GENERATED="export interface paths { a: never }\n")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("generated.ts is stale", result.stderr)
+        self.assertEqual((self.repo / "frontend/src/shared/api/generated.ts").read_text(), "export interface paths {}\n")
+
+    def test_occupied_port_is_not_reclaimed(self):
+        import socket
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", 0))
+            server.listen()
+            result = self.run_script(RHN_CONTRACT_PORT=str(server.getsockname()[1]))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("already in use", result.stderr)
 
 
 if __name__ == "__main__":

@@ -137,11 +137,13 @@ UI 债务同样按精确指纹记录；不得运行“接受所有当前违规�
 ./scripts/verify-scope.sh master-data,billing
 # 共享基础设施/契约变化时，直接扩大到完整前端测试及 Maven verify，避免先跑窄范围再重复：
 ./scripts/verify-scope.sh master-data,billing --full
+# 契约检查默认按改动自动选择；需要时强制或跳过：
+./scripts/verify-scope.sh master-data,billing --contract
 # 只有纯前端、且不涉及 API/迁移/权限/库存/账务时使用：
 ./scripts/verify-scope.sh outpatient-draft --frontend-only
 ```
 
-每轮先选择需要的验证范围；共享基础设施或契约变化可直接使用 `--full`，运行完整前端测试及 `mvn verify`，公共门禁和构建仍只执行一次。全量模式保留所选领域语义和实际测试清单，不能与 `--frontend-only` 混用；它仍不包含数据库采集/API runtime 同步检查。不要把 scope 内已通过的门禁、测试或构建再逐项运行，不将 `npm run check` 作为所有局部改动的默认收尾。失败后先读失败摘要，修复后复核受影响项；相关源码/配置/环境未变的通过证据可复用，有新增改动、失败或覆盖疑问才扩大或重跑。完整 CI 始终保留：`mvn -f backend/pom.xml verify`、`npm --prefix frontend run check`、数据库 expected refresh/check，以及 API runtime/生成同步检查；危险变更不能只选 frontend-only 或窄 scope。本地验证不能代替集成后的 CI，也不能把旧快照结果说成新版完整通过。
+每轮先选择需要的验证范围；共享基础设施或契约变化可直接使用 `--full`，运行完整前端测试及 `mvn verify`，公共门禁和构建仍只执行一次。全量模式保留所选领域语义和实际测试清单，不能与 `--frontend-only` 混用；它默认包含 API runtime/生成同步检查，仍不包含数据库采集。非全量模式在相对 `origin/main` 改动后端 `src/main`、OpenAPI 或生成类型时自动追加 `api-contract`（无法解析合并基线时提示用 `--contract`）；该阶段与 CI 共用 `scripts/verify-api-contract.sh`，在专用端口启动临时 test 服务，诊断写入本次日志目录，不修改工作区。不要把 scope 内已通过的门禁、测试或构建再逐项运行，不将 `npm run check` 作为所有局部改动的默认收尾。失败后先读失败摘要，修复后复核受影响项；相关源码/配置/环境未变的通过证据可复用，有新增改动、失败或覆盖疑问才扩大或重跑。完整 CI 始终保留：`mvn -f backend/pom.xml verify`、`npm --prefix frontend run check`、数据库 expected refresh/check，以及 API runtime/生成同步检查；危险变更不能只选 frontend-only 或窄 scope。本地验证不能代替集成后的 CI，也不能把旧快照结果说成新版完整通过。
 
 查看日志目录的 `summary.json`：它保存选中范围、实际测试、未覆盖事项、阶段状态、源码归属及总体结果。`timings.tsv` 用来判断成本，先读摘要再定位失败日志，避免把整份测试日志塞给模型。退出 0 为固定快照通过，1 为稳定源码下检查失败，2 为源码归属/配置问题；2 不表示业务正确，阶段错误仍需分析。
 
