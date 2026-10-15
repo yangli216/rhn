@@ -62,12 +62,26 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
     @Override
     @Transactional
     public void cancelUnfulfilledForRefund(Long tenantId, Long medicationRequestId) {
+        cancelUnfulfilled(tenantId, medicationRequestId, "门诊退费取消未发药任务", false);
+    }
+
+    /** Stops dispensing for a cancelled order; a task that has meanwhile been dispensed rejects the cancellation. */
+    @Transactional
+    public void cancelUnfulfilledForOrderCancellation(Long tenantId, Long medicationRequestId) {
+        cancelUnfulfilled(tenantId, medicationRequestId, "门诊医嘱撤销取消未发药任务", true);
+    }
+
+    private void cancelUnfulfilled(Long tenantId, Long medicationRequestId, String releaseReason,
+                                   boolean rejectDispensed) {
         if (medicationRequestId == null) return;
         var context = contextProvider.requireCurrent();
         if (!tenantId.equals(context.tenantId())) throw forbidden("REFUND_TENANT_MISMATCH", "退费租户不匹配");
         for (Long taskId : taskLines.findTaskIdsForRequest(tenantId, medicationRequestId)) {
             DispenseTask task = tasks.lockByIdAndTenantId(taskId, tenantId)
                     .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "退费对应发药任务不存在"));
+            if (rejectDispensed && task.status() != DispenseTaskStatus.RETURNED && dispensedOrPartlyReturned(task)) {
+                throw conflict("MEDICATION_REQUEST_CANCEL_DISPENSED", "药品已发药，不能直接撤销；请先由药房办理退药");
+            }
             if (task.status() == DispenseTaskStatus.COMPLETED || task.status() == DispenseTaskStatus.RETURNED) continue;
             for (var line : taskLines.findByTenantIdAndTaskIdOrderById(tenantId, taskId)) {
                 var active = reservations.lockActiveByDispenseTaskLine(tenantId, line.id()).stream()
@@ -80,7 +94,7 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
                             .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "退费释放预留对应库存投影不存在"));
                     var releasable = reservation.releasableQuantity();
                     if (releasable.signum() > 0) balance.release(releasable);
-                    reservation.release(context.subjectId(), "门诊退费取消未发药任务");
+                    reservation.release(context.subjectId(), releaseReason);
                 }
                 line.cancelRemainingForOrderStop();
             }
@@ -95,5 +109,12 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
         reservations.flush();
         taskLines.flush();
         tasks.flush();
+    }
+
+    private static boolean dispensedOrPartlyReturned(DispenseTask task) {
+        return switch (task.status()) {
+            case COMPLETED, PARTIALLY_DISPENSED, PARTIALLY_RETURNED -> true;
+            default -> false;
+        };
     }
 }

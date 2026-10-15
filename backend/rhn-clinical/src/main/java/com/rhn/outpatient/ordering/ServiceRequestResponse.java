@@ -22,5 +22,7 @@ record ServiceRequestResponse(
         String specimenType,
         @DictionaryBinding(MasterDataDictionaryCodes.EXAM_TYPE) String examinationType,
         String clinicalDescription,
-        Instant cancelledAt, Long cancelledBy, String cancelReason, OrderDocumentInfo documentInfo, boolean documentInfoEditable) {
+        Instant cancelledAt, Long cancelledBy, String cancelReason, OrderDocumentInfo documentInfo, boolean documentInfoEditable,
+        /** Why an ACTIVE request can no longer be cancelled (already collected, executed or reported); null when it can. */
+        String cancelBlockedReason) {
 }

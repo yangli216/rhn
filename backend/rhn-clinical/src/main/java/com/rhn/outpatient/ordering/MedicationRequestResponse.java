@@ -37,4 +37,6 @@ record MedicationRequestResponse(
         Long stockSiteId, String stockSiteName, String stockSiteSource,
         JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,
         Instant itemAttributeResolvedAt, JsonNode standardMappings,
-        Instant cancelledAt, Long cancelledBy, String cancelReason) {}
+        Instant cancelledAt, Long cancelledBy, String cancelReason,
+        /** Why an ACTIVE request can no longer be cancelled (already dispensed or executed); null when it can. */
+        String cancelBlockedReason) {}

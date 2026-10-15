@@ -3,6 +3,7 @@ package com.rhn.outpatient.ordering;
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.outpatient.api.EncounterDirectory;
+import com.rhn.outpatient.api.OrderFulfillmentGuard;
 import com.rhn.outpatient.api.ServiceRequestDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
@@ -43,6 +44,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
     private final com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments;
+    private final OrderCancellationPolicy cancellationPolicy;
 
     ServiceRequestService(ServiceRequestRepository repository, EncounterDirectory encounterDirectory,
                           CatalogLifecycleDirectory catalogDirectory,
@@ -51,7 +53,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
                           OrganizationDirectory organizationDirectory,
                           DomainEventPublisher eventPublisher,
                           ExecutionContextProvider contextProvider, JsonCodec jsonCodec, OrderDocumentInfoSupport documentInfoSupport,
-                          com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments, BusinessNumberGenerator numbers) {
+                          com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments,
+                          OrderCancellationPolicy cancellationPolicy, BusinessNumberGenerator numbers) {
+        this.cancellationPolicy = cancellationPolicy;
         this.numbers = numbers;
         this.documentInfoSupport = documentInfoSupport;
         this.repository = repository;
@@ -195,6 +199,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
         ServiceRequest value = repository.findByIdAndTenantId(requestId, encounter.tenantId())
                 .filter(request -> request.encounterId().equals(encounterId))
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
+        if (value.status() == ServiceRequestStatus.ACTIVE) {
+            cancellationPolicy.requireCancellable(fulfillmentRef(value), "SERVICE_REQUEST_CANCEL_BLOCKED");
+        }
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         repository.flush();
         Map<String, Object> eventDetails = financialEventDetails(value, encounter, null);
@@ -218,7 +225,12 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.clinicalDescription(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(),
                 documentInfoSupport.read(value.documentInfoJson()),
                 value.status() == ServiceRequestStatus.ACTIVE && List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())
-                        && diagnosticDocuments.isAmendable(value.tenantId(), value.id()));
+                        && diagnosticDocuments.isAmendable(value.tenantId(), value.id()),
+                value.status() == ServiceRequestStatus.ACTIVE ? cancellationPolicy.blockedReason(fulfillmentRef(value)) : null);
+    }
+
+    private static OrderFulfillmentGuard.OrderRef fulfillmentRef(ServiceRequest value) {
+        return OrderFulfillmentGuard.OrderRef.service(value.tenantId(), value.id(), value.serviceTypeSnapshot());
     }
 
     @Override

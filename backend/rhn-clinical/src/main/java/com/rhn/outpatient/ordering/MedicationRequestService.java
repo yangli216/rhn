@@ -2,6 +2,7 @@ package com.rhn.outpatient.ordering;
 
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
+import com.rhn.outpatient.api.OrderFulfillmentGuard;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.healthcore.api.AllergyDirectory;
@@ -55,6 +56,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final MedicationSemanticDirectory semantics;
     private final OutpatientAllergyVerificationPolicy allergyVerificationPolicy;
     private final com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventory;
+    private static final String CANCEL_BLOCKED_CODE = "MEDICATION_REQUEST_CANCEL_BLOCKED";
+    private final OrderCancellationPolicy cancellationPolicy;
 
     MedicationRequestService(MedicationRequestRepository repository,
                              PrescriptionRepository prescriptionRepository,
@@ -72,8 +75,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              MedicationSemanticDirectory semantics,
                              OutpatientAllergyVerificationPolicy allergyVerificationPolicy,
                              com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventory,
+                             OrderCancellationPolicy cancellationPolicy,
                              BusinessNumberGenerator numbers) {
         this.inventory = inventory;
+        this.cancellationPolicy = cancellationPolicy;
         this.numbers = numbers;
         this.semantics = semantics;
         this.allergyVerificationPolicy = allergyVerificationPolicy;
@@ -433,7 +438,11 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 .filter(request -> request.encounterId().equals(encounterId))
                 .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
         boolean draft = value.status() == MedicationRequestStatus.DRAFT;
+        var fulfillment = value.status() == MedicationRequestStatus.ACTIVE
+                ? OrderFulfillmentGuard.OrderRef.medication(value.tenantId(), value.id()) : null;
+        if (fulfillment != null) cancellationPolicy.requireCancellable(fulfillment, CANCEL_BLOCKED_CODE);
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
+        if (fulfillment != null) cancellationPolicy.releaseUnstarted(fulfillment);
         repository.flush();
         publishCancellation(value, input.reason().trim(), context.subjectId(), draft, encounter);
         return response(value);
@@ -453,7 +462,11 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (value.status() == MedicationRequestStatus.CANCELLED) return;
         boolean draft = value.status() == MedicationRequestStatus.DRAFT;
         var encounter = encounterDirectory.requireAccessible(value.encounterId());
+        var fulfillment = value.status() == MedicationRequestStatus.ACTIVE
+                ? OrderFulfillmentGuard.OrderRef.medication(value.tenantId(), value.id()) : null;
+        if (fulfillment != null) cancellationPolicy.requireCancellable(fulfillment, CANCEL_BLOCKED_CODE);
         value.cancelFromPrescription(reason, actorId);
+        if (fulfillment != null) cancellationPolicy.releaseUnstarted(fulfillment);
         publishCancellation(value, reason, actorId, draft, encounter);
     }
 
@@ -608,7 +621,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 pharmacy == null ? null : pharmacy.id(), pharmacy == null ? null : pharmacy.name(), pharmacySource,
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
                 value.itemAttributeHash(), value.itemAttributeResolvedAt(), jsonCodec.readTree(value.standardMappingSnapshot()),
-                value.cancelledAt(), value.cancelledBy(), value.cancelReason());
+                value.cancelledAt(), value.cancelledBy(), value.cancelReason(),
+                value.status() == MedicationRequestStatus.ACTIVE
+                        ? cancellationPolicy.blockedReason(OrderFulfillmentGuard.OrderRef.medication(value.tenantId(), value.id()))
+                        : null);
     }
 
     private void requireEffective(String status, LocalDate from, LocalDate to, LocalDate date, String code, String message) {
