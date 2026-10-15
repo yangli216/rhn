@@ -32,6 +32,7 @@ export { ActionMenu, type ActionMenuItem } from './ActionMenu'
 export { Tooltip, type TooltipProps }
 export { Select, type SelectMultipleProps, type SelectOption, type SelectProps, type SelectSingleProps } from './Select'
 export { DictionarySelect, type DictionarySelectProps } from './DictionarySelect'
+export { useSystemEnum } from './useSystemEnum'
 export { FormSelect } from './FormSelect'
 export { TreePanel, type TreePanelMove, type TreePanelNode, type TreePanelProps } from './TreePanel'
 export { RelationshipGraph, type RelationshipNode, type RelationshipEdge } from './RelationshipGraph'

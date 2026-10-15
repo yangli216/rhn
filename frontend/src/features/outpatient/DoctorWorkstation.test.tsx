@@ -2193,7 +2193,7 @@ describe('DoctorWorkstation reception flow', () => {
     const fixture = billingWriteFixture(mockInProgressEncounter, kind)
     api.billing = { ...api.billing, ...fixture.api }
     api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
-      attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+      attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
     const user = await openCompletionFacts(api)
     const action = await screen.findByRole('button', { name: kind === 'invoice' ? '生成结算单' : '发起诊间收款' })
     await waitFor(() => expect(action).toBeEnabled())
@@ -2236,7 +2236,7 @@ describe('DoctorWorkstation reception flow', () => {
     const api = completionFactsApi(), fixture = billingWriteFixture(mockInProgressEncounter, 'payment')
     api.billing = { ...api.billing, ...fixture.api }
     api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
-      attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+      attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
     const actual = fixture.api.createPaymentOrder.getMockImplementation()!
     let finish!: () => void
     fixture.api.createPaymentOrder.mockImplementationOnce((...args) => new Promise(resolve => { finish = async () => resolve(await actual(...args)) }))

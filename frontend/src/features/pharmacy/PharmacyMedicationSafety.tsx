@@ -2,8 +2,6 @@ import type { PrescriptionSafetyReview } from '../../shared/api/pharmacyApi'
 import { formatTime } from '../../shared/format'
 import { Alert, StatusBadge } from '../../shared/ui'
 
-const decisions = { PASS: '未触发控制', WARN: '提醒核对', REQUIRE_OVERRIDE: '需说明理由', BLOCK: '阻断', UNAVAILABLE: '无法评价' }
-
 export function PharmacyMedicationSafety({ reviews }: { reviews?: PrescriptionSafetyReview[] }) {
   return <section className="pharmacy-action-section" aria-label="处方合理用药与医生处理">
     <div className="pharmacy-section-head"><div><h3>合理用药与医生处理</h3>
@@ -13,11 +11,11 @@ export function PharmacyMedicationSafety({ reviews }: { reviews?: PrescriptionSa
         <header><strong>{review.prescriptionNo}</strong><span>{formatTime(review.submittedAt)}</span>
           <StatusBadge tone={review.evaluation.decision === 'PASS' ? 'neutral' : 'warning'}>
             {review.evaluation.mode === 'SHADOW' ? '旁路提示' : '正式审查'} · {review.evaluation.evaluationId
-              ? decisions[review.evaluation.decision] : '评价记录不完整'}
+              ? review.evaluation.decisionText ?? review.evaluation.decision : '评价记录不完整'}
           </StatusBadge></header>
         <p><strong>医生继续开立理由：</strong>{review.doctorReason?.trim() || '未填写'}</p>
         <div className="pharmacy-safety-findings">{review.evaluation.findings.map((finding) => <article key={finding.findingId}>
-          <strong>{finding.category === 'DUPLICATE_THERAPY' ? '重复用药' : finding.category === 'DRUG_INTERACTION' ? '相互作用' : '用药风险'} · {decisions[finding.decision]}</strong>
+          <strong>{finding.category === 'DUPLICATE_THERAPY' ? '重复用药' : finding.category === 'DRUG_INTERACTION' ? '相互作用' : '用药风险'} · {finding.decisionText ?? finding.decision}</strong>
           <p>涉及药品：{finding.medicationRequestIds.map((id) => review.medications.find((item) => item.requestId === id)?.name
             ?? '名称未记录').join('、') || '请核对整张处方'}</p>
           <p>{finding.message}</p>

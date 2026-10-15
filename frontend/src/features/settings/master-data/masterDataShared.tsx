@@ -70,24 +70,13 @@ export const dictionaryCodes = [
 
 export const today = () => new Date().toISOString().slice(0, 10)
 
-export { SERVICE_SUBTYPE_MAP, serviceSubtypeLabel } from '../../../shared/presentation/serviceSubtype'
-
 export function accountingCategoryLabel(category?: string, categoryText?: string | null) {
   return categoryText?.trim() || category || ''
 }
 
-export const SERVICE_DUPLICATE_RULE_MAP: Record<string, string> = {
-  SAME_DAY: '当日不重复',
-  ALLOW: '允许重复',
-  WARN: '提醒后允许',
-  BLOCK: '禁止重复',
-  INTERVAL: '间隔限制',
-}
-
-export function serviceDuplicateRuleLabel(rule?: string, fallbackText?: string) {
-  if (rule && SERVICE_DUPLICATE_RULE_MAP[rule]) return SERVICE_DUPLICATE_RULE_MAP[rule]
-  if (fallbackText && SERVICE_DUPLICATE_RULE_MAP[fallbackText]) return SERVICE_DUPLICATE_RULE_MAP[fallbackText]
-  return fallbackText || (rule ? SERVICE_DUPLICATE_RULE_MAP[rule] || rule : '')
+/** Duplicate-order rule label: the server translates BD_SERVICE_DUPLICATE_RULE into sdDuplicateRuleText. */
+export function serviceDuplicateRuleLabel(rule?: string, text?: string) {
+  return text?.trim() || rule || ''
 }
 
 export function serviceTypeTone(serviceType: string): 'info' | 'success' | 'warning' | 'neutral' {

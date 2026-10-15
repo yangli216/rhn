@@ -150,3 +150,34 @@ export function frontendComplexity(cwd) {
     complexity(path.relative(cwd, file).split(path.sep).join('/'), fs.readFileSync(file, 'utf8')))
     .filter(file => file.lines > 500 || file.functions.length).sort((a, b) => b.lines - a.lines)
 }
+
+// Code-keyed Chinese label maps ({ ACTIVE: '已启用', ... }) are shadow copies of dictionaries or system enums. Screens
+// show the server-translated `xxxText` field or load the system enum; existing maps are frozen and may only shrink.
+const enumCode = /^[A-Z][A-Z0-9_]*$|^\d+$/
+const han = /[一-鿿]/
+export function labelMapFindings(file, source) {
+  if (isTest(file)) return []
+  const findings = []
+  const tree = sourceTree(file, source)
+  function visit(node) {
+    if (ts.isObjectLiteralExpression(node)) {
+      const labels = node.properties.filter(property => ts.isPropertyAssignment(property)
+        && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name) || ts.isNumericLiteral(property.name))
+        && enumCode.test(property.name.text) && ts.isStringLiteralLike(property.initializer)
+        && han.test(property.initializer.text))
+      if (labels.length >= 2 && labels.length * 2 >= node.properties.length) {
+        findings.push({ file, line: tree.getLineAndCharacterOfPosition(node.getStart()).line + 1, rule: 'shadow-label-map',
+          message: `${labels.length} 个编码的中文名称写死在前端；改用响应中的 xxxText 字段或 useSystemEnum` })
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(tree)
+  return findings
+}
+
+export function newLabelMapFindings(findings, baseline) {
+  if (baseline?.version !== 1 || typeof baseline.files !== 'object') throw new Error('label-map baseline must be version 1 with files')
+  const byFile = Object.groupBy(findings, finding => finding.file)
+  return Object.entries(byFile).flatMap(([file, list]) => list.slice(baseline.files[file] ?? 0))
+}

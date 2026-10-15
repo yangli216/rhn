@@ -50,8 +50,8 @@ TREATMENT_CATEGORIES = {
     "引流管冲洗", "灌肠", "导尿", "肛管排气", "院前急救费", "救护车费"
 }
 
-# SD_SVC_SUBTYPE is a code (frontend SERVICE_SUBTYPE_MAP; scheduling requires OUTPATIENT_VISIT), not the price-list
-# category. Same mapping as migration V1_129_0; categories without a code keep their text until the vocabulary grows.
+# SD_SVC_SUBTYPE is a leaf code of dictionary BD_SERVICE_SUBTYPE under the item's service type, never the price-list
+# category. Same mapping as migrations V1_129_0 and V1_129_5; an unmapped category fails the build.
 SUBTYPE_BY_CATEGORY = {
     ("LABORATORY", c): "HEMATOLOGY" for c in ("血液一般", "凝血检查", "血型与配血", "尿液检查", "粪便检查", "体液分泌物", "寄生虫检查")
 } | {
@@ -59,27 +59,56 @@ SUBTYPE_BY_CATEGORY = {
 } | {
     ("LABORATORY", c): "IMMUNOASSAY" for c in ("感染免疫", "免疫功能", "自身免疫", "肿瘤标志物", "激素检查", "维生素/叶酸")
 } | {
+    ("OTHER", c): "COMMUNITY_HEALTH" for c in ("婴幼儿健康体检", "儿童龋齿预防保健", "家庭巡诊", "围产保健访视", "传染病访视",
+                                               "家庭病床", "建立健康档案", "疾病健康教育")
+} | {
     ("LABORATORY", "微生物镜检/培养"): "MICROBIOLOGY", ("LABORATORY", "药敏试验"): "MICROBIOLOGY",
     ("LABORATORY", "分子生物学"): "MOLECULAR",
     ("EXAMINATION", "X线摄影"): "RADIOGRAPHY", ("EXAMINATION", "X线透视"): "RADIOGRAPHY", ("EXAMINATION", "X线造影"): "RADIOGRAPHY",
     ("EXAMINATION", "CT扫描"): "CT", ("EXAMINATION", "磁共振MRI"): "MRI",
     ("EXAMINATION", "B超检查"): "ULTRASOUND", ("EXAMINATION", "彩超检查"): "ULTRASOUND", ("EXAMINATION", "心脏超声"): "ULTRASOUND",
     ("EXAMINATION", "A超"): "ULTRASOUND", ("EXAMINATION", "多普勒(TCD)"): "ULTRASOUND",
+    ("PROCEDURE", "挂号费"): "REGISTRATION_FEE", ("PROCEDURE", "一般诊疗费"): "GENERAL_CONSULTATION",
+    ("NURSING", "护理费"): "NURSING_CARE",
     ("TREATMENT", "注射"): "INJECTION", ("TREATMENT", "雾化吸入"): "NEBULIZATION",
-    ("TREATMENT", "换药（包括拆线、术后清创换药）"): "DRESSING", ("OTHER", "床位费"): "BED_DAY",
+    ("TREATMENT", "换药（包括拆线、术后清创换药）"): "DRESSING", ("TREATMENT", "清创（缝合）"): "DEBRIDEMENT",
+    ("TREATMENT", "氧气吸入"): "OXYGEN_THERAPY", ("TREATMENT", "抢救费"): "RESUSCITATION",
+    ("TREATMENT", "鼻饲管置管"): "NASOGASTRIC_TUBE", ("TREATMENT", "胃肠减压"): "GI_DECOMPRESSION",
+    ("TREATMENT", "洗胃"): "GASTRIC_LAVAGE", ("TREATMENT", "物理降温"): "PHYSICAL_COOLING", ("TREATMENT", "坐浴"): "SITZ_BATH",
+    ("TREATMENT", "冷热湿敷"): "COMPRESS", ("TREATMENT", "引流管冲洗"): "DRAINAGE_IRRIGATION", ("TREATMENT", "灌肠"): "ENEMA",
+    ("TREATMENT", "导尿"): "CATHETERIZATION", ("TREATMENT", "肛管排气"): "RECTAL_TUBE",
+    ("TREATMENT", "院前急救费"): "PREHOSPITAL_EMERGENCY", ("TREATMENT", "救护车费"): "AMBULANCE",
+    ("OTHER", "床位费"): "BED_DAY", ("OTHER", "中心监护病房"): "INTENSIVE_CARE_UNIT", ("OTHER", "空调费"): "AIR_CONDITIONING",
+    ("OTHER", "体检费"): "HEALTH_CHECKUP", ("OTHER", "尸体料理"): "POSTMORTEM_CARE", ("OTHER", "图象记录"): "IMAGE_RECORDING",
+    ("OTHER", "临床医学鉴定"): "MEDICAL_APPRAISAL", ("OTHER", "上门服务费"): "HOME_SERVICE",
 }
-# Base consultation fees only; surcharges (加收) and observation fees are not schedulable visit services.
-OUTPATIENT_VISIT_CODES = {"11020000100", "11020000111", "11020000102", "11020000103"}
-INPATIENT_VISIT_CODES = {"11020000501", "11020000502", "11020000503", "11020000504"}
+# 诊查费 splits by price code. Only base outpatient consultation fees are schedulable (attribute OUTPATIENT_SCHEDULABLE).
+SUBTYPE_BY_CODE = {
+    **{c: "OUTPATIENT_VISIT" for c in ("11020000100", "11020000111", "11020000102", "11020000103")},
+    **{c: "INPATIENT_VISIT" for c in ("11020000501", "11020000502", "11020000503", "11020000504")},
+    **{c: "VISIT_SURCHARGE" for c in ("11020000104", "11020000105", "11020000108", "11020000109", "11020000110")},
+    **{c: "OBSERVATION_VISIT" for c in ("11020000401", "11020000402", "11020000403", "11020000404")},
+    **{c: "ASSESSMENT" for c in ("11020090100", "11020090200", "11020090300")},
+}
+INPATIENT_VISIT_CODES = {c for c, subtype in SUBTYPE_BY_CODE.items() if subtype == "INPATIENT_VISIT"}
+TELEMEDICINE_PREFIX = "1110"  # 互联网复诊、远程会诊; the price list files them under 床位费
 EXAM_TYPE_CODES = {"RADIOGRAPHY", "CT", "MRI", "ULTRASOUND"}  # BD_EXAM_TYPE, used for execution-department routing
+# Subtypes under service type GENERAL_MEDICAL (price chapter 11); same set as migration V1_129_5.
+GENERAL_MEDICAL_SUBTYPES = {
+    "REGISTRATION_FEE", "OUTPATIENT_VISIT", "EMERGENCY_VISIT", "INPATIENT_VISIT", "OBSERVATION_VISIT", "VISIT_SURCHARGE",
+    "GENERAL_CONSULTATION", "ASSESSMENT", "PREHOSPITAL_EMERGENCY", "AMBULANCE", "BED_DAY", "INTENSIVE_CARE_UNIT",
+    "AIR_CONDITIONING", "TELEMEDICINE", "HEALTH_CHECKUP",
+}
 
 
 def service_subtype(svc_type, category, code):
-    if code in OUTPATIENT_VISIT_CODES:
-        return "OUTPATIENT_VISIT"
-    if code in INPATIENT_VISIT_CODES:
-        return "INPATIENT_VISIT"
-    return SUBTYPE_BY_CATEGORY.get((svc_type, category), category)
+    if code in SUBTYPE_BY_CODE:
+        return SUBTYPE_BY_CODE[code]
+    if code.startswith(TELEMEDICINE_PREFIX):
+        return "TELEMEDICINE"
+    if (svc_type, category) not in SUBTYPE_BY_CATEGORY:
+        raise ValueError(f"{code}: price-list category {svc_type}/{category} has no BD_SERVICE_SUBTYPE code")
+    return SUBTYPE_BY_CATEGORY[(svc_type, category)]
 
 
 def clean_unit(unit):
@@ -214,6 +243,13 @@ def derive_metadata(item):
         is_medical_tech = 0
         usage_type = "OUTPATIENT"
         dept_id = DEPT_GP_ID
+    elif code.startswith(TELEMEDICINE_PREFIX):
+        svc_type = "OTHER"
+        item_type_id = ITEM_TYPE_SERVICE
+        acctg_cat = "REGISTRATION"
+        is_medical_tech = 0
+        usage_type = "COMMON"
+        dept_id = DEPT_GP_ID
     elif code.startswith("1109") or cat in ["床位费", "中心监护病房", "空调费"]:
         svc_type = "OTHER"
         item_type_id = ITEM_TYPE_SERVICE
@@ -244,6 +280,10 @@ def derive_metadata(item):
     item["acctg_cat"] = acctg_cat
     item["is_medical_tech"] = is_medical_tech
     item["subtype"] = service_subtype(svc_type, cat, code)
+    if item["subtype"] in GENERAL_MEDICAL_SUBTYPES:
+        svc_type = "GENERAL_MEDICAL"
+        item["svc_type"] = svc_type
+        item["item_type_id"] = ITEM_TYPE_SERVICE
     item["exam_type"] = item["subtype"] if svc_type == "EXAMINATION" and item["subtype"] in EXAM_TYPE_CODES else None
     item["usage_type"] = "INPATIENT" if code in INPATIENT_VISIT_CODES else usage_type
     item["dept_id"] = dept_id

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ESLint } from 'eslint'
-import { complexity, hookFinding, importFindings, newHookFindings, newImportFindings, validateBaseline, validateBoundaryExceptions } from './code-quality.mjs'
+import { complexity, hookFinding, importFindings, labelMapFindings, newHookFindings, newImportFindings, newLabelMapFindings, validateBaseline, validateBoundaryExceptions } from './code-quality.mjs'
 
 const file = 'src/features/example/Example.tsx'
 const missing = "function Example({ value }) { useEffect(() => console.log(value), []); return null }"
@@ -75,4 +75,17 @@ test('complexity report describes natural functions without counting nested func
   assert.equal(report.functions[0].name, 'work')
   assert.equal(report.functions[0].decisionNodes, 1)
   assert.ok(report.lines > 100)
+})
+
+test('code-keyed Chinese label maps are counted per file and only historical ones pass', () => {
+  const source = "const statusText: Record<string, string> = { ACTIVE: '已启用', RETIRED: '已停用' }\n"
+    + "const copy = { title: '标题', hint: '提示' }\nconst flags = { ACTIVE: 'success', RETIRED: 'neutral' }\n"
+  const findings = labelMapFindings(file, source)
+  assert.equal(findings.length, 1)
+  assert.equal(findings[0].line, 1)
+  const frozen = { version: 1, files: { [file]: 1 } }
+  assert.deepEqual(newLabelMapFindings(findings, frozen), [])
+  assert.equal(newLabelMapFindings([...findings, ...labelMapFindings(file, source)], frozen).length, 1)
+  assert.equal(newLabelMapFindings(findings, { version: 1, files: {} }).length, 1)
+  assert.deepEqual(labelMapFindings('src/features/example/Example.test.tsx', source), [])
 })

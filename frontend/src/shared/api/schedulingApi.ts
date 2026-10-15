@@ -192,9 +192,14 @@ export interface ReceptionQueueItem {
   sequenceNo: number
   priority: number
   registrationSource: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY' | 'TRANSFER'
+  /** SC_REGISTRATION_SOURCE display text, translated by the server. */
+  registrationSourceText?: string
   visitType: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY' | 'TRANSFER'
+  visitTypeText?: string
   registrationStatus: 'REGISTERED' | 'CANCELLED'
   status: import('./queueingApi').QueueTicketStatus
+  /** SC_RECEPTION_STATUS display text, translated by the server. */
+  statusText?: string
   practitionerName?: string
   serviceName?: string
   registeredByName?: string
@@ -218,14 +223,6 @@ export interface ReceptionQueueItem {
 
 // PERSONAL is clinical queue ownership; REGISTERED_BY_ME is the authenticated registration operator.
 export type ReceptionQueueScope = 'PERSONAL' | 'DEPARTMENT' | 'ORGANIZATION' | 'REGISTERED_BY_ME'
-
-export const REGISTRATION_SOURCE_LABELS: Record<ReceptionQueueItem['registrationSource'], string> = {
-  WINDOW: '窗口挂号',
-  WALK_IN: '现场自助',
-  DIRECT: '诊间直挂',
-  EMERGENCY: '急诊通道',
-  TRANSFER: '转诊挂号',
-}
 
 export interface RegistrationPageView {
   content: ReceptionQueueItem[]

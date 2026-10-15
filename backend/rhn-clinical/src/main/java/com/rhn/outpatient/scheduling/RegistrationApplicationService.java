@@ -34,12 +34,14 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
+import com.rhn.platform.dictionary.api.SystemEnumDirectory;
 import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 
 @Service
 public class RegistrationApplicationService implements OutpatientRegistrationDirectory {
     private final BusinessNumberGenerator numbers;
+    private final SystemEnumDirectory systemEnums;
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final PatientRegistrationRepository registrationRepository;
@@ -70,8 +72,10 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           RegistrationValidityPolicy validityPolicy,
                                           EncounterFlowDirectory encounterFlowDirectory,
                                           IdentityAccessDirectory identityAccessDirectory,
-                                          OrganizationDirectory organizationDirectory, BusinessNumberGenerator numbers) {
+                                          OrganizationDirectory organizationDirectory, BusinessNumberGenerator numbers,
+                                          SystemEnumDirectory systemEnums) {
         this.numbers = numbers;
+        this.systemEnums = systemEnums;
         this.registrationRepository = registrationRepository;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
@@ -847,7 +851,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private String normalizeSource(String value, boolean scheduled) {
         String normalized = value == null || value.isBlank() ? (scheduled ? "WINDOW" : "DIRECT")
                 : value.trim().toUpperCase();
-        if (!List.of("WINDOW", "WALK_IN", "DIRECT", "EMERGENCY", "TRANSFER").contains(normalized)) {
+        if (!systemEnums.contains("SC_REGISTRATION_SOURCE", normalized)) {
             throw badRequest("REGISTRATION_SOURCE_INVALID", "挂号来源不正确");
         }
         return normalized;
@@ -855,7 +859,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     private String normalizeVisitType(String value) {
         String normalized = value == null || value.isBlank() ? "GENERAL" : value.trim().toUpperCase();
-        if (!List.of("GENERAL", "FOLLOW_UP", "EMERGENCY", "TRANSFER").contains(normalized)) {
+        if (!systemEnums.contains("SC_VISIT_TYPE", normalized)) {
             throw badRequest("REGISTRATION_VISIT_TYPE_INVALID", "就诊类型不正确");
         }
         return normalized;

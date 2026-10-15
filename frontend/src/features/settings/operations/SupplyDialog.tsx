@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { Manufacturer, SupplyInput, SupplyItem, UnitDefinition } from "../../../shared/rhnApi";
-import { FormField, Select } from "../../../shared/ui";
+import type { Manufacturer, RhnApi, SupplyInput, SupplyItem, UnitDefinition } from "../../../shared/rhnApi";
+import { DictionarySelect, FormField, Select } from "../../../shared/ui";
 import { today, FormDialog, unitOption, activeStatus, Check } from './operationalShared'
 
-export function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
+export function SupplyDialog({ api, value, units, manufacturers, onClose, onSave }: {
+  api: Pick<RhnApi['dictionaries'], 'get' | 'resolve'>
   value?: SupplyItem; units: UnitDefinition[]; manufacturers: Manufacturer[]
   onClose: () => void; onSave: (input: SupplyInput) => Promise<void>
 }) {
@@ -82,10 +83,12 @@ export function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
             <input value={form.specification} placeholder="如 2ml" onChange={(e) => setForm({ ...form, specification: e.target.value })} />
           </FormField>
           <FormField label="材质类型">
-            <input value={form.materialType} placeholder="如 医用级 PET / 玻璃" onChange={(e) => setForm({ ...form, materialType: e.target.value })} />
+            <DictionarySelect api={api} dictionaryCode="BD_SUPPLY_MATERIAL" aria-label="材质类型" value={form.materialType}
+              onChange={(v) => setForm({ ...form, materialType: v })} placeholder="选择主要材质" />
           </FormField>
           <FormField label="器械分类">
-            <Select value={form.deviceClass} onChange={(v) => setForm({ ...form, deviceClass: v })} placeholder="非器械/未设置" options={['I', 'II', 'III'].map((v) => ({ value: v, label: `${v} 类` }))} />
+            <DictionarySelect api={api} dictionaryCode="BD_DEVICE_CLASS" aria-label="器械分类" value={form.deviceClass}
+              onChange={(v) => setForm({ ...form, deviceClass: v })} placeholder="非器械/未设置" />
           </FormField>
         </div>
       </section>

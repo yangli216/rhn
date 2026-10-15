@@ -29,7 +29,7 @@ describe('SchedulingWorkspace', () => {
       },
       masterData: { services: vi.fn().mockResolvedValue([{
         id: 'service-1', code: 'GENERAL', name: '全科门诊', orderable: true, chargeable: true,
-        sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT', accountingCategory: 'REGISTRATION',
+        sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT', outpatientSchedulable: true, accountingCategory: 'REGISTRATION',
         prices: [{ id: 'price-1', revision: 1, organizationId: 'org-1', sdPriceType: 'SALE',
           sdPriceTypeText: '销售价', price: 12, currencyCode: 'CNY', validFrom: '2020-01-01',
           validTo: '2099-12-31', priceDocumentCode: '青医保价〔2026〕1号', sdStatus: 'ACTIVE', sdStatusText: '启用' }],
@@ -108,7 +108,7 @@ describe('SchedulingWorkspace', () => {
       masterData: { services: vi.fn().mockResolvedValue([{
         id: 'service-1', code: 'GENERAL', name: '全科门诊', orderable: true, chargeable: false,
         prices: [], sdUsageType: 'OUTPATIENT',
-        serviceSubtype: 'OUTPATIENT_VISIT', accountingCategory: 'REGISTRATION',
+        serviceSubtype: 'OUTPATIENT_VISIT', outpatientSchedulable: true, accountingCategory: 'REGISTRATION',
         organizationAdoption: { sdStatus: 'ACTIVE', orderable: true, executable: true },
       }]) },
     } as unknown as RhnApi
@@ -224,7 +224,7 @@ describe('SchedulingWorkspace', () => {
       },
       masterData: { services: vi.fn().mockResolvedValue([{
         id: 'service-1', code: 'GENERAL', name: '全科门诊', orderable: true, chargeable: false,
-        prices: [], sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT',
+        prices: [], sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT', outpatientSchedulable: true,
         accountingCategory: 'REGISTRATION', organizationAdoption: { sdStatus: 'ACTIVE', orderable: true, executable: true },
       }]) },
     } as unknown as RhnApi

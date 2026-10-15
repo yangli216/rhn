@@ -48,16 +48,9 @@ export function residentStatusPresentation(resident: Pick<Resident, 'status' | '
   return resident.deceased ? { label: '已登记死亡', tone: 'warning' } : { label: '有效居民', tone: 'success' }
 }
 
-export function residentIdentifierSystemLabel(system?: string | null): string {
-  const labels: Record<string, string> = {
-    '1': '居民身份证', NATIONAL_ID: '居民身份证',
-    '2': '中国人民解放军军人身份证件', '3': '中国人民武装警察身份证件',
-    '4': '港澳居民来往内地通行证', '5': '台湾居民来往大陆通行证',
-    '6': '护照', PASSPORT: '护照', '9': '其他证件/卡', OTHER: '其他证件/卡',
-    SOCIAL_SECURITY_CARD: '社会保障卡', HEALTH_CARD: '电子健康卡',
-    HOSPITAL_MRN: '病案号', BIRTH_CERTIFICATE: '出生医学证明',
-  }
-  return system ? labels[system.trim().toUpperCase()] ?? system : '证件类型未提供'
+/** Identifier type label: the server translates PI_RESIDENT_IDENTIFIER_SYSTEM into systemText. */
+export function residentIdentifierSystemLabel(identifier: { system?: string | null; systemText?: string | null }): string {
+  return identifier.systemText?.trim() || identifier.system || '证件类型未提供'
 }
 
 export function inventoryReconciliationPresentation(status: string): StatusPresentation {

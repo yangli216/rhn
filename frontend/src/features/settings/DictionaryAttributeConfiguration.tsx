@@ -6,7 +6,7 @@ import type {
   DictionarySummary, DictionaryItemAttributeConfiguration, DictionaryAttributeValueSet, RhnApi, Department, OrganizationUnit,
 } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge, useSystemEnum } from '../../shared/ui'
 import { ConfigurationScopeTarget, useConfigurationScopeTarget } from './ConfigurationScopeTarget'
 import { dictionaryCommandKey, requireSavedAttributeValues } from './dictionaryMutationReceipt'
 
@@ -16,13 +16,8 @@ export interface DictionaryAttributeContext {
   department: Pick<Department, 'id' | 'name' | 'organizationId'>
 }
 
-const scopeNames: Record<DictionaryAttributeScopeType, string> = {
-  PLATFORM: '全局', TENANT: '租户', ORGANIZATION: '机构', DEPARTMENT: '科室',
-}
-const typeNames: Record<DictionaryAttributeDataType, string> = {
-  BOOLEAN: '布尔', INTEGER: '整数', DECIMAL: '小数', TEXT: '文本', CODE: '编码',
-  DATE: '日期', DATETIME: '日期时间', DICT_REF: '引用字典',
-}
+// Labels come from the DICT_ATTR_* system enums; these lists only validate responses and order the scopes.
+const dataTypes: DictionaryAttributeDataType[] = ['BOOLEAN', 'INTEGER', 'DECIMAL', 'TEXT', 'CODE', 'DATE', 'DATETIME', 'DICT_REF']
 const scopeDepth: Record<DictionaryAttributeScopeType, number> = {
   PLATFORM: 0, TENANT: 1, ORGANIZATION: 2, DEPARTMENT: 3,
 }
@@ -44,7 +39,7 @@ function requireDefinitions(value: DictionaryAttributeDefinition[], dictionaryId
   if (!Array.isArray(value) || value.some((item) => !item || !item.id || item.dictionaryId !== dictionaryId
     || typeof item.name !== 'string' || !item.name || typeof item.code !== 'string' || !item.code || !Number.isInteger(item.revision)
     || typeof item.description !== 'string' || typeof item.requiredValue !== 'boolean' || typeof item.searchable !== 'boolean'
-    || !Object.hasOwn(typeNames, item.dataType) || !Object.hasOwn(scopeNames, item.minimumScope)
+    || !dataTypes.includes(item.dataType) || !Object.hasOwn(scopeDepth, item.minimumScope)
     || !['SINGLE', 'MULTIPLE'].includes(item.cardinality) || !['ANY', 'NO_OVERRIDE'].includes(item.overridePolicy)
     || !['ACTIVE', 'INACTIVE'].includes(item.status) || !item.schema || typeof item.schema !== 'object'
     || Array.isArray(item.schema) || !Array.isArray(item.referenceOptions)
@@ -93,6 +88,7 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, conte
   onChanged: (message: string) => void
 }) {
   const queryClient = useQueryClient()
+  const scopes = useSystemEnum(api.dictionaries, 'DICT_ATTR_SCOPE_TYPE')
   const [definitionEditor, setDefinitionEditor] = useState<DictionaryAttributeDefinition | null | undefined>()
   const [configurationItem, setConfigurationItem] = useState<{ item: DictionaryItem; definition: DictionaryAttributeDefinition }>()
   const [displayScope, setDisplayScope] = useState<DictionaryAttributeScopeType>('ORGANIZATION')
@@ -199,8 +195,8 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, conte
           <StatusBadge tone={attribute.status === 'ACTIVE' ? 'success' : 'neutral'}>
             {attribute.status === 'ACTIVE' ? '启用' : '停用'}
           </StatusBadge>
-          <span>{typeNames[attribute.dataType]} · {attribute.cardinality === 'MULTIPLE' ? '多值' : '单值'}</span>
-          <span>可配置至{scopeNames[attribute.minimumScope]}</span>
+          <span>{attribute.dataTypeText || attribute.dataType} · {attribute.cardinalityText || attribute.cardinality}</span>
+          <span>可配置至{attribute.minimumScopeText || scopes.name(attribute.minimumScope)}</span>
           {attribute.referenceDictionaryName && <span>值域：{attribute.referenceDictionaryName}</span>}
         </div>
         <p>{attribute.description}</p>
@@ -219,9 +215,7 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, conte
             value={itemQuery} onChange={setItemQuery} placeholder="搜索字典项" />
           <div className="dictionary-attribute-values__scope"><Select aria-label="属性值查看层级"
             value={displayScope} clearable={false} showValue onChange={(value) => setDisplayScope(value as DictionaryAttributeScopeType)}
-            options={(Object.keys(scopeNames) as DictionaryAttributeScopeType[]).map((value) => ({
-              value, label: scopeNames[value], secondaryText: `${scopeNames[value]}层配置`,
-            }))} /></div>
+            options={scopes.options.map((option) => ({ ...option, secondaryText: `${option.label}层配置` }))} /></div>
           <ConfigurationScopeTarget verification={displayTarget} scopeType={displayScope} tenantId={context.tenantId}
             organizationId={displayOrganizationId} departmentId={displayDepartmentId}
             onOrganizationChange={setDisplayOrganizationId} onDepartmentChange={setDisplayDepartmentId}
@@ -257,7 +251,7 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, conte
         </div>}
       </div>}
       {activeAttributes.length > 0 && displayTarget.ready && itemConfigurations.isSuccess && !itemConfigurations.isFetching && <footer className="dictionary-table__footer">
-        显示 {visibleConfigurations.length} 个字典项 · 查看层级：{scopeNames[displayScope]}
+        显示 {visibleConfigurations.length} 个字典项 · 查看层级：{scopes.name(displayScope)}
       </footer>}
     </section>
 
@@ -309,6 +303,10 @@ function AttributeDefinitionDialog({ api, dictionary, attribute, dictionaries, a
   onClose: () => void
   onSaved: (message: string) => Promise<void>
 }) {
+  const dataTypeEnum = useSystemEnum(api.dictionaries, 'DICT_ATTR_DATA_TYPE')
+  const cardinalityEnum = useSystemEnum(api.dictionaries, 'DICT_ATTR_CARDINALITY')
+  const scopeEnum = useSystemEnum(api.dictionaries, 'DICT_ATTR_SCOPE_TYPE')
+  const overrideEnum = useSystemEnum(api.dictionaries, 'DICT_ATTR_OVERRIDE_POLICY')
   const [name, setName] = useState(attribute?.name ?? '')
   const [code, setCode] = useState(attribute?.code ?? '')
   const [description, setDescription] = useState(attribute?.description ?? '')
@@ -379,9 +377,9 @@ function AttributeDefinitionDialog({ api, dictionary, attribute, dictionaries, a
         error={submitted && !description.trim() ? '请输入用途说明' : undefined}>
         <input value={description} maxLength={1000} onChange={(event) => setDescription(event.target.value)} /></FormField>
       <FormField label="数据类型"><Select value={dataType} clearable={false} showValue onChange={(value) => setDataType(value as DictionaryAttributeDataType)}
-        options={Object.entries(typeNames).map(([value, label]) => ({ value, label }))} /></FormField>
+        options={dataTypeEnum.options} /></FormField>
       <FormField label="值基数"><Select value={cardinality} clearable={false} showValue onChange={(value) => setCardinality(value as DictionaryAttributeCardinality)}
-        options={[{ value: 'SINGLE', label: '单值' }, { value: 'MULTIPLE', label: '多值' }]} /></FormField>
+        options={cardinalityEnum.options} /></FormField>
       {dataType === 'DICT_REF' && <FormField className="dictionary-attribute-form__wide" label="引用字典" required
         error={submitted && !referenceDictionaryId ? '请选择引用字典' : undefined}>
         <Select value={referenceDictionaryId} disabled={!dictionariesAvailable} clearable={false} showValue onChange={setReferenceDictionaryId}
@@ -390,10 +388,10 @@ function AttributeDefinitionDialog({ api, dictionary, attribute, dictionaries, a
           }))} /></FormField>}
       <FormField label="可配置最深层级"><Select value={minimumScope} clearable={false} showValue
         onChange={(value) => setMinimumScope(value as DictionaryAttributeScopeType)}
-        options={Object.entries(scopeNames).map(([value, label]) => ({ value, label }))} /></FormField>
+        options={scopeEnum.options} /></FormField>
       <FormField label="下级覆盖策略"><Select value={overridePolicy} clearable={false} showValue
         onChange={(value) => setOverridePolicy(value as DictionaryAttributeOverridePolicy)}
-        options={[{ value: 'ANY', label: '允许自由覆盖' }, { value: 'NO_OVERRIDE', label: '禁止下级覆盖' }]} /></FormField>
+        options={overrideEnum.options} /></FormField>
       <label className="dictionary-attribute-check"><input type="checkbox" checked={requiredValue}
         onChange={(event) => setRequiredValue(event.target.checked)} />业务使用时必须有最终值</label>
       <label className="dictionary-attribute-check"><input type="checkbox" checked={searchable}
@@ -424,7 +422,8 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, initialDefini
   const definitionReady = available && definitions.some((value) => value.id === definition.id && value.revision === definition.revision)
   const referenceOptions = definitionReady
     ? definitions.find((value) => value.id === definition.id)!.referenceOptions : definition.referenceOptions
-  const allowedScopes = useMemo(() => (Object.keys(scopeNames) as DictionaryAttributeScopeType[])
+  const scopeEnum = useSystemEnum(api.dictionaries, 'DICT_ATTR_SCOPE_TYPE')
+  const allowedScopes = useMemo(() => (Object.keys(scopeDepth) as DictionaryAttributeScopeType[])
     .filter((scope) => scopeDepth[scope] <= scopeDepth[definition.minimumScope]
       && (definition.overridePolicy !== 'NO_OVERRIDE' || scope === 'PLATFORM')),
   [definition.minimumScope, definition.overridePolicy])
@@ -484,7 +483,7 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, initialDefini
       departmentId: scopeType === 'DEPARTMENT' ? departmentId : undefined,
       valueMode: explicitEmpty ? 'EXPLICIT_EMPTY' as const : 'OVERRIDE' as const,
       values: explicitEmpty ? [] : values,
-      reason: `${scopeNames[scopeType]}层维护${definition.name}`,
+      reason: `${scopeEnum.name(scopeType)}层维护${definition.name}`,
       }
       const command = { operation: 'values', dictionaryId: dictionary.id, itemId: item.id, attributeId: definition.id, input }
       const response = await api.dictionaries.setItemAttribute(dictionary.id, item.id, definition.id,
@@ -554,7 +553,7 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, initialDefini
         options={definitions.map((value) => ({ value: value.id, label: value.name, secondaryText: value.code }))} /></FormField>
       <FormField label="配置层级" error={!scopeAllowed ? '原层级不允许配置此属性，请明确选择允许的层级' : undefined}>
         <Select value={scopeType} clearable={false} showValue onChange={(value) => setScopeType(value as DictionaryAttributeScopeType)}
-        options={allowedScopes.map((value) => ({ value, label: scopeNames[value] }))} /></FormField>
+        options={allowedScopes.map((value) => ({ value, label: scopeEnum.name(value) }))} /></FormField>
       <ConfigurationScopeTarget verification={targetVerification} scopeType={scopeType} tenantId={context.tenantId}
         organizationId={organizationId} departmentId={departmentId}
         onOrganizationChange={setOrganizationId} onDepartmentChange={setDepartmentId} />

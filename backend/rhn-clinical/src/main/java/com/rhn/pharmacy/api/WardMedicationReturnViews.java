@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -21,16 +23,16 @@ public final class WardMedicationReturnViews {
             Long id, Long requestId, Long originalDispenseId, Long originalDispenseLineId,
             Long dispenseTaskLineId, String medicationName, BigDecimal requestedQuantity,
             String unitCode, BigDecimal requestedBaseQuantity, String baseUnitCode,
-            String disposition, Long stockReturnId, Long returnDispenseId) {
+            @DictionaryBinding("SUP_RETURN_DISPOSITION") String disposition, Long stockReturnId, Long returnDispenseId) {
     }
 
     public record WardMedicationReturnEventView(
-            Long id, String eventType, String fromStatus, String toStatus,
+            Long id, @DictionaryBinding("SUP_WARD_RETURN_EVENT_TYPE") String eventType, @DictionaryBinding("SUP_WARD_RETURN_STATUS") String fromStatus, @DictionaryBinding("SUP_WARD_RETURN_STATUS") String toStatus,
             String commandCode, Instant occurredAt, Long occurredBy, String note) {
     }
 
     public record WardMedicationReturnRequestView(
-            Long id, long revision, String requestNo, String status,
+            Long id, long revision, String requestNo, @DictionaryBinding("SUP_WARD_RETURN_STATUS") String status,
             Long organizationId, Long stockSiteId, Long nursingUnitDepartmentId,
             Long residentId, Long encounterId, Instant requestedAt, Long requestedBy,
             String requestNote, Instant handedOverAt, Long handedOverBy, String handoverNote,

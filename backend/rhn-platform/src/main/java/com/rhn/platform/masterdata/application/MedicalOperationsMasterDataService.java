@@ -776,6 +776,8 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
     private void validateSupply(Long tenantId, Long currentId, SupplyCommand c) {
         if (!Set.of("CONSUMABLE", "DEVICE").contains(c.supplyType())) throw badRequest("SUPPLY_TYPE_INVALID", "耗材类型必须为医用耗材或医疗器械");
         requireUnit(tenantId, c.unitCode(), true);
+        if (text(c.materialType()) != null) requireDictionaryCode(tenantId, MasterDataDictionaryCodes.SUPPLY_MATERIAL, c.materialType().trim());
+        if (text(c.deviceClass()) != null) requireDictionaryCode(tenantId, MasterDataDictionaryCodes.DEVICE_CLASS, c.deviceClass().trim());
         if (c.manufacturerId() != null && manufacturerRepository.findByIdAndTenantId(c.manufacturerId(), tenantId).isEmpty()) throw notFound("MANUFACTURER_NOT_FOUND", "未找到生产厂商");
         if (currentId == null && supplyRepository.existsByTenantIdAndCode(tenantId, c.code())) {
             throw conflict("SUPPLY_CODE_DUPLICATE", "当前租户已存在相同耗材/器械编码");

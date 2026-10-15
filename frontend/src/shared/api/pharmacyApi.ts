@@ -77,6 +77,7 @@ export interface StockItem {
   packageFactor: number
   baseUnitCode: string
   issuePolicy: string
+  issuePolicyText?: string
   negativeAllowed: boolean
   lotRequired: boolean
   traceRequired: boolean
@@ -111,7 +112,9 @@ export interface StockBin {
   code: string
   name: string
   binType: string
+  binTypeText?: string
   stockDefault: string
+  stockDefaultText?: string
   receiveAllowed: boolean
   pickAllowed: boolean
   countAllowed: boolean
@@ -178,6 +181,7 @@ export interface InventoryTransaction {
   transactionNo: string | null
   requestCode: string
   transactionType: string
+  transactionTypeText?: string
   sourceType: string
   sourceCode: string
   occurredAt: string
@@ -201,7 +205,7 @@ export interface InventoryTransactionPage {
 export interface Supplier {
   id: string; revision: number; organizationId: string; code: string; name: string
   unifiedCreditCode?: string; licenseNo?: string; licenseValidTo?: string
-  contactName?: string; contactPhone?: string; status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED'
+  contactName?: string; contactPhone?: string; status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED'; statusText?: string
   validFrom: string; validTo?: string
 }
 export interface SupplierInput {
@@ -215,21 +219,22 @@ export interface SupplierSupplyItem {
   purchaseEnabled?: boolean; validFrom?: string; validTo?: string
 }
 export interface PurchaseOrderLine { id: string; stockItemId: string; packageId: string; orderedQuantity: number; receivedQuantity: number; remainingQuantity: number; unitPrice: number; taxRate?: number; lineStatus: string; description?: string }
-export interface PurchaseOrder { id: string; revision: number; stockSiteId: string; supplierId: string; orderNo: string; requestCode: string; status: string; orderDate: string; expectedDate?: string; description?: string; lines: PurchaseOrderLine[] }
+export interface PurchaseOrder { id: string; revision: number; stockSiteId: string; supplierId: string; orderNo: string; requestCode: string; status: string; statusText?: string; orderDate: string; expectedDate?: string; description?: string; lines: PurchaseOrderLine[] }
 export interface GoodsReceiptLine {
   id: string; purchaseOrderLineId: string; stockItemId: string; packageId: string
   destinationBinId: string; lotNo: string; productionDate?: string; expiryDate?: string
   deliveredQuantity: number; acceptedQuantity?: number; rejectedQuantity?: number; unitCost?: number
   qualityStatus: string; rejectionReason?: string; stockLotId?: string; inventoryTransactionId?: string
+  qualityStatusText?: string
 }
 export interface GoodsReceipt {
   id: string; revision: number; stockSiteId: string; purchaseOrderId: string; supplierId: string
-  receiptNo: string; requestCode: string; deliveryNoteNo?: string; status: string; receivedAt: string
+  receiptNo: string; requestCode: string; deliveryNoteNo?: string; status: string; statusText?: string; receivedAt: string
   inspectedAt?: string; postedAt?: string; description?: string; lines: GoodsReceiptLine[]
 }
 export interface RequisitionAllocation { id: string; stockBinId: string; stockLotId: string; stockStatus: string; allocatedQuantity: number; issuedQuantity: number; status: string }
 export interface RequisitionLine { id: string; stockItemId: string; requestedQuantity: number; approvedQuantity?: number; issuedQuantity: number; baseUnitCode: string; lineStatus: string; description?: string; allocations: RequisitionAllocation[] }
-export interface Requisition { id: string; revision: number; sourceSiteId: string; requestingDepartmentId: string; destinationSiteId?: string; requisitionNo: string; status: string; requestedAt: string; requestedBy?: string; approvedAt?: string; pickedAt?: string; issuedAt?: string; reason?: string; description?: string; inventoryTransactionId?: string; lines: RequisitionLine[] }
+export interface Requisition { id: string; revision: number; sourceSiteId: string; requestingDepartmentId: string; destinationSiteId?: string; requisitionNo: string; status: string; statusText?: string; requestedAt: string; requestedBy?: string; approvedAt?: string; pickedAt?: string; issuedAt?: string; reason?: string; description?: string; inventoryTransactionId?: string; lines: RequisitionLine[] }
 export interface TransferAllocation { id: string; sourceBinId: string; destinationBinId?: string; stockLotId: string; stockStatus: string; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; status: string }
 export interface TransferLine {
   id: string; sourceStockItemId: string; destinationStockItemId: string
@@ -238,9 +243,9 @@ export interface TransferLine {
   receivedQuantity: number; damagedQuantity: number; baseUnitCode: string
   lineStatus: string; discrepancyReason?: string; allocations: TransferAllocation[]
 }
-export interface StockTransfer { id: string; revision: number; sourceSiteId: string; destinationSiteId: string; transferNo: string; status: string; requestedAt: string; reason?: string; outboundTransactionId?: string; inboundTransactionId?: string; lines: TransferLine[] }
-export interface CountLine { id: string; stockBinId: string; stockItemId: string; stockLotId: string; stockStatus: string; bookQuantity: number; countedQuantity?: number; varianceQuantity?: number; countResult?: string; varianceReason?: string }
-export interface StockCount { id: string; revision: number; stockSiteId: string; stockBinId?: string; countNo: string; countType: string; status: string; snapshotAt: string; inventoryTransactionId?: string; lines: CountLine[] }
+export interface StockTransfer { id: string; revision: number; sourceSiteId: string; destinationSiteId: string; transferNo: string; status: string; statusText?: string; requestedAt: string; reason?: string; outboundTransactionId?: string; inboundTransactionId?: string; lines: TransferLine[] }
+export interface CountLine { id: string; stockBinId: string; stockItemId: string; stockLotId: string; stockStatus: string; stockStatusText?: string; bookQuantity: number; countedQuantity?: number; varianceQuantity?: number; countResult?: string; varianceReason?: string }
+export interface StockCount { id: string; revision: number; stockSiteId: string; stockBinId?: string; countNo: string; countType: string; status: string; statusText?: string; snapshotAt: string; inventoryTransactionId?: string; lines: CountLine[] }
 export type TraceCodeStatus = 'PENDING_RECEIPT' | 'AVAILABLE' | 'OPENED' | 'PARTIALLY_ISSUED'
   | 'RESERVED' | 'IN_TRANSIT' | 'ISSUED'
   | 'RETURNED' | 'QUARANTINED' | 'DAMAGED' | 'RECALLED' | 'VOID'
@@ -249,6 +254,7 @@ export interface InventoryTraceCode {
   stockLotId?: string; goodsReceiptLineId?: string; traceCode: string; productCode: string
   productName: string; lotNo: string; packageQuantity: number; baseQuantity: number; remainingBaseQuantity: number
   status: TraceCodeStatus; currentDocumentType?: string; currentDocumentId?: string
+  statusText?: string
   currentDocumentNo?: string; receivedAt?: string; issuedAt?: string; updatedAt: string
 }
 export interface TraceCodeBatchScanResult {
@@ -256,7 +262,8 @@ export interface TraceCodeBatchScanResult {
   notFoundCodes: string[]
 }
 export interface InventoryTraceEvent {
-  id: string; eventType: string; fromStatus?: string; toStatus: TraceCodeStatus
+  id: string; eventType: string; eventTypeText?: string; fromStatus?: string; fromStatusText?: string; toStatus: TraceCodeStatus
+  toStatusText?: string
   fromSiteId?: string; toSiteId?: string; fromBinId?: string; toBinId?: string
   documentType: string; documentId: string; documentNo: string; reason?: string
   quantityDelta: number; balanceAfter: number
@@ -273,7 +280,7 @@ export interface InventoryOpenPackage {
   id: string; revision: number; stockSiteId: string; stockBinId: string; stockItemId: string
   stockLotId: string; packageId: string; traceCodeId?: string; requestCode: string
   sourceUnitCode: string; baseUnitCode: string; packageFactor: number; openedBaseQuantity: number
-  remainingBaseQuantity: number; status: 'OPEN' | 'CONSUMED' | 'VOID'; openedAt: string
+  remainingBaseQuantity: number; status: 'OPEN' | 'CONSUMED' | 'VOID'; statusText?: string; openedAt: string
   openedBy: string; updatedAt: string; closedAt?: string
 }
 
@@ -286,6 +293,7 @@ export interface InventorySplitEvent {
 export interface InventoryReconciliationLine {
   id: string; stockBinId?: string; stockItemId?: string; stockLotId?: string; stockStatus?: string
   issueType: 'LEDGER_BALANCE' | 'RESERVATION_BALANCE' | 'OPEN_PACKAGE_BALANCE' | 'TRACE_BALANCE'
+  issueTypeText?: string
   expectedQuantity: number; actualQuantity: number; differenceQuantity: number
   severity: 'WARNING' | 'ERROR'; description: string
 }
@@ -300,6 +308,7 @@ export interface InventoryReconciliationRun {
 export interface InventoryPeriod {
   id: string; revision: number; stockSiteId: string; previousPeriodId?: string; closingRunId?: string
   periodCode: string; periodFrom: string; periodTo: string; status: 'OPEN' | 'CLOSING' | 'CLOSED'
+  statusText?: string
   closedAt?: string; closedBy?: string; description?: string; createdAt: string; createdBy: string
 }
 
@@ -320,7 +329,7 @@ export interface PeriodCloseRun {
 
 export interface PeriodCloseDifference {
   snapshotId: string; inventoryBalanceId: string; inventoryBalanceRevision: number
-  stockBinId: string; stockItemId: string; stockLotId: string; lotNo: string; stockStatus: string; baseUnitCode: string
+  stockBinId: string; stockItemId: string; stockLotId: string; lotNo: string; stockStatus: string; stockStatusText?: string; baseUnitCode: string
   openingQuantity: number; movementQuantity: number; closingQuantity: number
   balanceQuantity: number; quantityDifference: number; valuationBasis: string; currencyCode: string
   openingValue: number; movementAmount: number; valuationAdjustmentAmount: number
@@ -344,7 +353,7 @@ export interface InventoryPriceAdjustmentLine {
 
 export interface InventoryPriceAdjustment {
   id: string; revision: number; stockSiteId: string; inventoryPeriodId?: string; adjustmentNo: string
-  requestCode: string; adjustmentType: 'SALE_PRICE' | 'COST_REVALUE'; priceType?: string; businessDate: string
+  requestCode: string; adjustmentType: 'SALE_PRICE' | 'COST_REVALUE'; adjustmentTypeText?: string; priceType?: string; businessDate: string
   currencyCode: string; priceDocumentCode?: string; reason: string
   status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'POSTING' | 'POSTED' | 'CANCELLED'
   lineCount: number; totalValueBefore: number; totalValueAfter: number; totalAdjustmentAmount: number
@@ -383,6 +392,7 @@ export interface ReservationResult {
   taskId: string
   taskNo: string | null
   taskStatus: DispenseTaskStatus
+  taskStatusText?: string
   requiredBaseQuantity: number
   reservedBaseQuantity: number
   allocations: InventoryReservation[]
@@ -393,9 +403,11 @@ export interface PharmacyInboxItem {
   taskId?: string
   taskNo?: string | null
   taskStatus?: DispenseTaskStatus
+  taskStatusText?: string
   stockItemId?: string
   selectedProductName?: string
   latestReviewResult?: PharmacyReviewResult
+  latestReviewResultText?: string
   residentName?: string
   healthRecordNo?: string
   residentPhone?: string
@@ -440,6 +452,7 @@ export interface PharmacyReview {
   id: string
   reviewNo: string | null
   result: PharmacyReviewResult
+  resultText?: string
   reasonCode?: string
   description?: string
   pharmacistPractitionerId: string
@@ -467,6 +480,7 @@ export interface DispenseTask {
   taskType: string
   priority: string
   status: DispenseTaskStatus
+  statusText?: string
   createdAt: string
   dueAt?: string
   pickedAt?: string
@@ -574,6 +588,7 @@ export interface WardDelivery {
   nursingUnitDepartmentId: string
   deliveryNo: string
   status: WardDeliveryStatus
+  statusText?: string
   stockSiteName: string
   nursingUnitName: string
   createdAt: string
@@ -624,6 +639,7 @@ export interface WardSupplyLine {
   pendingReturnQuantity: number
   unitCode: string
   status: WardSupplyLineStatus
+  statusText?: string
   stockItemId?: string
   dispenseTaskLineId?: string
   dispenseTaskId?: string
@@ -640,6 +656,7 @@ export interface WardSupplyBatch {
   nursingUnitName: string
   businessDate: string
   shiftCode: WardSupplyShiftCode
+  shiftCodeText?: string
   status: WardSupplyBatchStatus
   summary: WardSupplyBatchSummary
   lines: WardSupplyLine[]
@@ -731,6 +748,7 @@ export interface WardMedicationReturnLine {
   requestedBaseQuantity: number
   baseUnitCode: string
   disposition?: WardMedicationReturnDisposition
+  dispositionText?: string
   stockReturnId?: string
   returnDispenseId?: string
 }
@@ -751,6 +769,7 @@ export interface WardMedicationReturnRequest {
   revision: number
   requestNo: string
   status: WardMedicationReturnStatus
+  statusText?: string
   organizationId: string
   stockSiteId: string
   nursingUnitDepartmentId: string
@@ -1097,7 +1116,7 @@ export function createPharmacyApi(client: ApiClient) {
       pickerPractitionerId: string
       pickerAssignmentId: string
       description?: string
-    }) => client.request<{ taskId: string; taskStatus: DispenseTaskStatus }>(
+    }) => client.request<{ taskId: string; taskStatus: DispenseTaskStatus; taskStatusText?: string }>(
       `/api/pharmacy/dispense-tasks/${taskId}/picking/complete`, {
         method: 'POST', body: JSON.stringify(input),
       },

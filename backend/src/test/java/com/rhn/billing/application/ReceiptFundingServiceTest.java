@@ -3,6 +3,9 @@ package com.rhn.billing.application;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult;
 import com.rhn.billing.domain.*;
 import com.rhn.billing.infrastructure.*;
+import com.rhn.platform.dictionary.api.DictionaryDirectory;
+import com.rhn.platform.dictionary.api.DictionaryValue;
+import com.rhn.platform.dictionary.api.SystemEnumDirectory;
 import com.rhn.shared.api.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -17,13 +20,32 @@ class ReceiptFundingServiceTest {
     final PaymentRepository payments = mock(PaymentRepository.class);
     final InsuranceClaimRepository claims = mock(InsuranceClaimRepository.class);
     final InsuranceClaimResponseRepository responses = mock(InsuranceClaimResponseRepository.class);
-    final ReceiptFundingService service = new ReceiptFundingService(tenders, payments, claims, responses);
+    final DictionaryDirectory dictionaries = mock(DictionaryDirectory.class);
+    final SystemEnumDirectory systemEnums = mock(SystemEnumDirectory.class);
+    final ReceiptFundingService service = new ReceiptFundingService(tenders, payments, claims, responses,
+            new BillingCodes(dictionaries, systemEnums));
     final Settlement settlement = new Settlement(2L, 1L, 3L, 4L, "STL", "CMD", "NORMAL", "OUTPATIENT",
             "CASHIER", money("10"), "CNY", "TEST", 5L, Instant.now());
     final List<SettlementTender> rows = new ArrayList<>();
     ReceiptFundingServiceTest() {
         when(tenders.findByTenantIdAndSettlementIdOrderByLineNoAsc(1L, 2L)).thenReturn(rows);
         when(claims.findByTenantIdAndSettlementId(1L, 2L)).thenReturn(Optional.empty());
+        when(dictionaries.resolveActiveItems(1L, "PAY_METHOD")).thenReturn(List.of(
+                new DictionaryValue("CASH", "现金", 10, Map.of("TENDER_TYPE", "CASH")),
+                new DictionaryValue("WECHAT", "微信支付", 30, Map.of("TENDER_TYPE", "DIGITAL")),
+                new DictionaryValue("OTHER", "其他", 90, Map.of("TENDER_TYPE", "OTHER")),
+                new DictionaryValue("VOUCHER", "代金券", 95, Map.of())));
+        when(systemEnums.contains(eq("BIL_TENDER_TYPE"), anyString())).thenReturn(true);
+    }
+    @Test void tenderTypeOfThePaymentMethodComesFromTheDictionary() {
+        payment("10","OTHER",false,"10");ReflectionTestUtils.setField(rows.getFirst(),"tenderType","OTHER");finish();
+        equal("10",service.resolve(settlement).patientAmount());
+    }
+    @Test void paymentMethodWithoutTenderTypeIsRejected() {
+        payment("10","VOUCHER",false,"10");finish();rejected();
+    }
+    @Test void tenderTypeMustMatchThePaymentMethod() {
+        payment("10","WECHAT",false,"10");finish();rejected();
     }
     @Test void reportsFourDistinctSourcesWithoutDoubleCountingPersonalAccount() {
         insurance("SETTLE", "5", "1", "2", "2"); payment("2", "CASH", false, "2"); finish();
@@ -96,7 +118,7 @@ class ReceiptFundingServiceTest {
     void rejected(){assertThrows(BusinessException.class,()->service.resolve(settlement));}
     void finish(){settlement.applyPaidAmount(money("10"),5L,Instant.now());}
     Payment payment(String paid,String method,boolean prepay,String applied) {
-        var value=new Payment(1L,3L,prepay?null:4L,null,"PAY","PAYMENT",method,prepay?"INPATIENT_PREPAYMENT":"CASHIER",money(paid),"CNY",Instant.now(),"TXN",null,5L,null);
+        var value=new Payment(1L,3L,prepay?null:4L,null,"PAY","PAYMENT",method,"CASHIER",money(paid),"CNY",Instant.now(),"TXN",null,5L,null);
         when(payments.findByIdAndTenantId(value.id(),1L)).thenReturn(Optional.of(value));
         when(payments.refundedForPayment(1L,value.id())).thenReturn(BigDecimal.ZERO);
         rows.add(new SettlementTender(1L,2L,value.id(),rows.size()+1,prepay?"PREPAYMENT":"CASH",method,null,money(applied),"CNY"));return value;

@@ -330,7 +330,7 @@ function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
       </dl>
       <div className="resident-profile-list"><article><strong>已登记证件与卡</strong>
         <span>{resident.identifiers?.length
-          ? resident.identifiers.map((item) => `${residentIdentifierSystemLabel(item.system)}: ${item.maskedValue}`).join(' · ')
+          ? resident.identifiers.map((item) => `${residentIdentifierSystemLabel(item)}: ${item.maskedValue}`).join(' · ')
           : (resident.maskedNationalId ? `居民身份证: ${resident.maskedNationalId}` : '暂无其他证件与卡')}</span></article></div>
     </Panel>
     <Panel><PanelHead title="地址" meta={`${profile.addresses.length} 条`} />
@@ -489,7 +489,7 @@ function ResidentProfileDialog({ api, profile, available, checking, onRefresh, o
               <div className="resident-registered-card" key={item.id}>
                 <div className="resident-registered-card__head">
                   <Icon name="card" />
-                  <strong>{residentIdentifierSystemLabel(item.system)}</strong>
+                  <strong>{residentIdentifierSystemLabel(item)}</strong>
                   <span className="ui-badge ui-badge--neutral">{item.useType || '辅助标识'}</span>
                 </div>
                 <div className="resident-registered-card__body">

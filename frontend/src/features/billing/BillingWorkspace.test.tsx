@@ -107,7 +107,7 @@ describe('BillingWorkspace deep link', () => {
         createPaymentOrder,
       },
       dictionaries: { applicable: vi.fn().mockResolvedValue([
-        { code: 'CASH', name: '现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'MEDICAL_INSURANCE', name: '医保支付' },
+        { code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'MEDICAL_INSURANCE', name: '医保支付', attributes: { TENDER_TYPE: 'PERSONAL_ACCOUNT' } },
       ]) },
     } as unknown as RhnApi
     const clinicalContext = {
@@ -407,7 +407,7 @@ describe('BillingWorkspace deep link', () => {
         dailyReconciliation: vi.fn().mockResolvedValue({}),
         paymentOrders: vi.fn().mockResolvedValue([]),
       },
-      dictionaries: { applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
     } as unknown as RhnApi
     const clinicalContext = {
       organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },

@@ -104,8 +104,8 @@ const mockUnits: OrganizationUnit[] = [
     sdOrgKindText: '科室/业务单元',
     sdOrgType: 'CLINICAL_DEPARTMENT',
     sdOrgTypeText: '临床科室',
-    sdDepartmentType: 'CLIN_GENERAL_SURGERY',
-    sdDepartmentTypeText: 'CLIN_GENERAL_SURGERY',
+    sdDepartmentType: '04',
+    sdDepartmentTypeText: '外科',
     sdOrgStatus: 'ACTIVE',
     sdOrgStatusText: '已启用',
     validFrom: '2026-01-01',
@@ -1392,7 +1392,7 @@ describe('personnel pagination and scroll boundaries', () => {
       .toBe('实际字典类型')
   })
 
-  it('resolves clinical department type codes like CLIN_GENERAL_SURGERY to Chinese standard name', async () => {
+  it('shows the server-translated department type of a clinical department', async () => {
     const user = userEvent.setup()
     renderComponent()
     const tree = await screen.findByRole('tree', { name: '组织节点' })
@@ -1400,11 +1400,9 @@ describe('personnel pagination and scroll boundaries', () => {
     const surgeryNode = await within(tree).findByText('外科门诊')
     await user.click(surgeryNode)
 
-    // Facts bar displays "普通外科专业" instead of raw English "CLIN_GENERAL_SURGERY"
     await waitFor(() => {
-      expect(screen.getByText('普通外科专业')).toBeInTheDocument()
+      expect(screen.getAllByText('外科').length).toBeGreaterThan(0)
     })
-    expect(screen.queryByText('CLIN_GENERAL_SURGERY')).not.toBeInTheDocument()
   })
 
   it('supports full pagination for staff list in organization detail', async () => {

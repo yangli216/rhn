@@ -5,7 +5,7 @@ import { Alert, Button, EmptyState, Icon, LoadingState, PageHeader, Panel, Selec
 import { DateRangePicker } from "../../../shared/ui/DateRangePicker";
 import { PHARMACY_QUERY_PRESETS, type DateRange, type PresetKey } from "../../../shared/utils/dateRange";
 import { usePharmacyWorkspace } from './usePharmacyWorkspace'
-import { type PharmacyQueryStatus, pharmacyQueryStatusOptions, genderText, ageText, pharmacyQueryResidentName, formatRequestQuantity, formatQuantityWithUnit, statusTone, taskStatusText } from './pharmacyShared'
+import { type PharmacyQueryStatus, pharmacyQueryStatusOptions, genderText, ageText, pharmacyQueryResidentName, formatRequestQuantity, formatQuantityWithUnit, statusTone } from './pharmacyShared'
 
 export function PharmacyQueryPanel({ model }: { model: ReturnType<typeof usePharmacyWorkspace> }) {
  const { practitioners, queryVisibleInbox, pharmacyQueryPage, pharmacyQueryPageSize, setPharmacyQueryDraft, setPharmacyQueryFilters, setPharmacyQueryPage, copy, refresh, actionNotice, setActionNotice, error, sites, inbox, eligibleSites, pharmacyQueryDraft, applyPharmacyQuery, resetPharmacyQuery, pagedPharmacyQueryInbox, residentMap, querySummary, setPharmacyQueryPageSize, pharmacyQueryPageCount } = model
@@ -144,7 +144,7 @@ export function PharmacyQueryPanel({ model }: { model: ReturnType<typeof usePhar
                   </div>
                   <span>{item.dispenserPractitionerId
                     ? practitionerNames.get(item.dispenserPractitionerId) || '药师信息待补充' : '未发药'}</span>
-                  <StatusBadge tone={statusTone(item.taskStatus)}>{taskStatusText[item.taskStatus ?? ''] ?? '待处理'}</StatusBadge>
+                  <StatusBadge tone={statusTone(item.taskStatus)}>{item.taskStatusText ?? '待处理'}</StatusBadge>
                 </div>
               })}
             </div>}

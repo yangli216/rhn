@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { EncounterQueryItem } from '../../shared/api/encountersApi'
-import { REGISTRATION_SOURCE_LABELS } from '../../shared/api/schedulingApi'
 import { age } from '../../shared/format'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import type { Encounter } from '../../shared/model'
@@ -23,13 +22,6 @@ const encounterStatusOptions = [
   { value: 'TERMINATED', label: '已终止' },
   { value: 'CANCELLED', label: '已取消' },
 ]
-
-const visitTypeLabels: Record<string, string> = {
-  GENERAL: '普通门诊',
-  FOLLOW_UP: '复诊',
-  EMERGENCY: '急诊',
-  TRANSFER: '转科就诊',
-}
 
 const scopeOptions = [
   { value: 'DEPARTMENT', label: '当前科室' },
@@ -220,10 +212,8 @@ export function EncounterQueryWorkspace({ api, clinicalContext, onNavigate }: {
                 <span>操作</span>
               </div>
               {items.map((item: EncounterQueryItem) => {
-                const sourceLabel = item.registrationSource
-                  ? ((REGISTRATION_SOURCE_LABELS as Record<string, string>)[item.registrationSource] || item.registrationSource)
-                  : '窗口办理'
-                const visitTypeDisplay = item.visitType ? (visitTypeLabels[item.visitType] || item.visitType) : '普通门诊'
+                const sourceLabel = item.registrationSourceText || item.registrationSource || '窗口办理'
+                const visitTypeDisplay = item.visitTypeText || item.visitType || '普通门诊'
                 const deptName = item.departmentName || clinicalContext.department.name
                 const doctorName = item.clinicianName || item.clinicianId || '待接诊'
                 const regDate = formatDateTime(item.registeredAt)

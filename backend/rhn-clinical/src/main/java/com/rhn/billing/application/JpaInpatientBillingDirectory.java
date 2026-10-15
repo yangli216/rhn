@@ -28,15 +28,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Service
 public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
-    private static final String DEPOSIT_SCENE = "INPATIENT_PREPAYMENT";
     private static final String EXECUTION_SOURCE = "INPATIENT_ORDER_TASK";
     private static final String BED_DAY_SOURCE = "INPATIENT_BED_DAY";
 
     private final PatientAccountRepository accounts;
+    private final BillingCodes codes;
     private final ChargeItemRepository charges;
     private final ChargeItemComponentRepository components;
     private final PaymentRepository payments;
@@ -54,7 +55,9 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
                                         LedgerEntryRepository ledger,
                                         SettlementRepository settlements,
                                         SettlementTenderRepository tenders,
-                                        BillingApplicationService billingService, InvoiceRepository invoices, BusinessNumberGenerator numbers) {
+                                        BillingApplicationService billingService, InvoiceRepository invoices, BusinessNumberGenerator numbers,
+                                        BillingCodes codes) {
+        this.codes = codes;
         this.accounts = accounts;
         this.charges = charges;
         this.components = components;
@@ -93,6 +96,9 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
     public DepositResult registerDeposit(DepositCommand command) {
         Payment existing = payments.findByTenantIdAndCommandCode(command.tenantId(), command.paymentNo()).orElse(null);
         if (existing != null) return replay(command, existing);
+        if ("PERSONAL_ACCOUNT".equals(codes.requireTenderType(command.tenantId(), command.paymentMethodCode()))) {
+            throw badRequest("PAYMENT_METHOD_CLASSIFICATION_INVALID", "医保个人账户不能用于缴纳预交金");
+        }
         PatientAccount account = accounts.findByTenantIdAndEncounterIdAndCurrencyCode(
                         command.tenantId(), command.encounterId(), command.currencyCode())
                 .orElseGet(() -> accounts.save(PatientAccount.inpatient(
@@ -103,7 +109,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         Payment payment = payments.save(new Payment(
                 command.tenantId(), account.organizationId(), account.departmentId(),
                 account.id(), null, null, numbers.next("inpatient-deposit", new BusinessNumberContext(command.tenantId(), account.organizationId(), account.departmentId())), "PAYMENT",
-                command.paymentMethodCode(), DEPOSIT_SCENE, money(command.amount()), command.currencyCode(), paidAt,
+                command.paymentMethodCode(), BillingCodes.DEFAULT_PAYMENT_SCENE, money(command.amount()), command.currencyCode(), paidAt,
                 command.externalTransactionNo(), null, command.actorId(), command.description(), command.paymentNo()));
         ledger.save(new LedgerEntry(command.tenantId(), account.id(), "PAYMENT", "CREDIT", money(command.amount()),
                 command.currencyCode(), null, null, payment.id(), null, paidAt, command.actorId()));
@@ -225,7 +231,7 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         }
         var payment = billingService.collectPayment(settlement.legacyInvoiceId(),
                 new BillingApplicationService.PaymentCommand(command.commandCode(), command.paymentMethodCode(),
-                        "CASHIER", amount, command.paidAt(), command.externalTransactionNo(),
+                        BillingCodes.DEFAULT_PAYMENT_SCENE, amount, command.paidAt(), command.externalTransactionNo(),
                         command.description(), null));
         Settlement refreshed = requireSettlement(command.tenantId(), settlement.id());
         PatientAccount account = account(command.tenantId(), refreshed);
@@ -376,8 +382,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
     }
 
     private boolean isDeposit(Payment payment) {
-        return "PAYMENT".equals(payment.paymentType()) && payment.invoiceId() == null
-                && DEPOSIT_SCENE.equals(payment.paymentSceneCode()) && "COMPLETED".equals(payment.status());
+        // Deposits are the only payments not tied to an invoice.
+        return "PAYMENT".equals(payment.paymentType()) && payment.invoiceId() == null && "COMPLETED".equals(payment.status());
     }
 
     private void closeIfSettled(PatientAccount account, FinancialSettlementSnapshot settlement) {
@@ -392,7 +398,6 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         requireInpatient(account);
         if (!Objects.equals(account.encounterId(), command.encounterId())
                 || payment.invoiceId() != null || !"PAYMENT".equals(payment.paymentType())
-                || !DEPOSIT_SCENE.equals(payment.paymentSceneCode())
                 || payment.amount().compareTo(money(command.amount())) != 0
                 || !payment.currencyCode().equals(command.currencyCode())
                 || !payment.paymentMethodCode().equals(command.paymentMethodCode())) {

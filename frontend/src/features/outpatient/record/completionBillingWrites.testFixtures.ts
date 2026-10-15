@@ -34,7 +34,7 @@ export function billingWriteFixture(encounter: Encounter, kind: 'invoice' | 'pay
       const existing = orders.find(row => row.idempotencyKey === input.idempotencyKey)
       if (existing) return structuredClone(existing)
       const saved: PaymentOrder = { id: `payment-${input.idempotencyKey}`, revision: 1, patientAccountId: 'acc-1', settlementId,
-        orderNo: 'PAY-1', idempotencyKey: input.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'CLINIC_SETTLE',
+        orderNo: 'PAY-1', idempotencyKey: input.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'DOCTOR_STATION',
         paymentMethodCode: input.paymentMethodCode, paymentMethodName: '银行卡', orderType: 'SETTLEMENT_PAY', status: paymentStatus,
         requestedAmount: input.amount, capturedAmount: paymentStatus === 'SUCCEEDED' ? input.amount : 0, refundedAmount: 0, currencyCode: 'CNY',
         createdAt: '2026-10-04T00:00:00Z', updatedAt: '2026-10-04T00:00:01Z', duplicate: false, events: [] }

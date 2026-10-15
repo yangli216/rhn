@@ -69,8 +69,7 @@ export function clinicalReferencePrices(subjects: unknown, organizationId?: stri
 }
 export function clinicalMedicationType(value: { sdMedicationType?: string; sdMedicationTypeText?: string }): string {
   if (text(value.sdMedicationTypeText)) return value.sdMedicationTypeText
-  const labels: Record<string, string> = { WESTERN: '西药', CHINESE_PATENT: '中成药', HERBAL: '中草药', VACCINE: '疫苗' }
-  return text(value.sdMedicationType) ? labels[value.sdMedicationType] ?? `药品类型：${value.sdMedicationType}` : '药品类型待确认'
+  return text(value.sdMedicationType) ? `药品类型：${value.sdMedicationType}` : '药品类型待确认'
 }
 export function clinicalStockText(value: { stockSiteName?: string; availablePackageQuantity?: number; packageUnitName?: string }): string {
   if (!text(value.stockSiteName)) return value.availablePackageQuantity == null ? '' : '库存所属药房待确认'

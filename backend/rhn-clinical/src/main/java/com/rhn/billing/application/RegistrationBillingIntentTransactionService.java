@@ -1,5 +1,6 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.dictionary.api.SystemEnumDirectory;
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
 
@@ -53,6 +54,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 class RegistrationBillingIntentTransactionService {
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    private final SystemEnumDirectory systemEnums;
     private final RegistrationBillingIntentRepository intents;
     private final PatientAccountRepository accounts;
     private final PaymentRepository payments;
@@ -82,8 +84,10 @@ class RegistrationBillingIntentTransactionService {
             OutpatientScheduleDirectory schedules, OutpatientAppointmentDirectory appointments,
             CatalogLifecycleDirectory catalog,
             EncounterDirectory encounters, CoverageDirectory coverages, OrganizationDirectory organizations,
-            ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+            ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers,
+            SystemEnumDirectory systemEnums) {
         this.numbers = numbers;
+        this.systemEnums = systemEnums;
         this.intents = intents; this.accounts = accounts; this.payments = payments;
         this.charges = charges; this.components = components;
         this.ledger = ledger; this.invoices = invoices; this.invoiceLines = invoiceLines;
@@ -411,7 +415,8 @@ class RegistrationBillingIntentTransactionService {
 
     private String normalizeSource(String value, boolean scheduled) {
         String result = value == null || value.isBlank() ? (scheduled ? "WINDOW" : "DIRECT") : value.trim().toUpperCase();
-        if (!List.of("WINDOW", "WALK_IN", "DIRECT", "EMERGENCY").contains(result)) {
+        // Department transfers register without billing (SC_REGISTRATION_SOURCE TRANSFER), so the intent excludes them.
+        if ("TRANSFER".equals(result) || !systemEnums.contains("SC_REGISTRATION_SOURCE", result)) {
             throw badRequest("REGISTRATION_SOURCE_INVALID", "挂号来源不正确");
         }
         return result;
@@ -419,7 +424,7 @@ class RegistrationBillingIntentTransactionService {
 
     private String normalizeVisit(String value) {
         String result = value == null || value.isBlank() ? "GENERAL" : value.trim().toUpperCase();
-        if (!List.of("GENERAL", "FOLLOW_UP", "EMERGENCY").contains(result)) {
+        if ("TRANSFER".equals(result) || !systemEnums.contains("SC_VISIT_TYPE", result)) {
             throw badRequest("REGISTRATION_VISIT_TYPE_INVALID", "就诊类型不正确");
         }
         return result;

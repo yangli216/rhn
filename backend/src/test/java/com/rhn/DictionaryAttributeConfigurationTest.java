@@ -25,7 +25,7 @@ class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].code").value("AVAILABLE_SCENE"))
                 .andExpect(jsonPath("$[0].minimumScope").value("ORGANIZATION"))
                 .andExpect(jsonPath("$[0].overridePolicy").value("ANY"))
-                .andExpect(jsonPath("$[0].referenceOptions.length()").value(3));
+                .andExpect(jsonPath("$[0].referenceOptions.length()").value(5));
 
         mockMvc.perform(get("/api/platform/dictionaries/{id}/item-attribute-configurations", PAY_METHOD)
                         .param("scopeType", "ORGANIZATION").with(rhnWorkContext()))
@@ -50,7 +50,7 @@ class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"expectedDictionaryRevision":%d,"scopeType":"ORGANIZATION",
-                                 "valueMode":"OVERRIDE","values":["CLINIC_SETTLE","CASHIER","SELF_SERVICE"],
+                                 "valueMode":"OVERRIDE","values":["DOCTOR_STATION","CASHIER","SELF_SERVICE"],
                                  "reason":"机构支付场景独立配置","requestCode":"%s"}
                                 """.formatted(revision, UUID.randomUUID())))
                 .andExpect(status().isOk())
@@ -93,7 +93,7 @@ class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
                         .content("""
                                 {"expectedDictionaryRevision":%d,"scopeType":"ORGANIZATION",
                                  "organizationId":"%s",
-                                 "valueMode":"OVERRIDE","values":["CLINIC_SETTLE"],
+                                 "valueMode":"OVERRIDE","values":["DOCTOR_STATION"],
                                  "reason":"为指定机构配置支付场景","requestCode":"%s"}
                                 """.formatted(revision, ORGANIZATION, UUID.randomUUID())))
                 .andExpect(status().isOk())
@@ -101,7 +101,7 @@ class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.editingScopeCode")
                         .value("TENANT:" + TENANT + "/ORG:" + ORGANIZATION))
                 .andExpect(jsonPath("$.attributes[0].configured.organizationId").value(ORGANIZATION))
-                .andExpect(jsonPath("$.attributes[0].resolved.values[0].referenceItemCode").value("CLINIC_SETTLE"));
+                .andExpect(jsonPath("$.attributes[0].resolved.values[0].referenceItemCode").value("DOCTOR_STATION"));
 
         mockMvc.perform(get("/api/platform/dictionaries/{id}/items/{itemId}/attributes", PAY_METHOD, BANK_CARD)
                         .param("scopeType", "ORGANIZATION")

@@ -3,11 +3,6 @@ import type { BillingWorkItem, Invoice, Payment, ReceiptView } from '../../share
 import { formatTime } from '../../shared/format'
 import { EmptyState, Panel, PanelHead, SearchField, StatusBadge } from '../../shared/ui'
 
-export const workStatusText: Record<string, string> = {
-  PENDING_CHARGE: '待计费', PENDING_INVOICE: '待结算', PENDING_PAYMENT: '待收款',
-  PENDING_REFUND: '待退款', SETTLED: '已平账',
-}
-
 export function billingTone(status?: string) {
   if (status === 'SETTLED' || status === 'MATCHED' || status === 'CONFIRMED') return 'success' as const
   if (status === 'PENDING_REFUND' || status === 'MISMATCH' || status === 'ORPHAN_CHARGE') return 'danger' as const
@@ -125,11 +120,11 @@ export function BillingQueue({
     ) : (
       <div className="billing-queue-list">
         {filteredItems.map((item) => <button key={item.encounterId} type="button"
-          aria-label={`${item.residentName || '患者'}，${workStatusText[item.status]}`}
+          aria-label={`${item.residentName || '患者'}，${item.statusText ?? item.status}`}
           className={item.encounterId === selectedId ? 'is-active' : ''} onClick={() => onSelect(item.encounterId)}>
           <div className="billing-queue-item__row">
             <strong>{item.residentName || '姓名未提供'}</strong>
-            <StatusBadge tone={billingTone(item.status)}>{workStatusText[item.status]}</StatusBadge>
+            <StatusBadge tone={billingTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
           </div>
           <small className="billing-queue-item__meta">{patientDemographics(item) || '性别、年龄未提供'}</small>
           {formatRegistrationInfo(item) && (

@@ -9,12 +9,6 @@ import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
 } from '../../shared/ui'
 
-const issueText: Record<string, string> = {
-  LEDGER_BALANCE: '流水与余额', RESERVATION_BALANCE: '预留量',
-  OPEN_PACKAGE_BALANCE: '拆零余量', TRACE_BALANCE: '追溯码数量',
-}
-const packageStatusText: Record<string, string> = { OPEN: '使用中', CONSUMED: '已用完', VOID: '已作废' }
-
 export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]
 }) {
@@ -110,7 +104,7 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
           {last && last.lines.length > 0 && <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-accuracy__table"><thead><tr>
                 <th>校验项</th><th>经营项目 / 库位</th><th>期望</th><th>实际</th><th>差异</th><th>级别</th>
               </tr></thead><tbody>{last.lines.map(line => <tr key={line.id}>
-                <td><strong>{issueText[line.issueType] ?? line.issueType}</strong><small>{line.description}</small></td>
+                <td><strong>{line.issueTypeText ?? line.issueType}</strong><small>{line.description}</small></td>
                 <td><strong>{itemName(items, line.stockItemId)}</strong><small>{binName(bins, line.stockBinId)}</small></td>
                 <td>{formatQuantity(line.expectedQuantity)}</td><td>{formatQuantity(line.actualQuantity)}</td>
                 <td><strong>{formatQuantity(line.differenceQuantity)}</strong></td>
@@ -158,7 +152,7 @@ function PackageRow({ value, items, bins, lot }: { value: InventoryOpenPackage; 
     <td>{binName(bins, value.stockBinId)}</td><td>{formatQuantity(value.openedBaseQuantity)} {value.baseUnitCode}</td>
     <td><strong>{formatQuantity(value.remainingBaseQuantity)} {value.baseUnitCode}</strong></td>
     <td><StatusBadge tone={value.status === 'OPEN' ? 'info' : value.status === 'CONSUMED' ? 'success' : 'neutral'}>
-      {packageStatusText[value.status] ?? value.status}</StatusBadge></td></tr>
+      {value.statusText ?? value.status}</StatusBadge></td></tr>
 }
 
 function OpenPackageDialog({ api, siteId, items, bins, onClose, onDone }: {

@@ -19,6 +19,7 @@ class DictionaryConformanceTest extends RhnIntegrationTestSupport {
 
     private static final List<Binding> BINDINGS = List.of(
             new Binding("RHN_BD_SVC_ITEM", "SD_SVC_TYPE", "BD_SERVICE_TYPE"),
+            new Binding("RHN_BD_SVC_ITEM", "SD_SVC_SUBTYPE", "BD_SERVICE_SUBTYPE"),
             new Binding("RHN_BD_SVC_ITEM", "SD_USAGE_TYPE", "BD_SERVICE_USE"),
             new Binding("RHN_BD_SVC_ITEM", "SD_ACCTG_CAT", "BD_ACCOUNTING_CATEGORY"),
             new Binding("RHN_BD_SVC_ITEM", "SD_DUP_RULE", "BD_SERVICE_DUPLICATE_RULE"),
@@ -29,6 +30,10 @@ class DictionaryConformanceTest extends RhnIntegrationTestSupport {
             new Binding("RHN_BD_MED", "SD_MED_TYPE", "BD_MEDICATION_TYPE"),
             new Binding("RHN_BD_MED", "SD_STORAGE_TYPE", "BD_STORAGE_TYPE"),
             new Binding("RHN_BD_MED", "DOSE_FORM", "BD_DOSE_FORM"),
+            new Binding("RHN_BD_MED_HERBAL", "SD_NATURE_TYPE", "BD_HERBAL_NATURE"),
+            new Binding("RHN_BD_MED_HERBAL", "SD_PROCSG_METHOD", "BD_HERBAL_PROCESSING"),
+            new Binding("RHN_BD_SUPPLY_ITEM", "SD_MATL_TYPE", "BD_SUPPLY_MATERIAL"),
+            new Binding("RHN_BD_SUPPLY_ITEM", "SD_DEVICE_CLASS", "BD_DEVICE_CLASS"),
             new Binding("RHN_BD_CONCEPT", "SD_CONCEPT_TYPE", "BD_CONCEPT_TYPE"),
             new Binding("RHN_BD_CONCEPT_ALIAS", "SD_ALIAS_TYPE", "BD_ALIAS_TYPE"),
             new Binding("RHN_SYS_PRACT", "SD_GENDER", "PRACT_GENDER"),
@@ -80,6 +85,33 @@ class DictionaryConformanceTest extends RhnIntegrationTestSupport {
                 select count(*) from RHN_BD_DICT_CHG where CD_REQ = 'v1.129.2:dictionary-content-governance'
                 """, Integer.class)).isPositive();
     }
+    @Test
+    void atc_classes_form_a_complete_hierarchy_and_every_western_class_mapping_reaches_a_substance() {
+        assertThat(jdbc.queryForList("""
+                select c.CD_CONCEPT from RHN_BD_CLASS_CONCEPT c join RHN_BD_CLASS_SYSTEM s on s.ID_CLASS_SYSTEM = c.ID_CLASS_SYSTEM
+                left join RHN_BD_CLASS_CONCEPT p on p.ID_CLASS_CONCEPT = c.ID_PARENT
+                where s.CD_CLASS_SYSTEM = 'ATC' and (
+                  (c.QTY_LEVEL = 1 and c.ID_PARENT is not null)
+                  or (c.QTY_LEVEL > 1 and (p.ID_CLASS_CONCEPT is null or p.QTY_LEVEL <> c.QTY_LEVEL - 1
+                      or c.CD_CONCEPT not like p.CD_CONCEPT || '%'
+                      or c.CLASS_PATH not like replace(p.CLASS_PATH, ' ' || p.NA_CONCEPT, '') || '/' || c.CD_CONCEPT || ' %')))
+                """, String.class)).isEmpty();
+        assertThat(jdbc.queryForList("""
+                select m.ID_MED from RHN_BD_MED_CLASS_MAP m join RHN_BD_CLASS_CONCEPT c on c.ID_CLASS_CONCEPT = m.ID_CLASS_CONCEPT
+                join RHN_BD_CLASS_SYSTEM s on s.ID_CLASS_SYSTEM = c.ID_CLASS_SYSTEM
+                where s.CD_CLASS_SYSTEM = 'ATC' and c.QTY_LEVEL <> 5
+                """, Long.class)).isEmpty();
+        assertThat(jdbc.queryForObject("""
+                select count(distinct m.ID_MED) from RHN_BD_MED_CLASS_MAP m join RHN_BD_CLASS_CONCEPT c
+                on c.ID_CLASS_CONCEPT = m.ID_CLASS_CONCEPT join RHN_BD_CLASS_SYSTEM s on s.ID_CLASS_SYSTEM = c.ID_CLASS_SYSTEM
+                where s.CD_CLASS_SYSTEM = 'ATC'
+                """, Integer.class)).isEqualTo(7);
+        assertThat(jdbc.queryForObject("""
+                select count(*) from INFORMATION_SCHEMA.COLUMNS
+                where TABLE_NAME = 'RHN_BD_MED_WESTERN' and COLUMN_NAME = 'SD_THERAP_CLASS'
+                """, Integer.class)).as("self-coded therapeutic class replaced by ATC").isZero();
+    }
+
     @Test
     void rebuilt_gender_storage_and_active_terminology_use_the_four_standard_codes() {
         for (String table : List.of("RHN_PI_PAT", "RHN_SYS_PRACT", "RHN_OP_TRIAGE_REC")) {

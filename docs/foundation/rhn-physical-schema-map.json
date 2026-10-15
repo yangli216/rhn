@@ -3453,8 +3453,8 @@
       },
       {
         "logical": "capability_scope",
-        "physical": "SD_CAP_SCOPE",
-        "comment": "能力范围",
+        "physical": "DES_CAP_SCOPE",
+        "comment": "能力范围说明",
         "previousPhysical": "CAPABILITY_SCOPE"
       },
       {
@@ -14113,12 +14113,6 @@
         "comment": "有效ingredient"
       },
       {
-        "logical": "therapeutic_class",
-        "physical": "SD_THERAP_CLASS",
-        "comment": "治疗class",
-        "previousPhysical": "THERAPEUTIC_CLASS"
-      },
-      {
         "logical": "biologic",
         "physical": "FG_BIOL",
         "comment": "是否biologic"
@@ -14872,8 +14866,8 @@
       },
       {
         "logical": "capability_scope",
-        "physical": "SD_CAP_SCOPE",
-        "comment": "能力范围",
+        "physical": "DES_CAP_SCOPE",
+        "comment": "能力范围说明",
         "previousPhysical": "CAPABILITY_SCOPE"
       },
       {
@@ -17134,7 +17128,7 @@
       {
         "logical": "payment_scene_code",
         "physical": "CD_PAY_SCENE",
-        "comment": "支付场景编码"
+        "comment": "收费入口编码"
       },
       {
         "logical": "payment_method_code",
@@ -17326,7 +17320,7 @@
       {
         "logical": "payment_scene_code",
         "physical": "CD_PAY_SCENE",
-        "comment": "支付场景编码"
+        "comment": "收费入口编码"
       },
       {
         "logical": "organization_id",

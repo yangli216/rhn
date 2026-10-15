@@ -6,7 +6,7 @@ import com.rhn.platform.dictionary.api.DictionaryDetailResponse;
 import com.rhn.platform.dictionary.api.DictionarySummaryResponse;
 import com.rhn.platform.dictionary.api.DictionaryValue;
 import com.rhn.platform.dictionary.api.DictionaryAttributeViews.ApplicableItemView;
-import com.rhn.platform.dictionary.api.DictionaryAttributeViews.AttributeDefinitionView;
+import com.rhn.platform.dictionary.api.DictionaryAttributeViews.DictionaryAttributeDefinitionView;
 import com.rhn.platform.dictionary.api.DictionaryAttributeViews.ItemAttributeConfigurationView;
 import com.rhn.platform.dictionary.api.SystemEnumDefinition;
 import com.rhn.platform.dictionary.api.SystemEnumDirectory;
@@ -141,13 +141,13 @@ public class DictionaryController {
     }
 
     @GetMapping("/{id}/attributes")
-    List<AttributeDefinitionView> attributes(@PathVariable Long id) {
+    List<DictionaryAttributeDefinitionView> attributes(@PathVariable Long id) {
         return attributeService.definitions(id);
     }
 
     @PostMapping("/{id}/attributes")
     @ResponseStatus(HttpStatus.CREATED)
-    AttributeDefinitionView createAttribute(@PathVariable Long id,
+    DictionaryAttributeDefinitionView createAttribute(@PathVariable Long id,
                                             @Valid @RequestBody CreateAttributeRequest request) {
         return attributeService.createDefinition(id, revision(request.expectedDictionaryRevision()),
                 definitionCommand(request.code(), request.name(), request.description(), request.dataType(),
@@ -157,7 +157,7 @@ public class DictionaryController {
     }
 
     @PutMapping("/{id}/attributes/{attributeId}")
-    AttributeDefinitionView updateAttribute(@PathVariable Long id, @PathVariable Long attributeId,
+    DictionaryAttributeDefinitionView updateAttribute(@PathVariable Long id, @PathVariable Long attributeId,
                                             @Valid @RequestBody UpdateAttributeRequest request) {
         return attributeService.updateDefinition(id, attributeId, revision(request.expectedDictionaryRevision()),
                 revision(request.expectedAttributeRevision()), definitionCommand(null, request.name(),
@@ -168,7 +168,7 @@ public class DictionaryController {
     }
 
     @PostMapping("/{id}/attributes/{attributeId}/enable")
-    AttributeDefinitionView enableAttribute(@PathVariable Long id, @PathVariable Long attributeId,
+    DictionaryAttributeDefinitionView enableAttribute(@PathVariable Long id, @PathVariable Long attributeId,
                                             @Valid @RequestBody AttributeRevisionRequest request) {
         return attributeService.changeDefinitionStatus(id, attributeId,
                 revision(request.expectedDictionaryRevision()), revision(request.expectedAttributeRevision()), true,
@@ -176,7 +176,7 @@ public class DictionaryController {
     }
 
     @PostMapping("/{id}/attributes/{attributeId}/disable")
-    AttributeDefinitionView disableAttribute(@PathVariable Long id, @PathVariable Long attributeId,
+    DictionaryAttributeDefinitionView disableAttribute(@PathVariable Long id, @PathVariable Long attributeId,
                                              @Valid @RequestBody AttributeRevisionRequest request) {
         return attributeService.changeDefinitionStatus(id, attributeId,
                 revision(request.expectedDictionaryRevision()), revision(request.expectedAttributeRevision()), false,

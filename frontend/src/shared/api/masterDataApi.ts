@@ -276,6 +276,9 @@ export interface ServiceCatalogItem extends Pick<components['schemas']['ServiceV
   sdServiceType: string
   sdServiceTypeText: string
   serviceSubtype?: string
+  serviceSubtypeText?: string
+  /** Subtype carries OUTPATIENT_SCHEDULABLE: the item may be the visit service of an outpatient schedule. */
+  outpatientSchedulable: boolean
   sdUsageType: string
   sdUsageTypeText: string
   medicalTechnology: boolean
@@ -451,7 +454,7 @@ export interface MedicationStandardReadiness {
 }
 
 export interface MedicationStandardBindingPreview {
-  medication: {id: string; revision: number; code: string; name: string; medicationType: string; doseForm?: string;
+  medication: {id: string; revision: number; code: string; name: string; medicationType: string; medicationTypeText?: string; doseForm?: string;
     preparationSpec?: string; presentationUnit?: string; strengthValue?: number; strengthUnit?: string; status: string}
   identity: StandardCatalogIdentity
   reference: MedicationStandardReference

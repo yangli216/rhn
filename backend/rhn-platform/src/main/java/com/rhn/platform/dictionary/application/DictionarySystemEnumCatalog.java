@@ -1,17 +1,25 @@
 package com.rhn.platform.dictionary.application;
 
+import com.rhn.platform.dictionary.api.SystemEnumContribution;
 import com.rhn.platform.dictionary.api.SystemEnumDefinition;
 import com.rhn.platform.dictionary.api.SystemEnumDirectory;
 import com.rhn.platform.dictionary.api.SystemEnumItem;
+import com.rhn.platform.dictionary.domain.DictionaryAttributeCardinality;
+import com.rhn.platform.dictionary.domain.DictionaryAttributeDataType;
+import com.rhn.platform.dictionary.domain.DictionaryAttributeOverridePolicy;
+import com.rhn.platform.dictionary.domain.DictionaryAttributeScopeType;
 import com.rhn.platform.dictionary.domain.DictionaryChangeTargetType;
 import com.rhn.platform.dictionary.domain.DictionaryChangeType;
 import com.rhn.platform.dictionary.domain.DictionaryScopeType;
 import com.rhn.platform.dictionary.domain.DictionaryStatus;
 import com.rhn.platform.search.api.SearchInputMode;
 import com.rhn.platform.search.api.SearchMatchMode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +35,10 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String DICT_ITEM_STATUS = "DICT_ITEM_STATUS";
     public static final String DICT_CHANGE_TYPE = "DICT_CHANGE_TYPE";
     public static final String DICT_CHANGE_TARGET_TYPE = "DICT_CHANGE_TARGET_TYPE";
+    public static final String DICT_ATTR_DATA_TYPE = "DICT_ATTR_DATA_TYPE";
+    public static final String DICT_ATTR_CARDINALITY = "DICT_ATTR_CARDINALITY";
+    public static final String DICT_ATTR_SCOPE_TYPE = "DICT_ATTR_SCOPE_TYPE";
+    public static final String DICT_ATTR_OVERRIDE_POLICY = "DICT_ATTR_OVERRIDE_POLICY";
     public static final String PARAM_SCOPE_TYPE = "PARAM_SCOPE_TYPE";
     public static final String PARAM_VALUE_TYPE = "PARAM_VALUE_TYPE";
     public static final String PARAM_CONTROL_TYPE = "PARAM_CONTROL_TYPE";
@@ -57,8 +69,11 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String SC_RECEPTION_STATUS = "SC_RECEPTION_STATUS";
     public static final String SC_APPOINTMENT_STATUS = "SC_APPOINTMENT_STATUS";
     public static final String SC_APPOINTMENT_SOURCE = "SC_APPOINTMENT_SOURCE";
+    public static final String SC_REGISTRATION_SOURCE = "SC_REGISTRATION_SOURCE";
     public static final String MASTER_DATA_SEARCH_INPUT_MODE = "MASTER_DATA_SEARCH_INPUT_MODE";
     public static final String MASTER_DATA_SEARCH_MATCH_MODE = "MASTER_DATA_SEARCH_MATCH_MODE";
+    public static final String MASTER_DATA_ATTR_DATA_TYPE = "MASTER_DATA_ATTR_DATA_TYPE";
+    public static final String MASTER_DATA_ATTR_OVERRIDE_POLICY = "MASTER_DATA_ATTR_OVERRIDE_POLICY";
     public static final String RESIDENT_GENDER = "RESIDENT_GENDER";
     public static final String BED_DISPLAY_STATUS = "BED_DISPLAY_STATUS";
     public static final Set<String> PERSISTED_SYSTEM_ENUM_CODES = Set.of(
@@ -68,7 +83,7 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
             ORG_KIND, ORG_TYPE, ORG_STATUS, PRACT_GENDER, PERSONNEL_STATUS,
             EMPLOYMENT_TYPE, POSITION_TYPE, ASSIGNMENT_TYPE);
 
-    private final List<SystemEnumDefinition> definitions = List.of(
+    private final List<SystemEnumDefinition> coreDefinitions = List.of(
             definition(DICT_SCOPE_TYPE, "字典作用域类型", "普通字典定义的可见和维护范围",
                     DictionaryScopeType.class, List.of(
                             item("PLATFORM", "平台共享", "由平台统一维护，对所有租户可见", 10),
@@ -114,6 +129,30 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("ITEM", "字典项", "变更目标为普通字典项", 30),
                             item("ATTR_DEFINITION", "扩展属性定义", "变更目标为字典扩展属性定义", 40),
                             item("ITEM_ATTRIBUTE", "字典项属性值", "变更目标为分层字典项属性值集合", 50))),
+            definition(DICT_ATTR_DATA_TYPE, "字典属性数据类型", "字典项扩展属性值的数据类型",
+                    DictionaryAttributeDataType.class, List.of(
+                            item("BOOLEAN", "布尔", "是或否", 10),
+                            item("INTEGER", "整数", "不含小数的数值", 20),
+                            item("DECIMAL", "小数", "可含小数的数值", 30),
+                            item("TEXT", "文本", "自由文本", 40),
+                            item("CODE", "编码", "按 JSON Schema 约束的编码值", 50),
+                            item("DATE", "日期", "不含时间的日期", 60),
+                            item("DATETIME", "日期时间", "含时区的时间点", 70),
+                            item("DICT_REF", "引用字典", "引用另一字典的启用项", 80))),
+            definition(DICT_ATTR_CARDINALITY, "字典属性值基数", "每个字典项可配置的属性值个数",
+                    DictionaryAttributeCardinality.class, List.of(
+                            item("SINGLE", "单值", "每个作用域只有一个值", 10),
+                            item("MULTIPLE", "多值", "每个作用域可有多个有序值", 20))),
+            definition(DICT_ATTR_SCOPE_TYPE, "字典属性作用域", "字典项属性值可配置和继承的层级",
+                    DictionaryAttributeScopeType.class, List.of(
+                            item("PLATFORM", "全局", "平台公共值，对所有租户生效", 10),
+                            item("TENANT", "租户", "租户内公共值", 20),
+                            item("ORGANIZATION", "机构", "单个机构的覆盖值", 30),
+                            item("DEPARTMENT", "科室", "单个科室的覆盖值", 40))),
+            definition(DICT_ATTR_OVERRIDE_POLICY, "字典属性覆盖策略", "下级作用域能否覆盖上级属性值",
+                    DictionaryAttributeOverridePolicy.class, List.of(
+                            item("ANY", "允许自由覆盖", "允许的最深层级以上均可覆盖", 10),
+                            item("NO_OVERRIDE", "禁止下级覆盖", "只在平台层配置，下级不得另设值", 20))),
             definition(PARAM_SCOPE_TYPE, "参数作用域", "参数当前值可维护的上下文范围", List.of(
                             item("PLATFORM", "平台", "平台统一默认值", 10),
                             item("TENANT", "租户", "当前租户范围", 20),
@@ -241,7 +280,14 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
             definition(SC_VISIT_TYPE, "门诊就诊类型", "挂号时选择的门诊就诊类型", List.of(
                             item("GENERAL", "普通门诊", "普通门诊首次就诊", 10),
                             item("FOLLOW_UP", "复诊", "同一健康问题的后续复诊", 20),
-                            item("EMERGENCY", "急诊", "需要按急诊流程接诊", 30))),
+                            item("EMERGENCY", "急诊", "需要按急诊流程接诊", 30),
+                            item("TRANSFER", "转科就诊", "由门诊转科接收生成的目标科室就诊", 40))),
+            definition(SC_REGISTRATION_SOURCE, "挂号来源", "门诊挂号的办理渠道", List.of(
+                            item("WINDOW", "窗口挂号", "收费或挂号窗口按排班办理", 10),
+                            item("WALK_IN", "现场自助", "患者在现场自助设备办理", 20),
+                            item("DIRECT", "诊间直挂", "医生在诊间直接为患者挂号接诊", 30),
+                            item("EMERGENCY", "急诊通道", "急诊绿色通道挂号", 40),
+                            item("TRANSFER", "转科挂号", "门诊转科接收时自动生成，不经收费挂号", 50))),
             definition(SC_RECEPTION_STATUS, "门诊候诊状态", "挂号后在接诊队列中的当前状态", List.of(
                             item("WAITING", "候诊中", "已签到并等待叫号", 10),
                             item("CALLED", "已叫号", "已叫号并等待患者到诊", 20),
@@ -273,6 +319,24 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("PREFIX", "左匹配", "从名称或简码开头匹配", 10),
                             item("CONTAINS", "模糊匹配", "在名称或简码任意位置匹配", 20),
                             item("SIMILARITY", "相似度", "按编辑距离计算相似结果", 30))),
+            definition(MASTER_DATA_ATTR_DATA_TYPE, "基础数据扩展属性数据类型", "诊疗项目、药品等扩展属性值的数据类型",
+                    List.of(
+                            item("BOOLEAN", "布尔", "是或否", 10),
+                            item("INTEGER", "整数", "不含小数的数值", 20),
+                            item("DECIMAL", "小数", "可含小数的数值", 30),
+                            item("TEXT", "文本", "自由文本", 40),
+                            item("ENUM", "枚举", "按 JSON Schema 列举的取值", 50),
+                            item("DATE", "日期", "不含时间的日期", 60),
+                            item("DATETIME", "日期时间", "含时区的时间点", 70),
+                            item("DURATION", "时长", "ISO 8601 时长", 80),
+                            item("DICT_REF", "引用字典", "引用普通字典的启用项", 90),
+                            item("TERM_REF", "引用术语", "引用术语服务的概念", 100),
+                            item("OBJECT", "结构化对象", "按 JSON Schema 约束的对象", 110))),
+            definition(MASTER_DATA_ATTR_OVERRIDE_POLICY, "基础数据扩展属性覆盖策略", "下级作用域对扩展属性值的覆盖方式",
+                    List.of(
+                            item("ANY", "允许自由覆盖", "允许的层级均可另设值", 10),
+                            item("RESTRICTIVE_ONLY", "仅允许收紧", "下级只能设置更严格的值", 20),
+                            item("NO_OVERRIDE", "禁止下级覆盖", "下级不得另设值", 30))),
             definition(RESIDENT_GENDER, "居民性别", "居民主档中的性别代码", List.of(
                             item("1", "男", "GB/T 2261.1-2003", 10),
                             item("2", "女", "GB/T 2261.1-2003", 20),
@@ -285,8 +349,26 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("BLOCKED", "封床", "暂不可用，等待处理", 40),
                             item("MAINTENANCE", "维护", "设备或设施维护中", 50)))
     );
-    private final Map<String, SystemEnumDefinition> definitionsByCode = definitions.stream()
-            .collect(Collectors.toUnmodifiableMap(SystemEnumDefinition::code, Function.identity()));
+    private final List<SystemEnumDefinition> definitions;
+    private final Map<String, SystemEnumDefinition> definitionsByCode;
+
+    public DictionarySystemEnumCatalog() {
+        this(List.of());
+    }
+
+    /** Platform enums first, then module contributions ordered by their first code; codes are globally unique. */
+    @Autowired
+    public DictionarySystemEnumCatalog(List<SystemEnumContribution> contributions) {
+        List<SystemEnumDefinition> all = new ArrayList<>(coreDefinitions);
+        contributions.stream().map(SystemEnumContribution::systemEnums).filter(list -> !list.isEmpty())
+                .sorted(Comparator.comparing(list -> list.getFirst().code()))
+                .forEach(all::addAll);
+        this.definitions = List.copyOf(all);
+        this.definitionsByCode = definitions.stream()
+                .collect(Collectors.toUnmodifiableMap(SystemEnumDefinition::code, Function.identity(), (left, right) -> {
+                    throw new IllegalStateException("系统枚举编码重复：" + left.code());
+                }));
+    }
 
     @Override
     public List<SystemEnumDefinition> listSystemEnums() {
@@ -311,24 +393,11 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
 
     private static <E extends Enum<E>> SystemEnumDefinition definition(
             String code, String name, String description, Class<E> enumType, List<SystemEnumItem> items) {
-        Set<String> expectedCodes = Arrays.stream(enumType.getEnumConstants())
-                .map(Enum::name)
-                .collect(Collectors.toUnmodifiableSet());
-        Set<String> actualCodes = items.stream()
-                .map(SystemEnumItem::code)
-                .collect(Collectors.toUnmodifiableSet());
-        if (items.size() != actualCodes.size() || !expectedCodes.equals(actualCodes)) {
-            throw new IllegalStateException(code + " 与 " + enumType.getSimpleName() + " 定义不一致");
-        }
-        return new SystemEnumDefinition(code, name, description, items);
+        return SystemEnumDefinition.of(code, name, description, enumType, items);
     }
 
     private static SystemEnumDefinition definition(
             String code, String name, String description, List<SystemEnumItem> items) {
-        Set<String> itemCodes = items.stream().map(SystemEnumItem::code).collect(Collectors.toUnmodifiableSet());
-        if (items.isEmpty() || itemCodes.size() != items.size()) {
-            throw new IllegalStateException(code + " 存在空项或重复枚举编码");
-        }
-        return new SystemEnumDefinition(code, name, description, items);
+        return SystemEnumDefinition.of(code, name, description, items);
     }
 }

@@ -10,8 +10,6 @@ import { inventoryPriceAdjustmentPresentation } from '../../shared/presentation'
 import { inventoryAverageCost, knownInventoryNumber } from './inventoryLedgerTruth'
 import { hasAdjustmentSnapshot, hasAdjustmentTotals, requirePriceAdjustment, requirePriceAdjustments, validAdjustmentTargets } from './priceAdjustmentTruth'
 
-const typeText: Record<string, string> = { COST_REVALUE: '成本重估', SALE_PRICE: '销售调价' }
-
 export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, balances }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]; balances: InventoryBalance[]
 }) {
@@ -95,7 +93,7 @@ function AdjustmentList({ rows, selectedId, onSelect }: {
     <div>{rows.map(row => <button type="button" key={row.id} className={row.id === selectedId ? 'is-selected' : ''}
       onClick={() => onSelect(row.id)}><span className="warehouse-price__list-main"><span><strong title={row.adjustmentNo}>{row.adjustmentNo}</strong>
         <StatusBadge tone={inventoryPriceAdjustmentPresentation(row.status).tone}>{inventoryPriceAdjustmentPresentation(row.status).label}</StatusBadge></span>
-        <small>{typeText[row.adjustmentType]} · {row.businessDate}</small></span>
+        <small>{row.adjustmentTypeText ?? row.adjustmentType} · {row.businessDate}</small></span>
       <span className="warehouse-price__list-summary"><small>{row.lineCount} 个经营项目</small>
         <strong className={row.totalAdjustmentAmount < 0 ? 'is-negative' : ''}>{hasAdjustmentTotals(row) ? signedMoney(row.totalAdjustmentAmount, row.currencyCode) : '尚未预检'}</strong></span>
     </button>)}</div></aside>
@@ -106,7 +104,7 @@ function AdjustmentDetail({ value, items, bins, busy, onSubmit, onApprove, onPos
   onSubmit: () => void; onApprove: () => void; onPost: () => void; onCancel: () => void
 }) {
   return <div className="warehouse-price__detail"><header className="warehouse-price__heading"><div>
-    <span className="ui-eyebrow">{typeText[value.adjustmentType]}</span><h3>{value.adjustmentNo}</h3>
+    <span className="ui-eyebrow">{value.adjustmentTypeText ?? value.adjustmentType}</span><h3>{value.adjustmentNo}</h3>
     <p>{value.businessDate} · {value.reason}{value.priceDocumentCode ? ` · 依据 ${value.priceDocumentCode}` : ''}</p></div>
     <div><StatusBadge tone={inventoryPriceAdjustmentPresentation(value.status).tone}>{inventoryPriceAdjustmentPresentation(value.status).label}</StatusBadge>
       {value.status === 'DRAFT' && <><Button size="sm" variant="secondary" disabled={busy} onClick={onCancel}>取消</Button>

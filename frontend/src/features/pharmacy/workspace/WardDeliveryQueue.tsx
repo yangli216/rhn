@@ -6,11 +6,6 @@ import type { RhnApi } from "../../../shared/rhnApi";
 import { errorMessage } from "../../../shared/rhnApi";
 import { Alert, Button, EmptyState, LoadingState, Panel, Select, StatusBadge } from "../../../shared/ui";
 
-export const deliveryStatusText: Record<string, string> = {
-  PENDING_DISPATCH: '待送出', IN_TRANSIT: '配送中', RECEIVED: '病区已签收',
-  DISCREPANCY: '存在差异', RESOLVED: '差异已处理',
-}
-
 export function WardDeliveryQueue({ api, stockSiteId }: { api: RhnApi; stockSiteId: string }) {
   const deliveries = useQuery({
     queryKey: ['ward-deliveries', stockSiteId, 'ALL'],
@@ -54,7 +49,7 @@ export function WardDeliveryRow({ api, delivery }: { api: RhnApi; delivery: Ward
         · {delivery.lines.length} 项</span></div>
       <StatusBadge tone={delivery.status === 'DISCREPANCY' ? 'warning'
         : delivery.status === 'RECEIVED' || delivery.status === 'RESOLVED' ? 'success' : 'info'}>
-        {deliveryStatusText[delivery.status]}</StatusBadge>
+        {delivery.statusText ?? delivery.status}</StatusBadge>
       {delivery.status === 'PENDING_DISPATCH' && <Button busy={dispatch.isPending}
         onClick={() => dispatch.mutate()}>确认送出</Button>}
       {delivery.status === 'IN_TRANSIT' && <span>等待病区逐项签收</span>}

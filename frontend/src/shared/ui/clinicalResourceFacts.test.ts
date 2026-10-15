@@ -53,8 +53,8 @@ describe('clinical price evidence', () => {
 describe('clinical type and stock evidence', () => {
   it('does not classify missing, custom, patented Chinese medicines or vaccines as western medicines', () => {
     expect(clinicalMedicationType({})).toBe('药品类型待确认')
-    expect(clinicalMedicationType({ sdMedicationType: 'CHINESE_PATENT' })).toBe('中成药')
-    expect(clinicalMedicationType({ sdMedicationType: 'VACCINE' })).toBe('疫苗')
+    expect(clinicalMedicationType({ sdMedicationType: 'CHINESE_PATENT', sdMedicationTypeText: '中成药' })).toBe('中成药')
+    expect(clinicalMedicationType({ sdMedicationType: 'VACCINE' })).toBe('药品类型：VACCINE')
     expect(clinicalMedicationType({ sdMedicationType: 'CUSTOM' })).toBe('药品类型：CUSTOM')
     expect(clinicalMedicationType({ sdMedicationType: 'CUSTOM', sdMedicationTypeText: '实际字典名称' })).toBe('实际字典名称')
   })

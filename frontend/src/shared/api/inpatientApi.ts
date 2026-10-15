@@ -19,6 +19,8 @@ export interface InpatientBed {
   genderRestriction: 'ANY' | '1' | '2'
   operationalStatus: Exclude<InpatientBedStatus, 'OCCUPIED'>
   displayStatus: InpatientBedStatus
+  /** BED_DISPLAY_STATUS display text, translated by the server. */
+  displayStatusText?: string
   nursingGroupCode?: string
   dailyBedRate?: number
   episodeId?: string
@@ -463,6 +465,7 @@ export interface InpatientDepositRecord {
   availableAmount: number
   currencyCode: string
   paymentMethodCode: string
+  paymentMethodCodeText?: string
   paidAt: string
   externalTransactionNo?: string
   description?: string
@@ -475,7 +478,9 @@ export interface InpatientFinancialSettlement {
   invoiceNo: string
   settlementNo: string
   settlementStatus: 'PRICED' | 'PAYMENT_PENDING' | 'PARTIAL' | 'SETTLED'
+  settlementStatusText?: string
   financialStatus: 'PENDING_PAYMENT' | 'PENDING_REFUND' | 'PAYMENT_REVIEW' | 'SETTLED'
+  financialStatusText?: string
   netAmount: number
   prepaymentAmount: number
   paidAmount: number
@@ -533,6 +538,7 @@ export interface InpatientFinalSettlement {
   outstandingAmount: number
   refundableAmount: number
   financialStatus: InpatientFinancialSettlement['financialStatus']
+  financialStatusText?: string
   currencyCode: string
   duplicate: boolean
   account: InpatientBillingAccount

@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { CashierClose, CashierClosePreview } from '../../shared/api/billingApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
-import { Alert, Button, DictionarySelect, FormField, LoadingState, Select } from '../../shared/ui'
+import { Alert, Button, DictionarySelect, FormField, LoadingState, Select, useSystemEnum } from '../../shared/ui'
 import { money } from './BillingShared'
 
 type Line = CashierClosePreview['lines'][number]
 const lineKey = (line: Pick<Line, 'paymentMethodCode' | 'paymentType'>) => `${line.paymentMethodCode}:${line.paymentType}`
-const lineLabel = (line: Line) => `${line.paymentMethodCode} ${line.paymentType === 'REFUND' ? '退款' : '收款'}`
+const lineLabel = (line: Line) => `${line.paymentMethodCodeText ?? line.paymentMethodCode} ${line.paymentTypeText ?? line.paymentType}`
 
 export function CashierCloseCalculator({ api, scopeKey, terminalCode, rangeFrom, rangeTo, onCalculated }: {
   api: RhnApi; scopeKey: string; terminalCode: string; rangeFrom: string; rangeTo: string
@@ -17,6 +17,8 @@ export function CashierCloseCalculator({ api, scopeKey, terminalCode, rangeFrom,
   const [extraLines, setExtraLines] = useState<Line[]>([])
   const [adding, setAdding] = useState(false)
   const [method, setMethod] = useState('')
+  const [methodName, setMethodName] = useState('')
+  const paymentTypes = useSystemEnum(api.dictionaries, 'BIL_PAYMENT_TYPE')
   const [paymentType, setPaymentType] = useState<'PAYMENT' | 'REFUND'>('PAYMENT')
   const validRange = Boolean(terminalCode.trim() && rangeFrom && rangeTo && new Date(rangeTo) > new Date(rangeFrom))
   const preview = useQuery({
@@ -66,12 +68,14 @@ export function CashierCloseCalculator({ api, scopeKey, terminalCode, rangeFrom,
         <Button variant="secondary" size="sm" onClick={() => setAdding((value) => !value)}>补录账面外收退</Button>
         {adding && <>
           <FormField label="补录支付方式"><DictionarySelect api={api.dictionaries} dictionaryCode="PAY_METHOD"
-            aria-label="补录支付方式" value={method} onChange={setMethod} /></FormField>
+            aria-label="补录支付方式" value={method}
+            onChange={(value, option) => { setMethod(value); setMethodName(option?.label ?? value) }} /></FormField>
           <FormField label="补录类型"><Select aria-label="补录类型" value={paymentType} clearable={false}
-            options={[{ value: 'PAYMENT', label: '收款' }, { value: 'REFUND', label: '退款' }]}
+            options={paymentTypes.options}
             onChange={(value) => setPaymentType(value as typeof paymentType)} /></FormField>
           <Button size="sm" variant="secondary" disabled={!method || lines.some((line) => lineKey(line) === `${method}:${paymentType}`)}
-            onClick={() => { setExtraLines((current) => [...current, { paymentMethodCode: method, paymentType,
+            onClick={() => { setExtraLines((current) => [...current, { paymentMethodCode: method,
+              paymentMethodCodeText: methodName, paymentType, paymentTypeText: paymentTypes.name(paymentType),
               transactionCount: 0, expectedAmount: 0 }]); setAdding(false); setMethod('') }}>加入核对</Button>
         </>}
       </>}

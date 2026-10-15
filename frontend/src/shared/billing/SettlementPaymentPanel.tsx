@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
 import { Alert, Button, FormField, Select, StatusBadge } from '../ui'
 import { CashPaymentCalculator } from './CashPaymentCalculator'
-import { PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
+import { isCollectableMethod, PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
 import { roundAmount } from './roundAmount'
 
 export interface SettlementOption {
@@ -75,7 +75,7 @@ export function SettlementPaymentPanel({
   const cashInputRef = useRef<HTMLInputElement>(null)
   const submissionKey = useRef<string | null>(null)
   const activeSettlementMode = settlementModeCode ?? internalSettlementMode
-  const monetaryMethods = useMemo(() => methods.filter((value) => value.code !== 'MEDICAL_INSURANCE'), [methods])
+  const monetaryMethods = useMemo(() => methods.filter(isCollectableMethod), [methods])
 
   useEffect(() => {
     if (!settlements.some((value) => value.id === settlementId)) setSettlementId(settlements[0]?.id ?? '')
@@ -136,24 +136,28 @@ export function SettlementPaymentPanel({
   const numericAmount = Number(amount)
   const paymentRequired = !insurancePending && effectiveOutstanding > 0
 
-  // Auto focus cash input when cash is selected
+  // Cash change and scan-pay handling follow the method's tender type, not its code.
+  const isCashMethod = selectedMethod?.tenderType === 'CASH'
+  const isScanMethod = selectedMethod?.tenderType === 'DIGITAL'
+  const methodName = selectedMethod?.name ?? methodCode
+
   useEffect(() => {
-    if (methodCode === 'CASH') {
+    if (isCashMethod) {
       cashInputRef.current?.focus()
     }
-  }, [methodCode])
+  }, [isCashMethod, methodCode])
 
   // 收费工作台默认填入应付金额；切换对象后不能沿用上一笔手工输入的现金。
   useEffect(() => {
-    setCashTendered(defaultCashToPayable && methodCode === 'CASH' && methodsStatus === 'ready'
+    setCashTendered(defaultCashToPayable && isCashMethod && methodsStatus === 'ready'
       && !insurancePending && Number.isFinite(numericAmount) && numericAmount > 0 ? String(numericAmount) : '')
-  }, [defaultCashToPayable, methodCode, numericAmount, settlementId, activeSettlementMode, methodsStatus, insurancePending])
+  }, [defaultCashToPayable, isCashMethod, methodCode, numericAmount, settlementId, activeSettlementMode, methodsStatus, insurancePending])
 
   const numericTendered = Number(cashTendered)
-  const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < numericAmount)
+  const isCashShort = isCashMethod && paymentRequired && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < numericAmount)
 
-  const isAggregatedScanMethod = Boolean(onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode))
-  const isMethodUnintegrated = !onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode)
+  const isAggregatedScanMethod = Boolean(onInitiateScanPay && isScanMethod)
+  const isMethodUnintegrated = !onInitiateScanPay && isScanMethod
 
   const maxAllowed = isAmountLocked ? (autoAmount ?? NaN) : (effectiveOutstanding + Math.max(0, roundingAdjustment))
   const isAmountInvalid = !Number.isFinite(numericAmount) || (isAmountLocked ? numericAmount !== autoAmount : (numericAmount <= 0 || numericAmount > maxAllowed))
@@ -346,7 +350,7 @@ export function SettlementPaymentPanel({
       </div>
     )}
 
-    {paymentRequired && methodCode === 'CASH' && numericAmount > 0 && (
+    {paymentRequired && isCashMethod && numericAmount > 0 && (
       <CashPaymentCalculator
         payableAmount={numericAmount}
         tendered={cashTendered}
@@ -367,7 +371,7 @@ export function SettlementPaymentPanel({
 
     {paymentRequired && isMethodUnintegrated && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="danger">接口未对接</StatusBadge>
-        <span>【{methodCode === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金收款或银行卡。</span></div>
+        <span>【{methodName}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金收款或银行卡。</span></div>
     </div>}
 
     {/* 保留既有单测识别的医保结算文本 */}
@@ -383,20 +387,20 @@ export function SettlementPaymentPanel({
 
     {activeOrder && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy">
-        <StatusBadge tone="warning">{paymentOrderStatus(activeOrder.status)}</StatusBadge>
+        <StatusBadge tone="warning">{activeOrder.statusText ?? activeOrder.status}</StatusBadge>
         <span>支付指令 {activeOrder.orderNo} 已预占 {money(activeOrder.requestedAmount, activeOrder.currencyCode)}，
           请先查询并恢复，不要重复收款。</span>
       </div>
       {onRecoverOrder && <Button size="sm" variant="secondary" busy={recoveringOrderId === activeOrder.id}
         busyLabel="正在查询" onClick={() => { void onRecoverOrder(activeOrder).catch(() => undefined) }}>
-        {activeOrder.paymentMethodCode === 'CASH' ? '查询并恢复' : '查询支付结果'}
+        {methods.find((value) => value.code === activeOrder.paymentMethodCode)?.tenderType === 'CASH' ? '查询并恢复' : '查询支付结果'}
       </Button>}
     </div>}
 
     {!activeOrder && latestOrder && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy">
         <StatusBadge tone={latestOrder.status === 'SUCCEEDED' ? 'success' : latestOrder.status === 'FAILED' ? 'danger' : 'neutral'}>
-          {paymentOrderStatus(latestOrder.status)}</StatusBadge>
+          {latestOrder.statusText ?? latestOrder.status}</StatusBadge>
         <span>最近支付指令 {latestOrder.orderNo}</span>
       </div>
     </div>}
@@ -410,24 +414,16 @@ export function SettlementPaymentPanel({
       {insurancePending
         ? '医保接口未对接，请改选自费'
         : isMethodUnintegrated
-          ? `${methodCode === 'WECHAT' ? '微信支付' : '支付宝'}未对接，请改选现金`
+          ? `${methodName}未对接，请改选现金`
           : insuranceMode && isInsuranceSupported && !hasPreSettled
             ? '执行医保预结算 (试算)'
             : insuranceMode && hasPreSettled && chsCashAmount <= 0
               ? '确认医保结算并记账'
               : isAggregatedScanMethod
                 ? '发起扫码收款'
-                : (actionLabel ?? (methodCode === 'CASH' ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`))}
+                : (actionLabel ?? (isCashMethod ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`))}
     </Button>
   </div>
-}
-
-function paymentOrderStatus(status: PaymentOrder['status']) {
-  return ({
-    CREATED: '已创建', PENDING: '待通道确认', PROCESSING: '处理中', PARTIAL: '部分成功',
-    SUCCEEDED: '支付成功', FAILED: '支付失败', CANCELLED: '已取消', EXPIRED: '已过期',
-    REFUNDING: '退款中', REFUNDED: '已退款',
-  } as Record<PaymentOrder['status'], string>)[status]
 }
 
 function money(value: number, currency: string) {

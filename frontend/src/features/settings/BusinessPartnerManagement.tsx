@@ -14,10 +14,6 @@ import {
 
 type PartnerTab = 'manufacturers' | 'suppliers'
 const today = () => new Date().toISOString().slice(0, 10)
-const statusText: Record<string, string> = {
-  ACTIVE: '已启用', SUSPENDED: '已禁用', RETIRED: '已停用',
-  DRAFT: '草稿', PENDING_REVIEW: '待审核', PUBLISHED: '已发布', REPLACED: '已替代',
-}
 
 export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; organization: Organization }) {
   const queryClient = useQueryClient()
@@ -169,7 +165,7 @@ function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
     <td>{value.licenseNo || '—'}<small>{value.licenseValidTo ? `有效至 ${value.licenseValidTo}` : '未设置资质到期日'}</small></td>
     <td>{value.contactName || '—'}<small>{value.contactPhone || '未维护电话'}</small></td>
     <td>{value.validFrom}<small>{value.validTo ? `至 ${value.validTo}` : '长期有效'}</small></td>
-    <td><PartnerStatus status={value.status} /></td>
+    <td><PartnerStatus status={value.status} text={value.statusText} /></td>
     <td><div className="dictionary-row-actions"><Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑</Button>
       {value.status !== 'RETIRED' && <Button size="sm" variant="text" busy={pendingId === value.id}
         onClick={() => onStatus(value)}>{value.status === 'ACTIVE' ? '禁用' : '启用'}</Button>}</div></td>
@@ -178,7 +174,7 @@ function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
 
 function PartnerStatus({ status, text }: { status: string; text?: string }) {
   return <StatusBadge tone={status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'warning' : 'neutral'}>
-    {text || statusText[status] || status}</StatusBadge>
+    {text || status}</StatusBadge>
 }
 
 function countryName(code?: string) {

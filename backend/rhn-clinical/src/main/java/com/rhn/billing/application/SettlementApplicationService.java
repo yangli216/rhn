@@ -72,17 +72,7 @@ public class SettlementApplicationService {
     private final ChargeCategoryResolver categoryResolver;
     private final BillingCashierResolver cashierResolver;
     private final com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders;
-
-    public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
-                                        SettlementTenderRepository tenders, SettlementEventRepository events,
-                                        SettlementCategorySummaryRepository categories,
-                                        PatientAccountRepository accounts, ChargeItemRepository chargeItems,
-                                        LedgerEntryRepository ledger, ExecutionContextProvider contextProvider,
-                                        DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
-                                        EncounterDirectory encounterDirectory) {
-        this(settlements, lines, tenders, events, categories, accounts, chargeItems, ledger, contextProvider,
-                eventPublisher, residentDirectory, encounterDirectory, new ChargeCategoryResolver(null), null, null);
-    }
+    private final BillingCodes codes;
 
     @Autowired
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
@@ -93,7 +83,8 @@ public class SettlementApplicationService {
                                         DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
                                         EncounterDirectory encounterDirectory,
                                         ChargeCategoryResolver categoryResolver, BillingCashierResolver cashierResolver,
-                                        com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders) {
+                                        com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders,
+                                        BillingCodes codes) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
         this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
         this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
@@ -101,6 +92,7 @@ public class SettlementApplicationService {
         this.categoryResolver = categoryResolver != null ? categoryResolver : new ChargeCategoryResolver(null);
         this.cashierResolver = cashierResolver;
         this.paymentOrders = paymentOrders;
+        this.codes = codes;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -113,7 +105,7 @@ public class SettlementApplicationService {
         Settlement value = settlements.save(new Settlement(invoice.id(), context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), invoice.id(),
                 invoice.invoiceNo(), "SETTLE-" + invoice.invoiceNo(), type,
-                scene(settlementScene, "OUTPATIENT"), terminal(terminalScene, "CASHIER"),
+                codes.settlementScene(settlementScene, "OUTPATIENT"), codes.paymentScene(context.tenantId(), terminalScene),
                 invoice.netAmount(), invoice.currencyCode(), Strings.trimToNull(terminalCode), context.subjectId(), invoice.issuedAt()));
         Map<Long, ChargeItem> byId = chargeItems.stream().collect(java.util.stream.Collectors.toMap(ChargeItem::id, item -> item));
         for (InvoiceLine line : invoiceLines) {
@@ -155,7 +147,6 @@ public class SettlementApplicationService {
             if (outstanding.signum() <= 0) break;
             if (!"PAYMENT".equals(payment.paymentType()) || !"COMPLETED".equals(payment.status())
                     || payment.invoiceId() != null
-                    || !"INPATIENT_PREPAYMENT".equals(payment.paymentSceneCode())
                     || tenders.findByTenantIdAndPaymentId(context.tenantId(), payment.id()).isPresent()) continue;
             BigDecimal amount = money(payment.amount().min(outstanding));
             if (amount.signum() <= 0) continue;
@@ -183,19 +174,13 @@ public class SettlementApplicationService {
         if (tenders.findByTenantIdAndPaymentId(context.tenantId(), payment.id()).isPresent()) return;
         int lineNo = Math.toIntExact(tenders.countByTenantIdAndSettlementId(context.tenantId(), value.id()) + 1);
         tenders.save(new SettlementTender(context.tenantId(), value.id(), payment.id(), lineNo,
-                tenderType(payment.paymentMethodCode()), payment.paymentMethodCode(), payment.paymentMethodCode(),
+                codes.requireTenderType(context.tenantId(), payment.paymentMethodCode()), payment.paymentMethodCode(), payment.paymentMethodCode(),
                 payment.amount(), payment.currencyCode()));
         String previous = value.applyPaidAmount(money(tenders.totalTendered(context.tenantId(), value.id())),
                 context.subjectId(), payment.paidAt());
         if (value.status() == SettlementStatus.SETTLED && payment.paymentOrderId() != null && paymentOrders != null) {
-            paymentOrders.findByIdAndTenantId(payment.paymentOrderId(), context.tenantId()).ifPresent(order -> {
-                String source = switch (order.paymentSceneCode()) {
-                    case "CASHIER" -> "CASHIER";
-                    case "CLINIC_SETTLE" -> "DOCTOR_STATION";
-                    default -> null; // Other entry points retain their explicitly recorded scene until their payment flow is implemented.
-                };
-                if (source != null) value.recordFinalizationTerminal(source, order.terminalCode());
-            });
+            paymentOrders.findByIdAndTenantId(payment.paymentOrderId(), context.tenantId()).ifPresent(order ->
+                    value.recordFinalizationTerminal(order.paymentSceneCode(), order.terminalCode()));
         }
         String eventType = value.status() == SettlementStatus.SETTLED ? "FINALIZE" : "PARTIAL_PAY";
         events.save(new SettlementEvent(context.tenantId(), value.id(), eventType, previous, value.status().name(),
@@ -463,15 +448,6 @@ public class SettlementApplicationService {
                 lineViews, tenderViews, eventViews);
     }
 
-    private String tenderType(String method) {
-        return switch (method) {
-            case "CASH" -> "CASH";
-            case "BANK_CARD" -> "BANK_CARD";
-            case "WECHAT", "ALIPAY" -> "DIGITAL";
-            case "MEDICAL_INSURANCE" -> "PERSONAL_ACCOUNT";
-            default -> "COMMERCIAL_INSURANCE";
-        };
-    }
     private ChargeCategory chargeCategory(ChargeItem charge) {
         return categoryResolver.resolve(null, charge);
     }
@@ -507,7 +483,5 @@ public class SettlementApplicationService {
                 amount, settlement.currencyCode(), settlement.legacyInvoiceId(), reversalResponseId,
                 originalLedgerId, occurredAt, context.subjectId()));
     }
-    private String scene(String value, String fallback) { return Strings.trimToNull(value) == null ? fallback : Strings.trimToNull(value).toUpperCase(); }
-    private String terminal(String value, String fallback) { return Strings.trimToNull(value) == null ? fallback : Strings.trimToNull(value).toUpperCase(); }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
 }

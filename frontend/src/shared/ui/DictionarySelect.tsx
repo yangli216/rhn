@@ -18,6 +18,8 @@ type DictionarySource =
 type DictionarySelectBaseProps = DictionarySource & {
   api: DictionaryOptionsApi
   errorText?: string
+  /** Offer only the direct children of this item, e.g. the subtypes of one service type. */
+  parentCode?: string
 }
 
 export type DictionarySelectProps = DictionarySelectBaseProps & (
@@ -31,6 +33,7 @@ export function DictionarySelect(props: DictionarySelectProps) {
     dictionaryCode,
     dictionaryId,
     errorText,
+    parentCode,
     disabled,
     leafOnly = true,
     'aria-describedby': ariaDescribedBy,
@@ -57,9 +60,10 @@ export function DictionarySelect(props: DictionarySelectProps) {
     staleTime: 5 * 60 * 1000,
   })
   const options = useMemo<SelectOption[]>(() => (dictionary.data ?? [])
-    .slice()
+    .filter((item) => parentCode === undefined || item.parentCode === parentCode)
     .sort((left, right) => left.sortOrder - right.sortOrder || left.code.localeCompare(right.code))
-    .map((item) => ({ value: item.code, label: item.name, parentValue: item.parentCode })), [dictionary.data])
+    .map((item) => ({ value: item.code, label: item.name, parentValue: parentCode === undefined ? item.parentCode : undefined })),
+  [dictionary.data, parentCode])
   const message = dictionary.error ? (errorText ?? errorMessage(dictionary.error)) : ''
   const describedBy = [ariaDescribedBy, message ? messageId : ''].filter(Boolean).join(' ') || undefined
   const configuredProps = {

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import { systemEnumItemName } from '../../shared/api/dictionaryApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
-import { REGISTRATION_SOURCE_LABELS, SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'
+import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'
 import { age } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
@@ -15,16 +15,6 @@ import '../../styles/features/scheduling-registration.css'
 const queueStatuses: ReceptionQueueItem['status'][] = [
   'WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED', 'CANCELLED',
 ]
-
-const fallbackStatusNames: Record<ReceptionQueueItem['status'], string> = {
-  WAITING: '候诊中',
-  CALLED: '已叫号',
-  SERVING: '接诊中',
-  SUSPENDED: '已暂挂',
-  MISSED: '已过号',
-  COMPLETED: '已诊毕',
-  CANCELLED: '已取消',
-}
 
 function formatRegistrationDate(value?: string) {
   if (!value) return '--'
@@ -113,11 +103,8 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
     setPageIndex(0)
   }, [clinicalContext.organization.id, clinicalContext.department.id])
 
-  const statusText = (value: ReceptionQueueItem['status']) => {
-    const resolved = systemEnumItemName(receptionStatuses.data ? [receptionStatuses.data] : undefined,
-      SCHEDULING_SYSTEM_ENUM.receptionStatus, value)
-    return resolved === value ? fallbackStatusNames[value] : resolved
-  }
+  const statusText = (value: ReceptionQueueItem['status']) => systemEnumItemName(
+    receptionStatuses.data ? [receptionStatuses.data] : undefined, SCHEDULING_SYSTEM_ENUM.receptionStatus, value)
   const visitTypeText = (value: ReceptionQueueItem['visitType']) => systemEnumItemName(
     visitTypes.data ? [visitTypes.data] : undefined, SCHEDULING_SYSTEM_ENUM.visitType, value)
   const statusOptions = [
@@ -217,7 +204,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
             <span>操作</span>
           </div>
           {registrationItems.map((item) => {
-            const sourceLabel = item.registrationSource ? (REGISTRATION_SOURCE_LABELS[item.registrationSource] || item.registrationSource) : '窗口挂号'
+            const sourceLabel = item.registrationSourceText || item.registrationSource || '窗口挂号'
             const deptName = item.departmentName || clinicalContext.department.name
             const doctorName = item.practitionerName || '临时接诊'
             const dayPart = item.sdDayPartText || '日间门诊'
@@ -252,7 +239,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
                 <small>{item.registeredByName ? '经办登记' : '自动办理'}</small>
               </div>
               <div className="registration-status-cell">
-                <StatusBadge tone={queueTone(item.status)}>{statusText(item.status)}</StatusBadge>
+                <StatusBadge tone={queueTone(item.status)}>{item.statusText || statusText(item.status)}</StatusBadge>
                 {item.registrationStatus === 'CANCELLED' && <span className="registration-cancelled-mark">已退号</span>}
               </div>
               <span className="registration-row-actions">

@@ -335,6 +335,7 @@
         "ItemAliasMasterDataTest",
         "CatalogLifecycleReceiptTest",
         "ServiceCatalogStandardizationTest",
+        "BasicDataCenterFoundationTest",
         "DictionaryConformanceTest",
         "DevelopmentSeedRealismTest",
         "DictionaryManagementFoundationTest",

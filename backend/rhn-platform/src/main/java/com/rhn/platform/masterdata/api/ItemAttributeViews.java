@@ -1,5 +1,7 @@
 package com.rhn.platform.masterdata.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -11,9 +13,11 @@ public final class ItemAttributeViews {
 
     public record AttributeSchemaView(
             Long assignmentId, Long definitionId, long definitionRevision,
-            String code, String name, String description, String dataType, String cardinality,
+            String code, String name, String description,
+            @DictionaryBinding("MASTER_DATA_ATTR_DATA_TYPE") String dataType, String cardinality,
             Long dictionaryId, String unitCode, JsonNode schema, JsonNode defaultValue,
-            String variability, String overridePolicy, JsonNode allowedScopes,
+            String variability, @DictionaryBinding("MASTER_DATA_ATTR_OVERRIDE_POLICY") String overridePolicy,
+            JsonNode allowedScopes,
             String contextBasis, String storageMode, String projectionField, String sensitivity,
             boolean required, String widgetType, String groupName, int groupSortOrder,
             int attributeSortOrder, JsonNode visibleCondition, JsonNode requiredCondition,

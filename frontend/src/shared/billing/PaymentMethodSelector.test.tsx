@@ -4,16 +4,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
 
 const mockMethods: PaymentMethodOption[] = [
-  { code: 'CASH', name: '现金收款', sortOrder: 10 },
-  { code: 'WECHAT', name: '微信支付', sortOrder: 20 },
-  { code: 'ALIPAY', name: '支付宝', sortOrder: 30 },
-  { code: 'BANK_CARD', name: '银行卡', sortOrder: 40 },
+  { code: 'CASH', name: '现金收款', tenderType: 'CASH', sortOrder: 10 },
+  { code: 'WECHAT', name: '微信支付', tenderType: 'DIGITAL', sortOrder: 20 },
+  { code: 'ALIPAY', name: '支付宝', tenderType: 'DIGITAL', sortOrder: 30 },
+  { code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', sortOrder: 40 },
   { code: 'DIGITAL_CNY', name: '数字人民币', sortOrder: 50 },
-  { code: 'OTHER', name: '其它款项', sortOrder: 90 },
+  { code: 'OTHER', name: '其它款项', tenderType: 'OTHER', sortOrder: 90 },
 ]
 
 describe('PaymentMethodSelector component', () => {
-  it.each([{ methods: [] }, { methods: [{ code: 'MEDICAL_INSURANCE', name: '医保统筹' }] }])('does not invent channels for empty monetary configuration: %j', ({ methods }) => {
+  it.each([{ methods: [] }, { methods: [{ code: 'MEDICAL_INSURANCE', name: '医保统筹', tenderType: 'PERSONAL_ACCOUNT' }] }])('does not invent channels for empty monetary configuration: %j', ({ methods }) => {
     render(<PaymentMethodSelector value="CASH" onChange={vi.fn()} methods={methods} />)
     expect(screen.getByText('未配置可用支付方式')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
@@ -81,8 +81,8 @@ describe('PaymentMethodSelector component', () => {
         value="CASH"
         onChange={vi.fn()}
         methods={[
-          { code: 'CASH', name: '现金' },
-          { code: 'WECHAT', name: '微信' },
+          { code: 'CASH', name: '现金', tenderType: 'CASH' },
+          { code: 'WECHAT', name: '微信', tenderType: 'DIGITAL' },
         ]}
         maxDirectVisible={4}
       />

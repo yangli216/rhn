@@ -17,10 +17,12 @@ class ReceiptFundingService {
     private final PaymentRepository payments;
     private final InsuranceClaimRepository claims;
     private final InsuranceClaimResponseRepository responses;
+    private final BillingCodes codes;
 
     ReceiptFundingService(SettlementTenderRepository tenders, PaymentRepository payments,
-                          InsuranceClaimRepository claims, InsuranceClaimResponseRepository responses) {
+                          InsuranceClaimRepository claims, InsuranceClaimResponseRepository responses, BillingCodes codes) {
         this.tenders = tenders; this.payments = payments; this.claims = claims; this.responses = responses;
+        this.codes = codes;
     }
 
     Funding resolve(Settlement settlement) {
@@ -67,24 +69,15 @@ class ReceiptFundingService {
                 require(refunded != null && refunded.signum() >= 0 && amount.compareTo(payment.amount().subtract(refunded)) <= 0,
                         "收款已退回或超出支付记录的有效金额");
                 boolean prepayment = "PREPAYMENT".equals(row.tenderType());
-                String expectedType = switch (payment.paymentMethodCode()) {
-                    case "CASH" -> "CASH";
-                    case "BANK_CARD" -> "BANK_CARD";
-                    case "WECHAT", "ALIPAY" -> "DIGITAL";
-                    case "MEDICAL_INSURANCE" -> "PERSONAL_ACCOUNT";
-                    default -> null;
-                };
+                String expectedType = codes.tenderType(settlement.tenantId(), payment.paymentMethodCode()).orElse(null);
                 require(expectedType != null && (prepayment ? !"PERSONAL_ACCOUNT".equals(expectedType)
                         : expectedType.equals(row.tenderType())), "支付方式与收款类别无法核对，需明确财政分摊");
-                require(prepayment ? payment.invoiceId() == null && "INPATIENT_PREPAYMENT".equals(payment.paymentSceneCode())
+                require(prepayment ? payment.invoiceId() == null
                         : Objects.equals(payment.invoiceId(), settlement.legacyInvoiceId()) && payment.invoiceId() != null
                         && amount.compareTo(payment.amount()) == 0, "支付金额或所属账单无法确认");
                 switch (row.tenderType()) {
-                    case "PERSONAL_ACCOUNT" -> {
-                        require("MEDICAL_INSURANCE".equals(payment.paymentMethodCode()), "个人账户收款来源无法确认");
-                        personal = personal.add(amount);
-                    }
-                    case "CASH", "BANK_CARD", "DIGITAL", "PREPAYMENT" -> patient = patient.add(amount);
+                    case "PERSONAL_ACCOUNT" -> personal = personal.add(amount);
+                    case "CASH", "BANK_CARD", "DIGITAL", "OTHER", "PREPAYMENT" -> patient = patient.add(amount);
                     default -> throw conflict("RECEIPT_FUNDING_UNVERIFIED", "该支付类别尚无明确财政分摊，请核实后开票");
                 }
             }

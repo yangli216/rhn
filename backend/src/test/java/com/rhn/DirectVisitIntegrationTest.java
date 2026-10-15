@@ -236,7 +236,15 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
                 .content(objectMapper.writeValueAsString(Map.of("residentId", pendingResident, "organizationId", ORGANIZATION,
                     "departmentId", DEPARTMENT, "scheduleId", schedule, "idempotencyCode", UUID.randomUUID().toString(),
                     "registrationSource", "WINDOW", "visitType", "GENERAL"))))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PAYMENT_PENDING"));
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
+                .andExpect(jsonPath("$.registrationSourceText").value("窗口挂号"))
+                .andExpect(jsonPath("$.visitTypeText").value("普通门诊"));
+        // TRANSFER is an SC_REGISTRATION_SOURCE item produced only by accepting a department transfer, never billed.
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("residentId", pendingResident, "organizationId", ORGANIZATION,
+                    "departmentId", DEPARTMENT, "scheduleId", schedule, "idempotencyCode", UUID.randomUUID().toString(),
+                    "registrationSource", "TRANSFER", "visitType", "GENERAL"))))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("REGISTRATION_SOURCE_INVALID"));
         assertEquals("DIRECT_VISIT_REGISTRATION_PENDING", receive(pendingResident, UUID.randomUUID().toString(), 409).get("code").asString());
         assertEquals(0, count("RHN_VIS_ENC", "ID_PAT", pendingResident));
     }

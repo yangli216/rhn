@@ -43,8 +43,8 @@ public class RegistrationBillingController {
     record CreateRegistrationIntentRequest(
             @NotNull Long residentId, @NotNull Long organizationId, @NotNull Long departmentId,
             Long appointmentId, Long scheduleId, @NotNull @Size(max = 128) String idempotencyCode,
-            @Pattern(regexp = "WINDOW|WALK_IN|DIRECT|EMERGENCY") String registrationSource,
-            @Pattern(regexp = "GENERAL|FOLLOW_UP|EMERGENCY") String visitType,
+            @Size(max = 32) String registrationSource,
+            @Size(max = 32) String visitType,
             @Pattern(regexp = "SELF_PAY|MEDICAL_INSURANCE") String settlementMode,
             Long coverageId) {}
 }

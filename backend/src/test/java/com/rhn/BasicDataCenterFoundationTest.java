@@ -834,7 +834,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "sdStatus":"ACTIVE",
                                   "validFrom":"2026-08-27",
                                   "sdServiceType":"EXAMINATION",
-                                  "serviceSubtype":"FUNCTION",
+                                  "serviceSubtype":"ECG",
                                   "sdUsageType":"COMMON",
                                   "medicalTechnology":true,
                                   "combinationItem":false,
@@ -851,6 +851,8 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.id").isString())
                 .andExpect(jsonPath("$.itemTypeId").value("362387869797004"))
                 .andExpect(jsonPath("$.sdServiceTypeText").value("检查"))
+                .andExpect(jsonPath("$.serviceSubtypeText").value("心电检查"))
+                .andExpect(jsonPath("$.outpatientSchedulable").value(false))
                 .andExpect(jsonPath("$.sdDuplicateRuleText").value("提醒后允许"))
                 .andExpect(jsonPath("$.multiSitePrice").value(30.0))
                 .andExpect(jsonPath("$.freeSiteCount").value(1))
@@ -863,6 +865,26 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("动态心电图检查"))
                 .andExpect(jsonPath("$[0].sdStatusText").value("有效"));
+    }
+
+    @Test
+    void service_subtype_must_be_an_active_leaf_under_the_service_type() throws Exception {
+        for (String[] invalid : new String[][] {
+                {"EXAMINATION", "OUTPATIENT_VISIT", "SERVICE_SUBTYPE_TYPE_MISMATCH"},
+                {"EXAMINATION", "EXAMINATION", "SERVICE_SUBTYPE_NOT_LEAF"},
+                {"EXAMINATION", "常规检查", "SERVICE_SUBTYPE_INVALID"}}) {
+            mockMvc.perform(post("/api/platform/master-data/services")
+                            .param("organizationId", ORGANIZATION).with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"code":"SRV-SUBTYPE-%s","name":"子类校验项目","unitCode":"次","orderable":true,
+                                     "chargeable":true,"sdStatus":"ACTIVE","validFrom":"2026-08-27","sdServiceType":"%s",
+                                     "serviceSubtype":"%s","sdUsageType":"COMMON","medicalTechnology":false,
+                                     "combinationItem":false,"singleOrder":true,"pregnancyAlert":false}
+                                    """.formatted(UUID.randomUUID().toString().substring(0, 6), invalid[0], invalid[1])))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(invalid[2]));
+        }
     }
 
     @Test

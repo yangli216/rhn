@@ -5,7 +5,6 @@ import com.rhn.billing.application.ReceiptApplicationService;
 import com.rhn.billing.application.ReceiptApplicationService.IssueReceiptCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -77,8 +76,8 @@ public class BillingReceiptController {
 
     record IssueReceiptRequest(
             @NotBlank @Size(max = 128) String idempotencyKey,
-            @NotBlank @Pattern(regexp = "MEDICAL_E_INVOICE|PAPER_INVOICE|RECEIPT|VIRTUAL") String receiptType,
-            @NotBlank @Pattern(regexp = "CASHIER|SELF_SERVICE|MOBILE|ONLINE") String issueChannel,
+            @NotBlank @Size(max = 32) String receiptType,
+            @NotBlank @Size(max = 32) String issueChannel,
             @Size(max = 128) String fiscalAuthorityCode, @Size(max = 300) String payerName,
             @Size(max = 256) String payerIdentityDigest, @Size(max = 128) String correlationId) {}
     record PrintReceiptRequest(@NotBlank @Size(max = 128) String commandCode) {}

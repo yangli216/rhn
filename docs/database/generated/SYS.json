@@ -1,5 +1,5 @@
 {
-  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
+  "fingerprint": "0f11beff01f324976032c552207d2cb4d97d1ef151c031363c7029ed286f82cf",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -1402,16 +1402,16 @@
           "catalogComment": "qualification依据编码"
         },
         {
-          "physical": "SD_CAP_SCOPE",
+          "physical": "DES_CAP_SCOPE",
           "type": "CHARACTER VARYING",
           "size": 1000,
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
           "ordinal": 6,
-          "comment": "能力范围",
+          "comment": "能力范围说明",
           "logical": "capability_scope",
-          "catalogComment": "能力范围"
+          "catalogComment": "能力范围说明"
         },
         {
           "physical": "DA_VALID_FROM",
@@ -4160,16 +4160,16 @@
           "catalogComment": "qualification依据编码"
         },
         {
-          "physical": "SD_CAP_SCOPE",
+          "physical": "DES_CAP_SCOPE",
           "type": "CHARACTER VARYING",
           "size": 1000,
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
           "ordinal": 6,
-          "comment": "能力范围",
+          "comment": "能力范围说明",
           "logical": "capability_scope",
-          "catalogComment": "能力范围"
+          "catalogComment": "能力范围说明"
         },
         {
           "physical": "DA_VALID_FROM",
@@ -8523,7 +8523,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/Practitioner.java",
-          "line": 16
+          "line": 17
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/DepartmentProfileStore.java",

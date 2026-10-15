@@ -827,7 +827,7 @@ public class WardMedicationSupplyApplicationService {
 
     private String normalizeShift(String value) {
         String normalized = value == null || value.isBlank() ? "DAY" : value.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("NIGHT", "DAY", "EVENING").contains(normalized)) {
+        if (!PharmacySystemEnums.contains(PharmacySystemEnums.WARD_SUPPLY_SHIFT, normalized)) {
             throw badRequest("INPATIENT_SUPPLY_SHIFT_INVALID", "供药班次仅支持夜班、白班和晚班");
         }
         return normalized;

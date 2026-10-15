@@ -11,22 +11,6 @@ import { semanticTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { requireRefundPreCheck, requireRefundStatement } from './refundVerification'
 
-const PAYMENT_METHOD_NAMES: Record<string, string> = {
-  CASH: '现金',
-  WECHAT: '微信支付',
-  ALIPAY: '支付宝',
-  BANK_CARD: '银行卡',
-  MEDICAL_INSURANCE: '医保支付',
-  INTERNAL_TRANSFER: '内部转账',
-  SELF_PAY: '自费',
-  OTHER: '其他',
-}
-
-function paymentMethodText(code?: string): string {
-  if (!code) return '—'
-  return PAYMENT_METHOD_NAMES[code] || code
-}
-
 export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -365,9 +349,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                           </td>
                           <td>
                             <StatusBadge tone="neutral">
-                              {item.sourceType === 'MEDICATION_REQUEST' ? '药品处方'
-                                : item.sourceType === 'SERVICE_REQUEST' ? '检验检查'
-                                : item.sourceType === 'TREATMENT' ? '治疗处置' : '诊疗服务'}
+                              {item.sourceTypeText ?? item.sourceType}
                             </StatusBadge>
                           </td>
                           <td>{item.quantity} {item.unitCode}</td>
@@ -429,7 +411,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                         onClick={() => setPaymentId(item.id)}
                       >
                         <td><strong>{item.paymentNo}</strong><code>{item.externalTransactionNo || item.id}</code></td>
-                        <td>{paymentMethodText(item.paymentMethodCode)}</td>
+                        <td>{(item.paymentMethodCodeText ?? item.paymentMethodCode)}</td>
                         <td>{money(item.amount, item.currencyCode)}</td>
                         <td>{new Date(item.paidAt).toLocaleString('zh-CN')}</td>
                         <td><StatusBadge tone="success">已支付</StatusBadge></td>
@@ -491,14 +473,14 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                 options={refundablePayments.map((item) => ({
                   value: item.id,
                   label: item.paymentNo,
-                  secondaryText: `${paymentMethodText(item.paymentMethodCode)} · ${money(item.amount, item.currencyCode)}`,
+                  secondaryText: `${(item.paymentMethodCodeText ?? item.paymentMethodCode)} · ${money(item.amount, item.currencyCode)}`,
                 }))}
               />
             </FormField>
 
             {selectedPayment && (
               <div className="billing-refund-origin">
-                <span>原支付金额（{paymentMethodText(selectedPayment.paymentMethodCode)}）</span>
+                <span>原支付金额（{(selectedPayment.paymentMethodCodeText ?? selectedPayment.paymentMethodCode)}）</span>
                 <strong>{money(selectedPayment.amount, selectedPayment.currencyCode)}</strong>
                 <span>剩余可退金额 {money(refundableBalance, selectedPayment.currencyCode)}</span>
               </div>

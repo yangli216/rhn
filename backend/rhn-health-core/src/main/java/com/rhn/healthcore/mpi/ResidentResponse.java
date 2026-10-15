@@ -44,5 +44,6 @@ public record ResidentResponse(
         return StrUtil.hide(value, 4, value.length() - 4).toString();
     }
 
-    public record IdentifierView(Long id, String system, String maskedValue, String useType, String status) {}
+    public record IdentifierView(Long id, @DictionaryBinding("PI_RESIDENT_IDENTIFIER_SYSTEM") String system,
+            String maskedValue, String useType, String status) {}
 }

@@ -1222,7 +1222,7 @@ function requireDirectVisitServices(items: ServiceCatalogItem[]): ServiceCatalog
     throw new Error('门诊服务目录响应不完整，请重新加载。')
   }
   return items.filter(item => item.sdStatus === 'ACTIVE' && item.orderable && item.sdUsageType === 'OUTPATIENT'
-    && item.serviceSubtype === 'OUTPATIENT_VISIT' && item.accountingCategory === 'REGISTRATION'
+    && item.outpatientSchedulable && item.accountingCategory === 'REGISTRATION'
     && item.organizationAdoption?.sdStatus === 'ACTIVE' && item.organizationAdoption.orderable && item.organizationAdoption.executable)
 }
 

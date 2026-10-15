@@ -96,6 +96,7 @@ public class BillingApplicationService {
     private final MedicationReturnChargeService medicationReturns;
     private final UnitDefinitionDirectory unitDirectory;
     private final BillingOrderOriginResolver orderOrigins;
+    private final BillingCodes codes;
 
     @Autowired
     public BillingApplicationService(
@@ -112,8 +113,8 @@ public class BillingApplicationService {
             SettlementApplicationService settlements,
             ChargeCategoryResolver categoryResolver, PaymentRoundingPolicy roundingPolicy,
             MedicationReturnChargeService medicationReturns, UnitDefinitionDirectory unitDirectory,
-            BillingOrderOriginResolver orderOrigins, BusinessNumberGenerator numbers) {
-        this.numbers = numbers;
+            BillingOrderOriginResolver orderOrigins, BusinessNumberGenerator numbers, BillingCodes codes) {
+        this.numbers = numbers; this.codes = codes;
         this.accountRepository = accountRepository; this.chargeRepository = chargeRepository;
         this.componentRepository = componentRepository; this.invoiceRepository = invoiceRepository;
         this.invoiceLineRepository = invoiceLineRepository; this.categoryRepository = categoryRepository;
@@ -368,16 +369,16 @@ public class BillingApplicationService {
         if (existing != null) return verifyPayment(context, existing, invoiceId, input);
         BigDecimal amount = positiveMoney(input.amount(), "PAYMENT_AMOUNT_INVALID", "支付金额必须大于零");
         String method = upper(input.paymentMethodCode());
-        String paymentScene = upper(input.paymentSceneCode());
+        String paymentScene = codes.paymentScene(context.tenantId(), input.paymentSceneCode());
         if ("MEDICAL_INSURANCE".equals(method)) {
             throw badRequest("PAYMENT_METHOD_CLASSIFICATION_INVALID",
                     "医保属于结算类型，不是患者支付方式；请在医保结算后选择个人自付支付方式");
         }
-        if (paymentScene == null) paymentScene = "CASHIER";
         if (!dictionaryAttributeDirectory.isApplicable(context.tenantId(), context.organizationId(), context.departmentId(),
                 "PAY_METHOD", method, "AVAILABLE_SCENE", paymentScene)) {
-            throw badRequest("PAYMENT_METHOD_NOT_APPLICABLE", "当前支付方式不适用于所选结算场景");
+            throw badRequest("PAYMENT_METHOD_NOT_APPLICABLE", "当前支付方式不适用于所选收费入口");
         }
+        codes.requireTenderType(context.tenantId(), method);
         if (invoice.netAmount().signum() <= 0) throw conflict("PAYMENT_CREDIT_INVOICE_INVALID", "贷项结算凭证不能执行收款");
         BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
         if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
@@ -431,7 +432,7 @@ public class BillingApplicationService {
         Payment refund = paymentRepository.save(new Payment(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), original.invoiceId(),
                 input.paymentOrderId(), displayNumber, "REFUND", original.paymentMethodCode(),
-                input.paymentSceneCode() == null ? original.paymentSceneCode() : upper(input.paymentSceneCode()),
+                input.paymentSceneCode() == null ? original.paymentSceneCode() : codes.paymentScene(context.tenantId(), input.paymentSceneCode()),
                 amount, account.currencyCode(), paidAt, Strings.trimToNull(input.externalTransactionNo()), original.id(),
                 context.subjectId(), Strings.trimToNull(input.reason()), refundNo));
         Long originalLedgerId = ledgerRepository.findByTenantIdAndPaymentId(context.tenantId(), original.id())

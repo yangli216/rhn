@@ -42,7 +42,8 @@ describe('InpatientAdmissionWorkspace quick deposit', () => {
       dictionaries: { resolve: vi.fn().mockResolvedValue([
         { code: 'SPOUSE', name: '配偶', sortOrder: 10 },
         { code: 'CHILD', name: '子女', sortOrder: 30 },
-      ]) },
+      ]), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金',
+        attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
     } as unknown as RhnApi
     const clinicalContext = { organization: { id: 'org-1', name: '县医院' },
       department: { id: 'dept-1', name: '综合病区' } } as ClinicalContext

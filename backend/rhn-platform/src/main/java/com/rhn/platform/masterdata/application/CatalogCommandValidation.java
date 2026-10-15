@@ -1,6 +1,7 @@
 package com.rhn.platform.masterdata.application;
 
 import com.rhn.platform.dictionary.api.DictionaryDirectory;
+import com.rhn.platform.dictionary.api.DictionaryValue;
 import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
 import com.rhn.platform.masterdata.api.MasterDataCommands.ServiceCommand;
 import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
@@ -12,14 +13,20 @@ import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 
-/** Dictionary, route/frequency and medication safety validation; no persistence or transaction ownership. */
+/**
+ * Dictionary, route/frequency and medication safety validation; no persistence or transaction ownership. Service
+ * subtypes are leaves of BD_SERVICE_SUBTYPE under their service type; rules read subtype attributes, never codes.
+ */
 @Service
 class CatalogCommandValidation {
+    static final String OUTPATIENT_SCHEDULABLE = "OUTPATIENT_SCHEDULABLE";
     private final DictionaryDirectory dictionaryDirectory;
     private final OrderFrequencyDirectory orderFrequencyDirectory;
     private final MedicationRouteDirectory medicationRouteDirectory;
@@ -35,6 +42,7 @@ class CatalogCommandValidation {
         requireCode(MasterDataDictionaryCodes.SERVICE_TYPE, command.serviceType());
         requireCode(MasterDataDictionaryCodes.SERVICE_USE, command.usageType());
         requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (!blank(command.serviceSubtype())) requireServiceSubtype(command.serviceType(), command.serviceSubtype());
         if (!blank(command.duplicateRule())) {
             requireCode(MasterDataDictionaryCodes.SERVICE_DUPLICATE_RULE, command.duplicateRule());
         }
@@ -110,6 +118,26 @@ class CatalogCommandValidation {
         if (vaccine && !blank(command.defaultFrequency())) {
             throw badRequest("MEDICATION_VACCINE_FREQUENCY_INVALID", "疫苗接种程序应通过类型扩展属性维护，不能使用普通给药频次");
         }
+    }
+
+    void requireServiceSubtype(String serviceType, String subtype) {
+        List<DictionaryValue> items = dictionaryDirectory.resolveActiveItems(current().tenantId(),
+                MasterDataDictionaryCodes.SERVICE_SUBTYPE);
+        DictionaryValue item = items.stream().filter(value -> value.code().equals(subtype)).findFirst()
+                .orElseThrow(() -> badRequest("SERVICE_SUBTYPE_INVALID", "项目子类 " + subtype + " 不是启用的字典项"));
+        if (items.stream().anyMatch(value -> subtype.equals(value.parentCode()))) {
+            throw badRequest("SERVICE_SUBTYPE_NOT_LEAF", "项目子类须选择末级分类，不能选择分组 " + item.name());
+        }
+        if (!serviceType.equals(item.parentCode())) {
+            throw badRequest("SERVICE_SUBTYPE_TYPE_MISMATCH", "项目子类“" + item.name() + "”不属于当前项目类型");
+        }
+    }
+
+    /** Subtype codes whose items may be the visit service of an outpatient schedule. */
+    Set<String> outpatientSchedulableSubtypes(Long tenantId) {
+        return dictionaryDirectory.resolveActiveItems(tenantId, MasterDataDictionaryCodes.SERVICE_SUBTYPE).stream()
+                .filter(value -> Boolean.parseBoolean(value.attributes().get(OUTPATIENT_SCHEDULABLE)))
+                .map(DictionaryValue::code).collect(Collectors.toUnmodifiableSet());
     }
 
     void requirePair(Object value, String unit, String code, String message) {

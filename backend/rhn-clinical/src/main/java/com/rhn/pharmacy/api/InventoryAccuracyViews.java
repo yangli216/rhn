@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,16 +14,16 @@ public final class InventoryAccuracyViews {
                                   Long stockItemId, Long stockLotId, Long packageId, Long traceCodeId,
                                   String requestCode, String sourceUnitCode, String baseUnitCode,
                                   BigDecimal packageFactor, BigDecimal openedBaseQuantity,
-                                  BigDecimal remainingBaseQuantity, String status, Instant openedAt,
+                                  BigDecimal remainingBaseQuantity, @DictionaryBinding("SUP_OPEN_PACKAGE_STATUS") String status, Instant openedAt,
                                   Long openedBy, Instant updatedAt, Instant closedAt) {}
 
-    public record SplitEventView(Long id, Long openPackageId, String eventType, String sourceType,
+    public record SplitEventView(Long id, Long openPackageId, @DictionaryBinding("SUP_SPLIT_EVENT_TYPE") String eventType, String sourceType,
                                  Long sourceId, String sourceNo, BigDecimal quantityDelta,
                                  BigDecimal balanceAfter, Instant occurredAt, Long occurredBy,
                                  String description) {}
 
     public record ReconciliationLineView(Long id, Long stockBinId, Long stockItemId, Long stockLotId,
-                                         String stockStatus, String issueType, BigDecimal expectedQuantity,
+                                         @DictionaryBinding("SUP_STOCK_STATUS") String stockStatus, @DictionaryBinding("SUP_RECONCILIATION_ISSUE_TYPE") String issueType, BigDecimal expectedQuantity,
                                          BigDecimal actualQuantity, BigDecimal differenceQuantity,
                                          String valuationBasis, String currencyCode, BigDecimal expectedAmount,
                                          BigDecimal actualAmount, BigDecimal differenceAmount,
@@ -34,7 +36,7 @@ public final class InventoryAccuracyViews {
 
     public record InventoryPeriodView(Long id, long revision, Long stockSiteId, Long previousPeriodId,
                                       Long closingRunId, String periodCode, LocalDate periodFrom,
-                                      LocalDate periodTo, String status, Instant closedAt, Long closedBy,
+                                      LocalDate periodTo, @DictionaryBinding("SUP_INVENTORY_PERIOD_STATUS") String status, Instant closedAt, Long closedBy,
                                       String description, Instant createdAt, Long createdBy) {}
 
     public record PeriodCloseTotalView(String valuationBasis, String currencyCode,
@@ -53,7 +55,7 @@ public final class InventoryAccuracyViews {
 
     public record PeriodCloseDifferenceView(Long snapshotId, Long inventoryBalanceId, long inventoryBalanceRevision,
                                             Long stockBinId, Long stockItemId, Long stockLotId, String lotNo,
-                                            String stockStatus,
+                                            @DictionaryBinding("SUP_STOCK_STATUS") String stockStatus,
                                             String baseUnitCode, BigDecimal openingQuantity,
                                             BigDecimal movementQuantity, BigDecimal closingQuantity,
                                             BigDecimal balanceQuantity, BigDecimal quantityDifference,

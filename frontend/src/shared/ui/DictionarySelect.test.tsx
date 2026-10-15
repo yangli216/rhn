@@ -54,6 +54,31 @@ describe('DictionarySelect', () => {
     expect(onChange).toHaveBeenCalledWith('01', expect.objectContaining({ value: '01', label: '户主本人' }))
   })
 
+  it('offers only the children of parentCode as a flat list', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    renderWithClient(
+      <DictionarySelect
+        api={mockApi}
+        dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP"
+        parentCode="1"
+        value=""
+        onChange={onChange}
+        aria-label="配偶关系"
+      />
+    )
+
+    await user.click(await screen.findByRole('combobox', { name: '配偶关系' }))
+    expect(await screen.findByRole('option', { name: /夫/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /妻/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /配偶/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /户主本人/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('option', { name: /妻/ }))
+    expect(onChange).toHaveBeenCalledWith('12', expect.objectContaining({ value: '12' }))
+  })
+
   it('allows selecting branch nodes when leafOnly is explicitly false', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

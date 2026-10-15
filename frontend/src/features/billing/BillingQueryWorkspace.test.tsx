@@ -11,8 +11,8 @@ const record: SettlementRecord = {
   id: 'settlement-1', patientAccountId: 'account-1', residentId: 'resident-1', encounterId: 'encounter-1',
   departmentId: 'department-1', residentName: '王建国', healthRecordNo: 'JMD-0001', gender: '1',
   birthDate: '1976-03-12', encounterNo: 'MZ20260908001', departmentName: '全科门诊',
-  settlementNo: 'STL-20260908-001', settlementType: 'NORMAL',
-  settlementScene: 'OUTPATIENT', terminalScene: 'CASHIER', status: 'SETTLED', grossAmount: 86,
+  settlementNo: 'STL-20260908-001', settlementType: 'NORMAL', settlementTypeText: '正常结算',
+  settlementScene: 'OUTPATIENT', settlementSceneText: '门诊收费', terminalScene: 'CASHIER', terminalSceneText: '收费处', status: 'SETTLED', grossAmount: 86,
   discountAmount: 0, insuranceAmount: 50, patientAmount: 36, otherAmount: 0, roundingAmount: 0,
   netAmount: 86, currencyCode: 'CNY', terminalCode: 'CASHIER-01',
   createdAt: '2026-09-08T01:30:00Z', finalizedAt: '2026-09-08T01:31:00Z',
@@ -26,7 +26,7 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides
       lines: [{ id: 'line-1', chargeItemId: 'charge-1', lineNo: 1, settledQuantity: 2,
         grossAmount: 36, discountAmount: 0, insuranceAmount: 20, patientAmount: 16,
         otherAmount: 0, netAmount: 36 }],
-      tenders: [{ id: 'tender-1', lineNo: 1, tenderType: 'DIGITAL', payerName: '微信支付',
+      tenders: [{ id: 'tender-1', lineNo: 1, tenderType: 'DIGITAL', tenderTypeText: '移动支付', payerName: '微信支付',
         amount: 36, currencyCode: 'CNY' }], events: [] }),
     statement: vi.fn().mockResolvedValue({ accountId: 'account-1', revision: 1, residentId: 'resident-1',
       encounterId: 'encounter-1', organizationId: 'org-1', departmentId: 'department-1', accountType: 'OUTPATIENT',
@@ -40,7 +40,7 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides
       invoices: [], settlements: [], payments: [], ledgerEntries: [] }),
     settlementReceipts: vi.fn().mockResolvedValue([{ id: 'receipt-1', revision: 1,
       settlementId: 'settlement-1', receiptNo: 'RCPT001', commandCode: 'ISSUE-001',
-      receiptType: 'MEDICAL_E_INVOICE', status: 'ISSUED', fiscalNumber: '360100000001', amount: 86,
+      receiptType: 'MEDICAL_E_INVOICE', status: 'ISSUED', statusText: '已开具', fiscalNumber: '360100000001', amount: 86,
       currencyCode: 'CNY', issueChannel: 'CASHIER', createdAt: '2026-09-08T01:32:00Z',
       issuedAt: '2026-09-08T01:32:00Z', updatedAt: '2026-09-08T01:32:00Z', duplicate: false }]),
     ...overrides,
@@ -77,7 +77,7 @@ describe('BillingQueryWorkspace', () => {
     expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
   })
   it('shows recorded doctor source even when the physical terminal number is missing', async () => {
-    renderWorkspace([{ ...record, terminalScene: 'DOCTOR_STATION', terminalCode: undefined }])
+    renderWorkspace([{ ...record, terminalScene: 'DOCTOR_STATION', terminalSceneText: '医生站', terminalCode: undefined }])
     const row = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
     expect(row).toHaveTextContent('医生站')
     expect(row).toHaveTextContent('未记录收费员')
@@ -167,6 +167,7 @@ describe('BillingQueryWorkspace', () => {
       encounterNo: undefined,
       settlementNo: 'RGI-HISTORICAL-001',
       settlementScene: 'REGISTRATION',
+      settlementSceneText: '挂号收费',
     }
     const api = renderWorkspace([historicalRecord])
 

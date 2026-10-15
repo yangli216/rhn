@@ -41,6 +41,8 @@ import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.Set;
@@ -311,9 +313,68 @@ class ArchitectureTest {
      *       {@code CANONICAL/HISTORICAL} 的领域枚举，不是平台字典项。</li>
      * </ul>
      */
+    /**
+     * Code fields still awaiting system-enum registration in their domain batch (see 基础数据与字典走查 step 4).
+     * Unlike NOT_DICTIONARY_FIELDS these do need translation; remove an entry when its field is bound.
+     */
+    private static final Set<String> PENDING_DICTIONARY_FIELDS = Set.of(
+            "ClinicalAssistantContracts.Event#eventType",
+            "ClinicalAssistantContracts.Event#statusFrom",
+            "ClinicalAssistantContracts.Event#statusTo",
+            "HypertensionCandidateView.EvidenceEventView#eventType",
+            "InpatientTemperatureChartViews.ChartEventView#eventType",
+            "InpatientViews.EpisodeView#paymentMethodCode",
+            "TimelineEventResponse#eventType",
+            // Polymorphic: one event view serves purchase, receipt, requisition, transfer and count documents.
+            "InventoryOperationViews.DocumentEventView#eventType",
+            "InventoryOperationViews.DocumentEventView#fromStatus",
+            "InventoryOperationViews.DocumentEventView#toStatus",
+            // sourceType names a different value set in each domain (charge, print, queue, evidence...); billing charge
+            // sources are bound to BIL_CHARGE_SOURCE_TYPE, the rest await their domain batches.
+            "ClinicalAssistantContracts.PlanTextDraft#sourceType",
+            "InpatientBillingViews.CostLineView#sourceType",
+            "InventoryAccuracyViews.SplitEventView#sourceType",
+            "MedicalOperationsViews.DiagnosticChargeLine#sourceType",
+            "MedicationKnowledgeDraftContracts.Evidence#sourceType",
+            "MedicationSafetyDecision.Evidence#sourceType",
+            "NotificationResponse#sourceType",
+            "OutpatientPlanTemplateContracts.SaveRequest#sourceType",
+            "OutpatientPlanTemplateContracts.View#sourceType",
+            "OutpatientPlanTemplateDirectory.PlanTemplateSnapshot#sourceType",
+            "PharmacyViews.InventoryTransactionView#sourceType",
+            "PrintBusinessAdministrationService.TaskView#sourceType",
+            "PrintRecordView#sourceType",
+            "PrintTemplateAdministrationService.DocumentDefinitionView#sourceType",
+            "QueueingDirectory.TicketSnapshot#sourceType",
+            "TreatmentExecutionTaskView.TreatmentExecutionItemView#sourceType");
+
     private static final Set<String> NOT_DICTIONARY_FIELDS = Set.of(
             "InsuranceResultDirectory.PersonInfoView#gender",
             "StandardMedicationCatalogContracts.MedicationRecord#relationType");
+
+    /** Schema-name collisions that predate the check (2026-10-14); fix by renaming, never add to this list. */
+    private static final Set<String> KNOWN_DUPLICATE_SCHEMA_NAMES = Set.of(
+            "Basis", "BatchView", "BindingView", "Candidate", "CandidateView", "Capability", "CaseResult", "Catalog",
+            "Citation", "Clarification", "ConfigurationView", "Detail", "DraftView", "EmploymentView", "Event",
+            "Evidence", "Impact", "Input", "Issue", "Item", "MedicationSnapshot", "MedicationView", "MemberView",
+            "Observation", "Preview", "Proposal", "ReconciliationLineView", "RecoveryResult", "Reference", "Result",
+            "Review", "Row", "Run", "Saved", "Scope", "ServiceView", "Status", "Summary", "TaskView", "TemplateView",
+            "View");
+
+    /**
+     * OpenAPI 以类型简单名作为 schema 名称：两个同名响应类型会合并成一个 schema，契约和自动字典文本都会错到另一方。
+     */
+    @ArchTest
+    static void response_types_have_unique_schema_names(JavaClasses classes) {
+        Map<String, List<String>> byName = new TreeMap<>();
+        for (Class<?> type : serializedResponseTypes(classes)) {
+            if (type.isEnum()) continue;
+            byName.computeIfAbsent(type.getSimpleName(), ignored -> new ArrayList<>()).add(type.getName());
+        }
+        byName.values().removeIf(names -> names.size() < 2);
+        byName.keySet().removeAll(KNOWN_DUPLICATE_SCHEMA_NAMES);
+        if (!byName.isEmpty()) throw new AssertionError("响应类型简单名重复，OpenAPI schema 会互相覆盖：" + byName);
+    }
 
     /**
      * 哨兵：凡是会被序列化外发的响应类型，其字符串属性若疑似字典编码却未被识别，则前端只能本地硬编码映射。
@@ -330,7 +391,7 @@ class ArchitectureTest {
                 if (isDictionaryBound(type, property.name())) continue;
                 String location = dictionaryLocation(type, property.name());
                 if (!isDictionaryCandidate(property.name(), vocabulary)) continue;
-                if (NOT_DICTIONARY_FIELDS.contains(location)) continue;
+                if (NOT_DICTIONARY_FIELDS.contains(location) || PENDING_DICTIONARY_FIELDS.contains(location)) continue;
                 unrecognized.add(location);
             }
         }

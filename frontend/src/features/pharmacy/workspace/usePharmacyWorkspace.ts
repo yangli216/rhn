@@ -7,7 +7,7 @@ import type { MedicationRequest } from "../../../shared/api/encountersApi";
 import type { DispenseTaskStatus, InventoryTraceCode, PharmacyInboxItem, PharmacyReviewResult } from "../../../shared/api/pharmacyApi";
 import type { RhnApi } from "../../../shared/rhnApi";
 import { errorMessage } from "../../../shared/rhnApi";
-import { type PharmacyWorkspaceMode, type PharmacyQueryFilters, defaultPharmacyQueryFilters, activeTaskStatuses, postReviewTaskStatuses, returnTaskStatuses, closedTaskStatuses, pharmacyQueryItemMatches, pharmacyQueryItemInDateRange, type DispensingPatientGroup, patientMatchesSearch, CHINESE_NUMBER_WORDS, taskStatusText, groupTraceCodesByPrefix, TRACE_SCAN_DEBOUNCE_MS, parseTraceCodeBatch, inferDispenseSearchIntent, requestMatchesSearch, dispenseSearchIntentText, workspaceCopy, genderText, ageText } from './pharmacyShared'
+import { type PharmacyWorkspaceMode, type PharmacyQueryFilters, defaultPharmacyQueryFilters, activeTaskStatuses, postReviewTaskStatuses, returnTaskStatuses, closedTaskStatuses, pharmacyQueryItemMatches, pharmacyQueryItemInDateRange, type DispensingPatientGroup, patientMatchesSearch, CHINESE_NUMBER_WORDS, groupTraceCodesByPrefix, TRACE_SCAN_DEBOUNCE_MS, parseTraceCodeBatch, inferDispenseSearchIntent, requestMatchesSearch, dispenseSearchIntentText, workspaceCopy, genderText, ageText } from './pharmacyShared'
 
 export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }: {
   api: RhnApi; clinicalContext: ClinicalContext; mode?: PharmacyWorkspaceMode
@@ -630,12 +630,14 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
           // 1. Intake if task doesn't exist
           let currentTaskId = item.taskId
           let currentTaskStatus: DispenseTaskStatus | undefined = item.taskStatus
+          let currentTaskStatusText = item.taskStatusText
           if (!currentTaskId) {
             const availStockItem = findDispenseStockItem(item)
             if (availStockItem) {
               const res = await api.pharmacy.intake(item.request.id, availStockItem.id, '药房自动接方')
               currentTaskId = res.id
               currentTaskStatus = res.status
+              currentTaskStatusText = res.statusText
             }
           }
           if (!currentTaskId) {
@@ -646,6 +648,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
           if (currentTaskStatus === 'READY_TO_PICK') {
             const reservation = await api.pharmacy.reserve(currentTaskId, 30)
             currentTaskStatus = reservation.taskStatus
+            currentTaskStatusText = reservation.taskStatusText
           }
           if (currentTaskStatus === 'PICKING') {
             const preparation = await api.pharmacy.completePicking(currentTaskId, {
@@ -654,9 +657,10 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
               description: '发药前快速复核完成',
             })
             currentTaskStatus = preparation.taskStatus
+            currentTaskStatusText = preparation.taskStatusText
           }
           if (currentTaskStatus !== 'READY_TO_DISPENSE' && currentTaskStatus !== 'PARTIALLY_DISPENSED') {
-            throw new Error(`药品“${item.request.medicationName}”当前状态为${taskStatusText[currentTaskStatus ?? '']
+            throw new Error(`药品“${item.request.medicationName}”当前状态为${currentTaskStatusText
               ?? currentTaskStatus ?? '未知'}，暂不能发药`)
           }
           await api.pharmacy.dispense(currentTaskId, {

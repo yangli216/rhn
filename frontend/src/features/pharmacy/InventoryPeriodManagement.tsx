@@ -8,8 +8,6 @@ import { inventoryKnownTotal, knownInventoryNumber } from './inventoryLedgerTrut
 import { requireCloseDifferences, requireCloseRun, requireCloseRuns, requirePeriods } from './periodCloseTruth'
 import { Alert, Button, Dialog, EmptyState, LoadingState, StatusBadge } from '../../shared/ui'
 
-const periodStatusText: Record<string, string> = { OPEN: '开放', CLOSING: '结账中', CLOSED: '已月结' }
-
 export function InventoryPeriodManagement({ api, siteId, items, bins }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]
 }) {
@@ -104,7 +102,7 @@ export function InventoryPeriodManagement({ api, siteId, items, bins }: {
             className={period.id === periodId ? 'is-selected' : ''} onClick={() => setPeriodId(period.id)}>
             <span><strong>{formatPeriod(period)}</strong><small>{period.periodFrom} 至 {period.periodTo}</small></span>
             <StatusBadge tone={period.status === 'CLOSED' ? 'success' : period.status === 'OPEN' ? 'info' : 'warning'}>
-              {periodStatusText[period.status] ?? period.status}</StatusBadge>
+              {period.statusText ?? period.status}</StatusBadge>
           </button>)}</div>
         </aside>
         <div className="warehouse-period__detail">
@@ -194,7 +192,7 @@ function DifferenceTable({ run, canPost, loading, error, onRetry, rows, items, b
   return <section className="warehouse-period__differences"><header><strong>差异明细</strong><span>处理差异后需重新执行预检</span></header>
     <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>药品 / 库位</th><th>状态 / 批次</th><th>期初数量</th><th>业务变动</th><th>计算期末</th><th>实时库存</th><th>数量差异</th><th>价值差异</th></tr></thead>
       <tbody>{rows.map(row => <tr key={`${row.snapshotId}-${row.valuationBasis}`}><td><strong>{itemName(items, row.stockItemId)}</strong><small>{binName(bins, row.stockBinId)}</small></td>
-        <td><strong>{stockStatusLabel(row.stockStatus)}</strong><small>批号 {row.lotNo}</small></td>
+        <td><strong>{row.stockStatusText ?? row.stockStatus}</strong><small>批号 {row.lotNo}</small></td>
         <td>{quantity(row.openingQuantity)}</td><td>{signedQuantity(row.movementQuantity)}</td><td>{quantity(row.closingQuantity)}</td>
         <td>{quantity(row.balanceQuantity)}</td><td><strong>{signedQuantity(row.quantityDifference)} {row.baseUnitCode}</strong></td>
         <td><strong>{signedMoney(row.valueDifference, row.currencyCode)}</strong><small>{row.valuationBasis === 'COST' ? '成本口径' : row.valuationBasis === 'RETAIL' ? '零售价口径' : '估值口径未知'}</small></td></tr>)}</tbody></table></div>
@@ -219,4 +217,3 @@ function quantity(value: number) { return new Intl.NumberFormat('zh-CN', { maxim
 function signedQuantity(value: number) { return `${value > 0 ? '+' : ''}${quantity(value)}` }
 function itemName(items: StockItem[], id: string) { return items.find(value => value.id === id)?.productName ?? `经营项目 …${id.slice(-6)}` }
 function binName(bins: StockBin[], id: string) { return bins.find(value => value.id === id)?.name ?? `库位 …${id.slice(-6)}` }
-function stockStatusLabel(value: string) { return ({ AVAILABLE: '可用', PENDING: '待验', QUARANTINE: '隔离', DAMAGED: '破损', EXPIRED: '过期' }[value] ?? value) }

@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
+  "fingerprint": "0f11beff01f324976032c552207d2cb4d97d1ef151c031363c7029ed286f82cf",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -1131,7 +1131,7 @@
       "logical": "bd.medication_western",
       "domain": "BD",
       "comment": "药品西药；一行代表一条药品西药记录",
-      "columns": 6
+      "columns": 5
     },
     {
       "physical": "RHN_BD_MED",

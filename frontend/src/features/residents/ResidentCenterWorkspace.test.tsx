@@ -386,10 +386,10 @@ describe('ResidentCenterWorkspace', () => {
     ])
   })
 
-  it.each([['PASSPORT', 'E123****5678', '护照'], ['OTHER', 'YB12****5678', '其他证件/卡'],
-    ['HEALTH_CARD', 'MRN1****5678', '电子健康卡']])('labels a %s from its registered type instead of the number prefix', async (system, maskedValue, label) => {
+  it.each([['6', 'E123****5678', '护照'], ['9', 'YB12****5678', '其他'],
+    ['HEALTH_CARD', 'MRN1****5678', '居民健康卡']])('labels identifier type %s with the server-translated name, not the number prefix', async (system, maskedValue, label) => {
     renderWorkspace(createMockApi({ profile: vi.fn().mockResolvedValue({ ...sampleProfile1,
-      resident: { ...sampleResident1, identifiers: [{ ...sampleResident1.identifiers[0], system, maskedValue }] },
+      resident: { ...sampleResident1, identifiers: [{ ...sampleResident1.identifiers[0], system, systemText: label, maskedValue }] },
     }) }))
     fireEvent.click((await screen.findAllByRole('button', { name: '查看档案' }))[0])
     expect(await screen.findByText(`${label}: ${maskedValue}`)).toBeInTheDocument()

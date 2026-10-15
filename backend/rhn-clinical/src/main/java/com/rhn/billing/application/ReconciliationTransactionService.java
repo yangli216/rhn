@@ -1,5 +1,7 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.billing.api.ReconciliationAdapter.ExternalTransaction;
 import com.rhn.billing.api.ReconciliationAdapter.ReconciliationStatement;
@@ -264,7 +266,7 @@ public class ReconciliationTransactionService {
             String currencyCode, Instant resolvedAt, String resolution) {}
 
     public record BatchView(Long id, long revision, String batchNo, String commandCode, String reconciliationType,
-            String status, String sourceCode, String paymentMethodCode, String externalBatchNo, LocalDate businessDate,
+            String status, String sourceCode, @DictionaryBinding("PAY_METHOD") String paymentMethodCode, String externalBatchNo, LocalDate businessDate,
             int localCount, int externalCount, int differenceCount, BigDecimal localAmount, BigDecimal externalAmount,
             BigDecimal differenceAmount, String currencyCode, Instant createdAt, Instant completedAt, boolean duplicate,
             List<ItemView> items) {}

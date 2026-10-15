@@ -2013,26 +2013,6 @@ function normalizeSearch(value: string) {
   return value.normalize('NFKC').replace(/\s+/g, '').toLocaleLowerCase()
 }
 
-const CLINICAL_DEPARTMENT_TYPE_LABELS: Record<string, string> = {
-  CLIN_GENERAL_SURGERY: '普通外科专业',
-  CLIN_PEDIATRICS: '儿科',
-  CLIN_TCM: '中医科',
-  CLIN_OBSTETRICS_GYNECOLOGY: '妇产科',
-  CLIN_INTERNAL_MEDICINE: '内科',
-  CLIN_EMERGENCY: '急诊科',
-  CLIN_GENERAL_PRACTICE: '全科医疗科',
-  MED_PHARMACY: '药学部（药剂科）',
-  MED_PHARMACY_WAREHOUSE: '药库',
-  MED_PHARMACY_OUTPATIENT: '门诊药房',
-  MED_PHARMACY_INPATIENT: '住院药房',
-  MED_PHARMACY_EMERGENCY: '急诊药房',
-  MED_PHARMACY_TCM: '中药房',
-  MED_PHARMACY_PREPARATION: '制剂室',
-  NUR_INPATIENT_WARD: '住院护理单元（病区）',
-  ADM_OFFICE: '院务办公室',
-  CUSTOM_OTHER: '其他科室',
-}
-
 export function resolveDepartmentTypeText(
   unit?: OrganizationUnit | null,
   departmentTypes?: DictionaryValue[],
@@ -2044,8 +2024,6 @@ export function resolveDepartmentTypeText(
   const typeText = unit.sdDepartmentTypeText?.trim() || ''
   const configuredName = departmentTypes?.find((item) => item.code === typeCode)?.name
   if (configuredName) return configuredName
-  if (typeText && typeText !== typeCode && !CLINICAL_DEPARTMENT_TYPE_LABELS[typeText]) return typeText
-  return CLINICAL_DEPARTMENT_TYPE_LABELS[typeCode] || CLINICAL_DEPARTMENT_TYPE_LABELS[typeText]
-    || typeText || typeCode || '未维护科室类型'
+  return typeText || typeCode || '未维护科室类型'
 
 }

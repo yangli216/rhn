@@ -6,14 +6,11 @@ import type { InpatientBed, InpatientDischargeDiagnosis, InpatientEpisode } from
 import { diagnosisDomainLabel } from '../../shared/presentation'
 import type { DiseaseConcept } from '../../shared/api/masterDataApi'
 import type { Resident } from '../../shared/model'
+import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, DictionarySelect, EmptyState, FormField, LoadingState, PageHeader, Panel,
   PatientIdentitySearch, SearchField, Select, StatusBadge } from '../../shared/ui'
 import '../../styles/features/inpatient.css'
-
-const bedStatusText: Record<InpatientBed['displayStatus'], string> = {
-  AVAILABLE: '空床', OCCUPIED: '占用', CLEANING: '待清洁', BLOCKED: '封床', MAINTENANCE: '维护',
-}
 
 const bedTone: Record<InpatientBed['displayStatus'], 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
   AVAILABLE: 'success', OCCUPIED: 'info', CLEANING: 'warning', BLOCKED: 'neutral', MAINTENANCE: 'danger',
@@ -147,7 +144,7 @@ export function BedBoard({ beds, selectedId, onSelectEpisode, onRelease, onBlock
         className={`inpatient-bed inpatient-bed--${bed.displayStatus.toLowerCase()} ${selectedId && bed.episodeId === selectedId ? 'is-active' : ''}`}>
         <button type="button" className="inpatient-bed__main" disabled={!bed.episodeId}
           onClick={() => bed.episodeId && onSelectEpisode(bed.episodeId)}>
-          <span><strong>{bed.bedNo}</strong><StatusBadge tone={bedTone[bed.displayStatus]}>{bedStatusText[bed.displayStatus]}</StatusBadge></span>
+          <span><strong>{bed.bedNo}</strong><StatusBadge tone={bedTone[bed.displayStatus]}>{bed.displayStatusText || bed.displayStatus}</StatusBadge></span>
           <b>{bed.residentName ?? (bed.bedType === 'EXTRA' ? '加床' : '待分配')}</b>
           <small>{bed.dailyBedRate === undefined ? bed.code : `床位费 ¥${bed.dailyBedRate}/日`}</small>
         </button>
@@ -237,10 +234,6 @@ const inpatientPaymentOptions = [
   { value: 'BASIC_MEDICAL_INSURANCE', label: '基本医疗保险' }, { value: 'SELF_PAY', label: '自费' },
   { value: 'COMMERCIAL_INSURANCE', label: '商业保险' }, { value: 'OTHER', label: '其他' },
 ]
-const quickDepositPaymentOptions = [
-  { value: 'CASH', label: '现金' }, { value: 'WECHAT', label: '微信' },
-  { value: 'ALIPAY', label: '支付宝' }, { value: 'BANK_CARD', label: '银行卡' },
-]
 
 function AdmissionForm({ api, beds, onSuccess }: {
   api: RhnApi
@@ -265,7 +258,10 @@ function AdmissionForm({ api, beds, onSuccess }: {
   const [contactPhone, setContactPhone] = useState('')
   const [note, setNote] = useState('')
   const [depositAmount, setDepositAmount] = useState('')
-  const [depositPaymentMethod, setDepositPaymentMethod] = useState('CASH')
+  const [chosenDepositMethod, setDepositPaymentMethod] = useState('')
+  const depositMethods = useCashierPaymentMethods(api)
+  const quickDepositPaymentOptions = depositMethods.options.map((item) => ({ value: item.code, label: item.name }))
+  const depositPaymentMethod = chosenDepositMethod || quickDepositPaymentOptions[0]?.value || ''
   const parsedDepositAmount = Number(depositAmount)
   const depositRequested = depositAmount.trim().length > 0
   const validDepositAmount = Number.isFinite(parsedDepositAmount) && parsedDepositAmount > 0
@@ -301,7 +297,7 @@ function AdmissionForm({ api, beds, onSuccess }: {
   const contactIncomplete = Boolean(contactName || contactRelationshipCode || contactPhone) &&
     !(contactName.trim() && contactRelationshipCode && contactPhone.trim())
   const canSubmit = Boolean(resident && bedId && admittedAt && admissionType && source && method && condition && level && payment && !contactIncomplete
-    && (!depositRequested || validDepositAmount))
+    && (!depositRequested || (validDepositAmount && Boolean(depositPaymentMethod))))
   const selectedBed = beds.find((value) => value.id === bedId)
   return <form className="inpatient-admission-workbench" onSubmit={(event) => {
     event.preventDefault(); if (canSubmit) admit.mutate()

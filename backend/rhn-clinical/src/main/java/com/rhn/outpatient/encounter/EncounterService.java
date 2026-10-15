@@ -124,6 +124,9 @@ public class EncounterService implements EncounterDirectory {
 
     @Transactional
     public EncounterResponse register(RegisterEncounterRequest request) {
+        if ("TRANSFER".equalsIgnoreCase(request.registrationSource()) || "TRANSFER".equalsIgnoreCase(request.visitType())) {
+            throw badRequest("REGISTRATION_SOURCE_INVALID", "转科挂号只能由转科接收生成");
+        }
         String idempotencyCode = request.idempotencyCode() == null || request.idempotencyCode().isBlank()
                 ? "REG-" + com.rhn.shared.id.GlobalIds.next() : request.idempotencyCode().trim();
         var replay = registrationDirectory.findByIdempotency(idempotencyCode);

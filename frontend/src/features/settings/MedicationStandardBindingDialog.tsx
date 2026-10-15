@@ -54,7 +54,6 @@ function differences(issues: string[], item: {specification: {doseForm?: string;
     return differenceLabels[issue] ?? '需核对身份字段'
   }).join('、') : '类型、剂型、规格或单位不一致'
 }
-const medicationTypes: Record<string, string> = {WESTERN: '西药', CHINESE_PATENT: '中成药', HERBAL: '中药饮片', VACCINE: '疫苗'}
 export function MedicationStandardBindingDialog({api, medicationId, onClose, onOpenCatalog}: {api: RhnApi; medicationId: string; onClose: () => void; onOpenCatalog?: () => void}) {
   const client = useQueryClient()
   const key = ['medication-standard-binding', medicationId]
@@ -113,7 +112,7 @@ export function MedicationStandardBindingDialog({api, medicationId, onClose, onO
           <PanelHead title={value.medication.name} meta={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>} />
           <p className="standard-binding__secondary">{value.medication.code}</p>
           <dl className="standard-binding__facts">
-            {Object.entries({药品类型: medicationTypes[value.medication.medicationType] ?? value.medication.medicationType,
+            {Object.entries({药品类型: value.medication.medicationTypeText || value.medication.medicationType,
               剂型: doseFormLabel(value.medication.doseForm, doseFormName), 规格: value.medication.preparationSpec,
               制剂单位: value.medication.presentationUnit,
               已有含量: value.medication.strengthValue != null ? `${value.medication.strengthValue} ${value.medication.strengthUnit ?? ''}` : '未记录'}).map(([label, text]) =>

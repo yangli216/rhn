@@ -58,7 +58,7 @@ function requireInvoice(value: unknown, pending: Extract<Pending, { kind: 'invoi
 function requirePayment(value: unknown, pending: Extract<Pending, { kind: 'payment' }>, statement: AccountStatement): PaymentOrder {
   const order = requireCompletionPaymentOrders([value], statement)[0]
   requireFact(order.idempotencyKey === pending.command.idempotencyKey && order.settlementId === pending.command.settlementId
-    && order.businessScene === 'OUTPATIENT' && order.paymentSceneCode === 'CLINIC_SETTLE'
+    && order.businessScene === 'OUTPATIENT' && order.paymentSceneCode === 'DOCTOR_STATION'
     && order.paymentMethodCode === pending.command.paymentMethodCode && order.orderType === 'SETTLEMENT_PAY'
     && sameAmount(order.requestedAmount, pending.command.amount) && text(order.orderNo)
     && Number.isSafeInteger(order.revision) && order.revision >= 0, '支付回执与原请求、金额或支付方式不一致')
@@ -92,7 +92,7 @@ export function createCompletionBillingWriter() {
       if (attempt.kind === 'payment') {
         const command = attempt.command
         payment = requirePayment(await write(() => api.createPaymentOrder(command.settlementId, {
-          idempotencyKey: command.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'CLINIC_SETTLE',
+          idempotencyKey: command.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'DOCTOR_STATION',
           paymentMethodCode: command.paymentMethodCode, amount: command.amount, roundingAdjustment: command.roundingAdjustment,
           correlationId: `DOCTOR-STATION-${attempt.encounter.id}`, terminalCode: 'WEB-DOCTOR-WORKSTATION',
         })), attempt, attempt.statement)

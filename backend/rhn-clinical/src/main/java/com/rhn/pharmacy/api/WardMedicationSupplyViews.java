@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,7 +17,7 @@ public final class WardMedicationSupplyViews {
     public record SupplyBatchView(
             Long id, long revision, String batchNo, Long organizationId, Long stockSiteId,
             Long nursingUnitDepartmentId, String nursingUnitName,
-            LocalDate businessDate, String shiftCode, String timezoneCode,
+            LocalDate businessDate, @DictionaryBinding("SUP_WARD_SUPPLY_SHIFT") String shiftCode, String timezoneCode,
             Instant windowStart, Instant windowEnd, Instant cutoffAt,
             String batchType, String supplyMode, String status,
             SupplySummaryView summary, List<SupplyLineView> lines,
@@ -36,8 +38,8 @@ public final class WardMedicationSupplyViews {
             String medicationCode, String medicationName, Instant scheduledAt,
             BigDecimal requestedQuantity, BigDecimal coveredQuantity,
             BigDecimal issuedQuantity, BigDecimal pendingReturnQuantity, String unitCode,
-            int occurrenceCount, String status, Long stockItemId,
-            Long dispenseTaskLineId, Long dispenseTaskId, String dispenseTaskStatus, String exceptionMessage,
+            int occurrenceCount, @DictionaryBinding("SUP_WARD_SUPPLY_LINE_STATUS") String status, Long stockItemId,
+            Long dispenseTaskLineId, Long dispenseTaskId, @DictionaryBinding("SUP_DISPENSE_TASK_STATUS") String dispenseTaskStatus, String exceptionMessage,
             List<SupplyOccurrenceView> occurrences) {
         public SupplyLineView {
             occurrences = List.copyOf(occurrences);

@@ -13,6 +13,12 @@ const clinicalContext = {
   department: { id: 'dept-1', name: '全科医疗科' },
 } as ClinicalContext
 
+const pharmacySystemEnums: Record<string, { code: string; name: string; description: string; items: { code: string; name: string; description: string; sortOrder: number }[] }> = {
+  SUP_PHARMACIST_REVIEW_RESULT: { code: 'SUP_PHARMACIST_REVIEW_RESULT', name: '审方结论', description: '', items: [
+    { code: 'PASS', name: '通过', description: '', sortOrder: 10 }, { code: 'REJECT', name: '驳回', description: '', sortOrder: 20 },
+    { code: 'INTERVENE', name: '干预', description: '', sortOrder: 30 }, { code: 'OVERRIDE', name: '强制通过', description: '', sortOrder: 40 }] },
+}
+
 describe('PharmacyWorkspace (Dispensing Mode)', () => {
   it('renders redesigned outpatient dispensing workbench matching screenshot', async () => {
     const mockInboxItems: PharmacyInboxItem[] = [
@@ -80,6 +86,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     ]
 
     const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
       pharmacy: {
         sites: vi.fn().mockResolvedValue([
           { id: 'site-1', name: '门诊药房', code: 'W-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
@@ -363,6 +370,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     ]
 
     const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
       pharmacy: {
         sites: vi.fn().mockResolvedValue([
           { id: 'site-1', name: '门诊药房', code: 'W-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
@@ -440,6 +448,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
   it('uses the top pharmacy context and omits the duplicated site toolbar in review mode', async () => {
     const stockItems = vi.fn().mockResolvedValue([])
     const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
       pharmacy: {
         sites: vi.fn().mockResolvedValue([
           { id: 'site-current', name: '门诊药房', code: 'PH-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
@@ -497,6 +506,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
       return task
     })
     const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
       pharmacy: {
         sites: vi.fn().mockResolvedValue([{ id: 'site-1', departmentId: 'dept-1', siteType: 'PHARMACY', active: true }]),
         inbox: vi.fn().mockImplementation(async () => [{ request, taskId: 'task-safety', taskStatus: task.status }]),
@@ -531,6 +541,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
 
   it('renders a record-oriented query table without exposing internal workflow identifiers', async () => {
     const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
       pharmacy: {
         sites: vi.fn().mockResolvedValue([
           { id: 'site-1', name: '门诊药房', code: 'PH-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },

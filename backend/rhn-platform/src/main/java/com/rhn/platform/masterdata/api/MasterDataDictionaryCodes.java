@@ -4,6 +4,7 @@ public final class MasterDataDictionaryCodes {
     public static final String STATUS = "BD_MASTER_STATUS";
     public static final String ITEM_TYPE = "BD_ITEM_TYPE";
     public static final String SERVICE_TYPE = "BD_SERVICE_TYPE";
+    public static final String SERVICE_SUBTYPE = "BD_SERVICE_SUBTYPE";
     public static final String SERVICE_USE = "BD_SERVICE_USE";
     public static final String MEDICATION_TYPE = "BD_MEDICATION_TYPE";
     public static final String DOSE_FORM = "BD_DOSE_FORM";
@@ -22,6 +23,10 @@ public final class MasterDataDictionaryCodes {
     public static final String EXAM_TYPE = "BD_EXAM_TYPE";
     public static final String SERVICE_VARIANT_METHOD = "BD_SERVICE_VARIANT_METHOD";
     public static final String ACCOUNTING_CATEGORY = "BD_ACCOUNTING_CATEGORY";
+    public static final String HERBAL_NATURE = "BD_HERBAL_NATURE";
+    public static final String HERBAL_PROCESSING = "BD_HERBAL_PROCESSING";
+    public static final String SUPPLY_MATERIAL = "BD_SUPPLY_MATERIAL";
+    public static final String DEVICE_CLASS = "BD_DEVICE_CLASS";
 
     private MasterDataDictionaryCodes() {}
 }

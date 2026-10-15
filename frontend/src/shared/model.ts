@@ -21,6 +21,8 @@ export type Department = OrganizationDepartment
 export interface ResidentIdentifier extends RequiredFields<Contract['IdentifierView'], 'id' | 'system' | 'maskedValue' | 'useType' | 'status'> {
   id: string
   system: string
+  /** PI_RESIDENT_IDENTIFIER_SYSTEM display text, translated by the server. */
+  systemText?: string
   maskedValue: string
   useType: 'OFFICIAL' | 'SECONDARY' | 'TEMP'
   status: string

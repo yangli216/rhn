@@ -282,7 +282,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ServiceCatalogItem item = requireService(tenantId, catalogItemId);
         if (!item.orderable()
                 || !"OUTPATIENT".equals(item.usageType())
-                || !"OUTPATIENT_VISIT".equals(item.serviceSubtype())
+                || item.serviceSubtype() == null
+                || !validation.outpatientSchedulableSubtypes(tenantId).contains(item.serviceSubtype())
                 || !"REGISTRATION".equals(item.accountingCategory())) {
             throw badRequest("SCHEDULE_SERVICE_CATEGORY_INVALID",
                     "门诊排班只能选择门诊诊查类服务，不能选择检查、检验、治疗或其他收费项目");
@@ -813,10 +814,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         Map<Long, List<ServiceVariant>> variants = serviceVariantRepository
                 .findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscSortOrderAsc(tenantId, ids).stream()
                 .collect(Collectors.groupingBy(ServiceVariant::catalogItemId));
+        Set<String> schedulableSubtypes = items.isEmpty() ? Set.of() : validation.outpatientSchedulableSubtypes(tenantId);
         return items.stream().map(value -> new ServiceView(value.id(), value.revision(), value.itemTypeId(),
                 value.itemMasterId(), value.code(), value.name(),
                 value.unitCode(), value.orderable(), value.chargeable(), value.status(), value.validFrom(), value.validTo(),
-                value.serviceType(), value.serviceSubtype(), value.usageType(), value.medicalTechnology(),
+                value.serviceType(), value.serviceSubtype(),
+                value.serviceSubtype() != null && schedulableSubtypes.contains(value.serviceSubtype()), value.usageType(), value.medicalTechnology(),
                 value.combinationItem(), value.singleOrder(), value.specimenType(), value.examinationType(),
                 value.accountingCategory(), value.duplicateRule(), value.multiSitePrice(), value.freeSiteCount(),
                 value.maxBodySiteCount(), value.mutualRecognitionCode(), value.pregnancyAlert(),

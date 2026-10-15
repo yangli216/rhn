@@ -8,7 +8,12 @@ export interface PaymentMethodOption {
   sortOrder?: number
   precision?: string
   roundingMode?: string
+  /** BIL_TENDER_TYPE from the payment method's TENDER_TYPE attribute. */
+  tenderType?: string
 }
+
+/** Personal-account methods are paid through insurance settlement, never collected at a payment panel. */
+export const isCollectableMethod = (method: { tenderType?: string }) => method.tenderType !== 'PERSONAL_ACCOUNT'
 
 export interface PaymentMethodSelectorProps {
   id?: string
@@ -42,7 +47,7 @@ export function PaymentMethodSelector({
 
   // 1. 过滤掉非货币通道（如医保统筹扣缴，医保由医保结算模式处理）
   const monetaryMethods = useMemo(() => {
-    return methods.filter((m) => m.code !== 'MEDICAL_INSURANCE')
+    return methods.filter(isCollectableMethod)
   }, [methods])
 
   // 2. 严格按字典排序字段 sortOrder 升序排列

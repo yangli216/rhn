@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,7 +17,7 @@ public interface ProcurementCatalogDirectory {
             Long id, long revision, Long stockSiteId, Long catalogItemId, Long packageId,
             Long medicationId, String productCode, String productName, String packageUnitCode,
             String packageUnitName, String packageSpec, BigDecimal packageFactor, String baseUnitCode,
-            String issuePolicy, boolean negativeAllowed, boolean lotRequired, boolean traceRequired,
+            @DictionaryBinding("SUP_ISSUE_POLICY") String issuePolicy, boolean negativeAllowed, boolean lotRequired, boolean traceRequired,
             boolean splitAllowed, boolean coldChain, boolean controlled, String controlLevel,
             boolean highAlert, String status, String manufacturerName, Long supplierSupplyItemId,
             BigDecimal agreementPrice, BigDecimal taxRate) {}

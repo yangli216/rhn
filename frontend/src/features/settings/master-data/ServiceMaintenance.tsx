@@ -5,7 +5,7 @@ import { useRef, useState, type ReactNode } from "react";
 import type { Organization } from "../../../shared/model";
 import { type RhnApi, type ServiceCatalogItem, type ServiceInput } from "../../../shared/rhnApi";
 import { Alert, Button, DictionarySelect, EmptyState, FormField, LoadingState, StatusBadge } from "../../../shared/ui";
-import { Table, serviceSubtypeLabel, serviceDuplicateRuleLabel, accountingCategoryLabel, serviceTypeTone, Flag, DataStatus, RowActions, preloadOperationalMasterData, type DictionaryMap, today, DataFormDialog, text, optionalText, checked, FormSection, FormGrid, SelectField, Checkboxes, Checkbox, DateRangeFields } from './masterDataShared'
+import { Table, serviceDuplicateRuleLabel, accountingCategoryLabel, serviceTypeTone, Flag, DataStatus, RowActions, preloadOperationalMasterData, type DictionaryMap, today, DataFormDialog, text, optionalText, checked, FormSection, FormGrid, SelectField, StaticSelectControl, Checkboxes, Checkbox, DateRangeFields } from './masterDataShared'
 import { validateAttributeChanges, DynamicItemAttributesSection } from './AttributeMaintenance'
 
 export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes: _onAttributes }: {
@@ -27,7 +27,7 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
     className={`service-catalog-table is-${density}`}>
     {values.map((value) => {
       const typeText = value.sdServiceTypeText === 'OTHER' ? '其他' : value.sdServiceTypeText
-      const subtype = serviceSubtypeLabel(value.serviceSubtype)
+      const subtype = value.serviceSubtypeText || value.serviceSubtype
       const ruleText = serviceDuplicateRuleLabel(value.sdDuplicateRule, value.sdDuplicateRuleText)
       const mutualText = value.mutualRecognitionCode ? `互认 ${value.mutualRecognitionCode}` : ''
       const accCategory = accountingCategoryLabel(value.accountingCategory, value.accountingCategoryText)
@@ -129,6 +129,8 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
 }) {
   const queryClient = useQueryClient()
   const [accountingCategory, setAccountingCategory] = useState(value?.accountingCategory ?? '')
+  const [serviceType, setServiceType] = useState(value?.sdServiceType ?? 'EXAMINATION')
+  const [serviceSubtype, setServiceSubtype] = useState(value?.serviceSubtype ?? '')
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
   const maintenanceQuery = useQuery({
     queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value?.id, today()],
@@ -183,10 +185,14 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
         {value && <input type="hidden" name="code" value={value.code} />}
         <FormField label="项目名称" required className="span-2"><input name="name" defaultValue={value?.name}
           placeholder="录入统一项目名称" required /></FormField>
-        <SelectField name="sdServiceType" label={value ? '项目类型（创建后不可修改）' : '项目类型'} values={dictionaries.BD_SERVICE_TYPE}
-          defaultValue={value?.sdServiceType ?? 'EXAMINATION'} disabled={Boolean(value)} />
-        <FormField label="项目子类"><input name="serviceSubtype" defaultValue={value?.serviceSubtype}
-          placeholder="如 常规检验" /></FormField>
+        <FormField label={value ? '项目类型（创建后不可修改）' : '项目类型'} required>
+          <StaticSelectControl name="sdServiceType" value={serviceType} disabled={Boolean(value)} required placeholder="请选择"
+            options={(dictionaries.BD_SERVICE_TYPE ?? []).map((item) => ({ value: item.code, label: item.name }))}
+            onChange={(next) => { setServiceType(next); setServiceSubtype('') }} />
+        </FormField>
+        <FormField label="项目子类"><DictionarySelect api={api.dictionaries} dictionaryCode="BD_SERVICE_SUBTYPE"
+          parentCode={serviceType} name="serviceSubtype" aria-label="项目子类" value={serviceSubtype}
+          onChange={setServiceSubtype} placeholder="选择该类型下的子类" /></FormField>
         <SelectField name="sdUsageType" label="适用场景" values={dictionaries.BD_SERVICE_USE}
           defaultValue={value?.sdUsageType ?? 'COMMON'} />
       </FormGrid>

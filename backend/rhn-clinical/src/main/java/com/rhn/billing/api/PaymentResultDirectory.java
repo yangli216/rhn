@@ -1,5 +1,7 @@
 package com.rhn.billing.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 
 /**
@@ -18,8 +20,9 @@ public interface PaymentResultDirectory {
 
     record PaymentOrderView(
             Long id, long revision, Long patientAccountId, Long settlementId, Long originalPaymentId, String orderNo,
-            String idempotencyKey, String businessScene, String paymentSceneCode,
-            String paymentMethodCode, String paymentMethodName, String orderType, String status,
+            String idempotencyKey, String businessScene, @DictionaryBinding("PAY_USE_SCENE") String paymentSceneCode,
+            @DictionaryBinding("PAY_METHOD") String paymentMethodCode, String paymentMethodName, String orderType,
+            @DictionaryBinding("BIL_PAYMENT_ORDER_STATUS") String status,
             BigDecimal requestedAmount, BigDecimal capturedAmount, BigDecimal refundedAmount,
             String currencyCode, String externalOrderNo, String correlationId, String terminalCode,
             java.time.Instant expiresAt, java.time.Instant createdAt, java.time.Instant updatedAt,
@@ -27,7 +30,7 @@ public interface PaymentResultDirectory {
             java.util.List<PaymentEventView> events) {}
 
     record PaymentEventView(
-            Long id, Long externalMessageId, String eventType, String statusFrom, String statusTo,
+            Long id, Long externalMessageId, @DictionaryBinding("BIL_PAYMENT_EVENT_TYPE") String eventType, @DictionaryBinding("BIL_PAYMENT_ORDER_STATUS") String statusFrom, @DictionaryBinding("BIL_PAYMENT_ORDER_STATUS") String statusTo,
             String commandCode, String externalTransactionNo, BigDecimal eventAmount,
             String errorCode, String errorMessage, java.time.Instant occurredAt) {}
 }

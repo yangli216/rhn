@@ -1113,7 +1113,7 @@ describe('Parameter scope truth', () => {
 describe('Direct visit service configuration truth', () => {
   const service = {
     id: 'service-1', name: '普通门诊诊查', code: 'VISIT', sdStatus: 'ACTIVE', orderable: true,
-    sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT', accountingCategory: 'REGISTRATION',
+    sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT', outpatientSchedulable: true, accountingCategory: 'REGISTRATION',
     organizationAdoption: { catalogItemId: 'service-1', organizationId: 'shared-source-org',
       sdStatus: 'ACTIVE', orderable: true, executable: true },
   }

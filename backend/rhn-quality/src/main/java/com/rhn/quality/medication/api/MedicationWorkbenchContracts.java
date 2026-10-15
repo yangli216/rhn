@@ -78,7 +78,8 @@ public final class MedicationWorkbenchContracts {
             boolean historicalSnapshotAvailable) {}
     public record ActiveRuleView(Long ruleId, Long ruleVersionId, String ruleCode, String category,
                                  String ruleName, int version, String ruleSetVersion, String implementation,
-                                 String status, String severity, String decision, String overridePolicy,
+                                 String status, String severity, String decision,
+                                 @DictionaryBinding("MED_SAFETY_OVERRIDE_POLICY") String overridePolicy,
                                  Instant effectiveFrom, Instant effectiveTo,
                                  List<com.rhn.outpatient.api.MedicationSafetyDecision.Evidence> evidence) {}
     public record EvaluationDetail(EvaluationSummary summary, tools.jackson.databind.JsonNode input, tools.jackson.databind.JsonNode result) {}

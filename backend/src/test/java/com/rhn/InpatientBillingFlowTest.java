@@ -231,7 +231,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, count("select count(*) from RHN_BIL_PAT_ACCT where ID_PAT_ACCT = ? and SD_ACCT_TYPE = 'INPATIENT'",
                 accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? and ID_INVOICE is null "
-                + "and CD_PAY_SCENE = 'INPATIENT_PREPAYMENT'", accountId));
+                + "and CD_PAY_SCENE = 'CASHIER'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? "
                 + "and SD_SRC_TYPE = 'INPATIENT_ORDER_TASK'", accountId));
         assertEquals(2, count("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", accountId));
@@ -404,7 +404,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ?",
                 settlement.at("/account/patientAccountId").asString()));
         assertEquals(0, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                        + "and CD_PAY_SCENE = 'CASHIER'",
+                        + "and ID_INVOICE is not null",
                 settlement.at("/account/patientAccountId").asString()));
         assertEquals(1, count("select count(*) from RHN_BIL_STL_EVT where ID_STL = ? "
                 + "and SD_EVT_TYPE = 'FINALIZE'", settlement.get("settlementId").asString()));

@@ -10,7 +10,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Guards V1_129_0/V1_129_1: one standard item per service name, coded subtypes and routable examination types. */
+/** Guards V1_129_0/1/4: one standard item per service name, dictionary-coded subtypes and routable examination types. */
 class ServiceCatalogStandardizationTest extends RhnIntegrationTestSupport {
     private static final long TENANT = 362387869790209L;
     private static final long ORGANIZATION = 362387869790211L;
@@ -59,11 +59,49 @@ class ServiceCatalogStandardizationTest extends RhnIntegrationTestSupport {
                 where item.CD_CATALOG_ITEM in ('11020000100', '11020000501', '11020000104')
                 order by item.CD_CATALOG_ITEM
                 """, String.class)).containsExactly("11020000100:OUTPATIENT_VISIT:OUTPATIENT",
-                "11020000104:诊查费:OUTPATIENT", "11020000501:INPATIENT_VISIT:INPATIENT");
+                "11020000104:VISIT_SURCHARGE:OUTPATIENT", "11020000501:INPATIENT_VISIT:INPATIENT");
         Long outpatientFee = jdbc.queryForObject(
                 "select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM where CD_CATALOG_ITEM = '11020000100'", Long.class);
         assertThat(services.requireSchedulableOutpatientService(TENANT, ORGANIZATION, outpatientFee, LocalDate.now()))
                 .isNotNull();
+    }
+
+    @Test
+    void every_subtype_is_a_leaf_of_its_service_type_and_only_outpatient_visits_are_schedulable() {
+        assertThat(jdbc.queryForList("""
+                select distinct service.SD_SVC_TYPE || ':' || service.SD_SVC_SUBTYPE from RHN_BD_SVC_ITEM service
+                where service.SD_SVC_SUBTYPE is not null and not exists (
+                  select 1 from RHN_BD_DICT_ITEM leaf
+                  join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = leaf.ID_DICT_DEF_DICT
+                  join RHN_BD_DICT_ITEM parent on parent.ID_DICT_ITEM = leaf.ID_DICT_ITEM_PARENT
+                  where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_SERVICE_SUBTYPE' and leaf.SD_STATUS = 'ACTIVE'
+                    and leaf.CD_DICT_ITEM = service.SD_SVC_SUBTYPE and parent.CD_DICT_ITEM = service.SD_SVC_TYPE)
+                """, String.class)).isEmpty();
+        assertThat(jdbc.queryForList("""
+                select parent.CD_DICT_ITEM from RHN_BD_DICT_ITEM parent
+                join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = parent.ID_DICT_DEF_DICT
+                where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_SERVICE_SUBTYPE' and parent.ID_DICT_ITEM_PARENT is null
+                and not exists (select 1 from RHN_BD_DICT_ITEM t join RHN_BD_DICT_DEF td on td.ID_DICT_DEF = t.ID_DICT_DEF_DICT
+                  where td.SD_SCOPE_TYPE = 'PLATFORM' and td.CD_DICT_DEF = 'BD_SERVICE_TYPE' and t.SD_STATUS = 'ACTIVE'
+                    and t.CD_DICT_ITEM = parent.CD_DICT_ITEM)
+                """, String.class)).as("groups mirror BD_SERVICE_TYPE").isEmpty();
+        assertThat(jdbc.queryForList("""
+                select i.CD_DICT_ITEM from RHN_BD_DICT_ITEM_ATTR_VAL v
+                join RHN_BD_DICT_ITEM i on i.ID_DICT_ITEM = v.ID_DICT_ITEM
+                join RHN_BD_DICT_ATTR_DEF a on a.ID_DICT_ATTR_DEF = v.ID_DICT_ATTR_DEF
+                where a.CD_DICT_ATTR_DEF = 'OUTPATIENT_SCHEDULABLE' and v.FG_BOOLEAN_VAL = true
+                """, String.class)).containsExactly("OUTPATIENT_VISIT");
+        assertThat(jdbc.queryForList("""
+                select distinct service.SD_SVC_SUBTYPE || ':' || service.SD_ACCTG_CAT from RHN_BD_SVC_ITEM service
+                join RHN_BD_CATALOG_ITEM item on item.ID_CATALOG_ITEM = service.ID_CATALOG_ITEM
+                where item.CD_CATALOG_ITEM like '1110%'
+                """, String.class)).as("telemedicine is not a bed day").containsExactly("TELEMEDICINE:REGISTRATION");
+        assertThat(jdbc.queryForList("""
+                select distinct service.SD_SVC_TYPE || ':' || item.ID_ITEM_TYPE from RHN_BD_SVC_ITEM service
+                join RHN_BD_CATALOG_ITEM item on item.ID_CATALOG_ITEM = service.ID_CATALOG_ITEM
+                where item.CD_CATALOG_ITEM like '11%' or service.SD_SVC_SUBTYPE = 'OUTPATIENT_VISIT'
+                """, String.class)).as("price chapter 11 is general medical service, not 处置")
+                .containsExactly("GENERAL_MEDICAL:362387869797002");
     }
 
     @Test

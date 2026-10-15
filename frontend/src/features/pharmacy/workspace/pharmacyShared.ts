@@ -1,18 +1,7 @@
 import { genderLabel } from '../../../shared/format'
 import { displayUnitName } from "../medicationDisplay";
 import type { PersonnelAssignment } from "../../../shared/api/organizationApi";
-import type { PharmacyInboxItem, PharmacyReviewResult } from "../../../shared/api/pharmacyApi";
-
-export const taskStatusText: Record<string, string> = {
-  PENDING_REVIEW: '待审方', INTERVENTION: '待干预', READY_TO_PICK: '待拣货', PICKING: '拣货中',
-  READY_TO_DISPENSE: '待发药', PARTIALLY_DISPENSED: '部分发药', COMPLETED: '已完成',
-  PARTIALLY_RETURNED: '部分退药', RETURN_REQUIRED: '停嘱待退', RETURNED: '已全部退药', REJECTED: '已驳回',
-  CANCELLED: '停嘱已取消', STOPPED: '停嘱已清算',
-}
-
-export const reviewText: Record<PharmacyReviewResult, string> = {
-  PASS: '通过', REJECT: '驳回', INTERVENE: '干预', OVERRIDE: '强制通过',
-}
+import type { PharmacyInboxItem } from "../../../shared/api/pharmacyApi";
 
 export type PharmacyWorkspaceMode = 'dispensing' | 'review' | 'returns' | 'query' | 'ward'
 

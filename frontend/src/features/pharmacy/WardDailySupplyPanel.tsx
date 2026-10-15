@@ -14,15 +14,6 @@ const shiftOptions = [
   { value: 'NIGHT', label: '大夜（00:00–08:00）' },
 ]
 
-const shiftText: Record<WardSupplyShiftCode, string> = {
-  DAY: '白班', EVENING: '小夜', NIGHT: '大夜',
-}
-
-const lineStatusText: Record<string, string> = {
-  PENDING_INTAKE: '待接方', PREPARING: '备药中', COVERED: '已覆盖', GAP: '有缺口', ISSUED: '已发在途',
-  RETURN_PENDING: '待退', EXCEPTION: '异常', CANCELLED: '已取消',
-}
-
 export function WardDailySupplyPanel({ api, organizationId, stockSiteId, stockItems,
   practitioners, assignments, practitionerId, assignmentId,
   onPractitionerChange, onAssignmentChange, defaultOpen = false }: {
@@ -207,7 +198,7 @@ export function WardDailySupplyPanel({ api, organizationId, stockSiteId, stockIt
       {!!batches.data?.length && <>
         {batches.data.length > 1 && <FormField label="供药批次"><Select value={selectedBatchId}
           options={batches.data.map((value) => ({ value: value.id, label: value.batchNo,
-            secondaryText: `${value.nursingUnitName} · ${shiftText[value.shiftCode]}` }))}
+            secondaryText: `${value.nursingUnitName} · ${value.shiftCodeText ?? value.shiftCode}` }))}
           onChange={setSelectedBatchId} /></FormField>}
         {batchDetail.isPending ? <LoadingState label="正在加载供药明细…" /> : batch && <BatchDetail batch={batch}
           stockItems={stockItems} stockItemSelections={stockItemSelections} onStockItemChange={(lineId, stockItemId) =>
@@ -293,7 +284,7 @@ function BatchDetail({ batch, stockItems, stockItemSelections, onStockItemChange
     || duplicateTaskLinkCount > 0 || specialReadyLines.length > 0 || actorMissing || deliveryNumbers.length > 0
   return <section className="pharmacy-ward-daily-supply__batch" aria-label={`供药批次 ${batch.batchNo}`}>
     <div className="pharmacy-ward-daily-supply__batch-head"><div className="pharmacy-ward-daily-supply__batch-meta"><strong>{batch.batchNo}</strong>
-      <span>{batch.nursingUnitName} · {batch.businessDate} · {shiftText[batch.shiftCode]}</span></div>
+      <span>{batch.nursingUnitName} · {batch.businessDate} · {batch.shiftCodeText ?? batch.shiftCode}</span></div>
       <div className="pharmacy-ward-daily-supply__batch-actions">
         <StatusBadge tone={batch.status === 'COMPLETED' ? 'success' : batch.status === 'EXCEPTION' ? 'danger' : 'info'}>
           {batch.status === 'COMPLETED' ? '已完成' : batch.status === 'EXCEPTION' ? '有异常' : '处理中'}</StatusBadge>
@@ -357,7 +348,7 @@ function BatchDetail({ batch, stockItems, stockItemSelections, onStockItemChange
           <div className="pharmacy-ward-daily-supply__quantities"><span>需 {formatQuantity(line.requestedQuantity)}</span>
             <span>覆盖 {formatQuantity(line.coveredQuantity)}</span><span className={gap ? 'is-gap' : ''}>缺口 {formatQuantity(gap)}</span>
             <span>已发 {formatQuantity(line.issuedQuantity)}</span><span>待退 {formatQuantity(line.pendingReturnQuantity)} {line.unitCode}</span></div>
-          <StatusBadge tone={lineTone(line.status)}>{lineStatusText[line.status] ?? line.status}</StatusBadge>
+          <StatusBadge tone={lineTone(line.status)}>{line.statusText ?? line.status}</StatusBadge>
           {canIntake ? <div className="pharmacy-ward-daily-supply__intake">
             <Select aria-label={`库存项目 ${line.residentName} ${line.medicationName}`} value={stockItemId}
               placeholder="选择库存项目" emptyText="当前药房未配置匹配库存项目"

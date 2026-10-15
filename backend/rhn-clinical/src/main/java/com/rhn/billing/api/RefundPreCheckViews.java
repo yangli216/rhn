@@ -1,5 +1,7 @@
 package com.rhn.billing.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -25,7 +27,7 @@ public final class RefundPreCheckViews {
 
     public record RefundItemPreCheckView(
             Long chargeItemId,
-            String sourceType,
+            @DictionaryBinding("BIL_CHARGE_SOURCE_TYPE") String sourceType,
             Long sourceId,
             String documentNo,
             String itemName,
@@ -44,7 +46,7 @@ public final class RefundPreCheckViews {
     public record RefundPaymentCandidateView(
             Long paymentId,
             String paymentNo,
-            String paymentMethodCode,
+            @DictionaryBinding("PAY_METHOD") String paymentMethodCode,
             BigDecimal amount,
             BigDecimal refundedAmount,
             BigDecimal refundableAmount,

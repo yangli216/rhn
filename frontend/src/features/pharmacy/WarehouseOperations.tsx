@@ -68,15 +68,6 @@ export function resolveItemDefaultPrices(
 
 export type OperationTab = 'purchase' | 'requisition' | 'transfer' | 'count'
 
-const statusText: Record<string, string> = {
-  DRAFT: '草稿', SUBMITTED: '待审核', APPROVED: '已审核', PARTIALLY_RECEIVED: '部分入库',
-  COMPLETED: '已完成', RECEIVED: '待验收', INSPECTING: '验收中', ACCEPTED: '验收合格',
-  PARTIALLY_ACCEPTED: '部分合格', POSTED: '已记账', PICKING: '拣货中', ISSUED: '已出库',
-  IN_TRANSIT: '在途', COUNTING: '盘点中', REJECTED: '已驳回', CANCELLED: '已取消',
-}
-const stockStatusText: Record<string, string> = {
-  AVAILABLE: '可用', PENDING: '待验', QUARANTINE: '隔离', DAMAGED: '破损', EXPIRED: '过期',
-}
 const statusTone = (status: string): 'success' | 'danger' | 'info' => status === 'COMPLETED' || status === 'POSTED' || status === 'ISSUED'
   ? 'success' : status === 'REJECTED' || status === 'CANCELLED' ? 'danger' : 'info'
 const supplierEffective = (value: Awaited<ReturnType<RhnApi['pharmacy']['suppliers']>>[number]) => {
@@ -151,8 +142,8 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   })
   const productsList = useMemo(() => (medProducts.data?.content ?? []).map(entry => entry.product), [medProducts.data])
 
-  const ordersList = orders.isSuccess ? orders.data : []
-  const receiptsList = receipts.isSuccess ? receipts.data : []
+  const ordersList = useMemo(() => orders.isSuccess ? orders.data : [], [orders.isSuccess, orders.data])
+  const receiptsList = useMemo(() => receipts.isSuccess ? receipts.data : [], [receipts.isSuccess, receipts.data])
 
   // KPI Metrics calculation
   const pendingApprovalCount = ordersList.filter(o => ['DRAFT', 'SUBMITTED'].includes(o.status)).length
@@ -162,7 +153,8 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   const postedReceipts = receiptsList.filter(r => r.status === 'POSTED')
   const totalPostedAmount = inventoryKnownTotal(postedReceipts.map(receiptAcceptedTotal))
 
-  const matches = (...values: (string | undefined)[]) => values.join(' ').toLowerCase().includes(search.trim().toLowerCase())
+  const matches = useCallback((...values: (string | undefined)[]) => values.join(' ').toLowerCase()
+    .includes(search.trim().toLowerCase()), [search])
 
   // Unified Queue construction
   interface QueueItem {
@@ -172,6 +164,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
     supplierName: string
     date: string
     status: string
+    statusText?: string
     amount?: number
     countText: string
     rawOrder?: PurchaseOrder
@@ -200,7 +193,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           docNo: order.orderNo,
           supplierName: sup,
           date: order.orderDate,
-          status: order.status,
+          status: order.status, statusText: order.statusText,
           amount,
           countText: `${order.lines.length} 种药品`,
           rawOrder: order,
@@ -228,7 +221,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           docNo: receipt.receiptNo,
           supplierName: sup,
           date: receipt.receivedAt ? formatTime(receipt.receivedAt) : '',
-          status: receipt.status,
+          status: receipt.status, statusText: receipt.statusText,
           amount,
           countText: `${receipt.lines.length} 个批次`,
           rawReceipt: receipt,
@@ -237,7 +230,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
     }
 
     return list
-  }, [docType, stage, search, ordersList, receiptsList, suppliers.data, items])
+  }, [docType, stage, search, matches, ordersList, receiptsList, suppliers.data, items])
 
   // Keep selection valid
   const activeItem = useMemo(() => {
@@ -422,7 +415,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                       {item.kind === 'order' ? '采购单' : '验收单'}
                     </span>
                     <span className="warehouse-doc-card__no" title={item.docNo}>{item.docNo}</span>
-                    <StatusBadge tone={statusTone(item.status)}>{statusText[item.status] ?? item.status}</StatusBadge>
+                    <StatusBadge tone={statusTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
                   </div>
                   <div className="warehouse-doc-card__body">
                     <span className="warehouse-doc-card__supplier" title={item.supplierName}>{item.supplierName}</span>
@@ -455,7 +448,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               <div className="warehouse-detail-pane__title">
                 <span className="warehouse-doc-card__type warehouse-doc-card__type--po">采购订单</span>
                 <h3>{order.orderNo}</h3>
-                <StatusBadge tone={statusTone(order.status)}>{statusText[order.status] ?? order.status}</StatusBadge>
+                <StatusBadge tone={statusTone(order.status)}>{order.statusText ?? order.status}</StatusBadge>
               </div>
               <div className="warehouse-detail-pane__actions">
                 {order.status === 'DRAFT' && (
@@ -525,7 +518,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               <div className="warehouse-operation-actions">
                 {relatedReceipts.map(r => (
                   <Button key={r.id} size="sm" variant="text" onClick={() => { setDocType('receipts'); setSelectedDocId(r.id); setSelectedDocKind('receipt'); }}>
-                    {r.receiptNo} ({statusText[r.status] ?? r.status})
+                    {r.receiptNo} ({r.statusText ?? r.status})
                   </Button>
                 ))}
               </div>
@@ -605,7 +598,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               <div className="warehouse-detail-pane__title">
                 <span className="warehouse-doc-card__type warehouse-doc-card__type--gr">到货验收单</span>
                 <h3>{receipt.receiptNo}</h3>
-                <StatusBadge tone={statusTone(receipt.status)}>{statusText[receipt.status] ?? receipt.status}</StatusBadge>
+                <StatusBadge tone={statusTone(receipt.status)}>{receipt.statusText ?? receipt.status}</StatusBadge>
               </div>
               <div className="warehouse-detail-pane__actions">
                 {receipt.status === 'RECEIVED' && (
@@ -725,7 +718,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                       <td className={tableCellClass('numeric')}>{formatRecordedMoney(line.unitCost)}</td>
                       <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}><strong>{formatRecordedMoney(lineCost)}</strong></td>
                       <td>
-                        <StatusBadge tone={statusTone(line.qualityStatus)}>{statusText[line.qualityStatus] ?? line.qualityStatus}</StatusBadge>
+                        <StatusBadge tone={statusTone(line.qualityStatus)}>{line.qualityStatusText ?? line.qualityStatus}</StatusBadge>
                       </td>
                     </tr>
                   })}
@@ -783,7 +776,7 @@ function RequisitionWorkbench({ api, site, items, isOperator = true }: { api: Rh
         <td>{value.reason || '日常领用'}<small>{formatTime(value.requestedAt)}</small></td>
         <td><strong>申请 {formatQuantity(value.lines.reduce((n, row) => n + Number(row.requestedQuantity), 0))}</strong>
           <small>批准 {formatQuantity(value.lines.reduce((n, row) => n + Number(row.approvedQuantity ?? 0), 0))} · 实发 {formatQuantity(value.lines.reduce((n, row) => n + Number(row.issuedQuantity), 0))}</small></td>
-        <td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
+        <td><StatusBadge tone={statusTone(value.status)}>{value.statusText ?? value.status}</StatusBadge></td><td>
           {value.status === 'SUBMITTED' && <Button variant="text" size="sm" disabled={!isOperator} onClick={() => setApproving(value)}>审核明细</Button>}
           {['DRAFT', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} disabled={!isOperator}
             onClick={() => action.mutate({ id: value.id, status: value.status })}>{({ DRAFT: '提交', APPROVED: '开始拣货', PICKING: '确认出库' } as Record<string, string>)[value.status]}</Button>}
@@ -825,7 +818,7 @@ function TransferWorkbench({ api, site, sites, items, bins, isOperator = true }:
           <td><strong>{transferRequestSummary(value, items)}</strong>
             <small>已调出 {value.lines.filter(line => Number(line.dispatchedQuantity) > 0).length}/{value.lines.length} 项 · 已调入 {value.lines.filter(line => Number(line.receivedQuantity) > 0).length}/{value.lines.length} 项</small></td>
           <td>{value.lines.filter(line => Number(line.damagedQuantity) > 0).length} 项<small>破损 / 短少</small></td>
-          <td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
+          <td><StatusBadge tone={statusTone(value.status)}>{value.statusText ?? value.status}</StatusBadge></td><td>
             {inbound && value.status === 'IN_TRANSIT' && <Button variant="text" size="sm" disabled={!isOperator} onClick={() => setReceiving(value)}>调入确认</Button>}
             {!inbound && ['DRAFT', 'SUBMITTED', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate(value)}>{({ DRAFT: '提交', SUBMITTED: '审核', APPROVED: '拣货', PICKING: '确认调出' } as Record<string, string>)[value.status]}</Button>}
           </td></tr>})}</OperationTable>
@@ -852,7 +845,7 @@ function CountWorkbench({ api, site, items, bins, isOperator = true }: { api: Rh
           ? bins.find(v => v.id === value.stockBinId)?.name ?? '指定货位'
           : value.countType === 'ITEM' ? `指定项目 · ${new Set(value.lines.map(line => line.stockItemId)).size} 项`
             : value.countType === 'CYCLE' ? `循环盘点 · ${new Set(value.lines.map(line => line.stockItemId)).size} 项` : '全库盘点'}</td>
-        <td>{value.lines.filter(v => v.varianceQuantity).length} / {value.lines.length}</td><td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
+        <td>{value.lines.filter(v => v.varianceQuantity).length} / {value.lines.length}</td><td><StatusBadge tone={statusTone(value.status)}>{value.statusText ?? value.status}</StatusBadge></td><td>
           {value.status === 'COUNTING' ? <Button variant="text" size="sm" disabled={!isOperator} onClick={() => setRecording(value)}>录入实盘</Button>
             : ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate(value)}>{({ DRAFT: '开始盘点', SUBMITTED: '审核通过', APPROVED: '盈亏调整' } as Record<string, string>)[value.status]}</Button>}
         </td></tr>)}</OperationTable>
@@ -1949,7 +1942,7 @@ function CountRecordDialog({ api, value, items, bins, onClose, onDone }: { api: 
       return <tr key={line.id}><td><strong>{item?.productName ?? line.stockItemId}</strong>
         <small>{[bins.find(bin => bin.id === line.stockBinId)?.name ?? line.stockBinId, item?.manufacturerName].filter(Boolean).join(' · ')}</small></td>
         <td><strong>{lot?.lotNo ?? (lots.isPending ? '正在读取…' : '批次资料缺失')}</strong>
-          <small>{lot?.expiryDate ?? '效期未记录'} · {stockStatusText[line.stockStatus] ?? line.stockStatus}</small></td>
+          <small>{lot?.expiryDate ?? '效期未记录'} · {line.stockStatusText ?? line.stockStatus}</small></td>
         <td>{blind ? '盲盘隐藏' : formatQuantity(line.bookQuantity)}</td><td><input aria-label={`${line.id}实盘数量`} className="ui-field__control"
           type="number" min="0" placeholder="清点后录入" value={counts[line.id] ?? ''}
           onChange={event => setCounts(current => ({ ...current, [line.id]: event.target.value }))} /></td>

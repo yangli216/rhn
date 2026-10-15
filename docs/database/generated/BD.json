@@ -1,5 +1,5 @@
 {
-  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
+  "fingerprint": "0f11beff01f324976032c552207d2cb4d97d1ef151c031363c7029ed286f82cf",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -1160,7 +1160,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MasterDataApplicationService.java",
-          "line": 708
+          "line": 709
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/OrganizationCatalogInitializationParticipant.java",
@@ -13081,25 +13081,13 @@
           "catalogComment": "有效ingredient"
         },
         {
-          "physical": "SD_THERAP_CLASS",
-          "type": "CHARACTER VARYING",
-          "size": 64,
-          "scale": 0,
-          "nullable": true,
-          "defaultValue": null,
-          "ordinal": 4,
-          "comment": "治疗class",
-          "logical": "therapeutic_class",
-          "catalogComment": "治疗class"
-        },
-        {
           "physical": "FG_BIOL",
           "type": "BOOLEAN",
           "size": 1,
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 5,
+          "ordinal": 4,
           "comment": "是否biologic",
           "logical": "biologic",
           "catalogComment": "是否biologic"
@@ -13111,7 +13099,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 6,
+          "ordinal": 5,
           "comment": "是否biosimilar",
           "logical": "biosimilar",
           "catalogComment": "是否biosimilar"
@@ -13124,7 +13112,7 @@
       "uniqueKeys": [],
       "indexes": [
         {
-          "name": "FK_BD_MED_WESTERN_BD_MED_MED_W_INDEX_9",
+          "name": "FK_BD_MED_WESTERN_BD_MED_MED_W_INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -13140,23 +13128,7 @@
           "unique": false
         },
         {
-          "name": "IDX_BD_MED_WESTERN_MED_WESTERN",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "SD_THERAP_CLASS",
-              "direction": "A"
-            }
-          ],
-          "unique": false
-        },
-        {
-          "name": "PRIMARY_KEY_97",
+          "name": "PRIMARY_KEY_7B",
           "columns": [
             {
               "position": 1,

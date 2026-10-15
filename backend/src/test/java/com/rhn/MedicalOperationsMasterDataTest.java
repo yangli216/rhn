@@ -238,7 +238,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                         {"expectedRevision":%d,"supplyType":"DEVICE","code":"SUP-%s","name":"一次性无菌注射器（器械）",
                          "unitCode":"EA","orderable":true,"chargeable":true,"stocked":true,"status":"ACTIVE",
                          "validFrom":"2026-01-01","udiDi":"UDI-%s","genericCode":"SYRINGE",
-                         "genericName":"注射器","modelName":"5mL","specification":"5mL/支","materialType":"聚丙烯",
+                         "genericName":"注射器","modelName":"5mL","specification":"5mL/支","materialType":"PP",
                          "deviceClass":"II","highValue":false,"implant":false,"intervention":false,
                          "sterile":true,"singleUse":true,"registrationCode":"国械注准测试%s",
                          "registrationName":"一次性使用无菌注射器","registrantName":"测试医疗器械公司",
@@ -249,7 +249,21 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.supplyType").value("DEVICE"))
                 .andExpect(jsonPath("$.registrationName").value("一次性使用无菌注射器"))
+                .andExpect(jsonPath("$.materialTypeText").value("聚丙烯"))
+                .andExpect(jsonPath("$.deviceClassText").value("第二类"))
                 .andReturn().getResponse().getContentAsString());
+
+        for (String invalid : new String[] {"\"materialType\":\"聚丙烯\"", "\"deviceClass\":\"IV\""}) {
+            mockMvc.perform(post("/api/platform/master-data/operations/supplies")
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                            {"supplyType":"CONSUMABLE","code":"SUP-BAD-%s","name":"材质类别校验",
+                             "unitCode":"EA","orderable":true,"chargeable":true,"stocked":true,"status":"ACTIVE",
+                             "validFrom":"2026-01-01","highValue":false,"implant":false,"intervention":false,
+                             "sterile":true,"singleUse":true,%s}
+                            """.formatted(UUID.randomUUID().toString().substring(0, 6), invalid)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("DICTIONARY_CODE_INVALID"));
+        }
 
         mockMvc.perform(post("/api/platform/master-data/operations/supplies")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

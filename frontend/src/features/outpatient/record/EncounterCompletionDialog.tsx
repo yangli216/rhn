@@ -3,6 +3,7 @@ import { useClinicalDocumentSession } from "./useClinicalDocumentSession";
 import { createCompletionBillingWriter } from "./completionBillingWrites";
 import { requireCompletionOrderCount, requireCompletionStatement, completionBillingSummary, requireCompletionPaymentOrders, hasPendingCompletionPayment, type OutpatientCompletionMode } from "./completionFacts";
 import { requirePaymentRounding } from "../../../shared/billing/roundAmount";
+import { isCollectableMethod } from "../../../shared/billing/PaymentMethodSelector";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useState } from "react";
 import type { CompleteEncounterInput } from "../../../shared/api/encountersApi";
@@ -45,13 +46,12 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
     queryKey: ['doctor-completion-methods', sessionKey, encounter.id], retry: false,
     enabled: Boolean(billing?.payable.length),
     queryFn: async () => {
-      const items = await api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CLINIC_SETTLE')
+      const items = await api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'DOCTOR_STATION')
       if (!Array.isArray(items) || items.some(item => !item || !item.code?.trim() || !item.name?.trim())
         || new Set(items.map(item => item.code)).size !== items.length) throw new Error('诊间支付方式配置无效')
-      for (const item of items) if (item.code !== 'MEDICAL_INSURANCE') {
-        requirePaymentRounding(item.attributes?.PAYMENT_PRECISION, item.attributes?.ROUNDING_MODE)
-      }
-      return items.filter(item => item.code !== 'MEDICAL_INSURANCE')
+      const collectable = items.filter(item => isCollectableMethod({ tenderType: item.attributes?.TENDER_TYPE }))
+      for (const item of collectable) requirePaymentRounding(item.attributes?.PAYMENT_PRECISION, item.attributes?.ROUNDING_MODE)
+      return collectable
     },
   })
   const orders = useQuery({
@@ -225,6 +225,7 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
                 sortOrder: value.sortOrder,
                 precision: value.attributes?.PAYMENT_PRECISION,
                 roundingMode: value.attributes?.ROUNDING_MODE,
+                tenderType: value.attributes?.TENDER_TYPE,
               }))}
               orders={orders.data!} busy={billingOperation.isPending} sceneLabel="诊间收款"
               onSubmit={(command) => billingOperation.mutateAsync({ kind: 'payment', command })} />}

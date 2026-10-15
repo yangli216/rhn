@@ -21,6 +21,20 @@ const configuration = {
   }],
 }
 const organizations = [{ id: 'org-a', name: '机构甲', code: 'A' }]
+
+const enumItems = (pairs: [string, string][]) => pairs.map(([code, name], index) => ({ code, name, description: '', sortOrder: index * 10 }))
+const systemEnums: Record<string, { code: string; name: string; description: string; items: ReturnType<typeof enumItems> }> = {
+  DICT_ATTR_SCOPE_TYPE: { code: 'DICT_ATTR_SCOPE_TYPE', name: '字典属性作用域', description: '', items: enumItems([
+    ['PLATFORM', '全局'], ['TENANT', '租户'], ['ORGANIZATION', '机构'], ['DEPARTMENT', '科室']]) },
+  DICT_ATTR_DATA_TYPE: { code: 'DICT_ATTR_DATA_TYPE', name: '字典属性数据类型', description: '', items: enumItems([
+    ['BOOLEAN', '布尔'], ['INTEGER', '整数'], ['DECIMAL', '小数'], ['TEXT', '文本'], ['CODE', '编码'], ['DATE', '日期'],
+    ['DATETIME', '日期时间'], ['DICT_REF', '引用字典']]) },
+  DICT_ATTR_CARDINALITY: { code: 'DICT_ATTR_CARDINALITY', name: '字典属性值基数', description: '', items: enumItems([
+    ['SINGLE', '单值'], ['MULTIPLE', '多值']]) },
+  DICT_ATTR_OVERRIDE_POLICY: { code: 'DICT_ATTR_OVERRIDE_POLICY', name: '字典属性覆盖策略', description: '', items: enumItems([
+    ['ANY', '允许自由覆盖'], ['NO_OVERRIDE', '禁止下级覆盖']]) },
+}
+
 function setup(options: { initialOrganization?: string; list?: ReturnType<typeof vi.fn>; detail?: ReturnType<typeof vi.fn>;
   configurationList?: ReturnType<typeof vi.fn>; noOverride?: boolean; definition?: DictionaryAttributeDefinition;
   attributes?: ReturnType<typeof vi.fn>; dictionaryList?: ReturnType<typeof vi.fn> } = {}) {
@@ -43,7 +57,8 @@ function setup(options: { initialOrganization?: string; list?: ReturnType<typeof
   const onChanged = vi.fn()
   const api = {
     organization: { list, departments: vi.fn().mockResolvedValue([]) },
-    dictionaries: { attributes, updateAttribute, changeAttributeStatus, list: options.dictionaryList ?? vi.fn().mockResolvedValue([]),
+    dictionaries: { attributes, updateAttribute, changeAttributeStatus, systemEnum: vi.fn(async (code: string) => systemEnums[code]),
+      list: options.dictionaryList ?? vi.fn().mockResolvedValue([]),
       itemAttributeConfigurations: configurations, itemAttributes: detail, setItemAttribute: save, inheritItemAttribute: inherit },
   } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

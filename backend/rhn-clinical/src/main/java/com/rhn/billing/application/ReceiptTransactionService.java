@@ -48,12 +48,14 @@ class ReceiptTransactionService {
     private final ExecutionContextProvider contextProvider;
     private final ExternalMessageService messages;
     private final ReceiptFundingService funding;
+    private final BillingCodes codes;
 
     ReceiptTransactionService(ReceiptRepository receipts, ReceiptEventRepository events,
                               SettlementRepository settlements, ReceiptLineService receiptLines,
                               PatientAccountRepository accounts,
-                              ExecutionContextProvider contextProvider, ExternalMessageService messages, ReceiptFundingService funding, BusinessNumberGenerator numbers) {
-        this.numbers = numbers;
+                              ExecutionContextProvider contextProvider, ExternalMessageService messages, ReceiptFundingService funding, BusinessNumberGenerator numbers,
+                              BillingCodes codes) {
+        this.numbers = numbers; this.codes = codes;
         this.receipts = receipts; this.events = events; this.settlements = settlements;
         this.receiptLines = receiptLines; this.accounts = accounts;
         this.contextProvider = contextProvider;
@@ -128,12 +130,11 @@ class ReceiptTransactionService {
         requireAccess(context, settlement.patientAccountId());
         funding.resolve(settlement);
         receiptLines.resolve(settlement);
-        String type = upper(input.receiptType());
-        if (!List.of("MEDICAL_E_INVOICE", "PAPER_INVOICE", "RECEIPT", "VIRTUAL").contains(type)) {
-            throw badRequest("RECEIPT_TYPE_INVALID", "票据类型不正确");
-        }
+        String type = codes.receiptType(input.receiptType());
         String channel = upper(input.issueChannel());
-        if (!List.of("CASHIER", "SELF_SERVICE", "MOBILE", "ONLINE").contains(channel)) {
+        // Receipts are issued where patients pick them up; the doctor station only settles.
+        if (channel == null || "DOCTOR_STATION".equals(channel)
+                || !channel.equals(codes.paymentScene(context.tenantId(), channel))) {
             throw badRequest("RECEIPT_CHANNEL_INVALID", "票据开具渠道不正确");
         }
         String authority = Strings.trimToNull(input.fiscalAuthorityCode());

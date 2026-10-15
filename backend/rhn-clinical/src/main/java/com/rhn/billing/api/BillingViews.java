@@ -13,7 +13,7 @@ public final class BillingViews {
 
     public record ChargeItemView(
             Long id, Long patientAccountId, Long residentId, Long encounterId, Long requestId,
-            Long catalogItemId, String sourceType, Long sourceId, String requestCode, String status,
+            Long catalogItemId, @DictionaryBinding("BIL_CHARGE_SOURCE_TYPE") String sourceType, Long sourceId, String requestCode, String status,
             BigDecimal quantity, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
             String currencyCode, Long priceId, Long priceRevision,
             @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
@@ -39,17 +39,20 @@ public final class BillingViews {
             BigDecimal patientAmount, BigDecimal otherAmount, BigDecimal netAmount) {}
 
     public record SettlementTenderView(
-            Long id, Long paymentId, Long claimResponseId, int lineNo, String tenderType, String payerCode,
+            Long id, Long paymentId, Long claimResponseId, int lineNo,
+            @DictionaryBinding("BIL_TENDER_TYPE") String tenderType, String payerCode,
             String payerName, BigDecimal amount, String currencyCode) {}
 
     public record SettlementEventView(
-            Long id, String eventType, String statusFrom, String statusTo, String commandCode,
+            Long id, @DictionaryBinding("BIL_SETTLEMENT_EVENT_TYPE") String eventType, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String statusFrom, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String statusTo, String commandCode,
             Long actorId, String errorCode, String errorMessage, Instant occurredAt) {}
 
     public record SettlementView(
             Long id, long revision, Long patientAccountId, Long reversesSettlementId,
-            Long legacyInvoiceId, String settlementNo, String commandCode, String settlementType,
-            String settlementScene, String terminalScene, String status, BigDecimal grossAmount,
+            Long legacyInvoiceId, String settlementNo, String commandCode,
+            @DictionaryBinding("BIL_SETTLEMENT_TYPE") String settlementType,
+            @DictionaryBinding("BIL_SETTLEMENT_SCENE") String settlementScene,
+            @DictionaryBinding("PAY_USE_SCENE") String terminalScene, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String status, BigDecimal grossAmount,
             BigDecimal discountAmount, BigDecimal insuranceAmount, BigDecimal patientAmount,
             BigDecimal otherAmount, BigDecimal roundingAmount, BigDecimal netAmount,
             BigDecimal tenderedAmount, BigDecimal outstandingAmount, String currencyCode,
@@ -63,15 +66,18 @@ public final class BillingViews {
             @DictionaryBinding("RESIDENT_GENDER") String gender,
             LocalDate birthDate,
             String encounterNo, String departmentName,
-            String settlementNo, String settlementType, String settlementScene, String terminalScene,
-            String status, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
+            String settlementNo, @DictionaryBinding("BIL_SETTLEMENT_TYPE") String settlementType,
+            @DictionaryBinding("BIL_SETTLEMENT_SCENE") String settlementScene,
+            @DictionaryBinding("PAY_USE_SCENE") String terminalScene,
+            @DictionaryBinding("BIL_SETTLEMENT_STATUS") String status, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
             BigDecimal patientAmount, BigDecimal otherAmount, BigDecimal roundingAmount, BigDecimal netAmount,
             String currencyCode, String terminalCode, Instant createdAt, Instant finalizedAt,
             Long finalizedBy, String cashierName, String cashierUsername) {}
 
     public record PaymentView(
-            Long id, Long patientAccountId, Long invoiceId, Long paymentOrderId, String paymentNo, String paymentType,
-            String paymentMethodCode, String paymentSceneCode, String status, BigDecimal amount, String currencyCode,
+            Long id, Long patientAccountId, Long invoiceId, Long paymentOrderId, String paymentNo, @DictionaryBinding("BIL_PAYMENT_TYPE") String paymentType,
+            @DictionaryBinding("PAY_METHOD") String paymentMethodCode, @DictionaryBinding("PAY_USE_SCENE") String paymentSceneCode,
+            String status, BigDecimal amount, String currencyCode,
             Instant paidAt, String externalTransactionNo, Long reversesPaymentId,
             Long enteredBy, String description) {}
 
@@ -96,15 +102,15 @@ public final class BillingViews {
             Long encounterId, Long residentId, String residentName, String healthRecordNo,
             @DictionaryBinding("RESIDENT_GENDER") String gender,
             LocalDate birthDate, String encounterNo,
-            Long accountId, String currencyCode, String status,
+            Long accountId, String currencyCode, @DictionaryBinding("BIL_WORK_STATUS") String status,
             int sourceEventCount, int chargedEventCount, String latestSourceNo, Instant latestOccurredAt,
             BigDecimal chargeAmount, BigDecimal accountBalance,
             String departmentName, Instant registeredAt) {}
 
     public record ReconciliationLineView(
-            Long sourceId, String sourceType, String sourceNo, Long encounterId, Long accountId,
+            Long sourceId, @DictionaryBinding("BIL_CHARGE_SOURCE_TYPE") String sourceType, String sourceNo, Long encounterId, Long accountId,
             Long chargeItemId, BigDecimal expectedQuantity, BigDecimal chargedQuantity,
-            BigDecimal expectedAmount, BigDecimal chargedAmount, String status, String description) {}
+            BigDecimal expectedAmount, BigDecimal chargedAmount, @DictionaryBinding("BIL_RECONCILIATION_LINE_STATUS") String status, String description) {}
 
     public record DailyReconciliationView(
             LocalDate businessDate, Long organizationId, String currencyCode,

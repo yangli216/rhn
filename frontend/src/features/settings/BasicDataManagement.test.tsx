@@ -10,7 +10,6 @@ import {
   MedicationProductQuickViewDialog,
   DialogSuspenseFallback,
   preloadOperationalMasterData,
-  serviceSubtypeLabel,
   serviceDuplicateRuleLabel,
   serviceTypeTone,
   accountingCategoryLabel,
@@ -33,14 +32,16 @@ const mockServices: ServiceCatalogItem[] = [
     sdServiceType: 'LABORATORY',
     sdServiceTypeText: '检验',
     serviceSubtype: 'IMMUNOASSAY',
+    serviceSubtypeText: '免疫检测',
+    outpatientSchedulable: false,
     sdUsageType: 'COMMON',
     sdUsageTypeText: '通用',
     medicalTechnology: true,
     combinationItem: false,
     singleOrder: true,
     pregnancyAlert: false,
-    sdDuplicateRule: 'SAME_DAY',
-    sdDuplicateRuleText: 'SAME_DAY',
+    sdDuplicateRule: 'WARN',
+    sdDuplicateRuleText: '提醒后允许',
     mutualRecognitionCode: 'MR-LAB-CRP',
     laboratory: {
       sdLaboratoryMethod: 'IMMUNO',
@@ -78,9 +79,11 @@ const mockServices: ServiceCatalogItem[] = [
     sdStatus: 'ACTIVE',
     sdStatusText: '有效',
     validFrom: '2026-01-01',
-    sdServiceType: 'TREATMENT',
-    sdServiceTypeText: '处置',
+    sdServiceType: 'GENERAL_MEDICAL',
+    sdServiceTypeText: '一般诊疗服务',
     serviceSubtype: 'OUTPATIENT_VISIT',
+    serviceSubtypeText: '门诊诊查',
+    outpatientSchedulable: true,
     sdUsageType: 'OUTPATIENT',
     sdUsageTypeText: '门诊',
     medicalTechnology: false,
@@ -88,7 +91,7 @@ const mockServices: ServiceCatalogItem[] = [
     singleOrder: true,
     pregnancyAlert: false,
     sdDuplicateRule: 'ALLOW',
-    sdDuplicateRuleText: 'ALLOW',
+    sdDuplicateRuleText: '允许重复',
     prices: [],
   },
   {
@@ -107,6 +110,8 @@ const mockServices: ServiceCatalogItem[] = [
     sdServiceType: 'EXAMINATION',
     sdServiceTypeText: '检查',
     serviceSubtype: 'RADIOGRAPHY',
+    serviceSubtypeText: '普通放射',
+    outpatientSchedulable: false,
     sdUsageType: 'COMMON',
     sdUsageTypeText: '通用',
     medicalTechnology: true,
@@ -137,15 +142,9 @@ const mockServices: ServiceCatalogItem[] = [
 ]
 
 describe('BasicDataManagement - ServiceTable & helpers', () => {
-  it('maps subtype and duplicate rule codes to user-friendly Chinese', () => {
-    expect(serviceSubtypeLabel('IMMUNOASSAY')).toBe('免疫检测')
-    expect(serviceSubtypeLabel('OUTPATIENT_VISIT')).toBe('门诊诊查')
-    expect(serviceSubtypeLabel('RADIOGRAPHY')).toBe('普通放射 (DR)')
-    expect(serviceSubtypeLabel('UNKNOWN_CODE')).toBe('UNKNOWN_CODE')
-
-    expect(serviceDuplicateRuleLabel('SAME_DAY')).toBe('当日不重复')
-    expect(serviceDuplicateRuleLabel('ALLOW')).toBe('允许重复')
-    expect(serviceDuplicateRuleLabel('BLOCK')).toBe('禁止重复')
+  it('shows the server-translated duplicate rule and never invents a label', () => {
+    expect(serviceDuplicateRuleLabel('WARN', '提醒后允许')).toBe('提醒后允许')
+    expect(serviceDuplicateRuleLabel('BLOCK')).toBe('BLOCK')
 
     expect(serviceTypeTone('LABORATORY')).toBe('info')
     expect(serviceTypeTone('EXAMINATION')).toBe('info')
@@ -197,7 +196,7 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     // 临床语义与中文映射
     expect(screen.getByText(/免疫检测/)).toBeInTheDocument()
     expect(screen.getAllByText(/门诊诊查/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(/免疫透射比浊法.*1 种标本.*当日不重复/)).toBeInTheDocument()
+    expect(screen.getByText(/免疫透射比浊法.*1 种标本.*提醒后允许/)).toBeInTheDocument()
     expect(screen.getByText(/允许重复/)).toBeInTheDocument()
 
     // 中心能力

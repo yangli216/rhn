@@ -237,7 +237,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     queryFn: async () => (await api.masterData.services(
       '', '', 'ACTIVE', clinicalContext.organization.id)).filter((item) =>
       item.orderable && item.sdUsageType === 'OUTPATIENT'
-      && item.serviceSubtype === 'OUTPATIENT_VISIT'
+      && item.outpatientSchedulable
       && item.accountingCategory === 'REGISTRATION'
       && item.organizationAdoption?.sdStatus === 'ACTIVE'
       && item.organizationAdoption.orderable && item.organizationAdoption.executable),

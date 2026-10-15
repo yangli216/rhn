@@ -27,7 +27,6 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -190,8 +189,8 @@ public class BillingController {
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
     record IssueInvoiceRequest(
             @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,
-            @Pattern(regexp = "REGISTRATION|OUTPATIENT|INPATIENT|HOME_BED|PHARMACY") String settlementScene,
-            @Pattern(regexp = "CASHIER|DOCTOR_STATION|SELF_SERVICE|MOBILE|ONLINE") String terminalScene,
+            @Size(max = 32) String settlementScene,
+            @Size(max = 32) String terminalScene,
             @Size(max = 128) String terminalCode,
             List<Long> chargeItemIds) {}
     record PaymentRequest(
@@ -205,7 +204,7 @@ public class BillingController {
             @Size(max = 1000) String description) {}
     record PaymentOrderRequest(
             @NotBlank @Size(max = 128) String idempotencyKey,
-            @NotBlank @Pattern(regexp = "REGISTRATION|OUTPATIENT|INPATIENT|HOME_BED|PHARMACY") String businessScene,
+            @NotBlank @Size(max = 32) String businessScene,
             @NotBlank @Size(max = 128) String paymentSceneCode,
             @NotBlank @Size(max = 128) String paymentMethodCode,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)

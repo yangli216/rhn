@@ -6,7 +6,7 @@ import type { RhnApi, MedicationProduct } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel,
-  Pagination, SearchField, Select, StatusBadge, TableShell, TreePanel, tableCellClass,
+  Pagination, SearchField, Select, StatusBadge, TableShell, TreePanel, tableCellClass, useSystemEnum,
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import '../../styles/features/pharmacy-warehouse.css'
@@ -20,18 +20,6 @@ const InventoryPeriodManagement = lazy(() => import('./InventoryPeriodManagement
   .then((module) => ({ default: module.InventoryPeriodManagement })))
 const InventoryPriceAdjustmentManagement = lazy(() => import('./InventoryPriceAdjustmentManagement')
   .then((module) => ({ default: module.InventoryPriceAdjustmentManagement })))
-
-const binTypeText: Record<string, string> = {
-  ZONE: '库区', RACK: '货架', BIN: '货位', COUNTER: '柜台', TRANSIT: '在途位',
-}
-const stockStatusText: Record<string, string> = {
-  AVAILABLE: '可用', PENDING: '待验', QUARANTINE: '隔离', DAMAGED: '破损', EXPIRED: '过期',
-}
-const issuePolicyText: Record<string, string> = { FEFO: '近效期先出', FIFO: '先进先出', MANUAL: '人工指定' }
-const transactionTypeText: Record<string, string> = {
-  RECEIPT: '验收入库', ISSUE: '请领出库', TRANSFER: '库间调拨', TRANSFER_OUT: '调拨出库', TRANSFER_IN: '调拨入库',
-  RETURN: '退回入库', DISPENSE: '发药出库', COUNT: '盘点调整', ADJUST: '库存调整',
-}
 
 type ActiveTab = 'bins' | 'items' | 'inventory' | 'trace' | 'accuracy' | 'period' | 'price' | OperationTab
 type BinInput = Parameters<RhnApi['pharmacy']['createStockBin']>[1]
@@ -216,7 +204,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
             </Panel>
           </div>}
 
-    {binDialogParentId !== undefined && selectedSite && <BinDialog parent={bins.data?.find((bin) => bin.id === binDialogParentId)}
+    {binDialogParentId !== undefined && selectedSite && <BinDialog api={api} parent={bins.data?.find((bin) => bin.id === binDialogParentId)}
       busy={createBin.isPending} error={createBin.error}
       onClose={() => { createBin.reset(); setBinDialogParentId(undefined) }} onSubmit={(input) => createBin.mutate(input)} />}
     {itemDialogOpen && selectedSite && <ItemDialog api={api} organizationId={organizationId} stockSiteType={selectedSite.siteType}
@@ -235,14 +223,14 @@ function BinSection({ bins, selected, selectedId, loading, onSelect, onAdd, isOp
   return <div className="warehouse-bin-layout">
     <TreePanel title="库位结构" rootLabel="全部库位" searchPlaceholder="搜索库位名称或编码" busy={loading}
       nodes={bins.map((bin) => ({ id: bin.id, parentId: bin.parentBinId, label: bin.name,
-        secondaryText: bin.code, keywords: [bin.code, binTypeText[bin.binType]], inactive: !bin.active }))}
+        secondaryText: bin.code, keywords: [bin.code, bin.binTypeText ?? bin.binType], inactive: !bin.active }))}
       selectedId={selectedId} onSelect={onSelect} onAdd={isOperator ? onAdd : undefined} emptyText="尚未配置库位" />
     <div className="warehouse-bin-detail">{!selected ? <EmptyState icon="pharmacy" title="选择一个库位"
       copy="查看库位用途和作业权限；也可以从左侧新增根库区或下级货位。" /> : <>
-      <header><div><span>{binTypeText[selected.binType]}</span><h3>{selected.name}</h3><code>{selected.code}</code></div>
+      <header><div><span>{selected.binTypeText ?? selected.binType}</span><h3>{selected.name}</h3><code>{selected.code}</code></div>
         <StatusBadge tone={selected.active ? 'success' : 'neutral'}>{selected.active ? '启用' : '停用'}</StatusBadge></header>
       <dl className="warehouse-facts">
-        <div><dt>默认库存状态</dt><dd>{stockStatusText[selected.stockDefault]}</dd></div>
+        <div><dt>默认库存状态</dt><dd>{selected.stockDefaultText ?? selected.stockDefault}</dd></div>
         <div><dt>同级排序</dt><dd>{selected.sortOrder}</dd></div>
         <div><dt>允许收货</dt><dd>{selected.receiveAllowed ? '是' : '否'}</dd></div>
         <div><dt>允许拣货</dt><dd>{selected.pickAllowed ? '是' : '否'}</dd></div>
@@ -267,7 +255,7 @@ function ItemSection({ items, loading, onAdd, onInspect, isOperator = true }: {
       </tr></thead><tbody>{items.map((item) => <tr key={item.id}>
         <td><strong>{item.productName}</strong><code>{item.productCode}</code></td>
         <td>{item.packageSpec || item.packageUnitName}<small>1 {item.packageUnitName} = {item.packageFactor} {item.baseUnitCode}</small></td>
-        <td>{issuePolicyText[item.issuePolicy]}</td>
+        <td>{item.issuePolicyText ?? item.issuePolicy}</td>
         <td><div className="warehouse-tags">{item.lotRequired && <span>批号</span>}{item.traceRequired && <span>追溯</span>}
           {item.splitAllowed && <span>可拆零</span>}{item.coldChain && <span>冷链</span>}{item.controlled && <span>受控</span>}
           {item.highAlert && <span>高警示</span>}</div></td>
@@ -474,7 +462,7 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
         <td><strong>{formatWarehouseTime(entry.transaction.occurredAt)}</strong></td>
         <td><strong>{entry.transaction.sourceCode || '未关联来源单据'}</strong>
           {entry.transaction.description && <small>{entry.transaction.description}</small>}</td>
-        <td><strong>{transactionTypeText[entry.transaction.transactionType] ?? entry.transaction.transactionType}</strong></td>
+        <td><strong>{entry.transaction.transactionTypeText ?? entry.transaction.transactionType}</strong></td>
         <td>{entry.dimensions.map(value => <small className="warehouse-ledger-dimension" key={value.id}>
           {value.lot} · {value.bin}
         </small>)}</td>
@@ -527,9 +515,11 @@ function ReceiptDialog({ item, bins, busy, error, onClose, onSubmit }: {
   </Dialog>
 }
 
-function BinDialog({ parent, busy, error, onClose, onSubmit }: {
-  parent?: StockBin; busy: boolean; error: unknown; onClose: () => void; onSubmit: (input: BinInput) => void
+function BinDialog({ api, parent, busy, error, onClose, onSubmit }: {
+  api: RhnApi; parent?: StockBin; busy: boolean; error: unknown; onClose: () => void; onSubmit: (input: BinInput) => void
 }) {
+  const binTypes = useSystemEnum(api.dictionaries, 'SUP_BIN_TYPE')
+  const stockStatuses = useSystemEnum(api.dictionaries, 'SUP_STOCK_STATUS')
   const [code, setCode] = useState(''); const [name, setName] = useState('')
   const [binType, setBinType] = useState<BinInput['binType']>(parent ? 'BIN' : 'ZONE')
   const [stockDefault, setStockDefault] = useState<BinInput['stockDefault']>('AVAILABLE')
@@ -544,10 +534,10 @@ function BinDialog({ parent, busy, error, onClose, onSubmit }: {
       value={code} onChange={(event) => setCode(event.target.value)} /></FormField>
       <FormField label="库位名称" required><input className="ui-field__control" value={name} onChange={(event) => setName(event.target.value)} /></FormField>
       <FormField label="库位类型" required><Select value={binType} clearable={false} showValue onChange={(value) => setBinType(value as BinInput['binType'])}
-        options={Object.entries(binTypeText).map(([value, label]) => ({ value, label }))} /></FormField>
+        options={binTypes.options} /></FormField>
       <FormField label="默认库存状态" required><Select value={stockDefault} clearable={false} showValue
         onChange={(value) => setStockDefault(value as BinInput['stockDefault'])}
-        options={Object.entries(stockStatusText).map(([value, label]) => ({ value, label }))} /></FormField>
+        options={stockStatuses.options} /></FormField>
       <FormField label="同级排序"><input className="ui-field__control" type="number" min="0" value={sortOrder}
         onChange={(event) => setSortOrder(event.target.value)} /></FormField></div>
     <div className="warehouse-check-grid">{[[receiveAllowed, setReceiveAllowed, '允许收货'], [pickAllowed, setPickAllowed, '允许拣货'],
@@ -561,6 +551,7 @@ export function ItemDialog({ api, organizationId, stockSiteType, existingItems, 
   api: RhnApi; organizationId: string; stockSiteType: string; existingItems: StockItem[]; busy: boolean; error: unknown
   onClose: () => void; onSubmit: (input: ItemInput[]) => void
 }) {
+  const issuePolicies = useSystemEnum(api.dictionaries, 'SUP_ISSUE_POLICY')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [selected, setSelected] = useState<Record<string, MedicationProduct>>({})
@@ -643,7 +634,7 @@ export function ItemDialog({ api, organizationId, stockSiteType, existingItems, 
       <span>应用于本次选中的全部药品，调入后仍可在经营目录中查看。</span></div>
       <FormField label="出库策略" required><Select value={issuePolicy} clearable={false} showValue
         onChange={(value) => setIssuePolicy(value as ItemInput['issuePolicy'])}
-        options={Object.entries(issuePolicyText).map(([value, label]) => ({ value, label }))} /></FormField></header>
+        options={issuePolicies.options} /></FormField></header>
     <div className="warehouse-check-grid warehouse-check-grid--wide">{[
       [lotRequired, setLotRequired, '批号管理'], [traceRequired, setTraceRequired, '全程追溯'],
       [splitAllowed, setSplitAllowed, '允许拆零'], [coldChain, setColdChain, '冷链药品'],

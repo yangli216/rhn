@@ -9,8 +9,10 @@ import { CashierCloseCalculator } from './CashierCloseCalculator'
 import { CashierCloseWorkspace } from './CashierCloseWorkspace'
 
 const preview: CashierClosePreview = { currencyCode: 'CNY', transactionCount: 2, lines: [
-  { paymentMethodCode: 'WECHAT', paymentType: 'PAYMENT', transactionCount: 1, expectedAmount: 100 },
-  { paymentMethodCode: 'WECHAT', paymentType: 'REFUND', transactionCount: 1, expectedAmount: -20 },
+  { paymentMethodCode: 'WECHAT', paymentMethodCodeText: '微信支付', paymentType: 'PAYMENT', paymentTypeText: '收款',
+    transactionCount: 1, expectedAmount: 100 },
+  { paymentMethodCode: 'WECHAT', paymentMethodCodeText: '微信支付', paymentType: 'REFUND', paymentTypeText: '退款',
+    transactionCount: 1, expectedAmount: -20 },
 ] }
 const close = { id: 'close-1', closeNo: 'CC001', status: 'CALCULATED', currencyCode: 'CNY',
   rangeFrom: '2026-10-03T00:00:00Z', rangeTo: '2026-10-03T12:00:00Z', transactionCount: 2,
@@ -30,7 +32,9 @@ function makeApi() {
       currencyCode: 'CNY', sourceEventCount: 0, chargedEventCount: 0, discrepancyCount: 0,
       paymentAmount: 0, refundAmount: 0, lines: [],
     }),
-  }, dictionaries: { resolve: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金' }]) } }
+  }, dictionaries: { resolve: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金' }]),
+    systemEnum: vi.fn().mockResolvedValue({ code: 'BIL_PAYMENT_TYPE', items: [
+      { code: 'PAYMENT', name: '收款', sortOrder: 10 }, { code: 'REFUND', name: '退款', sortOrder: 20 }] }) } }
 }
 function calculator(api: ReturnType<typeof makeApi>) {
   return <CashierCloseCalculator api={api as unknown as RhnApi} scopeKey="org-1" terminalCode="T1"
@@ -41,8 +45,8 @@ describe('Cashier closing actual amounts', () => {
   it('requires actual amounts for all channels and sends signed refunds', async () => {
     const api = makeApi()
     renderQuery(calculator(api))
-    const payment = await screen.findByLabelText('WECHAT 收款核对金额')
-    const refund = screen.getByLabelText('WECHAT 退款核对金额')
+    const payment = await screen.findByLabelText('微信支付 收款核对金额')
+    const refund = screen.getByLabelText('微信支付 退款核对金额')
     expect(payment).toHaveValue(null)
     expect(refund).toHaveValue(null)
     expect(screen.getByRole('button', { name: '计算日结' })).toBeDisabled()
@@ -76,7 +80,7 @@ describe('Cashier closing actual amounts', () => {
     await userEvent.click(screen.getByLabelText('补录支付方式'))
     await userEvent.click(await screen.findByRole('option', { name: /现金/ }))
     await userEvent.click(screen.getByRole('button', { name: '加入核对' }))
-    await userEvent.type(screen.getByLabelText('CASH 收款核对金额'), '3')
+    await userEvent.type(screen.getByLabelText('现金 收款核对金额'), '3')
     await userEvent.click(screen.getByRole('button', { name: '计算日结' }))
     await waitFor(() => expect(api.billing.calculateCashierClose).toHaveBeenCalledWith(expect.objectContaining({
       actualAmounts: [{ paymentMethodCode: 'CASH', paymentType: 'PAYMENT', amount: 3 }],
@@ -86,10 +90,10 @@ describe('Cashier closing actual amounts', () => {
   it('clears declared amounts when the closing range changes', async () => {
     const api = makeApi()
     renderQuery(<CashierCloseWorkspace api={api as unknown as RhnApi} clinicalContext={context} />)
-    await userEvent.type(await screen.findByLabelText('WECHAT 收款核对金额'), '90')
+    await userEvent.type(await screen.findByLabelText('微信支付 收款核对金额'), '90')
     const endInput = screen.getByLabelText('结束时间') as HTMLInputElement
     fireEvent.change(endInput, { target: { value: `${endInput.value.slice(0, 10)}T22:59` } })
-    expect(await screen.findByLabelText('WECHAT 收款核对金额')).toHaveValue(null)
+    expect(await screen.findByLabelText('微信支付 收款核对金额')).toHaveValue(null)
     expect(screen.getByRole('button', { name: '计算日结' })).toBeDisabled()
   })
 

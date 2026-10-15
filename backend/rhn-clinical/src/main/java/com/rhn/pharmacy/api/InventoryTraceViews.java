@@ -1,5 +1,7 @@
 package com.rhn.pharmacy.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -10,7 +12,7 @@ public final class InventoryTraceViews {
     public record TraceCodeView(Long id, long revision, Long stockSiteId, Long stockBinId,
                                 Long stockItemId, Long stockLotId, Long goodsReceiptLineId,
                                 String traceCode, String productCode, String productName, String lotNo,
-                                BigDecimal packageQuantity, BigDecimal baseQuantity, BigDecimal remainingBaseQuantity, String status,
+                                BigDecimal packageQuantity, BigDecimal baseQuantity, BigDecimal remainingBaseQuantity, @DictionaryBinding("SUP_TRACE_CODE_STATUS") String status,
                                 String currentDocumentType, Long currentDocumentId, String currentDocumentNo,
                                 Instant receivedAt, Instant issuedAt, Instant updatedAt) {}
 
@@ -21,7 +23,7 @@ public final class InventoryTraceViews {
         }
     }
 
-    public record TraceEventView(Long id, String eventType, String fromStatus, String toStatus,
+    public record TraceEventView(Long id, @DictionaryBinding("SUP_TRACE_EVENT_TYPE") String eventType, @DictionaryBinding("SUP_TRACE_CODE_STATUS") String fromStatus, @DictionaryBinding("SUP_TRACE_CODE_STATUS") String toStatus,
                                  Long fromSiteId, Long toSiteId, Long fromBinId, Long toBinId,
                                  String documentType, Long documentId, String documentNo,
                                  String reason, BigDecimal quantityDelta, BigDecimal balanceAfter,

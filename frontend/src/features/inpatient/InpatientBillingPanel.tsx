@@ -2,12 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { InpatientEpisode } from '../../shared/api/inpatientApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
+import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { Alert, Button, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
-
-const paymentMethodOptions = [
-  { value: 'CASH', label: '现金' }, { value: 'WECHAT', label: '微信' },
-  { value: 'ALIPAY', label: '支付宝' }, { value: 'BANK_CARD', label: '银行卡' },
-]
 
 export function InpatientBillingPanel({ api, episode, view = 'full' }: {
   api: RhnApi
@@ -16,7 +12,10 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
 }) {
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState('')
-  const [paymentMethodCode, setPaymentMethodCode] = useState('CASH')
+  const [chosenPaymentMethod, setPaymentMethodCode] = useState('')
+  const paymentMethods = useCashierPaymentMethods(api)
+  const paymentMethodOptions = paymentMethods.options.map((item) => ({ value: item.code, label: item.name }))
+  const paymentMethodCode = chosenPaymentMethod || paymentMethodOptions[0]?.value || ''
   const [businessDate, setBusinessDate] = useState(today())
   const billing = useQuery({
     queryKey: ['inpatient-billing', episode.id],
@@ -100,7 +99,7 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
   })
   const account = billing.isFetching || billing.isError ? undefined : billing.data
   const settlement = account?.financialSettlement
-  const validAmount = Number.isFinite(Number(amount)) && Number(amount) > 0
+  const validAmount = Number.isFinite(Number(amount)) && Number(amount) > 0 && Boolean(paymentMethodCode)
 
   return <Panel className="inpatient-billing">
     <header className="inpatient-section-head"><div><h2>{view === 'deposits' ? '住院预交金管理' : '住院费用与预交金'}</h2>
@@ -108,7 +107,7 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
         : '床日按业务日期正式记账；临床出院与财务结算相互独立'}</span></div>
       {account && <StatusBadge tone={settlement?.financialStatus === 'SETTLED' ? 'success'
         : settlement ? 'warning' : account.paymentDue ? 'warning' : 'success'}>
-        {settlement ? financialStatusText(settlement.financialStatus)
+        {settlement ? (settlement.financialStatusText ?? settlement.financialStatus)
           : account.paymentDue ? '待结算' : '余额正常'}</StatusBadge>}
     </header>
     {billing.isPending || billing.isFetching ? <LoadingState label="正在汇总住院费用…" /> : billing.error ? <>
@@ -146,7 +145,7 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
               <span>原金额</span><span>已抵扣</span><span>已退款</span><span>可用余额</span></div>
             {account.deposits.map((item) => <article key={item.paymentId}>
               <span><strong>{dateTime(item.paidAt)}</strong><small>{item.paymentNo}</small></span>
-              <span>{paymentMethodText(item.paymentMethodCode)}</span>
+              <span>{item.paymentMethodCodeText ?? item.paymentMethodCode}</span>
               <b>{money(item.originalAmount, item.currencyCode)}</b>
               <span>{money(item.allocatedAmount, item.currencyCode)}</span>
               <span>{money(item.refundedAmount, item.currencyCode)}</span>
@@ -174,7 +173,7 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
       {episode.status === 'DISCHARGED' && settlement && <section className="inpatient-deposit"
         aria-label="出院费用结算处理">
         <div><small>结算单 {settlement.settlementNo}</small><strong>
-          {financialStatusText(settlement.financialStatus)}</strong></div>
+          {settlement.financialStatusText ?? settlement.financialStatus}</strong></div>
         {settlement.financialStatus === 'PENDING_PAYMENT' && <>
           <FormField label="补缴方式"><Select value={paymentMethodCode} options={paymentMethodOptions}
             searchable={false} clearable={false} onChange={setPaymentMethodCode} /></FormField>
@@ -186,9 +185,9 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
         {settlement.financialStatus === 'SETTLED' && <small>费用、支付及预交金余额均已核对完成。</small>}
       </section>}
       {collectFinalPayment.data && <Alert>补缴已落账，当前状态：
-        {financialStatusText(collectFinalPayment.data.settlement.financialStatus)}。</Alert>}
+        {collectFinalPayment.data.settlement.financialStatusText ?? collectFinalPayment.data.settlement.financialStatus}。</Alert>}
       {refundSurplus.data && <Alert>预交金余额已退还，当前状态：
-        {financialStatusText(refundSurplus.data.settlement.financialStatus)}。</Alert>}
+        {refundSurplus.data.settlement.financialStatusText ?? refundSurplus.data.settlement.financialStatus}。</Alert>}
       {collectFinalPayment.error && <Alert>{errorMessage(collectFinalPayment.error)}</Alert>}
       {refundSurplus.error && <Alert>{errorMessage(refundSurplus.error)}</Alert>}
       <section className="inpatient-daily-statement" aria-label="患者日清单">
@@ -233,19 +232,8 @@ function dateTime(value: string) {
   }).format(new Date(value))
 }
 
-function paymentMethodText(value: string) {
-  return paymentMethodOptions.find((item) => item.value === value)?.label ?? value
-}
-
 function today() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date())
-}
-
-function financialStatusText(status: 'PENDING_PAYMENT' | 'PENDING_REFUND' | 'PAYMENT_REVIEW' | 'SETTLED') {
-  if (status === 'PENDING_PAYMENT') return '待补缴'
-  if (status === 'PENDING_REFUND') return '待退余'
-  if (status === 'SETTLED') return '已结清'
-  return '待财务复核'
 }

@@ -19,6 +19,8 @@ export interface BillingWorkItem {
   accountId?: string
   currencyCode?: string
   status: 'PENDING_CHARGE' | 'PENDING_INVOICE' | 'PENDING_PAYMENT' | 'PENDING_REFUND' | 'SETTLED'
+  /** BIL_WORK_STATUS display text, translated by the server. */
+  statusText?: string
   sourceEventCount: number
   chargedEventCount: number
   latestSourceNo: string
@@ -71,8 +73,11 @@ export interface SettlementRecord {
   departmentName?: string
   settlementNo: string
   settlementType: Settlement['settlementType']
+  settlementTypeText?: string
   settlementScene: Settlement['settlementScene']
+  settlementSceneText?: string
   terminalScene: Settlement['terminalScene']
+  terminalSceneText?: string
   status: Settlement['status']
   grossAmount: number
   discountAmount: number
@@ -122,6 +127,7 @@ export interface PaymentOrder {
   paymentMethodName: string
   orderType: string
   status: 'CREATED' | 'PENDING' | 'PROCESSING' | 'PARTIAL' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'EXPIRED' | 'REFUNDING' | 'REFUNDED'
+  statusText?: string
   requestedAmount: number
   capturedAmount: number
   refundedAmount: number
@@ -224,6 +230,7 @@ export interface ChargeSynchronization {
 export interface ReconciliationLine {
   sourceId: string
   sourceType: string
+  sourceTypeText?: string
   sourceNo?: string
   encounterId: string
   accountId?: string
@@ -233,6 +240,7 @@ export interface ReconciliationLine {
   expectedAmount?: number
   chargedAmount?: number
   status: 'MATCHED' | 'UNCHARGED' | 'MISMATCH' | 'ORPHAN_CHARGE'
+  statusText?: string
   description: string
 }
 
@@ -255,7 +263,9 @@ export interface DailyReconciliation {
 export interface CashierCloseLine {
   lineNo: number
   paymentMethodCode: string
+  paymentMethodCodeText?: string
   paymentType: 'PAYMENT' | 'REFUND'
+  paymentTypeText?: string
   transactionCount: number
   expectedAmount: number
   actualAmount: number
@@ -266,7 +276,8 @@ export interface CashierCloseLine {
 export interface CashierClosePreview {
   currencyCode: string
   transactionCount: number
-  lines: Array<Pick<CashierCloseLine, 'paymentMethodCode' | 'paymentType' | 'transactionCount' | 'expectedAmount'>>
+  lines: Array<Pick<CashierCloseLine, 'paymentMethodCode' | 'paymentMethodCodeText' | 'paymentType' | 'paymentTypeText'
+    | 'transactionCount' | 'expectedAmount'>>
 }
 
 export interface CashierClose {
@@ -279,6 +290,7 @@ export interface CashierClose {
   cashierUserId: string
   terminalCode: string
   status: 'CALCULATED' | 'CONFIRMED' | 'REVERSED'
+  statusText?: string
   rangeFrom: string
   rangeTo: string
   transactionCount: number
@@ -588,7 +600,9 @@ export interface ReceiptView {
   receiptNo: string
   commandCode: string
   receiptType: string
+  receiptTypeText?: string
   status: 'REQUESTED' | 'ISSUED' | 'FAILED' | 'VOIDED' | 'RED_FLUSHED'
+  statusText?: string
   fiscalAuthorityCode?: string
   externalReceiptNo?: string
   fiscalCode?: string
@@ -598,6 +612,7 @@ export interface ReceiptView {
   amount: number
   currencyCode: string
   issueChannel: string
+  issueChannelText?: string
   payerName?: string
   correlationId?: string
   createdBy?: string
@@ -627,6 +642,7 @@ export interface ReceiptEventView {
 export interface RefundItemPreCheckView {
   chargeItemId: string
   sourceType: string
+  sourceTypeText?: string
   sourceId?: string
   documentNo?: string
   itemName: string
@@ -646,6 +662,7 @@ export interface RefundPaymentCandidateView {
   paymentId: string
   paymentNo: string
   paymentMethodCode: string
+  paymentMethodCodeText?: string
   amount: number
   refundedAmount: number
   refundableAmount: number

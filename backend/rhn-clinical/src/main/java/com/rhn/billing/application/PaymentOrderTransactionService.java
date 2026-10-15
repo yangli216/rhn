@@ -50,6 +50,7 @@ class PaymentOrderTransactionService {
     private final ExecutionContextProvider contextProvider;
     private final SettlementApplicationService settlements;
     private final PaymentRoundingPolicy roundingPolicy;
+    private final BillingCodes codes;
 
     PaymentOrderTransactionService(PaymentOrderRepository orderRepository,
                                    PaymentEventRepository eventRepository,
@@ -60,8 +61,9 @@ class PaymentOrderTransactionService {
                                    DictionaryDirectory dictionaryDirectory,
                                    DictionaryAttributeDirectory attributeDirectory,
                                    ExecutionContextProvider contextProvider,
-                                   SettlementApplicationService settlements, PaymentRoundingPolicy roundingPolicy, BusinessNumberGenerator numbers) {
-        this.numbers = numbers;
+                                   SettlementApplicationService settlements, PaymentRoundingPolicy roundingPolicy, BusinessNumberGenerator numbers,
+                                   BillingCodes codes) {
+        this.numbers = numbers; this.codes = codes;
         this.orderRepository = orderRepository; this.eventRepository = eventRepository;
         this.accountRepository = accountRepository; this.invoiceRepository = invoiceRepository;
         this.paymentRepository = paymentRepository; this.ledgerRepository = ledgerRepository;
@@ -95,24 +97,23 @@ class PaymentOrderTransactionService {
         if (amount.signum() <= 0) throw badRequest("PAYMENT_AMOUNT_INVALID", "支付金额必须大于零");
         if (invoice.netAmount().signum() <= 0) throw conflict("PAYMENT_CREDIT_INVOICE_INVALID", "贷项结算凭证不能执行收款");
         String paymentMethod = upper(input.paymentMethodCode());
-        String paymentScene = upper(input.paymentSceneCode());
-        String businessScene = upper(input.businessScene());
+        String paymentScene = codes.paymentScene(context.tenantId(), input.paymentSceneCode());
+        String businessScene = codes.settlementScene(input.businessScene(), "OUTPATIENT");
         if ("MEDICAL_INSURANCE".equals(paymentMethod)) {
             throw badRequest("PAYMENT_METHOD_CLASSIFICATION_INVALID",
                     "医保属于结算类型，不是患者支付方式；请在医保结算后选择个人自付支付方式");
         }
-        if (businessScene == null) businessScene = "OUTPATIENT";
         if (!formalSettlement.settlementScene().equals(businessScene)) {
             throw conflict("PAYMENT_BUSINESS_SCENE_MISMATCH", "支付业务场景与结算单场景不一致");
         }
-        if (paymentScene == null) paymentScene = "CASHIER";
         String methodName = dictionaryDirectory.resolveActiveItems(context.tenantId(), "PAY_METHOD").stream()
                 .filter(value -> value.code().equals(paymentMethod)).map(value -> value.name()).findFirst()
                 .orElseThrow(() -> badRequest("PAYMENT_METHOD_INVALID", "支付方式未启用或不存在"));
         if (!attributeDirectory.isApplicable(context.tenantId(), context.organizationId(), context.departmentId(),
                 "PAY_METHOD", paymentMethod, "AVAILABLE_SCENE", paymentScene)) {
-            throw badRequest("PAYMENT_METHOD_NOT_APPLICABLE", "当前支付方式不适用于所选结算场景");
+            throw badRequest("PAYMENT_METHOD_NOT_APPLICABLE", "当前支付方式不适用于所选收费入口");
         }
+        codes.requireTenderType(context.tenantId(), paymentMethod);
         BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
         BigDecimal externallyFunded = money(settlements.nonPaymentTendered(context, formalSettlement.id()));
         BigDecimal reserved = money(orderRepository.activeRequestedForInvoice(context.tenantId(), invoice.id()));
@@ -184,7 +185,7 @@ class PaymentOrderTransactionService {
                 : orderRepository.findByIdAndTenantId(original.paymentOrderId(), context.tenantId()).orElse(null);
         String businessScene = sourceOrder == null ? "OUTPATIENT" : sourceOrder.businessScene();
         String scene = sourceOrder == null || sourceOrder.paymentSceneCode() == null
-                ? "CASHIER" : sourceOrder.paymentSceneCode();
+                ? BillingCodes.DEFAULT_PAYMENT_SCENE : sourceOrder.paymentSceneCode();
         String methodName = sourceOrder == null ? original.paymentMethodCode() : sourceOrder.paymentMethodNameSnapshot();
         PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(),
@@ -359,7 +360,8 @@ class PaymentOrderTransactionService {
         if (!Objects.equals(value.invoiceId(), input.invoiceId())
                 || value.requestedAmount().compareTo(money(input.amount())) != 0
                 || !value.paymentMethodCode().equals(upper(input.paymentMethodCode()))
-                || !value.paymentSceneCode().equals(upper(input.paymentSceneCode()) == null ? "CASHIER" : upper(input.paymentSceneCode()))) {
+                || !value.paymentSceneCode().equals(upper(input.paymentSceneCode()) == null
+                        ? BillingCodes.DEFAULT_PAYMENT_SCENE : upper(input.paymentSceneCode()))) {
             throw conflict("PAYMENT_IDEMPOTENCY_KEY_REUSED", "支付幂等键已被不同支付内容使用");
         }
         return value;

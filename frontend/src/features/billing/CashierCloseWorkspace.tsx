@@ -15,10 +15,6 @@ function today() {
   }).format(new Date())
 }
 
-function closeStatus(value: string) {
-  return ({ CALCULATED: '待确认', CONFIRMED: '已结账', REVERSED: '已撤销' } as Record<string, string>)[value] ?? value
-}
-
 export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
   const [businessDate, setBusinessDate] = useState(today)
@@ -106,9 +102,9 @@ export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; c
             <th>业务单号</th><th>业务类型</th><th>预期金额</th><th>已计费金额</th><th>核对结果</th><th>说明</th>
           </tr></thead><tbody>{summary.lines.map((line) => <tr key={`${line.sourceType}-${line.sourceId}`}>
             <td><strong>{line.sourceNo || line.sourceId}</strong><code>{line.encounterId}</code></td>
-            <td>{line.sourceType}</td><td>{money(line.expectedAmount, summary.currencyCode)}</td>
+            <td>{line.sourceTypeText ?? line.sourceType}</td><td>{money(line.expectedAmount, summary.currencyCode)}</td>
             <td>{money(line.chargedAmount, summary.currencyCode)}</td>
-            <td><StatusBadge tone={billingTone(line.status)}>{line.status === 'MATCHED' ? '一致' : '待核对'}</StatusBadge></td>
+            <td><StatusBadge tone={billingTone(line.status)}>{line.statusText ?? line.status}</StatusBadge></td>
             <td>{line.description}</td>
           </tr>)}</tbody></table></div>
           {!summary.lines.length && <EmptyState icon="billing" title="当日暂无账务来源" copy="当前业务日期没有可核对的收费记录。" />}
@@ -136,7 +132,7 @@ export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; c
           {closes.isError && <Alert tone="warning">日结记录查询失败，请刷新重试。</Alert>}
           <div className="billing-close-list">{(closes.isSuccess ? closes.data : []).map((item) => <button type="button" key={item.id}
             className={item.id === selectedId ? 'is-active' : ''} onClick={() => { setSelectedId(item.id); setDifferenceReason('') }}>
-            <div><strong>{item.closeNo}</strong><StatusBadge tone={billingTone(item.status)}>{closeStatus(item.status)}</StatusBadge></div>
+            <div><strong>{item.closeNo}</strong><StatusBadge tone={billingTone(item.status)}>{item.statusText ?? item.status}</StatusBadge></div>
             <span>{new Date(item.rangeFrom).toLocaleString('zh-CN')} 至 {new Date(item.rangeTo).toLocaleString('zh-CN')}</span>
             <small>{item.transactionCount} 笔 · {money(item.expectedAmount, item.currencyCode)}</small>
           </button>)}</div>
@@ -146,7 +142,7 @@ export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; c
     </div>
     {selected && <Panel className="billing-close-detail">
       <header className="billing-section-head"><div><h2>{selected.closeNo}</h2>
-        <span>{closeStatus(selected.status)} · {selected.terminalCode}</span></div>
+        <span>{selected.statusText ?? selected.status} · {selected.terminalCode}</span></div>
         {selected.status === 'CALCULATED' && <Button disabled={closes.isFetching || (selectedHasDifference && !differenceReason.trim())}
           busy={confirm.isPending} onClick={() => confirm.mutate(selected)}>确认结账</Button>}
       </header>
@@ -164,7 +160,7 @@ export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; c
       <div className="billing-table-wrap"><table className="billing-table billing-table--close-lines"><thead><tr>
         <th>支付方式</th><th>业务类型</th><th>笔数</th><th>系统金额</th><th>实际核对金额</th><th>差异</th>
       </tr></thead><tbody>{selected.lines.map((line) => <tr key={line.lineNo}>
-        <td><strong>{line.paymentMethodCode}</strong></td><td>{line.paymentType === 'REFUND' ? '退款' : '收款'}</td>
+        <td><strong>{line.paymentMethodCodeText ?? line.paymentMethodCode}</strong></td><td>{line.paymentTypeText ?? line.paymentType}</td>
         <td>{line.transactionCount}</td><td>{money(line.expectedAmount, line.currencyCode)}</td>
         <td>{money(line.actualAmount, line.currencyCode)}</td>
         <td className={line.differenceAmount ? 'is-negative' : ''}>{money(line.differenceAmount, line.currencyCode)}</td>

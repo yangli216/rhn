@@ -162,7 +162,12 @@ export interface DictionaryAttributeDefinition {
   name: string
   description: string
   dataType: DictionaryAttributeDataType
+  /** DICT_ATTR_DATA_TYPE display text, translated by the server. */
+  dataTypeText?: string
   cardinality: DictionaryAttributeCardinality
+  cardinalityText?: string
+  minimumScopeText?: string
+  overridePolicyText?: string
   referenceDictionaryId?: string
   referenceDictionaryCode?: string
   referenceDictionaryName?: string

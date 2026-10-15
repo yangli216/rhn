@@ -1,5 +1,7 @@
 package com.rhn.inpatient.api;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,12 +30,12 @@ public final class InpatientBillingViews {
     public record DepositRecordView(
             Long paymentId, String paymentNo, BigDecimal originalAmount, BigDecimal allocatedAmount,
             BigDecimal refundedAmount, BigDecimal availableAmount, String currencyCode,
-            String paymentMethodCode, Instant paidAt, String externalTransactionNo, String description) {
+            @DictionaryBinding("PAY_METHOD") String paymentMethodCode, Instant paidAt, String externalTransactionNo, String description) {
     }
 
     public record DepositView(
             Long paymentId, String paymentNo, BigDecimal amount, String currencyCode,
-            String paymentMethodCode, Instant paidAt, boolean duplicate, AccountView account) {
+            @DictionaryBinding("PAY_METHOD") String paymentMethodCode, Instant paidAt, boolean duplicate, AccountView account) {
     }
 
     public record BedDayPostingView(
@@ -58,14 +60,16 @@ public final class InpatientBillingViews {
             Long episodeId, Long encounterId, Long invoiceId, Long settlementId,
             String invoiceNo, String settlementNo, String status,
             BigDecimal netAmount, BigDecimal prepaymentAmount, BigDecimal paidAmount,
-            BigDecimal outstandingAmount, BigDecimal refundableAmount, String financialStatus,
+            BigDecimal outstandingAmount, BigDecimal refundableAmount,
+            @DictionaryBinding("BIL_INPATIENT_FINANCIAL_STATUS") String financialStatus,
             String currencyCode, boolean duplicate,
             AccountView account) {
     }
 
     public record FinancialSettlementView(
             Long invoiceId, Long settlementId, long revision, String invoiceNo, String settlementNo,
-            String settlementStatus, String financialStatus, BigDecimal netAmount,
+            @DictionaryBinding("BIL_SETTLEMENT_STATUS") String settlementStatus,
+            @DictionaryBinding("BIL_INPATIENT_FINANCIAL_STATUS") String financialStatus, BigDecimal netAmount,
             BigDecimal prepaymentAmount, BigDecimal paidAmount, BigDecimal outstandingAmount,
             BigDecimal refundableAmount, String currencyCode, Instant finalizedAt) {
     }

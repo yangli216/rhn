@@ -21,13 +21,13 @@ describe('cashier payment configuration', () => {
     { PAYMENT_PRECISION: '0.1bad', ROUNDING_MODE: 'HALF_UP' },
     { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'UNRECOGNIZED' },
   ])('rejects incomplete or invalid rounding attributes %j', async (attributes) => {
-    const { result } = setup(vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', attributes }]))
+    const { result } = setup(vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', tenderType: 'CASH', attributes }]))
     await waitFor(() => expect(result.current.status).toBe('error'))
     expect(result.current.options).toEqual([])
     expect(result.current.error?.message).toMatch(/未配置或无效/)
   })
 
-  it.each([null, {}, [{ code: 'CASH' }], [{ code: 'CASH', name: '现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'CASH', name: '重复现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]].map((data) => ({ data })))(
+  it.each([null, {}, [{ code: 'CASH' }], [{ code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'CASH', name: '重复现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]].map((data) => ({ data })))(
     'rejects malformed dictionary response %j', async ({ data }) => {
       const { result } = setup(vi.fn().mockResolvedValue(data))
       await waitFor(() => expect(result.current.status).toBe('error'))
@@ -42,14 +42,14 @@ describe('cashier payment configuration', () => {
   })
 
   it('removes stale options on refetch failure and restores only verified data on retry', async () => {
-    const applicable = vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+    const applicable = vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
     const { result } = setup(applicable)
     await waitFor(() => expect(result.current.options).toHaveLength(1))
     applicable.mockRejectedValue(new Error('配置不可用'))
     await act(async () => { await result.current.refetch() })
     await waitFor(() => expect(result.current.status).toBe('error'))
     expect(result.current.options).toEqual([])
-    applicable.mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', attributes: { PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+    applicable.mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
     await act(async () => { await result.current.refetch() })
     await waitFor(() => expect(result.current.status).toBe('ready'))
     expect(result.current.options[0].code).toBe('BANK_CARD')

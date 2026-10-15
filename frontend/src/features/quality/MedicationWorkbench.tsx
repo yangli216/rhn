@@ -38,12 +38,6 @@ const decisionMap: Record<string, { label: string; tone: string }> = {
   UNAVAILABLE: { label: '数据不足无法评价', tone: 'muted' }
 }
 
-export const overridePolicyMap: Record<string, string> = {
-  NOT_APPLICABLE: '不可覆盖 (强制执行)',
-  ACKNOWLEDGE: '仅需医生勾选已知晓',
-  REASON_REQUIRED: '必须录入合理解释理由'
-}
-
 const templateMap: Record<string, string> = {
   AGE_CONTRAINDICATION: '特殊人群 / 年龄禁忌核对',
   EXACT_GENERIC_DUPLICATE: '同类药物 / 重复用药核对',

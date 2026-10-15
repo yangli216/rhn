@@ -67,7 +67,6 @@ public class WardMedicationReturnApplicationService {
     private static final Set<WardDeliveryStatus> RECEIVED_DELIVERY_STATUSES = Set.of(
             WardDeliveryStatus.RECEIVED, WardDeliveryStatus.RESOLVED);
     private static final Set<String> REQUEST_STATUSES = Set.of("REQUESTED", "IN_TRANSIT", "RECEIVED");
-    private static final Set<String> DISPOSITIONS = Set.of("RESTOCK", "QUARANTINE", "DESTROY");
 
     private final BusinessNumberGenerator numbers;
     private final WardMedicationReturnRequestRepository requests;
@@ -260,7 +259,7 @@ public class WardMedicationReturnApplicationService {
                 throw badRequest("WARD_MED_RETURN_RECEIPT_LINE_DUPLICATE", "药房接收明细不能为空或重复");
             }
             String disposition = upper(value.disposition());
-            if (!DISPOSITIONS.contains(disposition)) {
+            if (!PharmacySystemEnums.contains(PharmacySystemEnums.RETURN_DISPOSITION, disposition)) {
                 throw badRequest("WARD_MED_RETURN_DISPOSITION_INVALID", "退药处置只支持重新入库、隔离或待销毁");
             }
         }

@@ -732,29 +732,9 @@ export function medicationSummary(value: MedicationKnowledge, routes: Medication
   ]
 }
 
-export const storageTypeLabelMap: Record<string, string> = {
-  NORMAL: '常温',
-  ROOM_TEMPERATURE: '常温',
-  COLD_CHAIN: '冷链',
-  COOL: '阴凉',
-  COOL_DARK: '凉暗',
-  REFRIGERATED: '冷藏',
-  FROZEN: '冷冻',
-  DRY: '干燥',
-  DARK: '避光',
-}
-
+/** Storage type label: the server translates BD_STORAGE_TYPE into sdStorageTypeText. */
 export function formatStorageType(text?: string | null, code?: string | null): string | undefined {
-  if (text && storageTypeLabelMap[text]) {
-    return storageTypeLabelMap[text]
-  }
-  if (text && text !== code) {
-    return text
-  }
-  if (code && storageTypeLabelMap[code]) {
-    return storageTypeLabelMap[code]
-  }
-  return text || code || undefined
+  return text?.trim() || code || undefined
 }
 
 export function PackageChips({ product, onEdit }: { product: MedicationProduct; onEdit?: (value: ItemPackage) => void }) {

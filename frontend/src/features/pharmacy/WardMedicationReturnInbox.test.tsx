@@ -17,7 +17,7 @@ const assignment = {
 } as PersonnelAssignment
 
 const inTransit: WardMedicationReturnRequest = {
-  id: 'ward-return-1', revision: 1, requestNo: 'WMR001', status: 'IN_TRANSIT',
+  id: 'ward-return-1', revision: 1, requestNo: 'WMR001', status: 'IN_TRANSIT', statusText: '待药房接收',
   organizationId: 'org-1', stockSiteId: 'site-1', nursingUnitDepartmentId: 'ward-1',
   residentId: 'resident-1', encounterId: 'encounter-1', requestedAt: '2026-08-31T09:00:00+08:00',
   requestedBy: 'nurse-1', requestNote: '停嘱后未使用', handedOverAt: '2026-08-31T09:05:00+08:00',
@@ -39,10 +39,10 @@ function renderInbox(api: RhnApi) {
 describe('WardMedicationReturnInbox', () => {
   it('receives every handed-over line with a pharmacy disposition', async () => {
     const received: WardMedicationReturnRequest = {
-      ...inTransit, revision: 2, status: 'RECEIVED', receivedAt: '2026-08-31T09:10:00+08:00',
+      ...inTransit, revision: 2, status: 'RECEIVED', statusText: '已接收', receivedAt: '2026-08-31T09:10:00+08:00',
       receivedBy: 'pharmacy-user-1', processorPractitionerId: practitioner.id,
       processorAssignmentId: assignment.id, receiptNote: '包装完好，重新入库',
-      lines: inTransit.lines.map((line) => ({ ...line, disposition: 'RESTOCK', stockReturnId: 'return-1',
+      lines: inTransit.lines.map((line) => ({ ...line, disposition: 'RESTOCK', dispositionText: '验收合格入库', stockReturnId: 'return-1',
         returnDispenseId: 'return-dispense-1' })),
     }
     const api = { pharmacy: {

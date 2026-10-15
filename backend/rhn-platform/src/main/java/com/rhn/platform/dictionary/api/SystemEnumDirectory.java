@@ -11,4 +11,11 @@ public interface SystemEnumDirectory {
     default boolean isSystemEnumCode(String code) {
         return findSystemEnum(code).isPresent();
     }
+
+    /** Whether {@code itemCode} is an item of system enum {@code code}; the enum is the single source of its values. */
+    default boolean contains(String code, String itemCode) {
+        return itemCode != null && findSystemEnum(code).stream()
+                .flatMap(definition -> definition.items().stream())
+                .anyMatch(item -> item.code().equals(itemCode));
+    }
 }

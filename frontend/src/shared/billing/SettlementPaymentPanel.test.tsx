@@ -17,6 +17,7 @@ const processingCashOrder: PaymentOrder = {
   paymentMethodName: '现金',
   orderType: 'SETTLEMENT_PAY',
   status: 'PROCESSING',
+  statusText: '处理中',
   requestedAmount: 28.6,
   capturedAmount: 0,
   refundedAmount: 0,
@@ -31,7 +32,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
   it.each([undefined, null, NaN, Infinity])('does not treat missing or invalid outstanding amount %s as a free settlement', async (outstandingAmount) => {
     const onSubmit = vi.fn()
     render(<SettlementPaymentPanel settlements={[{ id: 's1', code: 'S1', outstandingAmount: outstandingAmount as number, currencyCode: 'CNY' }]}
-      methods={[{ code: 'BANK_CARD', name: '银行卡', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]} submitShortcut onSubmit={onSubmit} />)
     expect(screen.getByRole('alert')).toHaveTextContent('待支付金额无效')
     expect(screen.queryByText('本次无需收款')).not.toBeInTheDocument()
@@ -47,7 +48,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
   ])('blocks collection with invalid rounding configuration %j', async (rule) => {
     const onSubmit = vi.fn()
     render(<SettlementPaymentPanel settlements={[{ id: 's1', code: 'S1', outstandingAmount: 20, currencyCode: 'CNY' }]}
-      methods={[{ code: 'BANK_CARD', name: '银行卡', ...rule }]} orders={[]} submitShortcut onSubmit={onSubmit} />)
+      methods={[{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', ...rule }]} orders={[]} submitShortcut onSubmit={onSubmit} />)
     expect(screen.getByRole('alert')).toHaveTextContent(/未配置或无效/)
     expect(screen.getByLabelText(/本次支付金额/)).toHaveValue(null)
     expect(screen.getByRole('button', { name: '发起收款' })).toBeDisabled()
@@ -60,14 +61,14 @@ describe('SettlementPaymentPanel payment recovery', () => {
     const props = { settlements: [{ id: 's1', code: 'S1', outstandingAmount: 20, currencyCode: 'CNY' }],
       orders: [], submitShortcut: true, onSubmit }
     const { rerender } = render(<SettlementPaymentPanel {...props}
-      methods={[{ code: 'BANK_CARD', name: '银行卡', precision: '0.01', roundingMode: 'HALF_UP' }]} />)
+      methods={[{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', precision: '0.01', roundingMode: 'HALF_UP' }]} />)
     expect(screen.getByLabelText(/本次支付金额/)).toHaveValue(20)
-    rerender(<SettlementPaymentPanel {...props} methods={[{ code: 'BANK_CARD', name: '银行卡' }]} />)
+    rerender(<SettlementPaymentPanel {...props} methods={[{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD' }]} />)
     expect(screen.getByLabelText(/本次支付金额/)).toHaveValue(null)
     await userEvent.keyboard('{Control>}{Enter}{/Control}')
     expect(onSubmit).not.toHaveBeenCalled()
     rerender(<SettlementPaymentPanel {...props}
-      methods={[{ code: 'BANK_CARD', name: '银行卡', precision: '0.01', roundingMode: 'HALF_UP' }]} />)
+      methods={[{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', precision: '0.01', roundingMode: 'HALF_UP' }]} />)
     expect(screen.getByLabelText(/本次支付金额/)).toHaveValue(20)
     expect(screen.getByRole('button', { name: '发起收款' })).toBeEnabled()
   })
@@ -75,7 +76,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
   it('defaults cashier cash to the payable amount and preserves manual edits until context changes', async () => {
     const user = userEvent.setup()
     const props = { settlements: [{ id: 's1', code: 'S1', outstandingAmount: 40, currencyCode: 'CNY' }],
-      methods: [{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }], orders: [],
+      methods: [{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }], orders: [],
       defaultCashToPayable: true, onSubmit: vi.fn() }
     const { rerender } = render(<SettlementPaymentPanel {...props} />)
     const input = screen.getByPlaceholderText('40')
@@ -95,7 +96,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
   it('requires explicit cash and rejects blank or short tender through the shortcut', async () => {
     const onSubmit = vi.fn()
     render(<SettlementPaymentPanel settlements={[{ id: 's1', code: 'S1', outstandingAmount: 20, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]} orders={[]} submitShortcut onSubmit={onSubmit} />)
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]} orders={[]} submitShortcut onSubmit={onSubmit} />)
     const input = screen.getByPlaceholderText('20')
     expect(input).toHaveValue(null)
     await userEvent.keyboard('{Control>}{Enter}{/Control}')
@@ -113,7 +114,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
   it('blocks stale configured channels after refetch failure, including shortcut submission', async () => {
     const onSubmit = vi.fn()
     const props = { settlements: [{ id: 's1', code: 'S1', outstandingAmount: 20, currencyCode: 'CNY' }],
-      methods: [{ code: 'BANK_CARD', name: '银行卡', precision: '0.01', roundingMode: 'HALF_UP' }], orders: [], onSubmit, submitShortcut: true }
+      methods: [{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', precision: '0.01', roundingMode: 'HALF_UP' }], orders: [], onSubmit, submitShortcut: true }
     const { rerender } = render(<SettlementPaymentPanel {...props} />)
     expect(screen.getByRole('button', { name: '发起收款' })).toBeEnabled()
     rerender(<SettlementPaymentPanel {...props} methodsStatus="error" />)
@@ -139,7 +140,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'ORA-OPD-INV-133204', outstandingAmount: 28.6, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[processingCashOrder]}
       onRecoverOrder={onRecoverOrder}
       onSubmit={onSubmit}
@@ -181,7 +182,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 6, currencyCode: 'CNY',
         insuranceReady: true, insuranceAmount: 10, personalAccountAmount: 2 }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'MEDICAL_INSURANCE', name: '医保支付' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'MEDICAL_INSURANCE', name: '医保支付', tenderType: 'PERSONAL_ACCOUNT' }]}
       orders={[]}
       showSettlementMode
       actionLabel="结算"
@@ -210,7 +211,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 20, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={onSubmit}
     />)
@@ -234,7 +235,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     const user = userEvent.setup()
     const { rerender } = render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 100, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={vi.fn()}
     />)
@@ -248,7 +249,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     rerender(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-2', code: 'INV-2', outstandingAmount: 25, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={vi.fn()}
     />)
@@ -263,7 +264,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 15, currencyCode: 'CNY',
         insuranceReady: false }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       showSettlementMode
       settlementModeCode="MEDICAL_INSURANCE"
@@ -279,7 +280,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     const user = userEvent.setup()
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 15, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'WECHAT', name: '微信支付', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'WECHAT', name: '微信支付', tenderType: 'DIGITAL', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={vi.fn()}
     />)
@@ -294,7 +295,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
   it('verifies that physical cash drawer button is removed per requirements', async () => {
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 20, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={vi.fn()}
     />)
@@ -308,7 +309,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 38.5, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'WECHAT', name: '微信支付', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'WECHAT', name: '微信支付', tenderType: 'DIGITAL', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onInitiateScanPay={onInitiateScanPay}
       onSubmit={vi.fn()}
@@ -336,7 +337,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 50, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       showSettlementMode
       settlementModeCode="MEDICAL_INSURANCE"
@@ -380,7 +381,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 120, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       showSettlementMode
       settlementModeCode="MEDICAL_INSURANCE"
@@ -437,7 +438,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 150, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       showSettlementMode
       settlementModeCode="MEDICAL_INSURANCE"
@@ -474,7 +475,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 33.67, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金收款', precision: '0.1', roundingMode: 'FLOOR' }]}
+      methods={[{ code: 'CASH', name: '现金收款', tenderType: 'CASH', precision: '0.1', roundingMode: 'FLOOR' }]}
       orders={[]}
       onSubmit={onSubmit}
     />)
@@ -502,7 +503,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 33.67, currencyCode: 'CNY' }]}
-      methods={[{ code: 'CASH', name: '现金收款', precision: '0.1', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'CASH', name: '现金收款', tenderType: 'CASH', precision: '0.1', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={onSubmit}
     />)
@@ -530,7 +531,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 33.67, currencyCode: 'CNY' }]}
-      methods={[{ code: 'BANK_CARD', name: '银行卡', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      methods={[{ code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
       onSubmit={onSubmit}
     />)

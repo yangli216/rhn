@@ -71,7 +71,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
         ])} />}
     </ListSection>}
     {area === 'supply' && <ListSection title="医用耗材/器械主数据" copy="统一维护编码、UDI-DI、注册信息、供应商和库存能力。"
-      action={<Button onClick={() => setDialog(<SupplyDialog units={units.data ?? []} manufacturers={manufacturers} onClose={() => setDialog(undefined)}
+      action={<Button onClick={() => setDialog(<SupplyDialog api={api.dictionaries} units={units.data ?? []} manufacturers={manufacturers} onClose={() => setDialog(undefined)}
         onSave={(input) => execute('耗材/器械已新增', api.masterData.createSupply(input))} />)}><Icon name="add" />新增耗材/器械</Button>}>
       {supplies.isPending ? <LoadingState label="正在加载耗材与器械…" /> : !supplies.data?.length
         ? <EmptyState icon="pharmacy" title="暂无耗材/器械资料" copy="可先维护单位，再建立耗材或器械主档。" />
@@ -79,7 +79,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
           <b title={`耗材编码：${value.code}`}>{value.name}</b>, `${value.supplyType === 'DEVICE' ? '医疗器械' : '医用耗材'}${value.modelName ? ` · ${value.modelName}` : ''}`,
           <span>{value.udiDi || '—'}<small>{value.registrationCode || '未维护注册证'}</small></span>,
           [value.stocked && '库存', value.chargeable && '收费', value.highValue && '高值', value.implant && '植入'].filter(Boolean).join(' · ') || '—',
-          <State value={value.status} />, <Button size="sm" variant="text" onClick={() => setDialog(<SupplyDialog value={value} units={units.data ?? []} manufacturers={manufacturers}
+          <State value={value.status} />, <Button size="sm" variant="text" onClick={() => setDialog(<SupplyDialog api={api.dictionaries} value={value} units={units.data ?? []} manufacturers={manufacturers}
             onClose={() => setDialog(undefined)} onSave={(input) => execute('耗材/器械已更新', api.masterData.updateSupply(value, input))} />)}>编辑</Button>,
         ])} />}
     </ListSection>}

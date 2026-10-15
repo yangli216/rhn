@@ -1,5 +1,5 @@
 {
-  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
+  "fingerprint": "0f11beff01f324976032c552207d2cb4d97d1ef151c031363c7029ed286f82cf",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",

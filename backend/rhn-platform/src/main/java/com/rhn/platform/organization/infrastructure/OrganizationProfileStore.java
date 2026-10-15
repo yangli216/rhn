@@ -73,7 +73,7 @@ public class OrganizationProfileStore {
                                 rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
                                 rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select ID_ORG_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIF_BASIS as qualification_basis_code, SD_CAP_SCOPE as capability_scope,
+                        select ID_ORG_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIF_BASIS as qualification_basis_code, DES_CAP_SCOPE as capability_scope,
                                DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to, SD_VERIFY_STATUS as verify_status, SD_STATUS as status from RHN_SYS_ORG_CAP
                         where ID_TNT = :tenantId and ID_ORG = :organizationId
                         order by SD_CAP_TYPE, DA_VALID_FROM desc
@@ -165,7 +165,7 @@ public class OrganizationProfileStore {
         jdbc.sql("""
                 insert into RHN_SYS_ORG_CAP
                     (ID_ORG_CAP, ID_TNT, ID_ORG, SD_CAP_TYPE, CD_QUALIF_BASIS,
-                     SD_CAP_SCOPE, DA_VALID_FROM, DA_VALID_TO, SD_VERIFY_STATUS, SD_STATUS)
+                     DES_CAP_SCOPE, DA_VALID_FROM, DA_VALID_TO, SD_VERIFY_STATUS, SD_STATUS)
                 values (:id, :tenantId, :organizationId, :type, :qualification,
                         :scope, :validFrom, :validTo, :verifyStatus, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId)

@@ -16,12 +16,13 @@ public final class DictionaryAttributeViews {
     private DictionaryAttributeViews() {
     }
 
-    public record AttributeDefinitionView(
+    public record DictionaryAttributeDefinitionView(
             Long id, long revision, Long dictionaryId, String code, String name, String description,
-            DictionaryAttributeDataType dataType, DictionaryAttributeCardinality cardinality,
+            @DictionaryBinding("DICT_ATTR_DATA_TYPE") DictionaryAttributeDataType dataType,
+            @DictionaryBinding("DICT_ATTR_CARDINALITY") DictionaryAttributeCardinality cardinality,
             Long referenceDictionaryId, String referenceDictionaryCode, String referenceDictionaryName,
-            JsonNode schema, DictionaryAttributeScopeType minimumScope,
-            DictionaryAttributeOverridePolicy overridePolicy, boolean requiredValue, boolean searchable,
+            JsonNode schema, @DictionaryBinding("DICT_ATTR_SCOPE_TYPE") DictionaryAttributeScopeType minimumScope,
+            @DictionaryBinding("DICT_ATTR_OVERRIDE_POLICY") DictionaryAttributeOverridePolicy overridePolicy, boolean requiredValue, boolean searchable,
             DictionaryStatus status, Instant updatedAt, Long updatedBy,
             List<ReferenceOptionView> referenceOptions) {
     }
@@ -42,7 +43,7 @@ public final class DictionaryAttributeViews {
     }
 
     public record ItemAttributeView(
-            AttributeDefinitionView definition,
+            DictionaryAttributeDefinitionView definition,
             AttributeValueSetView configured,
             AttributeValueSetView resolved,
             boolean inherited) {

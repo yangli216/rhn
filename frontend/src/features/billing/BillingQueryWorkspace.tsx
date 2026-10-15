@@ -7,53 +7,23 @@ import { errorMessage } from '../../shared/rhnApi'
 import {
   Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Pagination, Panel,
   Select, StatusBadge, tableCellClass,
+  useSystemEnum,
 } from '../../shared/ui'
 import { DateRangePicker } from '../../shared/ui/DateRangePicker'
 import { formatDate, getTodayRange, type DateRange } from '../../shared/utils/dateRange'
-import { billingTerminalLabel } from '../../shared/presentation/billingTerminal'
 import { Icon } from '../../shared/ui/Icon'
 import { money } from './BillingShared'
 import './billing-query-workspace.css'
-
-const sceneOptions = [
-  { value: 'ALL', label: '全部业务场景' },
-  { value: 'OUTPATIENT', label: '门诊收费' },
-  { value: 'REGISTRATION', label: '挂号收费' },
-  { value: 'PHARMACY', label: '药房收费' },
-  { value: 'INPATIENT', label: '住院收费' },
-  { value: 'HOME_BED', label: '家庭病床' },
-]
-
-const typeOptions = [
-  { value: 'ALL', label: '全部结算类型' },
-  { value: 'NORMAL', label: '正常结算' },
-  { value: 'REVERSAL', label: '冲正结算' },
-  { value: 'SUPPLEMENT', label: '补充结算' },
-]
-
-const sceneText: Record<string, string> = {
-  OUTPATIENT: '门诊收费', REGISTRATION: '挂号收费', PHARMACY: '药房收费',
-  INPATIENT: '住院收费', HOME_BED: '家庭病床',
-}
-
-const typeText: Record<string, string> = {
-  NORMAL: '正常结算', REVERSAL: '冲正结算', SUPPLEMENT: '补充结算',
-}
-
-const tenderText: Record<string, string> = {
-  CASH: '现金', BANK_CARD: '银行卡', DIGITAL: '移动支付', PERSONAL_ACCOUNT: '医保个人账户',
-  COMMERCIAL_INSURANCE: '商业保险',
-}
-
-const receiptStatusText: Record<string, string> = {
-  REQUESTED: '开具中', ISSUED: '已开具', FAILED: '开具失败', VOIDED: '已作废', RED_FLUSHED: '已冲红',
-}
 
 export function BillingQueryWorkspace({ api, clinicalContext }: {
   api: RhnApi
   clinicalContext: ClinicalContext
 }) {
   const queryClient = useQueryClient()
+  const scenes = useSystemEnum(api.dictionaries, 'BIL_SETTLEMENT_SCENE')
+  const settlementTypes = useSystemEnum(api.dictionaries, 'BIL_SETTLEMENT_TYPE')
+  const sceneOptions = [{ value: 'ALL', label: '全部业务场景' }, ...scenes.options]
+  const typeOptions = [{ value: 'ALL', label: '全部结算类型' }, ...settlementTypes.options]
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
   const [dateRange, setDateRange] = useState<DateRange>(getTodayRange)
@@ -341,7 +311,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                           <strong>{record.settlementNo}</strong>
                           <div className="billing-grid-tags">
                             <span className="billing-scene-tag">
-                              {sceneText[record.settlementScene] ?? record.settlementScene}
+                              {record.settlementSceneText ?? record.settlementScene}
                             </span>
                             <button
                               type="button"
@@ -360,7 +330,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                           {formatDateTime(record.finalizedAt ?? record.createdAt)}
                         </span>
                         <small className="billing-grid-terminal">
-                          {billingTerminalLabel(record.terminalScene)}{record.terminalCode ? ` · ${record.terminalCode}` : ''}
+                          {record.terminalScene ? record.terminalSceneText ?? record.terminalScene : '来源未记录'}{record.terminalCode ? ` · ${record.terminalCode}` : ''}
                         </small>
                       </td>
                       <td>
@@ -380,7 +350,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                       <td>{record.cashierName ?? record.cashierUsername ?? (record.finalizedBy ? `人员 ${record.finalizedBy}` : '未记录收费员')}</td>
                       <td>
                         <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
-                          {typeText[record.settlementType] ?? record.settlementType}
+                          {record.settlementTypeText ?? record.settlementType}
                         </StatusBadge>
                       </td>
                       <td className={tableCellClass('numeric')}>
@@ -468,15 +438,15 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
             <div className="billing-drawer-title-group">
               <div className="billing-drawer-eyebrows">
                 <span className="billing-scene-badge">
-                  {sceneText[selected.settlementScene] ?? selected.settlementScene}
+                  {selected.settlementSceneText ?? selected.settlementScene}
                 </span>
                 <StatusBadge tone={selected.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
-                  {typeText[selected.settlementType] ?? selected.settlementType}
+                  {selected.settlementTypeText ?? selected.settlementType}
                 </StatusBadge>
               </div>
               <h2>{selected.settlementNo}</h2>
               <p>
-                收费员：{selected.cashierName ?? selected.cashierUsername ?? (selected.finalizedBy ? `人员 ${selected.finalizedBy}` : '未记录')} · {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {billingTerminalLabel(selected.terminalScene)}{selected.terminalCode ? ` · ${selected.terminalCode}` : ''}
+                收费员：{selected.cashierName ?? selected.cashierUsername ?? (selected.finalizedBy ? `人员 ${selected.finalizedBy}` : '未记录')} · {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {selected.terminalScene ? selected.terminalSceneText ?? selected.terminalScene : '来源未记录'}{selected.terminalCode ? ` · ${selected.terminalCode}` : ''}
               </p>
             </div>
             <button
@@ -553,7 +523,7 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
       <section className="billing-query-section">
         <header><h3>支付分摊</h3><span>{settlement?.tenders.length ?? 0} 笔</span></header>
         <div className="billing-query-compact-list">{settlement?.tenders.map((tender) => <div key={tender.id}>
-          <span><strong>{tenderText[tender.tenderType] ?? tender.tenderType}</strong>
+          <span><strong>{tender.tenderTypeText ?? tender.tenderType}</strong>
             <small>{tender.payerName ?? '未记录付款方'}</small></span>
           <b>{money(tender.amount, tender.currencyCode)}</b>
         </div>)}{!settlement?.tenders.length && <p>未记录支付分摊。</p>}</div>
@@ -562,9 +532,9 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
         <header><h3>电子票据</h3><span>{receipts.length} 张</span></header>
         <div className="billing-query-compact-list">{receipts.map((receipt) => <div key={receipt.id}>
           <span><strong>{receipt.fiscalNumber ?? receipt.receiptNo}</strong>
-            <small>{receiptStatusText[receipt.status] ?? receipt.status}</small></span>
+            <small>{receipt.statusText ?? receipt.status}</small></span>
           <StatusBadge tone={receipt.status === 'ISSUED' ? 'success'
-            : receipt.status === 'FAILED' ? 'danger' : 'neutral'}>{receiptStatusText[receipt.status] ?? receipt.status}</StatusBadge>
+            : receipt.status === 'FAILED' ? 'danger' : 'neutral'}>{receipt.statusText ?? receipt.status}</StatusBadge>
         </div>)}{!receipts.length && <p>当前结算单暂无电子票据。</p>}</div>
       </section>
     </div>

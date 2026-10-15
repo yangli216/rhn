@@ -1,5 +1,5 @@
 {
-  "fingerprint": "3b108f6c940c24a48136ca0581b47806d2000ac71c30fa5e0bed9cdb658fa65d",
+  "fingerprint": "0f11beff01f324976032c552207d2cb4d97d1ef151c031363c7029ed286f82cf",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -2192,6 +2192,10 @@
         {
           "name": "CK_BIL_CHARGE_ITE_CHARGE_UNIT_",
           "expression": "\"price_unit\" >= CAST(0 AS NUMERIC(1))"
+        },
+        {
+          "name": "CK_BIL_CHARGE_ITEM_SRC_TYPE",
+          "expression": "\"sd_src_type\" IN('REGISTRATION', 'REGISTRATION_REVERSAL', 'DIRECT_VISIT_SERVICE', 'MEDICATION_REQUEST', 'MEDICATION_REQUEST_REVERSAL', 'SERVICE_REQUEST', 'SERVICE_REQUEST_REVERSAL', 'MEDICATION_DISPENSE', 'MEDICATION_RETURN', 'INPATIENT_ORDER_TASK', 'INPATIENT_BED_DAY', 'DIRECT_REFUND')"
         }
       ],
       "catalogComment": "收费项目；一行代表一条收费项目记录",
@@ -4414,9 +4418,9 @@
           "nullable": false,
           "defaultValue": null,
           "ordinal": 10,
-          "comment": "支付场景编码",
+          "comment": "收费入口编码",
           "logical": "payment_scene_code",
-          "catalogComment": "支付场景编码"
+          "catalogComment": "收费入口编码"
         },
         {
           "physical": "CD_PAY_METHOD",
@@ -5200,9 +5204,9 @@
           "nullable": true,
           "defaultValue": null,
           "ordinal": 17,
-          "comment": "支付场景编码",
+          "comment": "收费入口编码",
           "logical": "payment_scene_code",
-          "catalogComment": "支付场景编码"
+          "catalogComment": "收费入口编码"
         },
         {
           "physical": "ID_ORG",
@@ -9874,7 +9878,7 @@
         },
         {
           "name": "CK_BIL_STL_TENDER_STL_TENDER_T",
-          "expression": "\"sd_tender_type\" IN('CASH', 'BANK_CARD', 'DIGITAL', 'INSURANCE_FUND', 'PERSONAL_ACCOUNT', 'COMMERCIAL_INSURANCE', 'PREPAYMENT', 'HOSPITAL_DISCOUNT', 'SUBSIDY', 'ROUNDING')"
+          "expression": "\"sd_tender_type\" IN('CASH', 'BANK_CARD', 'DIGITAL', 'INSURANCE_FUND', 'PERSONAL_ACCOUNT', 'COMMERCIAL_INSURANCE', 'PREPAYMENT', 'HOSPITAL_DISCOUNT', 'SUBSIDY', 'ROUNDING', 'OTHER')"
         }
       ],
       "catalogComment": "结算收款方式；一行代表一条结算收款方式记录",

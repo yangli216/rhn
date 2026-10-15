@@ -11,10 +11,6 @@ import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
 import './ward-medication-return-inbox.css'
 
-const statusText: Record<WardMedicationReturnStatus, string> = {
-  REQUESTED: '病区待交出', IN_TRANSIT: '待药房接收', RECEIVED: '已接收',
-}
-
 const dispositionOptions = [
   { value: 'RESTOCK', label: '验收合格，重新入库' },
   { value: 'QUARANTINE', label: '隔离待质量处理' },
@@ -86,14 +82,14 @@ export function WardMedicationReturnInbox({ api, practitioners, assignments, pra
       && <div className="pharmacy-ward-return-inbox__list">{values.map((request) => <article key={request.id}
           className={`is-${request.status.toLowerCase()}`} aria-label={`病区退药 ${request.requestNo}`}>
         <header><div><strong>{request.requestNo}</strong><small>{formatTime(request.requestedAt)} 申请</small></div>
-          <StatusBadge tone={statusTone(request.status)}>{statusText[request.status]}</StatusBadge></header>
+          <StatusBadge tone={statusTone(request.status)}>{request.statusText ?? request.status}</StatusBadge></header>
         <div className="pharmacy-ward-return-inbox__lines">{request.lines.map((line) => <div key={line.id}>
           <span><strong>{line.medicationName}</strong><small>{formatQuantity(line.requestedQuantity)} {line.unitCode}</small></span>
           {request.status === 'IN_TRANSIT' ? <Select aria-label={`退药处置 ${line.medicationName}`}
             value={dispositions[line.id] ?? 'RESTOCK'} options={dispositionOptions}
             onChange={(value) => setDispositions((current) => ({ ...current,
               [line.id]: value as WardMedicationReturnDisposition }))} />
-            : <small>{line.disposition ? dispositionText(line.disposition) : '尚未验收'}</small>}
+            : <small>{line.disposition ? line.dispositionText ?? line.disposition : '尚未验收'}</small>}
         </div>)}</div>
         {request.requestNote && <p>病区说明：{request.requestNote}</p>}
         {request.status === 'REQUESTED' && <small className="pharmacy-ward-return-inbox__hint">等待病区确认实物交出。</small>}
@@ -126,9 +122,6 @@ function assignmentOption(value: PersonnelAssignment) {
   return { value: value.id, label: `${value.positionName} · ${value.departmentName}`, secondaryText: value.code }
 }
 
-function dispositionText(value: string) {
-  return ({ RESTOCK: '验收合格入库', QUARANTINE: '隔离待处理', DESTROY: '待销毁' } as Record<string, string>)[value] ?? value
-}
 
 function formatQuantity(value: number) {
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)

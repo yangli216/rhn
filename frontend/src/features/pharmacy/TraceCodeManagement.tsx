@@ -4,26 +4,16 @@ import type { InventoryTraceCode, StockBin, StockItem } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge,
+  Alert, Button, Dialog, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge, useSystemEnum,
 } from '../../shared/ui'
 
-const statusText: Record<string, string> = {
-  PENDING_RECEIPT: '待入库', AVAILABLE: '在库可用', OPENED: '已开包', PARTIALLY_ISSUED: '部分发出',
-  RESERVED: '已预留', IN_TRANSIT: '调拨在途',
-  ISSUED: '已出库', RETURNED: '已退回', QUARANTINED: '隔离', DAMAGED: '破损',
-  RECALLED: '召回', VOID: '作废',
-}
-const eventText: Record<string, string> = {
-  RECEIVED: '验收入库', ISSUED: '出库核销', TRANSFER_OUT: '调拨出库',
-  TRANSFER_IN: '调拨入库', TRANSFER_DAMAGED: '调拨破损',
-  SPLIT_OPEN: '追溯开包', PARTIAL_ISSUE: '拆零发药', PARTIAL_RETURN: '拆零退药',
-}
 const tone = (status: string): 'success' | 'danger' | 'info' => ['AVAILABLE', 'OPENED', 'PARTIALLY_ISSUED'].includes(status)
   ? 'success' : ['DAMAGED', 'RECALLED', 'VOID'].includes(status) ? 'danger' : 'info'
 
 export function TraceCodeManagement({ api, siteId, items, bins }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]
 }) {
+  const traceStatuses = useSystemEnum(api.dictionaries, 'SUP_TRACE_CODE_STATUS')
   const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
@@ -96,7 +86,7 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
           placeholder="全部状态"
           options={[
             { value: '', label: '全部状态' },
-            ...Object.entries(statusText).map(([value, label]) => ({ value, label, secondaryText: value })),
+            ...traceStatuses.options.map((option) => ({ ...option, secondaryText: option.value })),
           ]}
         />
         <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
@@ -125,7 +115,7 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
             <td><strong>{value.lotNo}</strong><small>效期 {lot?.expiryDate ?? '未记录'} · 余 {value.remainingBaseQuantity} / {value.baseQuantity} {item?.baseUnitCode ?? '基本单位'}</small>
               <small>包装 {item?.packageSpec || item?.packageUnitName} · 换算 {item?.packageFactor ?? '—'}</small></td>
             <td>{value.stockBinId ? bins.find(bin => bin.id === value.stockBinId)?.name ?? '未知货位' : '—'}</td>
-            <td><StatusBadge tone={tone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td>
+            <td><StatusBadge tone={tone(value.status)}>{value.statusText ?? value.status}</StatusBadge></td>
             <td><strong>{value.currentDocumentNo ?? '待登记'}</strong><small>{value.updatedAt ? formatTime(value.updatedAt) : '—'}</small></td>
             <td><Button variant="text" size="sm" onClick={() => setSelected(value)}>查看轨迹</Button></td>
           </tr>
@@ -145,13 +135,13 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
       footer={<Button variant="secondary" onClick={() => setSelected(undefined)}>关闭</Button>}>
       {Boolean(detail.error) && <Alert>{errorMessage(detail.error)}</Alert>}
       {detail.isPending ? <LoadingState label="正在加载流转轨迹…" /> : <>
-        <div className="warehouse-trace-summary"><div><span>当前状态</span><StatusBadge tone={tone(selected.status)}>{statusText[selected.status]}</StatusBadge></div>
+        <div className="warehouse-trace-summary"><div><span>当前状态</span><StatusBadge tone={tone(selected.status)}>{selected.statusText ?? selected.status}</StatusBadge></div>
           <div><span>药品 / 批号</span><strong>{selected.productName} · {selected.lotNo}</strong><small>效期 {lots.data?.find(lot => lot.id === selected.stockLotId)?.expiryDate ?? '未记录'}</small></div>
           <div><span>追溯余量</span><strong>{detail.data?.code.remainingBaseQuantity ?? selected.remainingBaseQuantity} / {selected.baseQuantity}</strong></div>
           <div><span>当前单据</span><strong>{selected.currentDocumentNo ?? '—'}</strong></div></div>
         <ol className="warehouse-trace-timeline">{detail.data?.events.map(event => <li key={event.id}>
-          <div><strong>{eventText[event.eventType] ?? event.eventType}</strong><time>{formatTime(event.occurredAt)}</time></div>
-          <p>{event.documentNo} · {statusText[event.fromStatus ?? ''] ?? event.fromStatus ?? '登记'} → {statusText[event.toStatus] ?? event.toStatus}
+          <div><strong>{event.eventTypeText ?? event.eventType}</strong><time>{formatTime(event.occurredAt)}</time></div>
+          <p>{event.documentNo} · {event.fromStatusText ?? event.fromStatus ?? '登记'} → {event.toStatusText ?? event.toStatus}
             {event.quantityDelta !== 0 ? ` · ${event.quantityDelta > 0 ? '+' : ''}${event.quantityDelta}，余 ${event.balanceAfter}` : ''}
             {' · '}操作人 {event.occurredBy}{event.fromBinId || event.toBinId ? ` · ${bins.find(bin => bin.id === event.fromBinId)?.name ?? '—'} → ${bins.find(bin => bin.id === event.toBinId)?.name ?? '—'}` : ''}</p>
         </li>)}</ol>

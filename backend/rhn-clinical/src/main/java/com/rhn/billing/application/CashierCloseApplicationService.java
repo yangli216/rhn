@@ -1,5 +1,7 @@
 package com.rhn.billing.application;
 
+import com.rhn.platform.dictionary.api.DictionaryBinding;
+
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.billing.domain.CashierClose;
 import com.rhn.billing.domain.CashierCloseEvent;
@@ -302,18 +304,19 @@ public class CashierCloseApplicationService {
         private void add(BigDecimal value) { count++; amount = amount.add(value); }
     }
     public record CashierClosePreview(String currencyCode, int transactionCount, List<CashierClosePreviewLine> lines) {}
-    public record CashierClosePreviewLine(String paymentMethodCode, String paymentType, int transactionCount,
+    public record CashierClosePreviewLine(@DictionaryBinding("PAY_METHOD") String paymentMethodCode, @DictionaryBinding("BIL_PAYMENT_TYPE") String paymentType, int transactionCount,
                                           BigDecimal expectedAmount) {}
     public record ActualAmount(String paymentMethodCode, String paymentType, BigDecimal amount) {}
     public record CalculateCommand(String commandCode, String terminalCode, Instant rangeFrom, Instant rangeTo,
                                    List<ActualAmount> actualAmounts) {}
     public record ConfirmCommand(String commandCode, String differenceReason) {}
     public record ReverseCommand(String commandCode, String reason) {}
-    public record CashierCloseLineView(int lineNo, String paymentMethodCode, String paymentType, int transactionCount,
+    public record CashierCloseLineView(int lineNo, @DictionaryBinding("PAY_METHOD") String paymentMethodCode, @DictionaryBinding("BIL_PAYMENT_TYPE") String paymentType, int transactionCount,
                                        BigDecimal expectedAmount, BigDecimal actualAmount,
                                        BigDecimal differenceAmount, String currencyCode) {}
     public record CashierCloseView(Long id, long revision, Long reversesCloseId, String closeNo, String commandCode,
-                                   Long organizationId, Long cashierUserId, String terminalCode, String status,
+                                   Long organizationId, Long cashierUserId, String terminalCode,
+                                   @DictionaryBinding("BIL_CASHIER_CLOSE_STATUS") String status,
                                    Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,
                                    BigDecimal actualAmount, BigDecimal differenceAmount, String currencyCode,
                                    String differenceReason, Instant createdAt, Instant confirmedAt,

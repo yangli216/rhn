@@ -2,18 +2,19 @@ import { displayUnitName } from "../medicationDisplay";
 import type { PharmacyReviewResult } from "../../../shared/api/pharmacyApi";
 import { formatTime } from "../../../shared/format";
 import { errorMessage } from "../../../shared/rhnApi";
-import { Alert, Button, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, Select, StatusBadge } from "../../../shared/ui";
+import { Alert, Button, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, Select, StatusBadge, useSystemEnum } from "../../../shared/ui";
 import { WardDailySupplyPanel } from "../WardDailySupplyPanel";
 import { WardMedicationReturnInbox } from "../WardMedicationReturnInbox";
 import { PharmacyKnowledgeImprovement } from "../PharmacyKnowledgeImprovement";
 import { PharmacyMedicationSafety } from "../PharmacyMedicationSafety";
 import { usePharmacyWorkspace } from './usePharmacyWorkspace'
 import { WardDeliveryQueue } from './WardDeliveryQueue'
-import { statusTone, taskStatusText, formatQuantityWithUnit, requestPackageUnit, formatRequestQuantity, formatPackageConversion, assignmentOption, reviewText } from './pharmacyShared'
+import { statusTone, formatQuantityWithUnit, requestPackageUnit, formatRequestQuantity, formatPackageConversion, assignmentOption } from './pharmacyShared'
 
 export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof usePharmacyWorkspace> }) {
  const { mode, prescriptionReviewMode, copy, refresh, selected, error, sites, selectedSite, api, organizationId, stockItems, practitioners, eligibleAssignments, practitionerId, assignmentId, setPractitionerId, setAssignmentId, eligibleSites, inbox, displayInbox, visibleInbox, requestId, setRequestId, task, configuredReviewMode, canReview, reviewResult, setReviewResult, reasonCode, setReasonCode, description, setDescription, review, returnLineId, setReturnLineId, returnableLines, selectedReturnLine, returnQuantity, setReturnQuantity, returnDisposition, setReturnDisposition, returnReason, setReturnReason, returnMedication, trace } = model
 
+    const reviewResults = useSystemEnum(api.dictionaries, 'SUP_PHARMACIST_REVIEW_RESULT')
     const reviewModeLabel = mode === 'review' && prescriptionReviewMode.data?.enabled
       ? prescriptionReviewMode.data.mode === 'PRE_DISPENSE' ? '事前审方' : '事后审方'
       : ''
@@ -54,7 +55,7 @@ export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof us
               className={item.request.id === requestId ? 'is-selected' : ''} key={item.request.id}
               onClick={() => setRequestId(item.request.id)} variant="text" size="sm">
               <div className="pharmacy-queue__title"><strong>{item.request.medicationName}</strong>
-                <StatusBadge tone={statusTone(item.taskStatus)}>{taskStatusText[item.taskStatus ?? ''] ?? '待接方'}</StatusBadge></div>
+                <StatusBadge tone={statusTone(item.taskStatus)}>{item.taskStatusText ?? '待接方'}</StatusBadge></div>
               <span>{item.request.itemName} · {formatQuantityWithUnit(item.request.quantity,
                 requestPackageUnit(item.request.quantityUnit, item.request.packageUnitName))}</span>
               <small>{item.request.prescriptionNo} · {formatTime(item.request.authoredAt)}</small>
@@ -65,7 +66,7 @@ export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof us
             : <>
               <header className="pharmacy-detail__head"><div><span className="ui-eyebrow">{selected.request.prescriptionNo}</span>
                 <h2>{selected.request.medicationName}</h2><p>{selected.request.itemName}</p></div>
-                <StatusBadge tone={statusTone(selected.taskStatus)}>{taskStatusText[selected.taskStatus ?? ''] ?? '待接方'}</StatusBadge>
+                <StatusBadge tone={statusTone(selected.taskStatus)}>{selected.taskStatusText ?? '待接方'}</StatusBadge>
               </header>
               <dl className="pharmacy-facts">
                 <div><dt>申请数量</dt><dd>{formatRequestQuantity(selected.request)}</dd></div>
@@ -102,7 +103,7 @@ export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof us
                       onChange={(value) => setReviewResult(value as PharmacyReviewResult)} options={(
                         (configuredReviewMode === 'POST_DISPENSE' ? ['PASS', 'INTERVENE', 'REJECT']
                           : ['PASS', 'INTERVENE', 'REJECT', 'OVERRIDE']) as PharmacyReviewResult[])
-                        .map((value) => ({ value, label: reviewText[value], code: value }))} /></FormField>
+                        .map((value) => ({ value, label: reviewResults.name(value), code: value }))} /></FormField>
                     <FormField label="原因编码" required={reviewResult !== 'PASS'}><input value={reasonCode}
                       onChange={(event) => setReasonCode(event.target.value)} placeholder={reviewResult === 'PASS' ? '通过时可不填' : '例如 DOSE_CONFIRM'} /></FormField>
                     <FormField label="审方说明" required={reviewResult !== 'PASS'} className="pharmacy-review-form__description"><textarea
@@ -113,7 +114,7 @@ export function PharmacyOperationsPanel({ model }: { model: ReturnType<typeof us
                   </div> : <Alert tone="info">当前任务已完成审方，审方记录已归档。</Alert>}
                   {task.data.reviews.length > 0 && <div className="pharmacy-safety-findings" aria-label="药师处理结果">
                     {task.data.reviews.map((result) => <article key={result.id}>
-                      <strong>{reviewText[result.result]}</strong> · {formatTime(result.reviewedAt)}
+                      <strong>{result.resultText ?? result.result}</strong> · {formatTime(result.reviewedAt)}
                       <p>{result.description || '未填写补充说明'}</p>
                       <PharmacyKnowledgeImprovement api={api} taskId={task.data!.id} reviewId={result.id}
                         findings={(task.data!.prescriptionSafety ?? []).flatMap(r => r.evaluation.findings)

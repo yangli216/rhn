@@ -2,7 +2,7 @@ package com.rhn.platform.dictionary.application;
 
 import com.rhn.platform.dictionary.api.DictionaryAttributeDirectory;
 import com.rhn.platform.dictionary.api.DictionaryAttributeViews.ApplicableItemView;
-import com.rhn.platform.dictionary.api.DictionaryAttributeViews.AttributeDefinitionView;
+import com.rhn.platform.dictionary.api.DictionaryAttributeViews.DictionaryAttributeDefinitionView;
 import com.rhn.platform.dictionary.api.DictionaryAttributeViews.AttributeValueMemberView;
 import com.rhn.platform.dictionary.api.DictionaryAttributeViews.AttributeValueSetView;
 import com.rhn.platform.dictionary.api.DictionaryAttributeViews.ItemAttributeConfigurationView;
@@ -86,14 +86,14 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
     }
 
     @Transactional(readOnly = true)
-    public List<AttributeDefinitionView> definitions(Long dictionaryId) {
+    public List<DictionaryAttributeDefinitionView> definitions(Long dictionaryId) {
         requireVisibleDictionary(dictionaryId);
         return attributeRepository.findByDictionaryIdOrderByNameAscCodeAsc(dictionaryId).stream()
                 .map(this::definitionView).toList();
     }
 
     @Transactional
-    public AttributeDefinitionView createDefinition(Long dictionaryId, long expectedDictionaryRevision,
+    public DictionaryAttributeDefinitionView createDefinition(Long dictionaryId, long expectedDictionaryRevision,
                                                     DefinitionCommand command) {
         requireNewRequest(command.requestCode());
         ExecutionContext context = current();
@@ -117,7 +117,7 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
     }
 
     @Transactional
-    public AttributeDefinitionView updateDefinition(Long dictionaryId, Long attributeId,
+    public DictionaryAttributeDefinitionView updateDefinition(Long dictionaryId, Long attributeId,
                                                     long expectedDictionaryRevision,
                                                     long expectedAttributeRevision,
                                                     DefinitionCommand command) {
@@ -154,7 +154,7 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
     }
 
     @Transactional
-    public AttributeDefinitionView changeDefinitionStatus(Long dictionaryId, Long attributeId,
+    public DictionaryAttributeDefinitionView changeDefinitionStatus(Long dictionaryId, Long attributeId,
                                                           long expectedDictionaryRevision,
                                                           long expectedAttributeRevision,
                                                           boolean enabled, String reason, String requestCode) {
@@ -503,14 +503,14 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
                 .orElseThrow(() -> notFound("DICTIONARY_ATTRIBUTE_REFERENCE_NOT_FOUND", "引用字典项不存在"));
     }
 
-    private AttributeDefinitionView definitionView(DictionaryAttributeDefinition value) {
+    private DictionaryAttributeDefinitionView definitionView(DictionaryAttributeDefinition value) {
         DictionaryDefinition reference = value.referenceDictionaryId() == null ? null
                 : definitionRepository.findById(value.referenceDictionaryId()).orElse(null);
         List<ReferenceOptionView> options = reference == null ? List.of()
                 : itemRepository.findByDictionaryIdOrderBySortOrderAscCodeAsc(reference.id()).stream()
                 .filter(item -> item.status() == DictionaryStatus.ACTIVE)
                 .map(item -> new ReferenceOptionView(item.id(), item.code(), item.name(), item.sortOrder())).toList();
-        return new AttributeDefinitionView(value.id(), value.revision(), value.dictionaryId(), value.code(), value.name(),
+        return new DictionaryAttributeDefinitionView(value.id(), value.revision(), value.dictionaryId(), value.code(), value.name(),
                 value.description(), value.dataType(), value.cardinality(), value.referenceDictionaryId(),
                 reference == null ? null : reference.code(), reference == null ? null : reference.name(),
                 jsonCodec.readTree(value.schemaJson()), value.minimumScope(), value.overridePolicy(),

@@ -119,13 +119,6 @@ function getScheduleBaseFee(item?: ServiceSchedule, visitType?: string) {
   return item.registrationFee ?? 0
 }
 
-const PAYMENT_METHOD_NAMES: Record<string, string> = {
-  WECHAT: '微信支付',
-  ALIPAY: '支付宝',
-  CASH: '现金收款',
-  BANK_CARD: '银行卡刷卡',
-}
-
 export function queueItemStatusLabel(
   item: ReceptionQueueItem | ReceptionQueueItem['status'] | string,
   receptionStatuses?: SystemEnumDefinition,
@@ -138,24 +131,10 @@ export function queueItemStatusLabel(
     return '已退号'
   }
 
-  if (receptionStatuses) {
-    const resolved = systemEnumItemName([receptionStatuses], SCHEDULING_SYSTEM_ENUM.receptionStatus, status)
-    if (resolved && resolved !== status) {
-      return resolved
-    }
-  }
-
-  const map: Record<string, string> = {
-    WAITING: '候诊中',
-    CALLED: '已叫号',
-    SERVING: '接诊中',
-    IN_PROGRESS: '接诊中',
-    SUSPENDED: '已暂挂',
-    MISSED: '已过号',
-    COMPLETED: '已诊毕',
-    CANCELLED: '已退号',
-  }
-  return map[status] || status
+  if (isObject && item.statusText) return item.statusText
+  return receptionStatuses
+    ? systemEnumItemName([receptionStatuses], SCHEDULING_SYSTEM_ENUM.receptionStatus, status)
+    : status
 }
 
 export function queueItemStatusTone(
@@ -709,18 +688,23 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))[0]?.code ?? '')
     }
   }, [paymentMethods.options, selectedPaymentMethod])
+  // Cash change and scan-pay handling follow the method's tender type, not its code.
+  const selectedMethodOption = paymentMethods.options.find((item) => item.code === selectedPaymentMethod)
+  const isCashMethod = selectedMethodOption?.tenderType === 'CASH'
+  const isScanMethod = selectedMethodOption?.tenderType === 'DIGITAL'
+  const selectedMethodName = selectedMethodOption?.name ?? selectedPaymentMethod
 
   useEffect(() => {
-    setCashTendered(selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0
+    setCashTendered(isCashMethod && feeBreakdown.payableAmount > 0
       ? String(feeBreakdown.payableAmount) : '')
-  }, [feeBreakdown.payableAmount, scheduleId, selected?.id, selectedPaymentMethod])
+  }, [feeBreakdown.payableAmount, isCashMethod, scheduleId, selected?.id, selectedPaymentMethod])
 
   const paymentMethodAvailable = paymentMethods.status === 'ready'
     && paymentMethods.options.some((item) => item.code === selectedPaymentMethod)
 
   const numericTendered = Number(cashTendered)
   const cashChange = numericTendered >= feeBreakdown.payableAmount ? numericTendered - feeBreakdown.payableAmount : 0
-  const isCashShort = selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < feeBreakdown.payableAmount)
+  const isCashShort = isCashMethod && feeBreakdown.payableAmount > 0 && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < feeBreakdown.payableAmount)
 
   useEffect(() => {
     if (linkedResident.data) setSelected(linkedResident.data)
@@ -798,7 +782,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         || (feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)) {
         throw new Error('请确认号源、支付方式与实收金额后再挂号')
       }
-      if (selectedCoverage || ['WECHAT', 'ALIPAY'].includes(selectedPaymentMethod)) {
+      if (selectedCoverage || isScanMethod) {
         throw new Error('当前结算接口未对接，请选择已支持的支付方式')
       }
       return api.billing.createRegistrationIntent({
@@ -816,9 +800,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     onSuccess: async (value) => {
       setIntentId(value.id)
       await queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })
-      if (value.settlementId && value.feeAmount > 0 && ['CASH', 'BANK_CARD'].includes(selectedPaymentMethod) && value.settlementMode === 'SELF_PAY'
+      if (value.settlementId && value.feeAmount > 0 && (isCashMethod || selectedMethodOption?.tenderType === 'BANK_CARD') && value.settlementMode === 'SELF_PAY'
         && paymentMethodAvailable
-        && (selectedPaymentMethod !== 'CASH' || (cashTendered.trim() !== '' && Number.isFinite(numericTendered) && numericTendered >= value.feeAmount))) {
+        && (!isCashMethod || (cashTendered.trim() !== '' && Number.isFinite(numericTendered) && numericTendered >= value.feeAmount))) {
         try {
           await api.billing.createPaymentOrder(value.settlementId, {
             idempotencyKey: `REG-PAY-${crypto.randomUUID()}`,
@@ -1036,9 +1020,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         departmentName={activeDept}
         locationName={activeLocation}
         feeBreakdown={feeBreakdown}
-        paymentMethodName={PAYMENT_METHOD_NAMES[selectedPaymentMethod] || '自费/医保'}
-        cashTendered={selectedPaymentMethod === 'CASH' && cashTendered ? numericTendered : undefined}
-        cashChange={selectedPaymentMethod === 'CASH' ? cashChange : undefined}
+        paymentMethodName={paymentMethods.options.find((item) => item.code === selectedPaymentMethod)?.name || '自费/医保'}
+        cashTendered={isCashMethod && cashTendered ? numericTendered : undefined}
+        cashChange={isCashMethod ? cashChange : undefined}
         onClose={() => {
           setShowReceiptModal(false)
           setSelected(null)
@@ -1246,13 +1230,13 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </Alert>
             )}
 
-            {['WECHAT', 'ALIPAY'].includes(selectedPaymentMethod) && (
+            {isScanMethod && (
               <Alert tone="error">
-                【{selectedPaymentMethod === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请改用现金或银行卡收款。
+                【{selectedMethodName}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请改用现金或银行卡收款。
               </Alert>
             )}
 
-            {selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (
+            {isCashMethod && feeBreakdown.payableAmount > 0 && (
               <CashPaymentCalculator
                 payableAmount={feeBreakdown.payableAmount}
                 tendered={cashTendered}
@@ -1283,8 +1267,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     setValidationError('【医保接口未对接】当前系统未对接国家/地方医保平台，暂不支持医保预结算与统筹基金抵扣。请在“费用类别”中切换为「自费」后再办理。')
                     return
                   }
-                  if (['WECHAT', 'ALIPAY'].includes(selectedPaymentMethod)) {
-                    setValidationError(`【${selectedPaymentMethod === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金或银行卡。`)
+                  if (isScanMethod) {
+                    setValidationError(`【${selectedMethodName}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金或银行卡。`)
                     return
                   }
                   setValidationError(null)

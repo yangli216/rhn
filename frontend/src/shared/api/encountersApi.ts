@@ -274,6 +274,7 @@ export interface MedicationSafetyFinding {
   category: string
   severity: MedicationSafetySeverity
   decision: MedicationSafetyStatus
+  decisionText?: string
   message: string
   medicationRequestIds: string[]
   evidence: Array<{
@@ -286,6 +287,7 @@ export interface MedicationSafetyFinding {
     usageScope: string
   }>
   overridePolicy: 'NOT_ALLOWED' | 'ACKNOWLEDGE' | 'REASON_REQUIRED'
+  overridePolicyText?: string
   suggestedAction?: string
 }
 
@@ -298,6 +300,7 @@ export interface MedicationSafetyDecision {
   engineVersion: string
   mode: string
   decision: MedicationSafetyStatus
+  decisionText?: string
   findings: MedicationSafetyFinding[]
   ruleExecutions: Array<{
     ruleCode: string
@@ -481,7 +484,9 @@ export interface EncounterQueryItem {
   registrationId?: string | null
   registrationNo?: string | null
   registrationSource?: string | null
+  registrationSourceText?: string
   visitType?: string | null
+  visitTypeText?: string
   clinicianId?: string | null
   clinicianName?: string | null
   status: string

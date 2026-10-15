@@ -67,7 +67,6 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class DispenseApplicationService {
     private final BusinessNumberGenerator numbers;
-    private static final Set<String> RETURN_DISPOSITIONS = Set.of("RESTOCK", "QUARANTINE", "DESTROY");
     private static final Comparator<DispenseAllocation> DISPENSE_LOCK_ORDER = Comparator
             .comparing((DispenseAllocation value) -> value.reservation().stockBinId())
             .thenComparing(value -> value.reservation().stockItemId())
@@ -344,7 +343,7 @@ public class DispenseApplicationService {
                         "退药数量包含已执行给药的药品，已核销部分不能退回药房");
             }
             String disposition = upper(command.disposition());
-            if (!RETURN_DISPOSITIONS.contains(disposition)) throw badRequest(
+            if (!PharmacySystemEnums.contains(PharmacySystemEnums.RETURN_DISPOSITION, disposition)) throw badRequest(
                     "STOCK_RETURN_DISPOSITION_INVALID", "患者退药处置仅支持重新入库、隔离或待销毁");
             if (taskLine.split() && taskLine.traceRequired() && !"RESTOCK".equals(disposition)) {
                 throw conflict("TRACE_PARTIAL_RETURN_DISPOSITION_UNSUPPORTED",

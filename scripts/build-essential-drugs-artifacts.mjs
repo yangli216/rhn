@@ -572,7 +572,7 @@ for (let i = 0; i < items.length; i++) {
   pgLines.push(`insert into RHN_BD_MED select ${pgMedCols.join(", ")} where not exists (select 1 from RHN_BD_MED where ID_MED = ${medId});`);
 
   if (it.medicationType === "WESTERN") {
-    pgLines.push(`insert into RHN_BD_MED_WESTERN select ${medId}, ${tenantId}, ${sqlStr(it.name)}, null, false, false where not exists (select 1 from RHN_BD_MED_WESTERN where ID_MED = ${medId});`);
+    pgLines.push(`insert into RHN_BD_MED_WESTERN (ID_MED, ID_TNT, ACTIVE_INGR, FG_BIOL, FG_BIOSIM) select ${medId}, ${tenantId}, ${sqlStr(it.name)}, false, false where not exists (select 1 from RHN_BD_MED_WESTERN where ID_MED = ${medId});`);
   }
 
   pgLines.push(`insert into RHN_BD_ITEM_ATTR_SUBJECT select ${subjectId}, ${tenantId}, 'MEDICATION', 'TENANT:${tenantId}/MEDICATION:${medId}', null, ${medId}, null, null, timestamp with time zone '2026-01-01 00:00:00+08', ${userId} where not exists (select 1 from RHN_BD_ITEM_ATTR_SUBJECT where ID_ITEM_ATTR_SUBJECT = ${subjectId});`);
@@ -606,7 +606,7 @@ for (let i = 0; i < items.length; i++) {
 
   if (it.medicationType === "WESTERN") {
     oraLines.push(`merge into RHN_BD_MED_WESTERN t using (select ${medId} as ID_MED from dual) s on (t.ID_MED = s.ID_MED)`);
-    oraLines.push(`when not matched then insert (ID_MED, ID_TNT, ACTIVE_INGREDIENT, SD_THERAPEUTIC_CLASS, FG_BIOLOGIC, FG_BIOSIMILAR) values (${medId}, ${tenantId}, ${sqlStr(it.name)}, null, 0, 0);`);
+    oraLines.push(`when not matched then insert (ID_MED, ID_TNT, ACTIVE_INGR, FG_BIOL, FG_BIOSIM) values (${medId}, ${tenantId}, ${sqlStr(it.name)}, 0, 0);`);
   }
 
   oraLines.push(`merge into RHN_BD_ITEM_ATTR_SUBJECT t using (select ${subjectId} as ID_ITEM_ATTR_SUBJECT from dual) s on (t.ID_ITEM_ATTR_SUBJECT = s.ID_ITEM_ATTR_SUBJECT)`);

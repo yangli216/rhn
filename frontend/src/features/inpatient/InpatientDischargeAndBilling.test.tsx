@@ -142,7 +142,9 @@ describe('InpatientBillingPanel', () => {
     const postBedDays = vi.fn().mockResolvedValue({ episodeId: episode.id, encounterId: episode.encounterId,
       throughDate: '2026-08-31', createdCount: 1, existingCount: 0, postedAmount: 20,
       account: { ...account, postedChargeAmount: 120, estimatedBedAmount: 0 } })
-    const api = { inpatient: { billing: vi.fn().mockResolvedValue(account), registerDeposit, postBedDays,
+    const api = { dictionaries: { applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金',
+      attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
+    inpatient: { billing: vi.fn().mockResolvedValue(account), registerDeposit, postBedDays,
       dailyStatement: vi.fn().mockResolvedValue({ episodeId: episode.id, encounterId: episode.encounterId,
         businessDate: '2026-08-31', postedAmount: 100, estimatedAmount: 20, categorySummaries: [],
         lines: [], asOf: '2026-08-31T08:00:00+08:00' }),
@@ -167,7 +169,7 @@ describe('InpatientBillingPanel', () => {
     const financialSettlement = {
       invoiceId: 'invoice-1', settlementId: 'settlement-1', revision: 1, invoiceNo: 'IP-001',
       settlementNo: 'IP-001', settlementStatus: 'SETTLED' as const,
-      financialStatus: 'PENDING_REFUND' as const, netAmount: 20, prepaymentAmount: 20,
+      financialStatus: 'PENDING_REFUND' as const, financialStatusText: '待退余款', netAmount: 20, prepaymentAmount: 20,
       paidAmount: 20, outstandingAmount: 0, refundableAmount: 30, currencyCode: 'CNY',
     }
     const account: InpatientBillingAccount = {
@@ -181,9 +183,10 @@ describe('InpatientBillingPanel', () => {
         paidAt: '2026-08-31T08:00:00+08:00' }], costLines: [],
     }
     const refundSurplus = vi.fn().mockResolvedValue({ paymentIds: ['refund-1'], duplicate: false,
-      settlement: { ...financialSettlement, financialStatus: 'SETTLED', refundableAmount: 0 },
+      settlement: { ...financialSettlement, financialStatus: 'SETTLED', financialStatusText: '已结清', refundableAmount: 0 },
       account: { ...account, accountStatus: 'CLOSED', depositAmount: 0, ledgerBalance: 0,
-        financialSettlement: { ...financialSettlement, financialStatus: 'SETTLED', refundableAmount: 0 } },
+        financialSettlement: { ...financialSettlement, financialStatus: 'SETTLED', financialStatusText: '已结清',
+          refundableAmount: 0 } },
     })
     const api = { inpatient: { billing: vi.fn().mockResolvedValue(account), refundSurplus,
       dailyStatement: vi.fn().mockResolvedValue({ episodeId: episode.id, encounterId: episode.encounterId,
@@ -193,7 +196,7 @@ describe('InpatientBillingPanel', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'refund-command' })
     renderWithQuery(<InpatientBillingPanel api={api} episode={discharged} />)
 
-    expect((await screen.findAllByText('待退余')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('待退余款')).length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('button', { name: /退还预交金余额/ }))
     await waitFor(() => expect(refundSurplus).toHaveBeenCalledWith(episode.id, expect.objectContaining({
       expectedRevision: 1, amount: 30, currencyCode: 'CNY', reason: expect.stringContaining('预交金余额'),

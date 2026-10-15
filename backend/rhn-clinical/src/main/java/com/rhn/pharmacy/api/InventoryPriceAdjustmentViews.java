@@ -13,7 +13,7 @@ public final class InventoryPriceAdjustmentViews {
 
     public record PriceAdjustmentView(
             Long id, long revision, Long stockSiteId, Long inventoryPeriodId, String adjustmentNo,
-            String requestCode, String adjustmentType,
+            String requestCode, @DictionaryBinding("SUP_PRICE_ADJUSTMENT_TYPE") String adjustmentType,
             @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
             LocalDate businessDate,
             String currencyCode, String priceDocumentCode, String reason, String status,
@@ -32,7 +32,7 @@ public final class InventoryPriceAdjustmentViews {
 
     public record PriceAdjustmentDetailView(
             Long id, Long inventoryBalanceId, long inventoryBalanceRevision, Long stockBinId,
-            Long stockLotId, String lotNo, String stockStatus, BigDecimal quantitySnapshot,
+            Long stockLotId, String lotNo, @DictionaryBinding("SUP_STOCK_STATUS") String stockStatus, BigDecimal quantitySnapshot,
             BigDecimal unitPriceBefore, BigDecimal unitPriceAfter, BigDecimal valueBefore,
             BigDecimal valueAfter, BigDecimal adjustmentAmount, BigDecimal roundingAmount,
             Long valuationEntryId) {}

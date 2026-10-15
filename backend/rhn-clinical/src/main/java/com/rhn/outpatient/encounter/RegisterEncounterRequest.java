@@ -1,7 +1,6 @@
 package com.rhn.outpatient.encounter;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 
@@ -13,7 +12,8 @@ public record RegisterEncounterRequest(
         Long scheduleId,
         Long slotHoldId,
         @Size(max = 128) String idempotencyCode,
-        @Pattern(regexp = "WINDOW|WALK_IN|DIRECT|EMERGENCY") String registrationSource,
-        @Pattern(regexp = "GENERAL|FOLLOW_UP|EMERGENCY") String visitType
+        // Values are SC_REGISTRATION_SOURCE / SC_VISIT_TYPE items, validated by registration; TRANSFER is internal.
+        @Size(max = 32) String registrationSource,
+        @Size(max = 32) String visitType
 ) {
 }

@@ -158,7 +158,7 @@ export function FiscalReceiptModal({ open, onClose, receipt, settlement, onPrint
           {[
             ['交款人姓名', receipt.payerName], ['财政主管机构代码', receipt.fiscalAuthorityCode],
             ['票据申请流水号', receipt.receiptNo], ['关联结算单号', sameSettlement?.settlementNo],
-            ['开票渠道代码', receipt.issueChannel], ['创建人标识', receipt.createdBy],
+            ['开票渠道', receipt.issueChannelText ?? receipt.issueChannel], ['创建人标识', receipt.createdBy],
           ].map(([label, value]) => <div className="fiscal-meta-item" key={label}>
             <span className="fiscal-meta-label">{label}：</span>
             <span className="fiscal-meta-text">{value || '未提供'}</span>

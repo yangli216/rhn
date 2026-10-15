@@ -10,10 +10,10 @@ const review: PrescriptionSafetyReview = {
   medications: [{ requestId: 'a', name: '测试药品甲' }, { requestId: 'b', name: '测试药品乙' }],
   evaluation: {
     evaluationId: 'evaluation-1', prescriptionId: 'rx-1', prescriptionRevision: 0, inputHash: 'test',
-    ruleSetVersion: 'test', engineVersion: 'test', mode: 'ENFORCED', decision: 'REQUIRE_OVERRIDE',
+    ruleSetVersion: 'test', engineVersion: 'test', mode: 'ENFORCED', decision: 'REQUIRE_OVERRIDE', decisionText: '需说明理由',
     failureCodes: [], ruleExecutions: [], findings: [{
       findingId: 'finding-1', ruleCode: 'QMED.KNOWLEDGE.TEST', ruleVersion: 1, category: 'DRUG_INTERACTION',
-      severity: 'HIGH', decision: 'REQUIRE_OVERRIDE', message: '合成配对条件命中',
+      severity: 'HIGH', decision: 'REQUIRE_OVERRIDE', decisionText: '需说明理由', message: '合成配对条件命中',
       medicationRequestIds: ['a', 'b'], overridePolicy: 'REASON_REQUIRED', suggestedAction: '请核对配对及适用条件',
       evidence: [{ sourceType: 'TEST', sourceTitle: '合成依据', sourceVersion: '1', sourceLocator: '测试段落',
         section: '测试', excerpt: '仅用于隔离测试，不构成临床依据。', usageScope: '测试环境' }],
@@ -33,7 +33,7 @@ describe('pharmacist medication safety context', () => {
 
   it('keeps shadow findings distinct from an enforced submission decision', () => {
     render(<PharmacyMedicationSafety reviews={[{ ...review, doctorReason: null,
-      evaluation: { ...review.evaluation, mode: 'SHADOW', decision: 'BLOCK' } }]} />)
+      evaluation: { ...review.evaluation, mode: 'SHADOW', decision: 'BLOCK', decisionText: '阻断' } }]} />)
     expect(screen.getByText('旁路提示 · 阻断')).toBeVisible()
     expect(screen.queryByText(/正式审查/)).not.toBeInTheDocument()
     expect(screen.getByText('未填写')).toBeVisible()
@@ -47,7 +47,7 @@ describe('pharmacist medication safety context', () => {
 
   it('retains the incomplete-evaluation warning and does not present PASS as pharmacist approval', () => {
     render(<PharmacyMedicationSafety reviews={[{ ...review, evaluation: {
-      ...review.evaluation, evaluationId: null, decision: 'PASS', findings: [], failureCodes: ['EVALUATION_NOT_PERSISTED'],
+      ...review.evaluation, evaluationId: null, decision: 'PASS', decisionText: '未触发控制', findings: [], failureCodes: ['EVALUATION_NOT_PERSISTED'],
     } }]} />)
     expect(screen.getByText(/规则评价不完整/)).toBeVisible()
     expect(screen.queryByText('本次已执行规则未触发控制，仍需完成药学审核。')).not.toBeInTheDocument()
