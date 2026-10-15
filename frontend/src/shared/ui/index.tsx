@@ -110,6 +110,25 @@ export function IconButton({ icon, label, className = '', type = 'button', ...pr
   </button>
 }
 
+/**
+ * Standard icon action for title bars and group headers: compact text button (same height as other `sm` actions, so
+ * the header does not grow), brand-coloured 20px icon, tight horizontal padding. Pass any icon node; its size and
+ * stroke are normalised by `.ui-icon-action`. Use inside `IconActionGroup` when several sit side by side.
+ */
+export function IconActionButton({ label, icon, title, className = '', ...props }:
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'> & {
+    label: string
+    icon: ReactNode
+    busy?: boolean
+  }) {
+  return <Button size="sm" variant="text" className={`ui-icon-action ${className}`} aria-label={label}
+    title={title ?? label} {...props}>{icon}</Button>
+}
+
+export function IconActionGroup({ children, className = '' }: PropsWithChildren<{ className?: string }>) {
+  return <div className={`ui-icon-action-group ${className}`}>{children}</div>
+}
+
 export function Panel({ children, className = '', ...props }: PropsWithChildren<HTMLAttributes<HTMLElement>>) {
   return <section className={`ui-panel ${className}`} {...props}>{children}</section>
 }
