@@ -164,6 +164,14 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
     }
 
     @Transactional(readOnly = true)
+    public ClinicalDocumentResponse.VersionContentView version(Long documentId, int versionNumber) {
+        ClinicalDocumentVersion version = requireVersion(requireDocument(documentId), versionNumber);
+        return new ClinicalDocumentResponse.VersionContentView(version.versionNumber(), version.changeType(),
+                version.changeReason(), version.createdBy(), version.createdAt(), version.signedBy(),
+                version.signedAt(), version.contentSchema(), parse(version.contentJson()));
+    }
+
+    @Transactional(readOnly = true)
     public List<ClinicalDocumentResponse> byResident(Long residentId) {
         Long tenantId = TenantContext.requireTenantId();
         Long canonicalResidentId = residentDirectory.resolveCanonicalResidentId(residentId);

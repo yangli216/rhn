@@ -28,4 +28,9 @@ public record ClinicalDocumentResponse(
                               String signedBy, Instant signedAt, String signatureMeaning,
                               String contentDigestAlgorithm, String contentDigest,
                               Long integrityEvidenceId, Long signatureEvidenceId) {}
+
+    /** The stored content of one historical version, used to compare an amendment with the version it replaced. */
+    public record VersionContentView(int version, String changeType, String changeReason, String createdBy,
+                                     Instant createdAt, String signedBy, Instant signedAt,
+                                     String contentSchema, JsonNode content) {}
 }

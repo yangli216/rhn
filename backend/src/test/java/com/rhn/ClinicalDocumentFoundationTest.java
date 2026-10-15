@@ -172,6 +172,22 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("SIGNED"))
                 .andExpect(jsonPath("$.content.summary").value("签署后的合法修订"))
                 .andExpect(jsonPath("$.history.length()").value(3));
+
+        // Every historical version stays readable so an amendment can be compared with the version it replaced.
+        mockMvc.perform(get("/api/clinical-documents/{id}/versions/{version}", documentId, 2).with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.signedBy").value("doctor"))
+                .andExpect(jsonPath("$.content.summary").exists())
+                .andExpect(jsonPath("$.content.summary").value(org.hamcrest.Matchers.not("签署后的合法修订")));
+        mockMvc.perform(get("/api/clinical-documents/{id}/versions/{version}", documentId, 3).with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.changeType").value("AMENDMENT"))
+                .andExpect(jsonPath("$.changeReason").value("更正文字表述"))
+                .andExpect(jsonPath("$.content.summary").value("签署后的合法修订"));
+        mockMvc.perform(get("/api/clinical-documents/{id}/versions/{version}", documentId, 9).with(rhn()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("CLINICAL_DOCUMENT_VERSION_NOT_FOUND"));
     }
 
     @Test

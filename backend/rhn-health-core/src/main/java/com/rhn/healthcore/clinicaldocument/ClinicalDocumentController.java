@@ -40,6 +40,11 @@ public class ClinicalDocumentController {
     @GetMapping("/{documentId}")
     ClinicalDocumentResponse get(@PathVariable Long documentId) { return service.get(documentId); }
 
+    @GetMapping("/{documentId}/versions/{version}")
+    ClinicalDocumentResponse.VersionContentView version(@PathVariable Long documentId, @PathVariable int version) {
+        return service.version(documentId, version);
+    }
+
     @GetMapping
     List<ClinicalDocumentResponse> byScope(@RequestParam(required = false) Long residentId,
                                            @RequestParam(required = false) Long encounterId) {
