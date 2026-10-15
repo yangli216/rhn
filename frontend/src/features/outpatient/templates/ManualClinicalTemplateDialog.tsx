@@ -8,7 +8,7 @@ import type {
 } from '../../../shared/api/outpatientPlanTemplatesApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import {
-  Button, Dialog, FormField, Panel, PanelHead, Select, StatusBadge,
+  Alert, Button, Dialog, FormField, Panel, PanelHead, Select, StatusBadge,
 } from '../../../shared/ui'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { noteTemplateFields } from '../record/NoteTemplateBar'
@@ -117,7 +117,7 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
       <Button variant="secondary" disabled={saving} onClick={onClose}>取消</Button>
       <Button busy={saving} disabled={!valid} onClick={() => void save()}>保存模板</Button>
     </>}>
-    {(error || operation.error) && <div role="alert" className="doctor-plan-pool-notice">{error || operation.error}</div>}
+    {(error || operation.error) && <Alert>{error || operation.error}</Alert>}
     <div inert={saving} className={`manual-template-dialog ${kind === 'PLAN' ? 'is-plan' : 'is-note'}`}>
       <div className={`ui-form-grid ${kind === 'PLAN' ? 'manual-template-plan-meta' : ''}`}>
         <FormField label="模板名称" required><input value={name} maxLength={100}
@@ -163,9 +163,11 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
               secondaryText: `${value.scopeType === 'PERSONAL' ? '个人' : '科室'} · ${noteTemplateFields.filter(({ key }) => value.content[key]?.trim()).length} 个段落`,
             }))}
             onChange={setNoteTemplateId} />
-          {!notesReady && <div role={notesError ? 'alert' : 'status'} className="doctor-plan-pool-notice">{notesError ? `病历模板加载失败：${notesError}` : '正在核对病历模板目录…'}
-            {notesError && <Button variant="text" onClick={() => setReload(value => value + 1)}>重新加载病历模板</Button>}</div>}
-          {noteTemplateId && notesReady && !selectedPlanNoteTemplate && <div role="alert" className="doctor-plan-pool-notice">配套病历模板已不可用，请重新选择或明确取消关联。</div>}
+          {!notesReady && (notesError
+            ? <Alert duration={null}>病历模板加载失败：{notesError}
+              <Button variant="text" onClick={() => setReload(value => value + 1)}>重新加载病历模板</Button></Alert>
+            : <div role="status" className="doctor-plan-pool-notice">正在核对病历模板目录…</div>)}
+          {noteTemplateId && notesReady && !selectedPlanNoteTemplate && <Alert duration={null}>配套病历模板已不可用，请重新选择或明确取消关联。</Alert>}
           <div className="plan-template-note-link__summary">
             {selectedPlanNoteTemplate
               ? <><StatusBadge tone="info">已关联</StatusBadge><span>{noteTemplateFields.filter(({ key }) => selectedPlanNoteTemplate.content[key]?.trim()).map(({ label }) => label).join('、')}</span></>

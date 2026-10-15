@@ -58,7 +58,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void explicitSpecificationMustAgreeWithTheRealCatalogBeforeAnOrderIsCompiled() throws Exception {
+    void specificationDifferencesAreNotedForTheDoctorButStillMatchTheCatalogDrug() throws Exception {
         String actual = medicationRepository.findByIdAndTenantId(362387871000901L, Long.valueOf(TENANT))
                 .orElseThrow().preparationSpec();
         org.junit.jupiter.api.Assertions.assertNotNull(actual);
@@ -73,8 +73,11 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
             mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
                             .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.medications.length()").value(matching ? 1 : 0))
-                    .andExpect(jsonPath("$.tasks[0].status").value(matching ? "MATCHED" : "NEEDS_REVIEW"));
+                    .andExpect(jsonPath("$.medications.length()").value(1))
+                    .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"))
+                    .andExpect(jsonPath("$.tasks[0].details").value(matching
+                            ? org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("请核对规格"))
+                            : org.hamcrest.Matchers.containsString("请核对规格")));
         }
         String quoted = "对乙酰氨基酚 9999mg";
         String quotedBody = objectMapper.writeValueAsString(java.util.Map.of(
@@ -85,14 +88,16 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(quotedBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.medications.length()").value(0))
-                .andExpect(jsonPath("$.tasks[0].status").value("NEEDS_REVIEW"));
+                .andExpect(jsonPath("$.medications.length()").value(1))
+                .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"))
+                .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString("请核对规格")));
         verifyNoInteractions(modelGateway, decisionGateway);
     }
 
     @Test
     void conversionKeepsMissingMedicationDirectionsUnresolvedWithoutSupplyingDefaults() throws Exception {
         for (String details : List.of("每次0.5g 口服 PRN", "共2盒")) {
+            String expected = details.startsWith("共") ? "剂量" : "总量无法推算";
             mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft/convert")
                     .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"naturalInput":"对乙酰氨基酚", "confirmedNarrative":"对乙酰氨基酚",
@@ -100,9 +105,9 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                          "reviewItems":[{"kind":"MEDICATION", "text":"对乙酰氨基酚", "origin":"SUGGESTED", "details":"%s"}]}
                         """.formatted(details)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.medications.length()").value(0))
-                    .andExpect(jsonPath("$.tasks[0].status").value("NEEDS_REVIEW"))
-                    .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString("缺少")));
+                    .andExpect(jsonPath("$.medications.length()").value(1))
+                    .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"))
+                    .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString(expected)));
         }
     }
 
@@ -142,11 +147,11 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void groupConversionDoesNotConfirmOptionalMembersUnitOverridesOrConditionalInstructions() throws Exception {
-        for (int scenario = 0; scenario < 3; scenario++) {
+    void groupConversionDoesNotConfirmOptionalMembersOrUnitOverrides() throws Exception {
+        for (int scenario = 0; scenario < 2; scenario++) {
             String name = "组套事实核对" + scenario;
             String unit = scenario == 1 ? "\"EA\"" : "null";
-            String description = scenario == 2 ? "必要时复查" : "采血后及时送检";
+            String description = "采血后及时送检";
             mockMvc.perform(post("/api/platform/master-data/operations/item-groups")
                     .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"AI-GROUP-FACT-%d","name":"%s","groupType":"LIS",
@@ -164,7 +169,7 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                     .andExpect(jsonPath("$.services.length()").value(0))
                     .andExpect(jsonPath("$.tasks[0].status").value("NEEDS_REVIEW"))
                     .andExpect(jsonPath("$.tasks[0].details").value(org.hamcrest.Matchers.containsString(
-                            scenario == 0 ? "可选成员" : scenario == 1 ? "单位与目录单位不一致" : "必要时复查")));
+                            scenario == 0 ? "可选成员" : "单位与目录单位不一致")));
         }
         verifyNoInteractions(modelGateway, decisionGateway);
     }
@@ -473,8 +478,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.diagnoses[0].code").value("J06.9"))
-                .andExpect(jsonPath("$.medications.length()").value(0))
-                .andExpect(jsonPath("$.tasks[1].status").value("NEEDS_REVIEW"))
+                .andExpect(jsonPath("$.medications.length()").value(1))
+                .andExpect(jsonPath("$.tasks[1].status").value("MATCHED"))
                 .andExpect(jsonPath("$.tasks[0].origin").value("EXPLICIT"))
                 .andExpect(jsonPath("$.tasks[1].origin").value("SUGGESTED"))
                 .andExpect(jsonPath("$.tasks[1].sourceQuote").doesNotExist())
@@ -514,11 +519,11 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.medications[0].durationUnit").value("天"))
                 .andExpect(jsonPath("$.medications[0].medicationInstruction").value("发热或疼痛时服用"))
                 .andExpect(jsonPath("$.tasks[1].details").value(org.hamcrest.Matchers.containsString("目的：解热镇痛")))
-                .andExpect(jsonPath("$.services.length()").value(0))
+                .andExpect(jsonPath("$.services.length()").value(1))
+                .andExpect(jsonPath("$.services[0].clinicalDescription").value(org.hamcrest.Matchers.containsString("高热持续时考虑")))
                 .andExpect(jsonPath("$.tasks[0].status").value("MATCHED"))
                 .andExpect(jsonPath("$.tasks[1].status").value("MATCHED"))
-                .andExpect(jsonPath("$.tasks[2].status").value("NEEDS_REVIEW"))
-                .andExpect(jsonPath("$.tasks[2].details").value(org.hamcrest.Matchers.containsString("高热持续时考虑")))
+                .andExpect(jsonPath("$.tasks[2].status").value("MATCHED"))
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode compiled = json(compiledJson);
@@ -539,8 +544,8 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.diagnoses[0].code").value("J06.9"))
                 .andExpect(jsonPath("$.medications[0].catalogItemId").value(362387871000301L))
-                .andExpect(jsonPath("$.services.length()").value(0))
-                .andExpect(jsonPath("$.tasks[2].status").value("NEEDS_REVIEW"));
+                .andExpect(jsonPath("$.services.length()").value(1))
+                .andExpect(jsonPath("$.tasks[2].status").value("MATCHED"));
         verifyNoInteractions(modelGateway);
     }
 

@@ -94,7 +94,7 @@ describe('AI plan service confirmation', () => {
     await f.user.clear(dialog.getByRole('spinbutton', { name: '项目数量' }))
     await f.user.type(dialog.getByRole('spinbutton', { name: '项目数量' }), '2')
     f.rerender(f.tree(f.api, 'other'))
-    expect(dialog.getByText(/当前机构、会话或方案已变化/)).toBeInTheDocument()
+    expect(screen.getByText(/当前机构、会话或方案已变化/)).toBeInTheDocument()
     expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeDisabled()
     expect(f.update).not.toHaveBeenCalled()
   })

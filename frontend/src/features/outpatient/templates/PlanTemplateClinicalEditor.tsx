@@ -8,7 +8,7 @@ import { errorMessage } from '../../../shared/api/httpClient'
 import { editorMedicationValidation, editorServiceAdopted, requireEditorDiagnosis, requireEditorMedication,
   requireEditorPage, requireEditorService, requireEditorStandards } from './templateEditorFacts'
 import {
-  Button, ClinicalResourceSearch, EditableCell, EditableRow, EditableTable, Icon, Panel, PanelHead,
+  Alert, Button, ClinicalResourceSearch, EditableCell, EditableRow, EditableTable, Icon, Panel, PanelHead,
   RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass,
   type ClinicalResourceOption, type RemoteSearchOption,
 } from '../../../shared/ui'
@@ -232,11 +232,11 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
             : '仅可加入当前机构已采用的检验、检查和治疗项目。'}</span>
         </div>
 
-        {!standards && <div role={currentDirectory?.error ? 'alert' : 'status'} className="doctor-plan-pool-notice">
-          {currentDirectory?.error ? `用法字典加载失败：${currentDirectory.error}` : '正在确认用法字典…'}
-          {currentDirectory?.error && <Button variant="secondary" size="sm" onClick={() => setReload(value => value + 1)}>重新加载用法字典</Button>}
-        </div>}
-        {validation && <div role="alert" className="doctor-plan-pool-notice">{validation}</div>}
+        {!standards && (currentDirectory?.error
+          ? <Alert duration={null}>用法字典加载失败：{currentDirectory.error}
+            <Button variant="secondary" size="sm" onClick={() => setReload(value => value + 1)}>重新加载用法字典</Button></Alert>
+          : <div role="status" className="doctor-plan-pool-notice">正在确认用法字典…</div>)}
+        {validation && <Alert duration={null}>{validation}</Alert>}
         <div className="plan-template-order-list">
           {!medications.length && !services.length && <div className="plan-template-entry-empty">检索并选择医嘱后，可在列表内继续完善用法与数量</div>}
           {!!(medications.length || services.length) && <EditableTable className="plan-template-order-table" aria-label="方案医嘱列表">

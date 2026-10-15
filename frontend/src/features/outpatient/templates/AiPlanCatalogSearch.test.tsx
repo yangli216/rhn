@@ -35,10 +35,10 @@ describe('AI plan catalog search workflow', () => {
     await f.user.click(f.dialog.getByRole('button', { name: button }))
     await f.user.type(f.dialog.getByPlaceholderText(placeholder), '目标')
     await f.user.click(f.dialog.getByRole('button', { name: '搜索' }))
-    expect(await f.dialog.findByRole('alert')).toHaveTextContent('目录检索失败')
+    expect(await screen.findByRole('alert')).toHaveTextContent('目录检索失败')
     expect(f.dialog.queryByText('本次查询未找到匹配目录项。')).not.toBeInTheDocument()
     expect(f.dialog.getByPlaceholderText(placeholder)).toHaveValue('目标')
-    await f.user.click(f.dialog.getByRole('button', { name: '重新检索' }))
+    await f.user.click(screen.getByRole('button', { name: '重新检索' }))
     expect(await f.dialog.findByRole('button', { name: '选用' })).toBeInTheDocument()
     expect(method).toHaveBeenCalledTimes(2)
     expect(f.update).not.toHaveBeenCalled()
@@ -49,7 +49,7 @@ describe('AI plan catalog search workflow', () => {
     method.mockRejectedValueOnce(new Error('查询失败'))
     const label = kind === 'DIAGNOSIS' ? '对齐标准诊断' : kind === 'MEDICATION' ? '对齐目录药品' : '对齐院内项目'
     await f.user.click(f.dialog.getByRole('button', { name: label }))
-    expect(await f.dialog.findByRole('alert')).toHaveTextContent('目录检索失败')
+    expect(await screen.findByText(/目录检索失败/)).toBeInTheDocument()
     expect(f.dialog.queryByRole('button', { name: '选用' })).not.toBeInTheDocument()
     expect(f.dialog.getByRole('button', { name: '确认保存调整' })).toBeDisabled()
     expect(f.update).not.toHaveBeenCalled()
@@ -61,7 +61,7 @@ describe('AI plan catalog search workflow', () => {
     await f.user.type(f.dialog.getByPlaceholderText(/输入疾病名称/), '中医病证')
     await f.user.click(f.dialog.getByRole('button', { name: '搜索' }))
     if (domain === 'missing') {
-      expect(await f.dialog.findByRole('alert')).toHaveTextContent('目录缺少')
+      expect(await screen.findByRole('alert')).toHaveTextContent('目录缺少')
       expect(f.dialog.queryByRole('button', { name: '选用' })).not.toBeInTheDocument()
       expect(f.update).not.toHaveBeenCalled()
     } else {

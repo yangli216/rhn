@@ -904,15 +904,15 @@ export function AiPlanTemplateDraftModal({
       }
     >
       <div className="ai-plan-modal-body">
-        {serviceValidation && !pendingService && <div role="alert" className="doctor-plan-pool-notice">{serviceValidation}</div>}
-        {medicationValidation && !pendingMedication && <div role="alert" className="doctor-plan-pool-notice">{medicationValidation}</div>}
-        {medicationStandards.isError && !pendingMedication && <div role="alert" className="doctor-plan-pool-notice">用法字典加载失败：{errorMessage(medicationStandards.error)}
-          <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></div>}
-        {(error || saveOperation.error || conversion.error) && <div role="alert" className="doctor-plan-pool-notice">{error || saveOperation.error || conversion.error}</div>}
-        {linkedNotes.error && <div role="alert" className="doctor-plan-pool-notice">配套病历模板加载失败：{errorMessage(linkedNotes.error)}
-          <Button variant="text" onClick={() => void linkedNotes.refetch()}>重新加载病历模板</Button></div>}
+        {serviceValidation && !pendingService && <Alert duration={null}>{serviceValidation}</Alert>}
+        {medicationValidation && !pendingMedication && <Alert duration={null}>{medicationValidation}</Alert>}
+        {medicationStandards.isError && !pendingMedication && <Alert duration={null}>用法字典加载失败：{errorMessage(medicationStandards.error)}
+          <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></Alert>}
+        {(error || saveOperation.error || conversion.error) && <Alert onDismiss={() => setError(null)}>{error || saveOperation.error || conversion.error}</Alert>}
+        {linkedNotes.error && <Alert duration={null}>配套病历模板加载失败：{errorMessage(linkedNotes.error)}
+          <Button variant="text" onClick={() => void linkedNotes.refetch()}>重新加载病历模板</Button></Alert>}
         {editingTemplate?.noteTemplateId && linkedNotes.isSuccess && !linkedNotes.data?.some(note => note.id === editingTemplate.noteTemplateId)
-          && <div role="alert" className="doctor-plan-pool-notice">配套病历模板已不可用，不能将未加载的正文当作空模板保存。</div>}
+          && <Alert duration={null}>配套病历模板已不可用，不能将未加载的正文当作空模板保存。</Alert>}
 
         <div className="ai-plan-modal-grid" inert={saving || converting}>
           <div className="ai-plan-modal-left">
@@ -1712,7 +1712,9 @@ export function AiPlanTemplateDraftModal({
                                   <Icon name="search" /> 对齐院内项目
                                 </Button>
                               )}
-                              <StatusBadge tone="danger">未匹配院内项目</StatusBadge>
+                              {task.status === 'NEEDS_REVIEW'
+                                ? <StatusBadge tone="warning">待核对院内项目</StatusBadge>
+                                : <StatusBadge tone="danger">未匹配院内项目</StatusBadge>}
                               <Button size="sm" variant="text" aria-label={`移除任务 ${task.text}`}
                                 title="移除" onClick={() => removeTask(index)}><Icon name="close" /></Button>
                             </div>
@@ -1784,9 +1786,9 @@ export function AiPlanTemplateDraftModal({
       <p><strong>{pendingMedication.item.medicationName}</strong> · {pendingMedication.item.preparationSpec || '规格未维护'}</p>
       {pendingMedication.source && <section aria-label="原始用药建议"><strong>原始用药建议</strong><p>{pendingMedication.source}</p></section>}
       <p>已根据原始建议和目录默认值预填用法与数量，请核对后确认；实际开立时仍会再次校验。</p>
-      {pendingMedicationValidation && <div role="alert" className="doctor-plan-pool-notice">{pendingMedicationValidation}</div>}
-      {medicationStandards.isError && <div role="alert" className="doctor-plan-pool-notice">用法字典加载失败：{errorMessage(medicationStandards.error)}
-        <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></div>}
+      {pendingMedicationValidation && <Alert duration={null}>{pendingMedicationValidation}</Alert>}
+      {medicationStandards.isError && <Alert duration={null}>用法字典加载失败：{errorMessage(medicationStandards.error)}
+        <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></Alert>}
       <AiPlanMedicationFields item={pendingMedication.item} standards={standards} requireDirections={pendingMedication.taskIndex !== undefined} disabled={saving || compiling || pendingContextChanged}
         onChange={patch => setPendingMedication(current => current ? { ...current, item: { ...current.item, ...patch } } : current)} />
     </Dialog>}
@@ -1798,7 +1800,7 @@ export function AiPlanTemplateDraftModal({
       <p><strong>{pendingService.item.itemName}</strong> · {pendingService.item.itemCode}</p>
       <p>{pendingService.item.pricingRequired ? '按目录计价，实际价格在开立时核对。' : '当前机构目录不支持计价，确认后作为不计价项目加入。'}</p>
       {pendingService.source && <section aria-label="原始项目建议"><strong>原始项目建议</strong><p>{pendingService.source}</p></section>}
-      {pendingServiceValidation && <div role="alert" className="doctor-plan-pool-notice">{pendingServiceValidation}</div>}
+      {pendingServiceValidation && <Alert duration={null}>{pendingServiceValidation}</Alert>}
       <FormField label="项目数量" required>
         <UnitNumberInput aria-label="项目数量" value={Number.isFinite(pendingService.item.quantity) ? pendingService.item.quantity : ''}
           unit={pendingService.item.unitCode ?? ''} unitReadOnly min="0" step="any" disabled={saving || compiling || serviceContextChanged}

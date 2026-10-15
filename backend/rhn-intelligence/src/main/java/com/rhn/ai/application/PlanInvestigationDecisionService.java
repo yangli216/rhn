@@ -20,18 +20,26 @@ public class PlanInvestigationDecisionService {
     private final TreatmentCatalogDecisionService decisions;
     private final ItemAliasDirectory aliases;
     private final ItemGroupDirectory itemGroups;
+    private final ClinicalTreatmentCatalogResolver curatedAliases;
 
     @Autowired
     public PlanInvestigationDecisionService(ServiceCatalogDirectory catalog, TreatmentCatalogDecisionService decisions,
-                                            ItemAliasDirectory aliases, ItemGroupDirectory itemGroups) {
+                                            ItemAliasDirectory aliases, ItemGroupDirectory itemGroups,
+                                            ClinicalTreatmentCatalogResolver curatedAliases) {
         this.catalog = catalog;
         this.decisions = decisions;
         this.aliases = aliases;
         this.itemGroups = itemGroups;
+        this.curatedAliases = curatedAliases;
+    }
+
+    public PlanInvestigationDecisionService(ServiceCatalogDirectory catalog, TreatmentCatalogDecisionService decisions,
+                                            ItemAliasDirectory aliases, ItemGroupDirectory itemGroups) {
+        this(catalog, decisions, aliases, itemGroups, null);
     }
 
     public PlanInvestigationDecisionService(ServiceCatalogDirectory catalog, TreatmentCatalogDecisionService decisions) {
-        this(catalog, decisions, null, null);
+        this(catalog, decisions, null, null, null);
     }
     public record Intent(String type, String name) {
         public String key() { return type + "|" + name; }
@@ -110,6 +118,14 @@ public class PlanInvestigationDecisionService {
                     continue;
                 }
             }
+            if (curatedAliases != null) {
+                var curated = curatedAlias(intent, context, today);
+                if (curated != null) {
+                    resolved.put(intent.key(), curated);
+                    // An ambiguous alias may still be settled by the shared decision below; otherwise it stays in review.
+                    if (!curated.requiresReview()) continue;
+                }
+            }
             if (!enabled) continue;
             // A suffix may prevent full-name lookup from recalling the corresponding catalog entry.
             if (found.isEmpty()) {
@@ -161,11 +177,37 @@ public class PlanInvestigationDecisionService {
                 if (answer != null) selected = candidatesByGroup.get(index).stream()
                         .filter(item -> (intent.type() + "|" + item.id()).equals(answer.choice())).findFirst().orElse(null);
             }
+            var prior = resolved.get(intent.key());
+            if (selected == null && prior.requiresReview()) continue;
             resolved.put(intent.key(), new Resolution(selected,
                     selected == null ? List.of() : List.of(toResolved(selected, context)), detail,
-                    resolved.get(intent.key()).exactCount(), selected == null ? "" : "DECISION"));
+                    prior.exactCount(), selected == null ? "" : "DECISION"));
         }
         return resolved;
+    }
+
+    /** Curated alias table shared with the AI assistant: one match is accepted, ambiguity is left for the doctor. */
+    private Resolution curatedAlias(Intent intent, ExecutionContext context, LocalDate today) {
+        var match = curatedAliases.resolveCuratedAlias(intent.type(), intent.name(), today).orElse(null);
+        if (match == null) return null;
+        var candidates = match.candidates();
+        if ("MATCHED".equals(match.status()) && candidates.size() == 1 && candidates.getFirst().catalogItemId() != null) {
+            var items = catalog.findOrderableServicesByIds(List.of(candidates.getFirst().catalogItemId()),
+                    context.organizationId(), today).stream().filter(item -> intent.type().equals(item.sdServiceType())).toList();
+            if (items.size() == 1) {
+                return new Resolution(items.getFirst(), List.of(toResolved(items.getFirst(), context)),
+                        "已通过临床目录别名匹配院内目录", 0, "ALIAS");
+            }
+            return new Resolution(null, List.of(), "别名目标在当前机构或项目类型下不可用，请核对", 0, "REVIEW");
+        }
+        if ("AMBIGUOUS".equals(match.status()) && !candidates.isEmpty()) {
+            String names = candidates.stream().limit(8).map(TreatmentRecommendation::name).filter(Objects::nonNull)
+                    .collect(java.util.stream.Collectors.joining("、"));
+            String more = candidates.size() > 8 ? "等" + candidates.size() + "项" : "";
+            return new Resolution(null, List.of(), "存在多个可选院内项目，未自动选择，请选择具体项目：" + names + more,
+                    candidates.size(), "REVIEW");
+        }
+        return null;
     }
 
     private ResolvedItem toResolved(ServiceView item, ExecutionContext context) {

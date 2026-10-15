@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../../../shared/rhnApi'
-import { Button } from '../../../shared/ui'
+import { Alert, Button } from '../../../shared/ui'
 
 export function useTemplateCatalogSearch<T>(context: string, query: string, enabled: boolean, load: (query: string) => Promise<T[]>) {
   const signature = JSON.stringify([context, query.trim(), enabled])
@@ -33,8 +33,8 @@ export function useTemplateCatalogSearch<T>(context: string, query: string, enab
 }
 
 export function TemplateCatalogSearchStatus({ search }: { search: Pick<ReturnType<typeof useTemplateCatalogSearch>, 'status' | 'error' | 'search' | 'rows'> }) {
-  if (search.status === 'error') return <div role="alert" className="doctor-plan-pool-notice">目录检索失败：{search.error}
-    <Button variant="text" onClick={() => void search.search()}>重新检索</Button></div>
+  if (search.status === 'error') return <Alert duration={null}>目录检索失败：{search.error}
+    <Button variant="text" onClick={() => void search.search()}>重新检索</Button></Alert>
   if (search.status === 'loading') return <div role="status">正在检索目录…</div>
   if (search.status === 'success') return <div role="status">{search.rows.length
     ? '显示本次查询的目录候选；如未找到目标，请细化关键词。' : '本次查询未找到匹配目录项。'}</div>

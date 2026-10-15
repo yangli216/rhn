@@ -414,7 +414,7 @@ it.each(['empty', 'wrong-id', 'changed-diagnosis', 'missing-line', 'inactive'])(
     await user.click(screen.getByRole('button', { name: '临床模板' }))
     await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
     const drawer = screen.getByRole('complementary', { name: '临床模板' })
-    expect(await within(drawer).findByRole('alert')).toHaveTextContent('模板未带入')
+    expect(await screen.findByRole('alert')).toHaveTextContent('模板未带入')
     expect(within(drawer).getByRole('checkbox', { name: '选择诊断 回执测试诊断' })).toBeChecked()
     await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
     expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
@@ -430,7 +430,7 @@ it('does not stage any plan lines when its selected linked note receipt fails va
   await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
   await user.click(screen.getByRole('button', { name: '临床模板' }))
   await user.click(await screen.findByRole('button', { name: '带入当前草稿 (2)' }))
-  expect(await within(screen.getByRole('complementary', { name: '临床模板' })).findByRole('alert')).toHaveTextContent('病历模板')
+  expect(await screen.findByRole('alert')).toHaveTextContent('病历模板')
   await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
   expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
   expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('')
@@ -450,8 +450,7 @@ it.each(['selection', 'record'])(
     if (change === 'selection') await user.click(screen.getByRole('checkbox', { name: '选择诊断 回执测试诊断' }))
     else await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '用户正在修改')
     await act(async () => { resolve(plan) })
-    const drawer = screen.getByRole('complementary', { name: '临床模板' })
-    expect(await within(drawer).findByRole('alert')).toHaveTextContent('本次未带入')
+    expect(await screen.findByRole('alert')).toHaveTextContent('本次未带入')
     await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
     expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
     if (change === 'record') expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('用户正在修改')
@@ -479,7 +478,7 @@ it.each(['catalog-error', 'record-changed'])('keeps the whole template unapplied
     else complete(catalogPage)
   })
   const drawer = screen.getByRole('complementary', { name: '临床模板' })
-  expect(await within(drawer).findByRole('alert')).toHaveTextContent(failure === 'catalog-error' ? '目录不可访问' : '本次未带入')
+  expect(await screen.findByRole('alert')).toHaveTextContent(failure === 'catalog-error' ? '目录不可访问' : '本次未带入')
   expect(within(drawer).getByRole('checkbox', { name: '选择诊断 回执测试诊断' })).toBeChecked()
   await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
   expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
@@ -996,7 +995,7 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(api.outpatientPlanTemplates.compareHistoricalPlan)
       .toHaveBeenCalledWith('encounter-101', 'plan-standard-1'))
     if (serviceStatus === 'MISSING_METADATA') {
-      expect(await within(drawer).findByText('历史核对状态未返回，请重新加载历史方案后再带入。')).toBeInTheDocument()
+      expect(await screen.findByText('历史核对状态未返回，请重新加载历史方案后再带入。')).toBeInTheDocument()
       expect(within(drawer).getByRole('button', { name: /合并带入草稿/ })).toBeDisabled()
       expect(api.outpatientPlanTemplates.create).not.toHaveBeenCalled()
       return
@@ -1007,7 +1006,7 @@ describe('DoctorWorkstation reception flow', () => {
       expect(within(drawer).queryByRole('combobox', { name: '选择 REVIEW:MEDICATION:0 的采用来源' })).not.toBeInTheDocument()
     }
     if (serviceStatus === 'LOAD_ERROR') {
-      expect(await within(drawer).findByText('成分目录不可用')).toBeInTheDocument()
+      expect(await screen.findByText('成分目录不可用')).toBeInTheDocument()
       expect(within(drawer).getByRole('button', { name: /合并带入草稿/ })).toBeDisabled()
       expect(api.outpatientPlanTemplates.create).not.toHaveBeenCalled()
       return

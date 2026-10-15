@@ -20,7 +20,11 @@ public class MedicationIntentParser {
     private static final Pattern DURATION_LABEL = Pattern.compile("疗程|连用");
     private static final Pattern QUANTITY = Pattern.compile("(?:共|开|数量)[：:]?\\s*" + NUMBER + "\\s*(盒|瓶|支|袋|片|粒|包|贴|吸|枚|套)");
     private static final Pattern FREQUENCY = Pattern.compile("(?<![a-zA-Z0-9])(?:q\\.i\\.d\\.|t\\.i\\.d\\.|b\\.i\\.d\\.|q\\.d\\.|qid|tid|bid|qd|qn|prn)(?![a-zA-Z0-9])"
-            + "|(?:每日|一日)(?:一|二|两|三|四)次|每晚一次|必要时", Pattern.CASE_INSENSITIVE);
+            + "|(?:每日|每天|一日)(?:[1-4]|一|二|两|三|四)次|每晚(?:一|1)次|必要时", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EVENING_ONCE = Pattern.compile("每晚(?:一|1)次");
+    private static final Pattern DAILY_TIMES = Pattern.compile("(?:每日|每天|一日)([1-4]|一|二|两|三|四)次");
+    /** Labeled free-text fields written for the patient or the reviewing doctor; they never state prescribing directions. */
+    private static final Pattern ADVICE_FIELD = Pattern.compile("(?:^|[；;\\s])(?:目的|嘱托|适用条件|不建议常规使用|备注)[：:][^；;]*");
     private static final String ROUTE_WORDS = "静脉滴注|静脉注射|肌内注射|肌肉注射|皮下注射|雾化吸入|口服|外用";
     private static final Pattern ROUTE = Pattern.compile("(?:" + ROUTE_WORDS + ")(?=$|[\\s，,；;。:：a-zA-Z0-9]|每(?:次|日|晚)|一日)");
     private static final Pattern ROUTE_FIELD = Pattern.compile("(?:给药途径|途径)[：:]\\s*([^\\s，,；;。]+)");
@@ -36,18 +40,37 @@ public class MedicationIntentParser {
     private static final Pattern NEGATIVE_AMOUNT = Pattern.compile("(?:单次剂量|每次|一次|常规用法|疗程|连用|用药|数量|共|开)[：:]?\\s*[-−][0-9.]+");
 
     public ParsedMedication parse(String name, String details) {
-        String source = join(name, details);
+        String fullText = join(name, details);
+        // Advice such as "嘱托：体温正常时无需服用" is not a direction; scanning it would read it as a negated order.
+        String source = ADVICE_FIELD.matcher(fullText).replaceAll(" ");
         String medicationName = cleanMedicationName(name);
         List<Amount> doses = amounts(DOSE, source, true), durations = amounts(DURATION, source, false), quantities = amounts(QUANTITY, source, false);
-        List<String> routes = tokens(source, ROUTE_FIELD, ROUTE), frequencies = tokens(source, FREQUENCY_FIELD, FREQUENCY);
+        List<String> routes = tokens(source, ROUTE_FIELD, ROUTE), frequencies = canonicalFrequencies(tokens(source, FREQUENCY_FIELD, FREQUENCY));
         boolean review = NEGATED.matcher(source).find() || UNCERTAIN_AMOUNT.matcher(source).find() || QUALIFIED_AMOUNT.matcher(source).find() || NEGATIVE_AMOUNT.matcher(source).find()
                 || hasUnparsedDuration(source) || doses.size() > 1 || durations.size() > 1 || quantities.size() > 1 || routes.size() > 1 || frequencies.size() > 1
                 || java.util.stream.Stream.of(doses, durations, quantities).flatMap(List::stream).anyMatch(value -> value.value().signum() <= 0);
-        Amount dose = one(doses), duration = one(durations), quantity = one(quantities);
+        // An amount the text only gives as a range, bound or negative value must not be read as its first number.
+        var uncertain = uncertainKinds(source);
+        Amount dose = uncertain.contains("dose") ? null : one(doses), duration = uncertain.contains("duration") ? null : one(durations),
+                quantity = uncertain.contains("quantity") ? null : one(quantities);
         return new ParsedMedication(medicationName, Strings.trimToNull(name), splitIngredients(medicationName),
                 dose == null ? null : dose.value(), dose == null ? null : dose.unit(),
                 one(routes), one(frequencies), duration == null ? null : duration.value(), duration == null ? null : duration.unit(),
-                quantity == null ? null : quantity.value(), quantity == null ? null : quantity.unit(), source, review);
+                quantity == null ? null : quantity.value(), quantity == null ? null : quantity.unit(), fullText, review);
+    }
+
+    private java.util.Set<String> uncertainKinds(String source) {
+        java.util.Set<String> kinds = new java.util.HashSet<>();
+        for (Pattern pattern : List.of(UNCERTAIN_AMOUNT, QUALIFIED_AMOUNT, NEGATIVE_AMOUNT)) {
+            var matcher = pattern.matcher(source);
+            while (matcher.find()) {
+                String text = matcher.group();
+                if (text.matches(".*(?:单次剂量|每次|一次|常规用法).*")) kinds.add("dose");
+                if (text.matches(".*(?:疗程|连用|用药).*")) kinds.add("duration");
+                if (text.matches(".*(?:数量|共|开).*")) kinds.add("quantity");
+            }
+        }
+        return kinds;
     }
 
     private boolean hasUnparsedDuration(String source) {
@@ -81,6 +104,19 @@ public class MedicationIntentParser {
         var matcher = words.matcher(remaining);
         while (matcher.find()) addToken(values, matcher.group());
         return values;
+    }
+    /** "每日2次" and "每天二次" mean the dictionary's "每日两次"; the wording is unified, nothing is inferred. */
+    private List<String> canonicalFrequencies(List<String> tokens) {
+        List<String> values = new ArrayList<>();
+        for (String token : tokens) addToken(values, canonicalFrequency(token));
+        return values;
+    }
+    private String canonicalFrequency(String token) {
+        if (EVENING_ONCE.matcher(token).matches()) return "每晚一次";
+        var matcher = DAILY_TIMES.matcher(token);
+        if (!matcher.matches()) return token;
+        String times = switch (matcher.group(1)) { case "1", "一" -> "一"; case "2", "二", "两" -> "两"; case "3", "三" -> "三"; default -> "四"; };
+        return "每日" + times + "次";
     }
     private void addToken(List<String> values, String text) {
         String value = text.trim();

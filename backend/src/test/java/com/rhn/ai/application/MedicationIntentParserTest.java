@@ -38,6 +38,50 @@ class MedicationIntentParserTest {
         assertFalse(parsed.hasExecutableDirections());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "规格：0.5g/片；常规用法：每次0.5g 口服 必要时 疗程3天；目的：解热镇痛；嘱托：体温正常时无需服用 共1盒",
+            "规格：0.5g/片；常规用法：每次0.5g 口服 QD 疗程3天 共1盒；适用条件：发热；不建议常规使用：无发热的单纯咽痛 共1盒",
+            "常规用法：每次0.5g 口服 QD 共1盒；嘱托：避免与酒精同服，不要自行加量"
+    })
+    void patient_advice_fields_are_not_prescribing_directions(String details) {
+        var parsed = parser.parse("测试药品", details);
+        assertFalse(parsed.requiresReview(), details);
+        assertEquals(new BigDecimal("0.5"), parsed.doseValue());
+        assertEquals("口服", parsed.routeCode());
+    }
+
+    @Test
+    void negation_inside_the_directions_still_requires_review_even_with_advice_fields() {
+        assertTrue(parser.parse("测试药品", "常规用法：不要口服，每次0.5g QD 共1盒；嘱托：多饮水").requiresReview());
+        assertTrue(parser.parse("测试药品", "常规用法：停用 每次0.5g 口服 QD 共1盒；目的：退热").requiresReview());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"每日2次:每日两次", "每日二次:每日两次", "每天2次:每日两次", "一日2次:每日两次", "每日3次:每日三次",
+            "每日4次:每日四次", "每日1次:每日一次", "每日一次:每日一次", "每日两次:每日两次"})
+    void daily_frequency_is_canonicalised_to_the_dictionary_wording(String pair) {
+        String[] parts = pair.split(":");
+        var parsed = parser.parse("测试药品", "每次0.5g 口服 " + parts[0] + " 疗程3天");
+        assertEquals(parts[1], parsed.frequencyCode());
+        assertFalse(parsed.requiresReview());
+        assertEquals("测试药品", parsed.medicationName());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"每晚1次", "每晚一次"})
+    void evening_once_is_recognised_and_canonicalised(String token) {
+        var parsed = parser.parse("测试药品", "每次0.5g 口服 " + token + " 疗程3天");
+        assertEquals("每晚一次", parsed.frequencyCode());
+        assertFalse(parsed.requiresReview());
+    }
+
+    @Test
+    void daily_frequency_outside_the_supported_range_is_not_guessed() {
+        assertNull(parser.parse("测试药品", "每次0.5g 口服 每日5次 疗程3天").frequencyCode());
+        assertNull(parser.parse("测试药品", "每次0.5g 口服 每日10次 疗程3天").frequencyCode());
+    }
+
     @Test
     void repeated_identical_evidence_is_not_a_conflict() {
         var parsed = parser.parse("测试药品", "每次0.50g 口服 qd 共1盒；每次0.5g 口服 QD 共1盒");

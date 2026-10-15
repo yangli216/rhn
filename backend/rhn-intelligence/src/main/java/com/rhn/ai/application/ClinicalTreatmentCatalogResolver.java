@@ -70,6 +70,18 @@ public class ClinicalTreatmentCatalogResolver {
         return List.copyOf(result.values());
     }
 
+    /**
+     * Resolves a laboratory or examination name only when it has a curated alias entry. Names without one are left to
+     * the caller, so this never widens matching to free-text search; ambiguous results stay {@code AMBIGUOUS}.
+     */
+    public Optional<TreatmentMatch> resolveCuratedAlias(String type, String name, LocalDate date) {
+        String rawType = text(type).toUpperCase(Locale.ROOT);
+        Alias alias = aliases.get(normalize(name));
+        if (alias == null || !alias.type().equals(rawType)) return Optional.empty();
+        var intent = new TreatmentRecommendation(rawType, null, null, null, text(name), null, null);
+        return Optional.of(resolveOne(rawType + ":" + normalize(name), intent, contexts.requireCurrent(), date));
+    }
+
     private TreatmentMatch resolveOne(String key, TreatmentRecommendation intent, ExecutionContext context, LocalDate date) {
         long started = System.nanoTime();
         var counts = new Counts();

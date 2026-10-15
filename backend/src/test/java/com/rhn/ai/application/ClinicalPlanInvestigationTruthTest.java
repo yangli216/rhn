@@ -86,19 +86,27 @@ class ClinicalPlanInvestigationTruthTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"不要查血常规", "高热持续时考虑", "必要时复查", "若阳性再查", "暂缓执行", "每日执行", "最多2次", "当患者同意时执行", "if fever"})
-    void restrictionsAreNotErasedByCatalogMatching(String restriction) {
-        var result = convert(item("数量：2 EA；" + restriction));
-        assertTrue(result.services().isEmpty());
-        assertEquals("NEEDS_REVIEW", result.tasks().getFirst().status());
-        assertTrue(result.tasks().getFirst().details().contains(restriction));
+    @ValueSource(strings = {"不要查血常规", "高热持续时考虑", "必要时复查", "若阳性再查", "暂缓执行", "每日执行", "当患者同意时执行", "if fever"})
+    void conditionalWordingIsKeptInTheOrderNoteForTheDoctorInsteadOfBlockingTheMatch(String wording) {
+        var result = convert(item("数量：2 EA；" + wording));
+        assertEquals(1, result.services().size());
+        assertEquals(new BigDecimal("2"), result.services().getFirst().quantity());
+        assertTrue(result.services().getFirst().clinicalDescription().contains(wording));
+        assertEquals("MATCHED", result.tasks().getFirst().status());
     }
 
-    @Test void sourceQuoteRestrictionsAreAlsoChecked() {
-        var result = service.convertPlanDraftFromInput(new CompilePlanDraftRequest("暂不查血常规", "PERSONAL", "暂不查血常规",
-                null, "检验方案", List.of(new PlanReviewItem("LABORATORY", "血常规", "暂不查血常规", "EXPLICIT", null))));
+    @Test void conflictingAmountsStillNeedReview() {
+        var result = convert(item("数量：2 EA；最多2次"));
         assertTrue(result.services().isEmpty());
         assertEquals("NEEDS_REVIEW", result.tasks().getFirst().status());
+    }
+
+    @Test void sourceQuoteWordingIsKeptInTheOrderNote() {
+        var result = service.convertPlanDraftFromInput(new CompilePlanDraftRequest("暂不查血常规", "PERSONAL", "暂不查血常规",
+                null, "检验方案", List.of(new PlanReviewItem("LABORATORY", "血常规", "暂不查血常规", "EXPLICIT", null))));
+        assertEquals(1, result.services().size());
+        assertTrue(result.services().getFirst().clinicalDescription().contains("暂不查血常规"));
+        assertEquals("MATCHED", result.tasks().getFirst().status());
     }
 
     @Test void duplicateTaskRemainsUnresolvedWithoutMergingOrLosingQuantity() {
@@ -127,8 +135,7 @@ class ClinicalPlanInvestigationTruthTest {
                 new PlanInvestigationDecisionService.ResolvedItem(102L, "CBC", "血常规", "LABORATORY", BigDecimal.ONE, "EA", "EA", false, null, true),
                 new PlanInvestigationDecisionService.ResolvedItem(102L, "CBC", "血常规", "LABORATORY", BigDecimal.ONE, "EA", "ML", true, null, true),
                 new PlanInvestigationDecisionService.ResolvedItem(102L, "CBC", "血常规", "LABORATORY", BigDecimal.ONE, "EA", "EA", true, null, false),
-                new PlanInvestigationDecisionService.ResolvedItem(102L, "CBC", "血常规", "LABORATORY", BigDecimal.ONE, "EA", "EA", true, null, null),
-                new PlanInvestigationDecisionService.ResolvedItem(102L, "CBC", "血常规", "LABORATORY", BigDecimal.ONE, "EA", "EA", true, "必要时复查", true))) {
+                new PlanInvestigationDecisionService.ResolvedItem(102L, "CBC", "血常规", "LABORATORY", BigDecimal.ONE, "EA", "EA", true, null, null))) {
             resolution(true, List.of(member(101L, "2", "EA"), unresolved));
             var result = convert(item(""));
             assertTrue(result.services().isEmpty());

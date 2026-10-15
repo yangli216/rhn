@@ -13,7 +13,7 @@ import type { AllergyIntolerance } from "../../../shared/api/residentsApi";
 import type { Encounter } from "../../../shared/model";
 import { historicalPlanDifferencePresentation } from "../../../shared/presentation";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
-import { Button, DataTable, EmptyState, FormField, LoadingState, Select, StatusBadge, SearchField, tableCellClass, TableShell, Tabs } from "../../../shared/ui";
+import { Alert, Button, DataTable, EmptyState, FormField, LoadingState, Select, StatusBadge, SearchField, tableCellClass, TableShell, Tabs } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "../orders/medicationDraft";
 import { type ServicePlanDraft } from "../UnifiedOrderListEditor";
 import { stageTemplateDiagnoses } from '../workstation/workstationShared'
@@ -444,12 +444,12 @@ export function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyConte
 
   return <>
       <div className="doctor-plan-pool-modal is-drawer">
-        {error && <div role="alert" className="doctor-plan-pool-notice">{typeof error === 'string' ? error : errorMessage(error)}
+        {error && <Alert duration={null}>{typeof error === 'string' ? error : errorMessage(error)}
           <Button variant="text" disabled={application.pending} onClick={() => {
             void templates.refetch(); void noteTemplates.refetch()
             if (scopeFilter === 'HISTORICAL') { void historicalPlanQuery.refetch(); if (comparisonTemplateId) void historicalComparisonQuery.refetch() }
             if (scopeFilter === 'MINED') void minedQuery.refetch()
-          }}>重新加载模板</Button></div>}
+          }}>重新加载模板</Button></Alert>}
         {notice && <div className="doctor-plan-pool-notice">{notice}</div>}
 
         {/* 顶部模板类型、方案范围与确认操作 */}
