@@ -114,6 +114,13 @@ class ConfigurablePdfRenderer {
         if ("images".equals(type)) {
             List<?> images = list(resolve(snapshot, text(block.get("path"))));
             if (images.size() > 4) throw new IllegalArgumentException("At most four report images are supported");
+            String title = text(block.get("title"));
+            if (!title.isBlank() && !images.isEmpty()) {
+                Paragraph heading = new Paragraph(title, font(10, true, Color.BLACK));
+                heading.setSpacingBefore(5);
+                heading.setSpacingAfter(4);
+                document.add(heading);
+            }
             for (Object item : images) {
                 Map<String, Object> source = map(item);
                 String encoded = text(source.get("contentBase64"));
@@ -214,8 +221,13 @@ class ConfigurablePdfRenderer {
             return;
         }
         if ("text".equals(type)) {
-            Paragraph paragraph = new Paragraph(template(block, "template", snapshot,
-                    text(block.get("text"))), font((float) decimal(block.get("fontSize"), 9),
+            String path = text(block.get("path"));
+            String resolved = path.isBlank() ? text(block.get("text")) : value(snapshot, path, "");
+            if ("correctionReason".equals(path) && resolved.isBlank()) return;
+            String title = text(block.get("title"));
+            String combined = title.isBlank() ? resolved : (title + "：" + (resolved.isBlank() ? "-" : resolved));
+            Paragraph paragraph = new Paragraph(template(block, "template", snapshot, combined),
+                    font((float) decimal(block.get("fontSize"), 9),
                     bool(block.get("bold"), false), Color.BLACK));
             paragraph.setSpacingAfter((float) decimal(block.get("spacingAfter"), 6));
             document.add(paragraph);

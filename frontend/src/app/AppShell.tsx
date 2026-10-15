@@ -74,8 +74,6 @@ const RefundManagementWorkspace = lazy(() => import('../features/billing/RefundM
   .then((module) => ({ default: module.RefundManagementWorkspace })))
 const CashierCloseWorkspace = lazy(() => import('../features/billing/CashierCloseWorkspace')
   .then((module) => ({ default: module.CashierCloseWorkspace })))
-const DiagnosticWorkspace = lazy(() => import('../features/diagnostics/DiagnosticWorkspace')
-  .then((module) => ({ default: module.DiagnosticWorkspace })))
 const LaboratoryWorkspace = lazy(() => import('../features/diagnostics/laboratory/LaboratoryWorkspace')
   .then((module) => ({ default: module.LaboratoryWorkspace })))
 const ExaminationWorkspace = lazy(() => import('../features/diagnostics/examination/ExaminationWorkspace')
@@ -187,6 +185,7 @@ const WORK_CONTEXT_LABELS: Record<WorkContextType, string> = {
   CLINICAL: '诊疗',
   PHARMACY: '药房',
   INVENTORY: '库房',
+  MEDTECH: '医技',
   GENERAL: '综合',
 }
 
@@ -197,6 +196,7 @@ export function workContextTypeForPath(path: string): WorkContextType {
   if (pathname === '/pharmacy/warehouse') return 'INVENTORY'
   if (pathname.startsWith('/pharmacy')) return 'PHARMACY'
   if (pathname.startsWith('/inpatient')) return 'GENERAL'
+  if (pathname.startsWith('/diagnostics') || pathname === '/skin-tests' || pathname === '/treatments' || pathname === '/printing/batches') return 'MEDTECH'
   if (pathname.startsWith('/outpatient/') || pathname === '/residents' || pathname === '/care-management'
     || pathname.startsWith('/billing') || pathname.startsWith('/analytics')) return 'CLINICAL'
   return 'CLINICAL'
@@ -222,9 +222,9 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
 
-const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management', 'analytics-management', 'platform-ops']
+const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'medtech-services', 'inpatient-services', 'billing-management', 'analytics-management', 'platform-ops']
 
-const NAVIGATION_NODES: NavigationNode[] = [
+export const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
@@ -238,7 +238,10 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-plan-templates', label: '临床模板库', icon: 'sparkles', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
-      { id: 'diagnostics', label: '检查检验', icon: 'flask', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+    ],
+  },
+  {
+    id: 'medtech-services', label: '医技管理', icon: 'flask', children: [
       { id: 'laboratory', label: '检验工作台', icon: 'flask', to: '/diagnostics/laboratory', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'examination', label: '检查工作台', icon: 'clinical', to: '/diagnostics/examination', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
@@ -417,7 +420,6 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
   if (pathname === '/diagnostics/laboratory') return { id: pathname, path: pathname, title: '检验工作台', icon: 'flask', closeable: true }
   if (pathname === '/diagnostics/examination') return { id: pathname, path: pathname, title: '检查工作台', icon: 'clinical', closeable: true }
-  if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'flask', closeable: true }
   if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'syringe', closeable: true }
   if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'syringe', closeable: true }
   if (pathname === '/printing/batches') return { id: pathname, path: pathname, title: '临床打印', icon: 'print', closeable: true }
@@ -478,11 +480,46 @@ async function loadAuthenticatedState(api: RhnApi, session: Session): Promise<Au
   if (!session.workContexts.length) throw { message: '当前账号没有有效的机构与科室工作上下文' }
   const organizations = await api.organization.list()
   const departmentCache = new Map<string, Department[]>()
+  let currentWorkContexts = session.workContexts
+
+  if (!currentWorkContexts.some((c) => c.workContextType === 'MEDTECH')) {
+    const defaultOrgId = currentWorkContexts[0]?.organizationId
+    if (defaultOrgId) {
+      let departments = departmentCache.get(defaultOrgId)
+      if (!departments) {
+        departments = await api.organization.departments(defaultOrgId)
+        departmentCache.set(defaultOrgId, departments)
+      }
+      const medtechDepts = departments
+        .filter((d) => d.sdDepartmentProperty === 'MEDICAL_TECHNOLOGY'
+          || ['LABORATORY', 'IMAGING', 'ULTRASOUND', 'ECG'].includes(d.code))
+        .sort((a, b) => {
+          if (a.code === 'LABORATORY') return -1
+          if (b.code === 'LABORATORY') return 1
+          return 0
+        })
+      if (medtechDepts.length > 0) {
+        const org = organizations.find((o) => o.id === defaultOrgId)
+        const medtechOptions: WorkContextOption[] = medtechDepts.map((d) => ({
+          organizationId: defaultOrgId,
+          organizationName: org?.name ?? currentWorkContexts[0]?.organizationName ?? '',
+          departmentId: d.id,
+          departmentName: d.name,
+          workContextType: 'MEDTECH',
+          dataScopeType: 'DEPARTMENT',
+          roleCodes: currentWorkContexts[0]?.roleCodes ?? [],
+          authorities: currentWorkContexts[0]?.authorities ?? [],
+        }))
+        currentWorkContexts = [...currentWorkContexts, ...medtechOptions]
+      }
+    }
+  }
+
   const activeContexts: Partial<Record<WorkContextType, WorkContextSlot>> = {}
   for (const contextType of Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[]) {
     const available = contextType === 'INVENTORY'
-      ? selectableWarehouseContexts(session.workContexts)
-      : selectableWorkContexts(session.workContexts, contextType)
+      ? selectableWarehouseContexts(currentWorkContexts)
+      : selectableWorkContexts(currentWorkContexts, contextType)
     if (!available.length) continue
     const storedKey = localStorage.getItem(`rhn.work-context.${contextType}`)
     const selected = available.find((context) => workContextKey(context) === storedKey) ?? available[0]
@@ -502,7 +539,7 @@ async function loadAuthenticatedState(api: RhnApi, session: Session): Promise<Au
     }
   }
   if (!Object.keys(activeContexts).length) throw { message: '当前账号没有可用的科室工作上下文' }
-  return { session, api, activeContexts }
+  return { session: { ...session, workContexts: currentWorkContexts }, api, activeContexts }
 }
 
 export function AppShell() {
@@ -995,8 +1032,6 @@ export function AppShell() {
                     authorities={[...tabAuthorities]}
                     clinicalContext={tabSlot.clinicalContext} onDirtyChange={(value) => markDirty(tab.id, value)}
                     onNavigate={(path) => navigate(path)} />} />
-                  <Route path="/diagnostics" element={<DiagnosticWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/skin-tests" element={<SkinTestManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/treatments" element={<TreatmentExecutionWorkspace api={tabSlot.api}

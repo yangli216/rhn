@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { DiagnosticExecutionTask, DiagnosticReportDraft, LocalDiagnosticReportInput, LocalDiagnosticObservationInput } from '../../../shared/api/diagnosticsApi'
 import { readDiagnosticTemplateSnapshot } from '../../../shared/api/diagnosticTemplateTypes'
@@ -6,6 +6,7 @@ import { formatTime } from '../../../shared/format'
 import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, FormField, LoadingState } from '../../../shared/ui'
 import { LaboratoryResultEditor } from '../laboratory/LaboratoryResultEditor'
+import { CriticalValueNoticeModal } from '../laboratory/CriticalValueNoticeModal'
 import { ExaminationReportEditor } from '../examination/ExaminationReportEditor'
 import { ExaminationImages } from '../examination/ExaminationImages'
 import { DiagnosticTemplateSelection } from './DiagnosticTemplateSelection'
@@ -47,6 +48,50 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
     if (command.current.fingerprint !== fingerprint) command.current = { fingerprint, id: crypto.randomUUID() }
     return command.current.id
   }
+  const [showCriticalNotice, setShowCriticalNotice] = useState(false)
+  const criticalObservations = useMemo(() => {
+    if (task.requestType !== 'LABORATORY' || !input.observations) return []
+    return input.observations
+      .filter(
+        (obs) =>
+          obs.interpretationCode === 'LL' ||
+          obs.interpretationCode === 'HH' ||
+          obs.interpretationCode === 'CRITICAL' ||
+          obs.interpretationCode === 'PANIC'
+      )
+      .map((obs) => ({
+        itemName: obs.observationName,
+        itemCode: obs.observationCode,
+        value: obs.observationValue,
+        unit: obs.unitCode,
+        flag: obs.interpretationCode,
+        referenceRange:
+          obs.referenceRangeLow != null || obs.referenceRangeHigh != null
+            ? `${obs.referenceRangeLow ?? '—'} ~ ${obs.referenceRangeHigh ?? '—'}`
+            : undefined,
+      }))
+  }, [task.requestType, input.observations])
+
+  const handleIssueClick = () => {
+    if (
+      task.requestType === 'LABORATORY' &&
+      criticalObservations.length > 0 &&
+      !input.conclusion?.includes('【危急值通报闭环】')
+    ) {
+      setShowCriticalNotice(true)
+      return
+    }
+    issue.mutate()
+  }
+
+  const handleConfirmCriticalNotice = (noticeRecord: string) => {
+    const updatedConclusion = input.conclusion?.trim()
+      ? `${input.conclusion.trim()}\n\n${noticeRecord}`
+      : noticeRecord
+    change({ conclusion: updatedConclusion })
+    setShowCriticalNotice(false)
+  }
+
   const save = useMutation({ mutationFn: () => api.diagnostics.saveDraft(task.id, payload()), onSuccess: async (saved) => {
     onForm({ ...current, input: saved.content || input, dirty: false }); await onRefresh()
   } })
@@ -78,7 +123,8 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
     {(save.error || issue.error) && <Alert>{errorMessage(save.error || issue.error)}</Alert>}
     <DiagnosticTemplateSelection current={template.data ?? null} selected={selectedTemplate} input={input}
       disabled={save.isPending || issue.isPending || refreshing || !canEdit} onChange={change} />
-    {task.requestType === 'LABORATORY' ? <><LaboratoryResultEditor rows={input.observations || []} template={selectedTemplate} disabled={busy || !canEdit}
+    {task.requestType === 'LABORATORY' ? <><LaboratoryResultEditor rows={input.observations || []} template={selectedTemplate}
+      disabled={busy || !canEdit} patient={{ gender: task.gender, birthDate: task.birthDate }}
       onChange={(observations) => change({ observations })} /><FormField label="结果说明"><textarea rows={3} disabled={busy || !canEdit}
         value={input.conclusion || ''} onChange={(e) => change({ conclusion: e.target.value })} /></FormField></>
       : <ExaminationReportEditor findings={input.findings || ''} conclusion={input.conclusion || ''} disabled={busy || !canEdit} onChange={change} />}
@@ -89,7 +135,18 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
     </div>
     <footer className="diagnostic-editor-actions"><div className="diagnostic-sign-target"><strong>{task.residentName} · {task.itemName}</strong><span>{task.healthRecordNo} · {current.dirty ? '未保存' : draft.content ? '草稿已保存' : '尚未保存草稿'}</span></div><div className="ui-form-actions"><Button variant="secondary" busy={save.isPending} disabled={busy || !canEdit || current.correction && !input.correctionReason?.trim()}
       onClick={() => save.mutate()}>保存草稿</Button><Button busy={issue.isPending}
-        disabled={busy || !canSign || current.correction && !input.correctionReason?.trim()} onClick={() => issue.mutate()}>
+        disabled={busy || !canSign || current.correction && !input.correctionReason?.trim()} onClick={handleIssueClick}>
         {draft.doubleSignatureRequired ? '审核并签发' : current.correction ? '签发更正报告' : '签发正式报告'}</Button></div></footer>
+    {showCriticalNotice && (
+      <CriticalValueNoticeModal
+        isOpen={true}
+        onClose={() => setShowCriticalNotice(false)}
+        criticalItems={criticalObservations}
+        patientName={task.residentName}
+        healthRecordNo={task.healthRecordNo}
+        operatorName={draft.authorName || '检验技师'}
+        onConfirmNotice={handleConfirmCriticalNotice}
+      />
+    )}
   </section>
 }

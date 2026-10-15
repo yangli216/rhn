@@ -94,6 +94,9 @@ class WorkContextService implements WorkContextDirectory {
             if ((departmentType != null && departmentType.startsWith("MED_PHARMACY")) || "PHARMACY".equals(departmentProperty)) {
                 return WorkContextType.PHARMACY;
             }
+            if ("MEDICAL_TECHNOLOGY".equals(departmentProperty) || "MEDICAL_TECHNOLOGY_DEPARTMENT".equals(departmentType)) {
+                return WorkContextType.MEDTECH;
+            }
             if ("CLINICAL".equals(departmentProperty)) return WorkContextType.CLINICAL;
             return WorkContextType.GENERAL;
         }

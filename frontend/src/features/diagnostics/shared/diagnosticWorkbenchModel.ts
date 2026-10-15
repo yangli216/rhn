@@ -4,7 +4,7 @@ import type { RhnApi } from '../../../shared/rhnApi'
 import { diagnosticTaskStatusPresentation } from '../../../shared/presentation'
 
 export type DiagnosticForm = { input: LocalDiagnosticReportInput; dirty: boolean; correction: boolean }
-export type DiagnosticView = 'work' | 'specimens' | 'reports' | 'request'
+export type DiagnosticView = 'work' | 'specimens' | 'reports' | 'request' | 'images'
 
 export function diagnosticStatusOptions(laboratory: boolean) {
   const statuses: DiagnosticTaskStatus[] = ['READY', ...(laboratory ? ['COLLECTED' as const] : []),

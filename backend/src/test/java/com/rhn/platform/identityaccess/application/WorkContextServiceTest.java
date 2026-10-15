@@ -54,6 +54,16 @@ class WorkContextServiceTest {
                         100L, "测试医院", 206L, "全科门诊",
                         "MED_GENERAL_CLINIC", "CLINICAL",
                         "DEPARTMENT", "ROLE_DOCTOR"
+                ),
+                new WorkContextProjectionRepository.Row(
+                        100L, "测试医院", 207L, "医学检验科",
+                        "30", "MEDICAL_TECHNOLOGY",
+                        "DEPARTMENT", "ROLE_PORTAL_OPERATOR"
+                ),
+                new WorkContextProjectionRepository.Row(
+                        100L, "测试医院", 208L, "医学影像科",
+                        "32", "MEDICAL_TECHNOLOGY",
+                        "DEPARTMENT", "ROLE_PORTAL_OPERATOR"
                 )
         );
 
@@ -64,7 +74,7 @@ class WorkContextServiceTest {
         WorkContextService service = new WorkContextService(repo, authRepo);
         List<WorkContextOption> options = service.availableContexts(1L, 2L);
 
-        assertEquals(6, options.size());
+        assertEquals(8, options.size());
 
         // 医用耗材总库 -> INVENTORY
         assertEquals(WorkContextType.INVENTORY, options.get(0).workContextType());
@@ -78,5 +88,9 @@ class WorkContextServiceTest {
         assertEquals(WorkContextType.PHARMACY, options.get(4).workContextType());
         // 全科门诊 -> CLINICAL
         assertEquals(WorkContextType.CLINICAL, options.get(5).workContextType());
+        // 医学检验科 -> MEDTECH
+        assertEquals(WorkContextType.MEDTECH, options.get(6).workContextType());
+        // 医学影像科 -> MEDTECH
+        assertEquals(WorkContextType.MEDTECH, options.get(7).workContextType());
     }
 }

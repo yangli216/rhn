@@ -49,6 +49,9 @@ class PhysicalColumnAbbreviationMigrationTest {
                 + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
         var result = Flyway.configure().dataSource(url, "sa", "")
                 .locations("classpath:db/migration", "classpath:db/h2", "classpath:db/local")
+                // This manifest describes the flattened baseline. Later migrations may deliberately remove
+                // governed columns (e.g. SD_THERAP_CLASS); their final state is checked by DictionaryConformanceTest.
+                .target("1.128.0")
                 .load().migrate();
         assertTrue(result.migrationsExecuted > 0, "重建基线必须执行迁移");
         try (Connection connection = DriverManager.getConnection(url, "sa", "")) {

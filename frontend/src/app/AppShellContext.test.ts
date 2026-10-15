@@ -1,13 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkContextOption } from '../shared/rhnApi'
-import { canAccessDiagnosticWorkspace, selectableWarehouseContexts, selectableWorkContexts, tabForPath, workContextTypeForPath } from './AppShell'
+import { canAccessDiagnosticWorkspace, NAVIGATION_NODES, selectableWarehouseContexts, selectableWorkContexts, tabForPath, workContextTypeForPath } from './AppShell'
 
 describe('AppShell work context routing', () => {
+  it('groups laboratory, examination, skin tests, treatments and clinical printing under medtech-services', () => {
+    const medtech = NAVIGATION_NODES.find((node) => node.id === 'medtech-services')
+    expect(medtech).toBeDefined()
+    expect(medtech?.label).toBe('医技管理')
+    const children = medtech?.children?.map((child) => child.id) ?? []
+    expect(children).toEqual(['laboratory', 'examination', 'skin-tests', 'treatments', 'clinical-printing'])
+    expect(children).not.toContain('diagnostics')
+
+    const outpatient = NAVIGATION_NODES.find((node) => node.id === 'outpatient-services')
+    expect(outpatient).toBeDefined()
+    const outpatientChildren = outpatient?.children?.map((child) => child.id) ?? []
+    expect(outpatientChildren).not.toContain('laboratory')
+    expect(outpatientChildren).not.toContain('examination')
+    expect(outpatientChildren).not.toContain('skin-tests')
+    expect(outpatientChildren).not.toContain('treatments')
+    expect(outpatientChildren).not.toContain('clinical-printing')
+  })
+
   it('requires category rights for medical technology menus and retained tab paths', () => {
     const lab = new Set(['DIAGNOSTICS.ACCESS', 'DIAGNOSTICS.LABORATORY.VIEW'])
     expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory?encounterId=e1', lab)).toBe(true)
     expect(canAccessDiagnosticWorkspace('/diagnostics/examination', lab)).toBe(false)
-    expect(canAccessDiagnosticWorkspace('/diagnostics', lab)).toBe(true)
     expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory', new Set(['DIAGNOSTICS.ACCESS']))).toBe(false)
     expect(canAccessDiagnosticWorkspace('/diagnostics/examination', new Set(['DIAGNOSTICS.EXAMINATION.SIGN']))).toBe(true)
   })
@@ -17,6 +34,15 @@ describe('AppShell work context routing', () => {
     expect(workContextTypeForPath('/outpatient/reception')).toBe('CLINICAL')
     expect(workContextTypeForPath('/billing/settlement')).toBe('CLINICAL')
     expect(workContextTypeForPath('/billing/query')).toBe('CLINICAL')
+  })
+
+  it('routes medical technology workspaces to the MEDTECH context independently from outpatient clinics', () => {
+    expect(workContextTypeForPath('/diagnostics/laboratory')).toBe('MEDTECH')
+    expect(workContextTypeForPath('/diagnostics/examination')).toBe('MEDTECH')
+    expect(workContextTypeForPath('/diagnostics/laboratory?status=READY')).toBe('MEDTECH')
+    expect(workContextTypeForPath('/skin-tests')).toBe('MEDTECH')
+    expect(workContextTypeForPath('/treatments')).toBe('MEDTECH')
+    expect(workContextTypeForPath('/printing/batches')).toBe('MEDTECH')
   })
 
   it('keeps the four pharmacy functions in the pharmacy context while warehouse remains independent', () => {
@@ -88,6 +114,35 @@ describe('AppShell work context routing', () => {
     ])
   })
 
+  it('filters selectable departments specifically for MEDTECH workspaces', () => {
+    const contexts = [
+      {
+        organizationId: 'org-1',
+        departmentId: 'lab-1',
+        departmentName: '医学检验科',
+        workContextType: 'MEDTECH',
+      },
+      {
+        organizationId: 'org-1',
+        departmentId: 'pac-1',
+        departmentName: '医学影像科',
+        workContextType: 'MEDTECH',
+      },
+      {
+        organizationId: 'org-1',
+        departmentId: 'clinic-1',
+        departmentName: '全科门诊',
+        workContextType: 'CLINICAL',
+      },
+    ] as unknown as WorkContextOption[]
+
+    const medtechContexts = selectableWorkContexts(contexts, 'MEDTECH')
+    expect(medtechContexts.map((c) => c.departmentName)).toEqual([
+      '医学检验科',
+      '医学影像科',
+    ])
+  })
+
   it('opens print template management in a workspace tab', () => {
     expect(tabForPath('/settings/print-templates')).toMatchObject({
       path: '/settings/print-templates',
@@ -132,9 +187,13 @@ describe('AppShell work context routing', () => {
       title: '病区护士站',
       icon: 'bed',
     })
-    expect(tabForPath('/diagnostics')).toMatchObject({
-      title: '检查检验',
+    expect(tabForPath('/diagnostics/laboratory')).toMatchObject({
+      title: '检验工作台',
       icon: 'flask',
+    })
+    expect(tabForPath('/diagnostics/examination')).toMatchObject({
+      title: '检查工作台',
+      icon: 'clinical',
     })
     expect(tabForPath('/skin-tests')).toMatchObject({
       title: '皮试管理',

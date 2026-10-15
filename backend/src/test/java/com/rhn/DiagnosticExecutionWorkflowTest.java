@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -107,6 +108,33 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].conclusion").value("本次检验结果"))
                 .andExpect(interpretation == null ? jsonPath("$[0].observations[0].interpretationCode").doesNotExist()
                         : jsonPath("$[0].observations[0].interpretationCode").value(interpretation));
+
+        JsonNode printReceipt = json(mockMvc.perform(post("/api/platform/printing/tasks")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"taskCode":"DIAGNOSTICS.LABORATORY.REPORT.PRINT",
+                                 "source":{"sourceType":"DiagnosticReport","sourceId":"%s","encounterId":"%s"},
+                                 "purpose":"PATIENT_COPY","copies":1,"idempotencyKey":"PRINT-%s"}
+                                """.formatted(report.get("id").asString(), encounterId, suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("GENERATED"))
+                .andExpect(jsonPath("$.taskCode").value("DIAGNOSTICS.LABORATORY.REPORT.PRINT"))
+                .andExpect(jsonPath("$.implementationCode").value("PLATFORM_LABORATORY_REPORT"))
+                .andReturn().getResponse().getContentAsString());
+        byte[] pdf = download(printReceipt);
+        assertPdf(pdf);
+    }
+
+    private byte[] download(JsonNode receipt) throws Exception {
+        return mockMvc.perform(get(receipt.get("downloadUrl").asString()).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andReturn().getResponse().getContentAsByteArray();
+    }
+
+    private void assertPdf(byte[] content) {
+        org.junit.jupiter.api.Assertions.assertTrue(content != null && content.length > 4);
+        org.junit.jupiter.api.Assertions.assertEquals("%PDF",
+                new String(content, 0, 4, java.nio.charset.StandardCharsets.US_ASCII));
     }
 
     private JsonNode findBy(JsonNode values, String field, String expected) {

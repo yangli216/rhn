@@ -1,0 +1,197 @@
+/* 60mm × 40mm 采血管热敏标签样式与标准打印规范 */
+
+.specimen-thermal-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.specimen-thermal-preview-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-strong);
+  width: 100%;
+}
+
+/* 60mm × 40mm 物理尺寸比例标签卡片 (1mm ≈ 3.78px, 60mm ≈ 227px, 40mm ≈ 151px) */
+.specimen-thermal-label-card {
+  --thermal-pad-y: 1.5mm;
+  --thermal-pad-x: 2mm;
+  --thermal-font-xs: 2mm;
+  --thermal-font-sm: 2.2mm;
+  --thermal-font-md: 2.6mm;
+  --thermal-font-lg: 3.2mm;
+  --thermal-gap: 1.5mm;
+  --thermal-margin-v: 0.5mm;
+  width: 60mm;
+  height: 40mm;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--thermal-pad-y) var(--thermal-pad-x);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  overflow: hidden;
+}
+
+.specimen-thermal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--thermal-margin-v);
+  font-size: var(--thermal-font-sm);
+  line-height: var(--line-height-tight, 1.2);
+}
+
+.specimen-thermal-org {
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42mm;
+}
+
+.specimen-thermal-tag {
+  font-size: var(--thermal-font-xs);
+  color: var(--color-text-secondary);
+}
+
+.specimen-thermal-patient-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--thermal-gap);
+  font-size: var(--thermal-font-md);
+  line-height: var(--line-height-tight, 1.2);
+}
+
+.specimen-thermal-name {
+  font-size: var(--thermal-font-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.specimen-thermal-demographics {
+  font-size: var(--thermal-font-md);
+  color: var(--color-text-secondary);
+}
+
+.specimen-thermal-hr {
+  font-family: var(--font-family-mono);
+  font-size: var(--thermal-font-sm);
+  margin-left: auto;
+}
+
+.specimen-thermal-item-row {
+  font-size: var(--thermal-font-md);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--line-height-tight, 1.2);
+}
+
+.specimen-thermal-tube-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--thermal-font-sm);
+  color: var(--color-text-secondary);
+}
+
+.specimen-thermal-tube-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45mm;
+}
+
+.specimen-thermal-vol {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.specimen-thermal-barcode-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: var(--thermal-margin-v) 0;
+}
+
+.specimen-thermal-barcode-svg {
+  width: 90%;
+  height: 9mm;
+  display: block;
+}
+
+.specimen-thermal-barcode-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--thermal-font-md);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight, 1.2);
+}
+
+.specimen-thermal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dotted var(--color-border);
+  padding-top: var(--thermal-margin-v);
+  font-size: var(--thermal-font-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-tight, 1.2);
+}
+
+.specimen-thermal-guidance {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  width: 100%;
+}
+
+.specimen-thermal-guidance code {
+  background: var(--color-surface-subtle);
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-mono);
+}
+
+/* 打印驱动直通样式：精准锁定 60mm × 40mm 纸张尺寸 */
+@media print {
+  @page {
+    size: 60mm 40mm;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .specimen-thermal-label-card,
+  .specimen-thermal-label-card * {
+    visibility: visible;
+  }
+
+  .specimen-thermal-label-card {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 60mm;
+    height: 40mm;
+    margin: 0;
+    padding: var(--thermal-pad-y) var(--thermal-pad-x);
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+

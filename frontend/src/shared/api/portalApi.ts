@@ -9,7 +9,7 @@ export interface WorkContextOption extends WorkContextSelection {
   authorities?: string[]
 }
 
-export type WorkContextType = 'CLINICAL' | 'PHARMACY' | 'INVENTORY' | 'GENERAL'
+export type WorkContextType = 'CLINICAL' | 'PHARMACY' | 'INVENTORY' | 'MEDTECH' | 'GENERAL'
 
 export interface TaskSummary {
   ready: number

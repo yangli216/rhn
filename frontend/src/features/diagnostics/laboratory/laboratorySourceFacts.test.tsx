@@ -3,10 +3,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import type { ClinicalContext } from '../../shared/clinical/workContext'
-import type { DiagnosticExecutionTask, DiagnosticReport } from '../../shared/api/diagnosticsApi'
-import type { RhnApi } from '../../shared/rhnApi'
-import { LaboratoryWorkspace } from './laboratory/LaboratoryWorkspace'
+import type { ClinicalContext } from '../../../shared/clinical/workContext'
+import type { DiagnosticExecutionTask, DiagnosticReport } from '../../../shared/api/diagnosticsApi'
+import type { RhnApi } from '../../../shared/rhnApi'
+import { LaboratoryWorkspace } from './LaboratoryWorkspace'
 
 const context = { organization: { id: 'org1', name: '测试机构' }, department: { id: 'dept1', name: '检验科' } } as ClinicalContext
 const task: DiagnosticExecutionTask = { id: 'task1', revision: 1, requestNo: 'SR26101300001', taskNo: 'DX123456', requestType: 'LABORATORY',
@@ -57,7 +57,7 @@ describe('diagnostic source facts', () => {
     const { diagnostics } = setup([{ ...task, status: 'IN_PROGRESS' }, second])
     await screen.findByLabelText('指标1结果')
     await userEvent.click(screen.getByLabelText('指标1标志'))
-    await userEvent.click(screen.getByRole('option', { name: '偏高' }))
+    await userEvent.click(screen.getByRole('option', { name: /偏高/ }))
     fireEvent.change(screen.getByLabelText('指标1结果'), { target: { value: '12' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
     await waitFor(() => expect(diagnostics.recordLocalReport).toHaveBeenCalledWith('task1', expect.objectContaining({ observations: [expect.objectContaining({ interpretationCode: 'H' })] })))
@@ -110,7 +110,7 @@ describe('diagnostic source facts', () => {
 
   it('does not show zero tasks after a queue failure', async () => {
     setup([], { worklistPage: vi.fn().mockRejectedValue(new Error('队列服务不可用')) })
-    await screen.findByText('医技队列加载失败')
+    await screen.findByText('检验队列加载失败')
     expect(screen.queryByText('暂无检查检验任务')).not.toBeInTheDocument()
     expect(screen.queryByText('暂无匹配任务')).not.toBeInTheDocument()
   })
