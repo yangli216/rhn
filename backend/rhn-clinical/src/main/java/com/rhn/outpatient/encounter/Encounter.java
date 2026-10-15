@@ -120,6 +120,12 @@ class Encounter {
         this.completedAt = Instant.now();
     }
 
+    void reopenCompleted() {
+        requireStatus(EncounterStatus.COMPLETED, "只有已诊毕的就诊可以取消诊毕");
+        this.status = EncounterStatus.IN_PROGRESS;
+        this.completedAt = null;
+    }
+
     void transfer() {
         requireStatus(EncounterStatus.SUSPENDED, "只有等待转科接收的就诊可以完成转科");
         this.status = EncounterStatus.TRANSFERRED;

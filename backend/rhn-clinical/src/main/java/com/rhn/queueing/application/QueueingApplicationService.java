@@ -295,6 +295,13 @@ public class QueueingApplicationService implements QueueingDirectory {
 
     @Override
     @Transactional
+    public TicketSnapshot reopenBySource(String sourceType, Long sourceId, String commandCode, String description) {
+        return changeBySource(sourceType, sourceId, commandCode, null, "REOPENED", description,
+                (ticket, now) -> ticket.reopen());
+    }
+
+    @Override
+    @Transactional
     public TicketSnapshot cancelBySource(String sourceType, Long sourceId, String commandCode, String description) {
         return changeBySource(sourceType, sourceId, commandCode, null, "CANCELLED", description, QueueTicket::cancel);
     }

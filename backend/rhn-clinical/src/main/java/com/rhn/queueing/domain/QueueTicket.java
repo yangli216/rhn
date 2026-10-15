@@ -156,6 +156,14 @@ public class QueueTicket {
         return previous;
     }
 
+    public String reopen() {
+        requireStatus(QueueTicketStatus.COMPLETED, "QUEUE_TICKET_NOT_COMPLETED", "只有已结束的号票可以恢复服务");
+        String previous = status.name();
+        status = QueueTicketStatus.SERVING;
+        completedAt = null;
+        return previous;
+    }
+
     public String cancel(Instant now) {
         if (status == QueueTicketStatus.CANCELLED) return status.name();
         if (!CANCELLABLE.contains(status)) {

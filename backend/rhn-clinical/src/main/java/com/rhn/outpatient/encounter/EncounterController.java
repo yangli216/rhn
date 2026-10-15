@@ -59,6 +59,12 @@ public class EncounterController {
         return encounterService.complete(encounterId, request == null ? CompleteEncounterRequest.defaultRequest() : request);
     }
 
+    @PostMapping("/{encounterId}/cancel-completion")
+    EncounterResponse cancelCompletion(@PathVariable Long encounterId,
+                                       @Valid @RequestBody CancelEncounterCompletionRequest request) {
+        return encounterService.cancelCompletion(encounterId, request);
+    }
+
     @GetMapping("/{encounterId}")
     EncounterResponse get(@PathVariable Long encounterId) {
         return encounterService.get(encounterId);

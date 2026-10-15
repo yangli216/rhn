@@ -24,6 +24,9 @@ public interface QueueingDirectory {
 
     TicketSnapshot completeBySource(String sourceType, Long sourceId, String commandCode, String description);
 
+    /** Returns a completed ticket to serving; used when a doctor cancels the completion of a visit. */
+    TicketSnapshot reopenBySource(String sourceType, Long sourceId, String commandCode, String description);
+
     TicketSnapshot cancelBySource(String sourceType, Long sourceId, String commandCode, String description);
 
     record CheckInCommand(Long organizationId, Long departmentId, Long waitingLocationId,

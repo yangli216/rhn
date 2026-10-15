@@ -25,6 +25,8 @@ public interface OutpatientRegistrationDirectory {
 
     void markCompleted(Long encounterId, String commandCode);
 
+    void markCompletionCancelled(Long encounterId, String commandCode, String reason);
+
     void markTransferred(Long encounterId, String commandCode, String reason);
 
     void markTerminated(Long encounterId, String commandCode, String reason);

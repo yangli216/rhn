@@ -226,6 +226,9 @@ class PatientRegistration {
     void complete() {
         if (status == PatientRegistrationStatus.REGISTERED && completedAt == null) completedAt = Instant.now();
     }
+    void reopenAfterCompletion() {
+        if (status == PatientRegistrationStatus.REGISTERED) completedAt = null;
+    }
     void cancel() {
         if (status == PatientRegistrationStatus.CANCELLED) return;
         if (status != PatientRegistrationStatus.REGISTERED) {

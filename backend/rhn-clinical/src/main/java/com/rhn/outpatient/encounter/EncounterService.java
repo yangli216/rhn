@@ -48,6 +48,7 @@ public class EncounterService implements EncounterDirectory {
     private static final String RESUME_OPERATION = "OUTPATIENT.ENCOUNTER.RESUME";
     private static final String RECORD_OPERATION = "OUTPATIENT.ENCOUNTER.RECORD";
     private static final String COMPLETE_OPERATION = "OUTPATIENT.ENCOUNTER.COMPLETE";
+    private static final String CANCEL_COMPLETION_OPERATION = "OUTPATIENT.ENCOUNTER.CANCEL_COMPLETION";
 
     private final EncounterRepository encounterRepository;
     private final EncounterDiagnosisRepository diagnosisRepository;
@@ -545,6 +546,46 @@ public class EncounterService implements EncounterDirectory {
         }
         publish(encounter, "ENCOUNTER_COMPLETED", "门诊就诊完成", completionDetails);
         return completeCommand(COMPLETE_OPERATION, commandCode, encounter);
+    }
+
+    /**
+     * 取消诊毕：把已诊毕的门诊就诊恢复为接诊中，供原接诊医生更正诊断、病历或医嘱。
+     * 不删除诊毕检查、状态事件等历史事实；重新诊毕仍走完整的准入检查。
+     */
+    @Transactional
+    public EncounterResponse cancelCompletion(Long encounterId, CancelEncounterCompletionRequest request) {
+        Encounter encounter = requireEncounterWithLock(encounterId);
+        if (encounter.status() == EncounterStatus.IN_PROGRESS) {
+            return toResponse(encounter);
+        }
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (encounter.status() != EncounterStatus.COMPLETED || !"OUTPATIENT".equals(encounter.encounterClass())) {
+            throw conflict("ENCOUNTER_COMPLETION_CANCEL_STATE_INVALID", "只有已诊毕的门诊就诊可以取消诊毕");
+        }
+        if (encounter.clinicianId() == null || !encounter.clinicianId().equals(context.actor())) {
+            throw forbidden("ENCOUNTER_COMPLETION_CANCEL_FORBIDDEN", "只有原接诊医生可以取消诊毕");
+        }
+        String reason = Strings.trimToNull(request.reason());
+        if (reason == null) throw badRequest("ENCOUNTER_COMPLETION_CANCEL_REASON_REQUIRED", "取消诊毕必须填写原因");
+        long expectedRevision = encounter.version();
+        String commandCode = Strings.trimToNull(request.commandCode()) == null
+                ? "CANCEL-COMPLETE-" + encounterId + "-" + expectedRevision : Strings.trimToNull(request.commandCode());
+        var reservation = idempotencyService.reserve(CANCEL_COMPLETION_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        // 取消后该居民不能与同科室其他进行中的就诊并存。
+        requireRegistrationEligible(encounter.residentId(), encounter.organizationId(), encounter.departmentId());
+        statusEventRepository.save(new EncounterStatusEvent(encounter, EncounterStatus.COMPLETED.name(),
+                EncounterStatus.IN_PROGRESS.name(), expectedRevision, context.practitionerId(), context.subjectId(),
+                commandCode, "取消诊毕：" + reason));
+        workSessionRepository.save(new EncounterWorkSession(encounter.tenantId(), encounter.id(),
+                context.practitionerId(), context.subjectId(), Strings.trimToNull(request.terminalCode())));
+        encounter.reopenCompleted();
+        registrationDirectory.markCompletionCancelled(encounterId, commandCode, reason);
+        encounterRepository.flush();
+        publish(encounter, "ENCOUNTER_COMPLETION_CANCELLED", "取消门诊诊毕", Map.of(
+                "reason", reason, "clinician", context.actor()));
+        return completeCommand(CANCEL_COMPLETION_OPERATION, commandCode, encounter);
     }
 
     @Transactional(readOnly = true)

@@ -233,6 +233,15 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     @Override
     @Transactional
+    public void markCompletionCancelled(Long encounterId, String commandCode, String reason) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
+        queueing.reopenBySource("PAT_REG", registration.id(), commandCode, "取消诊毕：" + reason);
+        registration.reopenAfterCompletion();
+    }
+
+    @Override
+    @Transactional
     public void markTransferred(Long encounterId, String commandCode, String reason) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
