@@ -414,7 +414,7 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
 
       <Panel className="parameter-catalog">
         <PanelHead title={currentCategoryName} meta={catalogReady ? `${definitionList.length} 项` : '数量待确认'} />
-        <div className="parameter-filters">
+        <div className={`parameter-filters ${fixedConfigType ? 'parameter-filters--fixed-type' : ''}`}>
           <SearchField className="parameter-filters__search" label="搜索参数" value={query}
             onChange={setQuery} placeholder="搜索名称或参数键" />
           {!fixedConfigType && (

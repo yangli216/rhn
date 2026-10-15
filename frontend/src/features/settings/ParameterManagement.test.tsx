@@ -572,6 +572,9 @@ describe('ParameterManagement Dependency & Suppression', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '业务参数配置' })).toBeInTheDocument()
     expect(screen.getByText('按医院、科室维护门诊、挂号、处方、收费等业务流程控制策略与预警阈值。')).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: '配置属性' })).not.toBeInTheDocument()
+    const fixedTypeFilters = screen.getByRole('searchbox', { name: '搜索参数' }).closest('.parameter-filters')
+    expect(fixedTypeFilters).toHaveClass('parameter-filters--fixed-type')
+    expect(fixedTypeFilters).toContainElement(screen.getByRole('combobox', { name: '参数状态' }))
 
     await waitFor(() => {
       expect(definitionsFn).toHaveBeenCalledWith('', '', 'BUSINESS', '')

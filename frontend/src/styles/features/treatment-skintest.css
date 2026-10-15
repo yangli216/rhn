@@ -1810,6 +1810,8 @@
 .parameter-catalog { position: static; }
 .parameter-filters { padding: var(--space-3); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); flex: none; }
 .parameter-filters__search { grid-column: 1 / -1; }
+.parameter-filters--fixed-type { grid-template-columns: minmax(0, 1fr) 8.5rem; }
+.parameter-filters--fixed-type .parameter-filters__search { grid-column: auto; }
 .parameter-filters .ui-select { min-width: 0; width: 100%; font-size: var(--font-size-small); }
 .parameter-catalog__list { min-height: 0; flex: 1; padding: var(--space-2); overflow-y: auto; }
 .parameter-detail > .parameter-detail__head, .parameter-detail > .parameter-facts, .parameter-detail > .parameter-policy, .parameter-detail > .parameter-values__toolbar { flex: none; }

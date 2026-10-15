@@ -178,17 +178,18 @@ export function TreePanel({
   }
 
   const hasResults = visibleRows.length > 0
+  const hasActions = Boolean(onAdd || onEdit || onDelete || onMove)
   const Heading = headingLevel === 2 ? 'h2' : 'h3'
   return <section className={`ui-tree-panel ${sortMode ? 'is-sorting' : ''}`} aria-label={title}>
-    <header className="ui-tree-panel__head">
+    <header className={`ui-tree-panel__head ${hasActions ? 'has-actions' : ''}`}>
       <Heading>{title}</Heading>
-      <div className="ui-tree-panel__actions" aria-label={`${title}操作`}>
+      {hasActions && <div className="ui-tree-panel__actions" aria-label={`${title}操作`}>
         {onAdd && <TreeAction label="新增节点" disabled={busy} onClick={() => onAdd(selectedId)}><IconPlus /></TreeAction>}
         {onEdit && <TreeAction label="编辑节点" disabled={busy || !selectedId} onClick={() => selectedId && onEdit(selectedId)}><IconEdit /></TreeAction>}
         {onDelete && <TreeAction label="删除节点" disabled={busy || !selectedId} onClick={() => selectedId && onDelete(selectedId)}><IconTrash /></TreeAction>}
         {onMove && <TreeAction label={sortMode ? '结束排序' : '拖拽排序'} pressed={sortMode} disabled={busy}
           onClick={() => setSortMode((current) => !current)}><IconSortAscending /></TreeAction>}
-      </div>
+      </div>}
     </header>
     <label className="ui-tree-panel__search">
       <span className="visually-hidden">{searchLabel}</span><IconSearch aria-hidden="true" />
