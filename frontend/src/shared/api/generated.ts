@@ -6196,6 +6196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/encounters/{encounterId}/cancel-completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelCompletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/encounters/{encounterId}/prescriptions": {
         parameters: {
             query?: never;
@@ -10949,6 +10965,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/clinical-documents/{documentId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/worklist": {
         parameters: {
             query?: never;
@@ -14747,6 +14779,7 @@ export interface components {
             readonly priceTypeText?: string;
             /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
             readonly serviceTypeText?: string;
+            cancelBlockedReason?: string;
         };
         Evidence: {
             sourceType?: string;
@@ -14890,6 +14923,7 @@ export interface components {
             readonly medicationTypeText?: string;
             /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
             readonly antimicrobialLevelText?: string;
+            cancelBlockedReason?: string;
         };
         MedicationSafetyDecision: {
             /** @example 824633720832983041 */
@@ -22031,6 +22065,11 @@ export interface components {
             dispositionCode?: string;
             dispositionNote?: string;
         };
+        CancelEncounterCompletionRequest: {
+            commandCode?: string;
+            terminalCode?: string;
+            reason: string;
+        };
         CancelEncounterRequest: {
             commandCode: string;
             reason: string;
@@ -26665,6 +26704,20 @@ export interface components {
             selected?: string[];
             baseline?: string[];
             exceptionType?: string;
+        };
+        VersionContentView: {
+            /** Format: int32 */
+            version?: number;
+            changeType?: string;
+            changeReason?: string;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            signedBy?: string;
+            /** Format: date-time */
+            signedAt?: string;
+            contentSchema?: string;
+            content?: components["schemas"]["JsonNode"];
         };
     };
     responses: never;
@@ -42972,6 +43025,41 @@ export interface operations {
             };
         };
     };
+    cancelCompletion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelEncounterCompletionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EncounterResponse"];
+                };
+            };
+        };
+    };
     list_20: {
         parameters: {
             query?: never;
@@ -53079,6 +53167,38 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ClinicalDocumentResponse"];
+                };
+            };
+        };
+    };
+    version: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                documentId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VersionContentView"];
                 };
             };
         };
