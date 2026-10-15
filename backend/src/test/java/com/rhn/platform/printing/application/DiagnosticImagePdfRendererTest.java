@@ -26,7 +26,7 @@ class DiagnosticImagePdfRendererTest {
                 "title", "检查报告", "blocks", List.of(Map.of("type", "images", "path", "images", "maxHeightMm", 120))));
         var renderer = new ConfigurablePdfRenderer(json);
         var stream = new ByteArrayOutputStream();
-        ImageIO.write(new BufferedImage(160, 120, BufferedImage.TYPE_INT_RGB), "png", stream);
+        ImageIO.write(new BufferedImage(600, 450, BufferedImage.TYPE_INT_RGB), "png", stream);
         byte[] bytes = stream.toByteArray();
         String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         var images = java.util.stream.IntStream.rangeClosed(1, 4).mapToObj(i -> Map.of(

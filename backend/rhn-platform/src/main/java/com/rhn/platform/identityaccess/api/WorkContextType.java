@@ -8,5 +8,6 @@ public enum WorkContextType {
     CLINICAL,
     PHARMACY,
     INVENTORY,
+    MEDTECH,
     GENERAL
 }

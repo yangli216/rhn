@@ -56,4 +56,45 @@
 .diagnostic-workbench .diagnostic-indicator-table .ui-data-table { min-width: 620px; }
 .diagnostic-result-value { display: grid; grid-template-columns: 4rem minmax(5rem, 1fr); align-items: end; gap: var(--space-1); }
 .diagnostic-reference-range { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); }
-.diagnostic-examination-document { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: var(--space-3); }
+.diagnostic-examination-document { display: flex; flex-direction: column; gap: var(--space-3); }
+.diagnostic-exam-toolbar { display: grid; grid-template-columns: 1fr auto; align-items: flex-end; gap: var(--space-2); margin-bottom: var(--space-1); }
+.diagnostic-exam-phrase-box { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-1); padding: var(--space-2); background-color: var(--color-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+.diagnostic-exam-phrase-header { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
+.diagnostic-exam-phrase-tags { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.diagnostic-exam-fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--space-3); }
+
+.diagnostic-tube-badge { display: inline-flex; align-items: center; gap: var(--space-1); }
+.diagnostic-tube-dot { width: 0.625rem; height: 0.625rem; border-radius: var(--radius-full); display: inline-block; flex-shrink: 0; }
+.diagnostic-tube-bar { width: 0.5rem; height: 1rem; border-radius: var(--radius-sm); display: inline-block; flex-shrink: 0; }
+.diagnostic-tube-dot--purple, .diagnostic-tube-bar--purple { background-color: var(--color-specimen-cap-purple); }
+.diagnostic-tube-dot--yellow, .diagnostic-tube-bar--yellow { background-color: var(--color-specimen-cap-yellow); }
+.diagnostic-tube-dot--red, .diagnostic-tube-bar--red { background-color: var(--color-specimen-cap-red); }
+.diagnostic-tube-dot--blue, .diagnostic-tube-bar--blue { background-color: var(--color-specimen-cap-blue); }
+.diagnostic-tube-dot--green, .diagnostic-tube-bar--green { background-color: var(--color-specimen-cap-green); }
+.diagnostic-tube-dot--gray, .diagnostic-tube-bar--gray { background-color: var(--color-specimen-cap-gray); }
+.diagnostic-tube-dot--black, .diagnostic-tube-bar--black { background-color: var(--color-specimen-cap-black); }
+.diagnostic-tube-dot--orange, .diagnostic-tube-bar--orange { background-color: var(--color-specimen-cap-orange); }
+.diagnostic-tube-dot--default, .diagnostic-tube-bar--default { background-color: var(--color-specimen-cap-default); }
+
+.diagnostic-tube-reference-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); margin-bottom: var(--space-3); }
+.diagnostic-tube-reference-body { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--font-size-small); }
+.diagnostic-tube-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin: 0; }
+.diagnostic-tube-details dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.diagnostic-tube-details dd { margin: 0; font-weight: var(--font-weight-medium); color: var(--color-text-primary); }
+.diagnostic-laboratory-main-work, .diagnostic-examination-main-work { display: flex; flex-direction: column; gap: var(--layout-section-gap); height: 100%; }
+
+.diagnostic-examination-workbench { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.diagnostic-modality-badge { display: inline-flex; align-items: center; justify-content: center; padding: var(--space-1) var(--space-2); font-size: var(--font-size-small); font-weight: var(--font-weight-bold); border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border); color: var(--color-text-primary); }
+.diagnostic-modality-badge--dr { color: var(--color-brand-primary); border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.diagnostic-modality-badge--ct { color: var(--color-brand-primary); border-color: var(--color-brand-primary); }
+.diagnostic-modality-badge--mr { color: var(--color-info); border-color: var(--color-info); }
+.diagnostic-modality-badge--us { color: var(--color-success); border-color: var(--color-success); }
+.diagnostic-modality-badge--ecg { color: var(--color-warning); border-color: var(--color-warning); }
+.diagnostic-modality-badge--es { color: var(--color-danger); border-color: var(--color-danger); }
+.diagnostic-modality-badge--default { color: var(--color-text-secondary); border-color: var(--color-border); }
+
+.diagnostic-precheck-card { display: flex; flex-direction: column; gap: var(--layout-section-gap); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.diagnostic-precheck-checklist { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.diagnostic-precheck-item { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border); font-size: var(--font-size-small); }
+.diagnostic-precheck-confirm { display: flex; align-items: center; padding-top: var(--space-2); }
+

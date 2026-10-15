@@ -27,7 +27,7 @@ export function DiagnosticQueue({ api, tasks, selectedId, scope, forms, onSelect
   })}</ul>
 }
 
-function DiagnosticPatientDemographics({ api, task, compact = false }: { api: RhnApi; task: DiagnosticExecutionTask; compact?: boolean }) {
+export function DiagnosticPatientDemographics({ api, task, compact = false }: { api: RhnApi; task: DiagnosticExecutionTask; compact?: boolean }) {
   const incomplete = task.gender === undefined || task.birthDate === undefined
   const resident = useQuery({ queryKey: ['diagnostic-patient-demographics', task.organizationId, task.departmentId, task.residentId, task.healthRecordNo],
     enabled: incomplete, staleTime: 30_000,

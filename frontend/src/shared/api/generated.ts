@@ -11694,12 +11694,12 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
-            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
-            readonly sdOccupationTypeText?: string;
             /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
             readonly sdEmploymentTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
+            readonly sdOccupationTypeText?: string;
         };
         IdentifierView: {
             /** @example 824633720832983041 */
@@ -12177,8 +12177,6 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 DEPT_TYPE 的显示文本 */
-            readonly sdDepartmentTypeText?: string;
             /** @description 字典 ORG_TYPE 的显示文本 */
             readonly sdOrgTypeText?: string;
             /** @description 字典 DEPT_PROPERTY 的显示文本 */
@@ -12189,6 +12187,8 @@ export interface components {
             readonly sdOrgStatusText?: string;
             /** @description 字典 ORG_PROPERTY 的显示文本 */
             readonly sdOrgPropertyText?: string;
+            /** @description 字典 DEPT_TYPE 的显示文本 */
+            readonly sdDepartmentTypeText?: string;
         };
         MasterDataUpdateServiceRequest: {
             expectedRevision: number;
@@ -13062,20 +13062,16 @@ export interface components {
             empty?: boolean;
             null?: boolean;
             float?: boolean;
-            number?: boolean;
-            valueNode?: boolean;
-            container?: boolean;
-            missingNode?: boolean;
-            object?: boolean;
+            integralNumber?: boolean;
+            floatingPointNumber?: boolean;
             /** @enum {string} */
             nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
             string?: boolean;
-            integralNumber?: boolean;
-            pojo?: boolean;
-            floatingPointNumber?: boolean;
+            missingNode?: boolean;
+            valueNode?: boolean;
+            container?: boolean;
+            object?: boolean;
             short?: boolean;
-            int?: boolean;
-            long?: boolean;
             double?: boolean;
             bigDecimal?: boolean;
             bigInteger?: boolean;
@@ -13083,6 +13079,10 @@ export interface components {
             textual?: boolean;
             boolean?: boolean;
             binary?: boolean;
+            number?: boolean;
+            pojo?: boolean;
+            int?: boolean;
+            long?: boolean;
             embeddedValue?: boolean;
         };
         MedicationClassification: {
@@ -13936,8 +13936,6 @@ export interface components {
             dependencyBehavior?: "DISABLE_AND_SUPPRESS" | "HIDE";
             dependsOnName?: string;
             dependencySatisfied?: boolean;
-            /** @description 字典 PARAM_STATUS 的显示文本 */
-            readonly sdParamStatusText?: string;
             /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
             readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
@@ -13948,6 +13946,8 @@ export interface components {
             readonly sdParamSensitivityText?: string;
             /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
             readonly sdParamValueTypeText?: string;
+            /** @description 字典 PARAM_STATUS 的显示文本 */
+            readonly sdParamStatusText?: string;
         };
         ParameterValueResponse: {
             /** @example 824633720832983041 */
@@ -14282,8 +14282,6 @@ export interface components {
             feeCurrencyCode?: string;
             feeConfigured?: boolean;
             feePriceDocumentCode?: string;
-            /** @description 字典 SC_REGISTRATION_SCOPE 的显示文本 */
-            readonly sdRegistrationScopeText?: string;
             /** @description 字典 SC_SCHEDULE_MANAGEMENT_MODE 的显示文本 */
             readonly sdManagementModeText?: string;
             /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
@@ -14294,6 +14292,8 @@ export interface components {
             readonly sdSlotModeText?: string;
             /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
             readonly sdBookingPolicyText?: string;
+            /** @description 字典 SC_REGISTRATION_SCOPE 的显示文本 */
+            readonly sdRegistrationScopeText?: string;
         };
         OutpatientPlanTemplateDiagnosisInput: {
             codeSystem?: string;
@@ -17054,12 +17054,12 @@ export interface components {
             /** @example 824633720832983041 */
             verifiedBy?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
-            readonly sdIdentifierTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
+            /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
+            readonly sdIdentifierTypeText?: string;
         };
         OrganizationProfileView: {
             organization?: components["schemas"]["OrganizationView"];
@@ -21922,10 +21922,10 @@ export interface components {
             gender?: string;
             /** Format: date */
             birthDate?: string;
-            /** @description 字典 RESIDENT_GENDER 的显示文本 */
-            readonly genderText?: string;
             /** @description 字典 BD_EXAM_TYPE 的显示文本 */
             readonly examinationTypeText?: string;
+            /** @description 字典 RESIDENT_GENDER 的显示文本 */
+            readonly genderText?: string;
         };
         LocalObservationRequest: {
             observationCode?: string;
@@ -23624,7 +23624,7 @@ export interface components {
             departmentId?: string;
             departmentName?: string;
             /** @enum {string} */
-            workContextType?: "CLINICAL" | "PHARMACY" | "INVENTORY" | "GENERAL";
+            workContextType?: "CLINICAL" | "PHARMACY" | "INVENTORY" | "MEDTECH" | "GENERAL";
             dataScopeType?: string;
             roleCodes?: string[];
             authorities?: string[];

@@ -11,6 +11,7 @@ export function ExaminationImages({ api, task, draft, disabled, onRefresh }: {
   const client = useQueryClient()
   const [file, setFile] = useState<File>()
   const [caption, setCaption] = useState('')
+  const [primaryId, setPrimaryId] = useState<string | null>(null)
   const command = useRef(crypto.randomUUID())
   const picker = useRef<HTMLInputElement>(null)
   const images = useQuery({ queryKey: ['diagnostic-images', task.id, task.organizationId, task.departmentId],
@@ -28,11 +29,15 @@ export function ExaminationImages({ api, task, draft, disabled, onRefresh }: {
   const remove = useMutation({ mutationFn: (id: string) =>
     api.diagnostics.removeImage(task.id, id, task.revision, draft.revision), onSuccess: refresh })
   const busy = disabled || upload.isPending || remove.isPending || images.isFetching
-  return <section aria-label="检查关键图像"><h3>关键图像</h3>
-    <p>先保存报告草稿，再添加 JPG/PNG；最多四张，每张不超过 10MB。签发后保留到具体报告版本。</p>
+  const activePrimaryId = primaryId || images.data?.[0]?.id
+
+  return <section aria-label="检查关键图像"><h3>关键图像与阅片 (PACS)</h3>
+    <p>先保存报告草稿，再添加 JPG/PNG；最多四张，每张不超过 10MB。支持点击大图高清阅片，标记报告首选主图。</p>
     {(images.error || upload.error || remove.error) && <Alert>{errorMessage(images.error || upload.error || remove.error)}</Alert>}
     {images.isPending ? <LoadingState label="正在读取关键图像…" /> : images.isSuccess && <div className="diagnostic-image-grid">
       {images.data.map((image) => <div key={image.id}><DiagnosticImagePreview image={image}
+        isPrimary={image.id === activePrimaryId}
+        onSetPrimary={() => setPrimaryId(image.id)}
         load={() => api.diagnostics.draftImageContent(task.id, image.id)} />
         <Button size="sm" variant="secondary" disabled={busy || !draft.content} onClick={() => remove.mutate(image.id)}>移出当前草稿</Button></div>)}
     </div>}

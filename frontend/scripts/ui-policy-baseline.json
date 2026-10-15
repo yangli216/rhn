@@ -21,7 +21,6 @@
     "features/billing/RefundManagementWorkspace.tsx": {"shared-button":{"e6306fbdedae332d98d0":1,"2699e33196971973c999":1,"8d6ce8affe79c98b70be":1,"5ece79e4b5f746399d2c":1},"shared-table":{"d26dc1054275d22c6b69":1,"510fec3eee08d3b2c50f":1}},
     "features/care/CareManagementWorkspace.tsx": {"shared-button":{"95091409ef7b32d330fa":1},"shared-table":{"436b9ba6630a73fabaed":1}},
     "features/dashboard/Dashboard.tsx": {"shared-button":{"396580a67589fcf60e11":2,"955cfd3874ee19f0e676":1,"efc189a0c9709eb2ee1f":1,"05d67317519515f54b60":1,"b0773234d123ad53f528":1}},
-    "features/diagnostics/DiagnosticWorkspace.tsx": {"shared-button":{"1a639ce1b62bb82745cb":1,"9de51f8d68feec18e251":1}},
     "features/inpatient/inpatient-diagnoses.css": {"css-token":{"4c805c2e91f02ef416c6":1}},
     "features/inpatient/inpatient-diagnostics.css": {"css-token":{"a4d11c9da553a3ee02a7":1,"2961783da9d65037ba52":1,"16db25eaa16837558743":1,"1f2dbed2ec7f26576584":1,"ad9ef237fb10b4130768":1,"386539af5fa3ab1abb8e":1,"686ff464ebdc5405548d":1,"bb7b9daadf7a680609fa":1},"mobile-breakpoint":{"366154162573e968e183":1}},
     "features/inpatient/inpatient-medical-records.css": {"mobile-breakpoint":{"cfd0e494393d10f6a658":1}},
