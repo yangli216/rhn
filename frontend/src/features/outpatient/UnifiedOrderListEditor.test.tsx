@@ -282,6 +282,19 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByRole('button', { name: '编辑检验单1' })).not.toBeInTheDocument()
   })
 
+  it('disables cancelling orders whose fulfillment has started and explains why', () => {
+    renderComponent({ onOpenDocument: vi.fn(), services: [
+      { id: 'collected', serviceType: 'LABORATORY', itemName: '血常规', quantity: 1, status: 'ACTIVE',
+        authoredAt: '2026-10-12T01:00:00Z', cancelBlockedReason: '检验检查申请已采集、执行或出具报告，不能撤销' },
+      { id: 'waiting', serviceType: 'EXAMINATION', itemName: '腹部超声', quantity: 1, status: 'ACTIVE',
+        authoredAt: '2026-10-12T01:00:00Z', cancelBlockedReason: null },
+    ] })
+    const blocked = screen.getAllByTitle('检验检查申请已采集、执行或出具报告，不能撤销')
+    expect(blocked.length).toBeGreaterThan(0)
+    blocked.forEach((button) => expect(button).toBeDisabled())
+    expect(screen.getByRole('button', { name: '撤销检查单1整单' })).toBeEnabled()
+  })
+
   it.each([{ busy: true }, { documentEditing: true }])('disables group editing during pending work (%j)', (options) => {
     renderComponent({ ...options, onOpenDocument: vi.fn(), services: [{ id: 'pending',
       serviceType: 'LABORATORY', itemName: '血常规', quantity: 1, status: 'ACTIVE',

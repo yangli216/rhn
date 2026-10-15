@@ -75,3 +75,23 @@ export function EncounterSuspendDialog({ encounterId, busy, error, onClose, onCo
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
   </Dialog>
 }
+
+export function EncounterCancelCompletionDialog({ encounterId, busy, error, onClose, onConfirm }: {
+  encounterId: string; busy: boolean; error: unknown; onClose: () => void
+  onConfirm: (input: { commandCode: string; reason: string }) => void
+}) {
+  const [reason, setReason] = useState('')
+  const [requestCommand, setRequestCommand] = useState(() => commandCode('CANCEL-COMPLETE', encounterId))
+  const value = reason.trim()
+  return <Dialog title="取消诊毕" eyebrow="门诊就诊 · 诊后更正"
+    description="取消后本次就诊恢复为接诊中，原诊毕记录和已签署病历版本保留。需先发起病历更正，才能修改诊断；更正完成后须重新签署并诊毕。"
+    onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>返回</Button>
+      <Button busy={busy} disabled={!value} onClick={() => onConfirm({ commandCode: requestCommand, reason: value })}>确认取消诊毕</Button></>}>
+    <div className="ui-form-grid">
+      <FormField label="取消原因" required><textarea value={reason} maxLength={500}
+        onChange={(event) => { setReason(event.target.value); setRequestCommand(commandCode('CANCEL-COMPLETE', encounterId)) }}
+        placeholder="说明需要更正的诊断或医嘱，以及取消诊毕的原因" /></FormField>
+    </div>
+    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+  </Dialog>
+}

@@ -81,7 +81,9 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
       ) : null}
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
-      {value.status !== 'CANCELLED' && (
+      {value.status !== 'CANCELLED' && (value.cancelBlockedReason ? (
+        <Button size="sm" variant="text" disabled title={value.cancelBlockedReason}>撤销</Button>
+      ) : (
         <Popconfirm
           title={`确认撤销“${value.itemName || value.medicationName}”？`}
           okText="撤销"
@@ -90,7 +92,7 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
         >
           <Button size="sm" variant="text" busy={busy}>撤销</Button>
         </Popconfirm>
-      )}
+      ))}
     </span>}
   </div>
 }
@@ -141,7 +143,9 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, d
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : 'neutral'}>{orderStatusLabel(value.status)}</StatusBadge>
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
-      {value.status === 'ACTIVE' && (
+      {value.status === 'ACTIVE' && (value.cancelBlockedReason ? (
+        <Button size="sm" variant="text" disabled title={value.cancelBlockedReason}>撤销</Button>
+      ) : (
         <Popconfirm
           title={`确认撤销“${value.itemName}”？`}
           okText="撤销"
@@ -150,7 +154,7 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, d
         >
           <Button size="sm" variant="text" busy={busy}>撤销</Button>
         </Popconfirm>
-      )}
+      ))}
     </span>}
   </div>
 }

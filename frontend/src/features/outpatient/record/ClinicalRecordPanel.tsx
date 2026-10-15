@@ -5,7 +5,9 @@ import type { RecordTextField } from "../../../shared/api/recordAnnotations";
 import { useClinicalAiDraft, type AiRecordUndo } from "./useClinicalAiDraft";
 import { DiagnosisPanel } from "./DiagnosisPanel";
 import { ClinicalVitalsFields } from "./ClinicalVitalsFields";
-import { StructuredNoteForm, ClinicalRecordReadView } from "./StructuredNoteFields";
+import { StructuredNoteForm, ClinicalRecordReadView, type RecordAmendmentEditing } from "./StructuredNoteFields";
+import { useRecordChangeTrace, type TraceableRecordField } from "./useRecordChangeTrace";
+import { IconEdit, IconHistory, IconPrinter } from "@tabler/icons-react";
 import { NoteTemplateBar, mergeNoteTemplateContent, clinicalRecordAdditionalFields, type NoteTemplateField } from "./NoteTemplateBar";
 import { createClinicalDraftSaver } from "./saveClinicalDraft";
 import { createClinicalAmendmentWriter, signClinicalDocument } from "./clinicalDocumentWorkflow";
@@ -30,7 +32,7 @@ import type { Encounter } from "../../../shared/model";
 import { formatTime } from "../../../shared/format";
 import { requiresBloodPressure } from "../bloodPressurePolicy";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
-import { Alert, Button, Dialog, FormField, Icon, IconButton, Panel, PanelHead } from "../../../shared/ui";
+import { Alert, Button, Dialog, FormField, Icon, IconActionButton, IconActionGroup, Panel, PanelHead, Select } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "../orders/medicationDraft";
 import { type AiOrderReviewCommand, type ServicePlanDraft } from "../UnifiedOrderListEditor";
 import type { ClinicalAiSurfaceRefs } from "../ai/ClinicalAiInlineWorkspace";
@@ -87,7 +89,9 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
   const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
   const [unsignedPrintModalOpen, setUnsignedPrintModalOpen] = useState(false)
+  // True while the signed note is being amended in place in its reading view.
   const [amendmentOpen, setAmendmentOpen] = useState(false)
+  const [tracing, setTracing] = useState(false)
   const [amendmentReason, setAmendmentReason] = useState('')
   const [amendmentDraft, setAmendmentDraft] = useState<AmendmentDraft>({
     chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', allergyHistory: '', medicationHistory: '', auxiliaryExaminations: '', healthEducation: '', followUp: '',
@@ -330,11 +334,13 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
       cacheSignedDocument(signed)
       setAmendmentOpen(false)
       setAmendmentReason('')
+      setTracing(true)
       await onRefresh()
       assertCurrent()
       onRequestReading()
     },
   })
+  const trace = useRecordChangeTrace(api, document, tracing && !amendmentOpen)
   const businessBusy = save.isPending || sign.isPending || amend.isPending || orderBusy
   const aiContextBusy = businessBusy || documents.isPending || Boolean(documents.error)
   const documentStatus = documents.isPending ? 'LOADING'
@@ -431,6 +437,7 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
       physicalExam: document?.content.physicalExam ?? '',
       allergyHistory: document?.content.allergyHistory ?? '', medicationHistory: document?.content.medicationHistory ?? '', auxiliaryExaminations: document?.content.auxiliaryExaminations ?? '', healthEducation: document?.content.healthEducation ?? '', followUp: document?.content.followUp ?? '',
     })
+    setTracing(false)
     setAmendmentOpen(true)
   }
   const applyNoteTemplate = (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => {
@@ -448,56 +455,98 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
   const editActionLabel = encounter.status === 'REGISTERED' ? '开始接诊'
     : encounter.status === 'SUSPENDED' ? '恢复接诊' : '进入编辑'
   const readOnlyReason = !canEdit ? '当前账号没有病历编辑权限'
-    : !encounterEditable ? '本次就诊已结束；如需更正，应发起病历修订并保留原始版本'
+    : !encounterEditable ? '本次就诊已结束；修改诊断或医嘱请先取消诊毕，仅更正病历可发起病历更正'
       : signed ? '病历已签署；如需更正，应发起病历修订' : ''
+  const readingHint = document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'
 
+  // While a signed note is amended in place or its change trace is shown, the document uses its reading layout even in edit mode.
+  const formMode = editing && !amendmentOpen && !tracing
+  const amendmentEditing: RecordAmendmentEditing | undefined = amendmentOpen ? {
+    values: amendmentDraft, disabled: amend.isPending,
+    onChange: (field: TraceableRecordField, value: string) => setAmendmentDraft((current) => ({ ...current, [field]: value })),
+  } : undefined
   return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
-    {!editing && <div className="doctor-clinical-modebar">
-      <div className="doctor-clinical-modebar__status">
-        <strong>阅读状态</strong>
-        <small>{signed ? '病历已签署' : document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'}</small>
-      </div>
-      {readOnlyReason && <div className="doctor-clinical-readonly-note">
-        <Icon name="lock" />
-        <span>{readOnlyReason}</span>
-      </div>}
-      {encounterEditable && <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
-          title={readOnlyReason || `${editActionLabel}后可修改病历`}
-          onClick={onRequestEditing}>{editActionLabel}</Button>}
-    </div>}
     <div className="doctor-record-column"><Panel className="doctor-record-panel">
       <PanelHead className="doctor-record-heading" title="门诊病历"
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>
-          {editing && <NoteTemplateBar api={api} disabled={signed || businessBusy || documents.isPending || Boolean(documents.error)}
+          {formMode && <NoteTemplateBar api={api} disabled={signed || businessBusy || documents.isPending || Boolean(documents.error)}
           contextKey={JSON.stringify([encounter.id, encounter.residentId, encounter.organizationId, encounter.departmentId,
             encounter.clinicianId, document?.currentVersion])} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} showApply={false} />}
-          {editing && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
-          {document && signed && canEdit && (
-            <Button size="sm" variant="secondary" onClick={openAmendment}>发起更正</Button>
-          )}
-          <IconButton icon="print" label="打印病历"
-            disabled={!document}
-            title={!document ? '门诊病历尚未保存，请先录入并保存' : !signed ? '门诊病历签署后方可受控打印' : '受控打印已签署门诊病历'}
-            onClick={() => {
-              if (document && signed) {
-                setNotePrintOpen(true)
-              } else if (document && !signed) {
-                setUnsignedPrintModalOpen(true)
-              }
-            }}
-          />
+          {formMode && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
+          {!editing && <div className="doctor-clinical-readonly-note"
+            title={readOnlyReason || readingHint}>
+            <Icon name="lock" />
+            <strong>阅读状态</strong>
+            <span>{readOnlyReason || readingHint}</span>
+          </div>}
+          {!editing && encounterEditable && <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
+            title={readOnlyReason || `${editActionLabel}后可修改病历`}
+            onClick={onRequestEditing}>{editActionLabel}</Button>}
+          <IconActionGroup className="doctor-record-head-tools">
+            {document && signed && canEdit && !amendmentOpen && (
+              <IconActionButton label="发起更正" title="发起更正：在原病历上修改，保留原签署版本和修改痕迹"
+                icon={<IconEdit />} onClick={openAmendment} />
+            )}
+            {trace.amendments.length > 0 && !amendmentOpen && (
+              <IconActionButton label="查看修改痕迹" aria-pressed={tracing} icon={<IconHistory />}
+                title={tracing ? '隐藏修改痕迹' : '查看修改痕迹：对比更正前后的内容'}
+                onClick={() => setTracing((value) => !value)} />
+            )}
+            <IconActionButton label="打印病历" disabled={!document} icon={<IconPrinter />}
+              title={!document ? '门诊病历尚未保存，请先录入并保存' : !signed ? '门诊病历签署后方可受控打印' : '受控打印已签署门诊病历'}
+              onClick={() => {
+                if (document && signed) {
+                  setNotePrintOpen(true)
+                } else if (document && !signed) {
+                  setUnsignedPrintModalOpen(true)
+                }
+              }} />
+          </IconActionGroup>
         </>} />
       {document?.status === 'AMENDMENT_IN_PROGRESS' && canEdit && !editing && <Alert placement="inline" tone="warning">
         更正草稿尚未签署。<Button size="sm" busy={sign.isPending} onClick={() => sign.mutate()}>重新签署更正版</Button>
       </Alert>}
       {error && <Alert>{errorMessage(error)}</Alert>}
+      {amendmentOpen && document && <div className="doctor-amendment-bar" role="region" aria-label="病历更正" inert={amend.isPending}>
+        <div className="doctor-amendment-bar__reason">
+          <FormField label={`更正原因（基于已签署版本 V${document.currentVersion}）`} required
+            error={amend.error ? errorMessage(amend.error) : undefined}>
+            <textarea className="ui-field__control" value={amendmentReason} maxLength={500} rows={1} autoFocus
+              onChange={(event) => setAmendmentReason(event.target.value)}
+              placeholder="说明需要更正的内容和原因" />
+          </FormField>
+        </div>
+        <div className="doctor-amendment-bar__actions">
+          <Button variant="secondary" disabled={amend.isPending} onClick={() => setAmendmentOpen(false)}>取消</Button>
+          <Button busy={amend.isPending} disabled={!amendmentReason.trim() || !amendmentDraft.chiefComplaint.trim()}
+            onClick={() => amend.mutate()}>更正并重新签署</Button>
+        </div>
+      </div>}
+      {tracing && !amendmentOpen && trace.selected && <div className="doctor-trace-bar" role="region" aria-label="修改痕迹">
+        <div className="doctor-trace-bar__row">
+          <strong>修改痕迹</strong>
+          {trace.amendments.length > 1 ? <Select size="sm" aria-label="选择更正版本" clearable={false} searchable={false}
+            value={String(trace.selected.version)} onChange={(value) => trace.setPicked(Number(value))}
+            options={trace.amendments.map((item) => ({
+              value: String(item.version), label: `V${item.version} · ${formatTime(item.signedAt ?? item.createdAt)}` }))} />
+            : <span>V{trace.selected.version} · {formatTime(trace.selected.signedAt ?? trace.selected.createdAt)}</span>}
+          <span>{trace.selected.signedBy ?? trace.selected.createdBy}</span>
+          {trace.base && <span>对比 V{trace.base.version}</span>}
+          <span className="doctor-trace-bar__reason" title={trace.selected.changeReason}>
+            更正原因：{trace.selected.changeReason || '未填写'}</span>
+          <span className="doctor-trace-bar__legend" aria-hidden><ins>新增</ins><del>删除</del></span>
+        </div>
+        {trace.loading && <small>正在读取更正前后的版本…</small>}
+        {trace.error && <Alert placement="inline">读取修改痕迹失败：{errorMessage(trace.error)}</Alert>}
+        {trace.ready && Object.keys(trace.changes).length === 0 && <small>该版本的文字段落没有变化。</small>}
+      </div>}
       {copyNotice && <div className="doctor-record-adoption-notice"><Icon name="roadmap" /><span>{copyNotice}</span>
         {editing && aiRecordUndo && <Button size="sm" variant="text" disabled={!canUndoAiRecord}
           title={canUndoAiRecord ? '恢复本次采纳前的病历段落' : '相关段落已修改或保存，不能撤销此前采纳'}
           onClick={undoAiRecord}>撤销本次病历采纳</Button>}</div>}
-      {editing ? <form ref={recordFormRef} id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleRecordSubmit}>
+      {formMode ? <form ref={recordFormRef} id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleRecordSubmit}>
         {aiPreConsultation && !signed && (
           <div className="ai-preconsultation-banner">
             <div className="ai-banner-content">
@@ -568,7 +617,8 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
             onClick={() => setShowRecordAnnotations(value => !value)}>{showRecordAnnotations ? '隐藏标记' : '显示标记'}</Button>
         </div>
       </form> : <ClinicalRecordReadView value={recordValues} bmi={bmi} structuredForm={selectedNoteForm}
-        structuredValues={structuredValues} />}
+        structuredValues={structuredValues} amendment={amendmentEditing}
+        changes={tracing && !amendmentOpen ? trace.changes : undefined} />}
     </Panel>
 
     </div>
@@ -660,32 +710,5 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
         </div>
       </Dialog>
     )}
-    {amendmentOpen && document && <Dialog title="发起病历更正" eyebrow={`已签署版本 V${document.currentVersion}`}
-      size="xwide"
-      closeOnBackdrop={false}
-      description="原签署版本和签名证据将完整保留；以下更正内容将生成新版本并重新签署。"
-      onClose={() => !amend.isPending && setAmendmentOpen(false)}
-      footer={<><Button variant="secondary" disabled={amend.isPending} onClick={() => setAmendmentOpen(false)}>取消</Button>
-        <Button busy={amend.isPending} disabled={!amendmentReason.trim() || !amendmentDraft.chiefComplaint.trim()}
-          onClick={() => amend.mutate()}>更正并重新签署</Button></>}>
-      <div className="doctor-amendment-form" inert={amend.isPending}>
-        <FormField label="更正原因" required error={amend.error ? errorMessage(amend.error) : undefined}>
-          <textarea className="ui-field__control" value={amendmentReason} maxLength={500} autoFocus
-            onChange={(event) => setAmendmentReason(event.target.value)}
-            placeholder="说明需要更正的内容和原因" />
-        </FormField>
-        <FormField label="主诉" required>
-          <textarea className="ui-field__control" value={amendmentDraft.chiefComplaint}
-            onChange={(event) => setAmendmentDraft((current) => ({ ...current, chiefComplaint: event.target.value }))} />
-        </FormField>
-        {([
-          ['presentIllness', '现病史'], ['medicalHistory', '既往史'], ['physicalExam', '体格检查'], ['auxiliaryExaminations', '辅助检查结果'], ['healthEducation', '健康宣教'], ['followUp', '随访复诊'],
-        ] as const).map(([field, label]) => <FormField key={field} label={label}>
-
-          <textarea className="ui-field__control" value={amendmentDraft[field]}
-            onChange={(event) => setAmendmentDraft((current) => ({ ...current, [field]: event.target.value }))} />
-        </FormField>)}
-      </div>
-    </Dialog>}
   </section>
 }

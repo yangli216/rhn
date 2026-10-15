@@ -33,7 +33,7 @@ import { AllergySafetyPanel } from '../record/AllergySafetyPanel'
 import { ReferralCoordinationPanel } from '../referrals/ReferralCoordination'
 import { EncounterPrintPanel, BatchPrintDialog } from '../printing/EncounterPrintPanel'
 import { EncounterCompletionDialog } from '../record/EncounterCompletionDialog'
-import { EncounterSuspendDialog, EncounterTerminationDialog } from './EncounterFlowDialogs'
+import { EncounterCancelCompletionDialog, EncounterSuspendDialog, EncounterTerminationDialog } from './EncounterFlowDialogs'
 
 export const ClinicalAiAssistantPanel = lazy(() => import('../ai/ClinicalAiAssistantPanel')
   .then((module) => ({ default: module.ClinicalAiAssistantPanel })))
@@ -66,6 +66,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   const [activeTool, setActiveTool] = useState<WorkTool | null>(null)
   const [completionOpen, setCompletionOpen] = useState(false)
   const [suspensionOpen, setSuspensionOpen] = useState(false)
+  const [cancelCompletionOpen, setCancelCompletionOpen] = useState(false)
   const [terminationOpen, setTerminationOpen] = useState(false)
   const [historyCopy, setHistoryCopy] = useState<HistoryCopyDraft | null>(null)
   const [aiFieldStream, setAiFieldStream] = useState<ClinicalAiFieldStream | null>(null)
@@ -302,6 +303,12 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     }),
     onSuccess: async () => { await refresh(); setEditing(true) },
   })
+  const cancelCompletion = useMutation({
+    mutationFn: (input: { commandCode: string; reason: string }) => api.encounters.cancelCompletion(encounter!.id, {
+      ...input, terminalCode: 'WEB-DOCTOR-WORKSTATION',
+    }),
+    onSuccess: async () => { setCancelCompletionOpen(false); await refresh(); setEditing(true) },
+  })
   const terminate = useMutation({
     mutationFn: (input: TerminateEncounterInput) => api.outpatientFlow.terminate(encounter!.id, input),
     onSuccess: async () => { setTerminationOpen(false); await refresh(); onBack() },
@@ -368,10 +375,12 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
             </span>
           ),
         }] : []),
+        { label: '联系电话', value: resident.phone
+          ? <PatientContextIdentifier label="联系电话" value={resident.phone} /> : <span className="doctor-context-empty">未登记</span> },
+        // 过敏信息是风险提示，放在事实信息之后，与联系人等普通信息分开。
         { label: '过敏信息', value: <AllergyContextValue allergies={allergies.data ?? []}
           loading={allergies.isPending} error={allergies.error} disabled={!encounter}
-          onClick={() => setActiveTool(toggleTool(activeTool, 'allergy'))} /> },
-        { label: '联系电话', value: <strong>{resident.phone || '未登记'}</strong> }]}
+          onClick={() => setActiveTool(toggleTool(activeTool, 'allergy'))} /> }]}
       support={encounter && enhancedQueueItems.length > 0 ? (
         <div className="doctor-context-support">
           <QueueCapsuleBar
@@ -403,6 +412,11 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
         )}
         {encounter && <>
           <div className="doctor-context-actions__buttons">
+            {encounter.status === 'COMPLETED' && canEdit && (
+              <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
+                title="恢复为接诊中，以更正诊断、病历或医嘱；原诊毕记录保留"
+                onClick={() => setCancelCompletionOpen(true)}>取消诊毕</Button>
+            )}
             {editing && encounter.status === 'IN_PROGRESS' && <>
               <Button
                 size="sm"
@@ -552,6 +566,9 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     {suspensionOpen && encounter && <EncounterSuspendDialog encounterId={encounter.id}
       busy={suspend.isPending} error={suspend.error}
       onClose={() => setSuspensionOpen(false)} onConfirm={(input) => suspend.mutate(input)} />}
+    {cancelCompletionOpen && encounter && <EncounterCancelCompletionDialog encounterId={encounter.id}
+      busy={cancelCompletion.isPending} error={cancelCompletion.error}
+      onClose={() => setCancelCompletionOpen(false)} onConfirm={(input) => cancelCompletion.mutate(input)} />}
     {terminationOpen && encounter && <EncounterTerminationDialog encounter={encounter} api={api}
       busy={terminate.isPending} error={terminate.error} onClose={() => setTerminationOpen(false)}
       onConfirm={(input) => terminate.mutate(input)} />}

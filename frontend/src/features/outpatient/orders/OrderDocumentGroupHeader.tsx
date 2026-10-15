@@ -1,4 +1,4 @@
-import { Button, Popconfirm } from '../../../shared/ui'
+import { IconActionButton, IconActionGroup, Popconfirm } from '../../../shared/ui'
 import { IconAlertCircle, IconFlask, IconPill, IconPlant2, IconPrinter, IconScan, IconTrash, IconFileText, IconEdit } from '@tabler/icons-react'
 import { formatOrderSubtotal, type OrderSubtotal } from './orderSubtotal'
 
@@ -15,6 +15,7 @@ export function OrderDocumentGroupHeader({
   canPrint,
   onPrint,
   canCancel,
+  cancelBlockedReason,
   onCancel,
   onEdit,
   editDisabled,
@@ -34,6 +35,8 @@ export function OrderDocumentGroupHeader({
   canPrint?: boolean
   onPrint?: () => void
   canCancel?: boolean
+  /** When set, the whole-document cancel is disabled and this explains why. */
+  cancelBlockedReason?: string | null
   onCancel?: () => void
   onEdit?: () => void
   editDisabled?: boolean
@@ -77,42 +80,27 @@ export function OrderDocumentGroupHeader({
         <span className="doctor-group-subtotal">
           小计 <strong>{formatOrderSubtotal(subtotal)}</strong>
         </span>
-        <div className="doctor-group-actions">
+        <IconActionGroup className="doctor-group-actions">
           {onEdit && (
-            <Button size="sm" variant="text" onClick={onEdit} disabled={editDisabled}
-              aria-label={`编辑${title}`} title={`编辑${title}`}>
-              <IconEdit size={16} stroke={1.75} />
-            </Button>
+            <IconActionButton label={`编辑${title}`} icon={<IconEdit />} onClick={onEdit} disabled={editDisabled} />
           )}
-          {canCancel && onCancel && (
+          {canCancel && onCancel && cancelBlockedReason && (
+            <IconActionButton label={`撤销${title}整单`} title={cancelBlockedReason} icon={<IconTrash />} disabled />
+          )}
+          {canCancel && onCancel && !cancelBlockedReason && (
             <Popconfirm
               title={`确认撤销“${title}”整单医嘱？`}
               okText="撤销"
               okVariant="danger"
               onConfirm={onCancel}
             >
-              <Button
-                size="sm"
-                variant="text"
-                aria-label={`撤销${title}整单`}
-                title={`撤销${title}整单`}
-              >
-                <IconTrash size={16} stroke={1.75} />
-              </Button>
+              <IconActionButton label={`撤销${title}整单`} icon={<IconTrash />} />
             </Popconfirm>
           )}
           {canPrint && onPrint && (
-            <Button
-              size="sm"
-              variant="text"
-              onClick={onPrint}
-              aria-label={`打印${title}`}
-              title={`受控打印${title}`}
-            >
-              <IconPrinter size={16} stroke={1.75} />
-            </Button>
+            <IconActionButton label={`打印${title}`} title={`受控打印${title}`} icon={<IconPrinter />} onClick={onPrint} />
           )}
-        </div>
+        </IconActionGroup>
       </div>
     </div>
   )

@@ -95,6 +95,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   canCancel={svc.status !== 'CANCELLED'}
                   onCancel={() => onCancelService(svc)}
                 />
+                  cancelBlockedReason={svc.cancelBlockedReason}
               </Fragment>
             )
           } else {
@@ -128,6 +129,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   canCancel={docItems.some((e) => e.value.status !== 'CANCELLED')}
                   onCancel={() => docItems.forEach((e) => onCancelMedication(e.value as MedicationRequest))}
                 >
+                  cancelBlockedReason={docItems.map((e) => (e.value as MedicationRequest).cancelBlockedReason).find(Boolean)}
                   {isHerbal && firstMed && (
                     <HerbalFormulaHeaderBar
                       doseCount={firstMed.durationValue || 7}

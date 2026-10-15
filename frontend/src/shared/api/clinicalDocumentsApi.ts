@@ -17,6 +17,19 @@ export interface ClinicalDocumentVersion {
   signatureEvidenceId?: string | null
 }
 
+/** Stored content of one historical version, used to compare an amendment with the version it replaced. */
+export interface ClinicalDocumentVersionContent {
+  version: number
+  changeType: string
+  changeReason: string
+  createdBy: string
+  createdAt: string
+  signedBy?: string | null
+  signedAt?: string | null
+  contentSchema: string
+  content: Record<string, unknown>
+}
+
 export interface OutpatientNoteContent {
   annotations?: RecordAnnotation[]
   chiefComplaint?: string
@@ -75,6 +88,9 @@ export interface ClinicalDocument {
 
 export function createClinicalDocumentsApi(client: ApiClient) {
   return {
+    version: (documentId: string, version: number) => client.request<ClinicalDocumentVersionContent>(
+      `/api/clinical-documents/${documentId}/versions/${version}`,
+    ),
     byEncounter: (encounterId: string) => client.request<ClinicalDocument[]>(
       `/api/clinical-documents?encounterId=${encodeURIComponent(encounterId)}`,
     ),

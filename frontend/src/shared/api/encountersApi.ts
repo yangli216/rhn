@@ -91,6 +91,12 @@ export interface ResumeEncounterInput {
   terminalCode?: string
 }
 
+export interface CancelEncounterCompletionInput {
+  commandCode?: string
+  terminalCode?: string
+  reason: string
+}
+
 export interface CancelEncounterInput {
   commandCode: string
   reason: string
@@ -121,6 +127,8 @@ export interface ServiceRequest {
   performerOrganizationId?: string
   performerDepartmentId?: string
   documentInfoEditable?: boolean
+  /** Set by the server when fulfillment has started and the request can no longer be cancelled. */
+  cancelBlockedReason?: string | null
   documentInfo?: OrderDocumentInfo
   id: string
   revision: number
@@ -170,6 +178,8 @@ export interface CreateServiceRequestInput {
 }
 
 export interface MedicationRequest {
+  /** Set by the server when the drug has been dispensed or executed and the request can no longer be cancelled. */
+  cancelBlockedReason?: string | null
   stockSiteId?: string | null
   stockSiteName?: string | null
   stockSiteSource?: 'RESERVATION' | 'ROUTING' | null
@@ -367,6 +377,11 @@ export function createEncountersApi(client: ApiClient) {
     ),
     resume: (encounterId: string, input: ResumeEncounterInput) => client.request<Encounter>(
       `/api/encounters/${encounterId}/resume`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    cancelCompletion: (encounterId: string, input: CancelEncounterCompletionInput) => client.request<Encounter>(
+      `/api/encounters/${encounterId}/cancel-completion`, {
         method: 'POST', body: JSON.stringify(input),
       },
     ),

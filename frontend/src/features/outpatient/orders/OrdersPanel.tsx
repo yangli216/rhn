@@ -13,7 +13,8 @@ import type { DiagnosisInput, MedicationRequest, MedicationSafetyDecision, Order
 import type { AllergyIntolerance } from "../../../shared/api/residentsApi";
 import type { Encounter } from "../../../shared/model";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
-import { Alert, Button, Dialog, FormField, IconButton, LoadingState, Panel, PanelHead, StatusBadge } from "../../../shared/ui";
+import { IconPrinter } from "@tabler/icons-react";
+import { Alert, Button, Dialog, FormField, IconActionButton, LoadingState, Panel, PanelHead, StatusBadge } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "./medicationDraft";
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from "../UnifiedOrderListEditor";
 import { needsMedicationSafetyAcknowledgement, medicationSafetyReviewKey, medicationSafetyBlocksSubmission, medicationSafetyNeedsReason, medicationSafetySeverityLabel, medicationSafetyDecisionLabel, medicationSafetyRuleNames, prescriptionReviewTitle, serviceReviewTitle } from '../workstation/workstationShared'
@@ -321,7 +322,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     <PanelHead title="医嘱和费用"
       actions={<div className="doctor-order-head-actions">
         {hasActivePrintable && (
-          <IconButton icon="print" label="批量打印"
+          <IconActionButton label="批量打印" icon={<IconPrinter />}
             title="一键批量受控打印本次就诊已生效处方与单据"
             onClick={() => setBatchPrintOpen(true)}
           />

@@ -61,7 +61,7 @@
   margin-bottom: var(--space-1);
   padding: var(--space-1) var(--space-3);
   display: grid;
-  grid-template-columns: auto minmax(13rem, 17rem) minmax(0, 1fr) auto;
+  grid-template-columns: auto fit-content(17rem) minmax(0, 1fr) auto;
   grid-template-areas: "avatar identity facts facts" "support support support actions";
   align-items: center;
   column-gap: var(--space-2);
@@ -83,10 +83,12 @@
 .doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact {
   min-width: 0;
   flex: none;
-  padding-left: var(--space-4);
+  padding-inline: var(--space-4);
 }
+.doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact:last-child { padding-right: 0; }
 .doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact dd { min-width: 0; }
 .doctor-patient-workspace > .ui-context-bar .ui-context-bar__fact .ui-tooltip__trigger { max-width: 100%; }
+.doctor-context-empty { color: var(--color-text-disabled); font-weight: var(--font-weight-regular); }
 .doctor-context-triage { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
 .doctor-context-identifier { max-width: 100%; min-width: 0; padding-inline: 0; }
 .doctor-context-identifier .ui-button__label { max-width: 100%; min-width: 0; }
@@ -100,7 +102,7 @@
 .doctor-context-support .queue-mini-pill .ui-icon { flex: none; }
 @container doctor-patient (min-width: 96rem) {
   .doctor-patient-workspace > .ui-context-bar {
-    grid-template-columns: auto minmax(13rem, 17rem) auto minmax(0, 1fr) auto;
+    grid-template-columns: auto fit-content(17rem) auto minmax(0, 1fr) auto;
     grid-template-areas: "avatar identity facts support actions";
   }
   .doctor-patient-workspace > .ui-context-bar .ui-context-bar__support { justify-self: end; }
@@ -184,16 +186,14 @@
 .doctor-btn--terminate { color: var(--color-danger) !important; }
 .doctor-btn--terminate:hover { background: var(--color-danger-soft) !important; color: var(--color-danger) !important; }
 .doctor-clinical-cockpit { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(29.5rem, .88fr) minmax(36.5rem, 1.12fr); align-items: stretch; gap: var(--layout-panel-gap); }
-.doctor-clinical-cockpit.is-reading { grid-template-rows: auto minmax(0, 1fr); }
+.doctor-clinical-cockpit.is-reading { grid-template-rows: minmax(0, 1fr); }
 .doctor-clinical-cockpit.is-editing { flex: 1; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
-.doctor-clinical-modebar { grid-column: 1 / -1; min-height: 2.75rem; padding: 0 var(--space-1) var(--space-2); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
-.doctor-clinical-modebar__status { min-width: 0; flex: none; }
-.doctor-clinical-modebar__status > * { display: block; }
-.doctor-clinical-modebar strong { font-size: var(--font-size-body); }
-.doctor-clinical-modebar small { margin-top: calc(var(--space-1) * 0.5); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-clinical-readonly-note { margin-left: var(--space-2); padding: var(--space-1) var(--space-3); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning-soft) 30%, var(--color-surface-subtle)); border: 1px solid color-mix(in srgb, var(--color-warning) 25%, var(--color-border)); display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-clinical-readonly-note { order: 2; min-width: 0; flex: 1 1 0; display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .doctor-clinical-readonly-note .ui-icon { width: 0.875rem; height: 0.875rem; flex: none; }
-.doctor-clinical-modebar > .ui-button { margin-left: auto; flex: none; }
+.doctor-clinical-readonly-note strong { flex: none; color: var(--color-text); font-weight: var(--font-weight-semibold); }
+.doctor-clinical-readonly-note span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 病历、诊断、医嘱标题栏统一高度，避免左右并排时高低不一 */
+.doctor-clinical-cockpit .doctor-record-heading, .doctor-clinical-cockpit .doctor-clinical-aside .ui-panel__head { min-height: calc(var(--panel-header-min-height) + var(--space-1)); }
 .doctor-record-column, .doctor-record-panel, .doctor-clinical-aside, .doctor-diagnosis-panel, .doctor-orders-panel, .doctor-settlement-panel { min-width: 0; }
 .doctor-record-column { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); align-content: stretch; gap: var(--layout-panel-gap); }
 .doctor-record-panel { min-height: 0; display: flex; flex-direction: column; overflow: visible; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-sm); position: relative; }
@@ -205,6 +205,7 @@
 .doctor-record-heading > .doctor-record-ai-slot { order: 3; margin-left: auto; flex: none; display: flex; align-items: center; position: relative; z-index: var(--z-sticky); }
 .doctor-record-heading > .ui-panel__meta { order: 4; margin-left: var(--space-2); flex: none; white-space: nowrap; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .doctor-record-heading > .doctor-save-draft-btn, .doctor-record-heading > .ui-button { order: 5; flex: none; }
+.doctor-record-head-tools { order: 6; }
 .doctor-note-template-bar { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .doctor-note-template-bar > div:first-child { min-width: 0; display: flex; align-items: center; gap: var(--space-1); }
 .doctor-note-template-select { min-width: 10rem; width: 13rem; }
@@ -1526,10 +1527,25 @@
   background: var(--color-surface-subtle);
   box-shadow: inset calc(var(--space-1) * 0.75) 0 var(--color-warning);
 }
-.doctor-amendment-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.doctor-amendment-form .ui-field { min-width: 0; margin: 0; }
-.doctor-amendment-form .ui-field:first-child { grid-column: 1 / -1; }
-.doctor-amendment-form textarea { min-height: 5.5rem; resize: vertical; }
+/* 在原病历上更正：原因栏与修改痕迹栏位于标题栏下方，正文段落原位编辑或标注 */
+.doctor-amendment-bar { flex: none; display: flex; align-items: flex-end; gap: var(--space-3); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-warning-soft) 40%, var(--color-surface)); }
+.doctor-amendment-bar__reason { min-width: 0; flex: 1; }
+.doctor-amendment-bar__reason .ui-field { margin: 0; }
+.doctor-amendment-bar__actions { flex: none; display: flex; align-items: center; gap: var(--space-2); }
+.doctor-trace-bar { flex: none; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-trace-bar__row { min-width: 0; display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
+.doctor-trace-bar__row > * { flex: none; }
+.doctor-trace-bar__row strong { color: var(--color-text-primary); font-size: var(--font-size-body); }
+.doctor-trace-bar__row .ui-select { width: 11rem; }
+.doctor-trace-bar > .ui-alert { margin: 0; }
+.doctor-trace-bar__row > .doctor-trace-bar__reason { min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; }
+.doctor-trace-bar__legend { display: flex; gap: var(--space-2); }
+.doctor-record-trace ins, .doctor-trace-bar__legend ins { padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--color-success-soft); color: var(--color-success-strong); text-decoration: none; }
+.doctor-record-trace del, .doctor-trace-bar__legend del { padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--color-danger-soft); color: var(--color-danger-strong); text-decoration: line-through; }
+.doctor-record-read__body > .doctor-record-read__amending h3 { display: block; }
+.doctor-record-read__body > .doctor-record-read__amending h3::after { content: none; }
+.doctor-record-read__amending textarea { width: 100%; }
+.doctor-record-read__amending textarea { min-height: 3.5rem; resize: vertical; }
 .doctor-prescription-meta { min-height: 2rem; margin-bottom: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-order-entry { margin-top: var(--space-2); display: grid; grid-template-columns: 8rem auto; align-items: end; gap: var(--space-2); }
 .doctor-order-entry .ui-field { margin: 0; }
@@ -1642,7 +1658,6 @@
   .doctor-vital-cell--bp { flex-basis: 11rem; }
   .doctor-physical-exam > .ui-field__message { grid-column: 1; }
   .doctor-record-actions { grid-column: auto; }
-  .doctor-clinical-modebar { align-items: flex-start; }
   .doctor-record-read { padding-inline: var(--space-3); }
   .doctor-structured-note-read dl { grid-template-columns: 1fr; }
   .doctor-context-actions { width: 100%; flex-wrap: wrap; }
@@ -2030,11 +2045,6 @@
 .doctor-group-subtotal strong {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
-}
-.doctor-group-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 /* Inline Document Attribute Editor Strip */
 .doctor-order-inline-strip {

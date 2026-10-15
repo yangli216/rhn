@@ -1,6 +1,7 @@
 import type { OutpatientNoteForm, OutpatientNoteFormField } from '../../../shared/api/outpatientNoteFormsApi'
 import { FormField, StatusBadge } from '../../../shared/ui'
 import type { RecordForm } from './clinicalRecordDraft'
+import type { RecordChanges, TraceableRecordField } from './useRecordChangeTrace'
 
 export function StructuredNoteForm({ form, values, errors, disabled, onChange }: {
   form: OutpatientNoteForm
@@ -49,21 +50,63 @@ function StructuredNoteReadView({ form, values }: {
   </section>
 }
 
-export function ClinicalRecordReadView({ value, bmi, structuredForm, structuredValues }: {
+/** Inline amendment of the signed note: the narrative sections of the reading view become editable in place. */
+export interface RecordAmendmentEditing {
+  values: Partial<Record<TraceableRecordField, string>>
+  disabled: boolean
+  onChange: (field: TraceableRecordField, value: string) => void
+}
+
+function RecordReadSection({ label, field, value, amendment, changes }: {
+  label: string
+  field: TraceableRecordField
+  value?: string
+  amendment?: RecordAmendmentEditing
+  changes?: RecordChanges
+}) {
+  if (amendment) {
+    return <section className="doctor-record-read__amending">
+      <h3>{label}</h3>
+      <textarea className="ui-field__control" aria-label={`更正${label}`} value={amendment.values[field] ?? ''}
+        disabled={amendment.disabled} rows={field === 'chiefComplaint' ? 2 : 3}
+        onChange={(event) => amendment.onChange(field, event.target.value)} />
+    </section>
+  }
+  const segments = changes?.[field]
+  if (segments) {
+    return <section className="doctor-record-read__changed">
+      <h3>{label}</h3>
+      <p className="doctor-record-trace">{segments.map((segment, index) => segment.type === 'add'
+        ? <ins key={index}>{segment.text}</ins>
+        : segment.type === 'del' ? <del key={index}>{segment.text}</del>
+          : <span key={index}>{segment.text}</span>)}</p>
+    </section>
+  }
+  return <section>
+    <h3>{label}</h3>
+    <p className={value?.trim() ? '' : 'is-empty'}>{value?.trim() || '未记录'}</p>
+  </section>
+}
+
+export function ClinicalRecordReadView({ value, bmi, structuredForm, structuredValues, amendment, changes }: {
   value: RecordForm
   bmi?: string
   structuredForm?: OutpatientNoteForm
   structuredValues: Record<string, unknown>
+  amendment?: RecordAmendmentEditing
+  changes?: RecordChanges
 }) {
-  const sections = [
-    { label: '主诉', value: value.chiefComplaint },
-    { label: '现病史', value: value.presentIllness },
-    { label: '既往史', value: value.medicalHistory },
-    { label: '查体所见', value: value.physicalExam },
-    { label: '辅助检查结果', value: value.auxiliaryExaminations },
-    { label: '健康宣教', value: value.healthEducation },
-    { label: '随访复诊', value: value.followUp },
+  const sections: Array<{ label: string; field: TraceableRecordField; value?: string }> = [
+    { label: '主诉', field: 'chiefComplaint', value: value.chiefComplaint },
+    { label: '现病史', field: 'presentIllness', value: value.presentIllness },
+    { label: '既往史', field: 'medicalHistory', value: value.medicalHistory },
+    { label: '查体所见', field: 'physicalExam', value: value.physicalExam },
+    { label: '辅助检查结果', field: 'auxiliaryExaminations', value: value.auxiliaryExaminations },
+    { label: '健康宣教', field: 'healthEducation', value: value.healthEducation },
+    { label: '随访复诊', field: 'followUp', value: value.followUp },
   ]
+  const renderSection = (section: (typeof sections)[number]) => <RecordReadSection key={section.label}
+    {...section} amendment={amendment} changes={changes} />
 
   const vitals = [
     { label: '体温', value: value.temperature, unit: '℃' },
@@ -77,10 +120,7 @@ export function ClinicalRecordReadView({ value, bmi, structuredForm, structuredV
   ]
   return <article className="doctor-record-read" aria-label="门诊病历阅读内容">
     <div className="doctor-record-read__body">
-      {sections.slice(0, 3).map((section) => <section key={section.label}>
-        <h3>{section.label}</h3>
-        <p className={section.value?.trim() ? '' : 'is-empty'}>{section.value?.trim() || '未记录'}</p>
-      </section>)}
+      {sections.slice(0, 3).map(renderSection)}
       <section className="doctor-record-read__vitals">
         <h3>生命体征</h3>
         <dl>{vitals.map((item) => <div key={item.label}>
@@ -89,10 +129,7 @@ export function ClinicalRecordReadView({ value, bmi, structuredForm, structuredV
           </dd>
         </div>)}</dl>
       </section>
-      {sections.slice(3).map((section) => <section key={section.label}>
-        <h3>{section.label}</h3>
-        <p className={section.value?.trim() ? '' : 'is-empty'}>{section.value?.trim() || '未记录'}</p>
-      </section>)}
+      {sections.slice(3).map(renderSection)}
     </div>
     {structuredForm && <StructuredNoteReadView form={structuredForm} values={structuredValues} />}
   </article>
