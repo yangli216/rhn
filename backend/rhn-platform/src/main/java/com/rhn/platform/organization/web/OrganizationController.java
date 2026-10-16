@@ -60,6 +60,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/tenants")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     TenantView createTenant(@Valid @RequestBody CreateTenantRequest request) {
         return service.createTenant(tenantId(), request.code().trim(), request.name().trim());
@@ -73,6 +74,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationView createOrganizationUnit(@Valid @RequestBody CreateOrganizationUnitRequest request) {
         if (request.sdOrgKind() == OrganizationKind.ORG_UNIT) {
@@ -99,6 +101,7 @@ public class OrganizationController {
     }
 
     @PutMapping("/organization-units/{id}")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     OrganizationView updateOrganizationUnit(@PathVariable Long id,
                                             @Valid @RequestBody UpdateOrganizationUnitRequest request) {
         if (departmentService.exists(tenantId(), id)) {
@@ -116,6 +119,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units/{id}/status")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     OrganizationView changeOrganizationStatus(@PathVariable Long id,
                                               @Valid @RequestBody OrganizationStatusRequest request) {
         if (departmentService.exists(tenantId(), id)) {
@@ -144,6 +148,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organizations")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationView createOrganization(@Valid @RequestBody LegacyOrganizationRequest request) {
         return service.createOrganization(tenantId(), request.parentId(), request.code(), request.name(),
@@ -159,6 +164,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/departments")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DepartmentView createDepartment(@Valid @RequestBody LegacyDepartmentRequest request) {
         return departmentService.create(tenantId(), request.organizationId(), request.parentId(),
@@ -175,7 +181,13 @@ public class OrganizationController {
         return departmentService.profile(id);
     }
 
+    @GetMapping("/departments/{id}/business-configuration")
+    com.rhn.platform.organization.api.DepartmentBusinessPolicy.DepartmentBusinessConfiguration departmentBusinessConfiguration(@PathVariable Long id) {
+        return com.rhn.platform.organization.api.DepartmentBusinessPolicy.describe(departmentService.profile(id).department());
+    }
+
     @PostMapping("/organization-units/{id}/identifiers")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationProfileView addIdentifier(@PathVariable Long id,
                                           @Valid @RequestBody CreateIdentifierRequest request) {
@@ -185,6 +197,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units/{id}/contacts")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationProfileView addContact(@PathVariable Long id,
                                        @Valid @RequestBody CreateContactRequest request) {
@@ -197,6 +210,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units/{id}/addresses")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationProfileView addAddress(@PathVariable Long id,
                                        @Valid @RequestBody CreateAddressRequest request) {
@@ -206,6 +220,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units/{id}/relations")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationProfileView addRelation(@PathVariable Long id,
                                         @Valid @RequestBody CreateRelationRequest request) {
@@ -214,6 +229,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units/{id}/capabilities")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationProfileView addCapability(@PathVariable Long id,
                                           @Valid @RequestBody CreateCapabilityRequest request) {
@@ -222,6 +238,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/organization-units/{id}/responsibilities")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationProfileView addResponsibility(@PathVariable Long id,
                                               @Valid @RequestBody CreateResponsibilityRequest request) {
@@ -231,6 +248,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/departments/{id}/contacts")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DepartmentProfileView addDepartmentContact(@PathVariable Long id,
                                                 @Valid @RequestBody CreateContactRequest request) {
@@ -240,6 +258,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/departments/{id}/relations")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DepartmentProfileView addDepartmentRelation(@PathVariable Long id,
                                                  @Valid @RequestBody CreateDepartmentRelationRequest request) {
@@ -248,6 +267,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/departments/{id}/capabilities")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DepartmentProfileView addDepartmentCapability(@PathVariable Long id,
                                                    @Valid @RequestBody CreateCapabilityRequest request) {
@@ -256,6 +276,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/departments/{id}/responsibilities")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DepartmentProfileView addDepartmentResponsibility(@PathVariable Long id,
                                                        @Valid @RequestBody CreateResponsibilityRequest request) {
@@ -275,6 +296,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/practitioners/onboarding")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     StaffDetailView onboardStaff(@Valid @RequestBody OnboardStaffRequest request) {
         return service.onboardStaff(request.code(), request.fullName(), request.sdPractGender(),
@@ -282,17 +304,20 @@ public class OrganizationController {
     }
 
     @PostMapping({"/practitioners", "/staff"})
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     StaffView createStaff(@Valid @RequestBody CreateStaffRequest request) {
         return service.createStaff(tenantId(), request.code(), request.fullName(), request.sdPractGender());
     }
 
     @PutMapping("/practitioners/{id}")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     StaffView updateStaff(@PathVariable Long id, @Valid @RequestBody UpdateStaffRequest request) {
         return service.updateStaff(id, request.expectedRevision(), request.fullName(), request.sdPractGender());
     }
 
     @PostMapping("/practitioners/{id}/status")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     StaffView changeStaffStatus(@PathVariable Long id, @Valid @RequestBody StaffStatusRequest request) {
         return service.changeStaffStatus(id, request.expectedRevision(), request.sdPersonnelStatus());
     }
@@ -303,6 +328,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/positions")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     PositionView createPosition(@Valid @RequestBody CreatePositionRequest request) {
         return service.createPosition(request.code(), request.name(), request.sdPositionType(),
@@ -310,6 +336,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/employments")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     EmploymentView createEmployment(@Valid @RequestBody CreateEmploymentRequest request) {
         return service.createEmployment(request.practitionerId(), request.organizationId(), request.code(),
@@ -317,6 +344,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/assignments")
+    @PreAuthorize("hasAuthority('IAM.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     StaffAssignmentView createAssignment(@Valid @RequestBody CreateAssignmentRequest request) {
         return service.createAssignment(request.employmentId(), request.organizationId(), request.departmentId(),

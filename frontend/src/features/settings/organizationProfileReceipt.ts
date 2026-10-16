@@ -1,7 +1,7 @@
 import type { OrganizationProfileInput, OrganizationProfileResult, OrganizationProfileSection, OrganizationUnit } from '../../shared/rhnApi'
 import { requireOrganizationProfile } from './organizationProfileFacts'
 
-const fail = (): never => { throw new Error('治理档案保存结果未确认：未找到与本次提交一致的新增记录，请重新加载核实') }
+const fail = (): never => { throw new Error('资料保存结果未确认：返回记录与本次提交不一致，请重新加载核实') }
 const optional = (value?: string | null) => value?.trim() || null
 function collections(profile: OrganizationProfileResult): Partial<Record<OrganizationProfileSection, ReadonlyArray<{ id: string }>>> {
   const shared = { contact: profile.contacts, relation: profile.relations, capability: profile.capabilities, responsibility: profile.responsibilities }
@@ -64,5 +64,41 @@ export function requireCreatedProfileItem(source: unknown, unit: OrganizationUni
     return matches(item, expected)
   })
   if (matching?.length !== 1) return fail()
+  return next
+}
+
+export function requireUpdatedProfileItem(source: unknown, unit: OrganizationUnit, before: OrganizationProfileResult,
+  id: string, input: OrganizationProfileInput, status: string, expectedRevision: number): OrganizationProfileResult {
+  const previous = collections(requireOrganizationProfile(before, unit))
+  const next = requireOrganizationProfile(source, unit), after = collections(next)
+  const owner = 'department' in next ? next.department : next.organization
+  if (owner.revision <= expectedRevision) return fail()
+  for (const section of Object.keys(previous) as OrganizationProfileSection[]) {
+    if (after[section]?.length !== previous[section]?.length || previous[section]!.some(item => !after[section]?.some(row => row.id === item.id))) return fail()
+  }
+  const record = after[input.section]?.find(item => item.id === id)
+  if (!record || !matches(record, { ...expectedRecord(input, unit.sdOrgKind === 'ORG_UNIT'), sdDetailStatus: status })) return fail()
+  return next
+}
+
+export function requireMaintainedProfile(source: unknown, unit: OrganizationUnit, before: OrganizationProfileResult,
+  changes: Array<{ id?: string; input: OrganizationProfileInput; status: string }>): OrganizationProfileResult {
+  const previous = collections(requireOrganizationProfile(before, unit))
+  const next = requireOrganizationProfile(source, unit), after = collections(next)
+  const owner = 'department' in next ? next.department : next.organization
+  if (owner.revision <= unit.revision) return fail()
+  for (const section of Object.keys(previous) as OrganizationProfileSection[]) {
+    const newCount = changes.filter(row => row.input.section === section && !row.id).length
+    if (after[section]?.length !== previous[section]!.length + newCount
+      || previous[section]!.some(item => !after[section]?.some(row => row.id === item.id))) return fail()
+  }
+  const matched = new Set<string>()
+  for (const change of changes) {
+    const oldIds = new Set(previous[change.input.section]?.map(item => item.id))
+    const candidates = after[change.input.section]?.filter(row => change.id ? row.id === change.id : !oldIds.has(row.id) && !matched.has(`${change.input.section}:${row.id}`))
+      .filter(row => matches(row, { ...expectedRecord(change.input, unit.sdOrgKind === 'ORG_UNIT'), sdDetailStatus: change.status }))
+    if (candidates?.length !== 1) return fail()
+    matched.add(`${change.input.section}:${candidates[0].id}`)
+  }
   return next
 }

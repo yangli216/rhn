@@ -328,7 +328,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
 
     private String createOrganization(String parentId, String code) throws Exception {
         return json(mockMvc.perform(post("/api/platform/organizations")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"parentId":"%s","code":"%s","name":"参数测试子机构",
                                  "type":"CLINIC","validFrom":"2026-01-01"}
@@ -339,7 +339,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
     private String createDepartment(String organizationId, String parentId, String code) throws Exception {
         String parentField = parentId == null ? "" : ",\"parentId\":\"" + parentId + "\"";
         return json(mockMvc.perform(post("/api/platform/departments")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"organizationId":"%s","code":"%s","name":"参数测试科室",
                                  "type":"CLINICAL","validFrom":"2026-01-01"%s}

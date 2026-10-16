@@ -595,6 +595,39 @@
         "DiagnosticTemplateWorkflowTest",
         "com.rhn.diagnostics.application.LaboratoryRuleEvaluatorTest"
       ]
+    },
+    "organization": {
+      "coverage": [
+        "组织层级、科室业务属性与服务能力、人员与档案维护闭环、账号权限边界"
+      ],
+      "limitations": [
+        "覆盖维护的组织领域及运行消费者；Oracle 人工验收、视觉检查和完整 CI 另行执行。"
+      ],
+      "frontend_only": false,
+      "frontend": [
+        "src/features/settings/OrganizationPersonnelManagement.test.tsx",
+        "src/features/settings/organizationPersonnelFacts.test.ts",
+        "src/features/settings/organizationProfileReceipt.test.ts",
+        "src/features/settings/organizationProfileFacts.test.ts",
+        "src/features/settings/organizationUnitReceipt.test.ts",
+        "src/features/settings/organizationFormOptions.test.ts",
+        "src/features/settings/organizationDictionaryFacts.test.ts",
+        "src/features/settings/PersonnelLifecycleDialog.test.tsx",
+        "src/app/AppShellContext.test.ts"
+      ],
+      "backend": [
+        "ArchitectureTest",
+        "OrganizationLifecycleTest",
+        "RhnPhysicalSchemaGovernanceTest",
+        "OrganizationPersonnelFoundationTest",
+        "PractitionerOnboardingTest",
+        "com.rhn.platform.organization.api.DepartmentBusinessPolicyTest",
+        "MaterialDepartmentGovernanceTest",
+        "PharmacyOrganizationFoundationTest",
+        "ServiceExecutionDepartmentDefaultTest",
+        "com.rhn.platform.masterdata.api.ServiceExecutionDepartmentPolicyTest",
+        "OrganizationCatalogSharingIntegrationTest"
+      ]
     }
   }
 }

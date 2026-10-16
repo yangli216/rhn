@@ -1,5 +1,6 @@
 package com.rhn.platform.organization.domain;
 
+import com.rhn.shared.api.StaleRevisionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -43,6 +44,17 @@ public class Position {
         this.createdBy = actorId;
         this.updatedAt = this.createdAt;
         this.updatedBy = actorId;
+    }
+
+    public void update(String nextName, PositionType type, String duty, PersonnelStatus nextStatus,
+                       long expectedRevision, Long actorId) {
+        requireRevision(expectedRevision);
+        name = nextName; positionType = type; dutyDescription = duty; status = nextStatus;
+        updatedAt = Instant.now(); updatedBy = actorId;
+    }
+
+    private void requireRevision(long expectedRevision) {
+        if (revision != expectedRevision) throw new StaleRevisionException(revision, "记录已被其他用户修改，请刷新后重试");
     }
 
     public Long id() { return id; }

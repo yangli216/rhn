@@ -1,5 +1,5 @@
 {
-  "fingerprint": "98ee81c0f329bb630e9f2283bcee562caa7785fb70547c22321f5c5e468055b7",
+  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -2556,6 +2556,10 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/application/ResponsibilityAssignmentPolicy.java",
+          "line": 40
+        },
+        {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/DepartmentProfileStore.java",
           "line": 62
         },
@@ -3496,7 +3500,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/Employment.java",
-          "line": 15
+          "line": 16
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/DepartmentProfileStore.java",
@@ -5447,6 +5451,10 @@
         "fieldNotes": []
       },
       "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/application/ResponsibilityAssignmentPolicy.java",
+          "line": 40
+        },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/OrganizationProfileStore.java",
           "line": 89
@@ -8253,7 +8261,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/Position.java",
-          "line": 14
+          "line": 15
         }
       ]
     },
@@ -10763,7 +10771,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/PersonnelAssignment.java",
-          "line": 16
+          "line": 17
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/DepartmentProfileStore.java",
@@ -15927,6 +15935,231 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/maintenance/application/MaintenanceWorkspaceService.java",
           "line": 40
+        }
+      ]
+    },
+    {
+      "logical": "sys.organization_change",
+      "legacy": "organization_change",
+      "physical": "RHN_SYS_ORG_CHG",
+      "domain": "SYS",
+      "comment": "组织与人员变更记录；一行代表一次追加式维护事件",
+      "columns": [
+        {
+          "physical": "ID_ORG_CHG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "组织变更记录主键",
+          "logical": "id",
+          "catalogComment": "组织变更记录主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_RSRC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "变更对象类型",
+          "logical": "resource_type",
+          "catalogComment": "变更对象类型"
+        },
+        {
+          "physical": "ID_RSRC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "机构、科室、人员或岗位标识",
+          "logical": "resource_id",
+          "catalogComment": "机构、科室、人员或岗位标识"
+        },
+        {
+          "physical": "CD_ACTION",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "变更动作",
+          "logical": "action",
+          "catalogComment": "变更动作"
+        },
+        {
+          "physical": "DES_BEFORE",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "变更前完整快照",
+          "logical": "before_snapshot",
+          "catalogComment": "变更前完整快照"
+        },
+        {
+          "physical": "DES_AFTER",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "变更后完整快照",
+          "logical": "after_snapshot",
+          "catalogComment": "变更后完整快照"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "变更原因",
+          "logical": "reason",
+          "catalogComment": "变更原因"
+        },
+        {
+          "physical": "NA_ACTOR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "操作账号名称快照",
+          "logical": "actor",
+          "catalogComment": "操作账号名称快照"
+        },
+        {
+          "physical": "ID_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "操作账号标识",
+          "logical": "actor_id",
+          "catalogComment": "操作账号标识"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "变更发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "变更发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_ORG_CHG"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_SYS_ORG_CHG_TNT_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_SYS_ORG_CHG_RSRC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_RSRC_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_RSRC",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_OCCRD",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_55FC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_ORG_CHG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "组织与人员变更记录；一行代表一次追加式维护事件",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/OrganizationChangeStore.java",
+          "line": 25
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/OrganizationChangeStore.java",
+          "line": 33
         }
       ]
     }
@@ -22648,6 +22881,23 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_ORG_CHG_TNT",
+      "sourceTable": "RHN_SYS_ORG_CHG",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

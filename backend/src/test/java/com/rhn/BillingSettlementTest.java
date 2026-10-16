@@ -539,23 +539,23 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
     }
 
     private Reviewer createReviewer(String suffix) throws Exception {
-        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
+        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"BIL-P-%s\",\"fullName\":\"收费联动药师\",\"sdPractGender\":\"2\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())
+        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"BIL-POS-%s\",\"name\":\"药师\",\"sdPositionType\":\"PHARMACY\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhn())
+        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"practitionerId":"%s","organizationId":"%s","code":"BIL-E-%s",
                                  "sdEmploymentType":"PERMANENT","primaryEmployment":true,"hireDate":"2026-01-01"}
                                 """.formatted(practitioner.get("id").asString(), ORGANIZATION, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
+        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"employmentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "positionId":"%s","code":"BIL-A-%s","sdAssignmentType":"PRIMARY",

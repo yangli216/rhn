@@ -71,13 +71,19 @@ export function requirePractitionerDetail(source: unknown, id: string): Practiti
     const employment = employments.find(value => value.id === item.employmentId)
     if (!employment || item.practitionerId !== id || item.practitionerCode !== practitioner.code || item.practitionerName !== practitioner.fullName
       || item.sdPractGender !== practitioner.sdPractGender || item.organizationId !== employment.organizationId
-      || item.validFrom < employment.hireDate || (employment.leaveDate && (!item.validTo || item.validTo > employment.leaveDate))) return fail('人员档案')
+      || (item.sdPersonnelStatus === 'ACTIVE' && (item.validFrom < employment.hireDate || (employment.leaveDate && (!item.validTo || item.validTo > employment.leaveDate))))) return fail('人员档案')
   }
   return result.data
 }
 
 /** Multiple main relationships can exist over time or across departments; never pick an arbitrary first record. */
 export function onlyPrimary<T extends Employment | PersonnelAssignment>(values: T[], kind: 'employment' | 'assignment'): T | undefined {
-  const matches = values.filter(value => kind === 'employment' ? (value as Employment).primaryEmployment : (value as PersonnelAssignment).primaryAssignment)
+  const today = new Date().toLocaleDateString('sv-SE')
+  const matches = values.filter(value => {
+    const from = 'hireDate' in value ? value.hireDate : value.validFrom
+    const to = 'hireDate' in value ? value.leaveDate : value.validTo
+    return value.sdPersonnelStatus === 'ACTIVE' && from <= today && (!to || to >= today)
+      && (kind === 'employment' ? (value as Employment).primaryEmployment : (value as PersonnelAssignment).primaryAssignment)
+  })
   return matches.length === 1 ? matches[0] : undefined
 }

@@ -49,6 +49,7 @@ public record OrganizationProfileView(
             @DictionaryBinding(OrganizationDictionaryCodes.DETAIL_STATUS) String sdDetailStatus
     ) {}
 
+    @io.swagger.v3.oas.annotations.media.Schema(name = "OrganizationCapability")
     public record Capability(
             Long id,
             @DictionaryBinding(OrganizationDictionaryCodes.CAPABILITY_TYPE) String sdCapabilityType,

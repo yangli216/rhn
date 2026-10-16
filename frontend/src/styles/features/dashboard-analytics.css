@@ -955,3 +955,15 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* 组织维护使用完整详情宽度，人员表单在既有网格内紧凑排列。 */
+.master-detail-split--single { grid-template-columns: minmax(0, 1fr); }
+.master-form--practitioner > .master-form-column { display: contents; }
+.master-form--personnel-edit { grid-template-columns: minmax(0, 1fr); }
+
+.organization-profile-editor { display: grid; gap: var(--layout-section-gap); }
+.organization-profile-editor__section { min-width: 0; }
+.organization-profile-editor__row, .organization-profile-editor__basic { min-width: 0; padding: 0; margin: 0; border: 0; }
+.organization-profile-editor__row + .organization-profile-editor__row { border-top: 1px solid var(--color-border); padding-top: var(--layout-section-gap); margin-top: var(--layout-section-gap); }
+.organization-maintenance-form { display: grid; gap: var(--layout-section-gap); }
+.organization-maintenance-form > form { display: grid; gap: var(--layout-section-gap); }

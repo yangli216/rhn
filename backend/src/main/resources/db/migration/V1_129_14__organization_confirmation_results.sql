@@ -1,0 +1,27 @@
+-- Results are maintained directly; no pending-review workflow is used.
+update RHN_SYS_ORG_IDENT set SD_VERIFY_STATUS = 'UNVERIFIED' where SD_VERIFY_STATUS = 'PENDING';
+update RHN_SYS_ORG_CAP set SD_VERIFY_STATUS = 'UNVERIFIED' where SD_VERIFY_STATUS = 'PENDING';
+update RHN_SYS_DEPT_CAP set SD_VERIFY_STATUS = 'UNVERIFIED' where SD_VERIFY_STATUS = 'PENDING';
+
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928001, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"UNVERIFIED","name":"未核验"}', '{"code":"UNVERIFIED","name":"未确认","status":"ACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'UNVERIFIED';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928002, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"VERIFIED","name":"已核验"}', '{"code":"VERIFIED","name":"符合","status":"ACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'VERIFIED';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928003, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"REJECTED","name":"未通过"}', '{"code":"REJECTED","name":"不符合","status":"ACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'REJECTED';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928004, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"PENDING","name":"待核验"}', '{"code":"PENDING","name":"待核验（历史）","status":"INACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'PENDING';
+
+update RHN_BD_DICT_ITEM set NA_DICT_ITEM = case CD_DICT_ITEM when 'UNVERIFIED' then '未确认' when 'VERIFIED' then '符合' when 'REJECTED' then '不符合' when 'PENDING' then '待核验（历史）' else NA_DICT_ITEM end,
+    DES_DICT_ITEM = '组织资料确认结果，直接登记，不经过审批流程', SD_STATUS = case when CD_DICT_ITEM = 'PENDING' then 'INACTIVE' else SD_STATUS end
+where ID_DICT_DEF_DICT in (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'ORG_VERIFY_STATUS');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928005, null, d.ID_DICT_DEF, null, 'UPDATE_DICT', 'DICT', '{"name":"组织资料核验状态"}', '{"name":"组织资料确认结果"}', '确认结果直接维护，不经过审批流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS';
+update RHN_BD_DICT_DEF set NA_DICT_DEF = '组织资料确认结果', DES_DICT_DEF = '机构标识及服务能力直接维护确认结果，无待核验流程', REVISION = REVISION + 1,
+    DT_UPDATED = timestamp with time zone '2026-10-16 00:00:00+08', ID_USER_UPDATED = 362387869790222
+where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'ORG_VERIFY_STATUS';

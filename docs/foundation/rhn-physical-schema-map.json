@@ -29933,5 +29933,69 @@
         "comment": "不可变模板指标规则词条内容"
       }
     ]
+  },
+  {
+    "logical": "sys.organization_change",
+    "legacy": "organization_change",
+    "physical": "RHN_SYS_ORG_CHG",
+    "domain": "SYS",
+    "comment": "组织与人员变更记录；一行代表一次追加式维护事件",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_ORG_CHG",
+        "comment": "组织变更记录主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "resource_type",
+        "physical": "CD_RSRC_TYPE",
+        "comment": "变更对象类型"
+      },
+      {
+        "logical": "resource_id",
+        "physical": "ID_RSRC",
+        "comment": "机构、科室、人员或岗位标识"
+      },
+      {
+        "logical": "action",
+        "physical": "CD_ACTION",
+        "comment": "变更动作"
+      },
+      {
+        "logical": "before_snapshot",
+        "physical": "DES_BEFORE",
+        "comment": "变更前完整快照"
+      },
+      {
+        "logical": "after_snapshot",
+        "physical": "DES_AFTER",
+        "comment": "变更后完整快照"
+      },
+      {
+        "logical": "reason",
+        "physical": "DES_REASON",
+        "comment": "变更原因"
+      },
+      {
+        "logical": "actor_id",
+        "physical": "ID_USER",
+        "comment": "操作账号标识"
+      },
+      {
+        "logical": "occurred_at",
+        "physical": "DT_OCCRD",
+        "comment": "变更发生时间"
+      },
+      {
+        "logical": "actor",
+        "physical": "NA_ACTOR",
+        "comment": "操作账号名称快照"
+      }
+    ]
   }
 ]

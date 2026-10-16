@@ -12,8 +12,8 @@ const contact = { ...base, sdContactType: 'EMAIL', sdContactTypeText: '电子邮
   sdContactUse: 'WORK', sdContactUseText: '办公', primaryContact: false, sortOrder: 0 }
 const address = { ...base, sdAddressType: 'MAILING', sdAddressTypeText: '通信地址', countryCode: 'CN', streetAddress: '通信街1号' }
 const identifier = { ...base, identifierSystem: 'urn:test:org', identifierCode: 'ORGANIZATION_ID', sdIdentifierType: 'LOCAL',
-  sdIdentifierTypeText: '内部代码', primaryIdentifier: false, sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '待核验' }
-const capability = { ...base, sdCapabilityType: 'CONSULTING', sdCapabilityTypeText: '咨询', sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '待核验' }
+  sdIdentifierTypeText: '内部代码', primaryIdentifier: false, sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '未确认' }
+const capability = { ...base, sdCapabilityType: 'CONSULTING', sdCapabilityTypeText: '咨询', sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '未确认' }
 const responsibility = { ...base, responsibleName: '业务负责人', sdResponsibilityType: 'BUSINESS', sdResponsibilityTypeText: '业务负责人', primaryResponsibility: false }
 const relation = { ...base, targetOrganizationId: 'other', targetOrganizationName: '其他机构', sdRelationType: 'SUPPORT', sdRelationTypeText: '支持', primaryRelation: false }
 const profile = { organization, identifiers: [identifier], addresses: [address], contacts: [contact], capabilities: [capability],

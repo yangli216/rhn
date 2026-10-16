@@ -70,7 +70,12 @@ public class OrganizationApplicationService implements OrganizationDirectory {
             OrganizationType.ADMINISTRATIVE_DEPARTMENT, OrganizationType.MEDICAL_TECHNOLOGY_DEPARTMENT,
             OrganizationType.NURSING_UNIT);
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
     private final TenantRepository tenantRepository;
+    private final ResponsibilityAssignmentPolicy responsibilityPolicy;
+    private final OrganizationImpactService impacts;
+    private final com.rhn.platform.organization.infrastructure.OrganizationChangeStore changes;
     private final OrganizationRepository organizationRepository;
     private final PractitionerRepository practitionerRepository;
     private final EmploymentRepository employmentRepository;
@@ -90,7 +95,9 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                                           DepartmentRepository departmentRepository,
                                           OrganizationProfileStore profileStore,
                                           DictionaryDirectory dictionaryDirectory,
-                                          ExecutionContextProvider contextProvider) {
+                                          ExecutionContextProvider contextProvider, OrganizationImpactService impacts, ResponsibilityAssignmentPolicy responsibilityPolicy,
+                                          com.rhn.platform.organization.infrastructure.OrganizationChangeStore changes) {
+        this.responsibilityPolicy=responsibilityPolicy; this.impacts=impacts; this.changes=changes;
         this.tenantRepository = tenantRepository;
         this.organizationRepository = organizationRepository;
         this.practitionerRepository = practitionerRepository;
@@ -148,6 +155,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                                                String timezoneCode, String departmentTypeCode,
                                                LocalDate validFrom, LocalDate validTo) {
         Organization organization = requireEntity(current().tenantId(), id);
+        var before=organization.toView();
         validateOrganizationType(organization.organizationKind(), type);
         validateParent(organization.tenantId(), id, parentId, organization.organizationKind());
         String normalizedProperty = optionalDictionaryItem(organization.tenantId(),
@@ -161,7 +169,8 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                         organization.update(parentId, name.trim(), Strings.trimToNull(shortName), Strings.trimToNull(description), type,
                                 normalizedProperty, virtual, sortOrder, normalizedTimezone, normalizedDepartmentType,
                                 validFrom, validTo, expectedRevision, actorId());
-                        return organizationRepository.saveAndFlush(organization).toView();
+                        var after=organizationRepository.saveAndFlush(organization).toView();
+                        changes.record("ORGANIZATION",id,"UPDATE_ORGANIZATION",before,after,"组织资料维护"); return after;
                     });
         } catch (IllegalArgumentException exception) {
             throw badRequest("VALIDITY_PERIOD_INVALID", "有效期结束日期不能早于开始日期");
@@ -171,13 +180,16 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     @Transactional
     public OrganizationView changeOrganizationStatus(Long id, long expectedRevision, OrganizationStatus status) {
         Organization organization = requireEntity(current().tenantId(), id);
+        var before=organization.toView();
+        if(status!=OrganizationStatus.ACTIVE) impacts.requireDeactivationReady(id,false);
         if (status == OrganizationStatus.MERGED) {
             throw badRequest("ORGANIZATION_MERGE_TARGET_REQUIRED", "机构合并需要指定目标机构，本轮不通过普通状态操作完成");
         }
         return RevisionGuard.supply("ORGANIZATION_REVISION_CONFLICT",
                 "组织已被其他用户修改，请刷新后重试", () -> {
             organization.changeStatus(status, expectedRevision, actorId());
-            return organizationRepository.saveAndFlush(organization).toView();
+            var after=organizationRepository.saveAndFlush(organization).toView();
+            changes.record("ORGANIZATION",id,"CHANGE_STATUS",before,after,"组织状态维护"); return after;
         });
     }
 
@@ -285,14 +297,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         if ((assignmentId == null) == (normalizedExternalName == null)) {
             throw badRequest("ORGANIZATION_RESPONSIBILITY_SUBJECT_INVALID", "内部任职和外部负责人姓名必须且只能填写一项");
         }
-        if (assignmentId != null) {
-            PersonnelAssignment assignment = assignmentRepository.findByIdAndTenantId(
-                    assignmentId, organization.tenantId()).orElseThrow(() ->
-                    notFound("ASSIGNMENT_NOT_FOUND", "未找到负责人任职"));
-            if (!assignment.organizationId().equals(id)) {
-                throw badRequest("ORGANIZATION_RESPONSIBILITY_ASSIGNMENT_INVALID", "负责人任职不属于当前组织");
-            }
-        }
+        if (assignmentId != null) responsibilityPolicy.validate(assignmentId,id,false,from,to,true);
         validatePeriod(from, to);
         String normalizedType = dictionaryItem(organization.tenantId(),
                 OrganizationDictionaryCodes.RESPONSIBILITY_TYPE, type, "负责人类型");
@@ -318,10 +323,12 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     @Transactional
     public StaffView updateStaff(Long id, long expectedRevision, String fullName, PractitionerGender gender) {
         Practitioner practitioner = requirePractitioner(current().tenantId(), id);
+        var before=practitioner.toView();
         return RevisionGuard.supply("PRACTITIONER_REVISION_CONFLICT",
                 "人员已被其他用户修改，请刷新后重试", () -> {
             practitioner.update(fullName.trim(), gender, expectedRevision, actorId());
-            return practitionerRepository.saveAndFlush(practitioner).toView();
+            var after=practitionerRepository.saveAndFlush(practitioner).toView();
+            changes.record("PRACTITIONER",id,"UPDATE_PRACTITIONER",before,after,"人员资料或状态维护"); return after;
         });
     }
 
@@ -339,10 +346,12 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     @Transactional
     public StaffView changeStaffStatus(Long id, long expectedRevision, PersonnelStatus status) {
         Practitioner practitioner = requirePractitioner(current().tenantId(), id);
+        var before=practitioner.toView();
         return RevisionGuard.supply("PRACTITIONER_REVISION_CONFLICT",
                 "人员已被其他用户修改，请刷新后重试", () -> {
             practitioner.changeStatus(status, expectedRevision, actorId());
-            return practitionerRepository.saveAndFlush(practitioner).toView();
+            var after=practitionerRepository.saveAndFlush(practitioner).toView();
+            changes.record("PRACTITIONER",id,"UPDATE_PRACTITIONER",before,after,"人员资料或状态维护"); return after;
         });
     }
 
@@ -363,7 +372,8 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                                            EmploymentType type, boolean primaryEmployment,
                                            LocalDate hireDate, LocalDate leaveDate) {
         ExecutionContext context = current();
-        Practitioner practitioner = requirePractitioner(context.tenantId(), practitionerId);
+        Practitioner practitioner = practitionerRepository.lockByIdAndTenantId(practitionerId, context.tenantId())
+                .orElseThrow(() -> notFound("PRACTITIONER_NOT_FOUND", "人员不存在"));
         if (practitioner.status() != PersonnelStatus.ACTIVE) {
             throw conflict("PRACTITIONER_INACTIVE", "停用人员不能新增聘用关系");
         }
@@ -403,6 +413,10 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         ExecutionContext context = current();
         Employment employment = employmentRepository.findByIdAndTenantId(employmentId, context.tenantId())
                 .orElseThrow(() -> notFound("EMPLOYMENT_NOT_FOUND", "未找到聘用关系"));
+        Practitioner activePractitioner = practitionerRepository.lockByIdAndTenantId(employment.practitionerId(), context.tenantId())
+                .orElseThrow(() -> notFound("PRACTITIONER_NOT_FOUND", "人员不存在"));
+        if (activePractitioner.status() != PersonnelStatus.ACTIVE) throw conflict("PRACTITIONER_INACTIVE", "停用人员不能新增任职");
+        entityManager.refresh(employment);
         if (employment.status() != PersonnelStatus.ACTIVE) {
             throw conflict("EMPLOYMENT_INACTIVE", "停用聘用关系不能新增任职");
         }

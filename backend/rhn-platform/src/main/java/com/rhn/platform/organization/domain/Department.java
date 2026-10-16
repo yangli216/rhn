@@ -110,8 +110,8 @@ public class Department {
     public OrganizationType structuralType() {
         return switch (departmentProperty == null ? "OTHER" : departmentProperty) {
             case "CLINICAL" -> OrganizationType.CLINICAL_DEPARTMENT;
-            case "ADMINISTRATIVE" -> OrganizationType.ADMINISTRATIVE_DEPARTMENT;
-            case "MEDICAL_TECHNOLOGY" -> OrganizationType.MEDICAL_TECHNOLOGY_DEPARTMENT;
+            case "ADMINISTRATIVE", "RESEARCH_EDUCATION" -> OrganizationType.ADMINISTRATIVE_DEPARTMENT;
+            case "MEDICAL_TECHNOLOGY", "PHARMACY", "EQUIPMENT_ASSET", "SUPPLY_LOGISTICS" -> OrganizationType.MEDICAL_TECHNOLOGY_DEPARTMENT;
             case "NURSING" -> OrganizationType.NURSING_UNIT;
             default -> OrganizationType.CLINICAL_DEPARTMENT;
         };

@@ -23,7 +23,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
         String employmentId = createEmployment(suffix, practitionerId, organizationId);
 
         mockMvc.perform(post("/api/platform/employments")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -39,7 +39,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("PRIMARY_EMPLOYMENT_OVERLAP"));
 
         mockMvc.perform(post("/api/platform/assignments")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -63,7 +63,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdAssignmentTypeText").value("主任职"));
 
         mockMvc.perform(post("/api/platform/assignments")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -118,7 +118,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private String createOrganization(String suffix) throws Exception {
         String response = mockMvc.perform(post("/api/platform/organization-units")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -144,7 +144,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private String createDepartment(String suffix, String organizationId) throws Exception {
         String response = mockMvc.perform(post("/api/platform/organization-units")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -171,7 +171,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private void addOrganizationProfile(String suffix, String organizationId) throws Exception {
         mockMvc.perform(post("/api/platform/organization-units/{id}/identifiers", organizationId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "identifierSystem":"urn:nhc:medical-institution-license",
@@ -183,10 +183,10 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.identifiers[0].sdVerifyStatusText").value("已核验"));
+                .andExpect(jsonPath("$.identifiers[0].sdVerifyStatusText").value("符合"));
 
         mockMvc.perform(post("/api/platform/organization-units/{id}/contacts", organizationId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "sdContactType":"PHONE",
@@ -201,7 +201,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.contacts[0].sdContactUseText").value("公众服务"));
 
         mockMvc.perform(post("/api/platform/organization-units/{id}/addresses", organizationId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "sdAddressType":"PRACTICE",
@@ -218,7 +218,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.addresses[0].cityCode").value("330100"));
 
         mockMvc.perform(post("/api/platform/organization-units/{id}/capabilities", organizationId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "sdCapabilityType":"OUTPATIENT",
@@ -229,10 +229,10 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.capabilities[0].sdVerifyStatusText").value("已核验"));
+                .andExpect(jsonPath("$.capabilities[0].sdVerifyStatusText").value("符合"));
 
         mockMvc.perform(post("/api/platform/organization-units/{id}/responsibilities", organizationId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "externalResponsibleName":"测试法定代表人%s",
@@ -247,7 +247,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private void addDepartmentProfile(String suffix, String departmentId) throws Exception {
         mockMvc.perform(post("/api/platform/departments/{id}/contacts", departmentId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "sdContactType":"PHONE",
@@ -261,7 +261,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/platform/departments/{id}/capabilities", departmentId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "sdCapabilityType":"OUTPATIENT",
@@ -273,7 +273,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/platform/departments/{id}/responsibilities", departmentId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "externalResponsibleName":"测试科主任%s",
@@ -287,7 +287,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private String createPractitioner(String suffix) throws Exception {
         String response = mockMvc.perform(post("/api/platform/practitioners")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -304,7 +304,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private String createPosition(String suffix) throws Exception {
         String response = mockMvc.perform(post("/api/platform/positions")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -322,7 +322,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
 
     private String createEmployment(String suffix, String practitionerId, String organizationId) throws Exception {
         String response = mockMvc.perform(post("/api/platform/employments")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
