@@ -11,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.http.MediaType;
@@ -23,7 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationStandardRevisionTest extends RhnIntegrationTestSupport {
+class MedicationStandardRevisionTest extends StubbedExecutionContextTestSupport {
     static final Long MED=362387880000024L,TENANT_ID=Long.valueOf(TENANT);
     static final String SPEC="STD-9405B86DD5B404C44E1B92B5",PATH="/api/platform/master-data/medications/"+MED+"/standard-revision";
     @Autowired MedicationStandardRevisionService revisions;
@@ -35,7 +34,6 @@ class MedicationStandardRevisionTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
     @Autowired JsonCodec codec;
     @Autowired PlatformTransactionManager transactions;
-    @MockitoBean ExecutionContextProvider contexts;
     @BeforeEach void setup(){context(TENANT_ID,7L,true);sources.saveAndFlush(new MedicationStandardSource(TENANT_ID,MED,"OLD-CATALOG","old","OLD-ENTRY","OLD-SPEC","old-hash",6L));}
     void context(Long tenant,Long actor,boolean manage){when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,actor,"actor-"+actor,"revision-test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
     Submit submit(){var p=revisions.preview(MED,0);return new Submit(p.binding().medication().revision(),p.latest()==null?null:p.latest().id(),p.sourceFingerprint(),p.binding().identity(),SPEC,"按标准原文核对旧关联","已人工核对影响清单，历史快照保留；仅合成测试",true,revisions.impact(MED,SPEC).fingerprint());}

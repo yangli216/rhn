@@ -12,7 +12,6 @@ import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.*;
 import java.util.concurrent.*;
 import static com.rhn.MedicationKnowledgeDraftModelTest.*;
@@ -22,7 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeRuleTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeRuleTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeRuleService rules;
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired MedicationKnowledgeRuleStore store;
@@ -30,8 +29,6 @@ class MedicationKnowledgeRuleTest extends RhnIntegrationTestSupport {
     @Autowired MedicationStandardImpactService impact;
     @Autowired StandardMedicationReferenceDirectory standards;
     @Autowired JsonCodec codec;
-    @MockitoBean ExecutionContextProvider contexts;
-    @MockitoBean com.rhn.platform.masterdata.application.MedicationRouteService routes;
     static final Long T=Long.valueOf(TENANT);
     @BeforeEach void context() {context(T,true);}
     void context(Long tenant,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,7L,"rule-author","test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
@@ -66,10 +63,10 @@ class MedicationKnowledgeRuleTest extends RhnIntegrationTestSupport {
     }
     @Test void changed_route_versions_block_creation_without_rewriting_frozen_candidate() {
         var route=new com.rhn.platform.masterdata.api.MedicationRouteDirectory.RouteSnapshot(1L,"PO","测试口服","R","1","NONE");
-        when(routes.resolveActive(any(),eq("PO"),any(),any())).thenReturn(Optional.of(route));
+        doReturn(Optional.of(route)).when(routes).resolveActive(any(),eq("PO"),any(),any());
         var source=save(conditions(duplicate(),new Conditions("ALL",null,null,null,new RouteCondition("LIST",List.of("PO")),ALL,"")));
         var candidate=create(source);
-        when(routes.resolveActive(any(),eq("PO"),any(),any())).thenReturn(Optional.of(new com.rhn.platform.masterdata.api.MedicationRouteDirectory.RouteSnapshot(1L,"PO","修订口服","R","2","NONE")));
+        doReturn(Optional.of(new com.rhn.platform.masterdata.api.MedicationRouteDirectory.RouteSnapshot(1L,"PO","修订口服","R","2","NONE"))).when(routes).resolveActive(any(),eq("PO"),any(),any());
         assertThat(rules.preview(source.id(),1).issues()).extracting(Issue::code).contains("STALE_ROUTE");
         assertThatThrownBy(()->rules.create(source.id(),new Create(1,candidate.programHash(),"测试"))).hasMessageContaining("缺口");
         assertThat(store.all(T)).containsExactly(candidate);

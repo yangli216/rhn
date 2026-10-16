@@ -17,7 +17,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.util.*;
@@ -30,7 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgePublicationTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgePublicationTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeFeedbackService feedback;
     @Autowired MedicationKnowledgePublicationService publication;
     @Autowired MedicationKnowledgePublicationStore publicationStore;
@@ -46,7 +45,6 @@ class MedicationKnowledgePublicationTest extends RhnIntegrationTestSupport {
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactions;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT),O=Long.valueOf(ORGANIZATION),D=Long.valueOf(DEPARTMENT);
     String unavailableAction="REQUIRE_OVERRIDE";
     String hitAction="BLOCK";

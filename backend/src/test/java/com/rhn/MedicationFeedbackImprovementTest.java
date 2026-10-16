@@ -17,7 +17,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.util.*;
@@ -30,10 +29,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
+class MedicationFeedbackImprovementTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationFeedbackImprovementService improvements;
     @Autowired MedicationRuleIntakeService intakes;
-    @MockitoBean com.rhn.quality.medication.api.MedicationRuleAuthoringAi ai;
     @Autowired MedicationKnowledgeFeedbackService feedback;
     @Autowired MedicationKnowledgeDeploymentService deployments;
     @Autowired MedicationRuleRuntime runtime;
@@ -45,7 +43,6 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactions;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT),O=Long.valueOf(ORGANIZATION),D=Long.valueOf(DEPARTMENT);
     KnowledgeRuleCandidate candidate;Deployment deployment;Long runId;
     @BeforeEach void setup() {context(T,7L,true);candidate=createCandidate();ready(candidate);approve(candidate);deployment=deploy(candidate);runId=observe(item(1),item(2));}
@@ -99,7 +96,7 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
 
     static final String NEED="请核查同一处方重复用药的例外条件";
     void model() {
-        when(ai.status()).thenReturn(new com.rhn.quality.medication.api.MedicationRuleAuthoringAi.Status(true,"isolated-model","test"));
+        doReturn(new com.rhn.quality.medication.api.MedicationRuleAuthoringAi.Status(true,"isolated-model","test")).when(ai).status();
         doReturn(output()).when(ai).generate(anyString(),anyString(),anyString());
     }
     String output() {return "{\"intents\":[{\"kind\":\"DUPLICATE_THERAPY\",\"source\":\"requirement\",\"quote\":\"重复用药\",\"scope\":\"UNSPECIFIED\",\"conditions\":[],\"questions\":[\"具体例外是什么？\"]}]}";}
@@ -131,7 +128,7 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
     }
     @Test void changed_feedback_during_model_latency_does_not_persist_a_stale_analysis() {
         model();record("RULE_ISSUE");var cmd=request();
-        when(ai.generate(anyString(),anyString(),anyString())).thenAnswer(inv->{record("UNCERTAIN");return output();});
+        doAnswer(inv->{record("UNCERTAIN");return output();}).when(ai).generate(anyString(),anyString(),anyString());
         assertThatThrownBy(()->improvements.analyze(candidate.id(),deployment.id(),runId,cmd)).hasMessageContaining("已变化");assertThat(count()).isZero();
     }
     @Test void clarification_inherits_exact_origin_and_cannot_use_generic_or_other_feedback_parent() {
@@ -160,7 +157,7 @@ class MedicationFeedbackImprovementTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post(path()+"/improvement-intakes").header("X-Tenant-Id",TENANT).contentType(MediaType.APPLICATION_JSON).content(json.write(request()))).andExpect(status().isUnauthorized());
     }
     @Test void failures_remain_auditable_and_atomic_rollback_keeps_no_partial_origin() {
-        model();record("UNCERTAIN");when(ai.generate(anyString(),anyString(),anyString())).thenThrow(new IllegalStateException("test failure"));
+        model();record("UNCERTAIN");doThrow(new IllegalStateException("test failure")).when(ai).generate(anyString(),anyString(),anyString());
         var failed=analyze();assertThat(failed.result().status()).isEqualTo("MODEL_ERROR");assertThat(intakes.feedbackOrigin(failed.id())).isNotNull();
         model();var cmd=request();var retry=new com.rhn.quality.medication.api.MedicationRuleIntakeContracts.Request(NEED,failed.id(),List.of());
         var success=improvements.analyze(candidate.id(),deployment.id(),runId,new com.rhn.quality.medication.api.MedicationRuleIntakeContracts.ImprovementRequest(retry,cmd.feedbackId(),cmd.expectedBasisHash(),true));assertThat(success.result().status()).isEqualTo("ANALYZED");

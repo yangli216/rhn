@@ -11,7 +11,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
@@ -23,14 +22,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static com.rhn.quality.medication.application.MedicationKnowledgeReplayService.hash;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeTestTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeTestTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeTestService tests;
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired MedicationKnowledgeRuleService candidates;
     @Autowired MedicationRuleCatalogService catalog;
     @Autowired JdbcTemplate jdbc;
     @Autowired JsonCodec json;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT);
     @BeforeEach void context() {context(T,true);}
     void context(Long tenant,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,7L,"fixture-author","test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}

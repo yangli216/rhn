@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
-import org.springframework.test.context.TestPropertySource;
 
 import java.util.UUID;
 
@@ -15,9 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@TestPropertySource(properties = {"rhn.diagnostics.require-settlement-authorization=false",
-        "rhn.diagnostics.critical-value.acknowledgement-window=PT7M"})
-class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
+class DiagnosticExchangeTest extends SettlementWaivedDiagnosticsTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
 
     @Test

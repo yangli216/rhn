@@ -8,7 +8,6 @@ import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.http.MediaType;
@@ -21,14 +20,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class StandardCatalogEditionTest extends RhnIntegrationTestSupport {
+class StandardCatalogEditionTest extends StubbedExecutionContextTestSupport {
     @Autowired StandardCatalogEditionService editions;
     @Autowired StandardMedicationCatalogService runtime;
     @Autowired StandardCatalogReviewService reviews;
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager manager;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT);
     static final String ROOT="/api/platform/master-data/medication-standard-catalog/editions";
     @BeforeEach void setup() {actor(T,7L,true);}

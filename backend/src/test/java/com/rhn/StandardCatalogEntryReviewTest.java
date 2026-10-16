@@ -6,10 +6,8 @@ import com.rhn.platform.masterdata.application.StandardCatalogEntryReviewService
 import com.rhn.platform.masterdata.application.StandardCatalogEditionService;
 import com.rhn.platform.masterdata.application.StandardCatalogReviewService;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.Set;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -17,8 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class StandardCatalogEntryReviewTest extends RhnIntegrationTestSupport {
-    @MockitoBean ExecutionContextProvider contexts;
+class StandardCatalogEntryReviewTest extends StubbedExecutionContextTestSupport {
     @Autowired StandardCatalogEntryReviewService reviews;
     @Autowired StandardCatalogEditionService editions;
     @Autowired StandardCatalogReviewService sources;

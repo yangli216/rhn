@@ -3,7 +3,6 @@ package com.rhn;
 import com.rhn.outpatient.api.OutpatientClinicalHistoryDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -27,10 +25,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Persisted encounter selection through the real repository, service and history projection. */
-class HistoricalEncounterWindowTest extends RhnIntegrationTestSupport {
+class HistoricalEncounterWindowTest extends StubbedExecutionContextTestSupport {
     @Autowired JdbcTemplate jdbc;
     @Autowired OutpatientClinicalHistoryDirectory history;
-    @MockitoBean ExecutionContextProvider contexts;
     private static final Instant SINCE = Instant.parse("2026-01-01T00:00:00Z");
     private Long residentId;
 

@@ -1,6 +1,5 @@
 package com.rhn;
 
-import com.rhn.ai.application.ClinicalAiRuntimePolicy;
 import com.rhn.ai.application.ClinicalAssistantSettings;
 import com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.Evidence;
 import com.rhn.quality.medication.api.MedicationKnowledgeExtractionContracts.Request;
@@ -11,7 +10,6 @@ import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
@@ -20,14 +18,12 @@ import static org.mockito.Mockito.*;
 
 /** Explicit opt-in: real provider, production adapters, isolated test/H2 storage, public excerpts only. */
 @EnabledIfEnvironmentVariable(named="RHN_REAL_AI_ACCEPTANCE",matches="1")
-class MedicationKnowledgeRealAiAcceptanceTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeRealAiAcceptanceTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeExtractionService extraction;
     @Autowired MedicationRuleIntakeService intakes;
     @Autowired MedicationKnowledgeExamples examples;
     @Autowired JsonCodec json;
     @Autowired javax.sql.DataSource dataSource;
-    @MockitoBean ExecutionContextProvider contexts;
-    @MockitoBean ClinicalAiRuntimePolicy policy;
 
     @Test void real_model_preserves_evidence_gaps_and_separates_acceptance_design() throws Exception {
         try(var connection=dataSource.getConnection()) {assertThat(connection.getMetaData().getURL()).startsWith("jdbc:h2:mem:rhn-");}
@@ -35,7 +31,7 @@ class MedicationKnowledgeRealAiAcceptanceTest extends RhnIntegrationTestSupport 
         when(contexts.requireCurrent()).thenReturn(context);
         var settings=new ClinicalAssistantSettings("MODEL","openai-compatible",System.getenv("RHN_ACCEPTANCE_MODEL"),Duration.ofMinutes(30),
                 System.getenv("RHN_ACCEPTANCE_ENDPOINT"),System.getenv("RHN_ACCEPTANCE_KEY"),Duration.ofSeconds(45),3000,"","",1024,"","",1);
-        when(policy.current(any())).thenReturn(settings);
+        doReturn(settings).when(policy).current(any());
         var records=new ArrayList<Map<String,Object>>();var checks=new ArrayList<Map<String,Object>>();
         var sources=json.readTree(new String(getClass().getResourceAsStream("/medication-knowledge-example-sources.json").readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));
         for(String kind:List.of("duplicate","interaction")) {

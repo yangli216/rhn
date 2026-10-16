@@ -15,7 +15,6 @@ import com.rhn.quality.medication.infrastructure.MedicationEvaluationStore;
 import com.rhn.quality.medication.infrastructure.MedicationRuleRegistry;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
@@ -37,8 +35,7 @@ import static com.rhn.quality.MedicationSafetyFixtures.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
-    @MockitoBean ExecutionContextProvider contexts;
+class MedicationSafetyFoundationTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationSafetyPort safety;
     @Autowired MedicationEvaluationStore store;
     @Autowired MedicationRuleRegistry registry;

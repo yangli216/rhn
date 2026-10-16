@@ -6,14 +6,12 @@ import com.rhn.platform.masterdata.application.MedicationStandardService;
 import com.rhn.platform.masterdata.application.ClinicalSemanticVersions;
 import com.rhn.platform.masterdata.infrastructure.StandardCatalogReviewStore;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.api.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.MediaType;
 import java.time.Instant;
@@ -24,8 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class StandardCatalogReviewTest extends RhnIntegrationTestSupport {
-    @MockitoBean ExecutionContextProvider contexts;
+class StandardCatalogReviewTest extends StubbedExecutionContextTestSupport {
     @Autowired StandardCatalogReviewService reviews;
     @Autowired MedicationStandardService standards;
     @Autowired StandardCatalogReviewStore store;

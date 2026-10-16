@@ -26,6 +26,8 @@ rhn:
     dev-user-enabled: true
     dev-username: doctor
     dev-password: test-password
+    # Every HTTP Basic request re-checks BCrypt; cost 4 instead of 10 keeps it off the test hot path.
+    password-bcrypt-strength: 4
     session-registry: memory
     refresh-login:
       cookie-secure: false

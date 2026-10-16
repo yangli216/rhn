@@ -1,7 +1,5 @@
 package com.rhn;
 
-import com.rhn.diagnostics.application.DiagnosticSigningPolicy;
-import com.rhn.platform.identityaccess.api.WorkContextDirectory;
 import com.rhn.platform.security.RhnPrincipal;
 import com.rhn.shared.id.GlobalIds;
 import org.junit.jupiter.api.Test;
@@ -12,9 +10,6 @@ import org.springframework.mock.web.MockMultipartFile;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import tools.jackson.databind.JsonNode;
 import java.util.UUID;
 import java.util.Set;
@@ -23,16 +18,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@TestPropertySource(properties = "rhn.diagnostics.require-settlement-authorization=false")
-class DiagnosticReportWorkingCopyTest extends RhnIntegrationTestSupport {
-    @MockitoBean DiagnosticSigningPolicy signing;
+class DiagnosticReportWorkingCopyTest extends SettlementWaivedDiagnosticsTestSupport {
     @Autowired JdbcTemplate jdbc;
-    @MockitoSpyBean WorkContextDirectory workContexts;
 
     @Test
     void worklist_filters_before_paging_and_keeps_report_evidence_exceptions_searchable() throws Exception {
@@ -275,7 +267,7 @@ class DiagnosticReportWorkingCopyTest extends RhnIntegrationTestSupport {
 
     @Test
     void optional_double_sign_blocks_self_signing_without_an_approval_state_machine() throws Exception {
-        when(signing.requiresSecondSigner(any(),anyString(),anyLong())).thenReturn(true);
+        doReturn(true).when(signing).requiresSecondSigner(any(),anyString(),anyLong());
         var task=startedTask("362387869795101",true); String id=task.get("id").asString();
         var draft=postJson("/api/diagnostics/tasks/"+id+"/report-draft","{\"expectedRevision\":"+task.get("revision").asLong()+",\"observationValue\":\"5.8\"}",200);
         assertTrue(draft.get("doubleSignatureRequired").asBoolean());
@@ -299,7 +291,7 @@ class DiagnosticReportWorkingCopyTest extends RhnIntegrationTestSupport {
 
     @Test
     void another_authorized_person_issues_saved_content_without_submission_or_changing_its_author() throws Exception {
-        when(signing.requiresSecondSigner(any(),anyString(),anyLong())).thenReturn(true);
+        doReturn(true).when(signing).requiresSecondSigner(any(),anyString(),anyLong());
         var task=startedTask("362387869795101",true); String id=task.get("id").asString();
         var draft=postJson("/api/diagnostics/tasks/"+id+"/report-draft","{\"expectedRevision\":"+task.get("revision").asLong()+",\"observationValue\":\"5.8\"}",200);
         Long reviewer=GlobalIds.next();

@@ -8,7 +8,6 @@ import com.rhn.shared.context.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
@@ -18,13 +17,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeExamplesTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeExamplesTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeExamples examples;
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired MedicationKnowledgeRuleService rules;
     @Autowired MedicationKnowledgeTestService tests;
     @Autowired JdbcTemplate jdbc;
-    @MockitoBean ExecutionContextProvider contexts;
     @BeforeEach void context() {
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(Long.valueOf(TENANT),7L,"example-author","test",
                 Set.of("MASTER_DATA.MANAGE"),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));

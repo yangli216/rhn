@@ -105,7 +105,8 @@
         </dependency>
     </dependencies>
     <properties>
-        <!-- 3 forks halve the full backend suite locally (918s -> 454s); CI passes a smaller value. -->
+        <!-- 3 forks roughly halved the full backend suite when introduced (918s -> 454s); the suite has since grown
+             to ~1330-1430s with 3 forks (verify-scope full runs, 2026-10-13). CI passes a smaller value. -->
         <rhn.test.forks>3</rhn.test.forks>
     </properties>
 

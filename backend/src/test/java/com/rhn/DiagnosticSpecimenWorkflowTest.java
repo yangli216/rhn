@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.UUID;
@@ -14,8 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@TestPropertySource(properties = "rhn.diagnostics.require-settlement-authorization=false")
-class DiagnosticSpecimenWorkflowTest extends RhnIntegrationTestSupport {
+class DiagnosticSpecimenWorkflowTest extends SettlementWaivedDiagnosticsTestSupport {
     @Autowired RefundDiagnosticDirectory refundFacts;
     @Autowired JdbcTemplate jdbc;
 

@@ -3,28 +3,25 @@ package com.rhn;
 import com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.*;
 import com.rhn.quality.medication.application.MedicationKnowledgeDraftService;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import java.util.*;
 import java.util.concurrent.*;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeDraftTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeDraftTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired JsonCodec codec;
     @Autowired com.rhn.platform.masterdata.api.StandardMedicationReferenceDirectory standards;
-    @MockitoBean ExecutionContextProvider contexts;
-    @MockitoBean com.rhn.platform.masterdata.application.MedicationRouteService routes;
     static final String PATH="/api/quality/medication-knowledge-drafts";
     @BeforeEach void context() {context(Long.valueOf(TENANT),true);}
     void context(Long tenant,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,7L,"draft-author","knowledge-test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
@@ -71,12 +68,12 @@ class MedicationKnowledgeDraftTest extends RhnIntegrationTestSupport {
     }
     @Test void route_definition_changes_invalidate_current_assessment_without_rewriting_history() {
         var first = new com.rhn.platform.masterdata.api.MedicationRouteDirectory.RouteSnapshot(1L,"PO","测试口服","ROUTES","1","NONE");
-        when(routes.resolveActive(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("PO"),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(first));
+        doReturn(Optional.of(first)).when(routes).resolveActive(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("PO"),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
         var b = MedicationKnowledgeDraftModelTest.conditions(MedicationKnowledgeDraftModelTest.duplicate(),new Conditions("ALL",null,null,null,new RouteCondition("LIST",List.of("PO")),MedicationKnowledgeDraftModelTest.ALL,""));
         var saved = drafts.save(null,new Save(0,b,"锁定途径版本"));
         assertThat(saved.currentAssessment().structureComplete()).isTrue();
         var next = new com.rhn.platform.masterdata.api.MedicationRouteDirectory.RouteSnapshot(1L,"PO","测试口服修订","ROUTES","2","NONE");
-        when(routes.resolveActive(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("PO"),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(next));
+        doReturn(Optional.of(next)).when(routes).resolveActive(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("PO"),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
         var refreshed = drafts.detail(saved.saved().id());
         assertThat(refreshed.currentAssessment().issues()).extracting(Issue::code).contains("STALE_ROUTE");
         assertThat(refreshed.cases()).isEmpty();

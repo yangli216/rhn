@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import java.time.*;
 import java.util.*;
@@ -25,15 +24,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeReplayTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeReplayTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeReplayService replay;
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired MedicationKnowledgeDraftStore draftStore;
     @Autowired MedicationEvaluationStore evaluations;
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
-    @MockitoBean ExecutionContextProvider contexts;
-    @MockitoBean com.rhn.quality.medication.api.MedicationRuleAuthoringAi ai;
     static final Long T=Long.valueOf(TENANT),O=Long.valueOf(ORGANIZATION),D=Long.valueOf(DEPARTMENT);
     static final String PATH="/api/quality/medication-knowledge-drafts";
     static final LocalDate DATE=LocalDate.of(2026,1,10);
