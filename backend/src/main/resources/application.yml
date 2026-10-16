@@ -53,6 +53,11 @@ springdoc:
     enabled: ${RHN_OPENAPI_ENABLED:false}
 
 rhn:
+  eventing:
+    outbox:
+      batch-size: ${RHN_OUTBOX_BATCH_SIZE:50}
+      # Covers the entire claimed batch, which is delivered sequentially.
+      lease-ttl: ${RHN_OUTBOX_LEASE_TTL:PT30S}
   analytics:
     pilot-enabled: ${RHN_ANALYTICS_PILOT_ENABLED:false}
     enabled: ${RHN_ANALYTICS_ENABLED:false}

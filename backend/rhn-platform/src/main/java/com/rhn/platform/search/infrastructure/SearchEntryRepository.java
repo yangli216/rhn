@@ -60,7 +60,10 @@ public interface SearchEntryRepository extends JpaRepository<SearchEntry, Long> 
                                   Pageable pageable);
 
     @Query("""
-            select e from SearchEntry e
+            select e.targetId as targetId, e.searchName as searchName,
+                   e.pinyinCode as pinyinCode, e.wubiCode as wubiCode,
+                   e.mnemonicCode as mnemonicCode, e.primary as primary
+            from SearchEntry e
             where e.status = 'ACTIVE' and e.targetType = :targetType
               and (e.scopeType = 'PRODUCT'
                    or (e.scopeType = 'TENANT' and e.scopeId = :tenantId)
@@ -69,12 +72,21 @@ public interface SearchEntryRepository extends JpaRepository<SearchEntry, Long> 
               and (:restrictCandidates = false or e.targetId in :candidateTargetIds)
             order by e.primary desc, e.searchName asc, e.targetId asc
             """)
-    List<SearchEntry> findSimilarityCandidates(@Param("targetType") String targetType,
+    List<SimilarityCandidate> findSimilarityCandidates(@Param("targetType") String targetType,
                                                 @Param("tenantId") Long tenantId,
                                                 @Param("organizationId") Long organizationId,
                                                 @Param("restrictCandidates") boolean restrictCandidates,
                                                 @Param("candidateTargetIds") Collection<Long> candidateTargetIds,
                                                 Pageable pageable);
+
+    interface SimilarityCandidate {
+        Long getTargetId();
+        String getSearchName();
+        String getPinyinCode();
+        String getWubiCode();
+        String getMnemonicCode();
+        boolean getPrimary();
+    }
 
     @Modifying
     @Query(value = """

@@ -3,6 +3,9 @@ package com.rhn.platform.printing.application;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openpdf.text.Rectangle;
 import org.openpdf.text.pdf.PdfReader;
 import org.openpdf.text.pdf.parser.PdfTextExtractor;
@@ -246,6 +249,49 @@ class ClinicalPdfRendererTest {
         assertTrue(text.contains("每周一次"));
         assertTrue(text.contains("途径未记录"));
         assertFalse(text.contains("口服"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "\t\n"})
+    void missing_clinical_guidance_is_not_replaced_by_default_advice(String missing) throws Exception {
+        for (String recordedField : List.of("healthEducation", "followUp")) {
+            Map<String, Object> content = new LinkedHashMap<>();
+            content.put("treatmentPlan", missing);
+            content.put("healthEducation", missing);
+            content.put("followUp", missing);
+            content.put(recordedField, "医生实际记录的个体化建议");
+            String text = pdfText(renderer.render("OUTPATIENT_NOTE", Map.of("content", content)))
+                    .replaceAll("\\s+", "");
+
+            assertTrue(text.contains("诊疗计划未记录"));
+            assertTrue(text.contains("医生实际记录的个体化建议"));
+            String missingLabel = "healthEducation".equals(recordedField) ? "随访复诊" : "健康宣教";
+            assertTrue(text.contains(missingLabel + "未记录"));
+            assertFalse(text.contains("按本次门诊医嘱执行"));
+            assertFalse(text.contains("遵医嘱服药与复诊"));
+            assertFalse(text.contains("必要时随诊"));
+        }
+    }
+
+    @Test
+    void absent_clinical_guidance_stays_unrecorded() throws Exception {
+        String text = pdfText(renderer.render("OUTPATIENT_NOTE", Map.of("content", Map.of())))
+                .replaceAll("\\s+", "");
+
+        assertTrue(text.contains("诊疗计划未记录"));
+        assertFalse(text.contains("按本次门诊医嘱执行"));
+        assertFalse(text.contains("健康宣教"));
+        assertFalse(text.contains("随访复诊"));
+    }
+
+    @Test
+    void explicitly_recorded_clinical_guidance_is_preserved() throws Exception {
+        Map<String, Object> content = Map.of("treatmentPlan", "按本次门诊医嘱执行。",
+                "healthEducation", "遵医嘱服药与复诊", "followUp", "必要时随诊");
+        String text = pdfText(renderer.render("OUTPATIENT_NOTE", Map.of("content", content)));
+
+        for (Object recorded : content.values()) assertTrue(text.contains(recorded.toString()));
     }
 
     private String prescriptionText(List<Map<String, Object>> medications) throws Exception {

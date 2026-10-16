@@ -137,13 +137,13 @@ class ClinicalPdfRenderer {
                 }).reduce((left, right) -> left + "；" + right).orElse("未记录");
         addHighlightedSection(document, "初步诊断", diagnosisText);
 
-        addInlineSection(document, "诊疗计划", text(content, "treatmentPlan", "按本次门诊医嘱执行。"));
+        addInlineSection(document, "诊疗计划", text(content, "treatmentPlan", "未记录"));
 
         String education = text(content, "healthEducation", "");
         String followUp = text(content, "followUp", "");
         if (!education.isBlank() || !followUp.isBlank()) {
-            addTwoColSection(document, "健康宣教", education.isBlank() ? "遵医嘱服药与复诊" : education,
-                    "随访复诊", followUp.isBlank() ? "必要时随诊" : followUp);
+            addTwoColSection(document, "健康宣教", education.isBlank() ? "未记录" : education,
+                    "随访复诊", followUp.isBlank() ? "未记录" : followUp);
         }
 
         renderStructuredNote(document, content);
