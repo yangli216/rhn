@@ -23,16 +23,9 @@ public final class MedicationWorkbenchContracts {
             };
         }
     }
-    public record AiReply(String status, String message, RuleSpec rule) {}
     public record Candidate(Long id, Long parentId, int version, String requirement, String source,
                             String model, Instant createdAt, RuleSpec rule, List<Knowledge> medications,
                             String status) {}
-    public record Generation(String status, String message, Candidate candidate) {}
-    public record GenerateRequest(String requirement, String source, List<Long> medicationIds, Long parentId) {
-        public GenerateRequest(String requirement, String source, Long parentId) {
-            this(requirement, source, List.of(), parentId);
-        }
-    }
     public record PatientSimulationContext(Integer patientAgeYears,
                                            @DictionaryBinding("RESIDENT_GENDER") String gender,
                                            List<String> activeAllergies) {
@@ -43,11 +36,6 @@ public final class MedicationWorkbenchContracts {
     public record TrialItem(Long medicationId, String status, BigDecimal durationDays, String routeCode, String frequencyCode) {
         public TrialItem(Long medicationId, String status, BigDecimal durationDays, String routeCode) {
             this(medicationId, status, durationDays, routeCode, null);
-        }
-    }
-    public record TrialRequest(List<TrialItem> items, PatientSimulationContext patientContext) {
-        public TrialRequest(List<TrialItem> items) {
-            this(items, null);
         }
     }
     public record CaseResult(String name, String expected, String actual, boolean passed,
@@ -67,15 +55,6 @@ public final class MedicationWorkbenchContracts {
     public record ActiveRuleTrialRun(String mode, String scope, Instant createdAt,
                                      String ruleSetVersion, String decision,
                                      List<ActiveRuleTrialCase> cases) {}
-    public record ShadowRequest(Long encounterId, Long prescriptionId) {}
-    public record PrescriptionPreview(
-            Long encounterId, Long prescriptionId, Long residentId, Long departmentId,
-            String prescriptionStatus, PatientSimulationContext patientContext,
-            List<PrescriptionPreviewItem> items) {}
-    public record PrescriptionPreviewItem(
-            Long medicationId, String status, BigDecimal durationDays, String routeCode,
-            String frequencyCode, String medicationName, String preparationSpec,
-            boolean historicalSnapshotAvailable) {}
     public record ActiveRuleView(Long ruleId, Long ruleVersionId, String ruleCode, String category,
                                  String ruleName, int version, String ruleSetVersion, String implementation,
                                  String status, String severity, String decision,

@@ -3,6 +3,8 @@ package com.rhn;
 import com.rhn.quality.medication.api.MedicationKnowledgeDraftContracts.*;
 import com.rhn.quality.medication.api.MedicationKnowledgeExtractionContracts.*;
 import com.rhn.quality.medication.api.MedicationRuleAuthoringAi;
+import com.rhn.quality.medication.api.MedicationRuleConversationContracts;
+import com.rhn.quality.medication.application.MedicationRuleConversationService;
 import com.rhn.quality.medication.application.MedicationKnowledgeExtractionService;
 import com.rhn.quality.medication.application.MedicationKnowledgeDraftService;
 import com.rhn.shared.context.ExecutionContext;
@@ -22,6 +24,7 @@ class MedicationKnowledgeExtractionTest extends StubbedExecutionContextTestSuppo
     @Autowired MedicationKnowledgeExtractionService extractions;
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired JsonCodec json;
+    @Autowired MedicationRuleConversationService conversation;
     static final String PATH="/api/quality/medication-knowledge-extractions";
     static final String SOURCE="合成测试材料，非临床依据。重复开立同一标准条目，在同一处方达到 2 条医嘱时警告。不限年龄，不限途径。相互作用测试：阿莫西林与测试乙，仅口服；另有肾功能条件待明确。";
     @BeforeEach void setup() {
@@ -105,5 +108,69 @@ class MedicationKnowledgeExtractionTest extends StubbedExecutionContextTestSuppo
         doReturn(new MedicationRuleAuthoringAi.Status(false,"","disabled")).when(ai).status();
         assertThatThrownBy(()->extractions.extract(request())).hasMessageContaining("暂不可用");
         assertThatThrownBy(()->extractions.list(-1)).hasMessageContaining("分页参数");
+    }
+    @Test void statements_classified_as_unsupported_are_not_forced_into_a_convertible_kind() {
+        String sentence="重复开立同一标准条目，在同一处方达到 2 条医嘱时警告";
+        var base=duplicate();
+        var blocked=extract(new Output(base.title(),base.fields(),base.medications(),base.questions(),base.otherConditions(),List.of(new Segment(sentence,"COMPATIBILITY","溶媒与配伍要求"))));
+        assertThat(blocked.result().adoptable()).isFalse();
+        assertThat(blocked.result().suggestedBody().kind()).isEmpty();
+        assertThat(blocked.result().segments()).singleElement().satisfies(s->{assertThat(s.convertible()).isFalse();assertThat(s.kind()).isEqualTo("COMPATIBILITY");assertThat(SOURCE.substring(s.start(),s.end())).isEqualTo(sentence);});
+        assertThat(blocked.result().questions()).anyMatch(q->q.contains("当前不能转换"));
+        var allowed=extract(new Output(base.title(),base.fields(),base.medications(),base.questions(),base.otherConditions(),List.of(new Segment(sentence,"DUPLICATE_THERAPY","同条目重复"))));
+        assertThat(allowed.result().adoptable()).isTrue();
+        assertThat(allowed.result().segments()).singleElement().satisfies(s->assertThat(s.convertible()).isTrue());
+    }
+
+    MedicationRuleConversationContracts.Card card(String id,String kind,List<String> a,List<String> b,String action) {
+        return new MedicationRuleConversationContracts.Card(id,kind,"测试规则","阿莫西林与测试乙",a,b,"BOGUS","CURRENT_MEDICATIONS",99,"RANGE","YEAR",0,18,List.of("口服"),List.of(),action,"HIGH","说明","",List.of(),null);
+    }
+    MedicationRuleConversationContracts.TurnResult turn(MedicationRuleConversationContracts.Output output,String message,List<MedicationRuleConversationContracts.Card> cards) {
+        doReturn(json.write(output)).when(ai).generate(anyString(),anyString(),eq(MedicationRuleConversationService.PROMPT_VERSION));
+        return conversation.converse(new MedicationRuleConversationContracts.TurnRequest(SOURCE,cards,message,List.of()));
+    }
+    @Test void conversation_cards_are_normalized_and_unknown_slots_are_never_defaulted_to_unrestricted() {
+        var result=turn(new MedicationRuleConversationContracts.Output("已拆分",List.of(card("",  "DRUG_INTERACTION",List.of("阿莫西林"),List.of(),null),
+                card("","COMPATIBILITY",List.of("甲"),List.of("乙"),"BLOCK"),card("","DUPLICATE_THERAPY",List.of(),List.of(),"WARN"))),"",List.of());
+        assertThat(result.runId()).isNotNull(); assertThat(result.reply()).isEqualTo("已拆分");
+        var interaction=result.cards().get(0);
+        assertThat(interaction.state()).isEqualTo("NEEDS_INFO"); assertThat(interaction.missing()).containsExactly("B 组药品","命中后的处置方式");
+        assertThat(interaction.card().matchMode()).isEqualTo("GROUP_PAIR"); assertThat(interaction.card().exposureScope()).isEqualTo("SAME_PRESCRIPTION");
+        assertThat(interaction.card().minimumOrders()).isNull(); assertThat(interaction.groupACandidates().getFirst().candidates()).isNotEmpty();
+        var unsupported=result.cards().get(1);
+        assertThat(unsupported.state()).isEqualTo("UNSUPPORTED"); assertThat(unsupported.card().groupA()).isEmpty(); assertThat(unsupported.card().proposedAction()).isNull();
+        var duplicate=result.cards().get(2);
+        assertThat(duplicate.state()).isEqualTo("READY"); assertThat(duplicate.card().matchMode()).isEqualTo("SAME_STANDARD_ENTRY"); assertThat(duplicate.card().minimumOrders()).isEqualTo(2);
+        assertThat(result.cards()).extracting(v->v.card().id()).doesNotHaveDuplicates().doesNotContainNull();
+        assertThat(extractions.get(result.runId()).promptVersion()).isEqualTo(MedicationRuleConversationService.PROMPT_VERSION);
+    }
+    @Test void conversation_reclassifies_on_maintainer_intent_and_never_claims_edits_it_dropped() {
+        var unsupported=new MedicationRuleConversationContracts.Card("c1","COMPATIBILITY","维生素C与维生素K1不宜配伍","混合后失效",List.of(),List.of(),null,null,null,null,null,null,null,List.of(),List.of(),null,null,"","",List.of("是否需要设置严重程度？"),null);
+        // The model fills slots on a card that stays unsupported: the edit is dropped and the reply must say so.
+        var dropped=turn(new MedicationRuleConversationContracts.Output("已设为 WARN，同一处方",List.of(card("c1","COMPATIBILITY",List.of("维生素C"),List.of("维生素K1"),"WARN"))),"同一处方警示",List.of(unsupported));
+        assertThat(dropped.cards().getFirst().state()).isEqualTo("UNSUPPORTED");
+        assertThat(dropped.reply()).contains("没有生效").doesNotContain("WARN");
+        // The maintainer's intent turns it into a pair rule; a boundary note is attached by the server and carried to later turns.
+        var asked=new MedicationRuleConversationContracts.Card("c1","DRUG_INTERACTION","维生素C与维生素K1不宜配伍","混合后失效",List.of("维生素C"),List.of("维生素K1"),null,null,null,null,null,null,null,List.of(),List.of(),"WARN","MEDIUM","","",
+                List.of("是否需要设置严重程度？","还有别的条件吗？"),"模型自己编的提示");
+        var fixed=turn(new MedicationRuleConversationContracts.Output("已按两药合用处理，处置 WARN，严重程度 MEDIUM",List.of(asked)),"按两药合用处理，一般警告",List.of(unsupported));
+        var view=fixed.cards().getFirst();
+        assertThat(view.card().kind()).isEqualTo("DRUG_INTERACTION"); assertThat(view.state()).isEqualTo("READY");
+        assertThat(view.card().boundaryNote()).contains("配伍、溶媒与输液顺序").contains("同一处方同时开立").doesNotContain("模型自己编");
+        assertThat(view.card().questions()).containsExactly("还有别的条件吗？");
+        assertThat(fixed.reply()).contains("警告提示").contains("中").doesNotContain("WARN","MEDIUM");
+        var later=turn(new MedicationRuleConversationContracts.Output("好",List.of(asked)),"再确认",List.of(view.card()));
+        assertThat(later.cards().getFirst().card().boundaryNote()).isEqualTo(view.card().boundaryNote());
+    }
+    @Test void conversation_keeps_previous_cards_when_model_output_is_unusable_and_enforces_permission() {
+        var first=turn(new MedicationRuleConversationContracts.Output("ok",List.of(card("k1","DRUG_INTERACTION",List.of("阿莫西林"),List.of("测试乙"),"WARN"))),"",List.of());
+        assertThat(first.cards().getFirst().state()).isEqualTo("READY");
+        doReturn("{\"cards\":[").when(ai).generate(anyString(),anyString(),anyString());
+        var kept=conversation.converse(new MedicationRuleConversationContracts.TurnRequest(SOURCE,first.cards().stream().map(MedicationRuleConversationContracts.CardView::card).toList(),"改成儿童",List.of()));
+        assertThat(kept.cards()).hasSize(1); assertThat(kept.cards().getFirst().card().id()).isEqualTo("k1"); assertThat(kept.reply()).contains("没有变化");
+        context(Long.valueOf(TENANT),false);
+        assertThatThrownBy(()->conversation.converse(new MedicationRuleConversationContracts.TurnRequest(SOURCE,List.of(),"",List.of()))).hasMessageContaining("权限");
+        context(Long.valueOf(TENANT),true);
+        assertThatThrownBy(()->conversation.converse(new MedicationRuleConversationContracts.TurnRequest(" ",List.of(),"",List.of()))).hasMessageContaining("规则原文");
     }
 }

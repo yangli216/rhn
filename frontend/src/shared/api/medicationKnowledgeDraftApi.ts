@@ -2,13 +2,17 @@ import type { PharmacyReview } from './pharmacyApi'
 import type { MedicationSafetyFinding } from './encountersApi'
 import type { RuleDeployment } from './medicationWorkbenchApi'
 import type { ApiClient } from './httpClient'
-export interface KnowledgeTarget { level: string; specificationId: string; catalogId: string; catalogVersion: string; contentHash: string }
+/** level ENTRY/SPECIFICATION address a standard drug entry/specification; CATEGORY addresses a catalog classification by categoryKey. */
+export interface KnowledgeTarget { level: string; specificationId: string; catalogId: string; catalogVersion: string; contentHash: string; categoryKey?: string | null }
 export interface KnowledgeRoutes { mode: string; codes: string[] }
 export interface KnowledgeConditions { ageMode: string; ageUnit: string | null; minimumAgeInclusive: number | null; maximumAgeExclusive: number | null; groupARoutes: KnowledgeRoutes; groupBRoutes: KnowledgeRoutes; additionalConditions: string }
 export interface KnowledgeEvidence { sourceType: string; title: string; publisher: string; edition: string; locator: string; excerpt: string; documentHash: string; effectiveFrom: string | null; effectiveTo: string | null }
 export interface KnowledgeBody { title: string; kind: string; matchMode: string; groupA: KnowledgeTarget[]; groupB: KnowledgeTarget[]; minimumOrders: number | null; exposureScope: string; conditions: KnowledgeConditions; evidence: KnowledgeEvidence; clinicalMeaning: string; severity: string; proposedAction: string }
 export interface KnowledgeReference { catalogId: string; catalogVersion: string; contentHash: string; sourceHash: string; entryId: string; specificationId: string; name: string; doseForm: string; preparationSpec: string }
-export interface KnowledgeAssessment { structureComplete: boolean; issues: { field: string; code: string; message: string }[]; ruleDescription: string; groupA: { level: string; reference: KnowledgeReference }[]; groupB: { level: string; reference: KnowledgeReference }[]; groupARoutes: { code: string; name: string; systemVersion: string }[]; groupBRoutes: { code: string; name: string; systemVersion: string }[] }
+export interface KnowledgeCategory { key: string; label: string; entryIds: string[] }
+export interface KnowledgeCategoryReference { catalogId: string; catalogVersion: string; contentHash: string; sourceHash: string; key: string; label: string; entryIds: string[] }
+export interface ResolvedKnowledgeTarget { level: string; reference: KnowledgeReference; category?: KnowledgeCategory | null }
+export interface KnowledgeAssessment { structureComplete: boolean; issues: { field: string; code: string; message: string }[]; ruleDescription: string; groupA: ResolvedKnowledgeTarget[]; groupB: ResolvedKnowledgeTarget[]; groupARoutes: { code: string; name: string; systemVersion: string }[]; groupBRoutes: { code: string; name: string; systemVersion: string }[] }
 export interface KnowledgeVersion { id: string; version: number; status: 'DRAFT'; body: KnowledgeBody; assessment: KnowledgeAssessment; actor: string; savedAt: string; changeReason: string; extractionId?: string | null }
 export interface KnowledgeCase { name: string; input: { age: number | null; ageUnit: string | null; date: string; medications: { orderId: string; entryId: string; specificationId: string; routeCode: string | null; status: string }[] }; expected: string; actual: { outcome: string; reasons: string[]; matchedOrderIds: string[] }; passed: boolean }
 export interface KnowledgeDetail { intakeId?: string | null; saved: KnowledgeVersion; currentAssessment: KnowledgeAssessment; possibleConflicts: { id: string; version: number; title: string; reason: string }[]; cases: KnowledgeCase[] }
@@ -62,6 +66,7 @@ export function createMedicationKnowledgeDraftApi(client: ApiClient) {
     replayDetail: (id: string, runId: string) => client.request<KnowledgeReplayRun>(`${root}/${encodeURIComponent(id)}/replays/${encodeURIComponent(runId)}`),
     extractionStatus: () => client.request<{ available: boolean; model: string; message: string }>(`${extractionRoot}/status`),
     extract: (input: KnowledgeExtractionRequest) => client.request<KnowledgeExtractionRun>(extractionRoot, { method: 'POST', body: JSON.stringify(input) }),
+    converse: (input: RuleConversationRequest) => client.request<RuleConversationResult>(`${extractionRoot}/conversation`, { method: 'POST', body: JSON.stringify(input) }),
     extraction: (id: string) => client.request<KnowledgeExtractionRun>(`${extractionRoot}/${encodeURIComponent(id)}`),
     extractions: (page = 0) => client.request<KnowledgeExtractionSummary[]>(`${extractionRoot}?page=${page}`),
     list: (query = '', page = 0) => client.request<KnowledgePage>(`${root}?query=${encodeURIComponent(query)}&page=${page}&size=20`),
@@ -78,8 +83,18 @@ export interface KnowledgeExtractionRun {
   id: string; input: KnowledgeExtractionRequest; sourceTextHash: string; model: string; promptVersion: string; actor: string; createdAt: string; rawOutput: string; rawOutputTruncated?: boolean
   result: { adoptable: boolean; suggestedBody: KnowledgeBody | null; citations: { field: string; value: string; quote: string; start: number; end: number }[];
     medications: { mention: { group: string; name: string; level: string; specificationText: string; quote: string }; start: number; end: number; candidates: KnowledgeReference[] }[];
-    questions: string[]; assessment: KnowledgeAssessment | null }
+    questions: string[]; assessment: KnowledgeAssessment | null
+    segments?: { quote: string; start: number; end: number; kind: string; name: string; convertible: boolean; summary: string }[] }
 }
+export interface RuleCard {
+  id: string; kind: string; title: string; quote: string; groupA: string[]; groupB: string[]; matchMode: string | null; exposureScope: string | null; minimumOrders: number | null
+  ageMode: string | null; ageUnit: string | null; minimumAgeInclusive: number | null; maximumAgeExclusive: number | null; routesA: string[]; routesB: string[]
+  proposedAction: string | null; severity: string | null; clinicalMeaning: string; otherConditions: string; questions: string[]; boundaryNote: string | null
+}
+export interface RuleCardCandidates { name: string; candidates: KnowledgeReference[]; categories: KnowledgeCategoryReference[] }
+export interface RuleCardView { card: RuleCard; state: 'READY' | 'NEEDS_INFO' | 'UNSUPPORTED'; kindName: string; missing: string[]; groupACandidates: RuleCardCandidates[]; groupBCandidates: RuleCardCandidates[] }
+export interface RuleConversationRequest { source: string; cards: RuleCard[]; message: string; history: { role: 'user' | 'assistant'; text: string }[] }
+export interface RuleConversationResult { runId: string; reply: string; cards: RuleCardView[] }
 export interface KnowledgeExtractionSummary { id: string; title: string; model: string; createdAt: string; adoptable: boolean }
 
 export interface KnowledgeReplaySource { evaluationId: string; prescriptionId: string; encounterId: string; prescriptionRevision: number; organizationId: string; departmentId: string; evaluatedAt: string | null; inputHash: string; originalMode: string }

@@ -663,61 +663,6 @@
   padding: 40px !important;
 }
 
-/* ====================================================================
-   Tab 3: AI 规则工坊与候选孵化 (向导吸顶，两栏各自局部独立平滑滚动)
-   ==================================================================== */
-.qmed-factory-layout {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
-}
-
-/* 单行高密度向导与场景工具条 (高度压缩至 36px，移除常驻长文本) */
-.qmed-wizard-bar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 5px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  box-shadow: var(--shadow-sm);
-}
-
-.qmed-wizard-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.qmed-wizard-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-brand-primary);
-  white-space: nowrap;
-}
-
-.qmed-guide-help {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-text-disabled);
-  cursor: help;
-  font-size: 13px;
-  transition: color 0.15s ease;
-}
-
-.qmed-guide-help:hover {
-  color: var(--color-brand-primary);
-}
-
 .qmed-title-with-help {
   display: inline-flex;
   align-items: center;
@@ -728,128 +673,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.qmed-wizard-bar .qmed-stepper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-size: var(--font-size-small);
-}
-
-.qmed-preset-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.qmed-preset-label {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-  font-weight: 500;
-}
-
-.qmed-preset-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--color-brand-soft);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
-  color: var(--color-brand-primary);
-  font-size: var(--font-size-small);
-  font-weight: 500;
-  padding: 2.5px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.qmed-preset-btn:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface));
-  border-color: var(--color-brand-primary);
-}
-
-.qmed-step-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.qmed-step-item.is-done {
-  color: var(--color-brand-primary);
-  font-weight: 600;
-}
-
-.qmed-step-item.is-active {
-  color: var(--color-brand-primary);
-  font-weight: 600;
-}
-
-.qmed-step-num {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-}
-
-.qmed-step-item.is-done .qmed-step-num {
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
-  color: var(--color-text-inverse);
-}
-
-.qmed-step-item.is-active .qmed-step-num {
-  background: var(--color-brand-soft);
-  border-color: var(--color-brand-primary);
-  color: var(--color-brand-primary);
-  font-weight: 600;
-  box-shadow: var(--shadow-focus);
-}
-
-.qmed-step-divider {
   flex: 1;
-  height: 1px;
-  background: var(--color-border);
-  margin: 0 10px;
-}
-
-/* 工坊分栏协作 (左右两列各自局部独立滚动) */
-.qmed-factory-panes {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 460px 1fr;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.qmed-factory-pane-left,
-.qmed-factory-pane-right {
-  height: 100%;
   min-height: 0;
   overflow-y: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 14px;
-  box-shadow: var(--shadow-sm);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  scrollbar-width: thin;
 }
 
 /* 药品选择区 */
@@ -998,31 +824,6 @@
   text-overflow: ellipsis;
 }
 
-/* 需求输入区 */
-.qmed-req-box {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.qmed-req-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.qmed-req-header label,
-.qmed-req-box > label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.qmed-preset-btns {
-  display: flex;
-  gap: 6px;
-}
-
 .qmed-chip-btn {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -1038,25 +839,6 @@
   border-color: var(--color-brand-primary);
   color: var(--color-brand-primary);
   background: var(--color-brand-soft);
-}
-
-.qmed-req-box textarea {
-  width: 100%;
-  padding: 7px 9px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-  box-sizing: border-box;
-  resize: vertical;
-  outline: none;
-  font-family: inherit;
-  transition: all 0.15s ease;
-}
-
-.qmed-req-box textarea:focus {
-  border-color: var(--color-brand-primary);
-  box-shadow: var(--shadow-focus);
 }
 
 /* AI 状态与生成操作栏 */
@@ -1192,16 +974,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2px;
-}
-
-/* ====================================================================
-   右栏全景沙盒与空状态充实布局 (消除大面积留白)
-   ==================================================================== */
-.qmed-factory-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  height: 100%;
 }
 
 .qmed-hero-banner {
@@ -2142,30 +1914,11 @@
   border-color: var(--color-border-strong);
 }
 
-/* 6. HIS 真实历史处方调入弹窗 (Dialog 内部高密度栅格) */
-.qmed-his-modal-content {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 16px !important;
-  padding: 4px 0 !important;
-}
-
-.qmed-his-modal-section h5 {
-  margin: 0 0 6px 0 !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  color: var(--color-text-primary);
-}
-
 .custom-input-section {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
   border-radius: 6px !important;
   padding: 10px 14px !important;
-}
-
-.qmed-his-input-field input {
-  width: 120px !important;
 }
 
 .qmed-dialog-footer-actions {
@@ -2186,10 +1939,8 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
-
-.qmed-req-box .ui-field__control,
 .qmed-med-search-box .ui-search-field {
-  margin-top: 6px;
+  margin-top: var(--space-1);
 }
 
 .qmed-med-search-box .ui-search-field {
@@ -2266,48 +2017,6 @@
 .qmed-row-tag.is-out-of-scope {
   background: var(--color-warning-soft);
   color: var(--color-warning-strong);
-}
-
-.qmed-his-import-note {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px 14px;
-  border: 1px solid var(--color-info-border);
-  border-radius: var(--radius-md);
-  background: var(--color-info-soft);
-  color: var(--color-text-secondary);
-}
-
-.qmed-his-import-note svg {
-  flex: 0 0 auto;
-  color: var(--color-brand-primary);
-}
-
-.qmed-his-import-note p {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-
-.qmed-his-inputs-row {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px !important;
-  align-items: end !important;
-  margin-top: 0 !important;
-}
-
-.qmed-his-input-field {
-  display: block !important;
-  align-items: center !important;
-  gap: 8px !important;
-  color: var(--color-text-secondary);
-  font-size: 12px !important;
-}
-
-.qmed-his-input-field .ui-field__control {
-  width: 100% !important;
 }
 
 .qmed-loading-spinner {
@@ -2499,6 +2208,7 @@
 }
 
 .qmed-cat-tag {
+  border: 1px solid var(--color-border);
   font-size: var(--font-size-caption);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
@@ -2564,6 +2274,7 @@
 
 /* 详情卡片 */
 .qmed-cat-detail-card {
+  flex-shrink: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
@@ -2575,12 +2286,14 @@
 
 .qmed-cat-detail-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
 }
 
 .qmed-cat-detail-info {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -2661,7 +2374,7 @@
 /* 纳管药品卡片 */
 .qmed-cat-members-card {
   flex: 1;
-  min-height: 0;
+  min-height: 320px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -3162,13 +2875,15 @@
 
 /* 分类关联在行规则样式 */
 .qmed-cat-tag.is-rule-bound {
+  border-color: transparent;
   background: var(--color-brand-soft);
   color: var(--color-brand-strong);
   font-weight: var(--font-weight-medium);
 }
 
 .qmed-cat-bound-rules-section {
-  margin-top: var(--space-2);
+  flex: 0 1 420px;
+  min-width: 280px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -3320,3 +3035,47 @@
 }
 
 
+
+/* 分类详情：三格信息条，等高对齐 */
+.qmed-cat-info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+  gap: var(--space-3);
+}
+
+.qmed-cat-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+}
+
+.qmed-cat-info-label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.qmed-cat-info-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.qmed-cat-info-actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.qmed-cat-info-rule {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

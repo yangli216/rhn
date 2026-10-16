@@ -93,7 +93,7 @@ function summary(rule: RuleCatalogEntry) {
   return live.length
     ? live.map(d => `${modes[d.mode]} v${d.version}`).join(' · ')
     : hasDefaultShadow(rule)
-      ? '内置旁路观察'
+      ? '内置正式审查'
       : rule.deployments.length
         ? '暂无运行版本'
         : '尚未发布'
@@ -101,7 +101,7 @@ function summary(rule: RuleCatalogEntry) {
 
 function getRuleStatusTone(rule: RuleCatalogEntry): 'neutral' | 'warning' | 'info' | 'success' | 'danger' {
   const s = summary(rule)
-  if (s.includes('正式生效')) return 'success'
+  if (s.includes('正式生效') || s.includes('内置正式审查')) return 'success'
   if (s.includes('旁路观察')) return 'info'
   if (s.includes('待生效')) return 'warning'
   if (rule.versions.some(v => v.reviewStatus === 'IN_REVIEW')) return 'info'
@@ -111,14 +111,12 @@ function getRuleStatusTone(rule: RuleCatalogEntry): 'neutral' | 'warning' | 'inf
 
 export function MedicationRuleCatalog({
   api,
-  onOpenCandidate,
   onBuiltinTrial,
   onOpenFactory
 }: {
   api: RhnApi
-  onOpenCandidate: (candidate: MedicationCandidate) => void
   onBuiltinTrial: (code: string) => void
-  onOpenFactory?: (mode?: 'intake' | 'template' | 'knowledge') => void
+  onOpenFactory?: () => void
 }) {
   const [data, setData] = useState<RuleCatalog>()
   const [selected, setSelected] = useState('')
@@ -178,7 +176,7 @@ export function MedicationRuleCatalog({
     const matchState = filter === 'ALL'
       || r.versions.some(v => v.reviewStatus === filter)
       || r.deployments.some(d => runtimeStatus(d) === filter)
-      || (filter === '旁路观察' && hasDefaultShadow(r))
+      || (filter === '正式生效' && hasDefaultShadow(r))
     return matchText && matchState && (origin === 'ALL' || r.origin === origin)
   })
 
@@ -205,10 +203,10 @@ export function MedicationRuleCatalog({
       {/* 单行紧凑筛选条 (严格控制桌面端宽度，杜绝换行) */}
       <div className="qmed-governance__filters ui-query-filters">
         <SearchField
-          label="搜索规则名称或编码"
+          label="搜索规则名称"
           value={query}
           onChange={setQuery}
-          placeholder="搜索规则名称或编码"
+          placeholder="搜索规则名称"
         />
         <Select
           aria-label="规则状态筛选"
@@ -237,28 +235,24 @@ export function MedicationRuleCatalog({
             ...Object.entries(originName).map(([value, label]) => ({ value, label }))
           ]}
         />
-        <div className="qmed-governance__filters-count">
-          <span>当前显示 <strong>{visible.length}</strong> / {data?.rules.length ?? 0} 条规则</span>
-          {(query || filter !== 'ALL' || origin !== 'ALL') && (
-            <Button
-              variant="text"
-              size="sm"
-              onClick={() => {
-                setQuery('')
-                setFilter('ALL')
-                setOrigin('ALL')
-              }}
-            >
-              重置筛选
-            </Button>
-          )}
-        </div>
+        {(query || filter !== 'ALL' || origin !== 'ALL') && (
+          <Button
+            variant="text"
+            onClick={() => {
+              setQuery('')
+              setFilter('ALL')
+              setOrigin('ALL')
+            }}
+          >
+            重置筛选
+          </Button>
+        )}
         <div className="ui-query-filters__actions">
           <Button variant="secondary" onClick={() => void reload()}>
             <Icon name="refresh" />
             <span>刷新目录</span>
           </Button>
-          <Button variant="primary" onClick={() => onOpenFactory ? onOpenFactory('intake') : setDraft({})}>
+          <Button variant="primary" onClick={() => onOpenFactory ? onOpenFactory() : setDraft({})}>
             <Icon name="add" />
             <span>去规则工坊起草</span>
           </Button>
@@ -272,16 +266,14 @@ export function MedicationRuleCatalog({
           {/* 左侧规则列表面板 */}
           <div className="qmed-governance__list-panel">
             <div className="qmed-governance__list-head">
-              <span>规则名称与在行状态</span>
-              <span>版本 / 审核</span>
+              <span>规则列表</span>
+              <span>共 <strong>{visible.length}</strong>{visible.length !== (data?.rules.length ?? 0) ? ` / ${data?.rules.length ?? 0}` : ''} 条</span>
             </div>
             <div className="qmed-governance__list">
               {visible.map(r => {
                 const ruleSummary = summary(r)
                 const statusTone = getRuleStatusTone(r)
                 const isSelected = r.key === selected
-                const latestVersion = r.versions[0]
-                const latestReview = latestVersion ? reviews[latestVersion.reviewStatus] ?? '待核对' : '暂无'
 
                 return (
                   <button
@@ -297,27 +289,13 @@ export function MedicationRuleCatalog({
                       <strong>{r.name}</strong>
                       <StatusBadge tone={statusTone}>{ruleSummary}</StatusBadge>
                     </div>
-                    <div className="qmed-governance__rule-code-row">
-                      <code className="qmed-code-pill" title={r.code}>{r.code}</code>
-                      <span className={`qmed-chip ${r.origin === 'BUILTIN' ? 'qmed-chip--brand' : r.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
-                        {originName[r.origin] ?? r.origin}
-                      </span>
-                      {(() => {
-                        const spec = getBuiltinRuleSpec(r.code)
-                        if (spec?.isParameterized) {
-                          return (
-                            <span className="qmed-chip qmed-chip--param" title={`基于${spec.templateName}构建`}>
-                              {spec.templateName.replace('模板 ', '')}
-                            </span>
-                          )
-                        }
-                        return null
-                      })()}
-                    </div>
-                    <div className="qmed-governance__rule-foot">
-                      <span>{r.versions.length} 个版本 · {r.origin === 'BUILTIN' ? '系统在行基线' : `最新 ${latestReview}`}</span>
-                      {isSelected && <Icon name="chevron-right" />}
-                    </div>
+                    {r.origin !== 'BUILTIN' && (
+                      <div className="qmed-governance__rule-code-row">
+                        <span className={`qmed-chip ${r.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
+                          {originName[r.origin] ?? r.origin}
+                        </span>
+                      </div>
+                    )}
                   </button>
                 )
               })}
@@ -336,42 +314,14 @@ export function MedicationRuleCatalog({
               <>
                 {/* 详情顶部核心看板 (2 行紧凑布局，标题、状态徽章与操作按钮同行对齐) */}
                 <div className="qmed-detail-hero">
-                  <div className="qmed-detail-hero__row1">
-                    <div className="qmed-detail-hero__tags">
-                      <code className="qmed-code-pill">{rule.code}</code>
-                      <span className={`qmed-chip ${rule.origin === 'BUILTIN' ? 'qmed-chip--brand' : rule.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
-                        {originName[rule.origin] ?? rule.origin}
-                      </span>
-                      <span className="qmed-chip">修订 #{rule.revision}</span>
-                      {(() => {
-                        const spec = getBuiltinRuleSpec(rule.code, version.builtin?.implementationKey)
-                        if (spec) {
-                          return (
-                            <StatusBadge tone={spec.templateBadgeTone}>
-                              {spec.templateName}
-                            </StatusBadge>
-                          )
-                        }
-                        return null
-                      })()}
-                    </div>
-                    <div className="qmed-detail-hero__version-ctrl">
-                      <span className="qmed-field-label">审阅版本:</span>
-                      <Select
-                        aria-label="规则版本"
-                        value={version.id}
-                        onChange={setVersionId}
-                        options={rule.versions.map(v => ({
-                          value: v.id,
-                          label: `v${v.version} · ${reviews[v.reviewStatus] ?? v.reviewStatus}`
-                        }))}
-                      />
-                    </div>
-                  </div>
-
                   <div className="qmed-detail-hero__row2">
                     <div className="qmed-detail-hero__title-box">
                       <h3>{rule.name}</h3>
+                      {rule.origin !== 'BUILTIN' && (
+                        <span className={`qmed-chip ${rule.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
+                          {originName[rule.origin] ?? rule.origin}
+                        </span>
+                      )}
                       <div className="qmed-detail-hero__badges">
                         {version.builtin ? (
                           <>
@@ -404,6 +354,18 @@ export function MedicationRuleCatalog({
                     </div>
 
                     <div className="qmed-detail-hero__action-inline">
+                    <div className="qmed-detail-hero__version-ctrl">
+                      <span className="qmed-field-label">审阅版本:</span>
+                      <Select
+                        aria-label="规则版本"
+                        value={version.id}
+                        onChange={setVersionId}
+                        options={rule.versions.map(v => ({
+                          value: v.id,
+                          label: `v${v.version} · ${reviews[v.reviewStatus] ?? v.reviewStatus}`
+                        }))}
+                      />
+                    </div>
                       {version.knowledgeCandidate && (
                         <>
                           <Button variant="secondary" size="sm" onClick={() => setTestCandidate(version.knowledgeCandidate!)}>人工样例</Button>
@@ -417,10 +379,6 @@ export function MedicationRuleCatalog({
                           <Button variant="secondary" size="sm" disabled={busy} onClick={() => void runSuite(version)}>
                             <Icon name="flask" />
                             <span>运行回归套件</span>
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={() => onOpenCandidate(version.candidate!)}>
-                            <Icon name="clinical" />
-                            <span>处方回放</span>
                           </Button>
                           <Button variant="secondary" size="sm" onClick={() => setDraft({ parent: version.candidate! })}>
                             <Icon name="add" />
@@ -563,13 +521,10 @@ export function MedicationRuleCatalog({
                                 )}
 
                                 {/* 结构化规则表达式 (DSL) 代码块 */}
-                                <div className="qmed-code-block">
-                                  <div className="qmed-code-header">
-                                    <span>规则判定表达式 (DSL)</span>
-                                    <span className="qmed-code-type">{builtinSpec.templateName}</span>
-                                  </div>
-                                  <pre>{builtinSpec.dslExpression}</pre>
-                                </div>
+                                <details className="qmed-fold">
+                                  <summary>规则判定表达式（DSL）<span className="qmed-code-type">{builtinSpec.templateName}</span></summary>
+                                  <div className="qmed-code-block"><pre>{builtinSpec.dslExpression}</pre></div>
+                                </details>
 
                                 {/* 参数化判定条件与规则配置 */}
                                 <div className="qmed-builtin-params-section">
@@ -600,7 +555,6 @@ export function MedicationRuleCatalog({
                                       {builtinSpec.boundCategories.map(cat => (
                                         <span key={cat.code} className="qmed-bound-cat-pill" title={cat.description}>
                                           <strong>{cat.name}</strong>
-                                          <code>{cat.code}</code>
                                         </span>
                                       ))}
                                       <span className="qmed-cat-link-tip">
@@ -622,11 +576,8 @@ export function MedicationRuleCatalog({
 
                         {/* 循证医学与审核依据 (仅当有证据时按需展示，绝不常驻空态) */}
                         {evidences.length > 0 && (
-                          <div className="qmed-builtin-evidence-section">
-                            <div className="qmed-builtin-evidence-title">
-                              <Icon name="award" />
-                              <span className="qmed-field-label">循证医学与法规依据（{evidences.length} 项已审定）：</span>
-                            </div>
+                          <details className="qmed-fold qmed-builtin-evidence-section">
+                            <summary>循证医学与法规依据（{evidences.length} 项已审定）</summary>
                             <div className="qmed-builtin-evidence-grid">
                               {evidences.map((e, i) => (
                                 <div key={i} className="qmed-evidence-card">
@@ -644,7 +595,7 @@ export function MedicationRuleCatalog({
                                 </div>
                               ))}
                             </div>
-                          </div>
+                          </details>
                         )}
                       </div>
 
@@ -653,22 +604,10 @@ export function MedicationRuleCatalog({
                         <div className="qmed-card__footer">
                           <div className="qmed-card-footer-bar">
                             <div className="qmed-card-footer-meta">
-                              <div className="qmed-card-footer-item">
-                                <span className="qmed-field-label">执行器实现：</span>
-                                <code>{version.builtin.implementationKey || '内置引擎'}</code>
-                              </div>
-                              <div className="qmed-card-footer-item">
-                                <span className="qmed-field-label">规则集基准：</span>
-                                <code>标准基线 · {version.builtin.ruleSetVersion || 'qmed-standard-shadow-v2'}</code>
-                              </div>
-                              <div className="qmed-card-footer-item">
-                                <span className="qmed-field-label">默认动作：</span>
-                                <span>{actions[version.builtin.decision] ?? version.builtin.decision}</span>
-                              </div>
                               {hasDefaultShadow(rule) && !rule.deployments.length && (
                                 <div className="qmed-card-footer-item">
                                   <span className="qmed-field-label">发布策略：</span>
-                                  <StatusBadge tone="info">内置默认旁路</StatusBadge>
+                                  <StatusBadge tone="success">内置正式审查</StatusBadge>
                                   <span className="qmed-card-footer-scope">（全机构各科室生效）</span>
                                 </div>
                               )}
@@ -682,13 +621,13 @@ export function MedicationRuleCatalog({
                                   versionId: rule.versions.find(v => v.builtin?.ruleSetVersion === 'qmed-standard-shadow-v2')!.id
                                 })}
                               >
-                                暂停本机构默认旁路
+                                暂停本机构内置规则
                               </Button>
                             )}
                           </div>
                           <div className="qmed-card-footer-hint">
                             <small className="qmed-runtime-hint-text">
-                              当前在行规则由版本化强类型执行器运行，正式版本会在发布范围内参与处方提交校验；旁路版本只记录评价，不改变提交结果。
+                              内置规则按正式审查参与处方提交校验；旁路发布的知识规则只记录评价，不改变提交结果。
                             </small>
                           </div>
                         </div>
@@ -1172,7 +1111,7 @@ function RuleDraftDialog({
                 onChange={val => void handleLoadCategoryMembers(val)}
                 options={[
                   { value: '', label: '选择安全分类快速填入药品…' },
-                  ...safetyCategories.map(c => ({ value: c.id, label: `${c.name} (${c.code}, ${c.memberCount} 药)` }))
+                  ...safetyCategories.map(c => ({ value: c.id, label: `${c.name}（${c.memberCount} 药）` }))
                 ]}
               />
               {catLoading && <span className="qmed-governance__cat-loader-status">载入中…</span>}

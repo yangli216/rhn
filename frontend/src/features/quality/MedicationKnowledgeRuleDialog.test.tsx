@@ -48,7 +48,7 @@ it('refreshes failed stale creation and hides stale expression after refresh fai
 })
 it('unified catalog shows frozen knowledge and retirement but hides unimplemented publication actions', async () => {
   const api = { catalog: vi.fn().mockResolvedValue({ organizationId: '1', departmentId: '2', rules: [{ key: 'KNOWLEDGE:10', code: 'QMED.KNOWLEDGE.10', name: '合成重复知识', origin: 'KNOWLEDGE', revision: 0, versions: [{ id: '20', version: 1, name: '合成重复知识', reviewStatus: 'DRAFT', testsPassed: true, origin: 'KNOWLEDGE', candidate: null, builtin: null, review: null, knowledgeCandidate: candidate }], deployments: [], history: [] }] }), catalogRuns: vi.fn().mockResolvedValue([]) }
-  render(<MedicationRuleCatalog api={{ medicationWorkbench: api } as unknown as RhnApi} onOpenCandidate={vi.fn()} onBuiltinTrial={vi.fn()} />)
+  render(<MedicationRuleCatalog api={{ medicationWorkbench: api } as unknown as RhnApi} onBuiltinTrial={vi.fn()} />)
   await screen.findByText('结构样例通过 · 人工验证另查')
   expect(screen.getByText('测试原文，非临床依据')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '提交审核' })).not.toBeInTheDocument()

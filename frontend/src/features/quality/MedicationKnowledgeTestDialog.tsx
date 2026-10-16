@@ -83,7 +83,7 @@ export function MedicationKnowledgeTestDialog({ api, candidate, onClose }: { api
       onClose={() => setExamplesOpen(false)} onAdopt={example => guard(() => {
         change(example.manualCases); setIndex(0); setExamplesOpen(false)
       })} />}
-    {picker !== undefined && current && <KnowledgeTargetPicker api={api} specificationOnly onClose={() => setPicker(undefined)} onSelect={(_target, _label, r) => selectReference(picker, r)} />}
+    {picker !== undefined && current && <KnowledgeTargetPicker api={api} specificationOnly onClose={() => setPicker(undefined)} onSelect={(_target, _label, r) => { if (r) selectReference(picker, r) }} />}
     {pending && <Dialog title="处理未保存样例" onClose={() => setPending(undefined)}><p>切换或关闭会放弃未保存的样例修改。</p><Button variant="secondary" onClick={() => setPending(undefined)}>返回编辑</Button><Button onClick={() => { const action = pending; setPending(undefined); setDirty(false); action() }}>放弃修改并继续</Button></Dialog>}
   </Dialog>
 }

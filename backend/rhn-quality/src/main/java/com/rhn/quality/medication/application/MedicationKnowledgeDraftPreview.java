@@ -59,7 +59,8 @@ public final class MedicationKnowledgeDraftPreview {
     private static Row row(String order, List<ResolvedTarget> targets, RouteCondition route) {
         String code = "LIST".equals(route.mode()) ? route.codes().getFirst() : "SYNTHETIC-ROUTE";
         if (targets.isEmpty()) return new Row(order, "SYNTHETIC-CATALOG", "1", "SYNTHETIC-HASH", "SYNTHETIC-ENTRY-A", "SYNTHETIC-SPEC-A", code, "ACTIVE");
-        var r = targets.getFirst().reference();
+        var t = targets.getFirst(); var r = t.reference();
+        if (t.byCategory()) return new Row(order, r.catalogId(), r.catalogVersion(), r.contentHash(), t.category().entryIds().getFirst(), "SYNTHETIC-SPEC-IN-CATEGORY", code, "ACTIVE");
         return new Row(order, r.catalogId(), r.catalogVersion(), r.contentHash(), r.entryId(), r.specificationId(), code, "ACTIVE");
     }
     private static Row copy(Row r, String id, String status) {return new Row(id, r.catalogId(), r.catalogVersion(), r.contentHash(), r.entryId(), r.specificationId(), r.routeCode(), status);}

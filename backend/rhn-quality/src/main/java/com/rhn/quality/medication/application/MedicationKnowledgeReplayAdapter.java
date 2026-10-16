@@ -55,7 +55,7 @@ public final class MedicationKnowledgeReplayAdapter {
         return all || targets.stream().anyMatch(t->{
             var s=t.reference();
             return Objects.equals(r.catalogId(),s.catalogId())&&Objects.equals(r.catalogVersion(),s.catalogVersion())&&Objects.equals(r.contentHash(),s.contentHash())
-                    &&Objects.equals(r.entryId(),s.entryId())&&("ENTRY".equals(t.level())||Objects.equals(r.specificationId(),s.specificationId()));
+                    &&t.covers(r.entryId(),r.specificationId());
         });
     }
     private static void checkRoute(List<String> gaps,PrescriptionSafetySnapshot.MedicationItem m,Route r,RouteCondition condition,List<RouteSnapshot> expected) {

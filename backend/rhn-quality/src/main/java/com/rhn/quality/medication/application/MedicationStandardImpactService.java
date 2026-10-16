@@ -118,6 +118,15 @@ public class MedicationStandardImpactService implements MedicationStandardImpact
         if (targets == null) return;
         for (var target : targets) {
             if (target == null || !scope.catalogId().equals(target.catalogId())) continue;
+            if ("CATEGORY".equals(target.level())) {
+                var category = resolved.stream().filter(r -> r.byCategory() && Objects.equals(r.category().key(), target.categoryKey())).findFirst();
+                boolean inside = category.isPresent() && (scope.entryId() == null || category.get().category().entryIds().contains(scope.entryId()));
+                boolean unknown = category.isEmpty() && scope.entryId() != null;
+                if (inside || unknown) out.add(new Trace(unknown ? "UNRESOLVED_REFERENCE" : "FROZEN_REFERENCE", group + " · 目录分类" + category.map(r -> "：" + r.category().label()).orElse(""),
+                        target.catalogId(), target.catalogVersion(), null, null, target.contentHash(),
+                        unknown ? "保存时未解析出分类成员，需人工复核是否属于本次范围" : "使用保存时冻结的分类成员，不以当前目录覆盖历史引用"));
+                continue;
+            }
             var frozen = resolved.stream().filter(r -> Objects.equals(r.reference().specificationId(), target.specificationId()) && Objects.equals(r.level(), target.level())).findFirst();
             String entry = frozen.map(r -> r.reference().entryId()).orElse(null);
             boolean unknownEntry = entry == null && scope.entryId() != null;

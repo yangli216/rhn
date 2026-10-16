@@ -115,7 +115,6 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
     createDraft:(body:RuleDraftInput)=>client.request<MedicationCandidate>('/api/quality/medication-rule-catalog/drafts',{method:'POST',body:JSON.stringify(body)}),
     status:()=>client.request<{available:boolean;model:string|null;message:string}>(root+'/ai-status'),
     medications:(query='')=>client.request<MedicationKnowledge[]>(root+'/medications?query='+encodeURIComponent(query)),
-    candidates:()=>client.request<MedicationCandidate[]>(root+'/candidates'),
     activeRules:()=>client.request<ActiveRuleView[]>(root+'/active-rules'),
     activeRuleTrial:(ruleCodes:string[],items:MedicationTrialItem[],patientContext?:PatientSimulationContext)=>post<ActiveRuleTrialRun>('/active-rules/trial',{ruleCodes,items,patientContext}),
     evaluations:()=>client.request<EvaluationSummary[]>(root+'/evaluations'),
@@ -125,13 +124,7 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
       return client.request<components['schemas']['PageResultEvaluationSummary']>(`${root}/evaluation-records?${params}`)
     },
     evaluationDetail: (id: string) => client.request<components['schemas']['EvaluationDetail']>(`${root}/evaluation-records/${encodeURIComponent(id)}`),
-    approve:(id:string)=>post<MedicationCandidate>('/candidates/'+id+'/approve'),
-    generate:(requirement:string,source:string,medicationIds?:string[],parentId?:string|null)=>post<{status:string;message:string;candidate:MedicationCandidate|null}>('/generate',{requirement,source,medicationIds: medicationIds || [],parentId: parentId || null}),
     suite:(id:string)=>post<MedicationTrialRun>('/candidates/'+id+'/suite'),
-    trial:(id:string,items:MedicationTrialItem[],patientContext?:PatientSimulationContext)=>post<MedicationTrialRun>('/candidates/'+id+'/trial',{items,patientContext}),
-    shadow:(id:string,encounterId:string,prescriptionId:string)=>post<MedicationTrialRun>('/candidates/'+id+'/shadow',{encounterId,prescriptionId}),
-    prescriptionPreview:(encounterId:string,prescriptionId:string)=>post<PrescriptionPreview>('/prescription-preview',{encounterId,prescriptionId}),
-    runs:(id:string)=>client.request<MedicationTrialRun[]>(root+'/candidates/'+id+'/runs'),
     listSafetyCategories: (query = '', ruleKind = '') => {
       const params = new URLSearchParams()
       if (query) params.set('query', query)
