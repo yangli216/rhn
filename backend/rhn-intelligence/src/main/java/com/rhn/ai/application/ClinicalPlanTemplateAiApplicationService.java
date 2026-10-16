@@ -50,7 +50,7 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 @Service
 public class ClinicalPlanTemplateAiApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalPlanTemplateAiApplicationService.class);
-    private static final String PROMPT_VERSION = "RHN-PLAN-COMPILER-V3";
+    private static final String PROMPT_VERSION = "RHN-PLAN-COMPILER-V4";
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final Set<String> KINDS = Set.of("DIAGNOSIS", "MEDICATION", "LABORATORY",
             "EXAMINATION", "EDUCATION", "FOLLOW_UP", "CONDITION");

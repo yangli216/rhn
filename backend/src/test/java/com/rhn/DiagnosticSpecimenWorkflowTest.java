@@ -82,6 +82,16 @@ class DiagnosticSpecimenWorkflowTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void single_tube_collection_test() throws Exception {
+        var task = readyTask(1); String id = task.get("id").asString();
+        String body = batch(task, UUID.randomUUID().toString());
+        var tubes = postJson("/api/diagnostics/specimens", body);
+        assertEquals(1, tubes.size());
+        action(tubes.get(0), "collection", "");
+        assertEquals("COLLECTED", current(id).get("status").asString());
+    }
+
+    @Test
     void batch_rejects_cross_patient_and_same_command_with_changed_specimen_configuration() throws Exception {
         var first = readyTask(1); var second = readyTask(1);
         mockMvc.perform(post("/api/diagnostics/specimens").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

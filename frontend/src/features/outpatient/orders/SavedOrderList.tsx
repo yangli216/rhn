@@ -1,3 +1,4 @@
+import type { MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
 import { savedOrderSubtotal } from './orderSubtotal'
 import { Fragment, type ReactNode } from 'react'
 import type { MedicationRequest, Prescription, ServiceRequest } from '../../../shared/api/encountersApi'
@@ -18,7 +19,7 @@ import { useSavedOrderDepartmentNames } from './useOrderExecutionDepartments'
 
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
   documentRows, activeDocKey, handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api, readOnly, busy,
-  documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication,
+  documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication, onInspectService,
   skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer }: {
   savedEntries: SavedOrderEntry[]
   draftEntries: DraftOrderEntry[]
@@ -39,6 +40,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
   onCancelMedication: (value: MedicationRequest) => void
   onPrint: (value: Prescription) => void
   onInspectMedication?: (name: string) => void
+  onInspectService?: (target: MedicalInsertTarget) => void
   skinTestByRequest: Map<string, SkinTestWorkItem>
   groupingComposerTarget: GroupingComposerTarget
   groupingSession: { groupKey: string } | null
@@ -93,9 +95,9 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   canPrint={svc.status === 'ACTIVE'}
                   onPrint={() => onPrintService(svc)}
                   canCancel={svc.status !== 'CANCELLED'}
+                  cancelBlockedReason={svc.cancelBlockedReason}
                   onCancel={() => onCancelService(svc)}
                 />
-                  cancelBlockedReason={svc.cancelBlockedReason}
               </Fragment>
             )
           } else {
@@ -127,9 +129,9 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   canPrint={Boolean(rx && firstActive && canPrintPrescription(rx))}
                   onPrint={() => rx && onPrint(rx)}
                   canCancel={docItems.some((e) => e.value.status !== 'CANCELLED')}
+                  cancelBlockedReason={docItems.map((e) => (e.value as MedicationRequest).cancelBlockedReason).find(Boolean)}
                   onCancel={() => docItems.forEach((e) => onCancelMedication(e.value as MedicationRequest))}
                 >
-                  cancelBlockedReason={docItems.map((e) => (e.value as MedicationRequest).cancelBlockedReason).find(Boolean)}
                   {isHerbal && firstMed && (
                     <HerbalFormulaHeaderBar
                       doseCount={firstMed.durationValue || 7}
@@ -181,7 +183,8 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
           rowNode = <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
             performerDepartmentName={departmentName(entry.value)}
             busy={busy || Boolean(documentEditing && documentRows[entry.value.id]?.selected)} readOnly={readOnly} currentDept={currentDept}
-            documentLink={documentRows[entry.value.id]} onCancel={() => onCancelService(entry.value)} />
+            documentLink={documentRows[entry.value.id]} onInspectService={onInspectService}
+            onCancel={() => onCancelService(entry.value)} />
         } else {
           const prev = index > 0 ? savedEntries[index - 1] : undefined
           const next = index < savedEntries.length - 1 ? savedEntries[index + 1] : undefined

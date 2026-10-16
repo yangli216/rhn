@@ -114,6 +114,9 @@ export function ExaminationWorkspace({
     return task
   }
 
+  const [manualRefreshing, setManualRefreshing] = useState(false)
+  const hasUnsaved = Object.values(forms).some((form) => form.dirty)
+
   const worklist = useQuery({
     queryKey: ['diagnostic-worklist', scope, filters, page, params.toString()],
     queryFn: async () => {
@@ -145,7 +148,7 @@ export function ExaminationWorkspace({
       result.content.forEach(requireTask)
       return result
     },
-    refetchInterval: 30_000,
+    refetchInterval: hasUnsaved ? false : 30_000,
   })
 
   const rawTasks = useMemo(() => (worklist.isSuccess ? worklist.data.content : []), [worklist.isSuccess, worklist.data])
@@ -160,7 +163,6 @@ export function ExaminationWorkspace({
   }, [rawTasks, filters.modality])
 
   const selected = tasks.find((task) => task.id === selectedId) || tasks[0]
-  const hasUnsaved = Object.values(forms).some((form) => form.dirty)
 
   useEffect(() => {
     onDirtyChange?.(hasUnsaved)
@@ -199,16 +201,21 @@ export function ExaminationWorkspace({
   }, [worklist.isSuccess, worklist.data, page])
 
   const refresh = async () => {
-    await Promise.all(
-      [
-        'diagnostic-worklist',
-        'diagnostic-task-reports',
-        'diagnostic-draft',
-        'diagnostic-patient-demographics',
-        'doctor-reports',
-        'inpatient-diagnostic-reports',
-      ].map((key) => client.invalidateQueries({ queryKey: [key] }))
-    )
+    setManualRefreshing(true)
+    try {
+      await Promise.all(
+        [
+          'diagnostic-worklist',
+          'diagnostic-task-reports',
+          'diagnostic-draft',
+          'diagnostic-patient-demographics',
+          'doctor-reports',
+          'inpatient-diagnostic-reports',
+        ].map((key) => client.invalidateQueries({ queryKey: [key] }))
+      )
+    } finally {
+      setManualRefreshing(false)
+    }
   }
 
   const applyFilters = () => {
@@ -383,22 +390,24 @@ export function ExaminationWorkspace({
                       onClick={() => setSelectedId(task.id)}
                     >
                       <span className="diagnostic-queue-summary">
-                        <span className="diagnostic-queue-patient">
-                          <strong>{task.residentName}</strong>
+                        <span className="diagnostic-queue-col diagnostic-queue-col--patient">
+                          <strong className="diagnostic-queue-patient-name">{task.residentName}</strong>
                           <span className="diagnostic-queue-demographics">
                             <DiagnosticPatientDemographics api={api} task={task} compact />
                           </span>
                         </span>
-                        <span className="diagnostic-queue-project">
-                          <span
-                            className={`diagnostic-modality-badge diagnostic-modality-badge--${std.code.toLowerCase()}`}
-                          >
-                            {std.code}
-                          </span>{' '}
-                          {task.itemName}
-                        </span>
-                        <span className="diagnostic-queue-meta">
-                          申请 {formatTime(task.createdAt) || '—'} · 单号 {task.requestNo}
+                        <span className="diagnostic-queue-col diagnostic-queue-col--project">
+                          <span className="diagnostic-queue-project">
+                            <span
+                              className={`diagnostic-modality-badge diagnostic-modality-badge--${std.code.toLowerCase()}`}
+                            >
+                              {std.code}
+                            </span>{' '}
+                            {task.itemName}
+                          </span>
+                          <span className="diagnostic-queue-meta">
+                            申请 {formatTime(task.createdAt) || '—'} · 单号 {task.requestNo}
+                          </span>
                         </span>
                       </span>
                     </Button>
@@ -469,10 +478,10 @@ export function ExaminationWorkspace({
               <section className="diagnostic-tube-reference-card">
                 <PanelHead title="影像急症与危急值通报" />
                 <div className="diagnostic-tube-reference-body">
-                  <small>
+                  <p className="diagnostic-critical-reminder">
                     依据三级医院放射与超声质量管理规范：凡发现急性颅内出血、脑疝、气胸压缩&gt;30%、大面积肺栓塞、主动脉夹层、消化道穿孔游离气体等影像急症危急征象，必须在
                     10 分钟内核查并启动电话通报闭环。
-                  </small>
+                  </p>
                 </div>
               </section>
             </div>
@@ -497,6 +506,7 @@ export function ExaminationWorkspace({
                 { value: 'request', label: '申请信息' },
                 { value: 'reports', label: '报告历史' },
               ]}
+              actions={<div id="diagnostic-tab-actions" className="diagnostic-tab-actions" />}
             />
             {view === 'reports' ? (
               <div className="diagnostic-scroll" role="region" aria-label="报告历史内容" tabIndex={0}>
@@ -651,7 +661,7 @@ export function ExaminationWorkspace({
                     api={api}
                     task={selected}
                     draft={draft.data}
-                    refreshing={worklist.isFetching || draft.isFetching}
+                    refreshing={manualRefreshing}
                     onRefresh={refresh}
                     form={forms[formKey]}
                     onForm={(form) => setForms((previous) => ({ ...previous, [formKey]: form }))}

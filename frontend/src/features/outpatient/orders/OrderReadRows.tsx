@@ -1,3 +1,5 @@
+import type { MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import type { MedicationRequest, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
 import { IconButton, Button, Popconfirm, StatusBadge } from '../../../shared/ui'
@@ -108,8 +110,9 @@ export function doctorSkinTestLabel(value?: SkinTestWorkItem['status']) {
   return '待皮试'
 }
 
-export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, documentLink, performerDepartmentName }: {
+export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, documentLink, performerDepartmentName, onInspectService }: {
   value: ServiceRequest; busy: boolean; readOnly: boolean; onCancel: () => void
+  onInspectService?: (target: MedicalInsertTarget) => void
   documentLink?: { key: string; label: string; selected: boolean }
   currentDept?: string
   performerDepartmentName?: string
@@ -117,7 +120,10 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, d
   return <div id={`order-${value.id}`} className={`doctor-unified-order-row${documentLink?.selected ? ' is-document-selected' : ''}`} role="row">
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.serviceType} /></span>
     <span className="doctor-unified-order-name">
-      <strong>{value.itemName}</strong>
+      <div className="doctor-order-name-with-action">
+        <strong>{value.itemName}</strong>
+        <ServiceInsertButton name={value.itemName} serviceType={value.serviceType} onView={onInspectService} />
+      </div>
     </span>
     <span className="doctor-unified-directions">
       <span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span>

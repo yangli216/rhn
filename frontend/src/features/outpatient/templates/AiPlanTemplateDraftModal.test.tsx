@@ -108,7 +108,80 @@ describe('AiPlanTemplateDraftModal', () => {
     await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '测试方案')
     await user.click(await screen.findByRole('button', { name: '发送' }))
     expect(await screen.findByText(specification)).toBeInTheDocument()
-    expect(screen.getByText(`原始说明：${details}`)).toBeInTheDocument()
+    expect(screen.getByLabelText('临床用药说明')).toBeInTheDocument()
+    expect(screen.queryByText(/原始说明/)).not.toBeInTheDocument()
+  })
+
+  it('opens the clinical knowledge medication insert from a plan medication row', async () => {
+    const getWikiDoc = vi.fn().mockResolvedValue({ type: 'MEDICATION', title: '阿莫西林胶囊', markdown: '# 阿莫西林胶囊' })
+    const api = {
+      clinicalAi: { capabilities: vi.fn().mockResolvedValue({
+        mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
+      }), getWikiDoc },
+      outpatientPlanTemplates: { compileDraftStream: vi.fn().mockResolvedValue({
+        scopeType: 'PERSONAL', name: '测试方案', narrative: '用药建议', sourceType: 'AI_INPUT',
+        reviewItems: [{ kind: 'MEDICATION', text: '阿莫西林胶囊', origin: 'SUGGESTED', details: '常规用法：每次 0.5g 口服 tid 7天' }],
+      }) },
+    } as unknown as RhnApi
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}>
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+    </QueryClientProvider>)
+    const user = userEvent.setup()
+    await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '测试方案')
+    await user.click(await screen.findByRole('button', { name: '发送' }))
+    await user.click(await screen.findByRole('button', { name: '说明书' }))
+    expect(getWikiDoc).toHaveBeenCalledWith(expect.objectContaining({ name: '阿莫西林胶囊', type: 'medication' }))
+    expect(await screen.findByText('药品说明书 · 阿莫西林胶囊')).toBeInTheDocument()
+  })
+
+  it('shows when a laboratory item should be ordered inline and opens its knowledge insert', async () => {
+    const getWikiDoc = vi.fn().mockResolvedValue({ type: 'LABORATORY', title: '血常规', markdown: '# 血常规' })
+    const api = {
+      clinicalAi: { capabilities: vi.fn().mockResolvedValue({
+        mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
+      }), getWikiDoc },
+      outpatientPlanTemplates: { compileDraftStream: vi.fn().mockResolvedValue({
+        scopeType: 'PERSONAL', name: '测试方案', narrative: '检验', sourceType: 'AI_INPUT',
+        reviewItems: [{ kind: 'LABORATORY', text: '血常规', origin: 'SUGGESTED',
+          details: '目的：鉴别细菌感染；适用条件：发热超过3天或症状加重；不建议常规使用：病程短的轻症' }],
+      }) },
+    } as unknown as RhnApi
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}>
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+    </QueryClientProvider>)
+    const user = userEvent.setup()
+    await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '测试方案')
+    await user.click(await screen.findByRole('button', { name: '发送' }))
+    const brief = await screen.findByLabelText('检验检查说明')
+    expect(brief).toHaveTextContent('开立条件发热超过3天或症状加重')
+    expect(brief).toHaveTextContent('目的鉴别细菌感染')
+    await user.click(screen.getByRole('button', { name: '说明书' }))
+    expect(getWikiDoc).toHaveBeenCalledWith(expect.objectContaining({ name: '血常规', type: 'laboratory' }))
+    expect(await screen.findByText('检验项目说明 · 血常规')).toBeInTheDocument()
+  })
+
+  it('opens the clinical guideline from a diagnosis row without the ICD code', async () => {
+    const getWikiDoc = vi.fn().mockResolvedValue({ type: 'GUIDELINE', title: '急性上呼吸道感染', markdown: '# 指南' })
+    const api = {
+      clinicalAi: { capabilities: vi.fn().mockResolvedValue({
+        mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
+      }), getWikiDoc },
+      outpatientPlanTemplates: { compileDraftStream: vi.fn().mockResolvedValue({
+        scopeType: 'PERSONAL', name: '测试方案', narrative: '诊断', sourceType: 'AI_INPUT',
+        reviewItems: [{ kind: 'DIAGNOSIS', text: '急性上呼吸道感染，未特指 [J06.9]', origin: 'SUGGESTED' }],
+      }) },
+    } as unknown as RhnApi
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}>
+      <AiPlanTemplateDraftModal organizationId="org" api={api} onClose={vi.fn()} onSaved={vi.fn()} />
+    </QueryClientProvider>)
+    const user = userEvent.setup()
+    await user.type(screen.getByPlaceholderText(/请输入您的问题或描述症状/), '测试方案')
+    await user.click(await screen.findByRole('button', { name: '发送' }))
+    await user.click(await screen.findByRole('button', { name: '指南' }))
+    expect(getWikiDoc).toHaveBeenCalledWith(expect.objectContaining({ name: '急性上呼吸道感染，未特指', type: 'guideline' }))
   })
 
   it('shows an applicability condition separately from a diagnosis', async () => {

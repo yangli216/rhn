@@ -121,4 +121,48 @@ describe('ReportComposer Critical Value Interception and Double Sign Flow', () =
     expect(await screen.findByText(/机构启用双签/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '审核并签发' })).toBeInTheDocument()
   })
+
+  it('gracefully renders without crashing when template API returns undefined and supports national standard template application', async () => {
+    const cbcTask: DiagnosticExecutionTask = {
+      ...labTask,
+      itemName: '血常规（五分类）',
+      itemCode: 'LAB-CBC',
+    }
+    const emptyDraft: DiagnosticReportDraft = {
+      revision: 1,
+      doubleSignatureRequired: false,
+      authorName: '检验技师小王',
+    }
+    const api = {
+      diagnostics: {
+        reportTemplate: vi.fn().mockResolvedValue(undefined),
+        saveDraft: vi.fn().mockResolvedValue({}),
+        recordLocalReport: vi.fn().mockResolvedValue({}),
+        issueDraft: vi.fn().mockResolvedValue({}),
+      },
+    } as unknown as RhnApi
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <ReportComposer
+          api={api}
+          task={cbcTask}
+          draft={emptyDraft}
+          refreshing={false}
+          onRefresh={vi.fn().mockResolvedValue(undefined)}
+          onForm={vi.fn()}
+          canEdit={true}
+          canSign={true}
+        />
+      </QueryClientProvider>
+    )
+
+    // 不会出现 "data is undefined" 报错 Alert，且正常展示编辑区域
+    expect(await screen.findByRole('region', { name: '报告编辑正文' })).toBeInTheDocument()
+    expect(screen.queryByText(/data is undefined/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '重新读取报告模板' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('套用国家标准模板')).toBeInTheDocument()
+  })
 })
+

@@ -1,5 +1,8 @@
 import { aiServiceValidation, serviceCandidateDraft } from './aiPlanServiceFacts'
 import { AiPlanMedicationFields } from './AiPlanMedicationFields'
+import { PlanMedicationBrief } from './PlanMedicationBrief'
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { aiMedicationValidation, medicationCandidateDraft } from './aiPlanMedicationFacts'
 import { requireEditorStandards } from './templateEditorFacts'
 import { confirmConvertedPlan } from './convertedPlanFacts'
@@ -14,7 +17,7 @@ import type { RhnApi } from '../../../shared/api'
 import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlanTemplateScope,
   type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
   type CompiledPlanMedicationItem, type CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
-import { Alert, Button, Dialog, FormField, Icon, PanelHead, StatusBadge, Tooltip, UnitNumberInput, type IconName } from '../../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, IconButton, PanelHead, StatusBadge, Tooltip, UnitNumberInput, type IconName } from '../../../shared/ui'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { safeRandomUUID } from '../../../shared/utils/uuid'
 import { formatRouteName, medicationSingleDoseLabel } from './planMedicationPresentation'
@@ -59,8 +62,19 @@ function parseMedicationSpecification(text?: string, details?: string): string |
   return perUnit?.[0] ?? null
 }
 
-function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdateItem }: {
+const icd10Suffix = /\s*\[[A-Z]\d{2}(?:\.\d+)?\]\s*$/
+
+function InsertButton({ name, kind, onView }: { name: string; kind: 'medication' | 'guideline'; onView?: (target: MedicalInsertTarget) => void }) {
+  if (!onView) return null
+  const target = { name: kind === 'guideline' ? name.replace(icd10Suffix, '').trim() : name, type: kind }
+  return kind === 'medication'
+    ? <IconButton icon="file-text" label="说明书" title={`在临床知识库中查阅《${target.name}》药品说明书`} onClick={() => onView(target)} />
+    : <IconButton icon="book-open" label="指南" title={`在临床知识库中查阅《${target.name}》临床指南`} onClick={() => onView(target)} />
+}
+
+function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdateItem, onViewInsert }: {
   items: PlanTextReviewItem[]
+  onViewInsert?: (target: MedicalInsertTarget) => void
   isStreaming?: boolean
   isMatching?: boolean
   onRemove?: (index: number) => void
@@ -88,6 +102,7 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
             <div className="ai-plan-review-items">
               {values.map(({ item, index }) => {
                 const isTextItem = item.kind === 'EDUCATION' || item.kind === 'FOLLOW_UP'
+                const isServiceItem = item.kind === 'LABORATORY' || item.kind === 'EXAMINATION'
                 const usageHint = item.kind === 'MEDICATION' ? item.details?.trim() : null
                 const specification = item.kind === 'MEDICATION' ? parseMedicationSpecification(item.text, item.details) : null
                 return (
@@ -109,7 +124,10 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                         {item.kind === 'CONDITION' && item.details?.includes('尚未匹配院内 ICD-10 术语') && (
                           <StatusBadge tone="warning">待对齐诊断</StatusBadge>
                         )}
-                        {item.details && !isTextItem && (
+                        {item.kind === 'MEDICATION' && <InsertButton name={item.text} kind="medication" onView={onViewInsert} />}
+                        {item.kind === 'DIAGNOSIS' && <InsertButton name={item.text} kind="guideline" onView={onViewInsert} />}
+                        {isServiceItem && <ServiceInsertButton name={item.text} serviceType={item.kind} onView={onViewInsert} />}
+                        {item.details && !isTextItem && !isServiceItem && item.kind !== 'MEDICATION' && (
                           <Tooltip content={<div className="ai-plan-tooltip-details">{item.details}</div>}>
                             <Button variant="text" size="sm" type="button" className="ai-plan-info-btn" aria-label={`查看 ${item.text} 依据`}>
                               <Icon name="info" />
@@ -121,7 +139,8 @@ function PlanReviewChecklist({ items, isStreaming, isMatching, onRemove, onUpdat
                           <StatusBadge tone="warning">待医生确认</StatusBadge>
                         )}
                       </div>
-                      {usageHint && <small>原始说明：{usageHint}</small>}
+                      {usageHint && <PlanMedicationBrief details={usageHint} />}
+                      {isServiceItem && item.details?.trim() && <PlanMedicationBrief variant="service" details={item.details} />}
                       {isTextItem && (
                         <div className="ai-plan-text-item-body">
                           {onUpdateItem ? (
@@ -302,6 +321,7 @@ export function AiPlanTemplateDraftModal({
       || (task.kind === 'CONDITION' && task.details?.includes('尚未匹配院内 ICD-10 术语'))), [compiledDraft?.tasks])
   const missingStandardDiagnosis = !isEditing && !!compiledDraft && compiledDraft.diagnoses.length === 0
 
+  const [insertTarget, setInsertTarget] = useState<MedicalInsertTarget | null>(null)
   const [activeMedSearchTaskIndex, setActiveMedSearchTaskIndex] = useState<number | null>(null)
   const [medSearchKeyword, setMedSearchKeyword] = useState('')
 
@@ -1194,12 +1214,13 @@ export function AiPlanTemplateDraftModal({
                     <small>保留原记录，逐条补充目录结果</small>
                   </div>
                 </div>
-                <PlanReviewChecklist items={textDraft.reviewItems.filter((item) => !['EDUCATION', 'FOLLOW_UP'].includes(item.kind))} isMatching />
+                <PlanReviewChecklist items={textDraft.reviewItems.filter((item) => !['EDUCATION', 'FOLLOW_UP'].includes(item.kind))} isMatching onViewInsert={setInsertTarget} />
               </div>
             ) : (stage === 'TEXT_REVIEW' || compiling) && textDraft ? (
               <div className="ai-plan-modal-text-review">
                 <PlanReviewChecklist
                   items={textDraft.reviewItems.filter((item) => !['EDUCATION', 'FOLLOW_UP'].includes(item.kind))}
+                  onViewInsert={setInsertTarget}
                   onRemove={compiling ? undefined : (index) => setTextDraft({
                     ...textDraft,
                     reviewItems: textDraft.reviewItems.filter((item) => item !== textDraft.reviewItems.filter((value) => !['EDUCATION', 'FOLLOW_UP'].includes(value.kind))[index]),
@@ -1445,6 +1466,7 @@ export function AiPlanTemplateDraftModal({
                             <div className="ai-plan-review-item__main">
                               <div className="ai-plan-review-item__title-row">
                                 <strong className="ai-plan-review-item__name">{m.medicationName || `目录药品 #${m.medicationId}`}</strong>
+                                {m.medicationName && <InsertButton name={m.medicationName} kind="medication" onView={setInsertTarget} />}
                                 <StatusBadge tone={m.preparationSpec ? 'neutral' : 'warning'}>
                                   {m.preparationSpec || '规格待确认'}
                                 </StatusBadge>
@@ -1496,15 +1518,9 @@ export function AiPlanTemplateDraftModal({
                                   <StatusBadge tone={specification ? 'neutral' : 'warning'}>
                                     {specification ? `建议规格：${specification}` : '规格待确认'}
                                   </StatusBadge>
-                                  {task.details && (
-                                    <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
-                                      <Button variant="text" size="sm" type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
-                                        <Icon name="info" />
-                                      </Button>
-                                    </Tooltip>
-                                  )}
+                                  <InsertButton name={task.text} kind="medication" onView={setInsertTarget} />
                                 </div>
-                                {usageHint && <small>原始说明：{usageHint}</small>}
+                                {usageHint && <PlanMedicationBrief details={usageHint} />}
                                 {activeMedSearchTaskIndex === index ? (
                                   <div className="ai-plan-inline-search">
                                     <div className="ai-plan-inline-search__bar">
@@ -1621,6 +1637,7 @@ export function AiPlanTemplateDraftModal({
                               <div className="ai-plan-review-item__title-row">
                                 <strong className="ai-plan-review-item__name">{s.itemName || `服务项目 #${s.catalogItemId}`}</strong>
                                 {s.itemCode && <small className="ai-plan-modal-item-code">({s.itemCode})</small>}
+                                <ServiceInsertButton name={s.itemName} serviceType={s.serviceType} onView={setInsertTarget} />
                                 <StatusBadge tone="neutral">
                                   {s.serviceType === 'LABORATORY' ? '检验' : s.serviceType === 'EXAMINATION' ? '检查' : '诊疗'}
                                 </StatusBadge>
@@ -1663,6 +1680,7 @@ export function AiPlanTemplateDraftModal({
                             <div className="ai-plan-review-item__main">
                               <div className="ai-plan-review-item__title-row">
                                 <strong className="ai-plan-review-item__name">{task.text}</strong>
+                                <ServiceInsertButton name={task.text} serviceType={task.kind} onView={setInsertTarget} />
                                 {task.details && (
                                   <Tooltip content={<div className="ai-plan-tooltip-details">{task.details}</div>}>
                                     <Button variant="text" size="sm" type="button" className="ai-plan-info-btn" aria-label={`查看 ${task.text} 依据`}>
@@ -1812,6 +1830,12 @@ export function AiPlanTemplateDraftModal({
             ? { ...current, item: { ...current.item, clinicalDescription: event.target.value } } : current)} />
       </FormField>
     </Dialog>}
+    <MedicalInsertViewerModal
+      isOpen={Boolean(insertTarget)}
+      onClose={() => setInsertTarget(null)}
+      target={insertTarget}
+      api={api}
+    />
     </>
   )
 }

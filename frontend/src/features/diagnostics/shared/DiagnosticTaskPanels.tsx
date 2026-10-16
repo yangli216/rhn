@@ -16,10 +16,14 @@ export function DiagnosticQueue({ api, tasks, selectedId, scope, forms, onSelect
       <Button variant="text" className="diagnostic-queue-choice" aria-current={task.id === selectedId ? 'true' : undefined}
         aria-label={`${task.residentName} · ${task.itemName}`}
         title={`申请单号 ${task.requestNo}`} onClick={() => onSelect(task.id)}><span className="diagnostic-queue-summary">
-          <span className="diagnostic-queue-patient"><strong>{task.residentName}</strong>
-            <span className="diagnostic-queue-demographics"><DiagnosticPatientDemographics api={api} task={task} compact /></span></span>
-          <span className="diagnostic-queue-project">{task.itemName}</span>
-          <span className="diagnostic-queue-meta">申请 {formatTime(task.createdAt) || '—'}{task.specimenNo && ` · 标本 ${task.specimenNo}`}</span>
+          <span className="diagnostic-queue-col diagnostic-queue-col--patient">
+            <strong className="diagnostic-queue-patient-name">{task.residentName}</strong>
+            <span className="diagnostic-queue-demographics"><DiagnosticPatientDemographics api={api} task={task} compact /></span>
+          </span>
+          <span className="diagnostic-queue-col diagnostic-queue-col--project">
+            <span className="diagnostic-queue-project">{task.itemName}</span>
+            <span className="diagnostic-queue-meta">申请 {formatTime(task.createdAt) || '—'}{task.specimenNo && ` · 标本 ${task.specimenNo}`}</span>
+          </span>
         </span></Button>
       <div className="diagnostic-queue-state"><StatusBadge tone={status.tone}>{status.label}</StatusBadge>
         {forms[`${scope}:${task.id}`]?.dirty && <small className="diagnostic-unsaved">未保存</small>}</div>
@@ -51,16 +55,36 @@ export function DiagnosticTaskContext({ api, task }: { api: RhnApi; task: Diagno
   const steps = laboratory ? ['申请放行', '标本采集', '接收 / 检验', '结果录入', '报告签发'] : ['申请放行', '患者核对 / 检查', '报告录入', '报告签发']
   const step = task.status === 'WAITING_SETTLEMENT' ? 0 : task.status === 'READY' ? 1
     : task.status === 'COLLECTED' ? 2 : task.status === 'IN_PROGRESS' ? steps.length - 2 : task.status === 'COMPLETED' ? steps.length : -1
-  return <div className="diagnostic-task-context"><header className="diagnostic-context-heading"><div>
-    <h2>{task.residentName}</h2><p><DiagnosticPatientDemographics api={api} task={task} /></p></div>
-      <div className="diagnostic-context-project"><span>申请项目</span><strong>{task.itemName}</strong></div>
-      <StatusBadge tone={status.tone}>{status.label}</StatusBadge></header>
-    <dl className="diagnostic-context-identifiers"><div><dt>申请单号</dt><dd>{task.requestNo}</dd></div>
-      <div><dt>{laboratory ? '标本号' : '检查类型'}</dt><dd>{laboratory ? task.specimenNo || '见标本管理' : task.examinationTypeText || task.examinationType || '未配置'}</dd></div>
-      <div><dt>申请时间</dt><dd>{formatTime(task.createdAt) || '—'}</dd></div></dl>
-    <ol className="diagnostic-progress" aria-label="医技作业进度">{steps.map((label, index) => <li key={label}
-      className={index < step ? 'is-complete' : index === step ? 'is-current' : undefined} aria-current={index === step ? 'step' : undefined}>
-      <span>{index + 1}</span>{label}</li>)}</ol>
+  return <div className="diagnostic-task-context">
+    <div className="diagnostic-context-compact-row">
+      <div className="diagnostic-context-patient-section">
+        <strong className="diagnostic-context-patient-name">{task.residentName}</strong>
+        <span className="diagnostic-context-demographics"><DiagnosticPatientDemographics api={api} task={task} /></span>
+      </div>
+      <span className="diagnostic-context-divider" aria-hidden="true">|</span>
+      <div className="diagnostic-context-item-section">
+        <span className="diagnostic-context-label">申请项目：</span>
+        <strong className="diagnostic-context-item-name">{task.itemName}</strong>
+      </div>
+      <span className="diagnostic-context-divider" aria-hidden="true">|</span>
+      <div className="diagnostic-context-meta-section">
+        <span>单号：{task.requestNo}</span>
+        {laboratory ? (
+          task.specimenNo && <span>标本：{task.specimenNo}</span>
+        ) : (
+          (task.examinationTypeText || task.examinationType) && <span>类型：{task.examinationTypeText || task.examinationType}</span>
+        )}
+        <span>申请：{formatTime(task.createdAt) || '—'}</span>
+      </div>
+      <div className="diagnostic-context-status-section">
+        {step >= 0 && step < steps.length && (
+          <span className="diagnostic-context-step-badge">
+            第 {step + 1}/{steps.length} 步 · {steps[step]}
+          </span>
+        )}
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+      </div>
+    </div>
   </div>
 }
 

@@ -5,7 +5,8 @@ import type { ClinicalAiTreatmentRecommendation } from '../../../shared/api/clin
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { IconButton, Button, FormField, Icon, Select } from '../../../shared/ui'
-import { MedicalInsertViewerModal } from './MedicalInsertViewerModal'
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
+import { ServiceInsertButton } from './ServiceInsertButton'
 import { calculatePackageQuantity } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
 import {
@@ -30,7 +31,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
   disabled: boolean
   onReview: (items: ClinicalAiTreatmentRecommendation[]) => void
 }) {
-  const [inspectMedicationName, setInspectMedicationName] = useState<string | null>(null)
+  const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
   const [excluded, setExcluded] = useState<string[]>([])
   const [edits, setEdits] = useState<Record<string, Partial<OrderDetails>>>({})
   const [editingKey, setEditingKey] = useState<string>()
@@ -132,10 +133,11 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
                   title={`在临床知识库中查阅《${item.name}》药品资料`}
                   onClick={(e) => {
                     e.stopPropagation()
-                    setInspectMedicationName(item.name)
+                    setInspectTarget({ name: item.name, type: 'medication' })
                   }}
                 />
               )}
+              {!medication && <ServiceInsertButton name={item.name} serviceType={item.type} onView={setInspectTarget} />}
             </div>
             {item.aiOriginalName && <small>AI 原建议：{item.aiOriginalName}</small>}
             {secondaryText && <small>{secondaryText}</small>}
@@ -203,9 +205,9 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
     </div>
 
     <MedicalInsertViewerModal
-      isOpen={Boolean(inspectMedicationName)}
-      onClose={() => setInspectMedicationName(null)}
-      target={inspectMedicationName ? { name: inspectMedicationName, type: 'medication' } : null}
+      isOpen={Boolean(inspectTarget)}
+      onClose={() => setInspectTarget(null)}
+      target={inspectTarget}
       api={api}
     />
   </div>

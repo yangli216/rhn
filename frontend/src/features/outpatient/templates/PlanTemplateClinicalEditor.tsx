@@ -12,6 +12,8 @@ import {
   RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass,
   type ClinicalResourceOption, type RemoteSearchOption,
 } from '../../../shared/ui'
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder } from '../record/clinicalRecordDraft'
 
 type OrderKind = 'MEDICATION' | 'SERVICE'
@@ -33,6 +35,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   const [orderKind, setOrderKind] = useState<OrderKind>('MEDICATION')
   const [directory, setDirectory] = useState<{ api: RhnApi; organizationId?: string; data?: ClinicalMedicationStandards; error?: string }>()
   const [reload, setReload] = useState(0)
+  const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
   const currentDirectory = directory?.api === api && directory.organizationId === organizationId ? directory : undefined
   const standards = currentDirectory?.data
   const validation = editorMedicationValidation(medications, standards)
@@ -267,12 +270,14 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
                 item={item} index={index} standardsReady={Boolean(standards)} doseUnitOptions={doseUnitOptions}
                 routeOptions={routeOptions} frequencyOptions={frequencyOptions} setMedications={setMedications} />)}
               {services.map((item, index) => <ServiceTemplateRow key={`${item.catalogItemId}-${index}`}
-                item={item} index={index} setServices={setServices} />)}
+                item={item} index={index} setServices={setServices} onInspect={setInspectTarget} />)}
             </tbody>
           </EditableTable>}
         </div>
       </div>
     </Panel>
+    <MedicalInsertViewerModal isOpen={Boolean(inspectTarget)} onClose={() => setInspectTarget(null)}
+      target={inspectTarget} api={api} />
   </div>
 }
 
@@ -337,10 +342,11 @@ function MedicationTemplateRow({ item, index, standardsReady, doseUnitOptions, r
   </EditableRow>
 }
 
-function ServiceTemplateRow({ item, index, setServices }: {
+function ServiceTemplateRow({ item, index, setServices, onInspect }: {
   item: CompiledPlanServiceItem
   index: number
   setServices: Dispatch<SetStateAction<CompiledPlanServiceItem[]>>
+  onInspect: (target: MedicalInsertTarget) => void
 }) {
   const name = item.itemName || '未命名项目'
   return <EditableRow className="plan-template-order-row" tabIndex={0} aria-label={`编辑模板医嘱 ${name}`}
@@ -353,7 +359,9 @@ function ServiceTemplateRow({ item, index, setServices }: {
       }
     }}>
     <td className={tableCellClass('status')}><StatusBadge tone="neutral">{serviceTypeLabel(item.serviceType)}</StatusBadge></td>
-    <td><span className="plan-template-entry-identity"><strong>{name}</strong><small>{item.itemCode || '编码未维护'}</small></span></td>
+    <td><span className="plan-template-entry-identity"><span className="doctor-order-name-with-action"><strong>{name}</strong>
+      <ServiceInsertButton name={item.itemName} serviceType={item.serviceType} onView={onInspect} /></span>
+      <small>{item.itemCode || '编码未维护'}</small></span></td>
     <td>—</td><td>—</td><td>—</td><td>—</td>
     <EditableCell display={numberWithUnit(item.quantity, item.unitCode)}>
       <UnitNumberInput aria-label={`${name} 数量`} min="0.01" step="1" value={Number.isFinite(item.quantity) ? item.quantity : ''}

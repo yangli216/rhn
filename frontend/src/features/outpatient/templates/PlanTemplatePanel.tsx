@@ -1,3 +1,5 @@
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { noteTemplateFields, type NoteTemplateField } from "../record/NoteTemplateBar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
@@ -43,6 +45,7 @@ export function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyConte
   const apiScope = templateApiScope(api)
   const queryScope = [apiScope, encounter.organizationId, encounter.departmentId]
   const [templateKind, setTemplateKind] = useState<'ALL' | 'NOTE' | 'PLAN'>('ALL')
+  const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
   const [selectedKind, setSelectedKind] = useState<'NOTE' | 'PLAN'>('PLAN')
   const [scopeFilter, setScopeFilter] = useState<'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'HISTORICAL' | 'MINED'>('ALL')
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -1400,7 +1403,10 @@ export function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyConte
                                     />
                                   </td>
                                   <td className={tableCellClass('text')}>
-                                    <strong>{s.itemName}</strong> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
+                                    <span className="doctor-order-name-with-action">
+                                      <strong>{s.itemName}</strong>
+                                      <ServiceInsertButton name={s.itemName} serviceType={s.serviceType} onView={setInspectTarget} />
+                                    </span> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
                                   </td>
                                   <td className={tableCellClass('status')}>
                                     <StatusBadge tone="neutral">
@@ -1439,5 +1445,7 @@ export function PlanTemplatePanel({ initialPlanId, encounter, busy, allergyConte
           </div>
         </div>
       </div>
+    <MedicalInsertViewerModal isOpen={Boolean(inspectTarget)} onClose={() => setInspectTarget(null)}
+      target={inspectTarget} api={api} />
   </>
 }

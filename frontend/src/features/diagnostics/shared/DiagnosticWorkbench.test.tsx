@@ -123,7 +123,8 @@ describe('simple diagnostic business workbench', () => {
     await screen.findByText('请载入机构模板后填写；已有模板的项目不能绕过机构规则签发。')
     expect(screen.getByRole('button',{name:'签发正式报告'})).toBeDisabled()
     fireEvent.click(screen.getByRole('button',{name:'载入机构模板 V1'}))
-    expect(screen.getByText('GLU · 必填')).toBeInTheDocument()
+    expect(screen.getByText('血糖')).toBeInTheDocument()
+    expect(screen.getByTitle('必填')).toBeInTheDocument()
     expect(screen.queryByLabelText('指标1代码')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('指标1单位')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('指标1结果'),{target:{value:'5.8'}})
@@ -210,6 +211,15 @@ describe('simple diagnostic business workbench', () => {
     await screen.findByText('标本数据不完整或与当前申请不一致，请重新读取。')
     expect(screen.queryByRole('button', { name: '生成标本条码' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '确认采集' })).not.toBeInTheDocument()
+  })
+
+  it('automatically binds preset national laboratory template when task is 5-part CBC without manual selection', async () => {
+    const cbcTask = { ...task, id: 'task-cbc', itemName: '血常规（五分类）', itemCode: 'LAB-CBC' }
+    setup({ tasks: [cbcTask] })
+    await screen.findByText(/国标预设 · WS\/T 405-2012/)
+    expect(await screen.findByText(/白细胞计数 \(WBC\)/)).toBeInTheDocument()
+    expect(screen.getByText(/红细胞计数 \(RBC\)/)).toBeInTheDocument()
+    expect(screen.getByLabelText('指标1结果')).toBeInTheDocument()
   })
 
 })

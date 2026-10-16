@@ -256,14 +256,26 @@ export const SPECIMEN_REJECTION_REASONS: readonly SpecimenRejectionReason[] = [
 /** 根据管码查找标准采血管定义 */
 export function findSpecimenTubeByCode(tubeCode?: string): SpecimenTubeStandard | undefined {
   if (!tubeCode) return undefined
-  return SPECIMEN_TUBE_STANDARDS.find((t) => t.tubeCode === tubeCode)
+  const direct = SPECIMEN_TUBE_STANDARDS.find((t) => t.tubeCode === tubeCode)
+  if (direct) return direct
+  const upper = tubeCode.toUpperCase()
+  if (upper.includes('EDTA') || upper === 'EDTA_TUBE') return SPECIMEN_TUBE_STANDARDS[0] // 紫头
+  if (upper.includes('SERUM') || upper.includes('GEL') || upper === 'SST_TUBE') return SPECIMEN_TUBE_STANDARDS[1] // 黄头
+  if (upper.includes('PLAIN') || upper === 'PLAIN_TUBE') return SPECIMEN_TUBE_STANDARDS[2] // 红头
+  if (upper.includes('CITRATE') || upper.includes('COAG')) return SPECIMEN_TUBE_STANDARDS[3] // 浅蓝
+  if (upper.includes('HEPARIN')) return SPECIMEN_TUBE_STANDARDS[4] // 绿头
+  if (upper.includes('FLUORIDE') || upper.includes('GLUCOSE')) return SPECIMEN_TUBE_STANDARDS[5] // 灰头
+  if (upper.includes('ESR')) return SPECIMEN_TUBE_STANDARDS[6] // 黑头
+  if (upper.includes('URINE')) return SPECIMEN_TUBE_STANDARDS[7] // 尿杯
+  if (upper.includes('STOOL') || upper.includes('FECES')) return SPECIMEN_TUBE_STANDARDS[8] // 便盒
+  return undefined
 }
 
 /** 根据检验项目名称或关键词推荐国家标准采血管耗材 */
 export function recommendSpecimenTubeByItemName(itemName?: string): SpecimenTubeStandard {
   if (!itemName) return SPECIMEN_TUBE_STANDARDS[0] // 默认紫色
   const name = itemName.toUpperCase()
-  if (name.includes('血常规') || name.includes('CBC') || name.includes('糖化') || name.includes('HBA1C') || name.includes('血型')) {
+  if (name.includes('血常规') || name.includes('CBC') || name.includes('全血') || name.includes('EDTA') || name.includes('糖化') || name.includes('HBA1C') || name.includes('血型')) {
     return SPECIMEN_TUBE_STANDARDS[0] // 紫头
   }
   if (name.includes('尿') || name.includes('URIN')) {
