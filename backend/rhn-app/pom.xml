@@ -103,6 +103,12 @@
             <artifactId>archunit-junit5</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Surefire already runs it; declared so RhnTestJvmSlot can compile against LauncherSessionListener. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <properties>
         <!-- 3 forks roughly halved the full backend suite when introduced (918s -> 454s); the suite has since grown
