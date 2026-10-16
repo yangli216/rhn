@@ -13,6 +13,7 @@ import {
   serviceDuplicateRuleLabel,
   serviceTypeTone,
   accountingCategoryLabel,
+  standardSearchName,
 } from './BasicDataManagement'
 
 const mockServices: ServiceCatalogItem[] = [
@@ -376,6 +377,26 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     // 再次点击同一药品的厂家产品微标，轻量收起
     fireEvent.click(countChip)
     expect(screen.queryByRole('dialog', { name: /阿莫西林胶囊 厂家产品清单/ })).not.toBeInTheDocument()
+  })
+
+  it('searches the standard catalog by generic name without the dose-form suffix', () => {
+    expect(standardSearchName('丁卡因凝胶剂')).toBe('丁卡因')
+    expect(standardSearchName('苯唑西林注射用无菌粉末')).toBe('苯唑西林')
+    expect(standardSearchName('左氧氟沙星片')).toBe('左氧氟沙星')
+    expect(standardSearchName('一清颗粒（胶囊）')).toBe('一清颗粒（胶囊）')
+  })
+
+  it('offers standard linking instead of product setup for an unlinked medication', () => {
+    const handleProduct = vi.fn()
+    const medication = { id: 'med-002', revision: 1, code: 'MED-2026-W030-01', name: '丁卡因凝胶剂', sdMedType: 'WESTERN',
+      sdStatus: 'ACTIVE' as const, sdStatusText: '有效', standardReference: { status: 'UNMAPPED' as const, issues: [] }, products: [] }
+    render(<MedicationTable values={[medication] as any} loading={false} pagination={<div>分页</div>} mode="knowledge"
+      onModeChange={vi.fn()} routes={[]} frequencies={[]} onEdit={vi.fn()} onAttributes={vi.fn()} onMappings={vi.fn()}
+      onProduct={handleProduct} onEditProduct={vi.fn()} onPackage={vi.fn()} onEditPackage={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: '+产品' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '去关联' }))
+    expect(handleProduct).toHaveBeenCalledWith(medication)
   })
 
   it('renders MedicationTable in product mode with flattened manufacturer product table', () => {

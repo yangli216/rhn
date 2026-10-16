@@ -1333,6 +1333,7 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
         query, medicationType, status, organizationId,
       })}`),
+    standardMedicationCategories: (query = '') => client.request<{ key: string; major: string; sub: string; label: string; entryIds: string[] }[]>(`/api/platform/master-data/medication-standard-catalog/categories?query=${encodeURIComponent(query)}`),
     standardMedicationSummary: () => client.request<StandardMedicationSummary>('/api/platform/master-data/medication-standard-catalog/summary'),
     standardCatalogSourceReview: (historyPage = 0) => client.request<StandardCatalogSourceReview>(
       `/api/platform/master-data/medication-standard-catalog/source-review${queryString({historyPage: String(historyPage)})}`),

@@ -1,0 +1,2 @@
+-- Display labels for the skin test solution mode extension attribute; stored codes are unchanged.
+update RHN_BD_ITEM_ATTR_DEF set JSON_SCHEMA = to_clob('{"type":"string","enum":["ORIGINAL_SOLUTION","DILUTED_SOLUTION"],"x-enumLabels":{"ORIGINAL_SOLUTION":"原液直接试验","DILUTED_SOLUTION":"稀释配制皮试液"}}'), REVISION = REVISION + 1, DT_UPDATED = to_timestamp_tz('2026-10-15 00:00:00 +08:00', 'YYYY-MM-DD HH24:MI:SS TZH:TZM'), ID_USER_UPDATED = 362387869790222 where ID_ITEM_ATTR_DEF = 362387869797501;

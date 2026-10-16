@@ -579,7 +579,13 @@ export function OrganizationPersonnelManagement({ api, canManage = false }: { ap
               <div className="master-section-head">
                 <div>
                   <h3>{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '科室任职记录' : '机构任职记录'}</h3>
-                  <span>{assignmentsReady ? (currentUnitStaff.length > 0 ? `共 ${currentUnitStaff.length} 条任职记录` : '当前组织下暂无任职记录') : '任职记录尚未确认'}</span>
+                  <span>
+                    {assignmentsReady
+                      ? (currentUnitStaff.length > 0
+                        ? `共 ${currentUnitStaff.length} 条任职记录${selectedUnit.sdOrgKind !== 'ORG_UNIT' ? '（含下属科室与兼任明细）' : ''}`
+                        : '当前组织下暂无任职记录')
+                      : '任职记录尚未确认'}
+                  </span>
                 </div>
                 <div>
                   <label className="master-check"><input type="checkbox" checked={includeHistory} onChange={event => setIncludeHistory(event.target.checked)} />含历史及待生效任职</label>
@@ -598,9 +604,10 @@ export function OrganizationPersonnelManagement({ api, canManage = false }: { ap
                         <thead>
                           <tr>
                             <th>人员姓名</th>
+                            <th>任职科室</th>
                             <th>标准岗位</th>
                             <th>任职类型</th>
-                            <th>任职有效期</th><th className="ui-table-cell--numeric">工作量</th>
+                            <th>任职有效期</th>
                             <th className="ui-table-cell--status">状态</th>
                             <th className="ui-table-cell--actions" aria-label="操作">操作</th>
                           </tr>
@@ -610,9 +617,15 @@ export function OrganizationPersonnelManagement({ api, canManage = false }: { ap
                             return (
                               <tr key={member.id}>
                                 <td><strong>{member.practitionerName || '—'}</strong><code>{member.practitionerCode || '—'}</code></td>
+                                <td>
+                                  <strong>{member.departmentName || member.organizationName || '—'}</strong>
+                                  {member.departmentName && member.organizationName && member.departmentName !== member.organizationName && (
+                                    <code>{member.organizationName}</code>
+                                  )}
+                                </td>
                                 <td>{member.positionName}</td>
-                                <td>{member.sdAssignmentTypeText}</td>
-                                <td>{member.validFrom} 至 {member.validTo || '长期'}</td><td className="ui-table-cell--numeric">{member.workloadPercent != null ? `${member.workloadPercent}%` : '—'}</td>
+                                <td>{member.primaryAssignment ? <span className="master-qualification-tag master-qualification-tag--prescription">主任职</span> : <span className="master-qualification-tag">{member.sdAssignmentTypeText || '兼职'}</span>}</td>
+                                <td>{member.validFrom} 至 {member.validTo || '长期'}</td>
                                 <td className="ui-table-cell--status">
                                   <StatusBadge tone={member.sdPersonnelStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                                     {relationshipLabel(member)}
@@ -1244,7 +1257,7 @@ function PractitionerDialog({
             {!value && (
               <div className="master-form-onboarding-banner">
                 <Icon name="info" />
-                <span>新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用、主任职和100%工作量配置；任一步失败均不保存。</span>
+                <span>新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用与主任职配置；任一步失败均不保存。</span>
               </div>
             )}
             <div className="master-form-grid">
@@ -1344,14 +1357,14 @@ function EmploymentDialog({ practitioner, organizations, enums, busy, available,
 
 const assignmentSchema = z.object({ employmentId: z.string().min(1), organizationId: z.string().min(1), departmentId: z.string().min(1, '请选择任职科室'), positionId: z.string().min(1),
   code: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/, '请输入有效任职代码'), sdAssignmentType: z.string().min(1), specialtyCode: z.string().max(64),
-  primaryAssignment: z.boolean(), workloadPercent: z.string(), validFrom: z.string().min(1), validTo: z.string() })
+  primaryAssignment: z.boolean(), validFrom: z.string().min(1), validTo: z.string() })
   .refine((value) => !value.validTo || value.validTo >= value.validFrom, { path: ['validTo'], message: '结束日期不能早于开始日期' })
 type AssignmentForm = z.infer<typeof assignmentSchema>
 
 function AssignmentDialog({ employments, units, positions, enums, busy, available, saveError, onRefresh, onClose, onSave }: { employments: Array<{ id: string; code: string; organizationId: string; organizationName: string; hireDate: string; leaveDate?: string | null }>; units: OrganizationUnit[]; positions: Array<{ id: string; code: string; name: string }>; enums?: SystemEnumDefinition[]; busy: boolean; available: boolean; saveError?: string; onRefresh: () => Promise<void>; onClose: () => void; onSave: (input: AssignmentInput) => void }) {
   const firstEmployment = employments[0]
   const firstUnit = units.find((item) => firstEmployment && belongsToOrganization(item, firstEmployment.organizationId, units))
-  const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AssignmentForm>({ resolver: zodResolver(assignmentSchema), defaultValues: { employmentId: firstEmployment?.id ?? '', organizationId: firstEmployment?.organizationId ?? '', departmentId: firstUnit?.id ?? '', positionId: positions[0]?.id ?? '', code: '', sdAssignmentType: 'PRIMARY', specialtyCode: '', primaryAssignment: true, workloadPercent: '100', validFrom: firstEmployment?.hireDate ?? today(), validTo: '' } })
+  const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AssignmentForm>({ resolver: zodResolver(assignmentSchema), defaultValues: { employmentId: firstEmployment?.id ?? '', organizationId: firstEmployment?.organizationId ?? '', departmentId: firstUnit?.id ?? '', positionId: positions[0]?.id ?? '', code: '', sdAssignmentType: 'PRIMARY', specialtyCode: '', primaryAssignment: true, validFrom: firstEmployment?.hireDate ?? today(), validTo: '' } })
   const employmentId = watch('employmentId')
   const departmentId = watch('departmentId')
   const selectedEmployment = employments.find((item) => item.id === employmentId)
@@ -1371,7 +1384,7 @@ function AssignmentDialog({ employments, units, positions, enums, busy, availabl
     {saveError && <PersonnelWriteError error={saveError} busy={busy} onRefresh={onRefresh} />}
     <form id="assignment-form" inert={busy || !available} className="master-form" onSubmit={handleSubmit((value) => { if (busy || !available) return; onSave({ ...value,
       sdAssignmentType: value.sdAssignmentType as AssignmentType, specialtyCode: value.specialtyCode || undefined,
-      workloadPercent: value.workloadPercent ? Number(value.workloadPercent) : undefined, validTo: value.validTo || undefined }) })}>
+      validTo: value.validTo || undefined }) })}>
       <FormField label="聘用关系" required><FormSelect control={control} name="employmentId" showValue clearable={false}
         options={employments.map((item) => ({ value: item.id, label: item.organizationName, secondaryText: item.code }))} /></FormField>
       <div className="ui-form-row"><FormField label="任职科室" required error={errors.departmentId?.message}><FormSelect control={control} name="departmentId"
@@ -1383,8 +1396,7 @@ function AssignmentDialog({ employments, units, positions, enums, busy, availabl
         <input {...register('code')} autoFocus /></FormField>
         <FormField label="任职类型" required><FormSelect control={control} name="sdAssignmentType" showValue clearable={false}
           options={systemEnumItems(enums, ORGANIZATION_SYSTEM_ENUM.assignmentType).map(codeNameOption)} /></FormField></div>
-      <div className="ui-form-row"><FormField label="专业代码"><input {...register('specialtyCode')} /></FormField>
-        <FormField label="工作量（%）"><input type="number" min="0" max="100" step="0.01" {...register('workloadPercent')} /></FormField></div>
+      <FormField label="专业代码"><input {...register('specialtyCode')} /></FormField>
       <div className="ui-form-row"><FormField label="开始日期" required><input type="date" min={selectedEmployment?.hireDate} max={selectedEmployment?.leaveDate ?? undefined} {...register('validFrom')} /></FormField>
         <FormField label="结束日期" error={errors.validTo?.message}><input type="date" min={selectedEmployment?.hireDate} max={selectedEmployment?.leaveDate ?? undefined} {...register('validTo')} /></FormField></div>
       <label className="master-check"><input type="checkbox" {...register('primaryAssignment')} />设为主任职任职</label></form>

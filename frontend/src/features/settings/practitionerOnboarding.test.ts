@@ -31,7 +31,7 @@ describe('atomic practitioner onboarding receipt', () => {
   })
   it.each([{ employmentId: 'other' }, { practitionerId: 'other' }, { organizationId: 'other' }, { departmentId: 'other' },
     { positionId: 'other' }, { code: 'other' }, { sdAssignmentType: 'SECONDARY' }, { primaryAssignment: false },
-    { workloadPercent: '100' }, { workloadPercent: 0 }, { validFrom: '2026-10-04' }, { validTo: '2026-10-05' },
+    { validFrom: '2026-10-04' }, { validTo: '2026-10-05' },
     { sdPersonnelStatus: 'INACTIVE' }, { id: undefined },
   ])('checks the assignment %j', patch => {
     expect(() => requireOnboardedPractitioner({ ...result, assignments: [{ ...result.assignments[0], ...patch }] }, input)).toThrow()

@@ -44,7 +44,7 @@ export function requireCreatedAssignment(source: unknown, input: AssignmentInput
     || next.organizationId !== input.organizationId || next.departmentId !== input.departmentId || next.positionId !== input.positionId
     || next.code !== input.code.trim().toUpperCase() || next.sdAssignmentType !== input.sdAssignmentType
     || optional(next.specialtyCode) !== normalizedText(input.specialtyCode) || next.primaryAssignment !== input.primaryAssignment
-    || optional(next.workloadPercent) !== optional(input.workloadPercent) || next.validFrom !== input.validFrom
+    || next.validFrom !== input.validFrom
     || optional(next.validTo) !== optional(input.validTo) || next.sdPersonnelStatus !== 'ACTIVE') return fail()
   return next
 }

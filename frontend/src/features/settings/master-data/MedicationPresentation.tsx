@@ -182,8 +182,8 @@ export function MedicationKnowledgeTable({
               variant="text"
               className="medication-quick-add-btn"
               onClick={() => onProduct(value)}
-              title="为该通用药品新增厂家产品">
-              +产品
+              title={value.standardReference?.status === 'LINKED' ? '为该通用药品新增厂家产品' : '建立产品前需先关联标准规格，点击前往标准目录'}>
+              {value.standardReference?.status === 'LINKED' ? '+产品' : '去关联'}
             </Button>
           </div>
         </td>

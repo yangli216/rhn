@@ -843,7 +843,8 @@ describe('OrganizationPersonnelManagement Department Staff Query & Cross-linking
     })
 
     // 2. Click on "中医科" department node
-    const tcmNode = screen.getByText('中医科')
+    const tree = screen.getByRole('tree', { name: '组织树' })
+    const tcmNode = within(tree).getByText('中医科')
     await userEvent.click(tcmNode)
 
     // 3. Right detail panel should display "科室任职记录" and list 陈国华
@@ -1236,7 +1237,7 @@ describe('personnel pagination and scroll boundaries', () => {
     expect(screen.queryByRole('region', { name: '国家医保与数字证书档案' })).not.toBeInTheDocument()
 
     // 5. Verify onboarding banner
-    expect(screen.getByText('新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用、主任职和100%工作量配置；任一步失败均不保存。')).toBeInTheDocument()
+    expect(screen.getByText('新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用与主任职配置；任一步失败均不保存。')).toBeInTheDocument()
 
     // 6. Verify HIS fields are present
     expect(screen.getByLabelText(/人员代码 \/ 工号/, { selector: 'input' })).toBeInTheDocument()
@@ -1294,6 +1295,20 @@ describe('personnel pagination and scroll boundaries', () => {
     expect(nameInput.value).toBe('陈国华')
 
     expect(screen.getByRole('button', { name: '保存人员档案' })).toBeInTheDocument()
+  })
+
+  it('renders department column and excludes workload column in organization staff table', async () => {
+    renderComponent()
+    const table = await screen.findByRole('table', { name: '组织任职记录' })
+    expect(within(table).getByRole('columnheader', { name: '任职科室' })).toBeInTheDocument()
+    expect(within(table).queryByRole('columnheader', { name: /工时占比|工作量/ })).not.toBeInTheDocument()
+
+    // 验证表格行数据展示了任职科室和主任职标签
+    const rows = within(table).getAllByRole('row')
+    expect(rows.length).toBeGreaterThan(1)
+    expect(within(table).getByText('中医科')).toBeInTheDocument()
+    expect(within(table).getByText('全科诊室')).toBeInTheDocument()
+    expect(within(table).getAllByText('主任职').length).toBeGreaterThan(0)
   })
 })
 

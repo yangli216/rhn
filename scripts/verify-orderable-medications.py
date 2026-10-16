@@ -14,7 +14,17 @@ HEADERS = {
     "X-Client-Session-Id": "71c2a87e-b38d-45ac-9d60-c83ce67f2211"
 }
 
-ENCOUNTER_ID = "102940523479695360"
+ENCOUNTER_ID = "104391386123468800"
+
+# 尝试自动获取当前有效且接诊中（IN_PROGRESS）的门诊就诊
+try:
+    page_res = requests.get(f"{BASE_URL}/api/encounters/page?scope=ORGANIZATION&size=20", auth=AUTH, headers=HEADERS).json()
+    if isinstance(page_res, dict) and "content" in page_res and len(page_res["content"]) > 0:
+        active_enc = next((e for e in page_res["content"] if e.get("status") == "IN_PROGRESS"), None)
+        if active_enc:
+            ENCOUNTER_ID = active_enc["id"]
+except Exception:
+    pass
 
 imported_codes = [
     "PROD-OME-20", "PROD-RAB-20", "PROD-ENA-10", "PROD-VAL-80", "PROD-IRB-150",
@@ -42,7 +52,7 @@ for idx, code in enumerate(imported_codes, 1):
     url = f"{BASE_URL}/api/encounters/{ENCOUNTER_ID}/orderable-medications?query={code}"
     r = requests.get(url, auth=AUTH, headers=HEADERS)
     res = r.json()
-    if res and len(res) > 0:
+    if isinstance(res, list) and len(res) > 0:
         item = res[0]
         prod = next((p for p in item.get("products", []) if p.get("code") == code), None)
         if prod:
