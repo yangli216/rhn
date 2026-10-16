@@ -50,6 +50,7 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
     private final EncounterCompletionService completionService;
     private final ClinicalDocumentDirectory clinicalDocuments;
     private final ResidentDirectory residents;
+    private final OutpatientBloodPressurePolicy bloodPressurePolicy;
     private final OrganizationDirectory organizations;
     private final OutpatientRegistrationDirectory registrations;
     private final ExecutionContextProvider contextProvider;
@@ -68,7 +69,9 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                                      OrganizationDirectory organizations,
                                      OutpatientRegistrationDirectory registrations,
                                      ExecutionContextProvider contextProvider,
-                                     DomainEventPublisher eventPublisher, BusinessNumberGenerator numbers) {
+                                     DomainEventPublisher eventPublisher, BusinessNumberGenerator numbers,
+                                     OutpatientBloodPressurePolicy bloodPressurePolicy) {
+        this.bloodPressurePolicy = bloodPressurePolicy;
         this.numbers = numbers;
         this.requests = requests;
         this.events = events;
@@ -318,7 +321,11 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                 .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE").stream()
                 .anyMatch(value -> value.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY);
-        var decision = completionService.evaluate(encounter, identityChecked, signed, primaryDiagnosis);
+        var birthDate = residents.requireSnapshot(encounter.residentId()).birthDate();
+        var visitDate = encounter.registeredAt().atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate();
+        boolean bloodPressureMissing = bloodPressurePolicy.evaluate(encounter, birthDate, visitDate).blocksCompletion()
+                && (encounter.systolic() == null || encounter.diastolic() == null);
+        var decision = completionService.evaluate(encounter, identityChecked, signed, primaryDiagnosis, bloodPressureMissing);
         if (!decision.passed()) {
             throw conflict("ENCOUNTER_TRANSFER_BLOCKED", decision.issues().stream()
                     .map(EncounterCompletionService.CompletionIssue::description)

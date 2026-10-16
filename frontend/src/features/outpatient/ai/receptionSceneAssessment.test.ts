@@ -179,6 +179,21 @@ describe('reception evidence boundaries', () => {
     expect(assessment.scene).toBe('REPORT_FOLLOW_UP')
     expect(assessment.selectedReportIds).toEqual(['r'])
   })
+
+  it('recognizes reports finished after an earlier visit as a follow-up even when normal and without stated intent', () => {
+    const earlier = { ...chronic, registeredAt: new Date(now - 3 * 86_400_000).toISOString(),
+      diagnoses: [{ code: 'J06', display: '急性上呼吸道感染', type: 'PRIMARY' as const }] }
+    const report = { id: 'r', residentId: current.residentId, encounterId: earlier.id, requestId: 'req', reportCode: 'LAB',
+      reportVersion: 1, status: 'FINAL', reportName: '血常规', observations: [] } as unknown as DiagnosticReport
+    const assessment = assessReceptionScene({ encounter: { ...current, chiefComplaint: '' }, historyEncounters: [earlier],
+      diagnosticReports: [report], now })
+    expect(assessment.scene).toBe('REPORT_FOLLOW_UP')
+    expect(assessment.followUpOf).toMatchObject({ encounterId: earlier.id, diagnoses: ['急性上呼吸道感染'] })
+    expect(assessment.summaryText).toContain('未见异常项')
+    // A fresh acute complaint is a new problem, not the report read-out.
+    expect(assessReceptionScene({ encounter: { ...current, chiefComplaint: '腹痛一天' }, historyEncounters: [earlier],
+      diagnosticReports: [report], now }).scene).toBe('FIRST_VISIT')
+  })
 })
 
 

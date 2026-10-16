@@ -17,9 +17,10 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
     private static final String ENABLE = "362387869795122";
     private static final String SERVICE = "362387869795123";
+    private static final String BLOOD_PRESSURE = "362387869796195";
 
     @Test
-    void child_can_save_note_without_blood_pressure_but_adult_and_partial_values_are_rejected() throws Exception {
+    void child_can_save_note_without_blood_pressure_and_adult_requirement_follows_the_organization_parameter() throws Exception {
         configure(ENABLE, "true");
         String child = receive(resident(java.time.LocalDate.now().minusYears(6).toString()), UUID.randomUUID().toString(), 200)
                 .at("/encounter/id").asString();
@@ -33,10 +34,48 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", child).with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content(body.replace("\"chiefComplaint\"", "\"systolic\":100,\"chiefComplaint\"")))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("CLINICAL_BLOOD_PRESSURE_PAIR_REQUIRED"));
-        String adult = receive(resident(), UUID.randomUUID().toString(), 200).at("/encounter/id").asString();
+        mockMvc.perform(get("/api/encounters/{id}/blood-pressure-requirement", child).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.required").value(false));
+        String adult = receive(resident(java.time.LocalDate.now().minusYears(30).toString()), UUID.randomUUID().toString(), 200)
+                .at("/encounter/id").asString();
+        // 默认：成人必测，但只在诊毕时阻断，草稿可以先保存。
+        mockMvc.perform(get("/api/encounters/{id}/blood-pressure-requirement", adult).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.required").value(true))
+                .andExpect(jsonPath("$.enforceAt").value("COMPLETION")).andExpect(jsonPath("$.minAge").value(18));
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", adult).with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("OUTPATIENT_BLOOD_PRESSURE_REQUIRED"));
+                .andExpect(status().isOk());
+        configure(BLOOD_PRESSURE, "{\"enabled\":true,\"minAge\":18,\"unknownAgeRequired\":true,\"enforceAt\":\"DRAFT\"}");
+        mockMvc.perform(put("/api/encounters/{id}/clinical-record", adult).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("OUTPATIENT_BLOOD_PRESSURE_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("按本机构要求，18 周岁及以上患者就诊须填写收缩压和舒张压"));
+        // 35 岁首诊测压：30 岁患者不再要求。
+        configure(BLOOD_PRESSURE, "{\"enabled\":true,\"minAge\":35,\"unknownAgeRequired\":true,\"enforceAt\":\"DRAFT\"}", 0L);
+        mockMvc.perform(put("/api/encounters/{id}/clinical-record", adult).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content(body.replace("咳嗽两天", "咳嗽三天")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void structured_blood_pressure_parameter_is_validated_field_by_field() throws Exception {
+        for (String invalid : java.util.List.of(
+                "{\"enabled\":true,\"minAge\":150,\"unknownAgeRequired\":true,\"enforceAt\":\"DRAFT\"}",
+                "{\"enabled\":true,\"minAge\":18,\"unknownAgeRequired\":true,\"enforceAt\":\"LATER\"}",
+                "{\"enabled\":true,\"minAge\":18,\"unknownAgeRequired\":true}",
+                "{\"enabled\":true,\"minAge\":18,\"unknownAgeRequired\":true,\"enforceAt\":\"DRAFT\",\"extra\":1}")) {
+            mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values", BLOOD_PRESSURE).with(rhnWorkContext())
+                    .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of(
+                        "scopeType", "DEPARTMENT", "scopeId", DEPARTMENT, "organizationId", ORGANIZATION,
+                        "valueMode", "OVERRIDE", "valueJson", invalid, "reason", "字段校验测试", "requestCode", UUID.randomUUID().toString()))))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PARAMETER_SCHEMA_VIOLATION"));
+        }
+        mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values", BLOOD_PRESSURE).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of(
+                    "scopeType", "DEPARTMENT", "scopeId", DEPARTMENT, "organizationId", ORGANIZATION,
+                    "valueMode", "OVERRIDE", "valueJson", "{\"enabled\":true,\"minAge\":150,\"unknownAgeRequired\":true,\"enforceAt\":\"DRAFT\"}",
+                    "reason", "字段校验测试", "requestCode", UUID.randomUUID().toString()))))
+                .andExpect(jsonPath("$.message").value("参数值字段「必测起始年龄（周岁）」大于允许的最大值"));
     }
 
     @Test
@@ -266,10 +305,15 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
         return jdbc.queryForObject("select count(*) from " + table + " where " + column + " = ?", Integer.class, Long.valueOf(id));
     }
     private void configure(String id, String value) throws Exception {
+        configure(id, value, null);
+    }
+    private void configure(String id, String value, Long expectedRevision) throws Exception {
+        Map<String, Object> command = new java.util.HashMap<>(Map.of(
+                "scopeType", "DEPARTMENT", "scopeId", DEPARTMENT, "organizationId", ORGANIZATION,
+                "valueMode", "OVERRIDE", "valueJson", value, "reason", "直接接诊测试", "requestCode", UUID.randomUUID().toString()));
+        if (expectedRevision != null) command.put("expectedRevision", expectedRevision);
         mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values", id).with(rhnWorkContext())
-                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of(
-                    "scopeType", "DEPARTMENT", "scopeId", DEPARTMENT, "organizationId", ORGANIZATION,
-                    "valueMode", "OVERRIDE", "valueJson", value, "reason", "直接接诊测试", "requestCode", UUID.randomUUID().toString()))))
+                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(command)))
                 .andExpect(status().isOk());
     }
     private String resident() throws Exception {

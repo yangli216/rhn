@@ -1,15 +1,25 @@
-/** Only a confirmed minor is exempt from the existing adult requirement. */
-export function requiresBloodPressure(birthDate: string | undefined, registeredAt: string): boolean {
-  if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return true
-  const birth = new Date(`${birthDate}T00:00:00Z`)
-  const visit = new Date(registeredAt)
-  if (!Number.isFinite(birth.getTime()) || !Number.isFinite(visit.getTime())
-    || birth.toISOString().slice(0, 10) !== birthDate) return true
-  const visitDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(visit)
-  if (birthDate > visitDate) return true
-  const years = Number(visitDate.slice(0, 4)) - Number(birthDate.slice(0, 4))
-    - (visitDate.slice(5) < birthDate.slice(5) ? 1 : 0)
-  return years >= 18
+import { useQuery } from '@tanstack/react-query'
+import type { BloodPressureRequirement } from '../../shared/api/encountersApi'
+import type { RhnApi } from '../../shared/rhnApi'
+
+/**
+ * 血压测量要求以服务端为准（机构参数 outpatient.vital-signs.blood-pressure.requirement）。
+ * 查询未完成或失败时前端不额外阻断，保存与诊毕仍由服务端校验。
+ */
+export function useBloodPressureRequirement(api: RhnApi, encounterId: string) {
+  return useQuery({
+    queryKey: ['encounter-blood-pressure-requirement', encounterId],
+    queryFn: () => api.encounters.bloodPressureRequirement(encounterId),
+    enabled: Boolean(encounterId),
+    staleTime: 60_000,
+  })
+}
+
+export function bloodPressureBlocksDraft(requirement: BloodPressureRequirement | undefined) {
+  return Boolean(requirement?.required && requirement.enforceAt === 'DRAFT')
+}
+
+export function bloodPressureMissing(requirement: BloodPressureRequirement | undefined,
+  value: { systolic?: number | null; diastolic?: number | null } | undefined) {
+  return Boolean(requirement?.required && (value?.systolic == null || value?.diastolic == null))
 }

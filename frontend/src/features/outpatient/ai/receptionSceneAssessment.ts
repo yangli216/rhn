@@ -35,6 +35,10 @@ export interface ReceptionSceneAssessment {
   reportHighlights: string[]
   selectedReportIds: string[]
   chronicEncounterIds: string[]
+  /** Earlier visit whose orders produced the reports being brought back (report follow-up only). */
+  followUpOf?: { encounterId: string; registeredAt: string; diagnoses: string[] }
+  /** Reports finished at the earlier visit and, among them, those with no abnormal item. */
+  reportCount?: number
 }
 
 const DAY = 86_400_000
@@ -98,15 +102,23 @@ export function assessReceptionScene({ encounter, historyEncounters = [], diagno
     ...conditionsFromDiagnoses(currentDraft?.diagnoses ?? encounter.diagnoses ?? []),
     ...conditionsFromText([chief, currentDraft?.medicalHistory].filter(Boolean).join('；')),
   ])]
-  const shared = { matchedConditions, chronicEncounterIds, reportHighlights: reportHighlights.slice(0, 5),
-    selectedReportIds: eligibleReports.map((report) => report.id) }
-  if (eligibleReports.length && (reportHighlights.length || reportIntent)) return {
-    ...shared, scene: 'REPORT_FOLLOW_UP', sceneLabel: '报告回诊', badgeTone: 'warning',
-    summaryText: `关联 ${eligibleReports.length} 份报告（${[...new Set(eligibleReports.map((r) => r.reportName))].join('、')}），${reportHighlights.length} 项异常需核对。`,
-  }
   const refillIntent = /(复诊|配药|续方|开药|慢病随访)/.test(intent)
   const newSymptoms = /(发热|咳嗽|胸痛|胸闷|呼吸困难|腹痛|头痛|头晕|呕吐|外伤|急性|加重|新发)/.test(
     intent.split(/[，。；;\n]/).filter((part) => !/(无|否认|未见)/.test(part)).join('；'))
+  // Reports finished after an earlier visit: the patient is most likely back to have them read, normal or not.
+  const priorReports = eligibleReports.filter((report) => report.encounterId !== encounter.id)
+  const sourceVisit = history.find((item) => priorReports.some((report) => report.encounterId === item.id))
+  const shared = { matchedConditions, chronicEncounterIds, reportHighlights: reportHighlights.slice(0, 5),
+    selectedReportIds: eligibleReports.map((report) => report.id) }
+  if (eligibleReports.length && (reportHighlights.length || reportIntent || (priorReports.length && !newSymptoms))) {
+    const names = [...new Set(eligibleReports.map((r) => r.reportName))].join('、')
+    return { ...shared, scene: 'REPORT_FOLLOW_UP', sceneLabel: '报告回诊', badgeTone: 'warning',
+      reportCount: eligibleReports.length,
+      followUpOf: sourceVisit ? { encounterId: sourceVisit.id, registeredAt: sourceVisit.registeredAt,
+        diagnoses: (sourceVisit.diagnoses ?? []).map((diagnosis) => diagnosis.display) } : undefined,
+      summaryText: `关联 ${eligibleReports.length} 份报告（${names}），${reportHighlights.length
+        ? `${reportHighlights.length} 项异常需核对` : '未见异常项，可据结果确认诊断与用药'}。` }
+  }
   if (matchedConditions.length && !newSymptoms && (refillIntent || chronicEncounterIds.length > 0)) return {
     ...shared, scene: 'CHRONIC_REFILL', sceneLabel: '慢病复诊配药', badgeTone: 'info',
     summaryText: `近90天病史提示${matchedConditions.join('、')}；请核对本次复诊范围、控制情况与历史用药。`,

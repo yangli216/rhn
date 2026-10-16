@@ -50,6 +50,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String residentId = createResidentForOrdering("33010219920404" + identitySuffix);
         String encounterId = createActiveEncounter(residentId);
+        recordInpatientNoKnownDrugAllergy(residentId, encounterId);
         JsonNode prescription = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryCode\":\"OUTPATIENT\",\"note\":\"通用名处方验证\"}"))

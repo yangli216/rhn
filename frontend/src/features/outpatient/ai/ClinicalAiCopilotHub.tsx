@@ -9,13 +9,16 @@ import { aiRecordDraftFields, aiRecordDraftValue, aiVitalDefinitions, formatAiRe
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
 import { useStableVoiceCopilot } from './useStableVoiceCopilot'
-import { clinicalAiContextFingerprint } from './aiDraftAdapter'
+import { clinicalAiContextFingerprint, stableClinicalAiFingerprint } from './aiDraftAdapter'
+import { copilotNextStep } from './copilotNextStep'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
 import { buildChronicRefillPrompt } from './chronicRefillPromptBuilder'
 import { ChronicRefillQuickPanel } from './ChronicRefillQuickPanel'
+import { ReportFollowUpQuickPanel } from './ReportFollowUpQuickPanel'
+import { buildReportFollowUpPrompt } from './reportFollowUpPrompt'
 import type { ChronicRefillController } from './useChronicRefill'
 import { RecordExpansionTrigger } from './RecordExpansionTrigger'
-import { canExpandRecord, pickRecordExpansion, recordExpansionTargets } from './recordExpansion'
+import { canExpandRecord, hasRecordNarrative, pickRecordExpansion, recordExpansionTargets } from './recordExpansion'
 import type { ClinicalAiGenerateOptions } from './ClinicalAiInlineWorkspace'
 
 export interface ClinicalAiCopilotHubProps {
@@ -72,6 +75,8 @@ export function ClinicalAiCopilotHub({
   useEffect(() => () => { requestSequence.current++ }, [])
   const [hubOpen, setHubOpen] = useState(false)
   const [refillPanelOpen, setRefillPanelOpen] = useState(false)
+  const [reportPanelOpen, setReportPanelOpen] = useState(false)
+  const reportAutoShownFor = useRef<string | null>(null)
   const refillAutoShownFor = useRef<string | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -258,8 +263,10 @@ export function ClinicalAiCopilotHub({
   const refillReady = Boolean(isChronic && chronicRefill?.ready && chronicRefill.encounterId === context.encounterId)
   const refillBlocked = disabled || busy || !canAdopt || !recordFeature || Boolean(sceneLoading)
   // The guide waits for the stable-plan query so it opens once in its final form (refill or record-only).
+  // A record-only guide (no refillable plan) is moot once the narrative exists, so it never interrupts a written record.
+  const guideUseful = Boolean(chronicRefill?.ready) || !hasRecordNarrative(context)
   const chronicGuideReady = Boolean(isChronic && chronicRefill && !chronicRefill.loading
-    && chronicRefill.encounterId === context.encounterId)
+    && chronicRefill.encounterId === context.encounterId && guideUseful)
 
   // Lightweight chronic follow-up guide: auto-open once per encounter as soon as the scene is recognized.
   useEffect(() => { setRefillPanelOpen(false) }, [context.encounterId])
@@ -288,6 +295,36 @@ export function ClinicalAiCopilotHub({
     }
   }, [refillPanelOpen])
 
+  // Report follow-up guide: opens once per encounter while the record is still unwritten, then stays out of the way.
+  const reportGuideReady = sceneAssessment?.scene === 'REPORT_FOLLOW_UP' && !hasRecordNarrative(context)
+  useEffect(() => { setReportPanelOpen(false) }, [context.encounterId])
+  useEffect(() => {
+    if (!reportGuideReady || refillBlocked || hubOpen || reportAutoShownFor.current === context.encounterId) return
+    reportAutoShownFor.current = context.encounterId
+    setReportPanelOpen(true)
+  }, [reportGuideReady, refillBlocked, hubOpen, context.encounterId])
+  useEffect(() => {
+    if (hubOpen) reportAutoShownFor.current = context.encounterId
+    if (hubOpen || !reportGuideReady) setReportPanelOpen(false)
+  }, [hubOpen, reportGuideReady, context.encounterId])
+  useEffect(() => {
+    if (!reportPanelOpen) return
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setReportPanelOpen(false) }
+    const outside = (event: MouseEvent) => {
+      if (hubRef.current && !hubRef.current.contains(event.target as Node)) setReportPanelOpen(false)
+    }
+    document.addEventListener('keydown', escape)
+    document.addEventListener('mousedown', outside)
+    return () => {
+      document.removeEventListener('keydown', escape)
+      document.removeEventListener('mousedown', outside)
+    }
+  }, [reportPanelOpen])
+  const generateReportRecordNow = () => {
+    if (refillBlocked || !sceneAssessment) return
+    void generateRefillRecord(buildReportFollowUpPrompt(sceneAssessment)).catch(() => undefined)
+  }
+
   /** Routes refill generation through the hub so the record draft is adopted when it returns. */
   const generateRefillRecord = async (focus?: string) => {
     appliedSuggestionId.current = null
@@ -311,6 +348,24 @@ export function ClinicalAiCopilotHub({
   const generateChronicRecordNow = () => {
     if (refillBlocked) return
     void generateRefillRecord(chronicRecordFocus()).catch(() => undefined)
+  }
+
+  const emptyMedications = stableClinicalAiFingerprint('medications', [])
+  const emptyServices = stableClinicalAiFingerprint('services', [])
+  const hasOrders = context.medicationDraftFingerprint !== emptyMedications
+    || context.serviceDraftFingerprint !== emptyServices
+  const nextStep = disabled || !canAdopt || !recordFeature ? undefined : copilotNextStep(context, hasOrders, sceneAssessment?.scene)
+  const runNextStep = () => {
+    if (!nextStep || busy || generating || findingPlans || sceneLoading) return
+    if (nextStep.kind === 'RECORD') {
+      appliedSuggestionId.current = null
+      incrementalAdoption.current = true
+      void onGenerate('RECORD').then((id) => { appliedSuggestionId.current = id || null }).catch(() => undefined)
+      return
+    }
+    // Diagnoses and orders arrive as inline suggestions; the hub stays closed so the doctor keeps working.
+    appliedSuggestionId.current = null
+    void onGenerate().catch(() => undefined)
   }
 
   const isReport = sceneAssessment?.scene === 'REPORT_FOLLOW_UP'
@@ -345,6 +400,8 @@ export function ClinicalAiCopilotHub({
             <span className="doctor-ai-copilot-pill__pulse" />
             正在共写…
           </span>
+        ) : nextStep ? (
+          <span className="doctor-ai-copilot-pill__tag is-next" title={nextStep.hint}>下一步 · {nextStep.tag}</span>
         ) : scenePillText ? (
           <span className="doctor-ai-copilot-pill__tag">{scenePillText}</span>
         ) : current ? (
@@ -352,6 +409,14 @@ export function ClinicalAiCopilotHub({
         ) : null}
         <Icon name={hubOpen ? 'chevron-up' : 'chevron-down'} className="doctor-ai-copilot-pill__caret" />
       </button>
+
+      {reportPanelOpen && sceneAssessment && !hubOpen && (
+        <ReportFollowUpQuickPanel scene={sceneAssessment} generateDisabled={refillBlocked}
+          onGenerateRecord={() => { setReportPanelOpen(false); generateReportRecordNow() }}
+          onOpenResults={onOpenResults ? () => { setReportPanelOpen(false); onOpenResults() } : undefined}
+          onOpenHub={() => { setReportPanelOpen(false); setHubOpen(true); onView() }}
+          onClose={() => setReportPanelOpen(false)} />
+      )}
 
       {refillPanelOpen && chronicRefill && !hubOpen && (
         <ChronicRefillQuickPanel
@@ -403,6 +468,16 @@ export function ClinicalAiCopilotHub({
           </header>
 
           <div className="doctor-ai-copilot-popover__body">
+            {nextStep && (
+              <section className="doctor-ai-next-step" aria-label="下一步建议">
+                <span className="doctor-ai-next-step__hint">{nextStep.hint}</span>
+                <Button size="sm" variant="primary" disabled={busy || generating || findingPlans || Boolean(sceneLoading)}
+                  onClick={() => { setHubOpen(false); runNextStep() }}>
+                  <Icon name="sparkles" />
+                  <span>{nextStep.action}</span>
+                </Button>
+              </section>
+            )}
             {/* 1. Context Insight Card */}
             {sceneAssessment && (
               <section className={`doctor-ai-insight-card is-${sceneAssessment.badgeTone}`} aria-label="接诊情境洞察">
@@ -509,7 +584,7 @@ export function ClinicalAiCopilotHub({
                       variant="secondary"
                       className="doctor-ai-quick-btn"
                       disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
-                      onClick={() => generateAndApply('看检查检验结果复诊，结合异常指标评估疗效并调整下一步诊疗。')}
+                      onClick={() => { if (sceneAssessment) void generateReportRecordNow(); setHubOpen(false) }}
                     >
                       <Icon name="sparkles" />
                       <span>📝 生成报告回诊记录</span>

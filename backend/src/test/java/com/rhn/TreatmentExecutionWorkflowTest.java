@@ -259,7 +259,7 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{prescriptionId}/submit",
                                 encounterId, prescription.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"expectedRevision\":0}"))
+                        .content("{\"expectedRevision\":0,\"reason\":\"已知晓需皮试,按流程先皮试后执行\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE"));
 
         JsonNode task = taskBySource(request.get("id").asString());

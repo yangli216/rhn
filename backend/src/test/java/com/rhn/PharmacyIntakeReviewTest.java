@@ -166,7 +166,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
         assertEquals("医生已核对重复开立：合成业务测试说明", task.path("prescriptionSafety").get(0).path("doctorReason").asString());
         assertEquals(request.path("prescriptionId").asString(), task.path("prescriptionSafety").get(0).path("prescriptionId").asString());
         assertEquals(2, task.path("prescriptionSafety").get(0).path("medications").size());
-        assertEquals("SHADOW", task.path("prescriptionSafety").get(0).path("evaluation").path("mode").asString());
+        assertEquals("ENFORCED", task.path("prescriptionSafety").get(0).path("evaluation").path("mode").asString());
         org.assertj.core.api.Assertions.assertThat(task.path("prescriptionSafety").get(0).path("evaluation").path("findings").toString())
                 .contains("QMED.EXACT_GENERIC_DUPLICATE");
 

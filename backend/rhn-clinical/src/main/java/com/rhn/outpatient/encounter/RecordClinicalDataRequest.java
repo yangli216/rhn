@@ -2,7 +2,6 @@ package com.rhn.outpatient.encounter;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -28,7 +27,7 @@ public record RecordClinicalDataRequest(
         Integer oxygenSaturation,
         Long noteFormVersionId,
         @Size(max = 40) Map<@Size(max = 64) String, Object> structuredData,
-        @NotEmpty(message = "至少录入一条诊断") List<@Valid DiagnosisInput> diagnoses,
+        @NotNull(message = "诊断列表不能为空") List<@Valid DiagnosisInput> diagnoses,
         @Size(max = 4000) String allergyHistory,
         @Size(max = 4000) String medicationHistory,
         @Size(max = 4000) String auxiliaryExaminations,
