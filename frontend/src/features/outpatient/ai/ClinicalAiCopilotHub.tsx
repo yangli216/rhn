@@ -14,6 +14,7 @@ import { copilotNextStep } from './copilotNextStep'
 import type { ClinicalAiSurfaces, InlineAiSelection } from './ClinicalAiInlineWorkspace'
 import { buildChronicRefillPrompt } from './chronicRefillPromptBuilder'
 import { ChronicRefillQuickPanel } from './ChronicRefillQuickPanel'
+import { NextStepQuickPanel } from './NextStepQuickPanel'
 import { ReportFollowUpQuickPanel } from './ReportFollowUpQuickPanel'
 import { buildReportFollowUpPrompt } from './reportFollowUpPrompt'
 import type { ChronicRefillController } from './useChronicRefill'
@@ -77,6 +78,8 @@ export function ClinicalAiCopilotHub({
   const [refillPanelOpen, setRefillPanelOpen] = useState(false)
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
   const reportAutoShownFor = useRef<string | null>(null)
+  const [nextPanelOpen, setNextPanelOpen] = useState(false)
+  const nextShown = useRef(new Set<string>())
   const refillAutoShownFor = useRef<string | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -320,6 +323,47 @@ export function ClinicalAiCopilotHub({
       document.removeEventListener('mousedown', outside)
     }
   }, [reportPanelOpen])
+  const emptyMedications = stableClinicalAiFingerprint('medications', [])
+  const emptyServices = stableClinicalAiFingerprint('services', [])
+  const hasOrders = context.medicationDraftFingerprint !== emptyMedications
+    || context.serviceDraftFingerprint !== emptyServices
+  const nextStep = disabled || !canAdopt || !recordFeature ? undefined : copilotNextStep(context, hasOrders, sceneAssessment?.scene)
+  const runNextStep = () => {
+    if (!nextStep || busy || generating || findingPlans || sceneLoading) return
+    if (nextStep.kind === 'RECORD') {
+      appliedSuggestionId.current = null
+      incrementalAdoption.current = true
+      void onGenerate('RECORD').then((id) => { appliedSuggestionId.current = id || null }).catch(() => undefined)
+      return
+    }
+    // Diagnoses and orders arrive as inline suggestions; the hub stays closed so the doctor keeps working.
+    appliedSuggestionId.current = null
+    void onGenerate().catch(() => undefined)
+  }
+
+  // Next-step shortcut: each step is offered once per encounter, never over another guide or the open hub.
+  const nextKey = nextStep ? `${context.encounterId}:${nextStep.kind}` : ''
+  const otherGuideOpen = refillPanelOpen || reportPanelOpen || chronicGuideReady || reportGuideReady
+  const nextBlocked = busy || generating || findingPlans || Boolean(sceneLoading)
+  useEffect(() => {
+    if (!nextKey || hubOpen || otherGuideOpen || nextBlocked || nextShown.current.has(nextKey)) return
+    nextShown.current.add(nextKey)
+    setNextPanelOpen(true)
+  }, [nextKey, hubOpen, otherGuideOpen, nextBlocked])
+  useEffect(() => { if (!nextKey || hubOpen) setNextPanelOpen(false) }, [nextKey, hubOpen])
+  useEffect(() => {
+    if (!nextPanelOpen) return
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setNextPanelOpen(false) }
+    const outside = (event: MouseEvent) => {
+      if (hubRef.current && !hubRef.current.contains(event.target as Node)) setNextPanelOpen(false)
+    }
+    document.addEventListener('keydown', escape)
+    document.addEventListener('mousedown', outside)
+    return () => {
+      document.removeEventListener('keydown', escape)
+      document.removeEventListener('mousedown', outside)
+    }
+  }, [nextPanelOpen])
   const generateReportRecordNow = () => {
     if (refillBlocked || !sceneAssessment) return
     void generateRefillRecord(buildReportFollowUpPrompt(sceneAssessment)).catch(() => undefined)
@@ -348,24 +392,6 @@ export function ClinicalAiCopilotHub({
   const generateChronicRecordNow = () => {
     if (refillBlocked) return
     void generateRefillRecord(chronicRecordFocus()).catch(() => undefined)
-  }
-
-  const emptyMedications = stableClinicalAiFingerprint('medications', [])
-  const emptyServices = stableClinicalAiFingerprint('services', [])
-  const hasOrders = context.medicationDraftFingerprint !== emptyMedications
-    || context.serviceDraftFingerprint !== emptyServices
-  const nextStep = disabled || !canAdopt || !recordFeature ? undefined : copilotNextStep(context, hasOrders, sceneAssessment?.scene)
-  const runNextStep = () => {
-    if (!nextStep || busy || generating || findingPlans || sceneLoading) return
-    if (nextStep.kind === 'RECORD') {
-      appliedSuggestionId.current = null
-      incrementalAdoption.current = true
-      void onGenerate('RECORD').then((id) => { appliedSuggestionId.current = id || null }).catch(() => undefined)
-      return
-    }
-    // Diagnoses and orders arrive as inline suggestions; the hub stays closed so the doctor keeps working.
-    appliedSuggestionId.current = null
-    void onGenerate().catch(() => undefined)
   }
 
   const isReport = sceneAssessment?.scene === 'REPORT_FOLLOW_UP'
@@ -409,6 +435,13 @@ export function ClinicalAiCopilotHub({
         ) : null}
         <Icon name={hubOpen ? 'chevron-up' : 'chevron-down'} className="doctor-ai-copilot-pill__caret" />
       </button>
+
+      {nextPanelOpen && nextStep && !hubOpen && (
+        <NextStepQuickPanel step={nextStep} disabled={nextBlocked}
+          onRun={() => { setNextPanelOpen(false); runNextStep() }}
+          onOpenHub={() => { setNextPanelOpen(false); setHubOpen(true); onView() }}
+          onClose={() => setNextPanelOpen(false)} />
+      )}
 
       {reportPanelOpen && sceneAssessment && !hubOpen && (
         <ReportFollowUpQuickPanel scene={sceneAssessment} generateDisabled={refillBlocked}
@@ -535,8 +568,8 @@ export function ClinicalAiCopilotHub({
                       }}
                       title="一键生成规范复诊病历草稿并自动联动调出历史处方"
                     >
-                      <Icon name="sparkles" />
-                      <span>⚡ 慢病一键续方 (病历+医嘱)</span>
+                      <Icon name="pill" />
+                      <span>慢病一键续方（病历+医嘱）</span>
                     </Button>
                     <Button
                       size="sm"
@@ -545,7 +578,7 @@ export function ClinicalAiCopilotHub({
                       disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
                       onClick={generateChronicRecord}
                     >
-                      <Icon name="sparkles" />
+                      <Icon name="file-text" />
                       <span>仅生成复诊病历</span>
                     </Button>
                     {onOpenHistory && (
@@ -557,7 +590,7 @@ export function ClinicalAiCopilotHub({
                           onOpenHistory()
                         }}
                       >
-                        <Icon name="roadmap" />
+                        <Icon name="pharmacy" />
                         <span>调入历史处方明细</span>
                       </Button>
                     )}
@@ -575,8 +608,8 @@ export function ClinicalAiCopilotHub({
                           onOpenResults()
                         }}
                       >
-                        <Icon name="clinical" />
-                        <span>🔬 查看检验检查结果</span>
+                        <Icon name="flask" />
+                        <span>查看检验检查结果</span>
                       </Button>
                     )}
                     <Button
@@ -586,8 +619,8 @@ export function ClinicalAiCopilotHub({
                       disabled={findingPlans || Boolean(planChoice) || disabled || busy || !canAdopt || sceneLoading}
                       onClick={() => { if (sceneAssessment) void generateReportRecordNow(); setHubOpen(false) }}
                     >
-                      <Icon name="sparkles" />
-                      <span>📝 生成报告回诊记录</span>
+                      <Icon name="file-text" />
+                      <span>生成报告回诊记录</span>
                     </Button>
                   </>
                 )}
@@ -601,7 +634,7 @@ export function ClinicalAiCopilotHub({
                   onClick={() => generate()}
                   title="根据当前病历重新分析"
                 >
-                  <Icon name="refresh" />
+                  <Icon name="stethoscope" />
                   <span>{error ? '重试分析' : suggestion ? '更新病历建议' : '分析当前病历'}</span>
                 </Button>
 

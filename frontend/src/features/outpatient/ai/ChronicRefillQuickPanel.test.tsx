@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicalAiCapabilities, ClinicalAiDraftContext } from '../../../shared/api/clinicalAiApi'
+import { stableClinicalAiFingerprint } from './aiDraftAdapter'
 import { ClinicalAiCopilotHub, type ClinicalAiCopilotHubProps } from './ClinicalAiCopilotHub'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 import type { ChronicRefillController } from './useChronicRefill'
@@ -109,7 +110,7 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     const onGenerate = vi.fn().mockResolvedValue('s-1')
     const written = { ...context, chiefComplaint: '高血压、糖尿病复诊配药', presentIllness: '长期规律服药' }
     renderHub({ context: written, onGenerate, sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' }, chronicRefill: undefined })
-    expect(screen.getByText('下一步 · 待定诊断')).toBeInTheDocument()
+    expect(screen.getAllByText('下一步 · 待定诊断').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: 'AI 辅诊' }))
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'AI 推荐诊断' })) })
     expect(onGenerate).toHaveBeenCalledWith()
@@ -139,6 +140,24 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     renderHub({ sceneAssessment: reportScene, chronicRefill: undefined,
       context: { ...context, chiefComplaint: '看报告', presentIllness: '已写' } })
     expect(screen.queryByRole('region', { name: '报告回诊引导' })).not.toBeInTheDocument()
+  })
+
+  it('auto-opens the next-step shortcut once per step and runs it without opening the hub', async () => {
+    const onGenerate = vi.fn().mockResolvedValue('s-1')
+    const written = { ...context, chiefComplaint: '高血压、糖尿病复诊配药', presentIllness: '长期规律服药',
+      medicationDraftFingerprint: stableClinicalAiFingerprint('medications', []),
+      serviceDraftFingerprint: stableClinicalAiFingerprint('services', []) }
+    const props = { context: written, onGenerate, sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' as const }, chronicRefill: undefined }
+    const { rerender } = renderHub(props)
+    expect(screen.getByRole('region', { name: '下一步建议' })).toBeInTheDocument()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'AI 推荐诊断' })) })
+    expect(onGenerate).toHaveBeenCalled()
+    expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
+    rerender({ busy: true }); rerender({ busy: false })
+    expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
+    // A later step (diagnosis made, no orders) gets its own offer.
+    rerender({ context: { ...written, diagnoses: [{ code: 'I10', display: '高血压', type: 'PRIMARY' } as never] } })
+    expect(screen.getByRole('region', { name: '下一步建议' })).toHaveTextContent('待开医嘱')
   })
 
   it('routes one-click refill through the hub generator', () => {
