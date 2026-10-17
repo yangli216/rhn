@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { DiagnosticTemplateVersion } from '../../../shared/api/diagnosticTemplateTypes'
 import type { LocalDiagnosticObservationInput } from '../../../shared/api/diagnosticsApi'
 import { Alert, Button, EditableCell, EditableRow, EditableTable, FormField, Select, StatusBadge, tableCellClass } from '../../../shared/ui'
@@ -43,8 +44,9 @@ export function LaboratoryResultEditor({
   draftAuthor?: string
 }) {
   const patientConditions = extractPatientConditions(patient)
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
 
-  const update = (index: number, patch: Partial<Row>) => {
+  const update = (index: number, patch: Partial<Row>, isBlur = false) => {
     const targetRow = rows[index]
     const updatedValue = patch.observationValue !== undefined ? patch.observationValue : targetRow.observationValue
 
@@ -56,10 +58,20 @@ export function LaboratoryResultEditor({
       if (def) {
         const evalResult = evaluateIndicatorValue(def, updatedValue, patientConditions)
         const rule = evalResult.rule ?? matchApplicableReferenceRule(def.rules, patientConditions)
+        const isCriticalCode = ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(evalResult.interpretationCode || '')
+
+        // 录入过程中若命中危急值生命线，暂不标记为危急值（降级为常规偏高偏低），避免输入中间值频繁误触；在失去焦点时才正式生效
+        let finalInterpretation = evalResult.interpretationCode as Row['interpretationCode']
+        if (isCriticalCode && !isBlur) {
+          finalInterpretation = evalResult.interpretationCode === 'LL' ? 'L'
+            : evalResult.interpretationCode === 'HH' ? 'H'
+            : undefined
+        }
+
         dynamicRulePatch = {
           referenceRangeLow: rule?.referenceLow,
           referenceRangeHigh: rule?.referenceHigh,
-          interpretationCode: evalResult.interpretationCode as Row['interpretationCode'],
+          interpretationCode: finalInterpretation,
           ruleStatus: rule ? 'MATCHED' : undefined,
         }
       }
@@ -82,7 +94,9 @@ export function LaboratoryResultEditor({
     onChange([...rows, { observationCode: '', observationName: '', valueType: 'NUMBER', observationValue: '' }])
 
   const abnormal = rows.filter((row) => row.interpretationCode && row.interpretationCode !== 'N').length
-  const criticalRows = rows.filter((row) => ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(row.interpretationCode || ''))
+  const criticalRows = rows.filter(
+    (row, idx) => idx !== focusedIndex && ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(row.interpretationCode || '')
+  )
   const critical = criticalRows.length
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, currentIndex: number) => {
@@ -92,6 +106,8 @@ export function LaboratoryResultEditor({
       if (nextInput) {
         nextInput.focus()
         nextInput.select?.()
+      } else {
+        e.currentTarget.blur()
       }
     }
   }
@@ -247,7 +263,7 @@ export function LaboratoryResultEditor({
                         disabled={disabled}
                         value={row.observationValue || ''}
                         options={(def?.allowedCodes || []).map((value) => ({ value, label: value }))}
-                        onChange={(value) => update(index, { observationValue: value })}
+                        onChange={(value) => update(index, { observationValue: value }, true)}
                       />
                     ) : (
                       <input
@@ -258,8 +274,13 @@ export function LaboratoryResultEditor({
                         inputMode={row.valueType === 'NUMBER' ? 'decimal' : 'text'}
                         placeholder="—"
                         value={row.observationValue || ''}
+                        onFocus={() => setFocusedIndex(index)}
+                        onBlur={(e) => {
+                          setFocusedIndex(null)
+                          update(index, { observationValue: e.target.value }, true)
+                        }}
                         onKeyDown={(e) => handleKeyDown(e, index)}
-                        onChange={(e) => update(index, { observationValue: e.target.value })}
+                        onChange={(e) => update(index, { observationValue: e.target.value }, false)}
                       />
                     )}
                   </td>

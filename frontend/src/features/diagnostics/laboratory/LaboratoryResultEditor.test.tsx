@@ -138,4 +138,89 @@ describe('LaboratoryResultEditor real-time evaluation & navigation', () => {
 
     expect(screen.getByText('套用国家标准模板 (WS/T 404/405)')).toBeInTheDocument()
   })
+
+  it('triggers critical value warning only on blur, avoiding premature alert during continuous typing', () => {
+    let currentRows = [
+      {
+        observationCode: 'RBC',
+        observationName: '红细胞计数 (RBC)',
+        valueType: 'NUMBER' as const,
+        observationValue: '',
+        unitCode: '10^12/L',
+      },
+    ]
+    const onChange = vi.fn((newRows) => {
+      currentRows = newRows
+    })
+
+    const { rerender } = render(
+      <LaboratoryResultEditor
+        rows={currentRows}
+        onChange={onChange}
+        disabled={false}
+        template={mockTemplate}
+        patient={{ gender: 'MALE', ageDays: 10950 }}
+      />
+    )
+
+    const rbcInput = screen.getByLabelText('指标1结果')
+    fireEvent.focus(rbcInput)
+
+    // 用户在输入框中敲入 "1"，正在输入过程中（未失焦）
+    fireEvent.change(rbcInput, { target: { value: '1' } })
+
+    // onChange 触发，但 interpretationCode 此时被暂缓为偏低 'L'，而非危急值 'LL'
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          observationCode: 'RBC',
+          observationValue: '1',
+          interpretationCode: 'L',
+        }),
+      ])
+    )
+
+    // 重新渲染当前正在聚焦打字的状态
+    rerender(
+      <LaboratoryResultEditor
+        rows={currentRows}
+        onChange={onChange}
+        disabled={false}
+        template={mockTemplate}
+        patient={{ gender: 'MALE', ageDays: 10950 }}
+      />
+    )
+
+    // 录入过程中不应弹出危急值预警横幅
+    expect(screen.queryByText(/危急值预警/)).not.toBeInTheDocument()
+    expect(screen.queryByText('极低危急 ↓↓')).not.toBeInTheDocument()
+
+    // 用户确认该指标为 1.0 并离开输入框（失去焦点）
+    fireEvent.blur(rbcInput, { target: { value: '1.0' } })
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          observationCode: 'RBC',
+          observationValue: '1.0',
+          interpretationCode: 'LL',
+        }),
+      ])
+    )
+
+    // 失焦后渲染最新结果
+    rerender(
+      <LaboratoryResultEditor
+        rows={currentRows}
+        onChange={onChange}
+        disabled={false}
+        template={mockTemplate}
+        patient={{ gender: 'MALE', ageDays: 10950 }}
+      />
+    )
+
+    // 失焦后危急值正式触发
+    expect(screen.getByText(/危急值预警 1 项/)).toBeInTheDocument()
+    expect(screen.getByText('极低危急 ↓↓')).toBeInTheDocument()
+  })
 })

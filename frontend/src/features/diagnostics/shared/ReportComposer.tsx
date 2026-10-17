@@ -199,7 +199,8 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
           observations: newRows,
           templateSnapshot: JSON.stringify(nationalTemplateAsVersion(tpl)),
         })
-      }} /><FormField label="结果说明" className="diagnostic-conclusion-field"><textarea rows={2} disabled={busy || !canEdit}
+      }} /><FormField label="结果说明 / 备注 (选填)" className="diagnostic-conclusion-field"><textarea rows={2} disabled={busy || !canEdit}
+        placeholder="常规检验无需填写；如有标本异常（如溶血/脂血）或特殊临床提醒可在此补充说明"
         value={input.conclusion || ''} onChange={(e) => change({ conclusion: e.target.value })} /></FormField></>
       : <ExaminationReportEditor findings={input.findings || ''} conclusion={input.conclusion || ''} disabled={busy || !canEdit} onChange={change} />}
     {task.requestType === 'EXAMINATION' && <ExaminationImages api={api} task={task} draft={draft}
