@@ -93,8 +93,7 @@ class ClinicalPdfRenderer {
         addHeader(document, snapshot, "门诊病历记录单", "门诊记录");
 
         Map<String, Object> resident = map(snapshot.get("resident"));
-        String birthDate = text(resident, "birthDate", "-");
-        String age = calculateAge(birthDate);
+        String age = OutpatientDocumentPdfRenderer.age(resident, text(snapshot, "signedAt", ""));
 
         // 8-column high-density patient band for A5 Landscape
         PdfPTable patient = new PdfPTable(new float[]{0.9f, 1.25f, 0.65f, 0.75f, 0.65f, 0.95f, 0.95f, 1.45f});
@@ -106,7 +105,7 @@ class ClinicalPdfRenderer {
         addInfoCell(patient, "门诊号", text(snapshot, "encounterNo", "-"));
         addInfoCell(patient, "档案号", text(resident, "healthRecordNo", "-"));
         addInfoCell(patient, "科室", text(snapshot, "departmentName", "-"));
-        addInfoCell(patient, "费别", text(snapshot, "insuranceType", "自费/医保"));
+        addInfoCell(patient, "费别", text(snapshot, "insuranceType", "未记录"));
         addInfoCell(patient, "就诊时间", format(snapshot.get("signedAt")));
         document.add(patient);
 
@@ -199,8 +198,7 @@ class ClinicalPdfRenderer {
         addHeader(document, snapshot, headingTitle, "普通处方");
 
         Map<String, Object> resident = map(snapshot.get("resident"));
-        String birthDate = text(resident, "birthDate", "-");
-        String age = calculateAge(birthDate);
+        String age = OutpatientDocumentPdfRenderer.age(resident, text(snapshot, "authoredAt", ""));
 
         // 患者基本信息与诊断栏
         PdfPTable patient = new PdfPTable(new float[]{0.8f, 1.3f, 0.6f, 0.7f, 0.6f, 0.9f, 0.8f, 1.3f, 0.8f, 1.3f, 0.8f, 1.6f});
@@ -209,7 +207,7 @@ class ClinicalPdfRenderer {
         addInfoCell(patient, "姓名", text(resident, "fullName", "-"));
         addInfoCell(patient, "性别", gender(text(resident, "gender", "UNKNOWN")));
         addInfoCell(patient, "年龄", age);
-        addInfoCell(patient, "费别", text(snapshot, "insuranceType", "自费/医保"));
+        addInfoCell(patient, "费别", text(snapshot, "insuranceType", "未记录"));
         addInfoCell(patient, "科室", text(snapshot, "departmentName", "-"));
         addInfoCell(patient, "开具时间", format(snapshot.get("authoredAt")));
         document.add(patient);
@@ -316,8 +314,7 @@ class ClinicalPdfRenderer {
         addHeader(document, snapshot, "中药饮片处方笺", "草药处方");
 
         Map<String, Object> resident = map(snapshot.get("resident"));
-        String birthDate = text(resident, "birthDate", "-");
-        String age = calculateAge(birthDate);
+        String age = OutpatientDocumentPdfRenderer.age(resident, text(snapshot, "authoredAt", ""));
 
         // 患者基本信息
         PdfPTable patient = new PdfPTable(new float[]{0.8f, 1.3f, 0.6f, 0.7f, 0.6f, 0.9f, 0.8f, 1.3f, 0.8f, 1.3f, 0.8f, 1.6f});
@@ -326,7 +323,7 @@ class ClinicalPdfRenderer {
         addInfoCell(patient, "姓名", text(resident, "fullName", "-"));
         addInfoCell(patient, "性别", gender(text(resident, "gender", "UNKNOWN")));
         addInfoCell(patient, "年龄", age);
-        addInfoCell(patient, "费别", text(snapshot, "insuranceType", "自费/医保"));
+        addInfoCell(patient, "费别", text(snapshot, "insuranceType", "未记录"));
         addInfoCell(patient, "科室", text(snapshot, "departmentName", "-"));
         addInfoCell(patient, "开具时间", format(snapshot.get("authoredAt")));
         document.add(patient);
@@ -666,19 +663,6 @@ class ClinicalPdfRenderer {
             footerTable.addCell(noticeCell);
         }
         document.add(footerTable);
-    }
-
-    private String calculateAge(String birthDate) {
-        if (birthDate == null || birthDate.isBlank() || "-".equals(birthDate)) return "-";
-        try {
-            java.time.LocalDate birth = java.time.LocalDate.parse(birthDate.trim());
-            java.time.Period period = java.time.Period.between(birth, java.time.LocalDate.now());
-            if (period.getYears() > 0) return period.getYears() + " 岁";
-            if (period.getMonths() > 0) return period.getMonths() + " 个月";
-            return Math.max(1, period.getDays()) + " 天";
-        } catch (Exception ignored) {
-            return "-";
-        }
     }
 
     private PdfPCell bodyCell(String value, int alignment) {

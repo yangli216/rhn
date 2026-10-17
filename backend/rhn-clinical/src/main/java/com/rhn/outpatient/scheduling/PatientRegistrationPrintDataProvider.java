@@ -1,6 +1,7 @@
 package com.rhn.outpatient.scheduling;
 
 import com.rhn.healthcore.api.ResidentDirectory;
+import com.rhn.outpatient.api.RegistrationValidityPolicy;
 import com.rhn.platform.organization.api.DepartmentView;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.organization.api.OrganizationView;
@@ -10,6 +11,7 @@ import com.rhn.platform.printing.api.PrintDataSnapshot;
 import com.rhn.platform.printing.api.PrintTaskCodes;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.queueing.api.QueueingDirectory;
+import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +28,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 class PatientRegistrationPrintDataProvider implements PrintDataProvider {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Asia/Shanghai"));
+    private static final DateTimeFormatter CUTOFF_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(RegistrationValidityPolicy.BUSINESS_ZONE);
 
     private final PatientRegistrationRepository registrationRepository;
     private final ServiceScheduleRepository scheduleRepository;
@@ -33,19 +37,25 @@ class PatientRegistrationPrintDataProvider implements PrintDataProvider {
     private final ResidentDirectory residentDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final com.rhn.platform.printing.api.RegistrationBillingDirectory billingDirectory;
+    private final RegistrationValidityPolicy validityPolicy;
+    private final ExecutionContextProvider contextProvider;
 
     PatientRegistrationPrintDataProvider(PatientRegistrationRepository registrationRepository,
                                          ServiceScheduleRepository scheduleRepository,
                                          QueueingDirectory queueing,
                                          ResidentDirectory residentDirectory,
                                          OrganizationDirectory organizationDirectory,
-                                         com.rhn.platform.printing.api.RegistrationBillingDirectory billingDirectory) {
+                                         com.rhn.platform.printing.api.RegistrationBillingDirectory billingDirectory,
+                                         RegistrationValidityPolicy validityPolicy,
+                                         ExecutionContextProvider contextProvider) {
         this.registrationRepository = registrationRepository;
         this.scheduleRepository = scheduleRepository;
         this.queueing = queueing;
         this.residentDirectory = residentDirectory;
         this.organizationDirectory = organizationDirectory;
         this.billingDirectory = billingDirectory;
+        this.validityPolicy = validityPolicy;
+        this.contextProvider = contextProvider;
     }
 
     @Override
@@ -73,10 +83,10 @@ class PatientRegistrationPrintDataProvider implements PrintDataProvider {
 
         String locationName = schedule != null && schedule.locationName() != null && !schedule.locationName().isBlank()
                 ? schedule.locationName()
-                : department.name() + " 诊室";
-        String practitionerName = schedule != null && schedule.practitionerName() != null
+                : "未记录";
+        String practitionerName = schedule != null && schedule.practitionerName() != null && !schedule.practitionerName().isBlank()
                 ? schedule.practitionerName()
-                : "普通门诊";
+                : "未记录";
         String serviceName = schedule != null && schedule.serviceName() != null
                 ? schedule.serviceName()
                 : "门诊诊疗";
@@ -100,22 +110,28 @@ class PatientRegistrationPrintDataProvider implements PrintDataProvider {
         payload.put("serviceName", serviceName);
         payload.put("sdDayPartText", sdDayPartText);
         var paymentSnapshot = billingDirectory.findPaymentSnapshotByEncounterId(tenantId, registration.encounterId());
-        BigDecimal payable = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::payableAmount).orElse(BigDecimal.ZERO);
-        String paymentMethodName = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::paymentMethodName).orElse("自费/医保");
-        BigDecimal totalFee = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::totalFee).orElse(payable);
-        BigDecimal insuranceDeduction = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::insuranceDeduction).orElse(BigDecimal.ZERO);
-        BigDecimal discountAmount = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::discountAmount).orElse(BigDecimal.ZERO);
+        BigDecimal payable = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::payableAmount).orElse(null);
+        String paymentMethodName = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::paymentMethodName).orElse("未记录");
+        BigDecimal totalFee = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::totalFee).orElse(null);
+        BigDecimal insuranceDeduction = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::insuranceDeduction).orElse(null);
+        BigDecimal discountAmount = paymentSnapshot.map(com.rhn.platform.printing.api.RegistrationBillingDirectory.RegistrationPaymentSnapshot::discountAmount).orElse(null);
 
-        payload.put("payableAmount", payable.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        payload.put("payableAmount", amountText(payable));
         payload.put("paymentMethodName", paymentMethodName);
-        payload.put("baseFee", totalFee.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        payload.put("insuranceDeduction", insuranceDeduction.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        payload.put("seniorDiscount", discountAmount.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        payload.put("baseFee", amountText(totalFee));
+        payload.put("insuranceDeduction", amountText(insuranceDeduction));
+        payload.put("seniorDiscount", amountText(discountAmount));
         payload.put("registeredAtText", DATE_TIME.format(registration.registeredAt()));
-        payload.put("validUntilText", "当日当班有效");
+        var validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), tenantId,
+                contextProvider.requireCurrent().subjectId(), registration.organizationId(), registration.departmentId());
+        payload.put("validUntilText", CUTOFF_TIME.format(validUntil) + "前");
 
         return new PrintDataSnapshot("PatientRegistration", registration.id(), 1L,
                 registration.residentId(), registration.encounterId(), registration.organizationId(),
                 registration.departmentId(), "门诊挂号凭条-" + registration.registrationNo() + ".pdf", payload);
+    }
+
+    private String amountText(BigDecimal amount) {
+        return amount == null ? "未记录" : amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 }

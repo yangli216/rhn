@@ -4,6 +4,7 @@ import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.openpdf.text.Rectangle;
@@ -292,6 +293,82 @@ class ClinicalPdfRendererTest {
         String text = pdfText(renderer.render("OUTPATIENT_NOTE", Map.of("content", content)));
 
         for (Object recorded : content.values()) assertTrue(text.contains(recorded.toString()));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "\t\n"})
+    void missing_fee_type_is_printed_as_unrecorded(String missing) throws Exception {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("insuranceType", missing);
+        assertPrintedFeeForAllLegacyDocuments(snapshot, "未记录");
+    }
+
+    @Test
+    void absent_fee_type_is_printed_as_unrecorded() throws Exception {
+        assertPrintedFeeForAllLegacyDocuments(Map.of(), "未记录");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"自费", "职工医保", "自费/医保"})
+    void recorded_fee_type_is_preserved(String feeType) throws Exception {
+        assertPrintedFeeForAllLegacyDocuments(Map.of("insuranceType", feeType), feeType);
+    }
+
+    private void assertPrintedFeeForAllLegacyDocuments(Map<String, Object> source, String expectedFee) throws Exception {
+        for (String category : List.of("NOTE", "WESTERN", "HERBAL")) {
+            Map<String, Object> snapshot = new LinkedHashMap<>(source);
+            snapshot.put("categoryCode", category);
+            String documentType = "NOTE".equals(category) ? "OUTPATIENT_NOTE" : "OUTPATIENT_PRESCRIPTION";
+            String text = pdfText(renderer.render(documentType, snapshot)).replaceAll("\\s+", "");
+            assertTrue(text.contains("费别" + expectedFee), category + " fee type should be " + expectedFee);
+            if ("未记录".equals(expectedFee)) assertFalse(text.contains("自费/医保"));
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2000-06-15,2020-06-14T16:00:00Z,20岁",
+            "2000-06-15,2020-06-14T15:59:59Z,19岁",
+            "2020-06-15,2020-07-14T16:00:00Z,1个月",
+            "2020-06-15,2020-06-15T16:00:00Z,1天",
+            "2020-06-15,2020-06-14T16:00:00Z,0天",
+            "2020-06-16,2020-06-14T16:00:00Z,未记录"
+    })
+    void legacy_age_uses_document_date_in_the_printed_time_zone(String birthDate, String documentTime,
+                                                               String expectedAge) throws Exception {
+        assertPrintedAgeForAllLegacyDocuments(birthDate, documentTime, expectedAge);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "not-a-date", "2020-99-99"})
+    void missing_or_invalid_document_date_does_not_use_today(String documentTime) throws Exception {
+        assertPrintedAgeForAllLegacyDocuments("2000-06-15", documentTime, "未记录");
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "not-a-date", "2020-99-99"})
+    void missing_or_invalid_birth_date_does_not_invent_an_age(String birthDate) throws Exception {
+        assertPrintedAgeForAllLegacyDocuments(birthDate, "2020-06-14T16:00:00Z", "未记录");
+    }
+
+    private void assertPrintedAgeForAllLegacyDocuments(String birthDate, String documentTime,
+                                                       String expectedAge) throws Exception {
+        Map<String, Object> resident = new LinkedHashMap<>();
+        resident.put("birthDate", birthDate);
+        for (String category : List.of("NOTE", "WESTERN", "HERBAL")) {
+            boolean note = "NOTE".equals(category);
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("resident", resident);
+            snapshot.put("categoryCode", category);
+            snapshot.put(note ? "signedAt" : "authoredAt", documentTime);
+            snapshot.put(note ? "authoredAt" : "signedAt", "2040-01-01T00:00:00Z");
+            String text = pdfText(renderer.render(note ? "OUTPATIENT_NOTE" : "OUTPATIENT_PRESCRIPTION", snapshot))
+                    .replaceAll("\\s+", "");
+            assertTrue(text.contains("年龄" + expectedAge), category + " age should be " + expectedAge);
+        }
     }
 
     private String prescriptionText(List<Map<String, Object>> medications) throws Exception {

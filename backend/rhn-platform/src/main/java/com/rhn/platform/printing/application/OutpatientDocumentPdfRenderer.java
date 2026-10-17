@@ -287,7 +287,7 @@ final class OutpatientDocumentPdfRenderer {
         return raw.isBlank() || raw.matches("\\d+") ? "____________" : raw;
     }
     private static String gender(String raw) { return switch (raw) { case "1", "男" -> "男"; case "2", "女" -> "女"; case "0" -> "未知的性别"; case "9" -> "未说明的性别"; default -> "未记录"; }; }
-    private static String age(Map<String, Object> resident, String at) {
+    static String age(Map<String, Object> resident, String at) {
         try {
             LocalDate birth = LocalDate.parse(text(resident, "birthDate", ""));
             if (at.length() < 10) return "未记录";

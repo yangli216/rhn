@@ -43,8 +43,8 @@ public class JpaRegistrationBillingDirectory implements RegistrationBillingDirec
         BigDecimal payableAmount = totalFee;
         BigDecimal insuranceDeduction = BigDecimal.ZERO;
         BigDecimal discountAmount = BigDecimal.ZERO;
-        String paymentMethodCode = "CASH";
-        String paymentMethodName = "自费/医保";
+        String paymentMethodCode = null;
+        String paymentMethodName = "未记录";
 
         if (intent.settlementId() != null) {
             Settlement settlement = settlements.findByIdAndTenantId(intent.settlementId(), tenantId).orElse(null);
@@ -67,7 +67,7 @@ public class JpaRegistrationBillingDirectory implements RegistrationBillingDirec
         if (intent.paymentOrderId() != null) {
             PaymentOrder order = paymentOrders.findByIdAndTenantId(intent.paymentOrderId(), tenantId).orElse(null);
             if (order != null) {
-                if (order.paymentMethodCode() != null) {
+                if (order.paymentMethodCode() != null && !order.paymentMethodCode().isBlank()) {
                     paymentMethodCode = order.paymentMethodCode();
                 }
                 if (order.paymentMethodNameSnapshot() != null && !order.paymentMethodNameSnapshot().isBlank()) {
