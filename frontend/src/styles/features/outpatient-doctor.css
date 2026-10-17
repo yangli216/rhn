@@ -161,6 +161,7 @@
 .doctor-workspace-drawer { position: absolute; z-index: var(--z-modal); top: var(--space-1); right: 3.25rem; width: min(29rem, calc(100% - 3.7rem)); max-height: calc(100vh - 14.5rem); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-modal); }
 .doctor-workspace-drawer.is-history { width: min(68rem, calc(100% - 3.7rem)); height: calc(100dvh - 14.5rem); }
 .doctor-workspace-drawer.is-plans { width: min(84rem, calc(100% - 3.7rem)); height: var(--doctor-plan-drawer-height, calc(100dvh - 8rem)); max-height: none; }
+.doctor-workspace-drawer.is-results { width: min(72rem, calc(100% - 3.7rem)); height: calc(100dvh - 14.5rem); }
 .doctor-workspace-drawer.is-allergy { width: min(40rem, calc(100% - 3.7rem)); }
 .doctor-workspace-drawer.is-prints { width: min(46rem, calc(100% - 3.7rem)); }
 .doctor-workspace-drawer__content { min-height: 0; padding: var(--space-2); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-border-strong) 60%, transparent) transparent; }
@@ -1630,14 +1631,6 @@
 .doctor-order-usage { min-width: 0; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .doctor-order-action { min-width: 2.75rem; text-align: right; }
 .doctor-report-list { display: grid; gap: var(--space-3); }
-.doctor-report-list article { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
-.doctor-report-list article header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.doctor-report-list article header strong, .doctor-report-list article header small { display: block; }
-.doctor-report-list article header small { margin-top: var(--space-1); color: var(--color-text-secondary); }
-.doctor-report-list article p { margin: var(--space-3) 0; }
-.doctor-report-list article > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.doctor-report-list article > div span { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
-.doctor-report-list article > div span.is-abnormal { color: var(--color-danger); background: var(--color-danger-soft); font-weight: var(--font-weight-semibold); }
 
 @media (max-width: 100rem) {
   .doctor-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

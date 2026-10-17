@@ -497,7 +497,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                   historyEncounters={encounters.data ?? []} />
               </Suspense>
             )}
-          {activeTool && <aside ref={workspaceDrawerRef} className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'plans' ? ' is-plans' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}${activeTool === 'prints' ? ' is-prints' : ''}`}
+          {activeTool && <aside ref={workspaceDrawerRef} className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'plans' ? ' is-plans' : ''}${activeTool === 'results' ? ' is-results' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}${activeTool === 'prints' ? ' is-prints' : ''}`}
             aria-label={toolLabel(activeTool)}>
             <PanelHead title={toolLabel(activeTool)}
               actions={<Button variant="text" aria-label="关闭扩展工具" disabled={activeTool === 'assistant' && aiAdoptionBusy}
@@ -508,7 +508,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
               {activeTool === 'history' && <HistoryPanel encounters={encounters.data ?? []}
                 currentEncounter={encounter} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
                 onCopy={(draft) => { setHistoryCopy({ ...draft, targetEncounterId: encounter.id, targetResidentId: encounter.residentId }); setActiveTool(null) }} />}
-              {activeTool === 'results' && <OutpatientDiagnosticResults encounter={encounter} api={api} />}
+              {activeTool === 'results' && <OutpatientDiagnosticResults encounter={encounter} resident={resident} api={api}
+                organizationName={clinicalContext.organization.name} departmentName={clinicalContext.department.name} />}
               {activeTool === 'allergy' && <AllergySafetyPanel resident={resident} encounter={encounter}
                 allergies={allergies.data ?? []} loading={allergies.isPending} error={allergies.error}
                 api={api} readOnly={!editing} />}
@@ -525,7 +526,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
               && <ToolButton icon="stethoscope" label="临床模板" active={activeTool === 'plans'}
                 onClick={() => setActiveTool(toggleTool(activeTool, 'plans'))} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
-            <ToolButton icon="clinical" label="检验结果" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
+            <ToolButton icon="clinical" label="检验报告" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
             <ToolButton icon="print" label="就诊文书" active={activeTool === 'prints'} onClick={() => setActiveTool(toggleTool(activeTool, 'prints'))} />
             {editing && <ToolButton icon="tasks" label="皮试管理" active={false}
               onClick={() => navigate(`/skin-tests?encounterId=${encounter.id}`)} />}

@@ -105,6 +105,12 @@ export function TaskReports({ api, task }: { api: RhnApi; task: DiagnosticExecut
   return <section className="diagnostic-report-history" aria-label="报告记录与版本"><h3 className="visually-hidden">报告记录与版本</h3>{reports.isPending || reports.isFetching ? <LoadingState label="正在读取报告…" />
     : reports.isError ? <Alert placement="inline">报告加载失败：{errorMessage(reports.error)}<Button onClick={() => void reports.refetch()}>重新加载报告</Button></Alert>
       : reports.data.length === 0 ? <EmptyState icon="clinical" title="尚未签发报告" copy="保存草稿不完成任务，正式签发后在此查阅和打印。" />
-        : reports.data.map((report) => <DiagnosticReportViewer key={report.id} api={api} report={report}
+        : reports.data.map((report) => <DiagnosticReportViewer key={report.id} api={api} report={report} subject={{
+          patientName: task.residentName,
+          genderText: task.genderText,
+          healthRecordNo: task.healthRecordNo,
+          requestNo: task.requestNo,
+          specimenOrExam: task.specimenNo || task.specimenType || task.examinationTypeText || task.examinationType,
+        }}
           historical={report.id !== task.reportId && Boolean(task.reportId) || reports.data.some((other) => other.replacesReportId === report.id)} />)}</section>
 }

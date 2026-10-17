@@ -50,7 +50,10 @@ export function InpatientDiagnosticResults({ api, episode }: { api: RhnApi; epis
         : values.length === 0 ? <EmptyState icon="clinical" title="暂无检查检验报告"
           copy="住院诊疗医嘱在医技科室完成后，报告会显示在这里。" />
           : <div className="inpatient-diagnostic-results__list">{values.map((report) =>
-            <DiagnosticReportViewer key={report.id} api={api} report={report} historical={values.some((other) => other.replacesReportId === report.id)} />)}</div>}
+            <DiagnosticReportViewer key={report.id} api={api} report={report} historical={values.some((other) => other.replacesReportId === report.id)}
+              subject={{ patientName: episode.residentName, genderText: episode.genderText,
+                healthRecordNo: episode.healthRecordNo, encounterNo: episode.encounterNo,
+                departmentName: episode.departmentName }} />)}</div>}
   </Panel>
 }
 

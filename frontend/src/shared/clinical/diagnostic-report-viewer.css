@@ -1,0 +1,228 @@
+.diagnostic-report-document {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-top: calc(var(--space-1) * 0.75) solid var(--color-brand-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.diagnostic-report-document__header {
+  min-height: 5rem;
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(16rem, 2fr) minmax(8rem, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.diagnostic-report-document__kind {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+}
+
+.diagnostic-report-document__title {
+  min-width: 0;
+  text-align: center;
+}
+
+.diagnostic-report-document__title > span,
+.diagnostic-report-document__title > small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.diagnostic-report-document__title h3 {
+  margin: var(--space-1) 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+}
+
+.diagnostic-report-document__actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.diagnostic-report-document__actions > div {
+  min-width: 0;
+}
+
+.diagnostic-report-document__actions p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.diagnostic-report-document__facts {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.diagnostic-report-document__facts > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.diagnostic-report-document__facts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.diagnostic-report-document__facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--font-weight-medium);
+}
+
+.diagnostic-report-document__summary {
+  min-height: 2.25rem;
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.diagnostic-report-document__summary strong {
+  color: var(--color-danger);
+}
+
+.diagnostic-report-document__table {
+  overflow-x: auto;
+}
+
+.diagnostic-report-document__table .ui-data-table {
+  min-width: 42rem;
+  table-layout: fixed;
+}
+
+.diagnostic-report-document__table th:first-child { width: 30%; }
+.diagnostic-report-document__table th:nth-child(2) { width: 18%; }
+.diagnostic-report-document__table th:nth-child(3) { width: 18%; }
+.diagnostic-report-document__table th:nth-child(4) { width: 20%; }
+.diagnostic-report-document__table th:nth-child(5) { width: 14%; }
+
+.diagnostic-report-document__table td:first-child small {
+  display: block;
+}
+
+.diagnostic-report-document__table td:first-child {
+  font-weight: var(--font-weight-semibold);
+}
+
+.diagnostic-report-document__table td:first-child small {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-regular);
+}
+
+.diagnostic-report-document__table tr.is-abnormal {
+  background: var(--color-warning-soft);
+}
+
+.diagnostic-report-document__table tr.is-critical {
+  background: var(--color-danger-soft);
+}
+
+.diagnostic-report-document__table td.diagnostic-obs-val--abnormal {
+  color: var(--color-warning);
+  font-weight: var(--font-weight-semibold);
+}
+
+.diagnostic-report-document__table td.diagnostic-obs-val--critical {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+}
+
+.diagnostic-report-document__narrative,
+.diagnostic-report-document__comment {
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--layout-section-gap);
+}
+
+.diagnostic-report-document__narrative section + section {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.diagnostic-report-document__narrative h4,
+.diagnostic-report-document__comment h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-body);
+}
+
+.diagnostic-report-document__narrative p,
+.diagnostic-report-document__comment p {
+  min-height: 2rem;
+  margin: 0;
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+}
+
+.diagnostic-report-document__narrative .is-conclusion p {
+  font-weight: var(--font-weight-semibold);
+}
+
+.diagnostic-report-document__correction {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-warning);
+  border-bottom: 1px solid var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.diagnostic-report-document > .diagnostic-image-grid {
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.diagnostic-report-document__footer {
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.diagnostic-report-document__footer strong {
+  color: var(--color-text-primary);
+}
+
+.diagnostic-report-document__disclaimer {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  text-align: center;
+}
+
+.diagnostic-report-document .diagnostic-empty-dash {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}

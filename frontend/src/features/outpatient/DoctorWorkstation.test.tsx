@@ -250,6 +250,7 @@ function createMockApi({
     },
     diagnostics: {
       byEncounter: vi.fn().mockResolvedValue([]),
+      reportsByEncounter: vi.fn().mockResolvedValue([]),
     },
     followUp: {
       byEncounter: vi.fn().mockResolvedValue([]),
@@ -395,6 +396,33 @@ function renderStation(api: RhnApi) {
   </MemoryRouter></QueryClientProvider>)
   return { ...view, client }
 }
+
+it('opens the current encounter diagnostic reports from the doctor workstation', async () => {
+  const user = userEvent.setup()
+  const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+  vi.mocked(api.diagnostics.reportsByEncounter).mockResolvedValue([{
+    id: 'report-1', residentId: mockResident.id, encounterId: mockInProgressEncounter.id, requestId: 'request-1',
+    endpointCode: 'LOCAL', externalReportId: 'external-1', reportVersion: 1, reportType: 'LABORATORY',
+    status: 'PRELIMINARY', reportCode: 'R20261017001', reportName: '血常规检验报告',
+    issuedAt: '2026-10-17T08:00:00Z', receivedAt: '2026-10-17T08:00:00Z',
+    contentDigestAlgorithm: 'SHA-256', contentDigest: 'digest', inboundMessageId: 'message-1',
+    observations: [{ id: 'observation-1', sortOrder: 1, codeSystemUri: 'local', observationCode: 'WBC',
+      observationName: '白细胞计数', status: 'PRELIMINARY', valueType: 'NUMBER', effectiveAt: '2026-10-17T08:00:00Z',
+      valueNumber: 6.8, unitCode: '10^9/L', referenceRangeLow: 3.5, referenceRangeHigh: 9.5, interpretationCode: 'N' }],
+  }])
+  renderStation(api)
+
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  const reportEntry = await screen.findByRole('button', { name: '检验报告' })
+  expect(reportEntry.closest('nav')).toHaveAccessibleName('医生站扩展工具')
+  await user.click(reportEntry)
+
+  const drawer = await screen.findByRole('complementary', { name: '检验检查报告' })
+  expect(within(drawer).getByText('血常规检验报告')).toBeInTheDocument()
+  expect(within(drawer).getByText('张建国')).toBeInTheDocument()
+  expect(within(drawer).getByRole('table', { name: '检验结果明细' })).toBeInTheDocument()
+  expect(api.diagnostics.reportsByEncounter).toHaveBeenCalledWith(mockInProgressEncounter.id)
+})
 
 function receiptTestPlan(): OutpatientPlanTemplate {
   return { id: 'receipt-plan', revision: 1, scopeType: 'PERSONAL', name: '回执核对方案', status: 'ACTIVE',

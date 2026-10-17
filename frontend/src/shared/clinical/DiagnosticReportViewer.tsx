@@ -1,11 +1,24 @@
 import type { DiagnosticObservation, DiagnosticReport } from '../api/diagnosticsApi'
 import { formatTime } from '../format'
 import { diagnosticReportStatusPresentation } from '../presentation'
-import { DataTable, StatusBadge } from '../ui'
+import { DataTable, StatusBadge, tableCellClass } from '../ui'
 import { diagnosticObservationValue } from './diagnosticResults'
 import type { RhnApi } from '../rhnApi'
 import { DiagnosticImagePreview } from './DiagnosticImagePreview'
 import { DiagnosticPrintAction } from './DiagnosticPrintAction'
+import './diagnostic-report-viewer.css'
+
+export interface DiagnosticReportSubject {
+  patientName?: string
+  genderText?: string
+  ageText?: string
+  healthRecordNo?: string
+  encounterNo?: string
+  departmentName?: string
+  organizationName?: string
+  requestNo?: string
+  specimenOrExam?: string
+}
 
 function renderReportObservationFlag(value: DiagnosticObservation) {
   const code = value.interpretationCode?.trim().toUpperCase()
@@ -36,33 +49,64 @@ function renderReportObservationFlag(value: DiagnosticObservation) {
   return <StatusBadge tone="neutral">{code}</StatusBadge>
 }
 
-export function DiagnosticReportViewer({ report, historical = false, api }: { report: DiagnosticReport; historical?: boolean; api?: RhnApi }) {
+export function DiagnosticReportViewer({ report, historical = false, api, subject }: {
+  report: DiagnosticReport
+  historical?: boolean
+  api?: RhnApi
+  subject?: DiagnosticReportSubject
+}) {
   const status = diagnosticReportStatusPresentation(report.status)
-  const isLab = report.reportType === 'LABORATORY'
-  const hasConclusion = Boolean(report.conclusion?.trim())
+  const isLab = report.reportType === 'LABORATORY' || (!report.reportType && report.observations.length > 0)
+  const abnormalCount = report.observations.filter((value) => {
+    const code = value.interpretationCode?.trim().toUpperCase()
+    return ['H', 'HH', 'L', 'LL', 'A', 'HIGH', 'LOW', 'ABNORMAL', 'POS', 'POSITIVE', 'CRITICAL', 'PANIC'].includes(code || '')
+  }).length
+  const criticalCount = report.observations.filter((value) => {
+    const code = value.interpretationCode?.trim().toUpperCase()
+    return ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(code || '')
+  }).length
+  const reportNumber = report.reportCode || report.externalReportId || report.id
+  const subjectFacts: Array<[string, string | undefined]> = [
+    ['姓名', subject?.patientName],
+    ['性别 / 年龄', [subject?.genderText, subject?.ageText].filter(Boolean).join(' / ')],
+    ['门诊 / 住院号', subject?.encounterNo],
+    ['健康档案号', subject?.healthRecordNo],
+    ['申请科室', subject?.departmentName],
+    ['申请单号', subject?.requestNo],
+    [isLab ? '标本' : '检查类型', subject?.specimenOrExam],
+    ['报告编号', reportNumber],
+    ['报告时间', formatTime(report.issuedAt)],
+  ].filter((fact): fact is [string, string] => Boolean(fact[1]))
 
-  return <section aria-label={report.reportName} className="diagnostic-report-summary">
-    <header className="diagnostic-report-summary__header">
-      <div className="diagnostic-report-summary__main">
+  return <section aria-label={report.reportName} className="diagnostic-report-document">
+    <header className="diagnostic-report-document__header">
+      <div className="diagnostic-report-document__kind">{isLab ? '检验报告单' : '检查报告单'}</div>
+      <div className="diagnostic-report-document__title">
+        {subject?.organizationName && <span>{subject.organizationName}</span>}
         <h3>{report.reportName}</h3>
-        <span className="diagnostic-report-summary__version">V{report.reportVersion}</span>
+        <small>{report.reportVersion ? `第 ${report.reportVersion} 版` : '版本未记录'}</small>
+      </div>
+      <div className="diagnostic-report-document__actions">
         <StatusBadge tone={historical ? 'neutral' : status.tone}>{historical ? '历史版本' : status.label}</StatusBadge>
-        {hasConclusion ? (
-          <span className="diagnostic-report-summary__note">
-            <strong>{isLab ? '备注：' : '结论：'}</strong>
-            <span>{report.conclusion}</span>
-          </span>
-        ) : isLab ? null : (
-          <span className="diagnostic-report-summary__note is-empty">
-            <strong>结论：</strong>
-            <span>未记录报告结论</span>
-          </span>
-        )}
+        {api && !historical && ['FINAL', 'CORRECTED'].includes(report.status) && <DiagnosticPrintAction key={report.id}
+          api={api} encounterId={report.encounterId} sourceId={report.id}
+          taskCode={isLab ? 'DIAGNOSTICS.LABORATORY.REPORT.PRINT' : 'DIAGNOSTICS.EXAMINATION.REPORT.PRINT'} />}
       </div>
     </header>
-    {report.findings && <p className="diagnostic-report-summary__findings"><strong>检查所见：</strong>{report.findings}</p>}
-    {report.observations.length > 0 && <DataTable aria-label="报告指标"><thead><tr>
-      <th>指标</th><th>结果</th><th>单位</th><th>参考区间</th><th>标志</th>
+    {subjectFacts.length > 0 && <dl className="diagnostic-report-document__facts">
+      {subjectFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+    </dl>}
+    {isLab && <div className="diagnostic-report-document__summary" aria-label="检验结果摘要">
+      <span>共 {report.observations.length} 项</span>
+      <span>异常 {abnormalCount} 项</span>
+      {criticalCount > 0 && <strong>危急 {criticalCount} 项</strong>}
+    </div>}
+    {isLab && report.observations.length > 0 && <div className="diagnostic-report-document__table"><DataTable aria-label="检验结果明细"><thead><tr>
+      <th>检验项目</th>
+      <th className={tableCellClass('numeric')}>结果</th>
+      <th className={tableCellClass('status')}>提示</th>
+      <th className={tableCellClass('numeric')}>参考范围</th>
+      <th>单位</th>
     </tr></thead><tbody>{report.observations.map((value) => {
       const code = value.interpretationCode?.trim().toUpperCase()
       const isCritical = ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(code || '')
@@ -71,22 +115,30 @@ export function DiagnosticReportViewer({ report, historical = false, api }: { re
       const valueCellClass = isCritical ? 'diagnostic-obs-val--critical' : isAbnormal ? 'diagnostic-obs-val--abnormal' : undefined
 
       return <tr key={value.id} className={rowClass}>
-        <td>{value.observationName}</td>
-        <td className={valueCellClass}>{diagnosticObservationValue(value)}</td>
+        <td>{value.observationName}{value.observationCode && <small>{value.observationCode}</small>}</td>
+        <td className={`${tableCellClass('numeric')} ${valueCellClass ?? ''}`.trim()}>{diagnosticObservationValue(value)}</td>
+        <td className={tableCellClass('status')}>{renderReportObservationFlag(value)}</td>
+        <td className={tableCellClass('numeric')}>{value.referenceRangeLow ?? '—'}～{value.referenceRangeHigh ?? '—'}</td>
         <td>{value.unitCode || '—'}</td>
-        <td>{value.referenceRangeLow ?? '—'}～{value.referenceRangeHigh ?? '—'}</td>
-        <td>{renderReportObservationFlag(value)}</td>
       </tr>
-    })}</tbody></DataTable>}
-    {report.correctionReason && <p className="diagnostic-report-summary__correction">更正原因：{report.correctionReason}</p>}
+    })}</tbody></DataTable></div>}
+    {!isLab && <div className="diagnostic-report-document__narrative">
+      <section><h4>检查所见</h4><p>{report.findings?.trim() || '未记录检查所见'}</p></section>
+      <section className="is-conclusion"><h4>诊断意见</h4><p>{report.conclusion?.trim() || '未记录报告结论'}</p></section>
+    </div>}
+    {isLab && <section className="diagnostic-report-document__comment"><h4>报告备注</h4>
+      <p>{report.conclusion?.trim() || '—'}</p></section>}
+    {report.correctionReason && <p className="diagnostic-report-document__correction"><strong>更正原因：</strong>{report.correctionReason}</p>}
     {api && report.images && report.images.length > 0 && <div className="diagnostic-image-grid">
       {report.images.map((image) => <DiagnosticImagePreview key={image.id} image={image}
         load={() => api.diagnostics.reportImageContent(report.id, image.id)} />)}
     </div>}
-    {api && !historical && ['FINAL', 'CORRECTED'].includes(report.status) && <DiagnosticPrintAction key={report.id}
-      api={api} encounterId={report.encounterId} sourceId={report.id}
-      taskCode={report.reportType === 'LABORATORY' ? 'DIAGNOSTICS.LABORATORY.REPORT.PRINT' : 'DIAGNOSTICS.EXAMINATION.REPORT.PRINT'} />}
-    <footer>录入：{report.authorName || '未记录录入人'} · 签发：{report.signerName || '未记录签发人'}
-      {report.selfVerified === true ? '（单人签发）' : report.selfVerified === false ? '（双签）' : ''} · {formatTime(report.issuedAt)}</footer>
+    <footer className="diagnostic-report-document__footer">
+      <span>录入：<strong>{report.authorName || '未记录录入人'}</strong></span>
+      <span>签发：<strong>{report.signerName || '未记录签发人'}</strong>
+        {report.selfVerified === true ? '（单人签发）' : report.selfVerified === false ? '（双签）' : ''}</span>
+      <span>签发时间：<strong>{formatTime(report.issuedAt) || '未记录'}</strong></span>
+    </footer>
+    <p className="diagnostic-report-document__disclaimer">本报告仅对本次送检标本或检查负责，请结合临床情况解释。</p>
   </section>
 }
