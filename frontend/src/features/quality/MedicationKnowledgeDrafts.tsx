@@ -3,8 +3,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { KnowledgeAssessment, KnowledgeBody, KnowledgeCase, KnowledgeDetail, KnowledgeRoutes, KnowledgeVersion } from '../../shared/api/medicationKnowledgeDraftApi'
-import { Alert, Button, Dialog, FormField, Icon, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, FormField, Pagination, SearchField, Select, StatusBadge, PanelHead } from '../../shared/ui'
+import { WorkspacePane } from '../../shared/ui/templates/PageTemplates'
 import { MedicationKnowledgeExtractionDialog } from './MedicationKnowledgeExtractionDialog'
+import { MedicationRuleConversation } from './MedicationRuleConversation'
 import { MedicationKnowledgeRuleDialog } from './MedicationKnowledgeRuleDialog'
 import { MedicationKnowledgeReplayDialog } from './MedicationKnowledgeReplayDialog'
 import { IntakeSource, type IntakeSeed } from './MedicationRuleIntake'
@@ -36,7 +38,7 @@ function intakeBody(seed?: IntakeSeed): KnowledgeBody {
 }
 export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed, onBusy }: { api: RhnApi; initialIntake?: IntakeSeed; onIntakeConsumed?: () => void; onBusy?: (busy: boolean) => void }) {
   const cache = useQueryClient()
-  const [examplesOpen, setExamplesOpen] = useState(false)
+  const [examplesOpen, setExamplesOpen] = useState(false), [libraryOpen, setLibraryOpen] = useState(false)
   const [intakeId, setIntakeId] = useState<string | undefined>(initialIntake?.run.id)
   const [originView, setOriginView] = useState<RuleIntakeRun | null>()
   const intake = useQuery({ queryKey: ['knowledge-intake-origin', intakeId], queryFn: () => api.medicationKnowledgeDrafts.intake(intakeId!), enabled: !!intakeId, retry: false })
@@ -54,6 +56,7 @@ export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed
   const drafts = useQuery({ queryKey: ['medication-knowledge-drafts', query, page], queryFn: () => api.medicationKnowledgeDrafts.list(query, page) })
   const standards = useQuery({ queryKey: ['knowledge-route-options'], queryFn: () => api.masterData.clinicalMedicationStandards() })
   const history = useQuery({ queryKey: ['medication-knowledge-history', detail?.saved.id, detail?.saved.version, historyPage], queryFn: () => api.medicationKnowledgeDrafts.history(detail!.saved.id, historyPage), enabled: historyOpen && !!detail })
+  const [mode, setMode] = useState<'chat' | 'form'>(initialIntake ? 'form' : 'chat')
   const interaction = body.kind === 'DRUG_INTERACTION'
   const guard = (action: () => void) => { if (dirty) setPending(() => action); else action() }
   const change = (patch: Partial<KnowledgeBody>) => { setBody(value => ({ ...value, ...patch })); setDirty(true); setAssessment(undefined); setCases([]); setNotice('') }
@@ -61,9 +64,10 @@ export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed
   const evidence = (patch: Partial<KnowledgeBody['evidence']>) => { change({ evidence: { ...body.evidence, ...patch } }); if (patch.excerpt !== undefined && patch.excerpt !== body.evidence.excerpt && extractionId) { setExtractionId(undefined); setExtractionDetached(true) } }
   const task = async (label: string, action: () => Promise<void>) => { setBusy(label); setError(''); setNotice(''); try { await action() } catch (e) { setError(errorMessage(e)) } finally { setBusy('') } }
   const adopt = (value: KnowledgeDetail) => {
+    setMode('form')
     setImprovementReady(true)
     setIntakeId(value.intakeId ?? undefined); setExtractionDetached(false); setExtractionId(value.saved.extractionId ?? undefined); setDetail(value); setBody(normalize(value.saved.body)); setAssessment(value.currentAssessment); setCases(value.cases); setReason(''); setDirty(false)
-    setLabels(Object.fromEntries([...value.saved.assessment.groupA, ...value.saved.assessment.groupB].map(t => [t.reference.specificationId, `${t.reference.name} · ${t.reference.preparationSpec}`])))
+    setLabels(Object.fromEntries([...value.saved.assessment.groupA, ...value.saved.assessment.groupB].map(t => [t.category ? t.category.key : t.reference.specificationId, t.category ? `${t.category.label} · 目录分类` : `${t.reference.name} · ${t.reference.preparationSpec}`])))
   }
   const [improvementReady, setImprovementReady] = useState(!initialIntake?.knowledgeId)
   useEffect(() => {
@@ -82,8 +86,13 @@ export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed
     return () => { active = false }
   }, [])
   const open = (id: string) => guard(() => { void task('读取草稿', async () => adopt(await api.medicationKnowledgeDrafts.detail(id))) })
-  const create = (kind: string) => guard(() => { setImprovementReady(true); setIntakeId(undefined); setExtractionDetached(false); setExtractionId(undefined); setDetail(undefined); setBody(emptyKnowledge(kind)); setAssessment(undefined); setCases([]); setLabels({}); setReason(''); setDirty(false); setNotice(''); setError('') })
+  const create = (kind: string) => guard(() => { setMode('form'); setImprovementReady(true); setIntakeId(undefined); setExtractionDetached(false); setExtractionId(undefined); setDetail(undefined); setBody(emptyKnowledge(kind)); setAssessment(undefined); setCases([]); setLabels({}); setReason(''); setDirty(false); setNotice(''); setError('') })
   const save = () => { if (!improvementReady) return; void task('保存版本', async () => { const result = await api.medicationKnowledgeDrafts.save(detail?.saved.id, detail?.saved.version ?? 0, body, reason, extractionId, intakeId); adopt(result); setNotice(`已保存草稿第 ${result.saved.version} 版，尚未审核或发布。`); await cache.invalidateQueries({ queryKey: ['medication-knowledge-drafts'] }) }) }
+  const confirmCard = (next: KnowledgeBody, targetLabels: Record<string, string>) => {
+    setMode('form'); setImprovementReady(true); setDetail(undefined); setBody(next); setLabels(targetLabels); setExtractionId(undefined); setExtractionDetached(false)
+    setAssessment(undefined); setCases([]); setReason(''); setDirty(true); setError('')
+    setNotice('已按确认的规则卡片生成系统规则草稿，请核对药品范围与条件后校验、保存；保存前不生效。')
+  }
   const validate = () => { void task('校验结构', async () => { const result = await api.medicationKnowledgeDrafts.validate(body); setAssessment(result); setCases(result.structureComplete ? await api.medicationKnowledgeDrafts.preview(body) : []) }) }
   const routeEditor = (key: 'groupARoutes' | 'groupBRoutes', title: string) => {
     const route: KnowledgeRoutes = body.conditions[key] ?? { mode: 'UNSPECIFIED', codes: [] }
@@ -94,74 +103,100 @@ export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed
   }
   const groupEditor = (key: 'groupA' | 'groupB', title: string) => <section className="knowledge-group"><div className="knowledge-toolbar"><strong>{title}</strong><Button size="sm" variant="secondary" onClick={() => setPicker(key)}>添加标准药品至{key === 'groupA' ? ' A 组' : ' B 组'}</Button></div>
     {!body[key].length && <small>尚未选择标准药品。范围由证据确定，系统不自动推断药理等效性。</small>}
-    {body[key].map((t, index) => <div className="knowledge-target" key={`${t.level}-${t.specificationId}-${index}`}><div>{labels[t.specificationId] ?? t.specificationId}<small>{t.level === 'ENTRY' ? '标准条目全部规格' : '仅指定规格'} · {t.catalogVersion}</small></div><Button variant="secondary" size="sm" onClick={() => change({ [key]: body[key].filter((_, i) => i !== index) })}>移除</Button></div>)}</section>
-  return <section className="knowledge-workspace" aria-label="规则知识草稿工作台">
+    {body[key].map((t, index) => <div className="knowledge-target" key={`${t.level}-${t.categoryKey ?? t.specificationId}-${index}`}><div>{labels[t.categoryKey ?? t.specificationId] ?? t.categoryKey ?? t.specificationId}<small>{t.level === 'CATEGORY' ? '目录分类下全部药品' : t.level === 'ENTRY' ? '药品全部规格' : '仅指定规格'} · {t.catalogVersion}</small></div><Button variant="secondary" size="sm" onClick={() => change({ [key]: body[key].filter((_, i) => i !== index) })}>移除</Button></div>)}</section>
+  const sourceTypes = option({ LABEL: '药品说明书', GUIDELINE: '指南 / 共识', LITERATURE: '研究文献', INSTITUTION_POLICY: '机构管理规范', REGULATION: '法规 / 规章' })
+    return <section className="knowledge-workspace rule-convert" aria-label="规则转换工作台">
     {intakeId && <details className="knowledge-intake-origin"><summary>关联需求分析 · 非药学证据</summary>{intake.error && <Alert tone="error">{errorMessage(intake.error)}</Alert>}{!intake.isError && intake.data && <IntakeSource run={intake.data} api={api} />}</details>}
-    <div className="knowledge-heading"><div className="qmed-title-with-help"><h3>规则知识草稿</h3><span className="qmed-guide-help" title="标准身份 → 来源与适用条件 → 结构校验 → 合成样例。当前保存为草稿，结构完整不等于证据已核验。"><Icon name="info" /></span></div><div className="knowledge-toolbar"><Button variant="secondary" disabled={!!busy} onClick={() => setExamplesOpen(true)}>重复用药与相互作用验收样例</Button><Button disabled={!!busy} onClick={() => { setExtractionRecord(undefined); setExtractionOpen(true) }}>AI 从原文提取知识</Button><StatusBadge tone="warning">草稿未生效 · 发布在统一目录</StatusBadge></div></div>
+    <header className="rule-convert__head"><div><h3>AI 规则工坊</h3><small>与 AI 对话，把文字性用药规则整理为系统规则；保存草稿后，到“在行规则目录”验证、审核、发布。</small></div>
+      <div className="knowledge-toolbar">{dirty && mode === 'form' && <StatusBadge tone="warning">有未保存修改</StatusBadge>}<StatusBadge tone="neutral">草稿未生效</StatusBadge>
+        {mode === 'form' && <Button variant="secondary" disabled={!!busy} onClick={() => guard(() => setMode('chat'))}>返回规则对话</Button>}{mode === 'chat' && <Button variant="secondary" disabled={!!busy} onClick={() => create('DUPLICATE_THERAPY')}>手工新建</Button>}
+        <Button variant="secondary" disabled={!!busy} onClick={() => setLibraryOpen(true)}>草稿库{drafts.data ? `（${drafts.data.totalElements}）` : ''}</Button>
+        <Button variant="secondary" disabled={!!busy} onClick={() => setExamplesOpen(true)}>验收样例</Button></div></header>
     {error && <Alert tone="error">{error}</Alert>}{notice && <Alert>{notice}</Alert>}
-    <div className="knowledge-columns">
-      <aside className="knowledge-pane knowledge-queue"><h4>知识目录</h4><div className="knowledge-toolbar"><Button size="sm" disabled={!!busy} onClick={() => create('DUPLICATE_THERAPY')}>新建重复用药</Button><Button size="sm" disabled={!!busy} onClick={() => create('DRUG_INTERACTION')}>新建相互作用</Button></div>
-        <form onSubmit={e => { e.preventDefault(); setQuery(search.trim()); setPage(0) }}><SearchField label="检索知识草稿" value={search} onChange={setSearch} placeholder="标题，回车查询" /></form>
-        {drafts.error && <Alert tone="error">{errorMessage(drafts.error)}</Alert>}{drafts.isPending && <p>读取草稿目录…</p>}
-        {drafts.data?.content.map(v => <button type="button" disabled={!!busy} key={v.id} className={`knowledge-queue__item ${detail?.saved.id === v.id ? 'is-selected' : ''}`} onClick={() => open(v.id)}><strong>{v.title}</strong><small>{kindNames[v.kind as keyof typeof kindNames] ?? v.kind} · 第 {v.version} 版</small><span>{v.structureComplete ? '结构完整 · 待证据审核' : '结构待补充'} · 草稿</span></button>)}
-        {drafts.data && !drafts.data.content.length && <p>暂无匹配草稿。可从重复用药或相互作用开始建立知识。</p>}
-        {drafts.data && <Pagination page={page} totalPages={Math.max(1, drafts.data.totalPages)} pageSize={20} total={drafts.data.totalElements} onChange={setPage} label="知识草稿分页" />}
-      </aside>
-      <section className="knowledge-pane knowledge-editor"><div className="knowledge-toolbar"><h4>{detail ? `编辑第 ${detail.saved.version} 版` : '新建知识草稿'}</h4>{detail && <Button size="sm" variant="secondary" onClick={() => { setHistoryPage(0); setHistoryOpen(true) }}>版本与原文历史</Button>}{dirty && <StatusBadge tone="warning">有未保存修改</StatusBadge>}</div>
-        <fieldset disabled={!!busy}><FormField label="知识标题"><input aria-label="知识标题" maxLength={200} value={body.title} onChange={e => change({ title: e.target.value })} /></FormField>
-          <div className="knowledge-form-grid"><FormField label="知识类型"><input aria-label="知识类型" readOnly value={interaction ? '两组药品相互作用' : '重复用药'} /></FormField>
-            <FormField label="匹配方式"><Select aria-label="匹配方式" clearable={false} value={body.matchMode} onChange={matchMode => { if (body.groupA.length) guard(() => change({ matchMode, groupA: [] })); else change({ matchMode }) }} options={interaction ? option({ GROUP_PAIR: 'A／B 两组不同医嘱配对' }) : option({ SAME_STANDARD_ENTRY: '同一标准条目重复开立', EXPLICIT_GROUP: '明确药品组重复治疗' })} /></FormField></div>
-          {!body.matchMode ? <p>先依据原文选择匹配方式。同一标准条目重复可覆盖全部已标准化药品，无需逐个选药。</p> : body.matchMode === 'SAME_STANDARD_ENTRY' ? <p className="knowledge-note">适用于所有具有一致标准身份的药品，无需逐个选药。同一条目的不同规格合并计数；不同条目不自动按活性成分合并。</p> : groupEditor('groupA', interaction ? 'A 组药品' : '重复治疗药品组')}
-          {interaction && groupEditor('groupB', 'B 组药品')}
-          <div className="knowledge-form-grid"><FormField label="检查范围"><Select aria-label="检查范围" clearable={false} value={body.exposureScope} onChange={exposureScope => change({ exposureScope })} options={option({ SAME_PRESCRIPTION: '同一处方', OVERLAPPING_COURSES: '疗程重叠（待支持）', CURRENT_MEDICATIONS: '在用药清单（待支持）' })} /></FormField>
-            {!interaction && <FormField label="触发医嘱条数"><input aria-label="触发医嘱条数" type="number" min={2} max={20} value={body.minimumOrders ?? ''} onChange={e => change({ minimumOrders: e.target.value === '' ? null : Number(e.target.value) })} /></FormField>}</div>
-          <h4>适用条件</h4><div className="knowledge-form-grid"><FormField label="年龄范围"><Select aria-label="年龄范围" clearable={false} value={body.conditions.ageMode} onChange={ageMode => conditions({ ageMode, minimumAgeInclusive: null, maximumAgeExclusive: null })} options={option({ UNSPECIFIED: '待明确', ALL: '不限年龄（须有依据）', RANGE: '限定年龄范围' })} /></FormField>
-            {body.conditions.ageMode === 'RANGE' && <><FormField label="年龄单位"><Select aria-label="年龄单位" clearable={false} value={body.conditions.ageUnit ?? ''} onChange={ageUnit => conditions({ ageUnit })} options={option({ YEAR: '岁', MONTH: '月龄', DAY: '日龄' })} /></FormField>
-              <FormField label="年龄下限（含）"><input aria-label="年龄下限（含）" type="number" min={0} value={body.conditions.minimumAgeInclusive ?? ''} onChange={e => conditions({ minimumAgeInclusive: e.target.value === '' ? null : Number(e.target.value) })} /></FormField>
-              <FormField label="年龄上限（不含）"><input aria-label="年龄上限（不含）" type="number" min={1} value={body.conditions.maximumAgeExclusive ?? ''} onChange={e => conditions({ maximumAgeExclusive: e.target.value === '' ? null : Number(e.target.value) })} /></FormField></>}
-          </div><div className="knowledge-form-grid">{routeEditor('groupARoutes', interaction ? 'A 组给药途径' : '给药途径')}{interaction && routeEditor('groupBRoutes', 'B 组给药途径')}</div>
-          {standards.error && <Alert tone="error">标准途径读取失败：{errorMessage(standards.error)}</Alert>}
-          <FormField label="其他适用条件（待结构化）"><textarea aria-label="其他适用条件" rows={2} maxLength={4000} value={body.conditions.additionalConditions} onChange={e => conditions({ additionalConditions: e.target.value })} placeholder="例如需结合肾功能、给药间隔。填写后保留原文并标记能力缺口，不会被忽略。" /></FormField>
-          <h4>来源证据</h4>{extractionDetached && <p className="knowledge-note">原文已修改，已取消与旧抽取记录的关联；可重新抽取。</p>}{extractionId && <div className="knowledge-toolbar"><StatusBadge tone="info">关联 AI 抽取记录</StatusBadge><Button size="sm" variant="secondary" onClick={() => { setExtractionRecord(extractionId); setExtractionOpen(true) }}>查看抽取原文与建议</Button><Button size="sm" variant="secondary" onClick={() => { setExtractionId(undefined); setDirty(true) }}>取消抽取关联</Button></div>}<div className="knowledge-form-grid">
-            <FormField label="来源类型"><Select aria-label="来源类型" value={body.evidence.sourceType} onChange={sourceType => evidence({ sourceType })} options={option({ LABEL: '药品说明书', GUIDELINE: '指南 / 共识', LITERATURE: '研究文献', INSTITUTION_POLICY: '机构管理规范', REGULATION: '法规 / 规章' })} /></FormField>
+    {mode === 'chat' && <MedicationRuleConversation api={api} routes={standards.data?.routes ?? []} evidence={body.evidence} onEvidence={evidence} onConfirm={confirmCard} />}
+    {mode === 'form' && <div className="rule-convert__panes">
+      <WorkspacePane label="来源信息" className="rule-convert__pane"
+        header={<PanelHead title="① 来源信息" actions={extractionId ? <span className="knowledge-toolbar"><StatusBadge tone="info">关联 AI 抽取记录</StatusBadge><Button size="sm" variant="text" onClick={() => { setExtractionRecord(extractionId); setExtractionOpen(true) }}>查看抽取原文与建议</Button><Button size="sm" variant="text" onClick={() => { setExtractionId(undefined); setDirty(true) }}>取消关联</Button></span> : undefined} />}>
+        <div className="rule-convert__body">
+        {extractionDetached && <p className="knowledge-note">原文已修改，已取消与旧抽取记录的关联；可重新抽取。</p>}
+        <fieldset disabled={!!busy}>
+          <FormField label="规则原文（说明书、指南、制度条文）"><textarea aria-label="来源原文片段" className="knowledge-source-text" rows={12} maxLength={8000} value={body.evidence.excerpt} onChange={e => evidence({ excerpt: e.target.value })} placeholder="粘贴一条完整规则的原文，包含适用条件与例外。" /></FormField>
+          <div className="rule-convert__grid">
+            <FormField label="来源类型"><Select aria-label="来源类型" value={body.evidence.sourceType} onChange={sourceType => evidence({ sourceType })} options={sourceTypes} /></FormField>
             <FormField label="来源标题"><input aria-label="来源标题" maxLength={500} value={body.evidence.title} onChange={e => evidence({ title: e.target.value })} /></FormField>
             <FormField label="发布机构"><input aria-label="发布机构" maxLength={300} value={body.evidence.publisher} onChange={e => evidence({ publisher: e.target.value })} /></FormField>
             <FormField label="版本 / 发布日期"><input aria-label="来源版本" maxLength={200} value={body.evidence.edition} onChange={e => evidence({ edition: e.target.value })} /></FormField>
-          </div><FormField label="原文定位（页码、章节或链接）"><input aria-label="原文定位" maxLength={2000} value={body.evidence.locator} onChange={e => evidence({ locator: e.target.value })} /></FormField>
-          <FormField label="支持规则的原文片段"><textarea aria-label="来源原文片段" rows={4} maxLength={8000} value={body.evidence.excerpt} onChange={e => evidence({ excerpt: e.target.value })} /></FormField>
-          <FormField label="来源文件指纹（SHA-256）"><input aria-label="来源文件指纹" maxLength={64} value={body.evidence.documentHash} onChange={e => evidence({ documentHash: e.target.value })} /></FormField>
-          <label className="knowledge-file">选择来源文件生成指纹<input aria-label="选择来源文件生成指纹" type="file" onChange={e => { const file = e.target.files?.[0]; if (!file) return; void task('计算来源指纹', async () => { if (file.size > 50 * 1024 * 1024) throw new Error('来源文件请控制在 50 MB 以内'); const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()); evidence({ documentHash: Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('') }); setNotice('已生成文件指纹；文件未上传，请在原文定位中填写可追溯的存放位置。') }) }} /></label>
-          <div className="knowledge-form-grid"><FormField label="来源有效期开始（可选）"><input aria-label="来源有效期开始" type="date" value={body.evidence.effectiveFrom ?? ''} onChange={e => evidence({ effectiveFrom: e.target.value || null })} /></FormField><FormField label="来源有效期结束（可选）"><input aria-label="来源有效期结束" type="date" value={body.evidence.effectiveTo ?? ''} onChange={e => evidence({ effectiveTo: e.target.value || null })} /></FormField></div>
-          <h4>临床意义与建议</h4><FormField label="临床意义与处置说明"><textarea aria-label="临床意义与处置说明" rows={3} maxLength={4000} value={body.clinicalMeaning} onChange={e => change({ clinicalMeaning: e.target.value })} /></FormField>
-          <div className="knowledge-form-grid"><FormField label="建议风险等级"><Select aria-label="建议风险等级" value={body.severity} onChange={severity => change({ severity })} options={option({ LOW: '低', MEDIUM: '中', HIGH: '高', CRITICAL: '极高' })} /></FormField><FormField label="建议动作"><Select aria-label="建议动作" value={body.proposedAction} onChange={proposedAction => change({ proposedAction })} options={option({ WARN: '警告提示', REQUIRE_OVERRIDE: '需理由后继续', BLOCK: '阻断' })} /></FormField></div>
+          </div>
+          <FormField label="原文定位（页码、章节或链接）"><input aria-label="原文定位" maxLength={2000} value={body.evidence.locator} onChange={e => evidence({ locator: e.target.value })} /></FormField>
+          <details className="knowledge-more-source"><summary>更多来源信息（文件指纹、有效期）</summary>
+            <FormField label="来源文件指纹（SHA-256）"><input aria-label="来源文件指纹" maxLength={64} value={body.evidence.documentHash} onChange={e => evidence({ documentHash: e.target.value })} /></FormField>
+            <label className="knowledge-file">选择来源文件生成指纹<input aria-label="选择来源文件生成指纹" type="file" onChange={e => { const file = e.target.files?.[0]; if (!file) return; void task('计算来源指纹', async () => { if (file.size > 50 * 1024 * 1024) throw new Error('来源文件请控制在 50 MB 以内'); const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer()); evidence({ documentHash: Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('') }); setNotice('已生成文件指纹；文件未上传，请在原文定位中填写可追溯的存放位置。') }) }} /></label>
+            <div className="rule-convert__grid"><FormField label="来源有效期开始（可选）"><input aria-label="来源有效期开始" type="date" value={body.evidence.effectiveFrom ?? ''} onChange={e => evidence({ effectiveFrom: e.target.value || null })} /></FormField><FormField label="来源有效期结束（可选）"><input aria-label="来源有效期结束" type="date" value={body.evidence.effectiveTo ?? ''} onChange={e => evidence({ effectiveTo: e.target.value || null })} /></FormField></div>
+          </details>
+        </fieldset>
+        </div>
+      </WorkspacePane>
+      <WorkspacePane label="系统规则" className="rule-convert__pane"
+        header={<><PanelHead title="② 系统规则" meta={detail ? `第 ${detail.saved.version} 版` : '新草稿'} actions={<span className="knowledge-toolbar"><Button size="sm" variant={interaction ? 'secondary' : 'primary'} disabled={!!busy} onClick={() => create('DUPLICATE_THERAPY')}>新建重复用药</Button><Button size="sm" variant={interaction ? 'primary' : 'secondary'} disabled={!!busy} onClick={() => create('DRUG_INTERACTION')}>新建相互作用</Button></span>} />
+          <p className="rule-convert__summary">{assessment ? assessment.ruleDescription : '由左侧原文转换得到，也可手工填写；点击“校验并预演”查看系统将如何执行。'}</p></>}
+        footer={<footer className="rule-convert__footer">
           <FormField label="本次保存原因"><input aria-label="本次保存原因" maxLength={2000} value={reason} onChange={e => { setReason(e.target.value); setDirty(true) }} /></FormField>
-        </fieldset><div className="knowledge-actions"><Button variant="secondary" disabled={!!busy} onClick={validate}>校验并预演</Button><Button variant="primary" disabled={!!busy || !improvementReady || !body.title.trim() || !reason.trim()} onClick={save}>{busy || '保存草稿新版本'}</Button></div>
-      </section>
-      <aside className="knowledge-pane knowledge-validation"><h4>结构校验与预演</h4><p>测试由当前结构生成，用于检查表达和匹配边界。它们不是临床证据或独立专家测试集。</p>
-        {detail && <><Button variant="secondary" disabled={!!busy || dirty} onClick={() => setReplayOpen(true)}>历史处方快照回放</Button><Button variant="secondary" disabled={!!busy || dirty} onClick={() => setRuleOpen(true)}>生成规则候选</Button>{dirty && <p>请先保存修改，再对固定知识版本回放。</p>}</>}
-        {!assessment && <p>点击“校验并预演”检查当前内容。编辑后需重新校验。</p>}
-        {assessment && <><StatusBadge tone={assessment.structureComplete ? 'info' : 'warning'}>{assessment.structureComplete ? '结构完整 · 证据仍待核验' : `${assessment.issues.length} 项结构缺口`}</StatusBadge><p>{assessment.ruleDescription}</p>
-          <ul className="knowledge-issues">{assessment.issues.map((issue, i) => <li key={`${issue.field}-${i}`}>{issue.message}</li>)}</ul>
-          {cases.length > 0 && <><h4>合成样例 {cases.filter(c => c.passed).length} / {cases.length} 通过</h4>{cases.map((c, i) => <details key={i} className="knowledge-case"><summary>{c.passed ? '✓' : '×'} {c.name}</summary><p>预期：{outcomeNames[c.expected]}；实际：{outcomeNames[c.actual.outcome]}</p><p>{c.actual.reasons.join('；')}</p><small>年龄：{c.input.age ?? '未知'} {c.input.ageUnit ?? ''}；评价日期：{c.input.date}</small><ul>{c.input.medications.map((r, j) => <li key={j}>{r.orderId} · {r.entryId || '身份缺失'} · {r.specificationId || '规格缺失'} · {r.routeCode || '途径缺失'} · {r.status}</li>)}</ul></details>)}</>}
-        </>}
-        {!dirty && !!detail?.possibleConflicts.length && <><h4>需比对的其他草稿</h4>{detail.possibleConflicts.map(c => <div className="knowledge-related" key={c.id}><strong>{c.title} · 第 {c.version} 版</strong><p>{c.reason}</p><Button size="sm" disabled={!!busy} onClick={() => open(c.id)}>查看草稿</Button></div>)}</>}
-      </aside>
-    </div>
+          <div className="knowledge-toolbar"><Button variant="secondary" disabled={!!busy} onClick={validate}>校验并预演</Button><Button variant="primary" disabled={!!busy || !improvementReady || !body.title.trim() || !reason.trim()} onClick={save}>{busy || '保存草稿新版本'}</Button>
+            {detail && <><Button variant="secondary" disabled={!!busy || dirty} onClick={() => setRuleOpen(true)}>生成规则候选</Button><Button variant="text" disabled={!!busy || dirty} onClick={() => setReplayOpen(true)}>历史处方快照回放</Button><Button variant="text" onClick={() => { setHistoryPage(0); setHistoryOpen(true) }}>版本与原文历史</Button></>}
+            {detail && dirty && <small>请先保存修改，再生成规则候选或回放。</small>}</div>
+        </footer>}>
+        <div className="rule-convert__body">
+        <fieldset disabled={!!busy}>
+          <FormField label="规则名称"><input aria-label="知识标题" maxLength={200} value={body.title} onChange={e => change({ title: e.target.value })} /></FormField>
+          <section className="rule-convert__section"><h5>适用药品</h5>
+            <div className="rule-convert__grid"><FormField label="规则类型"><input aria-label="知识类型" readOnly value={interaction ? '两组药品相互作用' : '重复用药'} /></FormField>
+              <FormField label="匹配方式"><Select aria-label="匹配方式" clearable={false} value={body.matchMode} onChange={matchMode => { if (body.groupA.length) guard(() => change({ matchMode, groupA: [] })); else change({ matchMode }) }} options={interaction ? option({ GROUP_PAIR: 'A／B 两组不同医嘱配对' }) : option({ SAME_STANDARD_ENTRY: '同一标准条目重复开立', EXPLICIT_GROUP: '明确药品组重复治疗' })} /></FormField></div>
+            {!body.matchMode ? <small>先依据原文选择匹配方式。</small> : body.matchMode === 'SAME_STANDARD_ENTRY' ? <small className="knowledge-note">适用于所有具有一致标准身份的药品，无需逐个选药。同一条目的不同规格合并计数。</small> : groupEditor('groupA', interaction ? 'A 组药品' : '重复治疗药品组')}
+            {interaction && groupEditor('groupB', 'B 组药品')}</section>
+          <section className="rule-convert__section"><h5>触发条件</h5>
+            <div className="rule-convert__grid"><FormField label="检查范围"><Select aria-label="检查范围" clearable={false} value={body.exposureScope} onChange={exposureScope => change({ exposureScope })} options={option({ SAME_PRESCRIPTION: '同一处方', OVERLAPPING_COURSES: '疗程重叠（待支持）', CURRENT_MEDICATIONS: '在用药清单（待支持）' })} /></FormField>
+              {!interaction && <FormField label="触发医嘱条数"><input aria-label="触发医嘱条数" type="number" min={2} max={20} value={body.minimumOrders ?? ''} onChange={e => change({ minimumOrders: e.target.value === '' ? null : Number(e.target.value) })} /></FormField>}
+              <FormField label="年龄范围"><Select aria-label="年龄范围" clearable={false} value={body.conditions.ageMode} onChange={ageMode => conditions({ ageMode, minimumAgeInclusive: null, maximumAgeExclusive: null })} options={option({ UNSPECIFIED: '待明确', ALL: '不限年龄（须有依据）', RANGE: '限定年龄范围' })} /></FormField>
+              {body.conditions.ageMode === 'RANGE' && <><FormField label="年龄单位"><Select aria-label="年龄单位" clearable={false} value={body.conditions.ageUnit ?? ''} onChange={ageUnit => conditions({ ageUnit })} options={option({ YEAR: '岁', MONTH: '月龄', DAY: '日龄' })} /></FormField>
+                <FormField label="年龄下限（含）"><input aria-label="年龄下限（含）" type="number" min={0} value={body.conditions.minimumAgeInclusive ?? ''} onChange={e => conditions({ minimumAgeInclusive: e.target.value === '' ? null : Number(e.target.value) })} /></FormField>
+                <FormField label="年龄上限（不含）"><input aria-label="年龄上限（不含）" type="number" min={1} value={body.conditions.maximumAgeExclusive ?? ''} onChange={e => conditions({ maximumAgeExclusive: e.target.value === '' ? null : Number(e.target.value) })} /></FormField></>}
+              {routeEditor('groupARoutes', interaction ? 'A 组给药途径' : '给药途径')}{interaction && routeEditor('groupBRoutes', 'B 组给药途径')}</div>
+            {standards.error && <Alert tone="error">标准途径读取失败：{errorMessage(standards.error)}</Alert>}
+            <FormField label="其他适用条件（待结构化）"><textarea aria-label="其他适用条件" rows={2} maxLength={4000} value={body.conditions.additionalConditions} onChange={e => conditions({ additionalConditions: e.target.value })} placeholder="例如需结合肾功能、给药间隔。填写后保留原文并标记能力缺口，不会被忽略。" /></FormField></section>
+          <section className="rule-convert__section"><h5>命中后的处置建议</h5>
+            <FormField label="临床意义与处置说明"><textarea aria-label="临床意义与处置说明" rows={3} maxLength={4000} value={body.clinicalMeaning} onChange={e => change({ clinicalMeaning: e.target.value })} /></FormField>
+            <div className="rule-convert__grid"><FormField label="建议风险等级"><Select aria-label="建议风险等级" value={body.severity} onChange={severity => change({ severity })} options={option({ LOW: '低', MEDIUM: '中', HIGH: '高', CRITICAL: '极高' })} /></FormField><FormField label="建议动作"><Select aria-label="建议动作" value={body.proposedAction} onChange={proposedAction => change({ proposedAction })} options={option({ WARN: '警告提示', REQUIRE_OVERRIDE: '需理由后继续', BLOCK: '阻断' })} /></FormField></div></section>
+        </fieldset>
+        {assessment && <section className="rule-convert__section rule-convert__check" aria-label="校验结果"><h5>校验与预演</h5><StatusBadge tone={assessment.structureComplete ? 'info' : 'warning'}>{assessment.structureComplete ? '结构完整 · 证据仍待核验' : `${assessment.issues.length} 项结构缺口`}</StatusBadge>
+          {!!assessment.issues.length && <ul className="knowledge-issues">{assessment.issues.map((issue, i) => <li key={`${issue.field}-${i}`}>{issue.message}</li>)}</ul>}
+          {cases.length > 0 && <><strong>合成样例 {cases.filter(c => c.passed).length} / {cases.length} 通过</strong><small>仅用于检查表达和匹配边界，不是临床证据。</small>{cases.map((c, i) => <details key={i} className="knowledge-case"><summary>{c.passed ? '✓' : '×'} {c.name}</summary><p>预期：{outcomeNames[c.expected]}；实际：{outcomeNames[c.actual.outcome]}</p><p>{c.actual.reasons.join('；')}</p><small>年龄：{c.input.age ?? '未知'} {c.input.ageUnit ?? ''}；评价日期：{c.input.date}</small><ul>{c.input.medications.map((r, j) => <li key={j}>{r.orderId} · {r.entryId || '身份缺失'} · {r.specificationId || '规格缺失'} · {r.routeCode || '途径缺失'} · {r.status}</li>)}</ul></details>)}</>}</section>}
+        {!dirty && !!detail?.possibleConflicts.length && <section className="rule-convert__section"><h5>需比对的其他草稿</h5>{detail.possibleConflicts.map(c => <div className="knowledge-related" key={c.id}><strong>{c.title} · 第 {c.version} 版</strong><p>{c.reason}</p><Button size="sm" disabled={!!busy} onClick={() => open(c.id)}>查看草稿</Button></div>)}</section>}
+        </div>
+      </WorkspacePane>
+    </div>}
+    {libraryOpen && <Dialog title="草稿库" size="wide" onClose={() => setLibraryOpen(false)}>
+      <form onSubmit={e => { e.preventDefault(); setQuery(search.trim()); setPage(0) }}><SearchField label="检索知识草稿" value={search} onChange={setSearch} placeholder="标题，回车查询" /></form>
+      {drafts.error && <Alert tone="error">{errorMessage(drafts.error)}</Alert>}{drafts.isPending && <p>读取草稿目录…</p>}
+      <div className="knowledge-library">{drafts.data?.content.map(v => <Button variant="secondary" disabled={!!busy} key={v.id} className={`knowledge-queue__item ${detail?.saved.id === v.id ? 'is-selected' : ''}`} onClick={() => { setLibraryOpen(false); open(v.id) }}><strong>{v.title}</strong><small>{kindNames[v.kind as keyof typeof kindNames] ?? v.kind} · 第 {v.version} 版</small><span>{v.structureComplete ? '结构完整 · 待证据审核' : '结构待补充'} · 草稿</span></Button>)}</div>
+      {drafts.data && !drafts.data.content.length && <p>暂无匹配草稿。粘贴原文并转换，或新建重复用药、相互作用。</p>}
+      {drafts.data && <Pagination page={page} totalPages={Math.max(1, drafts.data.totalPages)} pageSize={20} total={drafts.data.totalElements} onChange={setPage} label="知识草稿分页" />}
+    </Dialog>}
     {extractionOpen && <MedicationKnowledgeExtractionDialog api={api} evidence={body.evidence} runId={extractionRecord} onClose={() => setExtractionOpen(false)} onAdopt={(suggested, id, targetLabels) => guard(() => {
+      setMode('form')
       if (suggested.kind !== body.kind) setIntakeId(undefined)
       const next = normalize(suggested)
       if (intakeId && suggested.kind === body.kind) next.conditions.additionalConditions = `需求分析 ${intakeId} 仍须与本次抽取逐项对照并结构化。\n${next.conditions.additionalConditions}`
       setExtractionDetached(false); setDetail(undefined); setBody(next); setExtractionId(id); setLabels(targetLabels); setAssessment(undefined); setCases([]); setReason(''); setDirty(true); setExtractionOpen(false); setNotice('已填入新的未保存草稿。请补齐来源与标准范围，核对条件后保存。'); setError('')
     })} />}
     {examplesOpen && <MedicationKnowledgeExamplesDialog api={api} onClose={() => setExamplesOpen(false)} onAdopt={example => guard(() => {
-      setImprovementReady(true); setIntakeId(undefined); setExtractionId(undefined); setExtractionDetached(false)
+      setMode('form'); setImprovementReady(true); setIntakeId(undefined); setExtractionId(undefined); setExtractionDetached(false)
       setDetail(undefined); setBody(normalize(example.body)); setLabels(example.medicationLabels); setReason('')
       setAssessment(undefined); setCases([]); setDirty(true); setExamplesOpen(false); setError('')
       setNotice('已载入人工验收样例，尚未保存或生效。请核对来源原文与验收范围设计的区别；AI 提取结果需另外验证。')
     })} />}
     {ruleOpen && detail && <MedicationKnowledgeRuleDialog api={api} knowledge={detail.saved} onClose={() => setRuleOpen(false)} />}
     {replayOpen && detail && <MedicationKnowledgeReplayDialog api={api} knowledge={detail.saved} onClose={() => setReplayOpen(false)} />}
-    {picker && <KnowledgeTargetPicker api={api} onClose={() => setPicker(undefined)} onSelect={(target, label) => { change({ [picker]: [...body[picker], target] }); setLabels(value => ({ ...value, [target.specificationId]: label })) }} />}
+    {picker && <KnowledgeTargetPicker api={api} onClose={() => setPicker(undefined)} onSelect={(target, label) => { change({ [picker]: [...body[picker], target] }); setLabels(value => ({ ...value, [target.categoryKey ?? target.specificationId]: label })) }} />}
     {pending && <Dialog title="处理未保存修改" onClose={() => setPending(undefined)}><p>继续切换会放弃当前未保存的修改。也可以返回编辑并先保存草稿。</p><div className="knowledge-toolbar"><Button variant="secondary" onClick={() => setPending(undefined)}>返回编辑</Button><Button onClick={() => { const action = pending; setPending(undefined); action() }}>放弃修改并继续</Button></div></Dialog>}
     {originView !== undefined && <Dialog title="知识版本的需求分析来源" size="wide" onClose={() => setOriginView(undefined)}>{originView ? <IntakeSource run={originView} api={api} /> : <p>该版本没有关联需求分析，来源原文仍以知识版本中的证据为准。</p>}</Dialog>}
     {historyOpen && detail && <Dialog title="知识版本与原文历史" size="wide" onClose={() => setHistoryOpen(false)}><p>历史记录保留保存时的标准身份、原文和结构校验。历史校验结果不代表当前标准仍然有效。</p>{history.error && <Alert tone="error">{errorMessage(history.error)}</Alert>}{history.isPending && <p>正在读取版本历史…</p>}

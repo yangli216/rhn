@@ -60,29 +60,40 @@ public class MedicationSafetyAdapter implements MedicationSafetyPort {
         var started = Instant.now();
         var hash = PrescriptionSafetyHasher.hash(snapshot, json);
         String targetRuleSet = request.ruleSetVersion() != null ? request.ruleSetVersion() : MedicationSafetyEngine.RULE_SET;
-        MedicationSafetyEngine.Result result;
+        // Production path (no explicit rule set, runtime available): built-in baseline rules and ENFORCED knowledge
+        // releases are formal and gate submission; SHADOW knowledge releases are only recorded for observation.
+        // An explicit rule set version (replay / workbench) stays an observation-only SHADOW evaluation.
+        boolean production=runtime!=null && request.ruleSetVersion()==null;
+        MedicationSafetyEngine.Result observed=null;
         MedicationSafetyEngine.Result formal=null;
+        // Baseline rules that cannot be evaluated stay visible (failure codes, executions) but do not by themselves
+        // block submission; only formal knowledge releases and an unreadable rule catalog report UNAVAILABLE.
+        boolean formalIncomplete=false;
         String formalSet=targetRuleSet;
         try {
             var versions=registry.load(targetRuleSet);
-            if(runtime!=null && request.ruleSetVersion()==null) {
+            if(production) {
                 var plan=runtime.plan(snapshot,versions,started);
                 var baseline=plan.baseline().isEmpty()?new MedicationSafetyEngine.Result(List.of(),List.of(),List.of()):engine.evaluateSelected(snapshot,plan.baseline(),started);
-                var shadow=runtime.evaluate(snapshot,plan.shadow(),started);
-                result=combine(baseline,shadow);
-                if(!plan.enforced().isEmpty()) {
-                    formal=runtime.evaluate(snapshot,plan.enforced(),started);
-                    formalSet="qmed-release-"+com.rhn.shared.id.GlobalIds.next();
+                if(!plan.shadow().isEmpty()) observed=runtime.evaluate(snapshot,plan.shadow(),started);
+                if(plan.enforced().isEmpty()) formal=baseline;
+                else {
+                    var released=runtime.evaluate(snapshot,plan.enforced(),started);
+                    formal=combine(baseline,released);
+                    formalIncomplete=!released.failureCodes().isEmpty();
+                    formalSet="qmed-release-"+GlobalIds.next();
                 }
-            } else result=engine.evaluate(snapshot,versions,started);
+            } else observed=engine.evaluate(snapshot,versions,started);
         } catch(RuntimeException exception) {
             LOG.warn("Medication safety rule catalog unavailable: {}",exception.getClass().getSimpleName());
-            result=new MedicationSafetyEngine.Result(List.of(),List.of(),List.of("RULE_CATALOG_UNAVAILABLE"));
-            // When deployment state cannot be read, never silently bypass potentially active formal rules.
-            if(runtime!=null && request.ruleSetVersion()==null) formal=result;
+            var unavailable=new MedicationSafetyEngine.Result(List.of(),List.of(),List.of("RULE_CATALOG_UNAVAILABLE"));
+            // When rule or deployment state cannot be read, never silently bypass potentially active formal rules.
+            if(production) {formal=unavailable;formalIncomplete=true;} else observed=unavailable;
         }
-        var shadowDecision=persist(context,snapshot,hash,targetRuleSet,"SHADOW",result,started);
-        return formal==null?shadowDecision:persist(context,snapshot,hash,formalSet,"ENFORCED",formal,started);
+        var shadowDecision=observed==null?null:persist(context,snapshot,hash,targetRuleSet,"SHADOW",observed,observed.decision(),started);
+        if(formal==null) return shadowDecision;
+        var formalDecision=DecisionAggregator.aggregate(formal.findings().stream().map(f->f.rule().decision()).toList(),formalIncomplete);
+        return persist(context,snapshot,hash,formalSet,"ENFORCED",formal,formalDecision,started);
     }
     private MedicationSafetyEngine.Result combine(MedicationSafetyEngine.Result a,MedicationSafetyEngine.Result b) {
         return new MedicationSafetyEngine.Result(java.util.stream.Stream.concat(a.findings().stream(),b.findings().stream()).toList(),
@@ -90,10 +101,10 @@ public class MedicationSafetyAdapter implements MedicationSafetyPort {
                 java.util.stream.Stream.concat(a.failureCodes().stream(),b.failureCodes().stream()).distinct().toList());
     }
     private MedicationSafetyDecision persist(ExecutionContext context,com.rhn.outpatient.api.PrescriptionSafetySnapshot snapshot,
-            String hash,String ruleSet,String mode,MedicationSafetyEngine.Result result,Instant started) {
+            String hash,String ruleSet,String mode,MedicationSafetyEngine.Result result,MedicationSafetyDecision.Status status,Instant started) {
         Long id=GlobalIds.next();
         var decision=new MedicationSafetyDecision(id,snapshot.prescriptionId(),snapshot.prescriptionRevision(),hash,
-                ruleSet,MedicationSafetyEngine.VERSION,mode,result.decision(),result.findings().stream().map(f->f.snapshot()).toList(),result.executions(),result.failureCodes());
+                ruleSet,MedicationSafetyEngine.VERSION,mode,status,result.findings().stream().map(f->f.snapshot()).toList(),result.executions(),result.failureCodes());
         try {
             store.append(new MedicationSafetyEvaluation(id,context.subjectId(),snapshot,hash,started,Instant.now(),decision,result.findings()));
             return decision;

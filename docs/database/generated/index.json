@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "98ee81c0f329bb630e9f2283bcee562caa7785fb70547c22321f5c5e468055b7",
+  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -81,7 +81,7 @@
     {
       "code": "SYS",
       "name": "平台与组织",
-      "count": 51
+      "count": 52
     },
     {
       "code": "VIS",
@@ -2482,6 +2482,13 @@
       "logical": "bd.diagnostic_template_version",
       "domain": "BD",
       "comment": "机构诊疗项目报告模板；一行代表一个已发布不可变版本",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_SYS_ORG_CHG",
+      "logical": "sys.organization_change",
+      "domain": "SYS",
+      "comment": "组织与人员变更记录；一行代表一次追加式维护事件",
       "columns": 11
     }
   ]

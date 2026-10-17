@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.UUID;
@@ -14,8 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@TestPropertySource(properties = "rhn.diagnostics.require-settlement-authorization=false")
-class DiagnosticSpecimenWorkflowTest extends RhnIntegrationTestSupport {
+class DiagnosticSpecimenWorkflowTest extends SettlementWaivedDiagnosticsTestSupport {
     @Autowired RefundDiagnosticDirectory refundFacts;
     @Autowired JdbcTemplate jdbc;
 
@@ -79,6 +77,16 @@ class DiagnosticSpecimenWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/diagnostics/specimens/{id}/receipt", first.get("id").asString()).with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":" + first.get("revision").asLong() + "}"))
             .andExpect(status().isConflict());
+    }
+
+    @Test
+    void single_tube_collection_test() throws Exception {
+        var task = readyTask(1); String id = task.get("id").asString();
+        String body = batch(task, UUID.randomUUID().toString());
+        var tubes = postJson("/api/diagnostics/specimens", body);
+        assertEquals(1, tubes.size());
+        action(tubes.get(0), "collection", "");
+        assertEquals("COLLECTED", current(id).get("status").asString());
     }
 
     @Test

@@ -7,39 +7,44 @@ import {
   ORGANIZATION_DICTIONARY, ORGANIZATION_SYSTEM_ENUM, errorMessage, systemEnumItems,
   type AssignmentInput, type AssignmentType, type Employment, type EmploymentInput, type EmploymentType,
   type DictionaryValue,
-  type OrganizationProfileInput, type OrganizationProfileResult, type OrganizationProfileSection,
+  type OrganizationProfileResult,
   type OrganizationType, type OrganizationUnit, type OrganizationUnitInput,
   type PersonnelAssignment, type Position, type PositionType, type Practitioner, type PractitionerDetail, type RhnApi, type SystemEnumDefinition,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
-  FormSelect, Pagination, SearchField, Select, type SelectOption, SplitWorkspace, StatusBadge, Tabs,
+  ActionMenu, Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
+  FormSelect, Pagination, SearchField, Select, type SelectOption, SplitWorkspace, StatusBadge, Tabs, TreePanel,
 } from '../../shared/ui'
 import { WorkspacePane } from '../../shared/ui/templates/PageTemplates'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { departmentOwner, departmentStructure, requireCreatedUnit, requireUpdatedUnit, requireUnitStatus, unitUpdateCommand } from './organizationUnitReceipt'
 import { enumAvailable, requireEnumChoice, requireOrganizationEnums, requireUnitOptions, unitOptionsAvailable } from './organizationFormOptions'
 import { requireOnboardedPractitioner } from './practitionerOnboarding'
-import { profileDictionaryCodes, requireOrganizationDictionary, requireProfileDictionarySelection } from './organizationDictionaryFacts'
+import { requireOrganizationDictionary } from './organizationDictionaryFacts'
 import { requireOrganizationProfile } from './organizationProfileFacts'
-import { assertNewProfileItem, requireCreatedProfileItem } from './organizationProfileReceipt'
+import { requireMaintainedProfile } from './organizationProfileReceipt'
 import { requireCreatedAssignment, requireCreatedEmployment, requireCreatedPosition, requirePractitionerStatus, requireUpdatedPractitioner, type PositionInput } from './personnelMutationReceipt'
 import { onlyPrimary, requireOrganizationUnits, requirePersonnelAssignments, requirePositions, requirePractitionerDetail, requirePractitioners } from './organizationPersonnelFacts'
+
+import { organizationQueryScope } from './organizationQueryScope'
+import { PersonnelLifecycleDialog, type PersonnelMaintenanceAction } from './PersonnelLifecycleDialog'
+import { OrganizationProfileEditor, type ProfileEditorHandle, type ProfileChangeDraft } from './OrganizationProfileEditor'
+import { OrganizationChangeHistory } from './OrganizationChangeHistory'
+import { DepartmentBusinessConfigurationPanel } from './DepartmentBusinessConfigurationPanel'
 
 type WorkspaceTab = 'organization' | 'personnel'
 type UnitDialogState = { mode: 'create'; parentId?: string } | { mode: 'edit'; unit: OrganizationUnit }
 type StatusConfirmation = { kind: 'unit'; value: OrganizationUnit } | { kind: 'practitioner'; value: Practitioner }
 
-const apiScopes = new WeakMap<RhnApi, number>()
-let nextApiScope = 0
-function queryScope(api: RhnApi) {
-  if (!apiScopes.has(api)) apiScopes.set(api, ++nextApiScope)
-  return apiScopes.get(api)!
-}
-
-export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
-  const scope = queryScope(api)
+export function OrganizationPersonnelManagement({ api, canManage = false }: { api: RhnApi; canManage?: boolean }) {
+  const scope = organizationQueryScope(api)
   const queryClient = useQueryClient()
+  const [organizationSection, setOrganizationSection] = useState('staff')
+  const [personnelSection, setPersonnelSection] = useState('relationships')
+  const [maintenanceAction, setMaintenanceAction] = useState<PersonnelMaintenanceAction>()
+  const [maintenanceVersion, setMaintenanceVersion] = useState(0)
+  const [includeHistory, setIncludeHistory] = useState(false)
+  const [includeInactiveUnits, setIncludeInactiveUnits] = useState(false)
   const [tab, setTab] = useState<WorkspaceTab>('organization')
   const [selectedUnitId, setSelectedUnitId] = useState<string>()
   const [selectedPractitionerId, setSelectedPractitionerId] = useState<string>()
@@ -48,17 +53,17 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   const [positionDialog, setPositionDialog] = useState(false)
   const [employmentDialog, setEmploymentDialog] = useState<Practitioner>()
   const [assignmentDialog, setAssignmentDialog] = useState<PractitionerDetail>()
-  const [profileDialog, setProfileDialog] = useState<{ section: OrganizationProfileSection; unit: OrganizationUnit }>()
-  const [query, setQuery] = useState('')
   const [practitionerQuery, setPractitionerQuery] = useState('')
   const [filterUnitId, setFilterUnitId] = useState('')
   const [personnelPage, setPersonnelPage] = useState(0)
   const [personnelPageSize, setPersonnelPageSize] = useState(20)
   const [statusConfirmation, setStatusConfirmation] = useState<StatusConfirmation>()
+  const impactUnit = statusConfirmation?.kind === 'unit' && statusConfirmation.value.sdOrgStatus === 'ACTIVE' ? statusConfirmation.value : undefined
+  const impact = useQuery({ queryKey: ['organization-impact', scope, impactUnit?.id], enabled: Boolean(impactUnit) && canManage, queryFn: async () => z.object({ activeChildren: z.number().int().nonnegative(), continuingAssignments: z.number().int().nonnegative(), continuingEmployments: z.number().int().nonnegative() }).parse(await api.organization.deactivationImpact(impactUnit!)) })
+  const impactBlocked = Boolean(impactUnit && (!impact.isSuccess || impact.isFetching || impact.data.activeChildren > 0 || impact.data.continuingAssignments > 0 || impact.data.continuingEmployments > 0))
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
   const unitSession = useRef(0)
-  const profileSession = useRef(0)
   const currentUnitId = useRef(selectedUnitId)
   currentUnitId.current = selectedUnitId
   const practitionerSession = useRef(0)
@@ -68,12 +73,12 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   const currentApi = useRef(api)
   currentApi.current = api
   useEffect(() => {
-    unitSession.current += 1; profileSession.current += 1; practitionerSession.current += 1; personnelActionSession.current += 1; setPractitionerDialog(undefined)
-    setEmploymentDialog(undefined); setAssignmentDialog(undefined); setUnitDialog(undefined); setProfileDialog(undefined); setStatusConfirmation(undefined)
-    setPositionDialog(false)
+    unitSession.current += 1; practitionerSession.current += 1; personnelActionSession.current += 1; setPractitionerDialog(undefined)
+    setEmploymentDialog(undefined); setAssignmentDialog(undefined); setUnitDialog(undefined); setStatusConfirmation(undefined)
+    setPositionDialog(false); setMaintenanceAction(undefined)
     setSelectedUnitId(undefined); setSelectedPractitionerId(undefined); setFilterUnitId('')
   }, [api])
-  const treeItemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  useEffect(() => { setMaintenanceAction(undefined) }, [selectedPractitionerId])
   const practitionerItemRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const units = useQuery({ queryKey: ['organization-units', scope], queryFn: async () => requireOrganizationUnits(await api.organization.tree()) })
@@ -143,6 +148,8 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       queryClient.invalidateQueries({ queryKey: ['practitioner'] }),
       queryClient.invalidateQueries({ queryKey: ['positions'] }),
       queryClient.invalidateQueries({ queryKey: ['assignments'] }),
+      queryClient.invalidateQueries({ queryKey: ['organization-changes'] }),
+      queryClient.invalidateQueries({ queryKey: ['department-business-configuration'] }),
     ])
   }
 
@@ -186,42 +193,29 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
     onError: unitFailed,
   })
   const updateUnit = useMutation({
-    mutationFn: async ({ unit, ...input }: { unit: OrganizationUnit } & Omit<OrganizationUnitInput, 'code' | 'sdOrgKind'>) => {
+    mutationFn: async ({ unit, profileChanges = [], reason = '组织资料维护', ...input }: UnitMaintenanceInput) => {
       if (!unitsReady || unit.id !== selectedUnitId) throw new Error('组织目录尚未确认，请重新加载')
       requireUnitOptions({ ...input, code: unit.code, sdOrgKind: unit.sdOrgKind }, confirmedEnums, organizationDictionaries)
       const existing = units.data, command = unitUpdateCommand(unit, input, existing)
-      return requireUpdatedUnit(await api.organization.updateUnit(unit.id, command), unit, input, existing)
+      const { expectedRevision, ...details } = command
+      if (!canManage || !organizationProfile.isSuccess || organizationProfile.isFetching) throw new Error('组织资料尚未确认，请重新加载')
+      const result = await api.organization.maintainUnit(unit, { expectedRevision, details, reason,
+        changes: profileChanges.map(row => { const { section, ...values } = row.input
+          return { section, id: row.id, values: { ...values, expectedRevision: command.expectedRevision, reason, sdDetailStatus: row.status,
+            ...(section === 'relation' && unit.sdOrgKind === 'ORG_UNIT' ? { targetDepartmentId: row.input.section === 'relation' ? row.input.targetOrganizationId : undefined } : {}) } }
+        }) })
+      const profile = requireMaintainedProfile(result, unit, organizationProfile.data, profileChanges)
+      const next = 'organization' in profile ? profile.organization : { ...unit, ...profile.department,
+        parentId: profile.department.parentId ?? profile.department.organizationId }
+      return requireUpdatedUnit(next, unit, input, existing)
     },
     onMutate: unitContext,
-    onSuccess: (next, _input, context) => {
+    onSuccess: async (next, _input, context) => {
       if (!currentUnitAction(context)) return
-      setUnitDialog(undefined); return refreshed(`已更新“${next.name}”`)
+      setUnitDialog(undefined); await refreshed(`已更新“${next.name}”的全部资料`); setMaintenanceVersion(value => value + 1)
     },
     onError: unitFailed,
   })
-  const addProfileItem = useMutation({
-    mutationFn: async (input: OrganizationProfileInput) => {
-      if (!profileDialog || !unitsReady || !organizationProfile.isSuccess || organizationProfile.isFetching
-        || selectedTreeUnit?.id !== profileDialog.unit.id) throw new Error('组织治理档案尚未确认，请重新加载')
-      const unit = profileDialog.unit, before = organizationProfile.data, command = { ...input }
-      requireProfileDictionarySelection(command, unit, organizationDictionaries)
-      assertNewProfileItem(before, unit, command)
-      return requireCreatedProfileItem(await api.organization.addProfileItem(unit, command), unit, before, command)
-    },
-    onMutate: () => { setFeedback(''); setOperationError(''); return { api, session: profileSession.current, unitId: profileDialog?.unit.id } },
-    onSuccess: async (_next, _input, context) => {
-      if (context.api !== currentApi.current || context.session !== profileSession.current || context.unitId !== currentUnitId.current) return
-      setProfileDialog(undefined); await refreshed('机构或科室扩展信息已保存')
-    },
-    onError: (error, _input, context) => {
-      if (context?.api !== currentApi.current || context.session !== profileSession.current || context.unitId !== currentUnitId.current) return
-      setOperationError(errorMessage(error))
-      void queryClient.invalidateQueries({ queryKey: ['organization-profile'] })
-    },
-  })
-  const profileSaveError = addProfileItem.context?.api === api && addProfileItem.context.session === profileSession.current
-    && addProfileItem.context.unitId === selectedUnitId && addProfileItem.error
-    ? `治理档案保存结果未确认：${errorMessage(addProfileItem.error)}。请重新核实记录后再操作。` : undefined
   const unitStatus = useMutation({
     mutationFn: async (unit: OrganizationUnit) => {
       if (!unitsReady || selectedUnitId !== unit.id) throw new Error('组织目录尚未确认，请重新加载')
@@ -366,15 +360,26 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   const onboardingReady = unitsReady && positionsReady && practitionersReady
   async function reloadDirectory() { await Promise.all([units.refetch(), practitioners.refetch(), assignments.refetch(), positions.refetch(), systemEnums.refetch()]) }
   async function reloadDetail() { await Promise.all([practitionerDetail.refetch(), units.refetch(), positions.refetch(), systemEnums.refetch()]) }
+  const visibleUnits = useMemo(() => {
+    const all = units.data ?? []
+    if (includeInactiveUnits) return all
+    const byId = new Map(all.map(unit => [unit.id, unit]))
+    const retained = new Set<string>()
+    for (const unit of all.filter(value => value.sdOrgStatus === 'ACTIVE')) {
+      for (let node: OrganizationUnit | undefined = unit; node && !retained.has(node.id); node = node.parentId ? byId.get(node.parentId) : undefined) retained.add(node.id)
+    }
+    return all.filter(unit => retained.has(unit.id))
+  }, [units.data, includeInactiveUnits])
   const currentUnitStaff = useMemo(() => {
     if (!selectedTreeUnit) return []
     return (assignments.data ?? []).filter((a) => {
+      if (!includeHistory && !currentRelationship(a)) return false
       if (selectedTreeUnit.sdOrgKind === 'ORG_UNIT') {
         return a.departmentId === selectedTreeUnit.id
       }
       return a.organizationId === selectedTreeUnit.id
     })
-  }, [selectedTreeUnit, assignments.data])
+  }, [selectedTreeUnit, assignments.data, includeHistory])
 
   // 科室任职记录受控真分页状态
   const [staffPage, setStaffPage] = useState(0)
@@ -425,11 +430,6 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
     }
     return map
   }, [assignments.data])
-  const treeRows = useMemo(() => flattenTree(units.data ?? []).filter((row) => {
-    const search = normalizeSearch(query)
-    const searchable = normalizeSearch(`${row.unit.name}${row.unit.code}${pinyinInitials(row.unit.name)}`)
-    return !search || searchable.includes(search)
-  }), [query, units.data])
   const allFilteredPractitioners = useMemo(() => (practitioners.data ?? []).filter((value) => {
     if (filterUnitId) {
       const matches = (assignments.data ?? []).some(
@@ -459,15 +459,13 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
     setPersonnelPage(Math.floor(index / personnelPageSize))
     revealedPractitionerId.current = selectedPractitionerId
   }, [tab, selectedPractitionerId, allFilteredPractitioners, personnelPageSize])
-  const treeRovingId = treeRows.some(({ unit }) => unit.id === selectedUnitId)
-    ? selectedUnitId : treeRows[0]?.unit.id
   const practitionerRovingId = filteredPractitioners.some((value) => value.id === selectedPractitionerId)
     ? selectedPractitionerId : filteredPractitioners[0]?.id
   const queryError = units.error || practitioners.error || assignments.error || positions.error || systemEnums.error
     || organizationDictionaryQueries.find((item) => item.error)?.error || organizationProfile.error || practitionerDetail.error
-  const busy = createUnit.isPending || updateUnit.isPending || unitStatus.isPending || savePractitioner.isPending
+  const busy = !canManage || createUnit.isPending || updateUnit.isPending || unitStatus.isPending || savePractitioner.isPending
     || practitionerStatus.isPending || savePosition.isPending || saveEmployment.isPending || saveAssignment.isPending
-    || addProfileItem.isPending
+
 
   function handleCollectionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number,
     length: number, select: (nextIndex: number) => void, refs: Array<HTMLButtonElement | null>) {
@@ -496,42 +494,36 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
 
     {tab === 'organization' ? <SplitWorkspace id="organization-panel" role="tabpanel" aria-labelledby="organization-tab"
       className="master-workspace">
-      <WorkspacePane label="组织目录" resetScrollKey={query} header={<>
-        <PanelHead title="组织树" meta={unitsReady ? `${units.data.length} 个节点` : '数量待确认'}
-          actions={<Button size="sm" disabled={!unitsReady || busy} onClick={() => { beginUnitAction(); setUnitDialog({ mode: 'create' }) }}>
-            <Icon name="add" />新建组织</Button>} />
-        <SearchField className="master-catalog__search" label="搜索组织" value={query}
-          onChange={setQuery} placeholder="搜索名称或代码" />
-        </>}>
-        <div className="master-tree" role="tree" aria-label="组织节点">
-          {!unitsReady && <DirectoryState title="组织目录" loading={units.isFetching || units.isPending} onRetry={() => units.refetch()} />}
-          {unitsReady && treeRows.map(({ unit, depth }, index) => <button role="treeitem" aria-level={depth + 1}
-            aria-selected={unit.id === selectedUnitId} tabIndex={unit.id === treeRovingId ? 0 : -1}
-            ref={(node) => { treeItemRefs.current[index] = node }}
-            key={unit.id} className={unit.id === selectedUnitId ? 'is-selected' : ''}
-            style={{ paddingInlineStart: `calc(var(--space-3) + ${depth} * var(--space-5))` }}
-            onKeyDown={(event) => handleCollectionKeyDown(event, index, treeRows.length,
-              (nextIndex) => setSelectedUnitId(treeRows[nextIndex].unit.id), treeItemRefs.current)}
-            onClick={() => setSelectedUnitId(unit.id)}>
-            <span className="master-tree__marker">{unit.sdOrgKind === 'LEGAL_ORGANIZATION' ? '机' : '科'}</span>
-            <span><strong>{unit.name}</strong><code>{unit.code}</code></span>
-            <StatusBadge tone={unit.sdOrgStatus === 'ACTIVE' ? 'success' : 'neutral'}>{unit.sdOrgStatusText}</StatusBadge>
-          </button>)}
-          {unitsReady && !treeRows.length && <EmptyState icon="settings" title={query ? '未找到匹配组织' : '暂无组织节点'}
-            copy={query ? '请调整名称或代码，或清空搜索条件。' : '先创建法定机构，再在其下维护院区或科室。'} />}
-        </div>
+      <WorkspacePane label="组织目录" scroll="content" header={<><Button size="sm" disabled={busy} onClick={() => { beginUnitAction(); setUnitDialog({ mode: 'create' }) }}>新建机构</Button><label className="master-check"><input type="checkbox" checked={includeInactiveUnits} onChange={event => setIncludeInactiveUnits(event.target.checked)} />显示停用节点</label></>}>
+        {!unitsReady ? <DirectoryState title="组织目录" loading={units.isFetching || units.isPending} onRetry={() => units.refetch()} /> :
+          <TreePanel title="组织" rootLabel="全部组织" searchLabel="搜索组织" searchPlaceholder="搜索名称或代码"
+            nodes={visibleUnits.map(unit => ({
+              id: unit.id, parentId: unit.parentId ?? undefined, label: unit.name, secondaryText: unit.code,
+              inactive: unit.sdOrgStatus !== 'ACTIVE', keywords: [unit.code, pinyinInitials(unit.name)],
+            }))} selectedId={selectedUnitId} busy={canManage && busy}
+            onSelect={id => { if (id) setSelectedUnitId(id) }}
+            onAdd={canManage ? parentId => { beginUnitAction(); setUnitDialog({ mode: 'create', parentId }) } : undefined} />}
       </WorkspacePane>
-      <WorkspacePane label="组织详情" className="master-detail" resetScrollKey={selectedUnitId}
+      <WorkspacePane label={organizationSection === 'profile' ? '组织资料维护' : '组织详情'} className="master-detail" resetScrollKey={`${selectedUnitId}:${organizationSection}`}
+        footer={selectedUnit && organizationSection === 'profile' && <div className="ui-query-filters">
+          <Button type="submit" form="organization-maintenance-form" busy={updateUnit.isPending}
+            disabled={busy || !unitsReady || !organizationProfile.isSuccess || organizationProfile.isFetching || !unitOptionsAvailable(selectedUnit.sdOrgKind, confirmedEnums, organizationDictionaries)}>保存全部资料</Button>
+          <Button variant="secondary" disabled={busy} onClick={() => void Promise.allSettled([reloadUnitOptions(), reloadOrganizationProfile(selectedUnit)])}>重新加载资料选项</Button>
+          <Button variant="secondary" disabled={busy} onClick={() => setOrganizationSection('staff')}>返回人员与任职</Button>
+        </div>}
         header={selectedUnit && <>
           <header className="master-detail__head"><div><span className="ui-eyebrow">{selectedUnit.sdOrgKindText}</span>
             <h2>{selectedUnit.name}</h2><code>{selectedUnit.code}</code></div><div>
             <Button variant="secondary" disabled={busy} onClick={() => { beginUnitAction(); setUnitDialog({ mode: 'create', parentId: selectedUnit.id }) }}>
-              新增下级</Button>
-            <Button variant="secondary" disabled={busy} onClick={() => { beginUnitAction(); setUnitDialog({ mode: 'edit', unit: selectedUnit }) }}>编辑</Button>
-            <Button variant={selectedUnit.sdOrgStatus === 'ACTIVE' ? 'danger' : 'secondary'} busy={unitStatus.isPending} disabled={busy}
-              onClick={() => { beginUnitAction(); setStatusConfirmation({ kind: 'unit', value: selectedUnit }) }}>
-              {selectedUnit.sdOrgStatus === 'ACTIVE' ? '停用' : '启用'}</Button>
+              新增科室</Button>
+            <Button variant="secondary" disabled={busy} onClick={() => { beginUnitAction(); setOrganizationSection('profile') }}>编辑资料</Button>
+            <ActionMenu disabled={busy} items={[{ key: 'status', label: selectedUnit.sdOrgStatus === 'ACTIVE' ? '停用组织' : '启用组织',
+              danger: selectedUnit.sdOrgStatus === 'ACTIVE', onSelect: () => { beginUnitAction(); setStatusConfirmation({ kind: 'unit', value: selectedUnit }) } }]} />
           </div></header>
+          <Tabs value={organizationSection} onChange={setOrganizationSection} label="组织详情范围" items={[
+            { value: 'staff', label: '人员与任职' }, { value: 'profile', label: '资料维护' },
+            { value: 'business', label: '运行规则' }, ...(canManage ? [{ value: 'history', label: '变更记录' }] : []),
+          ]} />
         </>}>
 
         {!unitsReady ? <DirectoryState title="组织目录" loading={units.isFetching || units.isPending} onRetry={() => units.refetch()} />
@@ -544,7 +536,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
               </span>
             </div>
             <div className="master-facts-bar__item">
-              <span className="master-facts-bar__label">{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '科室性质' : '机构性质'}</span>
+              <span className="master-facts-bar__label">{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '科室业务属性' : '机构性质'}</span>
               <span className="master-facts-bar__value">
                 {selectedUnit.sdOrgKind === 'ORG_UNIT'
                   ? (selectedUnit.sdDepartmentPropertyText || selectedUnit.sdDepartmentProperty || '未维护科室性质')
@@ -554,7 +546,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             <div className="master-facts-bar__item">
               <span className="master-facts-bar__label">任职记录数</span>
               <span className="master-facts-bar__value master-facts-bar__value--highlight">
-                {assignmentsReady ? `${currentUnitStaff.length} 条` : '待确认'}
+                {assignmentsReady ? `${new Set(currentUnitStaff.map(item => item.practitionerId).filter(Boolean)).size} 人 / ${currentUnitStaff.length} 条任职` : '待确认'}
               </span>
             </div>
             <div className="master-facts-bar__item">
@@ -581,15 +573,22 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             </section>
           )}
 
-          <div className="master-detail-split">
-            {/* 左栏（约 60%）：在任人员工作台 */}
+          {organizationSection === 'staff' && <div className="master-detail-split master-detail-split--single">
+            {/* 科室人员与任职列表 */}
             <section className="master-detail-split__main" aria-label="任职记录工作区">
               <div className="master-section-head">
                 <div>
                   <h3>{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '科室任职记录' : '机构任职记录'}</h3>
-                  <span>{assignmentsReady ? (currentUnitStaff.length > 0 ? `共 ${currentUnitStaff.length} 条任职记录` : '当前组织下暂无任职记录') : '任职记录尚未确认'}</span>
+                  <span>
+                    {assignmentsReady
+                      ? (currentUnitStaff.length > 0
+                        ? `共 ${currentUnitStaff.length} 条任职记录${selectedUnit.sdOrgKind !== 'ORG_UNIT' ? '（含下属科室与兼任明细）' : ''}`
+                        : '当前组织下暂无任职记录')
+                      : '任职记录尚未确认'}
+                  </span>
                 </div>
                 <div>
+                  <label className="master-check"><input type="checkbox" checked={includeHistory} onChange={event => setIncludeHistory(event.target.checked)} />含历史及待生效任职</label>
                   <Button size="sm" variant="secondary" onClick={() => {
                     setFilterUnitId(selectedUnit.id)
                     setTab('personnel')
@@ -605,10 +604,10 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
                         <thead>
                           <tr>
                             <th>人员姓名</th>
+                            <th>任职科室</th>
                             <th>标准岗位</th>
                             <th>任职类型</th>
-                            <th>临床处方资质</th>
-                            <th className="ui-table-cell--numeric">工作量</th>
+                            <th>任职有效期</th>
                             <th className="ui-table-cell--status">状态</th>
                             <th className="ui-table-cell--actions" aria-label="操作">操作</th>
                           </tr>
@@ -618,15 +617,18 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
                             return (
                               <tr key={member.id}>
                                 <td><strong>{member.practitionerName || '—'}</strong><code>{member.practitionerCode || '—'}</code></td>
-                                <td>{member.positionName}</td>
-                                <td>{member.sdAssignmentTypeText}</td>
                                 <td>
-                                  <StatusBadge tone="neutral">未核验</StatusBadge>
+                                  <strong>{member.departmentName || member.organizationName || '—'}</strong>
+                                  {member.departmentName && member.organizationName && member.departmentName !== member.organizationName && (
+                                    <code>{member.organizationName}</code>
+                                  )}
                                 </td>
-                                <td className="ui-table-cell--numeric">{member.workloadPercent != null ? `${member.workloadPercent}%` : '—'}</td>
+                                <td>{member.positionName}</td>
+                                <td>{member.primaryAssignment ? <span className="master-qualification-tag master-qualification-tag--prescription">主任职</span> : <span className="master-qualification-tag">{member.sdAssignmentTypeText || '兼职'}</span>}</td>
+                                <td>{member.validFrom} 至 {member.validTo || '长期'}</td>
                                 <td className="ui-table-cell--status">
                                   <StatusBadge tone={member.sdPersonnelStatus === 'ACTIVE' ? 'success' : 'neutral'}>
-                                    {member.sdPersonnelStatusText}
+                                    {relationshipLabel(member)}
                                   </StatusBadge>
                                 </td>
                                 <td className="ui-table-cell--actions">
@@ -675,26 +677,25 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             </section>
 
             {/* 右栏（约 40%）：HIS 业务属性、医保对照与档案治理 */}
-            <aside className="master-detail-split__side" aria-label="科室业务属性与档案治理">
-              {organizationProfile.isPending || organizationProfile.isFetching ? (
-                <LoadingState label="正在加载组织治理档案…" />
-              ) : organizationProfile.isError ? (
-                <div role="alert"><p>组织治理档案加载失败，尚未核验</p>
-                  <Button size="sm" variant="secondary" onClick={() => void reloadOrganizationProfile(selectedUnit)}>重试组织档案</Button>
-                </div>
-              ) : (
-                <DepartmentGovernancePanel
-                  unit={selectedUnit}
-                  profile={organizationProfile.data!} busy={busy}
-                  onAdd={section => {
-                    if (busy) return
-                    profileSession.current += 1; addProfileItem.reset(); setFeedback(''); setOperationError('')
-                    setProfileDialog({ section, unit: selectedUnit })
-                  }}
-                />
-              )}
-            </aside>
-          </div>
+          </div>}
+          {organizationSection === 'history' && canManage && <OrganizationChangeHistory key={selectedUnit.id} api={api} type={selectedUnit.sdOrgKind === 'ORG_UNIT' ? 'department' : 'organization'} id={selectedUnit.id} />}
+          {(organizationSection === 'business' || organizationSection === 'profile') && <>
+            {(organizationProfile.isFetching || organizationProfile.isPending) && <LoadingState label="正在加载组织资料…" />}
+            {organizationProfile.isError && <Alert>组织资料加载失败<Button size="sm" variant="secondary" onClick={() => void reloadOrganizationProfile(selectedUnit)}>重试组织档案</Button></Alert>}
+            {organizationProfile.data && (organizationSection === 'business' ?
+              <DepartmentBusinessConfigurationPanel api={api} unit={selectedUnit} profile={organizationProfile.data}
+                capabilityTypes={organizationDictionaries.get(ORGANIZATION_DICTIONARY.capabilityType) ?? []} /> :
+              <UnitDialog key={`${selectedUnit.id}:${maintenanceVersion}`} embedded profile={organizationProfile.data}
+                assignments={assignmentsReady ? assignments.data : []} state={{ mode: 'edit', unit: selectedUnit }}
+                units={units.data ?? []} enums={confirmedEnums} dictionaries={organizationDictionaries}
+                properties={organizationDictionaries.get(ORGANIZATION_DICTIONARY.property) ?? []}
+                departmentProperties={organizationDictionaries.get(ORGANIZATION_DICTIONARY.departmentProperty) ?? []}
+                departmentTypes={organizationDictionaries.get(ORGANIZATION_DICTIONARY.departmentType) ?? []}
+                available={unitsReady && organizationProfile.isSuccess && !organizationProfile.isFetching}
+                saveError={unitError(updateUnit)} onRefresh={async () => { await Promise.allSettled([reloadUnitOptions(), reloadOrganizationProfile(selectedUnit)]) }}
+                busy={busy} onClose={() => setOrganizationSection('staff')} onCreate={input => createUnit.mutate(input)}
+                onUpdate={input => updateUnit.mutate(input)} />)}
+          </>}
         </>}
       </WorkspacePane>
     </SplitWorkspace> : practitionersReady && !practitioners.data.length ?
@@ -739,7 +740,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             ? <EmptyState icon="search" title="未找到匹配人员" copy="请尝试姓名、代码或拼音首字母。" /> : null}
         </div>
       </WorkspacePane>
-      <WorkspacePane label="人员详情" className="master-detail" resetScrollKey={selectedPractitionerId}
+      <WorkspacePane label="人员详情" className="master-detail" resetScrollKey={`${selectedPractitionerId}:${personnelSection}`}
         header={selectedPractitioner && <>
           <header className="master-detail__head"><div><span className="ui-eyebrow">从业人员</span>
             <h2>{selectedPractitioner.fullName}</h2><code>{selectedPractitioner.code}</code></div><div>
@@ -749,13 +750,16 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
               disabled={busy} onClick={() => { beginPersonnelAction(); practitionerStatus.reset(); setStatusConfirmation({ kind: 'practitioner', value: selectedPractitioner }) }}>
               {selectedPractitioner.sdPersonnelStatus === 'ACTIVE' ? '停用' : '启用'}</Button>
           </div></header>
+          <Tabs value={personnelSection} onChange={setPersonnelSection} label="人员详情范围" items={[
+            { value: 'relationships', label: '聘用与任职' }, ...(canManage ? [{ value: 'history', label: '变更记录' }] : []),
+          ]} />
         </>}>
 
         {selectedPractitionerId && !detailReady ? (
           <DirectoryState title="人员档案" loading={practitionerDetail.isPending || practitionerDetail.isFetching || practitioners.isFetching} onRetry={async () => { await Promise.all([practitioners.refetch(), reloadDetail()]) }} />
         ) : !selectedPractitioner ? (
           <EmptyState icon="residents" title="选择人员" copy="查看聘用关系、临床资质与业务档案。" />
-        ) : (
+        ) : personnelSection === 'history' && canManage ? <OrganizationChangeHistory key={selectedPractitioner.id} api={api} type="practitioner" id={selectedPractitioner.id} /> : (
           <PractitionerWorkbench
             practitioner={selectedPractitioner}
             employments={practitionerDetail.data?.employments ?? []}
@@ -766,6 +770,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             onAddEmployment={() => { beginPersonnelAction(); saveEmployment.reset(); setEmploymentDialog(selectedPractitioner) }}
             onAddAssignment={() => { beginPersonnelAction(); saveAssignment.reset(); setAssignmentDialog(practitionerDetail.data) }}
             onManagePositions={() => { beginPersonnelAction(); savePosition.reset(); setPositionDialog(true) }}
+            onMaintain={setMaintenanceAction}
           />
         )}
       </WorkspacePane>
@@ -789,7 +794,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       footer={<><Button variant="secondary" disabled={busy} onClick={() => { unitSession.current += 1; personnelActionSession.current += 1; setStatusConfirmation(undefined) }}>取消</Button>
         <Button variant={(statusConfirmation.kind === 'unit' ? statusConfirmation.value.sdOrgStatus
           : statusConfirmation.value.sdPersonnelStatus) === 'ACTIVE' ? 'danger' : 'primary'}
-          disabled={statusConfirmation.kind === 'unit' ? !unitsReady || selectedUnitId !== statusConfirmation.value.id : !detailReady}
+          disabled={!canManage || (statusConfirmation.kind === 'unit' ? !unitsReady || impactBlocked || selectedUnitId !== statusConfirmation.value.id : !detailReady)}
           busy={unitStatus.isPending || practitionerStatus.isPending}
           onClick={() => {
             if (busy) return
@@ -800,6 +805,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       {statusConfirmation.kind === 'unit' && unitError(unitStatus) && <PersonnelWriteError error={unitError(unitStatus)!} busy={busy} onRefresh={() => units.refetch()} />}
       {statusConfirmation.kind === 'practitioner' && actionError(practitionerStatus) && <PersonnelWriteError error={actionError(practitionerStatus)!} busy={busy} onRefresh={reloadDetail} />}
       <p className="master-confirm-note">请确认当前业务状态后再继续。</p>
+      {impactUnit && <div>{impact.isPending || impact.isFetching ? <p>正在核实停用影响…</p> : impact.isError ? <Alert>停用影响未能确认。<Button variant="secondary" onClick={() => void impact.refetch()}>重新核实停用影响</Button></Alert> : <p>启用下级 {impact.data.activeChildren} 个，未结束或待生效任职 {impact.data.continuingAssignments} 条，未结束聘用 {impact.data.continuingEmployments} 条。须先处理关联记录再停用。</p>}</div>}
     </Dialog>}
 
     {unitDialog && <UnitDialog state={unitDialog} units={units.data ?? []} enums={confirmedEnums} dictionaries={organizationDictionaries}
@@ -810,11 +816,6 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       saveError={unitDialog.mode === 'create' ? unitError(createUnit) : unitError(updateUnit)} onRefresh={reloadUnitOptions}
       busy={busy} onClose={() => { if (!busy) { unitSession.current += 1; setUnitDialog(undefined) } }} onCreate={(input) => createUnit.mutate(input)}
       onUpdate={(input) => updateUnit.mutate(input)} />}
-    {profileDialog && <OrganizationProfileDialog section={profileDialog.section} organization={profileDialog.unit}
-      available={unitsReady && organizationProfile.isSuccess && !organizationProfile.isFetching && selectedTreeUnit?.id === profileDialog.unit.id}
-      onRefresh={() => reloadOrganizationProfile(profileDialog.unit)}
-      units={units.data ?? []} dictionaries={organizationDictionaries} onReloadDictionaries={reloadOrganizationDictionaries} busy={busy} saveError={profileSaveError}
-      onClose={() => { if (!busy) { profileSession.current += 1; setProfileDialog(undefined) } }} onSave={(input) => addProfileItem.mutate(input)} />}
     {practitionerDialog !== undefined && <PractitionerDialog value={practitionerDialog ?? undefined}
       primaryAssignment={practitionerDialog
         ? onlyPrimary(practitionerDetail.data?.assignments ?? [], 'assignment')
@@ -830,7 +831,15 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       onRefresh={async () => { await reloadDirectory(); if (practitionerDialog) await practitionerDetail.refetch() }}
       onClose={() => { if (!busy) { practitionerSession.current += 1; setPractitionerDialog(undefined) } }}
       onSave={(input) => savePractitioner.mutate(input)} />}
-    {positionDialog && <PositionDialog enums={confirmedEnums} busy={busy} available={positionsReady && enumAvailable(confirmedEnums, ORGANIZATION_SYSTEM_ENUM.positionType)} saveError={actionError(savePosition)} onRefresh={reloadDirectory}
+    {maintenanceAction && <PersonnelLifecycleDialog key={`${maintenanceAction.kind}:${maintenanceAction.value.id}:${scope}`}
+      api={api} action={maintenanceAction} detail={practitionerDetail.data} units={units.data ?? []} positions={positions.data ?? []}
+      onRefresh={async () => { await reloadDirectory(); if (selectedPractitionerId) await reloadDetail() }}
+      enums={confirmedEnums} available={canManage && Boolean(confirmedEnums) && unitsReady && positionsReady && (maintenanceAction.kind === 'position' || detailReady)}
+      onClose={() => setMaintenanceAction(undefined)} onSaved={() => {
+        if (currentApi.current !== api || currentPersonId.current !== selectedPractitionerId) return
+        setMaintenanceAction(undefined); void refreshed('维护已保存，变更记录已留存')
+      }} />}
+    {positionDialog && <PositionDialog positions={positions.data ?? []} onEdit={value => { setPositionDialog(false); setMaintenanceAction({ kind: 'position', value }) }} enums={confirmedEnums} busy={busy} available={positionsReady && enumAvailable(confirmedEnums, ORGANIZATION_SYSTEM_ENUM.positionType)} saveError={actionError(savePosition)} onRefresh={reloadDirectory}
       onClose={() => { if (!busy) { personnelActionSession.current += 1; setPositionDialog(false) } }}
       onSave={(input) => savePosition.mutate(input)} />}
     {employmentDialog && <EmploymentDialog practitioner={employmentDialog}
@@ -880,16 +889,24 @@ const unitSchema = z.object({
   path: ['validTo'], message: '结束日期不能早于开始日期',
 })
 type UnitForm = z.infer<typeof unitSchema>
+type UnitMaintenanceInput = { unit: OrganizationUnit; profileChanges?: ProfileChangeDraft[]; reason?: string } & Omit<OrganizationUnitInput, 'code' | 'sdOrgKind'>
 
-function UnitDialog({ state, units, enums, dictionaries, properties, departmentProperties, departmentTypes, busy, available, saveError, onRefresh, onClose, onCreate, onUpdate }: {
+function UnitDialog({ state, units, enums, dictionaries, properties, departmentProperties, departmentTypes, busy, available, saveError, onRefresh, onClose, onCreate, onUpdate, embedded, profile: sourceProfile, assignments = [] }: {
+  embedded?: boolean; profile?: OrganizationProfileResult; assignments?: PersonnelAssignment[]
   available: boolean; saveError?: string; onRefresh: () => Promise<unknown>
   dictionaries: Map<string, DictionaryValue[]>
   state: UnitDialogState; units: OrganizationUnit[]; enums?: SystemEnumDefinition[]
   properties: DictionaryValue[]; departmentProperties: DictionaryValue[]; departmentTypes: DictionaryValue[]; busy: boolean
   onClose: () => void; onCreate: (input: OrganizationUnitInput) => void
-  onUpdate: (input: { unit: OrganizationUnit } & Omit<OrganizationUnitInput, 'code' | 'sdOrgKind'>) => void
+  onUpdate: (input: UnitMaintenanceInput) => void
 }) {
-  const editing = state.mode === 'edit' ? state.unit : undefined
+  const [profile] = useState(sourceProfile)
+  const [editing] = useState(() => { if (state.mode !== 'edit') return undefined
+    return profile ? 'organization' in profile ? profile.organization : { ...state.unit, ...profile.department,
+      parentId: profile.department.parentId ?? profile.department.organizationId } : state.unit })
+  const profileEditor = useRef<ProfileEditorHandle>(null)
+  const [changeReason, setChangeReason] = useState('组织资料维护')
+  const formId = embedded ? 'organization-maintenance-form' : 'unit-form'
   const parent = state.mode === 'create' ? units.find((item) => item.id === state.parentId) : undefined
   const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<UnitForm>({
     resolver: zodResolver(unitSchema), defaultValues: {
@@ -913,7 +930,7 @@ function UnitDialog({ state, units, enums, dictionaries, properties, departmentP
   const types = systemEnumItems(enums, ORGANIZATION_SYSTEM_ENUM.type).filter((item) => kind === 'LEGAL_ORGANIZATION'
     ? ['TOWNSHIP_HEALTH_CENTER', 'COMMUNITY_HEALTH_CENTER', 'HOSPITAL', 'CLINIC'].includes(item.code)
     : !['TOWNSHIP_HEALTH_CENTER', 'COMMUNITY_HEALTH_CENTER', 'HOSPITAL', 'CLINIC'].includes(item.code))
-  const availableDepartmentTypes = departmentTypeOptions(departmentTypes, structuralType)
+  const availableDepartmentTypes = departmentTypeOptions(departmentTypes, structuralType, property)
   const departmentTypeSelectOptions = availableDepartmentTypes.map(codeNameOption)
   if (selectedDepartmentType && !departmentTypeSelectOptions.some((item) => item.value === selectedDepartmentType)) {
     departmentTypeSelectOptions.push({ value: selectedDepartmentType,
@@ -934,18 +951,21 @@ function UnitDialog({ state, units, enums, dictionaries, properties, departmentP
     sdDepartmentType: value.sdOrgKind === 'ORG_UNIT'
       ? value.sdDepartmentType : undefined,
     validFrom: value.validFrom, validTo: value.validTo || undefined })
-  const submit = (value: UnitForm) => {
+  const submit = async (value: UnitForm) => {
     if (busy || !available || !optionsReady) return
-    if (editing) onUpdate({ unit: editing, ...common(value) })
+    const profileChanges = embedded ? await profileEditor.current?.changes() : []
+    if (embedded && !profileChanges) return
+    if (editing) onUpdate({ unit: editing, ...common(value), profileChanges, reason: changeReason })
     else onCreate({ code: value.code, sdOrgKind: value.sdOrgKind, ...common(value) })
   }
-  return <Dialog eyebrow="组织主数据" title={editing ? '编辑组织节点' : '新建组织节点'} onClose={onClose} size="xwide"
-    closeOnBackdrop={false} footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button>
-      <Button type="submit" form="unit-form" busy={busy} disabled={!available || !optionsReady}>保存组织</Button></>}>
+  const footer = <><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>{embedded ? '返回人员与任职' : '取消'}</Button>
+    <Button type="submit" form={formId} busy={busy} disabled={!available || !optionsReady || busy}>{embedded ? '保存全部资料' : '保存组织'}</Button></>
+  const body = <>
     {!optionsReady && <DirectoryState title="组织类型与字典选项" loading={false} onRetry={onRefresh} />}
     {saveError && <PersonnelWriteError error={saveError} busy={busy} onRefresh={onRefresh} />}
     {!available && <DirectoryState title="组织目录" loading={false} onRetry={onRefresh} />}
-    <form id="unit-form" className="master-form master-form--unit" inert={busy || !available} onSubmit={handleSubmit(submit)}>
+    <form id={formId} onSubmit={handleSubmit(submit)}>
+      <fieldset disabled={busy || !available} className="organization-profile-editor__basic"><legend>基本资料</legend><div className="master-form master-form--unit">
       <FormField label="组织代码" required hint="字母开头，可使用字母、数字、下划线和短横线" error={errors.code?.message}>
         <input {...register('code')} readOnly={Boolean(editing)} autoFocus /></FormField>
       <FormField label="组织名称" required error={errors.name?.message}><input {...register('name')} /></FormField>
@@ -978,553 +998,68 @@ function UnitDialog({ state, units, enums, dictionaries, properties, departmentP
       <FormField label="结束日期" error={errors.validTo?.message}><input type="date" {...register('validTo')} /></FormField>
       <FormField className="master-form__span-3" label="组织说明" error={errors.description?.message}>
         <textarea rows={3} {...register('description')} /></FormField>
+      </div></fieldset>
+      {embedded && editing && profile && <><OrganizationProfileEditor ref={profileEditor} profile={profile} unit={editing} units={units}
+        assignments={assignments} dictionaries={dictionaries} disabled={busy || !available} />
+        <FormField label="变更原因" required><input required maxLength={1000} disabled={busy || !available} value={changeReason} onChange={event => setChangeReason(event.target.value)} /></FormField></>}
     </form>
-  </Dialog>
+  </>
+  return embedded ? <div className="organization-maintenance-form">{body}</div>
+    : <Dialog eyebrow="组织主数据" title={editing ? '编辑组织节点' : '新建组织节点'} onClose={onClose} size="xwide" closeOnBackdrop={false} footer={footer}>{body}</Dialog>
 }
 
-function DepartmentGovernancePanel({ unit, profile, busy, onAdd }: {
-  unit: OrganizationUnit; profile: OrganizationProfileResult; busy: boolean; onAdd: (section: OrganizationProfileSection) => void
+function PractitionerWorkbench({ practitioner, employments, assignments, positions, relationshipsReady, directoryState,
+  onAddEmployment, onAddAssignment, onManagePositions, onMaintain }: {
+  practitioner: Practitioner; employments: Employment[]; assignments: PersonnelAssignment[]; positions: Position[];
+  relationshipsReady: boolean; directoryState?: React.ReactNode; onAddEmployment: () => void; onAddAssignment: () => void;
+  onManagePositions: () => void; onMaintain: (action: PersonnelMaintenanceAction) => void
 }) {
-  const isDept = unit.sdOrgKind === 'ORG_UNIT'
-  const { contacts, responsibilities, relations, capabilities } = profile
-  const identifiers = 'organization' in profile ? profile.identifiers : []
-  const addresses = 'organization' in profile ? profile.addresses : []
-  const recordStatus = (item: { sdDetailStatusText: string; validFrom: string; validTo?: string | null }) =>
-    <small>记录状态：{item.sdDetailStatusText} · 有效期：{item.validFrom} 至 {item.validTo || '未设终止日期'}</small>
-
-  return <>
-    <article className="master-control-card">
-      <header><h4><Icon name="clinical" />已登记服务能力</h4>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAdd('capability')}>维护服务能力</Button></header>
-      <p>以下为档案登记内容，实际业务权限需在对应业务模块核验。</p>
-      {capabilities.length ? <dl className="master-prop-list">
-        {capabilities.map(item => <div className="master-prop-item" key={item.id}>
-          <dt>{item.sdCapabilityTypeText}</dt>
-          <dd><StatusBadge tone="neutral">{item.sdVerifyStatusText}</StatusBadge>
-            {item.qualificationBasisCode && <code>{item.qualificationBasisCode}</code>}
-            {item.capabilityScope && <p>{item.capabilityScope}</p>}{recordStatus(item)}</dd>
-        </div>)}
-      </dl> : <p className="master-prop-empty">尚未登记服务能力，不能据此判断业务权限</p>}
-    </article>
-
-    <article className="master-control-card">
-      <header><h4><Icon name="organization" />医保对照与法定标识</h4>
-        {!isDept && <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAdd('identifier')}>维护标识</Button>}</header>
-      <dl className="master-prop-list">
-        <div className="master-prop-item"><dt>{isDept ? '医保标准科室代码' : '国家卫生机构分类码'}</dt><dd>未接入标准对照数据</dd></div>
-        <div className="master-prop-item"><dt>医保定点联网状态</dt><dd><StatusBadge tone="neutral">未核验</StatusBadge></dd></div>
-        <div className="master-prop-item"><dt>{isDept ? '科室内部代码' : '机构统一代码'}</dt><dd><code>{unit.code}</code></dd></div>
-        {identifiers.map(item => <div className="master-prop-item" key={item.id}>
-          <dt>{item.sdIdentifierTypeText}{item.primaryIdentifier ? ' · 主要' : ''}</dt>
-          <dd><code>{item.identifierCode}</code><small>标识体系：{item.identifierSystem}</small>
-            <StatusBadge tone="neutral">{item.sdVerifyStatusText}</StatusBadge>{recordStatus(item)}</dd>
-        </div>)}
-      </dl>
-      {!isDept && !identifiers.length && <p className="master-prop-empty">尚未登记机构标识</p>}
-    </article>
-
-    <article className="master-control-card" aria-label="登记联系方式">
-      <header><h4><Icon name="residents" />登记联系方式</h4>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAdd('contact')}>维护联络</Button></header>
-      {contacts.length ? <dl className="master-prop-list">
-        {contacts.map(item => <div className="master-prop-item" key={item.id}>
-          <dt>{item.sdContactTypeText} · {item.sdContactUseText}{item.primaryContact ? ' · 主要' : ''}</dt>
-          <dd><code>{item.contactValue}</code>{recordStatus(item)}</dd>
-        </div>)}
-      </dl> : <p className="master-prop-empty">尚未登记联系方式</p>}
-    </article>
-
-    <article className="master-control-card" aria-label="登记负责人">
-      <header><h4><Icon name="residents" />登记负责人</h4>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAdd('responsibility')}>维护负责人</Button></header>
-      {responsibilities.length ? <dl className="master-prop-list">
-        {responsibilities.map(item => <div className="master-prop-item" key={item.id}>
-          <dt>{item.sdResponsibilityTypeText}{item.primaryResponsibility ? ' · 主要' : ''}</dt>
-          <dd><strong>{item.responsibleName}</strong>{recordStatus(item)}</dd>
-        </div>)}
-      </dl> : <p className="master-prop-empty">尚未登记负责人</p>}
-    </article>
-
-    {!isDept && <article className="master-control-card" aria-label="登记地址">
-      <header><h4><Icon name="organization" />登记地址</h4>
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => onAdd('address')}>维护地址</Button></header>
-      {addresses.length ? <dl className="master-prop-list">
-        {addresses.map(item => <div className="master-prop-item" key={item.id}>
-          <dt>{item.sdAddressTypeText}</dt>
-          <dd><span>{item.streetAddress}</span>
-            <small>国家代码：{item.countryCode}{item.postalCode ? ` · 邮政编码：${item.postalCode}` : ''}</small>{recordStatus(item)}</dd>
-        </div>)}
-      </dl> : <p className="master-prop-empty">尚未登记地址</p>}
-    </article>}
-
-    {relations.length > 0 && <details className="master-legacy-details">
-      <summary>查看关联协作记录 ({relations.length} 条)</summary>
-      <dl className="master-prop-list">{relations.map(item => <div key={item.id} className="master-prop-item">
-        <dt>{item.sdRelationTypeText}{item.primaryRelation ? ' · 主要' : ''}</dt>
-        <dd>{'targetDepartmentName' in item ? item.targetDepartmentName : item.targetOrganizationName}
-          {item.description && <p>{item.description}</p>}{recordStatus(item)}</dd>
-      </div>)}</dl>
-    </details>}
+  const [history, setHistory] = useState(false)
+  const currentAssignments = assignments.filter(item => currentRelationship(item))
+  const primary = onlyPrimary(currentAssignments, 'assignment')
+  const visible = assignments.filter(item => history || currentRelationship(item))
+  return <>{directoryState}
+    <div className="master-facts-bar"><div className="master-facts-bar__item"><span>当前主任职</span><strong>{primary ? `${primary.departmentName} · ${primary.positionName}` : currentAssignments.some(item => item.primaryAssignment) ? '多科室主任职，详见下表' : '未设置当前主任职'}</strong></div>
+      <div className="master-facts-bar__item"><span>姓名 / 工号</span><strong>{practitioner.fullName} · {practitioner.code}</strong></div>
+      <div className="master-facts-bar__item"><span>性别</span><strong>{practitioner.sdPractGenderText ?? '未填写'}</strong></div></div>
+    <section aria-label="科室任职配置"><PanelHead title="科室任职" meta={`${currentAssignments.length} 条当前有效任职`}
+      actions={<><Button size="sm" variant="secondary" disabled={!relationshipsReady} onClick={onManagePositions}>维护岗位</Button>
+        <Button size="sm" disabled={!relationshipsReady || practitioner.sdPersonnelStatus !== 'ACTIVE' || !employments.some(item => currentRelationship(item)) || !positions.some(item => item.sdPersonnelStatus === 'ACTIVE')} onClick={onAddAssignment}>新增任职</Button></>} />
+      <label className="master-check"><input type="checkbox" checked={history} onChange={event => setHistory(event.target.checked)} />含历史及待生效任职</label>
+      <DataTable compact aria-label="人员科室任职"><thead><tr><th>科室 / 岗位</th><th>任职类型</th><th>任职有效期</th><th>状态</th><th className="ui-table-cell--actions">操作</th></tr></thead>
+        <tbody>{visible.map(item => <tr key={item.id}><td><strong>{item.departmentName} · {item.positionName}</strong><code>{item.organizationName} · {item.code}</code></td>
+          <td>{item.primaryAssignment ? '本科室主任职' : item.sdAssignmentTypeText}</td><td>{item.validFrom} 至 {item.validTo || '长期'}</td><td>{relationshipLabel(item)}</td>
+          <td className="ui-table-cell--actions"><ActionMenu label="维护任职" disabled={!relationshipsReady} items={[
+            { key: 'edit', label: '编辑任职', onSelect: () => onMaintain({ kind: 'assignment', value: item }) },
+            { key: 'transfer', label: '调岗', disabled: !currentRelationship(item) || practitioner.sdPersonnelStatus !== 'ACTIVE', onSelect: () => onMaintain({ kind: 'transfer', value: item }) },
+            { key: 'end', label: '结束任职', disabled: item.sdPersonnelStatus !== 'ACTIVE', onSelect: () => onMaintain({ kind: 'end-assignment', value: item }) },
+          ]} /></td></tr>)}</tbody></DataTable>{!visible.length && <p>当前暂无科室任职，可新增任职或查看历史。</p>}
+    </section>
+    <section aria-label="机构劳动与聘用档案"><PanelHead title="机构聘用" actions={<Button size="sm" variant="secondary" disabled={!relationshipsReady || practitioner.sdPersonnelStatus !== 'ACTIVE'} onClick={onAddEmployment}>新增聘用</Button>} />
+      <DataTable compact aria-label="人员聘用关系"><thead><tr><th>机构 / 类型</th><th>聘用期间</th><th>状态</th><th className="ui-table-cell--actions">操作</th></tr></thead>
+        <tbody>{employments.filter(item => history || currentRelationship(item)).map(item => <tr key={item.id}><td>{item.organizationName} · {item.sdEmploymentTypeText}{item.primaryEmployment ? ' · 主要聘用' : ''}</td>
+          <td>{item.hireDate} 至 {item.leaveDate || '长期'}</td><td>{relationshipLabel(item)}</td><td className="ui-table-cell--actions"><ActionMenu label="维护聘用" disabled={!relationshipsReady} items={[
+            { key: 'edit', label: '编辑聘用', onSelect: () => onMaintain({ kind: 'employment', value: item }) },
+            { key: 'end', label: '办理离职', disabled: item.sdPersonnelStatus !== 'ACTIVE', onSelect: () => onMaintain({ kind: 'end-employment', value: item }) },
+          ]} /></td></tr>)}</tbody></DataTable>
+    </section>
+    <p>执业资质、医保和 CA 尚未接入。本页维护人员与任职关系；业务授权和登录账号在角色与权限中独立管理。</p>
   </>
 }
 
-function PractitionerWorkbench({
-  practitioner,
-  employments,
-  assignments,
-  positions,
-  relationshipsReady, directoryState,
-  onAddEmployment,
-  onAddAssignment,
-  onManagePositions,
-}: {
-  practitioner: Practitioner
-  employments: Employment[]
-  assignments: PersonnelAssignment[]
-  positions: Position[]
-  relationshipsReady: boolean
-  directoryState?: React.ReactNode
-  onAddEmployment: () => void
-  onAddAssignment: () => void
-  onManagePositions: () => void
-}) {
-  const primaryAssignment = onlyPrimary(assignments, 'assignment')
-  const primaryEmployment = onlyPrimary(employments, 'employment')
-
-
-  return (
-    <>
-      {directoryState}
-      {/* 顶部高密度业务概览条 */}
-      <div className="master-facts-bar">
-        <div className="master-facts-bar__item">
-          <span className="master-facts-bar__label">主要任职岗位</span>
-          <span className="master-facts-bar__value">
-            {primaryAssignment
-              ? primaryAssignment.positionName
-              : assignments.some(item => item.primaryAssignment) ? '多条主要任职，详见下表' : '未设置主要任职'}
-          </span>
-        </div>
-        <div className="master-facts-bar__item">
-          <span className="master-facts-bar__label">主要任职科室</span>
-          <span className="master-facts-bar__value">
-            {primaryAssignment
-              ? `${primaryAssignment.organizationName} · ${primaryAssignment.departmentName}`
-              : assignments.some(item => item.primaryAssignment) ? '多条主要任职，详见下表' : '未设置主要任职'}
-          </span>
-        </div>
-        <div className="master-facts-bar__item">
-          <span className="master-facts-bar__label">核心处方准入</span>
-          <span className="master-facts-bar__value master-facts-bar__value--highlight">
-            未核验
-          </span>
-        </div>
-        <div className="master-facts-bar__item">
-          <span className="master-facts-bar__label">执业与医保状态</span>
-          <span className="master-facts-bar__value">
-            <StatusBadge tone="neutral">执业与医保未核验</StatusBadge>
-          </span>
-        </div>
-        <div className="master-facts-bar__item">
-          <span className="master-facts-bar__label">CA 电子印章</span>
-          <span className="master-facts-bar__value">
-            <StatusBadge tone="neutral">数字证书未核验</StatusBadge>
-          </span>
-        </div>
-        <div className="master-facts-bar__item">
-          <span className="master-facts-bar__label">人员状态</span>
-          <span className="master-facts-bar__value">
-            <StatusBadge tone={practitioner.sdPersonnelStatus === 'ACTIVE' ? 'success' : 'neutral'}>
-              {practitioner.sdPersonnelStatusText}
-            </StatusBadge>
-            <small className="master-facts-bar__sub">工号 {practitioner.code}</small>
-          </span>
-        </div>
-      </div>
-
-      {/* PC 端宽屏双栏协同工作台 */}
-      <div className="master-detail-split">
-        {/* 左主栏（约 58% ~ 60%）：临床准入、任职与聘用工作台 */}
-        <section className="master-detail-split__main master-detail-split__main--personnel" aria-label="临床资质与任职工作区">
-          {/* 卡片 1：HIS 核心医疗准入与处方权限管控 */}
-          <article className="master-control-card" aria-label="HIS 临床准入与处方权限管控">
-            <header>
-              <h4>
-                <Icon name="clinical" />
-                HIS 临床准入与处方权限管控
-              </h4>
-
-            </header>
-            <div className="master-switch-list">
-              <p>尚无已核验的处方权限记录，不能依据岗位名称判断普通处方、麻精药品或抗菌药物处方权限。</p>
-            </div>
-          </article>
-
-          {/* 卡片 2：科室任职与工作量配置 */}
-          <article className="master-control-card" aria-label="科室任职与排班上下文">
-            <header>
-              <h4>
-                <Icon name="hospital" />
-                科室任职与工作量配置
-              </h4>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <Button size="sm" variant="secondary" disabled={!relationshipsReady} onClick={onManagePositions}>维护岗位</Button>
-                <Button size="sm" disabled={!relationshipsReady || !employments.some(item => item.sdPersonnelStatus === 'ACTIVE') || !positions.some(item => item.sdPersonnelStatus === 'ACTIVE')} onClick={onAddAssignment}>新增任职</Button>
-              </div>
-            </header>
-            <div className="master-table-wrap">
-              <DataTable compact aria-label="人员科室任职">
-                <thead>
-                  <tr>
-                    <th>任职科室 / 岗位</th>
-                    <th>岗位类别</th>
-                    <th>任职类型</th>
-                    <th className="ui-table-cell--numeric">工作量</th>
-                    <th>执业有效期</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assignments.map((value) => (
-                    <tr key={value.id}>
-                      <td>
-                        <strong>{value.departmentName} · {value.positionName}</strong>
-                        <code>{value.organizationName} · {value.code}</code>
-                      </td>
-                      <td>{value.sdPositionTypeText}</td>
-                      <td>
-                        {value.primaryAssignment ? (
-                          <span className="master-qualification-tag master-qualification-tag--prescription">主任职</span>
-                        ) : (
-                          <span className="master-qualification-tag">{value.sdAssignmentTypeText}</span>
-                        )}
-                      </td>
-                      <td className="ui-table-cell--numeric">{value.workloadPercent == null ? '—' : `${value.workloadPercent}%`}</td>
-                      <td>{value.validFrom} 至 {value.validTo || '长期'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </DataTable>
-              {!assignments.length && <p className="master-table-empty">尚未建立科室任职</p>}
-            </div>
-          </article>
-
-          {/* 卡片 3：机构劳动与聘用档案 */}
-          <article className="master-control-card" aria-label="机构劳动与聘用档案">
-            <header>
-              <h4>
-                <Icon name="organization" />
-                机构劳动与聘用档案
-              </h4>
-              <Button size="sm" variant="secondary" disabled={!relationshipsReady || practitioner.sdPersonnelStatus !== 'ACTIVE'} onClick={onAddEmployment}>新增聘用</Button>
-            </header>
-            <div className="master-table-wrap">
-              <DataTable compact aria-label="人员聘用关系">
-                <thead>
-                  <tr>
-                    <th>聘用机构</th>
-                    <th>聘用性质</th>
-                    <th>入职日期</th>
-                    <th>离职日期</th>
-                    <th>聘用类别</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employments.map((value) => (
-                    <tr key={value.id}>
-                      <td>
-                        <strong>{value.organizationName}</strong>
-                        <code>{value.code}</code>
-                      </td>
-                      <td>{value.sdEmploymentTypeText}</td>
-                      <td>{value.hireDate}</td>
-                      <td>{value.leaveDate || '长期'}</td>
-                      <td>
-                        {value.primaryEmployment ? (
-                          <span className="master-qualification-tag master-qualification-tag--prescription">主要聘用</span>
-                        ) : '非主要聘用'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </DataTable>
-              {!employments.length && <p className="master-table-empty">尚未建立聘用关系</p>}
-            </div>
-          </article>
-        </section>
-
-        {/* 右侧栏（约 40% ~ 42%）：法定监管、医保与数字认证档案 */}
-        <aside className="master-detail-split__side master-detail-split__side--personnel" aria-label="法定执业与监管认证档案">
-          <p>以下证书、医保、数字认证与联络资料尚未接入读取，不能据此判断是否已登记。</p>
-          {/* 卡片 1：医师/护士法定执业证书与监管登记 */}
-          <article className="master-control-card">
-            <header>
-              <h4>
-                <Icon name="credential" />
-                法定执业证书与监管登记
-              </h4>
-            </header>
-            <dl className="master-prop-list">
-              <div className="master-prop-item">
-                <dt>医师执业证书编码</dt>
-                <dd><code>尚未接入</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>医师资格证书编码</dt>
-                <dd><code>尚未接入</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>法定执业范围</dt>
-                <dd>尚未接入</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>执业级别</dt>
-                <dd>未核验</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>主要聘用机构</dt>
-                <dd>{primaryEmployment?.organizationName || (employments.some(item => item.primaryEmployment) ? '多条主要聘用，详见聘用记录' : '未设置主要聘用')}</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>电子化注册状态</dt>
-                <dd><StatusBadge tone="neutral">未核验</StatusBadge></dd>
-              </div>
-            </dl>
-          </article>
-
-          {/* 卡片 2：国家医保代码与信用备案 */}
-          <article className="master-control-card">
-            <header>
-              <h4>
-                <Icon name="billing" />
-                国家医保代码与信用备案
-              </h4>
-            </header>
-            <dl className="master-prop-list">
-              <div className="master-prop-item">
-                <dt>全国医保医师代码</dt>
-                <dd><code>尚未接入</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>医保定点联网状态</dt>
-                <dd><StatusBadge tone="neutral">未核验</StatusBadge></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>医保服务结算类别</dt>
-                <dd>尚未接入</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>实名监管准入</dt>
-                <dd>尚未接入</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>医保信用考核分值</dt>
-                <dd>尚未接入</dd>
-              </div>
-            </dl>
-          </article>
-
-          {/* 卡片 3：CA 数字证书与电子签名 */}
-          <article className="master-control-card">
-            <header>
-              <h4>
-                <Icon name="lock" />
-                CA 数字证书与电子签名
-              </h4>
-            </header>
-            <dl className="master-prop-list">
-              <div className="master-prop-item">
-                <dt>CA 认证机构</dt>
-                <dd>尚未接入</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>证书序列号 (Key ID)</dt>
-                <dd><code>尚未接入</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>合规手写签名印章</dt>
-                <dd><StatusBadge tone="neutral">未核验</StatusBadge></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>证书有效期限</dt>
-                <dd>尚未接入</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>病历处方签名互认</dt>
-                <dd><StatusBadge tone="neutral">未核验</StatusBadge></dd>
-              </div>
-            </dl>
-          </article>
-
-          {/* 卡片 4：人口学档案与联络信息 */}
-          <article className="master-control-card">
-            <header>
-              <h4>
-                <Icon name="residents" />
-                人口学档案与联络信息
-              </h4>
-            </header>
-            <dl className="master-prop-list">
-              <div className="master-prop-item">
-                <dt>法定身份证号</dt>
-                <dd><code>尚未接入</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>移动联络电话</dt>
-                <dd><code>尚未接入</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>最高学历与专业</dt>
-                <dd>尚未接入</dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>人员系统代码</dt>
-                <dd><code>{practitioner.code}</code></dd>
-              </div>
-              <div className="master-prop-item">
-                <dt>生理性别</dt>
-                <dd>{practitioner.sdPractGenderText ?? '未填写'}</dd>
-              </div>
-            </dl>
-          </article>
-        </aside>
-      </div>
-    </>
-  )
+function currentRelationship(value: Employment | PersonnelAssignment) {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const from = 'hireDate' in value ? value.hireDate : value.validFrom
+  const to = 'hireDate' in value ? value.leaveDate : value.validTo
+  return value.sdPersonnelStatus === 'ACTIVE' && from <= today && (!to || to >= today)
+}
+function relationshipLabel(value: Employment | PersonnelAssignment) {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const from = 'hireDate' in value ? value.hireDate : value.validFrom
+  const to = 'hireDate' in value ? value.leaveDate : value.validTo
+  return value.sdPersonnelStatus === 'INACTIVE' ? '已作废' : from > today ? '待生效' : to && to < today ? '已结束' : '当前有效'
 }
 
-const profileSchema = z.object({
-  section: z.enum(['identifier', 'contact', 'address', 'relation', 'capability', 'responsibility']),
-  firstCode: z.string().max(300), secondCode: z.string().max(300), thirdCode: z.string().max(128),
-  fourthCode: z.string().max(128), fifthCode: z.string().max(128), sixthCode: z.string().max(128),
-  dictionaryType: z.string(), dictionaryUse: z.string(),
-  targetOrganizationId: z.string(), description: z.string().max(1000), primary: z.boolean(),
-  sortOrder: z.number().int().min(0), validFrom: z.string().min(1, '请选择开始日期'), validTo: z.string(),
-  verifyStatus: z.string(),
-}).superRefine((value, context) => {
-  const required = (field: 'firstCode' | 'secondCode' | 'dictionaryType' | 'dictionaryUse' | 'targetOrganizationId' | 'verifyStatus', message: string) => {
-    if (!value[field].trim()) context.addIssue({ code: 'custom', path: [field], message })
-  }
-  if (value.section === 'identifier') { required('firstCode', '请输入标识体系'); required('secondCode', '请输入标识编码'); required('dictionaryType', '请选择标识类型'); required('verifyStatus', '请选择核验状态') }
-  if (value.section === 'contact') { required('firstCode', '请输入联系方式'); required('dictionaryType', '请选择联系方式类型'); required('dictionaryUse', '请选择用途') }
-  if (value.section === 'address') { required('firstCode', '请输入国家代码'); required('secondCode', '请输入详细地址'); required('dictionaryType', '请选择地址类型') }
-  if (value.section === 'relation') { required('targetOrganizationId', '请选择目标组织'); required('dictionaryType', '请选择关系类型') }
-  if (value.section === 'capability') { required('dictionaryType', '请选择能力类型'); required('verifyStatus', '请选择核验状态') }
-  if (value.section === 'responsibility') { required('firstCode', '请输入负责人姓名'); required('dictionaryType', '请选择负责人类型') }
-  if (value.validTo && value.validTo < value.validFrom) context.addIssue({ code: 'custom', path: ['validTo'], message: '结束日期不能早于开始日期' })
-})
-type ProfileForm = z.infer<typeof profileSchema>
-
-function OrganizationProfileDialog({ section, organization, units, dictionaries, onReloadDictionaries, busy, available, saveError, onRefresh, onClose, onSave }: {
-  onReloadDictionaries: () => Promise<void>
-  section: OrganizationProfileSection; organization: OrganizationUnit; units: OrganizationUnit[]
-  dictionaries: Map<string, DictionaryValue[]>; busy: boolean; available: boolean; saveError?: string; onRefresh: () => Promise<void>; onClose: () => void
-  onSave: (input: OrganizationProfileInput) => void
-}) {
-  const initialDraft = (kind: OrganizationProfileSection): ProfileForm => ({
-    section: kind, firstCode: kind === 'address' ? 'CN' : '',
-    secondCode: '', thirdCode: '', fourthCode: '', fifthCode: '', sixthCode: '', dictionaryType: '', dictionaryUse: '',
-    targetOrganizationId: '', description: '', primary: true, sortOrder: 0, validFrom: today(), validTo: '', verifyStatus: '',
-  })
-  const drafts = useRef<Partial<Record<OrganizationProfileSection, ProfileForm>>>({})
-  const { control, register, handleSubmit, watch, getValues, reset, formState: { errors } } = useForm<ProfileForm>({
-    resolver: zodResolver(profileSchema), defaultValues: initialDraft(section),
-  })
-  const current = watch('section')
-  function changeSection(value: string) {
-    const next = z.enum(['identifier', 'contact', 'address', 'relation', 'capability', 'responsibility']).parse(value)
-    drafts.current[current] = getValues()
-    reset(drafts.current[next] ?? initialDraft(next))
-  }
-  const department = organization.sdOrgKind === 'ORG_UNIT'
-  const options = (code: string) => dictionaries.get(code) ?? []
-  const requiredDictionaries = profileDictionaryCodes(current, department)
-  const dictionaryCode = requiredDictionaries[0]
-  const dictionariesConfirmed = requiredDictionaries.every(code => dictionaries.has(code))
-  const dictionariesAvailable = dictionariesConfirmed && requiredDictionaries.every(code => options(code).length > 0)
-  const sectionOptions = department ? [
-    { value: 'contact', label: '联系方式' }, { value: 'relation', label: '科室关系' },
-    { value: 'capability', label: '服务能力' }, { value: 'responsibility', label: '负责人' },
-  ] : [
-    { value: 'identifier', label: '机构标识' }, { value: 'contact', label: '联系方式' },
-    { value: 'address', label: '地址' }, { value: 'relation', label: '机构关系' },
-    { value: 'capability', label: '服务能力' }, { value: 'responsibility', label: '负责人' },
-  ]
-  const submit = (value: ProfileForm) => { if (!available || !dictionariesAvailable || busy) return; onSave(profileInput(value)) }
-  return <Dialog eyebrow={department ? '科室档案' : '机构档案'} title={`完善 ${organization.name} 的扩展信息`} onClose={onClose} closeOnBackdrop={false}
-    footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button><Button type="submit" form="profile-form" busy={busy} disabled={!available || !dictionariesAvailable}>保存档案</Button></>}>
-    {!available && <DirectoryState title="组织治理档案" loading={false} onRetry={onRefresh} />}
-    {saveError && <PersonnelWriteError error={saveError} busy={busy} onRefresh={onRefresh} />}
-    {!dictionariesAvailable && <div role="alert"><p>{dictionariesConfirmed
-      ? '当前资料类别没有可用字典选项，需维护字典后再保存。'
-      : '当前资料类别的字典尚未确认，不能使用旧选项或默认值保存。'}</p>
-      <Button variant="secondary" disabled={busy} onClick={() => void onReloadDictionaries()}>重新加载档案字典</Button></div>}
-    <form id="profile-form" inert={busy || !available} className="master-form" onSubmit={handleSubmit(submit)}>
-      <FormField label="资料类别"><Select value={current} onChange={changeSection} showValue clearable={false}
-        options={sectionOptions} /></FormField>
-      <FormField label={current === 'identifier' ? '标识类型' : current === 'contact' ? '联系方式类型'
-        : current === 'address' ? '地址类型' : current === 'relation' ? '关系类型'
-        : current === 'capability' ? '能力类型' : '负责人类型'} error={errors.dictionaryType?.message}>
-        <FormSelect control={control} name="dictionaryType" placeholder="请选择" showValue
-          options={options(dictionaryCode).map(codeNameOption)} />
-      </FormField>
-      {current === 'identifier' && <><div className="ui-form-row"><FormField label="标识体系 URI" error={errors.firstCode?.message}><input {...register('firstCode')} /></FormField>
-        <FormField label="标识编码" error={errors.secondCode?.message}><input {...register('secondCode')} /></FormField></div></>}
-      {current === 'contact' && <><div className="ui-form-row"><FormField label="联系方式" error={errors.firstCode?.message}><input {...register('firstCode')} /></FormField>
-        <FormField label="使用场景" error={errors.dictionaryUse?.message}><FormSelect control={control}
-          name="dictionaryUse" placeholder="请选择" showValue
-          options={options(ORGANIZATION_DICTIONARY.contactUse).map(codeNameOption)} /></FormField></div>
-        <FormField label="展示顺序"><input type="number" min="0" {...register('sortOrder', { valueAsNumber: true })} /></FormField></>}
-      {current === 'address' && <><div className="ui-form-row"><FormField label="国家代码" error={errors.firstCode?.message}><input {...register('firstCode')} /></FormField>
-        <FormField label="省级行政区代码"><input {...register('thirdCode')} placeholder="例如 330000" /></FormField></div>
-        <div className="ui-form-row"><FormField label="市级行政区代码"><input {...register('fourthCode')} placeholder="例如 330100" /></FormField>
-          <FormField label="区县行政区代码"><input {...register('fifthCode')} placeholder="例如 330110" /></FormField></div>
-        <FormField label="详细地址" error={errors.secondCode?.message}><input {...register('secondCode')} /></FormField>
-        <FormField label="邮政编码"><input {...register('sixthCode')} /></FormField></>}
-      {current === 'relation' && <><FormField label={department ? '目标科室' : '目标机构'} error={errors.targetOrganizationId?.message}><FormSelect
-        control={control} name="targetOrganizationId" placeholder="请选择" showValue
-        options={units.filter((item) => item.id !== organization.id && item.sdOrgKind === organization.sdOrgKind)
-          .map((item) => ({ value: item.id, label: item.name, secondaryText: item.code }))} /></FormField>
-        <FormField label="关系说明"><textarea {...register('description')} /></FormField></>}
-      {current === 'capability' && <><div className="ui-form-row"><FormField label="资质依据编码"><input {...register('firstCode')} /></FormField>
-        <FormField label="核验状态" error={errors.verifyStatus?.message}><FormSelect control={control}
-          name="verifyStatus" showValue clearable={false}
-          options={options(ORGANIZATION_DICTIONARY.verifyStatus).map(codeNameOption)} /></FormField></div>
-        <FormField label="能力范围说明"><textarea {...register('description')} /></FormField></>}
-      {current === 'responsibility' && <FormField label="外部负责人姓名" error={errors.firstCode?.message}><input {...register('firstCode')} /></FormField>}
-      {current === 'identifier' && <FormField label="核验状态" error={errors.verifyStatus?.message}><FormSelect
-        control={control} name="verifyStatus" showValue clearable={false}
-        options={options(ORGANIZATION_DICTIONARY.verifyStatus).map(codeNameOption)} /></FormField>}
-      <div className="ui-form-row"><FormField label="生效日期"><input type="date" {...register('validFrom')} /></FormField>
-        <FormField label="结束日期" error={errors.validTo?.message}><input type="date" {...register('validTo')} /></FormField></div>
-      {current !== 'address' && current !== 'capability' && <label className="master-check"><input type="checkbox" {...register('primary')} />设为主要记录</label>}
-    </form>
-  </Dialog>
-}
-
-function profileInput(value: ProfileForm): OrganizationProfileInput {
-  const validTo = value.validTo || undefined
-  switch (value.section) {
-    case 'identifier': return { section: value.section, identifierSystem: value.firstCode, identifierCode: value.secondCode,
-      sdIdentifierType: value.dictionaryType, primaryIdentifier: value.primary, validFrom: value.validFrom, validTo,
-      sdVerifyStatus: value.verifyStatus }
-    case 'contact': return { section: value.section, sdContactType: value.dictionaryType, contactValue: value.firstCode,
-      sdContactUse: value.dictionaryUse, primaryContact: value.primary, sortOrder: value.sortOrder,
-      validFrom: value.validFrom, validTo }
-    case 'address': return { section: value.section, sdAddressType: value.dictionaryType, countryCode: value.firstCode,
-      provinceCode: value.thirdCode || undefined, cityCode: value.fourthCode || undefined,
-      districtCode: value.fifthCode || undefined, streetAddress: value.secondCode, postalCode: value.sixthCode || undefined,
-      validFrom: value.validFrom, validTo }
-    case 'relation': return { section: value.section, targetOrganizationId: value.targetOrganizationId,
-      sdRelationType: value.dictionaryType, primaryRelation: value.primary, description: value.description || undefined,
-      validFrom: value.validFrom, validTo }
-    case 'capability': return { section: value.section, sdCapabilityType: value.dictionaryType,
-      qualificationBasisCode: value.firstCode || undefined, capabilityScope: value.description || undefined,
-      validFrom: value.validFrom, validTo, sdVerifyStatus: value.verifyStatus }
-    case 'responsibility': return { section: value.section, externalResponsibleName: value.firstCode,
-      sdResponsibilityType: value.dictionaryType, primaryResponsibility: value.primary,
-      validFrom: value.validFrom, validTo }
-  }
-}
 
 const practitionerSchema = z.object({
   code: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/, '请输入有效人员代码（以字母开头）'),
@@ -1547,48 +1082,6 @@ const practitionerSchema = z.object({
   caCertId: z.string().max(50).optional(),
 })
 type PractitionerForm = z.infer<typeof practitionerSchema>
-
-const PROFESSION_CATEGORIES = [
-  { value: 'CLINICAL_DOCTOR', label: '临床医师' },
-  { value: 'TCM_DOCTOR', label: '中医医师' },
-  { value: 'NURSE', label: '护理人员' },
-  { value: 'PHARMACIST', label: '药事/药学人员' },
-  { value: 'MEDICAL_TECH', label: '医学检验与影像技师' },
-  { value: 'ADMINISTRATIVE', label: '行政与后勤管理' },
-]
-
-const PROFESSIONAL_TITLES = [
-  { value: '主任医师', label: '主任医师 (正高)' },
-  { value: '副主任医师', label: '副主任医师 (副高)' },
-  { value: '全科主治医师', label: '全科主治医师 (中级)' },
-  { value: '主治医师', label: '主治医师 (中级)' },
-  { value: '住院医师', label: '住院医师 (初级)' },
-  { value: '主管护师', label: '主管护师 (中级)' },
-  { value: '护师', label: '护师 / 护士 (初级)' },
-  { value: '主管药师', label: '主管药师 (中级)' },
-  { value: '药师', label: '药师 / 药士 (初级)' },
-  { value: '主管技师', label: '主管技师 / 技师' },
-]
-
-const PRACTICE_SCOPES = [
-  { value: '全科医学专业', label: '全科医学专业' },
-  { value: '中医专业 (中医内科专业)', label: '中医专业 (中医内科专业)' },
-  { value: '临床医学 (内科专业)', label: '临床医学 (内科专业)' },
-  { value: '临床医学 (外科专业)', label: '临床医学 (外科专业)' },
-  { value: '临床医学 (儿科专业)', label: '临床医学 (儿科专业)' },
-  { value: '临床医学 (妇产科专业)', label: '临床医学 (妇产科专业)' },
-  { value: '临床护理专业', label: '临床护理专业' },
-  { value: '药事管理与临床药学', label: '药事管理与临床药学' },
-  { value: '医学检验与病理技术', label: '医学检验与病理技术' },
-]
-
-const PRESCRIPTION_PRIVILEGES = [
-  { value: 'ORDINARY', label: '普通处方权 (常规基药与非限制抗)' },
-  { value: 'SECOND_CLASS', label: '限制级处方权 (含二类精神与限制级抗菌药物)' },
-  { value: 'SPECIAL', label: '高级处方权 (麻精一类红处方与特殊级抗菌药物)' },
-  { value: 'TCM', label: '中药饮片处方权 (含中医适宜技术开具)' },
-  { value: 'NONE', label: '无处方权 (护理/医技/行政执行)' },
-]
 
 function PractitionerDialog({
   value,
@@ -1638,7 +1131,7 @@ function PractitionerDialog({
     if (primaryAssignment?.organizationId) return primaryAssignment.organizationId
     if (primaryEmployment?.organizationId) return primaryEmployment.organizationId
     if (value) return ''
-    if (initialDeptUnit?.parentId) return initialDeptUnit.parentId
+    if (initialDeptUnit) return departmentOwner(initialDeptUnit.id, units) ?? ''
     if (defaultUnitId) {
       const u = units.find((item) => item.id === defaultUnitId)
       if (u?.sdOrgKind === 'LEGAL_ORGANIZATION') return u.id
@@ -1681,7 +1174,7 @@ function PractitionerDialog({
   const selectedOrgId = watch('organizationId')
   const availableDepartments = useMemo(() => {
     return units.filter(
-      (u) => u.sdOrgKind === 'ORG_UNIT' && (!selectedOrgId || u.parentId === selectedOrgId) && u.sdOrgStatus === 'ACTIVE'
+      (u) => u.sdOrgKind === 'ORG_UNIT' && (!selectedOrgId || departmentOwner(u.id, units) === selectedOrgId) && u.sdOrgStatus === 'ACTIVE'
     )
   }, [units, selectedOrgId])
 
@@ -1702,8 +1195,8 @@ function PractitionerDialog({
       title={value ? `编辑人员档案 · ${value.fullName}` : '新增医疗从业人员'}
       onClose={onClose}
       closeOnBackdrop={false}
-      size="xwide"
-      className="master-practitioner-dialog"
+      size={value ? "wide" : "xwide"}
+      className={value ? undefined : "master-practitioner-dialog"}
       footer={
         <>
           <Button variant="secondary" disabled={busy} onClick={onClose}>
@@ -1717,7 +1210,7 @@ function PractitionerDialog({
     >
       {(!available || saveError) && <div role="alert"><p>{saveError ?? '人员类型选项或入职机构与岗位目录尚未确认，请重新加载。'}</p>
         <Button variant="secondary" disabled={busy} onClick={() => void onRefresh()}>重新核实人员目录</Button></div>}
-      <form id="practitioner-form" className="master-form master-form--practitioner" inert={busy} onSubmit={handleSubmit(input => {
+      <form id="practitioner-form" className={`master-form master-form--practitioner${value ? " master-form--personnel-edit" : ""}`} inert={busy} onSubmit={handleSubmit(input => {
         if (busy || !available) return
         if (!value) {
           let valid = true
@@ -1749,20 +1242,11 @@ function PractitionerDialog({
               <FormField label="性别" required error={errors.sdPractGender?.message}>
                 <FormSelect control={control} name="sdPractGender" showValue clearable={false} options={genderOptions} />
               </FormField>
-              <FormField label="移动联络电话" error={errors.phone?.message}>
-                <input disabled {...register('phone')} maxLength={20} placeholder="暂不支持维护" />
-              </FormField>
-              <FormField className="master-form-grid__span-2" label="居民身份证号" error={errors.idCard?.message}>
-                <input disabled {...register('idCard')} maxLength={18} placeholder="暂不支持维护" />
-              </FormField>
-              <FormField className="master-form-grid__span-2" label="最高学历与院校专业" error={errors.education?.message}>
-                <input disabled {...register('education')} placeholder="暂不支持维护" />
-              </FormField>
             </div>
           </section>
 
           {/* Section 3: 初次聘用与任职分配 */}
-          <section className="master-form-section" aria-label="聘用与任职分配">
+          {!value && <section className="master-form-section" aria-label="聘用与任职分配">
             <header className="master-form-section__header">
               <h4 className="master-form-section__title">
                 <Icon name="organization" />
@@ -1773,7 +1257,7 @@ function PractitionerDialog({
             {!value && (
               <div className="master-form-onboarding-banner">
                 <Icon name="info" />
-                <span>新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用、主任职和100%工作量配置；任一步失败均不保存。</span>
+                <span>新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用与主任职配置；任一步失败均不保存。</span>
               </div>
             )}
             <div className="master-form-grid">
@@ -1811,65 +1295,10 @@ function PractitionerDialog({
                 <input type="date" disabled={Boolean(value)} {...register('hireDate')} />
               </FormField>
             </div>
-          </section>
+          </section>}
         </div>
 
-        {/* 右栏（约 50%）：临床执业资质、处方权限与医保数字认证 */}
-        <div className="master-form-column">
-          {/* Section 2: 医疗资格与执业准入 */}
-          <section className="master-form-section" aria-label="医疗资格与执业准入">
-            <header className="master-form-section__header">
-              <h4 className="master-form-section__title">
-                <Icon name="clinical" />
-                医疗资格与执业准入
-              </h4>
-              <span className="master-form-section__badge">HIS 核心监管</span>
-            </header>
-            <div className="master-form-grid">
-              <FormField label="从业人员大类">
-                <FormSelect control={control} name="professionCategory" disabled placeholder="暂不支持维护" clearable={false} options={PROFESSION_CATEGORIES} />
-              </FormField>
-              <FormField label="专业技术职称">
-                <FormSelect control={control} name="professionalTitle" disabled placeholder="暂不支持维护" clearable={false} options={PROFESSIONAL_TITLES} />
-              </FormField>
-              <FormField className="master-form-grid__span-2" label="核心处方准入级别">
-                <FormSelect control={control} name="prescriptionPrivilege" disabled placeholder="暂不支持维护" clearable={false} options={PRESCRIPTION_PRIVILEGES} />
-              </FormField>
-              <FormField label="医师/护士执业证书编码" hint="15位全国统一电子执业注册编码">
-                <input disabled {...register('licenseNumber')} maxLength={30} placeholder="暂不支持维护" />
-              </FormField>
-              <FormField label="医师/护士资格证书编码" hint="27位全国卫生专业资格证编码">
-                <input disabled {...register('qualificationNumber')} maxLength={30} placeholder="暂不支持维护" />
-              </FormField>
-              <FormField className="master-form-grid__span-2" label="法定执业专业范围">
-                <FormSelect control={control} name="practiceScope" disabled placeholder="暂不支持维护" clearable={false} options={PRACTICE_SCOPES} />
-              </FormField>
-            </div>
-          </section>
-
-          {/* Section 4: 国家医保与数字证书档案 */}
-          <section className="master-form-section" aria-label="国家医保与数字证书档案">
-            <header className="master-form-section__header">
-              <h4 className="master-form-section__title">
-                <Icon name="lock" />
-                国家医保与数字证书档案
-              </h4>
-              <span className="master-form-section__badge">医保与 CA 认证</span>
-            </header>
-            <div className="master-form-grid">
-              <FormField label="全国医保医师代码" hint="国家医保信息业务编码 (实名定点备案)">
-                <input disabled {...register('insuranceDoctorCode')} maxLength={50} placeholder="暂不支持维护" />
-              </FormField>
-              <FormField label="CA 数字证书 Key ID" hint="卫生数字证书密钥序列号 (电子印章与时间戳)">
-                <input disabled {...register('caCertId')} maxLength={50} placeholder="暂不支持维护" />
-              </FormField>
-              <div className="master-form-grid__span-2 master-form-ca-note">
-                <Icon name="credential" />
-                <span>资质、联络资料与数字证书暂不支持维护；本次仅保存基础人员信息。聘用及任职变更请使用详情页的对应操作。</span>
-              </div>
-            </div>
-          </section>
-        </div>
+        {value && <p>本次编辑保存姓名与性别。调岗、兼任和离职请在聘用与任职列表中操作。</p>}
       </form>
     </Dialog>
   )
@@ -1879,10 +1308,14 @@ const positionSchema = z.object({ code: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]
   name: z.string().trim().min(1, '请输入岗位名称').max(128), sdPositionType: z.string().min(1), dutyDescription: z.string().max(1000) })
 type PositionForm = z.infer<typeof positionSchema>
 
-function PositionDialog({ enums, busy, available, saveError, onRefresh, onClose, onSave }: { enums?: SystemEnumDefinition[]; busy: boolean; available: boolean; saveError?: string; onRefresh: () => Promise<void>; onClose: () => void; onSave: (input: { code: string; name: string; sdPositionType: PositionType; dutyDescription?: string }) => void }) {
+function PositionDialog({ positions, onEdit, enums, busy, available, saveError, onRefresh, onClose, onSave }: { positions: Position[]; onEdit: (value: Position) => void; enums?: SystemEnumDefinition[]; busy: boolean; available: boolean; saveError?: string; onRefresh: () => Promise<void>; onClose: () => void; onSave: (input: { code: string; name: string; sdPositionType: PositionType; dutyDescription?: string }) => void }) {
   const { control, register, handleSubmit, formState: { errors } } = useForm<PositionForm>({ resolver: zodResolver(positionSchema), defaultValues: { code: '', name: '', sdPositionType: 'CLINICAL', dutyDescription: '' } })
-  return <Dialog eyebrow="标准岗位" title="新增标准岗位" onClose={onClose} closeOnBackdrop={false}
+  return <Dialog eyebrow="标准岗位" title="标准岗位维护" onClose={onClose} closeOnBackdrop={false}
     footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button><Button type="submit" form="position-form" busy={busy} disabled={!available}>保存岗位</Button></>}>
+    <DataTable compact aria-label="标准岗位目录"><thead><tr><th>代码 / 名称</th><th>类别</th><th>状态</th><th className="ui-table-cell--actions">维护</th></tr></thead>
+      <tbody>{positions.map(item => <tr key={item.id}><td>{item.name} · {item.code}</td><td>{item.sdPositionTypeText}</td><td>{item.sdPersonnelStatusText}</td>
+        <td className="ui-table-cell--actions"><Button size="sm" variant="text" disabled={busy} onClick={() => onEdit(item)}>编辑 / 启停</Button></td></tr>)}</tbody></DataTable>
+    <h3>新增标准岗位</h3>
     {!available && <DirectoryState title="岗位与类型目录" loading={false} onRetry={onRefresh} />}
     {saveError && <PersonnelWriteError error={saveError} busy={busy} onRefresh={onRefresh} />}
     <form id="position-form" inert={busy || !available} className="master-form" onSubmit={handleSubmit((value) => { if (busy || !available) return; onSave({ ...value, sdPositionType: value.sdPositionType as PositionType, dutyDescription: value.dutyDescription || undefined }) })}>
@@ -1924,14 +1357,14 @@ function EmploymentDialog({ practitioner, organizations, enums, busy, available,
 
 const assignmentSchema = z.object({ employmentId: z.string().min(1), organizationId: z.string().min(1), departmentId: z.string().min(1, '请选择任职科室'), positionId: z.string().min(1),
   code: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/, '请输入有效任职代码'), sdAssignmentType: z.string().min(1), specialtyCode: z.string().max(64),
-  primaryAssignment: z.boolean(), workloadPercent: z.string(), validFrom: z.string().min(1), validTo: z.string() })
+  primaryAssignment: z.boolean(), validFrom: z.string().min(1), validTo: z.string() })
   .refine((value) => !value.validTo || value.validTo >= value.validFrom, { path: ['validTo'], message: '结束日期不能早于开始日期' })
 type AssignmentForm = z.infer<typeof assignmentSchema>
 
 function AssignmentDialog({ employments, units, positions, enums, busy, available, saveError, onRefresh, onClose, onSave }: { employments: Array<{ id: string; code: string; organizationId: string; organizationName: string; hireDate: string; leaveDate?: string | null }>; units: OrganizationUnit[]; positions: Array<{ id: string; code: string; name: string }>; enums?: SystemEnumDefinition[]; busy: boolean; available: boolean; saveError?: string; onRefresh: () => Promise<void>; onClose: () => void; onSave: (input: AssignmentInput) => void }) {
   const firstEmployment = employments[0]
   const firstUnit = units.find((item) => firstEmployment && belongsToOrganization(item, firstEmployment.organizationId, units))
-  const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AssignmentForm>({ resolver: zodResolver(assignmentSchema), defaultValues: { employmentId: firstEmployment?.id ?? '', organizationId: firstEmployment?.organizationId ?? '', departmentId: firstUnit?.id ?? '', positionId: positions[0]?.id ?? '', code: '', sdAssignmentType: 'PRIMARY', specialtyCode: '', primaryAssignment: true, workloadPercent: '100', validFrom: firstEmployment?.hireDate ?? today(), validTo: '' } })
+  const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AssignmentForm>({ resolver: zodResolver(assignmentSchema), defaultValues: { employmentId: firstEmployment?.id ?? '', organizationId: firstEmployment?.organizationId ?? '', departmentId: firstUnit?.id ?? '', positionId: positions[0]?.id ?? '', code: '', sdAssignmentType: 'PRIMARY', specialtyCode: '', primaryAssignment: true, validFrom: firstEmployment?.hireDate ?? today(), validTo: '' } })
   const employmentId = watch('employmentId')
   const departmentId = watch('departmentId')
   const selectedEmployment = employments.find((item) => item.id === employmentId)
@@ -1951,7 +1384,7 @@ function AssignmentDialog({ employments, units, positions, enums, busy, availabl
     {saveError && <PersonnelWriteError error={saveError} busy={busy} onRefresh={onRefresh} />}
     <form id="assignment-form" inert={busy || !available} className="master-form" onSubmit={handleSubmit((value) => { if (busy || !available) return; onSave({ ...value,
       sdAssignmentType: value.sdAssignmentType as AssignmentType, specialtyCode: value.specialtyCode || undefined,
-      workloadPercent: value.workloadPercent ? Number(value.workloadPercent) : undefined, validTo: value.validTo || undefined }) })}>
+      validTo: value.validTo || undefined }) })}>
       <FormField label="聘用关系" required><FormSelect control={control} name="employmentId" showValue clearable={false}
         options={employments.map((item) => ({ value: item.id, label: item.organizationName, secondaryText: item.code }))} /></FormField>
       <div className="ui-form-row"><FormField label="任职科室" required error={errors.departmentId?.message}><FormSelect control={control} name="departmentId"
@@ -1963,26 +1396,11 @@ function AssignmentDialog({ employments, units, positions, enums, busy, availabl
         <input {...register('code')} autoFocus /></FormField>
         <FormField label="任职类型" required><FormSelect control={control} name="sdAssignmentType" showValue clearable={false}
           options={systemEnumItems(enums, ORGANIZATION_SYSTEM_ENUM.assignmentType).map(codeNameOption)} /></FormField></div>
-      <div className="ui-form-row"><FormField label="专业代码"><input {...register('specialtyCode')} /></FormField>
-        <FormField label="工作量（%）"><input type="number" min="0" max="100" step="0.01" {...register('workloadPercent')} /></FormField></div>
+      <FormField label="专业代码"><input {...register('specialtyCode')} /></FormField>
       <div className="ui-form-row"><FormField label="开始日期" required><input type="date" min={selectedEmployment?.hireDate} max={selectedEmployment?.leaveDate ?? undefined} {...register('validFrom')} /></FormField>
         <FormField label="结束日期" error={errors.validTo?.message}><input type="date" min={selectedEmployment?.hireDate} max={selectedEmployment?.leaveDate ?? undefined} {...register('validTo')} /></FormField></div>
       <label className="master-check"><input type="checkbox" {...register('primaryAssignment')} />设为主任职任职</label></form>
   </Dialog>
-}
-
-function flattenTree(units: OrganizationUnit[]) {
-  const ids = new Set(units.map((item) => item.id))
-  const result: Array<{ unit: OrganizationUnit; depth: number }> = []
-  const visit = (parentId: string | undefined, depth: number) => units.filter((item) => (item.parentId ?? undefined) === parentId)
-    .sort(compareOrganization).forEach((unit) => { result.push({ unit, depth }); visit(unit.id, depth + 1) })
-  units.filter((item) => !item.parentId || !ids.has(item.parentId)).sort(compareOrganization)
-    .forEach((unit) => { result.push({ unit, depth: 0 }); visit(unit.id, 1) })
-  return result
-}
-
-function compareOrganization(left: OrganizationUnit, right: OrganizationUnit) {
-  return left.sortOrder - right.sortOrder || left.code.localeCompare(right.code)
 }
 
 function codeNameOption(item: { code: string; name: string }) {
@@ -1997,17 +1415,25 @@ function belongsToOrganization(unit: OrganizationUnit, organizationId: string, u
   return false
 }
 
-function departmentTypeOptions(values: DictionaryValue[], structuralType: string) {
+export function departmentTypeOptions(values: DictionaryValue[], structuralType: string, property: string) {
+  const specific: Record<string, (code: string) => boolean> = {
+    PHARMACY: code => code.startsWith('MED_PHARMACY'),
+    EQUIPMENT_ASSET: code => code.startsWith('MED_EQUIPMENT'),
+    SUPPLY_LOGISTICS: code => code.startsWith('LOG_') || ['MED_CONSUMABLE_WAREHOUSE', 'MED_SURGICAL_STORE', 'MED_REAGENT_STORE', 'MED_SUPPLY', 'NUR_CSSD'].some(prefix => code.startsWith(prefix)),
+    RESEARCH_EDUCATION: code => ['ADM_RESEARCH', 'ADM_EDUCATION', 'ADM_TEACH'].some(prefix => code.startsWith(prefix)),
+  }
+  if (specific[property]) return values.filter(item => specific[property](item.code) || item.code === 'CUSTOM_OTHER')
   const custom = (code: string) => code === 'CUSTOM_OTHER'
   if (structuralType === 'ADMINISTRATIVE_DEPARTMENT') return values.filter((item) => item.code.startsWith('ADM_') || custom(item.code))
   if (structuralType === 'MEDICAL_TECHNOLOGY_DEPARTMENT') return values.filter((item) => item.code.startsWith('MED_')
     || ['30', '31', '32'].some((prefix) => item.code === prefix || item.code.startsWith(`${prefix}.`)) || custom(item.code))
   if (structuralType === 'NURSING_UNIT') return values.filter((item) => item.code.startsWith('NUR_') || custom(item.code))
   return values.filter((item) => (!item.code.startsWith('ADM_') && !item.code.startsWith('MED_')
-    && !item.code.startsWith('NUR_')) || custom(item.code))
+    && !item.code.startsWith('NUR_') && !item.code.startsWith('LOG_')
+    && !['30', '31', '32'].some(prefix => item.code === prefix || item.code.startsWith(`${prefix}.`))) || custom(item.code))
 }
 
-function today() { return new Date().toISOString().slice(0, 10) }
+function today() { return new Date().toLocaleDateString('sv-SE') }
 
 function normalizeSearch(value: string) {
   return value.normalize('NFKC').replace(/\s+/g, '').toLocaleLowerCase()

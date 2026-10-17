@@ -182,7 +182,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
 
     private JsonNode createOrganization(String name) throws Exception {
         String code = "CAT" + UUID.randomUUID().toString().substring(0, 8).replace("-", "");
-        return json(mockMvc.perform(post("/api/platform/organizations").with(rhn())
+        return json(mockMvc.perform(post("/api/platform/organizations").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"parentId":"%s","code":"%s","name":"%s",
                                  "type":"CLINIC","validFrom":"2026-01-01"}

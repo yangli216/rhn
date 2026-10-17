@@ -33,6 +33,9 @@ import java.util.Set;
 @Service
 public class DepartmentApplicationService {
     private final DepartmentRepository repository;
+    private final ResponsibilityAssignmentPolicy responsibilityPolicy;
+    private final OrganizationImpactService impacts;
+    private final com.rhn.platform.organization.infrastructure.OrganizationChangeStore changes;
     private final DepartmentProfileStore profileStore;
     private final PersonnelAssignmentRepository assignmentRepository;
     private final DictionaryDirectory dictionaryDirectory;
@@ -45,7 +48,9 @@ public class DepartmentApplicationService {
                                         DictionaryDirectory dictionaryDirectory,
                                         ExecutionContextProvider contextProvider,
                                         OrganizationRepository organizationRepository,
-                                        List<DepartmentExtensionSynchronizer> extensionSynchronizers) {
+                                        List<DepartmentExtensionSynchronizer> extensionSynchronizers, OrganizationImpactService impacts, ResponsibilityAssignmentPolicy responsibilityPolicy,
+                                        com.rhn.platform.organization.infrastructure.OrganizationChangeStore changes) {
+        this.responsibilityPolicy=responsibilityPolicy; this.impacts=impacts; this.changes=changes;
         this.repository = repository;
         this.profileStore = profileStore;
         this.assignmentRepository = assignmentRepository;
@@ -81,6 +86,7 @@ public class DepartmentApplicationService {
                                  String description, String type, String property, boolean virtual, int sortOrder,
                                  LocalDate validFrom, LocalDate validTo) {
         Department department = requireEntity(currentTenant(), id);
+        var before=department.toView();
         validateParent(department.tenantId(), department.organizationId(), id, parentId);
         String normalizedType = dictionaryItem(department.tenantId(), OrganizationDictionaryCodes.DEPARTMENT_TYPE,
                 type, "科室类型");
@@ -94,6 +100,7 @@ public class DepartmentApplicationService {
                                 expectedRevision, actorId());
                         DepartmentView value = repository.saveAndFlush(department).toView();
                         synchronizeExtensions(department.tenantId(), value);
+                        changes.record("DEPARTMENT",id,"UPDATE_DEPARTMENT",before,value,"科室资料维护");
                         return value;
                     });
         } catch (IllegalArgumentException exception) {
@@ -104,6 +111,8 @@ public class DepartmentApplicationService {
     @Transactional
     public DepartmentView changeStatus(Long id, long expectedRevision, OrganizationStatus status) {
         Department department = requireEntity(currentTenant(), id);
+        var before=department.toView();
+        if(status!=OrganizationStatus.ACTIVE) impacts.requireDeactivationReady(id,true);
         if (status == OrganizationStatus.MERGED) {
             throw badRequest("DEPARTMENT_MERGE_TARGET_REQUIRED", "科室合并需要指定目标科室");
         }
@@ -112,6 +121,7 @@ public class DepartmentApplicationService {
             department.changeStatus(status, expectedRevision, actorId());
             DepartmentView value = repository.saveAndFlush(department).toView();
             synchronizeExtensions(department.tenantId(), value);
+            changes.record("DEPARTMENT",id,"CHANGE_STATUS",before,value,"科室状态维护");
             return value;
         });
     }
@@ -246,13 +256,7 @@ public class DepartmentApplicationService {
         if ((assignmentId == null) == (normalizedExternalName == null)) {
             throw badRequest("DEPARTMENT_RESPONSIBILITY_SUBJECT_INVALID", "内部任职和外部负责人必须且只能填写一项");
         }
-        if (assignmentId != null) {
-            PersonnelAssignment assignment = assignmentRepository.findByIdAndTenantId(assignmentId, department.tenantId())
-                    .orElseThrow(() -> notFound("ASSIGNMENT_NOT_FOUND", "未找到负责人任职"));
-            if (!department.id().equals(assignment.departmentId())) {
-                throw badRequest("DEPARTMENT_RESPONSIBILITY_ASSIGNMENT_INVALID", "负责人必须在当前科室有效任职");
-            }
-        }
+        if (assignmentId != null) responsibilityPolicy.validate(assignmentId,id,true,from,to,true);
         validatePeriod(from, to);
         String normalizedType = dictionaryItem(department.tenantId(),
                 OrganizationDictionaryCodes.DEPARTMENT_RESPONSIBILITY_TYPE, type, "科室负责人类型");

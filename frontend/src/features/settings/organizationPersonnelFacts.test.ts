@@ -92,3 +92,13 @@ describe('organization personnel authoritative reads', () => {
     expect(onlyPrimary([{ ...employments[0], primaryEmployment: false }], 'employment')).toBeUndefined()
   })
 })
+
+ it('keeps voided future assignments as history after employment ends', () => {
+   expect(requirePractitionerDetail({ practitioner: person, employments: [{ ...employment, leaveDate: '2026-10-15' }],
+     assignments: [{ ...assignment, sdPersonnelStatus: 'INACTIVE', validFrom: '2026-12-01' }] }, person.id).assignments).toHaveLength(1)
+ })
+ it('does not present ended, voided or future primary assignments as current', () => {
+   const rows = requirePersonnelAssignments([{ ...assignment, id: 'ended', validTo: '2026-01-02' },
+     { ...assignment, id: 'future', validFrom: '2099-01-01' }, { ...assignment, id: 'void', sdPersonnelStatus: 'INACTIVE' }])
+   expect(onlyPrimary(rows, 'assignment')).toBeUndefined()
+ })

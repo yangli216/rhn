@@ -17,7 +17,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.util.*;
@@ -30,7 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeFeedbackTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeFeedbackTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeFeedbackService feedback;
     @Autowired MedicationKnowledgeDeploymentService deployments;
     @Autowired MedicationRuleRuntime runtime;
@@ -42,7 +41,6 @@ class MedicationKnowledgeFeedbackTest extends RhnIntegrationTestSupport {
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactions;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT),O=Long.valueOf(ORGANIZATION),D=Long.valueOf(DEPARTMENT);
     KnowledgeRuleCandidate candidate;Deployment deployment;Long runId;
     @BeforeEach void setup() {context(T,7L,true);candidate=createCandidate();ready(candidate);approve(candidate);deployment=deploy(candidate);runId=observe(item(1),item(2));}

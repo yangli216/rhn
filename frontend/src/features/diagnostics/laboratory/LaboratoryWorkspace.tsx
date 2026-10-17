@@ -101,6 +101,9 @@ export function LaboratoryWorkspace({
     return task
   }
 
+  const [manualRefreshing, setManualRefreshing] = useState(false)
+  const hasUnsaved = Object.values(forms).some((form) => form.dirty)
+
   const worklist = useQuery({
     queryKey: ['diagnostic-worklist', scope, filters, page, params.toString()],
     queryFn: async () => {
@@ -132,12 +135,11 @@ export function LaboratoryWorkspace({
       result.content.forEach(requireTask)
       return result
     },
-    refetchInterval: 30_000,
+    refetchInterval: hasUnsaved ? false : 30_000,
   })
 
   const tasks = useMemo(() => (worklist.isSuccess ? worklist.data.content : []), [worklist.isSuccess, worklist.data])
   const selected = tasks.find((task) => task.id === selectedId)
-  const hasUnsaved = Object.values(forms).some((form) => form.dirty)
 
   useEffect(() => {
     onDirtyChange?.(hasUnsaved)
@@ -175,17 +177,22 @@ export function LaboratoryWorkspace({
   }, [worklist.isSuccess, worklist.data, page])
 
   const refresh = async () => {
-    await Promise.all(
-      [
-        'diagnostic-worklist',
-        'diagnostic-task-reports',
-        'diagnostic-draft',
-        'diagnostic-specimens',
-        'diagnostic-patient-demographics',
-        'doctor-reports',
-        'inpatient-diagnostic-reports',
-      ].map((key) => client.invalidateQueries({ queryKey: [key] }))
-    )
+    setManualRefreshing(true)
+    try {
+      await Promise.all(
+        [
+          'diagnostic-worklist',
+          'diagnostic-task-reports',
+          'diagnostic-draft',
+          'diagnostic-specimens',
+          'diagnostic-patient-demographics',
+          'doctor-reports',
+          'inpatient-diagnostic-reports',
+        ].map((key) => client.invalidateQueries({ queryKey: [key] }))
+      )
+    } finally {
+      setManualRefreshing(false)
+    }
   }
 
   const applyFilters = () => {
@@ -429,11 +436,11 @@ export function LaboratoryWorkspace({
               <section className="diagnostic-tube-reference-card">
                 <PanelHead title="危急值管理提醒" />
                 <div className="diagnostic-tube-reference-body">
-                  <small>
+                  <p className="diagnostic-critical-reminder">
                     依据三级医院临床实验室质量管理规范：凡化验指标落入危急值生命线（如 WBC &lt;2.5 或 &gt;25.0、GLU
                     &lt;2.8 或 &gt;22.2、PLT &lt;50 等），系统将自动红底警示，必须在 10
                     分钟内完成仪器复核并启动电话通报闭环。
-                  </small>
+                  </p>
                 </div>
               </section>
             </div>
@@ -458,6 +465,7 @@ export function LaboratoryWorkspace({
                 { value: 'reports', label: '报告历史' },
                 { value: 'request', label: '申请信息' },
               ]}
+              actions={<div id="diagnostic-tab-actions" className="diagnostic-tab-actions" />}
             />
             {view === 'reports' ? (
               <div className="diagnostic-scroll" role="region" aria-label="报告历史内容" tabIndex={0}>
@@ -473,7 +481,7 @@ export function LaboratoryWorkspace({
                 api={api}
                 task={selected}
                 view={view}
-                refreshing={worklist.isFetching}
+                refreshing={manualRefreshing}
                 canExecute={allowed('EXECUTE')}
                 canEdit={allowed('EDIT')}
                 canSign={allowed('SIGN')}

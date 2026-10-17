@@ -17,13 +17,16 @@ function mount(detail = base) {
     examples: vi.fn().mockResolvedValue([{ id: 'duplicate', purpose: '核对重复开立', notes: ['机构策略待确认'], sourceUrl: 'https://example.com/source', sourceMaterial: '合成材料',
       body: { ...base.saved.body, title: '验收重复用药示例' }, assessment: complete, medicationLabels: {}, manualCases: [], results: base.cases }]),
     validate: vi.fn().mockResolvedValue(complete), preview: vi.fn().mockResolvedValue(base.cases),
+    extractionStatus: vi.fn().mockResolvedValue({ available: true, model: 'synthetic-model', message: '' }), extract: vi.fn(), converse: vi.fn(),
   }, masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue({ routes: [{ code: 'PO', name: '口服' }] }) } }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   render(<QueryClientProvider client={client}><MedicationKnowledgeDrafts api={api as unknown as RhnApi} /></QueryClientProvider>)
   return api
 }
+const toForm = async () => { await userEvent.click(await screen.findByRole('button', { name: '手工新建' })) }
 it('universal duplicate drafts do not require forced drug selection and save incomplete structure as drafts', async () => {
   const api = mount()
+  await toForm()
   expect(screen.queryByRole('button', { name: '添加标准药品至 A 组' })).not.toBeInTheDocument()
   expect(screen.getByText(/所有具有一致标准身份/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '保存草稿新版本' })).toBeDisabled()
@@ -35,6 +38,7 @@ it('universal duplicate drafts do not require forced drug selection and save inc
 })
 it('interaction model exposes independent A and B ranges and routes without inventing a relation', async () => {
   mount()
+  await toForm()
   await userEvent.click(screen.getByRole('button', { name: '新建相互作用' }))
   expect(screen.getByRole('button', { name: '添加标准药品至 A 组' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '添加标准药品至 B 组' })).toBeInTheDocument()
@@ -45,6 +49,7 @@ it('interaction model exposes independent A and B ranges and routes without inve
 })
 it('editing invalidates prior validation and sample output, while save uses the current version', async () => {
   const api = mount()
+  await userEvent.click(await screen.findByRole('button', { name: /^草稿库/ }))
   await userEvent.click(await screen.findByRole('button', { name: /合成重复草稿/ }))
   expect(await screen.findByText('合成样例 1 / 1 通过')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '历史处方快照回放' })).toBeEnabled()
@@ -61,6 +66,7 @@ it('editing invalidates prior validation and sample output, while save uses the 
 })
 it('keeps unsaved work when navigation is cancelled and shows immutable history separately', async () => {
   mount()
+  await userEvent.click(await screen.findByRole('button', { name: /^草稿库/ }))
   await userEvent.click(await screen.findByRole('button', { name: /合成重复草稿/ }))
   await screen.findByText('合成样例 1 / 1 通过')
   await userEvent.type(screen.getByRole('textbox', { name: '来源原文片段' }), '新增原文')
@@ -74,6 +80,7 @@ it('keeps unsaved work when navigation is cancelled and shows immutable history 
 })
 it('a version conflict preserves unsaved input and does not present a success', async () => {
   const api = mount()
+  await toForm()
   api.medicationKnowledgeDrafts.save.mockRejectedValue(new Error('草稿版本已变化，请刷新并核对后保存'))
   await userEvent.type(screen.getByRole('textbox', { name: '知识标题' }), '保留标题')
   await userEvent.type(screen.getByRole('textbox', { name: '本次保存原因' }), '修改')
@@ -94,6 +101,7 @@ it('standard picker pins actual catalogue identity and requires an explicit spec
 })
 it('preserves extraction provenance on save and detaches it when the original excerpt changes', async () => {
   const api = mount({ ...base, saved: { ...base.saved, extractionId: '900' } })
+  await userEvent.click(await screen.findByRole('button', { name: /^草稿库/ }))
   await userEvent.click(await screen.findByRole('button', { name: /合成重复草稿/ }))
   await screen.findByText('关联 AI 抽取记录')
   await userEvent.type(screen.getByRole('textbox', { name: '本次保存原因' }), '补充元数据')
@@ -109,8 +117,9 @@ it('preserves extraction provenance on save and detaches it when the original ex
 
 it('loads a reviewed example as a new unsaved draft and preserves unsaved-edit confirmation', async () => {
   const api = mount()
+  await toForm()
   await userEvent.type(screen.getByRole('textbox', { name: '知识标题' }), '我的未保存内容')
-  await userEvent.click(screen.getByRole('button', { name: '重复用药与相互作用验收样例' }))
+  await userEvent.click(screen.getByRole('button', { name: '验收样例' }))
   await userEvent.click(await screen.findByRole('button', { name: '填入未保存知识草稿' }))
   expect(screen.getByRole('dialog', { name: '处理未保存修改' })).toBeVisible()
   expect(api.medicationKnowledgeDrafts.save).not.toHaveBeenCalled()
@@ -118,4 +127,69 @@ it('loads a reviewed example as a new unsaved draft and preserves unsaved-edit c
   expect(screen.getByRole('textbox', { name: '知识标题' })).toHaveValue('验收重复用药示例')
   expect(screen.getByRole('button', { name: '保存草稿新版本' })).toBeDisabled()
   expect(api.medicationKnowledgeDrafts.save).not.toHaveBeenCalled()
+})
+
+it('builds rules by conversation: cards are confirmed by the maintainer and compiled into an unsaved draft', async () => {
+  const api = mount()
+  const ref = { catalogId: 'C', catalogVersion: '1', contentHash: 'h', sourceHash: 's', entryId: 'E', specificationId: 'S1', name: '阿莫西林', doseForm: '片剂', preparationSpec: '0.25g' }
+  const card = { id: 'c1', kind: 'DRUG_INTERACTION', title: '阿莫西林与乙', quote: '阿莫西林与乙合用', groupA: ['阿莫西林'], groupB: ['乙'], matchMode: 'GROUP_PAIR', exposureScope: 'SAME_PRESCRIPTION', minimumOrders: null,
+    ageMode: null, ageUnit: null, minimumAgeInclusive: null, maximumAgeExclusive: null, routesA: [], routesB: [], proposedAction: null, severity: null, clinicalMeaning: '', otherConditions: '', questions: [] }
+  const unsupported = { ...card, id: 'c2', kind: 'COMPATIBILITY', title: '不宜用葡萄糖稀释', quote: '不宜用葡萄糖稀释', groupA: [], groupB: [] }
+  api.medicationKnowledgeDrafts.converse
+    .mockResolvedValueOnce({ runId: '1', reply: '拆成 2 条，第 2 条暂不能转换。', cards: [
+      { card, state: 'NEEDS_INFO', kindName: '相互作用', missing: ['命中后的处置方式'], groupACandidates: [{ name: '阿莫西林', candidates: [ref] }], groupBCandidates: [{ name: '乙', candidates: [] }] },
+      { card: unsupported, state: 'UNSUPPORTED', kindName: '配伍、溶媒与输液顺序', missing: [], groupACandidates: [], groupBCandidates: [] }] })
+    .mockResolvedValueOnce({ runId: '2', reply: '已设为阻断。', cards: [{ card: { ...card, proposedAction: 'BLOCK' }, state: 'READY', kindName: '相互作用', missing: [], groupACandidates: [{ name: '阿莫西林', candidates: [ref] }], groupBCandidates: [{ name: '乙', candidates: [] }] }] })
+  await userEvent.type(await screen.findByRole('textbox', { name: '规则原文' }), '阿莫西林与乙合用。不宜用葡萄糖稀释。')
+  await userEvent.click(screen.getByRole('button', { name: '发送' }))
+  expect(await screen.findByText('拆成 2 条，第 2 条暂不能转换。')).toBeInTheDocument()
+  expect(screen.getByText(/【处置方式待确认】/)).toBeInTheDocument()
+  expect(screen.getByText('暂不能转换')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '确认并转为系统规则' })).toHaveLength(1)
+  // A unique standard entry is attached automatically (all specifications); the missing 处置方式 is answered with one click.
+  expect(screen.getByRole('button', { name: '取消 A 组 阿莫西林 的标准范围' })).toHaveTextContent('阿莫西林（全部规格）')
+  await userEvent.click(screen.getByRole('button', { name: '阻断' }))
+  expect(await screen.findByText('已设为阻断。')).toBeInTheDocument()
+  expect(api.medicationKnowledgeDrafts.converse).toHaveBeenLastCalledWith(expect.objectContaining({ message: '把“阿莫西林与乙”的处置方式设为阻断', cards: expect.arrayContaining([expect.objectContaining({ id: 'c1' })]) }))
+  await userEvent.click(screen.getByRole('button', { name: '确认并转为系统规则' }))
+  expect(await screen.findByDisplayValue('阿莫西林与乙')).toBeInTheDocument()
+  expect(screen.getByText(/已按确认的规则卡片生成系统规则草稿/)).toBeInTheDocument()
+  expect(screen.getByText('阿莫西林（全部规格）')).toBeInTheDocument()
+  expect(api.medicationKnowledgeDrafts.save).not.toHaveBeenCalled()
+  expect(api.medicationKnowledgeDrafts.save).not.toHaveBeenCalled()
+})
+
+it('asks the maintainer to choose when a name matches several standard entries and turns open questions into answerable prompts', async () => {
+  const api = mount()
+  const ref = (entryId: string, specificationId: string, spec: string) => ({ catalogId: 'C', catalogVersion: '1', contentHash: 'h', sourceHash: 's', entryId, specificationId, name: '呋塞米', doseForm: '片剂', preparationSpec: spec })
+  const card = { id: 'c1', kind: 'DRUG_INTERACTION', title: '呋塞米与多巴胺', quote: '原文', groupA: ['呋塞米'], groupB: [], matchMode: 'GROUP_PAIR', exposureScope: 'SAME_PRESCRIPTION', minimumOrders: null, ageMode: null, ageUnit: null,
+    minimumAgeInclusive: null, maximumAgeExclusive: null, routesA: [], routesB: [], proposedAction: 'WARN', severity: null, clinicalMeaning: '', otherConditions: '', questions: ['是否仅针对静脉输注途径？'], boundaryNote: null }
+  api.medicationKnowledgeDrafts.converse.mockResolvedValue({ runId: '1', reply: '已整理', cards: [{ card, state: 'NEEDS_INFO', kindName: '相互作用', missing: ['B 组药品'],
+    groupACandidates: [{ name: '呋塞米', candidates: [ref('E1', 'S1', '20mg'), ref('E1', 'S2', '40mg'), ref('E2', 'S3', '20mg/2ml')] }], groupBCandidates: [] }] })
+  await userEvent.type(await screen.findByRole('textbox', { name: '规则原文' }), '呋塞米与多巴胺合用')
+  await userEvent.click(screen.getByRole('button', { name: '发送' }))
+  await screen.findByText('已整理')
+  expect(screen.queryByRole('button', { name: '取消 A 组 呋塞米 的标准范围' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('combobox', { name: '选择 A 组 呋塞米 的标准范围' }))
+  expect(await screen.findByRole('option', { name: '呋塞米（全部规格，2 个）' })).toBeInTheDocument()
+  expect(screen.getByRole('option', { name: '呋塞米（全部规格）' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('option', { name: '呋塞米（全部规格，2 个）' }))
+  expect(screen.getByRole('button', { name: '取消 A 组 呋塞米 的标准范围' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '是否仅针对静脉输注途径？' }))
+  expect(screen.getByRole('textbox', { name: '对话输入' })).toHaveValue('关于“是否仅针对静脉输注途径？”：')
+})
+
+it('prefers a catalog classification over drug specifications and compiles it as a CATEGORY target', async () => {
+  const api = mount()
+  const category = { catalogId: 'C', catalogVersion: '1', contentHash: 'h', sourceHash: 's', key: '一、抗微生物药/（一）青霉素类', label: '（一）青霉素类', entryIds: ['E1', 'E2', 'E3'] }
+  const card = { id: 'c1', kind: 'DUPLICATE_THERAPY', title: '青霉素类重复', quote: '青霉素类药物不宜重复使用', groupA: ['青霉素类'], groupB: [], matchMode: 'EXPLICIT_GROUP', exposureScope: 'SAME_PRESCRIPTION', minimumOrders: 2,
+    ageMode: null, ageUnit: null, minimumAgeInclusive: null, maximumAgeExclusive: null, routesA: [], routesB: [], proposedAction: 'WARN', severity: null, clinicalMeaning: '', otherConditions: '', questions: [], boundaryNote: null }
+  api.medicationKnowledgeDrafts.converse.mockResolvedValue({ runId: '1', reply: '已整理', cards: [{ card, state: 'READY', kindName: '重复用药', missing: [], groupACandidates: [{ name: '青霉素类', candidates: [], categories: [category] }], groupBCandidates: [] }] })
+  await userEvent.type(await screen.findByRole('textbox', { name: '规则原文' }), '青霉素类药物不宜重复使用')
+  await userEvent.click(screen.getByRole('button', { name: '发送' }))
+  await screen.findByText('已整理')
+  expect(screen.getByRole('button', { name: '取消 A 组 青霉素类 的标准范围' })).toHaveTextContent('（一）青霉素类 · 目录分类，含 3 个药品')
+  await userEvent.click(screen.getByRole('button', { name: '确认并转为系统规则' }))
+  expect(await screen.findByText(/（一）青霉素类 · 目录分类，含 3 个药品/)).toBeInTheDocument()
+  expect(screen.getByText(/目录分类下全部药品/)).toBeInTheDocument()
 })

@@ -101,17 +101,29 @@ public class DiagnosticSpecimenService {
     }
     public SpecimenView collect(Long id,long expectedRevision) {
         requireExecute();
-        var loaded=require(id); var associated=associated(loaded); var specimen=specimens.lockByIdAndTenantId(id,loaded.tenantId()).orElseThrow();
-        for(var task:associated) if(task.status()!=DiagnosticExecutionTaskStatus.READY && task.status()!=DiagnosticExecutionTaskStatus.COLLECTED)
-            throw conflict("DIAGNOSTIC_SPECIMEN_TASK_STATE_INVALID","申请状态不允许采集");
-        specimen.collect(expectedRevision,contexts.requireCurrent().subjectId()); specimens.flush();
-        for(var task:associated) {
-            task.recordSpecimenCollection(specimen.specimenNo(),contexts.requireCurrent().subjectId(),specimen.collectedAt());
-            var active=active(task);
-            if(task.status()==DiagnosticExecutionTaskStatus.READY && active.stream().allMatch(s->"COLLECTED".equals(s.status()) || "RECEIVED".equals(s.status())))
-                task.collect(task.revision(),active.getFirst().specimenNo(),"实际标本共"+active.size()+"管",contexts.requireCurrent().subjectId(),Instant.now());
+        var context = contexts.requireCurrent();
+        Long actorId = context.subjectId();
+        var loaded = require(id);
+        var associated = associated(loaded);
+        var specimen = specimens.lockByIdAndTenantId(id, loaded.tenantId()).orElseThrow();
+        for (var task : associated) {
+            if (task.status() != DiagnosticExecutionTaskStatus.READY && task.status() != DiagnosticExecutionTaskStatus.COLLECTED) {
+                throw conflict("DIAGNOSTIC_SPECIMEN_TASK_STATE_INVALID", "申请状态不允许采集");
+            }
         }
-        tasks.flush(); return view(specimen);
+        specimen.collect(expectedRevision, actorId);
+        specimens.flush();
+        Instant now = Instant.now();
+        for (var task : associated) {
+            task.recordSpecimenCollection(specimen.specimenNo(), actorId, specimen.collectedAt());
+            var active = active(task);
+            if (task.status() == DiagnosticExecutionTaskStatus.READY
+                    && active.stream().allMatch(s -> "COLLECTED".equals(s.status()) || "RECEIVED".equals(s.status()))) {
+                task.markCollectedFromSpecimens(active.getFirst().specimenNo(), "实际标本共" + active.size() + "管", actorId, now);
+            }
+        }
+        tasks.flush();
+        return view(specimen);
     }
     public SpecimenView receive(Long id,long revision) {
         requireExecute();

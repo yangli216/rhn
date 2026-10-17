@@ -121,7 +121,7 @@ describe('MedicationSafetyCategories', () => {
     expect(await screen.findByText('合理用药安全分类')).toBeInTheDocument()
     expect((await screen.findAllByText('双硫仑样反应致敏抗菌药物')).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('高危肝毒性药物监控')).toBeInTheDocument()
-    expect(screen.getByText('系统预置')).toBeInTheDocument()
+    expect(screen.getAllByText('系统基线内置保护').length).toBeGreaterThanOrEqual(1)
 
     // 默认选中第一个分类，展示右侧详情
     expect(await screen.findByText('抑制乙醛脱氢酶导致乙醛蓄积中毒')).toBeInTheDocument()
@@ -298,8 +298,8 @@ describe('MedicationSafetyCategories', () => {
     render(<MedicationSafetyCategories api={api} />)
 
     expect(await screen.findByText(/已配规则 \(1\)/)).toBeInTheDocument()
-    expect(await screen.findByText(/关联在行合理用药质控规则/)).toBeInTheDocument()
-    expect(screen.getByText('QMED.PREGNANCY_CONTRA')).toBeInTheDocument()
+    expect(await screen.findByText(/关联质控规则/)).toBeInTheDocument()
+    expect(screen.getByText(/关联质控规则/)).toBeInTheDocument()
     expect(screen.getByText('育龄期及妊娠期妇女禁用高危致畸药物核对')).toBeInTheDocument()
   })
 

@@ -26,7 +26,7 @@ class PractitionerOnboardingTest extends RhnIntegrationTestSupport {
         var input = input();
         input.put("code", "P" + "X".repeat(63));
         List<Integer> before = counts();
-        JsonNode saved = json(mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhn())
+        JsonNode saved = json(mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String practitionerId = saved.path("practitioner").path("id").asString();
@@ -45,7 +45,7 @@ class PractitionerOnboardingTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/practitioners/{id}", practitionerId).with(rhn()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.employments.length()").value(1))
                 .andExpect(jsonPath("$.assignments.length()").value(1));
-        mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhn())
+        mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRACTITIONER_CODE_DUPLICATE"));
         assertThat(counts()).containsExactly(before.get(0) + 1, before.get(1) + 1, before.get(2) + 1);
@@ -55,7 +55,7 @@ class PractitionerOnboardingTest extends RhnIntegrationTestSupport {
         for (String field : List.of("organizationId", "departmentId", "positionId")) {
             var input = input(); input.put(field, "999999999999999999");
             List<Integer> before = counts();
-            mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhn())
+            mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhnWorkContext())
                     .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(input)))
                     .andExpect(status().isNotFound());
             assertThat(counts()).isEqualTo(before);
@@ -67,7 +67,7 @@ class PractitionerOnboardingTest extends RhnIntegrationTestSupport {
         for (String field : List.of("organizationId", "departmentId", "positionId", "hireDate")) {
             var input = input(); input.remove(field);
             List<Integer> before = counts();
-            mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhn())
+            mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhnWorkContext())
                     .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(input)))
                     .andExpect(status().isBadRequest());
             assertThat(counts()).isEqualTo(before);
@@ -85,7 +85,7 @@ class PractitionerOnboardingTest extends RhnIntegrationTestSupport {
             jdbc.update("UPDATE " + parts[0] + " SET SD_STATUS = 'INACTIVE' WHERE " + parts[1] + " = ?", Long.valueOf(parts[2]));
             try {
                 List<Integer> before = counts();
-                mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhn())
+                mockMvc.perform(post("/api/platform/practitioners/onboarding").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(input())))
                         .andExpect(status().isConflict());
                 assertThat(counts()).isEqualTo(before);

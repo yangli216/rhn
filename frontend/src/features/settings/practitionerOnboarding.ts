@@ -18,7 +18,7 @@ export function requireOnboardedPractitioner(source: unknown, input: Practitione
   if (!identity(assignment) || assignment.employmentId !== employment.id || assignment.practitionerId !== person.id
     || assignment.organizationId !== input.organizationId || assignment.departmentId !== input.departmentId || assignment.positionId !== input.positionId
     || assignment.code !== `ASN_${person.id}` || assignment.sdAssignmentType !== 'PRIMARY' || assignment.primaryAssignment !== true
-    || assignment.workloadPercent !== 100 || assignment.validFrom !== input.hireDate || assignment.validTo != null
+    || assignment.validFrom !== input.hireDate || assignment.validTo != null
     || assignment.sdPersonnelStatus !== 'ACTIVE') return fail()
   return person as unknown as Practitioner
 }

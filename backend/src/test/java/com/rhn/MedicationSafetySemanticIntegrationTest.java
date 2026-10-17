@@ -15,7 +15,7 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
     private String MEDICATION;
     private static final String LEVOFLOXACIN = "362387880000128";
 
-    @Test void submitting_child_levofloxacin_prescription_returns_shadow_age_contraindication_warning() throws Exception {
+    @Test void submitting_child_levofloxacin_prescription_is_blocked_by_age_contraindication() throws Exception {
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                   {"fullName":"儿童合理用药联调","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],
@@ -46,21 +46,17 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
                         encounter, prescriptionId).with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"expectedRevision\":" + prescription.path("revision").asLong() + "}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.safetyEvaluation.mode").value("SHADOW"))
-                .andExpect(jsonPath("$.safetyEvaluation.decision").value("BLOCK"))
-                .andExpect(jsonPath("$.safetyEvaluation.findings[?(@.ruleCode == 'QMED.AGE_CONTRAINDICATION')]").exists())
-                .andExpect(jsonPath("$.safetyEvaluation.findings[?(@.ruleCode == 'QMED.AGE_CONTRAINDICATION')].message")
-                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.allOf(
-                                org.hamcrest.Matchers.containsString("未满18周岁"),
-                                org.hamcrest.Matchers.containsString("左氧氟沙星")))));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEDICATION_SAFETY_BLOCKED"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("未满18周岁"),
+                        org.hamcrest.Matchers.containsString("左氧氟沙星"))));
 
         assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=?",
                 Integer.class, prescriptionId)).isEqualTo(1);
     }
 
-    @Test void saved_semantics_feed_shadow_evaluation_without_changing_orders_or_reading_current_master_data() throws Exception {
+    @Test void saved_semantics_feed_formal_evaluation_without_changing_orders_or_reading_current_master_data() throws Exception {
         MEDICATION = linkStandardMedication("STD-04D8635B1192769EBA24309B", "MED-2026-W185").path("id").asString();
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
@@ -145,7 +141,7 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
     }
     private JsonNode evaluate(String path) throws Exception {
         return json(mockMvc.perform(post(path).with(rhnWorkContext())).andExpect(status().isOk())
-                .andExpect(jsonPath("$.mode").value("SHADOW")).andExpect(jsonPath("$.evaluationId").isNotEmpty())
+                .andExpect(jsonPath("$.mode").value("ENFORCED")).andExpect(jsonPath("$.evaluationId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
     }
 }

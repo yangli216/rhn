@@ -30,7 +30,7 @@ import type { OutpatientNoteForm } from "../../../shared/api/outpatientNoteForms
 import type { AllergyIntolerance } from "../../../shared/api/residentsApi";
 import type { Encounter } from "../../../shared/model";
 import { formatTime } from "../../../shared/format";
-import { requiresBloodPressure } from "../bloodPressurePolicy";
+import { bloodPressureBlocksDraft, bloodPressureMissing, useBloodPressureRequirement } from "../bloodPressurePolicy";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
 import { Alert, Button, Dialog, FormField, Icon, IconActionButton, IconActionGroup, Panel, PanelHead, Select } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "../orders/medicationDraft";
@@ -46,14 +46,14 @@ import { ControlledPrintDialog } from '../printing/EncounterPrintPanel'
 export type AmendmentDraft = Pick<RecordForm,
   'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'>
 
-export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
+export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
   aiDraft, onAiDraftConsumed, onRegisterAiPlan, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
   aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost, recommendedPlanId,
   onClosePlanDrawer, onCaptureTreatmentBatchDiscard,
   onOpenPrintCenter }: {
-  encounter: Encounter; birthDate?: string; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
+  encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   completionMode: OutpatientCompletionMode | undefined
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
@@ -102,8 +102,10 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
   const [structuredErrors, setStructuredErrors] = useState<Record<string, string>>({})
   const draftSaver = useRef(createClinicalDraftSaver())
   const serverStateInitialized = useRef(false)
-  const bloodPressureRequired = requiresBloodPressure(birthDate, encounter.registeredAt)
-  const recordSchema = useMemo(() => createRecordSchema(bloodPressureRequired), [bloodPressureRequired])
+  const bloodPressureRequirement = useBloodPressureRequirement(api, encounter.id).data
+  const bloodPressureRequired = Boolean(bloodPressureRequirement?.required)
+  const bloodPressureDraftRequired = bloodPressureBlocksDraft(bloodPressureRequirement)
+  const recordSchema = useMemo(() => createRecordSchema(bloodPressureDraftRequired), [bloodPressureDraftRequired])
   const form = useForm<RecordForm>({
     resolver: zodResolver(recordSchema),
     defaultValues: { chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '', allergyHistory: '', medicationHistory: '', auxiliaryExaminations: '', healthEducation: '', followUp: '',
@@ -146,7 +148,8 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
   const save = useMutation({
     mutationFn: async ({ form, session }: { form: RecordForm; session: ClinicalDraftSession }) => {
       session.assertUnchanged()
-      if (!diagnoses.some((item) => item.type === 'PRIMARY')) throw new Error('请确认一个主要诊断')
+      // 草稿允许暂无诊断；主要诊断在诊毕时由后端完成度校验强制。
+      if (diagnoses.length && diagnoses[0].type !== 'PRIMARY') throw new Error('首项必须是主要诊断')
       const formErrors = validateStructuredForm(selectedNoteForm, structuredValues)
       setStructuredErrors(formErrors)
       if (Object.keys(formErrors).length) throw new Error(Object.values(formErrors)[0])
@@ -224,7 +227,9 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
         onRefresh(),
       ])
       session.assertCurrent()
-      onSaveDraftNotice?.({ message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
+      onSaveDraftNotice?.(bloodPressureMissing(bloodPressureRequirement, form)
+        ? { message: `门诊病历、诊断与医嘱草稿已保存；${bloodPressureRequirement?.message ?? '请填写血压'}，诊毕前需补录`, tone: 'warning' }
+        : { message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
     },
     onError: (error, { session }) => {
       if (!session.isCurrent()) return
@@ -450,7 +455,8 @@ export function ClinicalRecordPanel({ encounter, birthDate, allergies, allergySt
     }
     return applied
   }
-  const error = (save.variables?.session.isCurrent() ? save.error : undefined) || sign.error || amend.error || documents.error || noteForms.error
+  // 保存草稿失败已经由 onSaveDraftNotice 在工作区提示，这里不再重复展示。
+  const error = sign.error || amend.error || documents.error || noteForms.error
   const encounterEditable = ['REGISTERED', 'IN_PROGRESS', 'SUSPENDED'].includes(encounter.status)
   const editActionLabel = encounter.status === 'REGISTERED' ? '开始接诊'
     : encounter.status === 'SUSPENDED' ? '恢复接诊' : '进入编辑'

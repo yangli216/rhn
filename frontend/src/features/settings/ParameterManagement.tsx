@@ -24,6 +24,8 @@ import { requireSavedParameterDefinition, type ParameterDefinitionCommand } from
 import { parameterRollbackIssue, prepareParameterRollback, requireParameterChanges, requireParameterValueActionResult, type ParameterValueAction } from './parameterValueAction'
 import { mergeConfirmedCategories, requireCreatedCategory, requireParameterCategories, requireReorderedCategories, requireUpdatedCategory } from './parameterCategoryFacts'
 import { ConfigurationScopeTarget, useConfigurationScopeTarget } from './ConfigurationScopeTarget'
+import { describeParameterFieldValue, diffParameterFieldValues, parameterFieldErrors, parameterFieldVisible, readParameterFieldDraft,
+  readParameterFields, writeParameterFieldDraft, type ParameterField, type ParameterFieldDraft } from './parameterFieldSchema'
 
 type DefinitionDialogMode = 'create' | 'edit' | undefined
 type CategoryDialogState = { mode: 'create'; parentId?: string; category?: undefined } | { mode: 'edit'; category: ParameterCategory }
@@ -529,7 +531,7 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作">操作</th></tr></thead>
             <tbody>{selected.values.map((value) => <tr key={value.id}>
               <td><strong>{value.sdParamScopeTypeText}</strong><code>{scopeDisplay(value)}</code></td>
-              <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value)}</td>
+              <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value, readParameterFields(selected.jsonSchema))}</td>
               <td><StatusBadge tone={value.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                 {value.sdParamStatusText}</StatusBadge></td><td>{formatDate(value.updatedAt)}</td>
               <td><div className="parameter-row-actions"><Button size="sm" variant="text" disabled={valueAction.isPending}
@@ -968,6 +970,7 @@ function ParameterValidationEditor({ valueType, value, onChange, error }: {
 }) {
   const update = (key: keyof ParameterValidationRules, next: string) => onChange({ ...value, [key]: next })
   const advancedCount = Object.keys(value.extraSchema).length
+  const declaredFields = valueType === 'JSON' ? readParameterFields(stringifyParameterJson(value.sourceSchema)) : undefined
   const rawEnumRequired = Array.isArray(value.sourceSchema.enum) && value.sourceSchema.enum.some((item) =>
     valueType === 'STRING' ? typeof item !== 'string' || !item.length || item.trim() !== item || /[\n\r,，]/.test(item)
       : !isParameterJsonNumber(item))
@@ -980,6 +983,9 @@ function ParameterValidationEditor({ valueType, value, onChange, error }: {
         <span>{validationSummary(valueType, value)}</span></div>
       {advancedCount > 0 && <small>已保留 {advancedCount} 项原有高级规则</small>}
     </div>
+    {declaredFields && <Alert tone="info" placement="inline">
+      已按字段定义 {declaredFields.length} 项，维护当前值时自动生成表单：{declaredFields.map((field) => field.title).join('、')}
+    </Alert>}
     {error && <Alert className="parameter-validation-error">{error}</Alert>}
     <div className="parameter-validation-grid">
       {valueType === 'STRING' && <>
@@ -1057,6 +1063,14 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
   const [scopeReference, setScopeReference] = useState(value?.scopeReference ?? '')
   const [valueMode, setValueMode] = useState<ParameterValueMode>(value?.sdParamValueMode ?? 'OVERRIDE')
   const [rawValue, setRawValue] = useState(readRawValue(value?.valueJson, definition.sdParamValueType))
+  const fields = useMemo(() => definition.sdParamValueType === 'JSON' ? readParameterFields(definition.jsonSchema) : undefined,
+    [definition.jsonSchema, definition.sdParamValueType])
+  const [fieldDraft, setFieldDraft] = useState<ParameterFieldDraft | undefined>(() => fields
+    && readParameterFieldDraft(fields, value?.sdParamValueMode === 'OVERRIDE' && value.valueJson ? value.valueJson : definition.defaultValueJson))
+  const [rawJsonMode, setRawJsonMode] = useState(false)
+  const [rawJsonIssue, setRawJsonIssue] = useState('')
+  const structured = Boolean(fields && fieldDraft && !rawJsonMode)
+  const fieldErrors = structured ? parameterFieldErrors(fields!, fieldDraft!.values) : {}
   const [secretRef, setSecretRef] = useState('')
   const [reason, setReason] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -1111,7 +1125,8 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
     ? definition.sdParamSensitivity === 'SECRET'
       ? !secretRef.trim() ? '请输入密钥引用' : ''
       : isDirectVisitService ? serviceError
-        : parameterValueError(definition.sdParamValueType, rawValue)
+        : structured ? fieldErrorSummary(fields!, fieldErrors)
+          : parameterValueError(definition.sdParamValueType, rawValue)
     : ''
 
   async function submit(event: FormEvent) {
@@ -1123,7 +1138,7 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
         scopeReference: target.requiresReference ? scopeReference.trim() : undefined,
         valueMode,
         valueJson: valueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET'
-          ? writeJsonValue(definition.sdParamValueType, rawValue) : undefined,
+          ? structured ? writeParameterFieldDraft(fields!, fieldDraft!) : writeJsonValue(definition.sdParamValueType, rawValue) : undefined,
         secretRef: valueMode === 'OVERRIDE' && definition.sdParamSensitivity === 'SECRET' ? secretRef.trim() : undefined,
         reason: optional(reason) })
     } catch { /* The page-level mutation error keeps this dialog open for correction. */ }
@@ -1178,13 +1193,54 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
         nullable={definition.nullableValue} canRefresh={scopeVerification.ready && Boolean(organizationId)}
         onRefresh={() => { if (scopeVerification.ready && organizationId) void services.refetch() }}
         onChange={(next) => { setRawValue(next); if (!next && definition.nullableValue) setValueMode('EXPLICIT_NULL') }} />}
-      {valueMode === 'OVERRIDE' && !isDirectVisitService && definition.sdParamSensitivity !== 'SECRET' && <ValueControl definition={definition}
+      {valueMode === 'OVERRIDE' && !isDirectVisitService && definition.sdParamSensitivity !== 'SECRET' && fields && <div className="parameter-form__span-2 parameter-field-mode">
+        {rawJsonIssue && <Alert placement="inline">{rawJsonIssue}</Alert>}
+        {structured && submitted && currentValueError && <Alert placement="inline">{currentValueError}</Alert>}
+        <Button size="sm" variant="text" onClick={() => {
+          if (structured) {
+            setRawValue(writeParameterFieldDraft(fields, fieldDraft!)); setRawJsonMode(true); setRawJsonIssue('')
+            return
+          }
+          const next = readParameterFieldDraft(fields, rawValue)
+          if (!next) { setRawJsonIssue('原始 JSON 不是合法对象，无法切换到表单维护，请先修正。'); return }
+          setFieldDraft(next); setRawJsonMode(false); setRawJsonIssue('')
+        }}>{structured ? '编辑原始 JSON' : '返回表单维护'}</Button>
+      </div>}
+      {valueMode === 'OVERRIDE' && !isDirectVisitService && definition.sdParamSensitivity !== 'SECRET' && (structured
+        ? <ParameterFieldsForm fields={fields!} values={fieldDraft!.values} errors={submitted ? fieldErrors : {}}
+          onChange={(name, next) => setFieldDraft((current) => current && ({ ...current, values: { ...current.values, [name]: next } }))} />
+        : <ValueControl definition={definition}
         rawValue={rawValue} onChange={setRawValue} systemEnums={systemEnums} api={api}
-        required error={submitted ? currentValueError || undefined : undefined} />}
+        required error={submitted ? currentValueError || undefined : undefined} />)}
       <FormField className="parameter-form__span-2" label="变更原因"><textarea rows={3} value={reason} maxLength={1000}
         onChange={(event) => setReason(event.target.value)} /></FormField>
     </form>
   </Dialog>
+}
+
+function fieldErrorSummary(fields: ParameterField[], errors: Record<string, string>) {
+  const field = fields.find((item) => errors[item.name])
+  return field ? `${field.title}：${errors[field.name]}` : ''
+}
+
+function ParameterFieldsForm({ fields, values, errors, onChange }: {
+  fields: ParameterField[]; values: Record<string, string>; errors: Record<string, string>
+  onChange: (name: string, value: string) => void
+}) {
+  return <>{fields.filter((field) => parameterFieldVisible(field, values)).map((field) => {
+    const value = values[field.name] ?? ''
+    const range = field.minimum || field.maximum
+      ? `取值 ${field.minimum?.text ?? '不限'} 至 ${field.maximum?.text ?? '不限'}` : undefined
+    const hint = [field.description, range].filter(Boolean).join('；') || undefined
+    return <FormField key={field.name} label={field.title} required={field.required} error={errors[field.name]} hint={hint}>
+      {field.options ? <Select value={value} placeholder="请选择" showValue clearable={!field.required}
+        onChange={(next) => onChange(field.name, next)} options={field.options} />
+        : field.type === 'boolean' ? <Select value={value} placeholder="请选择" showValue clearable={!field.required}
+          onChange={(next) => onChange(field.name, next)} options={[{ value: 'true', label: '是' }, { value: 'false', label: '否' }]} />
+          : <input value={value} inputMode={field.type === 'integer' ? 'numeric' : field.type === 'number' ? 'decimal' : undefined}
+            maxLength={field.maxLength} onChange={(event) => onChange(field.name, event.target.value)} />}
+    </FormField>
+  })}</>
 }
 
 function ValueControl({ definition, rawValue, onChange, systemEnums, api, error, required = false }: {
@@ -1410,6 +1466,8 @@ function ParameterChangesDialog({ definition, changes, loading, error, operation
           onClick={() => onRollback(change)}>恢复此快照</Button>}</div>
       {issue && <p>无法恢复：{issue}</p>}
       <p>{change.reason || '未填写变更原因'}</p>
+      {fieldChanges(definition, change)?.map((item) => <p key={item.name} className="parameter-change-field">
+        {item.title}：{item.before} → {item.after}</p>)}
       <small>{formatDate(change.changedAt)} · 操作用户 {change.changedBy} · 请求 {change.requestCode}</small>
       <details><summary>查看前后快照</summary>
         {change.before === undefined && <p>前快照未返回</p>}{change.after === undefined && <p>后快照未返回</p>}
@@ -1717,11 +1775,19 @@ function scopeTargetLabel(scope: ParameterScope, context: ParameterContext, valu
 
 function scopeDisplay(value: ParameterValue) { return value.scopeReference ?? value.scopeId ?? value.scopeCode }
 
-function displayValue(value: ParameterValue) {
+function fieldChanges(definition: ParameterDefinition, change: ParameterChange) {
+  if (change.sdParamChangeTargetType !== 'VALUE') return undefined
+  const fields = readParameterFields(definition.jsonSchema)
+  const snapshotValue = (snapshot: unknown) => snapshot && typeof snapshot === 'object' && 'valueJson' in snapshot
+    ? (snapshot as { valueJson?: unknown }).valueJson : undefined
+  return fields && diffParameterFieldValues(fields, snapshotValue(change.before), snapshotValue(change.after))
+}
+
+function displayValue(value: ParameterValue, fields?: ParameterField[]) {
   if (value.sdParamValueMode !== 'OVERRIDE') return '—'
   if (value.secretReference) return '密钥引用（已隐藏）'
   if (!value.hasValue) return '已隐藏'
-  return value.displayValue ?? value.valueJson ?? '—'
+  return (fields && describeParameterFieldValue(fields, value.valueJson)) || (value.displayValue ?? value.valueJson ?? '—')
 }
 
 function readRawValue(valueJson: string | undefined, type: ParameterValueType) {

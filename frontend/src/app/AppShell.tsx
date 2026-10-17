@@ -1077,7 +1077,7 @@ export function AppShell() {
                   <Route path="/inpatient/billing" element={<InpatientBillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/settings" element={<Navigate to="/settings/parameters" replace />} />
-                  <Route path="/settings/organization" element={<OrganizationPersonnelManagement api={tabSlot.api} />} />
+                  <Route path="/settings/organization" element={<OrganizationPersonnelManagement api={tabSlot.api} canManage={tabAuthorities.has('IAM.MANAGE')} />} />
                   <Route path="/settings/grid-addresses" element={<GridAddressManagement api={tabSlot.api} />} />
                   <Route path="/settings/dispense-routes" element={<DispenseRouteSettings api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />

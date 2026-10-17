@@ -1,11 +1,11 @@
 import type { DiagnosticTemplateVersion } from '../../../shared/api/diagnosticTemplateTypes'
-import { diagnosticRuleStatus } from '../../../shared/clinical/diagnosticResults'
 import type { LocalDiagnosticObservationInput } from '../../../shared/api/diagnosticsApi'
 import { Alert, Button, EditableCell, EditableRow, EditableTable, FormField, Select, StatusBadge, tableCellClass } from '../../../shared/ui'
 import {
   NATIONAL_STANDARD_LAB_TEMPLATES,
   evaluateIndicatorValue,
   extractPatientConditions,
+  findNationalIndicatorDefinition,
   matchApplicableReferenceRule,
   type NationalStandardLabTemplate,
 } from '../../../shared/clinical/nationalStandardLabCatalog'
@@ -21,14 +21,6 @@ const flags = [
   { value: 'CRITICAL', label: '★危急值' },
   { value: 'PANIC', label: '★危急值 (PANIC)' },
 ]
-const comparators = [
-  { value: 'EQ', label: '=' },
-  { value: 'LT', label: '<' },
-  { value: 'LE', label: '≤' },
-  { value: 'GT', label: '>' },
-  { value: 'GE', label: '≥' },
-]
-
 export function LaboratoryResultEditor({
   rows,
   onChange,
@@ -36,6 +28,9 @@ export function LaboratoryResultEditor({
   template,
   patient,
   onApplyTemplate,
+  title,
+  dirty,
+  draftAuthor,
 }: {
   rows: Row[]
   onChange: (rows: Row[]) => void
@@ -43,6 +38,9 @@ export function LaboratoryResultEditor({
   template?: DiagnosticTemplateVersion
   patient?: { gender?: string; birthDate?: string; ageDays?: number }
   onApplyTemplate?: (template: NationalStandardLabTemplate) => void
+  title?: string
+  dirty?: boolean
+  draftAuthor?: string
 }) {
   const patientConditions = extractPatientConditions(patient)
 
@@ -51,8 +49,10 @@ export function LaboratoryResultEditor({
     const updatedValue = patch.observationValue !== undefined ? patch.observationValue : targetRow.observationValue
 
     let dynamicRulePatch: Partial<Row> = {}
-    if (template && patch.observationValue !== undefined) {
-      const def = template.content.indicators.find((item) => item.code === targetRow.observationCode)
+    if (patch.observationValue !== undefined) {
+      const def =
+        template?.content.indicators.find((item) => item.code === targetRow.observationCode) ??
+        findNationalIndicatorDefinition(targetRow.observationCode)
       if (def) {
         const evalResult = evaluateIndicatorValue(def, updatedValue, patientConditions)
         const rule = evalResult.rule ?? matchApplicableReferenceRule(def.rules, patientConditions)
@@ -117,30 +117,45 @@ export function LaboratoryResultEditor({
   }
 
   return (
-    <section aria-label="检验指标录入">
-      <div className="diagnostic-editor-head">
-        <h3>检验结果</h3>
-        <span>
-          {rows.filter((row) => row.observationValue.trim()).length} / {rows.length} 项已录入 · 异常 {abnormal} 项
-        </span>
-        <div className="ui-form-actions">
-          {!template && onApplyTemplate && (
-            <Select
-              id="quick-national-template-select"
-              aria-label="套用国家标准模板"
-              value=""
-              placeholder="套用国家标准模板 (WS/T 404/405)"
-              disabled={disabled}
-              options={NATIONAL_STANDARD_LAB_TEMPLATES.map((t) => ({ value: t.templateCode, label: t.templateName }))}
-              onChange={(code) => {
-                const found = NATIONAL_STANDARD_LAB_TEMPLATES.find((t) => t.templateCode === code)
-                if (found) applyNationalTemplate(found)
-              }}
-            />
+    <section aria-label="检验指标录入" className="diagnostic-result-editor-section">
+      <div className="diagnostic-editor-head diagnostic-toolbar-unified">
+        <div className="diagnostic-toolbar-left">
+          <h3>{title || '检验结果'}</h3>
+          {template && (
+            <span className="diagnostic-template-badge" title={template.publicationBasis || template.id}>
+              {template.id.startsWith('TPL_LAB_') ? '国标预设' : `机构 V${template.version}`} · {template.publicationBasis || template.id}
+            </span>
           )}
-          <Button size="sm" variant="secondary" disabled={disabled || Boolean(template)} onClick={append}>
-            添加指标
-          </Button>
+          <span className="diagnostic-draft-status">
+            {dirty ? '未保存' : draftAuthor ? '草稿已存' : '未存草稿'}
+          </span>
+        </div>
+        <div className="diagnostic-toolbar-right">
+          <span className="diagnostic-progress-text">
+            {rows.filter((row) => row.observationValue.trim()).length} / {rows.length} 项已录入
+            {abnormal > 0 && <span className="diagnostic-abnormal-text"> · 异常 {abnormal} 项</span>}
+          </span>
+          {(!template || template.id.startsWith('TPL_LAB_')) && onApplyTemplate && (
+            <div className="diagnostic-toolbar-select-wrap">
+              <Select
+                id="quick-national-template-select"
+                aria-label="套用国家标准模板"
+                value=""
+                placeholder={template?.id.startsWith('TPL_LAB_') ? '更换其他标准模板' : '套用国家标准模板 (WS/T 404/405)'}
+                disabled={disabled}
+                options={NATIONAL_STANDARD_LAB_TEMPLATES.map((t) => ({ value: t.templateCode, label: t.templateName }))}
+                onChange={(code) => {
+                  const found = NATIONAL_STANDARD_LAB_TEMPLATES.find((t) => t.templateCode === code)
+                  if (found) applyNationalTemplate(found)
+                }}
+              />
+            </div>
+          )}
+          {!template && (
+            <Button size="sm" variant="secondary" disabled={disabled} onClick={append}>
+              添加指标
+            </Button>
+          )}
         </div>
       </div>
 
@@ -165,7 +180,9 @@ export function LaboratoryResultEditor({
           </thead>
           <tbody>
             {rows.map((row, index) => {
-              const def = template?.content.indicators.find((item) => item.code === row.observationCode)
+              const def =
+                template?.content.indicators.find((item) => item.code === row.observationCode) ??
+                findNationalIndicatorDefinition(row.observationCode)
               const matchedRule = def ? matchApplicableReferenceRule(def.rules, patientConditions) : undefined
               const displayRefLow = row.referenceRangeLow ?? matchedRule?.referenceLow
               const displayRefHigh = row.referenceRangeHigh ?? matchedRule?.referenceHigh
@@ -176,110 +193,93 @@ export function LaboratoryResultEditor({
                 <EditableRow key={index} className={isAbnormal ? 'is-abnormal' : undefined}>
                   {template ? (
                     <td className={tableCellClass('text')}>
-                      <strong>{row.observationName}</strong>
-                      <small>
-                        {row.observationCode}
-                        {def?.required ? ' · 必填' : ''}
-                      </small>
+                      <div className="diagnostic-indicator-display">
+                        <span className="diagnostic-indicator-name-wrapper">
+                          {def?.required && <span className="diagnostic-required-mark" title="必填" aria-label="必填">*</span>}
+                          <strong>{row.observationName}</strong>
+                        </span>
+                      </div>
                     </td>
                   ) : (
                     <EditableCell
                       className={tableCellClass('text')}
                       display={
-                        <span>
-                          {row.observationName}
-                          <small>{row.observationCode}</small>
+                        <span className="diagnostic-indicator-display">
+                          <strong>{row.observationName || '—'}</strong>
                         </span>
                       }
                     >
-                      <FormField label={`指标${index + 1}代码`}>
+                      <div className="diagnostic-cell-composite">
                         <input
+                          aria-label={`指标${index + 1}代码`}
                           disabled={disabled}
+                          placeholder="代码"
                           value={row.observationCode}
                           onChange={(e) => update(index, { observationCode: e.target.value })}
                         />
-                      </FormField>
-                      <FormField label={`指标${index + 1}名称`}>
                         <input
+                          aria-label={`指标${index + 1}名称`}
                           disabled={disabled}
+                          placeholder="指标名称"
                           value={row.observationName}
                           onChange={(e) => update(index, { observationName: e.target.value })}
                         />
-                      </FormField>
-                      <Select
-                        aria-label={`指标${index + 1}类型`}
-                        disabled={disabled}
-                        value={row.valueType}
-                        clearable={false}
-                        searchable={false}
-                        options={[
-                          { value: 'NUMBER', label: '数值' },
-                          { value: 'STRING', label: '文本' },
-                          { value: 'CODE', label: '定性编码' },
-                        ]}
-                        onChange={(value) => update(index, { valueType: value as Row['valueType'] })}
-                      />
-                    </EditableCell>
-                  )}
-                  <EditableCell
-                    className={tableCellClass('numeric')}
-                    display={
-                      row.observationValue
-                        ? `${row.valueType === 'NUMBER' ? comparators.find((value) => value.value === (row.valueComparator || 'EQ'))?.label || '' : ''}${row.observationValue}`
-                        : ''
-                    }
-                  >
-                    <div className={row.valueType === 'NUMBER' ? 'diagnostic-result-value' : undefined}>
-                      {row.valueType === 'NUMBER' && (
                         <Select
-                          aria-label={`指标${index + 1}比较符`}
+                          aria-label={`指标${index + 1}类型`}
                           disabled={disabled}
-                          value={row.valueComparator || 'EQ'}
+                          value={row.valueType}
                           clearable={false}
                           searchable={false}
-                          options={comparators}
-                          onChange={(value) => update(index, { valueComparator: value as Row['valueComparator'] })}
+                          options={[
+                            { value: 'NUMBER', label: '数值' },
+                            { value: 'STRING', label: '文本' },
+                            { value: 'CODE', label: '定性' },
+                          ]}
+                          onChange={(value) => update(index, { valueType: value as Row['valueType'] })}
                         />
-                      )}
-                      <FormField label={`指标${index + 1}结果`}>
-                        {template && row.valueType === 'CODE' ? (
-                          <Select
-                            aria-label={`指标${index + 1}结果`}
-                            disabled={disabled}
-                            value={row.observationValue || ''}
-                            options={(def?.allowedCodes || []).map((value) => ({ value, label: value }))}
-                            onChange={(value) => update(index, { observationValue: value })}
-                          />
-                        ) : (
-                          <input
-                            disabled={disabled}
-                            data-indicator-index={index}
-                            inputMode={row.valueType === 'NUMBER' ? 'decimal' : 'text'}
-                            value={row.observationValue || ''}
-                            onKeyDown={(e) => handleKeyDown(e, index)}
-                            onChange={(e) => update(index, { observationValue: e.target.value })}
-                          />
-                        )}
-                      </FormField>
-                    </div>
-                  </EditableCell>
+                      </div>
+                    </EditableCell>
+                  )}
+                  <td className={tableCellClass('numeric')}>
+                    {template && row.valueType === 'CODE' ? (
+                      <Select
+                        aria-label={`指标${index + 1}结果`}
+                        disabled={disabled}
+                        value={row.observationValue || ''}
+                        options={(def?.allowedCodes || []).map((value) => ({ value, label: value }))}
+                        onChange={(value) => update(index, { observationValue: value })}
+                      />
+                    ) : (
+                      <input
+                        className="diagnostic-result-input"
+                        aria-label={`指标${index + 1}结果`}
+                        disabled={disabled}
+                        data-indicator-index={index}
+                        inputMode={row.valueType === 'NUMBER' ? 'decimal' : 'text'}
+                        placeholder="—"
+                        value={row.observationValue || ''}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        onChange={(e) => update(index, { observationValue: e.target.value })}
+                      />
+                    )}
+                  </td>
                   {template ? (
                     <td className={tableCellClass('text')}>{row.unitCode || def?.unitCode || '—'}</td>
                   ) : (
                     <EditableCell className={tableCellClass('text')} display={row.unitCode}>
-                      <FormField label={`指标${index + 1}单位`}>
-                        <input
-                          disabled={disabled}
-                          value={row.unitCode || ''}
-                          onChange={(e) => update(index, { unitCode: e.target.value || undefined })}
-                        />
-                      </FormField>
+                      <input
+                        aria-label={`指标${index + 1}单位`}
+                        disabled={disabled}
+                        placeholder="单位"
+                        value={row.unitCode || ''}
+                        onChange={(e) => update(index, { unitCode: e.target.value || undefined })}
+                      />
                     </EditableCell>
                   )}
                   {template ? (
                     <td className={tableCellClass('numeric')}>
                       {displayRefLow == null && displayRefHigh == null
-                        ? '待规则匹配'
+                        ? '—'
                         : `${displayRefLow ?? '—'} ～ ${displayRefHigh ?? '—'}`}
                     </td>
                   ) : (
@@ -288,39 +288,43 @@ export function LaboratoryResultEditor({
                       display={`${row.referenceRangeLow ?? '—'} ～ ${row.referenceRangeHigh ?? '—'}`}
                     >
                       <div className="diagnostic-reference-range">
-                        <FormField label={`指标${index + 1}参考下限`}>
-                          <input
-                            disabled={disabled}
-                            type="number"
-                            value={row.referenceRangeLow ?? ''}
-                            onChange={(e) =>
-                              update(index, {
-                                referenceRangeLow: e.target.value === '' ? undefined : Number(e.target.value),
-                              })
-                            }
-                          />
-                        </FormField>
-                        <FormField label={`指标${index + 1}参考上限`}>
-                          <input
-                            disabled={disabled}
-                            type="number"
-                            value={row.referenceRangeHigh ?? ''}
-                            onChange={(e) =>
-                              update(index, {
-                                referenceRangeHigh: e.target.value === '' ? undefined : Number(e.target.value),
-                              })
-                            }
-                          />
-                        </FormField>
+                        <input
+                          aria-label={`指标${index + 1}参考下限`}
+                          disabled={disabled}
+                          type="number"
+                          placeholder="下限"
+                          value={row.referenceRangeLow ?? ''}
+                          onChange={(e) =>
+                            update(index, {
+                              referenceRangeLow: e.target.value === '' ? undefined : Number(e.target.value),
+                            })
+                          }
+                        />
+                        <span className="diagnostic-range-separator">～</span>
+                        <input
+                          aria-label={`指标${index + 1}参考上限`}
+                          disabled={disabled}
+                          type="number"
+                          placeholder="上限"
+                          value={row.referenceRangeHigh ?? ''}
+                          onChange={(e) =>
+                            update(index, {
+                              referenceRangeHigh: e.target.value === '' ? undefined : Number(e.target.value),
+                            })
+                          }
+                        />
                       </div>
                     </EditableCell>
                   )}
                   {template ? (
                     <td className={tableCellClass('status')}>
-                      <StatusBadge tone={isCriticalRow ? 'danger' : isAbnormal ? 'warning' : 'success'}>
-                        {flags.find((flag) => flag.value === row.interpretationCode)?.label || '正常'}
-                      </StatusBadge>
-                      <small>{diagnosticRuleStatus(row.ruleStatus) || '国家标准参考区间'}</small>
+                      {row.observationValue?.trim() ? (
+                        <StatusBadge tone={isCriticalRow ? 'danger' : isAbnormal ? 'warning' : 'success'}>
+                          {flags.find((flag) => flag.value === row.interpretationCode)?.label || '正常'}
+                        </StatusBadge>
+                      ) : (
+                        <span className="diagnostic-empty-dash">—</span>
+                      )}
                     </td>
                   ) : (
                     <EditableCell

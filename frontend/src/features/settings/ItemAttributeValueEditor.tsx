@@ -69,10 +69,15 @@ export function ItemAttributeValueEditor({ api, attribute, value, onChange, plac
     && typeof attribute.schema.items === 'object' && !Array.isArray(attribute.schema.items)
     ? attribute.schema.items as Record<string, ItemAttributeJson> : attribute.schema
   const enumeration = Array.isArray(itemSchema.enum) ? itemSchema.enum : undefined
+  const enumLabels = itemSchema['x-enumLabels'] && typeof itemSchema['x-enumLabels'] === 'object'
+    && !Array.isArray(itemSchema['x-enumLabels']) ? itemSchema['x-enumLabels'] as Record<string, ItemAttributeJson> : {}
   const options = dictionaryRequired ? (dictionary.data?.items ?? [])
     .filter((item) => item.sdDictItemStatus === 'ACTIVE')
     .map((item) => ({ value: item.code, label: item.name }))
-    : (enumeration ?? []).map((item) => ({ value: String(item), label: String(item) }))
+    : (enumeration ?? []).map((item) => {
+      const enumLabel = enumLabels[String(item)]
+      return { value: String(item), label: typeof enumLabel === 'string' && enumLabel ? enumLabel : String(item) }
+    })
   let parsed: ItemAttributeJson | undefined
   let formatError = ''
   if (value.trim()) {

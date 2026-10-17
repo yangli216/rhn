@@ -1,3 +1,5 @@
+import type { MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { IconButton, Button, Popconfirm, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { type ServicePlanDraft } from './orderDraftTypes'
@@ -100,15 +102,19 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
   </div>
 }
 
-export function ServiceDraftRow({ value, onEdit, onRemove, currentDept }: {
+export function ServiceDraftRow({ value, onEdit, onRemove, currentDept, onInspectService }: {
   value: ServicePlanDraft; onEdit: () => void; onRemove: () => void; currentDept?: string
+  onInspectService?: (target: MedicalInsertTarget) => void
 }) {
   return <div className="doctor-unified-order-row is-draft is-editable" role="row" tabIndex={0}
     aria-label={`编辑待确认医嘱 ${value.itemName}`} title="单击编辑医嘱" onClick={onEdit}
     onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onEdit() } }}>
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.serviceType || 'OTHER'} /></span>
     <span className="doctor-unified-order-name">
-      <strong>{value.itemName}</strong>
+      <div className="doctor-order-name-with-action">
+        <strong>{value.itemName}</strong>
+        <ServiceInsertButton name={value.itemName} serviceType={value.serviceType} onView={onInspectService} />
+      </div>
     </span>
     <span className="doctor-unified-directions">
       <span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span>

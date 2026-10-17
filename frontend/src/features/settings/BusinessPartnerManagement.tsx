@@ -106,8 +106,10 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
           { value: 'ACTIVE', label: '已启用' }, { value: 'SUSPENDED', label: '已禁用' },
           { value: 'RETIRED', label: '已停用' },
         ]} />
-        <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-        <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
+        <div className="ui-query-filters__actions">
+          <Button variant="primary" onClick={handleSearch}>查询</Button>
+          <Button variant="secondary" onClick={handleReset}>重置</Button>
+        </div>
         <span className="partner-toolbar__count">{count} 条</span>
       </div>
       {tab === 'manufacturers' ? <ManufacturerTable values={visibleManufacturers} loading={manufacturers.isPending}

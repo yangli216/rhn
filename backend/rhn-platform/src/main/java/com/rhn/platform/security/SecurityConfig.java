@@ -16,7 +16,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -26,6 +28,7 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationFi
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableMethodSecurity
@@ -113,9 +116,16 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * Encodes with BCrypt at the configured cost (production default 10); other stored formats such as
+     * {@code {noop}} still match through Spring's standard delegating encoder. Tests lower the cost because
+     * every HTTP Basic request re-checks the password.
+     */
     @Bean
-    PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    PasswordEncoder passwordEncoder(@Value("${rhn.security.password-bcrypt-strength:10}") int bcryptStrength) {
+        var encoder = new DelegatingPasswordEncoder("bcrypt", Map.of("bcrypt", new BCryptPasswordEncoder(bcryptStrength)));
+        encoder.setDefaultPasswordEncoderForMatches(PasswordEncoderFactories.createDelegatingPasswordEncoder());
+        return encoder;
     }
 
     @Bean

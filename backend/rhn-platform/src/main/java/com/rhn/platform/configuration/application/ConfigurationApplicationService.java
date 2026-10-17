@@ -71,6 +71,8 @@ import static com.rhn.platform.configuration.api.ClinicalAiConfigurationPermissi
 
 @Service
 public class ConfigurationApplicationService implements ConfigurationDirectory, ConfigurationAdministration {
+    private static final Pattern FIELD_NAME = Pattern.compile("^[A-Za-z][A-Za-z0-9_]{0,63}$");
+    private static final Set<String> FIELD_TYPES = Set.of("boolean", "integer", "number", "string");
     private final ParameterCategoryRepository categoryRepository;
     private final ConfigurationDefinitionRepository definitionRepository;
     private final ParameterValueRepository valueRepository;
@@ -860,7 +862,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         if (!matches) throw badRequest("PARAMETER_TYPE_MISMATCH", "参数值与声明类型 " + type + " 不匹配");
         if (schemaJson != null) {
             validateSchema(schemaJson, type);
-            validateAgainstSchema(value, parseSchema(schemaJson));
+            validateAgainstSchema(value, parseSchema(schemaJson), "参数值");
         }
     }
 
@@ -872,40 +874,125 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 type 与参数值类型不一致");
             }
         }
+        validateSchemaKeywords(schema, "JSON Schema");
+        if (schema.has("properties")) validateFieldSchemas(schema, valueType);
+    }
+
+    private void validateSchemaKeywords(JsonNode schema, String label) {
         if (schema.has("enum") && !schema.get("enum").isArray()) {
-            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 enum 必须是数组");
+            throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 enum 必须是数组");
         }
-        validateNumericKeyword(schema, "minimum");
-        validateNumericKeyword(schema, "maximum");
+        validateNumericKeyword(schema, "minimum", label);
+        validateNumericKeyword(schema, "maximum", label);
         if (schema.has("minimum") && schema.has("maximum")
                 && schema.get("minimum").decimalValue().compareTo(schema.get("maximum").decimalValue()) > 0) {
-            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 minimum 不能大于 maximum");
+            throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 minimum 不能大于 maximum");
         }
-        validateLengthKeyword(schema, "minLength");
-        validateLengthKeyword(schema, "maxLength");
+        validateLengthKeyword(schema, "minLength", label);
+        validateLengthKeyword(schema, "maxLength", label);
         if (schema.has("minLength") && schema.has("maxLength")
                 && schema.get("minLength").bigIntegerValue().compareTo(schema.get("maxLength").bigIntegerValue()) > 0) {
-            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 minLength 不能大于 maxLength");
+            throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 minLength 不能大于 maxLength");
         }
         if (schema.has("pattern")) {
             if (!schema.get("pattern").isString()) {
-                throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 pattern 必须是字符串");
+                throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 pattern 必须是字符串");
             }
             try {
                 Pattern.compile(schema.get("pattern").asString());
             } catch (PatternSyntaxException exception) {
-                throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 中的正则表达式不合法");
+                throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 中的正则表达式不合法");
             }
         }
         if (schema.has("required")) {
             JsonNode required = schema.get("required");
-            if (!required.isArray()) throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 required 必须是数组");
+            if (!required.isArray()) throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 required 必须是数组");
             for (JsonNode field : required) {
                 if (!field.isString() || field.asString().isBlank()) {
-                    throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 required 只能包含非空字段名");
+                    throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 required 只能包含非空字段名");
                 }
             }
         }
+    }
+
+    /**
+     * 结构化对象参数：properties 逐个声明字段，维护界面据此生成表单。
+     * 字段只支持一层的 boolean / integer / number / string，可附带 title、description、default、
+     * x-enumLabels（枚举值到中文名）与 x-visibleWhen（其他字段取值满足时才显示）。
+     */
+    private void validateFieldSchemas(JsonNode schema, ConfigurationValueType valueType) {
+        if (valueType != ConfigurationValueType.JSON || !schema.has("type") || !"object".equals(schema.get("type").asString())) {
+            throw badRequest("PARAMETER_SCHEMA_INVALID", "只有 JSON 对象参数可以声明 properties 字段");
+        }
+        JsonNode properties = schema.get("properties");
+        if (!properties.isObject() || properties.isEmpty()) {
+            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 properties 必须是非空对象");
+        }
+        if (schema.has("additionalProperties") && !schema.get("additionalProperties").isBoolean()) {
+            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 additionalProperties 只能是布尔值");
+        }
+        for (var entry : properties.properties()) {
+            String name = entry.getKey();
+            JsonNode field = entry.getValue();
+            String label = "字段 " + name;
+            if (!FIELD_NAME.matcher(name).matches()) {
+                throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的名称只能使用字母、数字和下划线，且以字母开头");
+            }
+            if (!field.isObject() || !field.has("type") || !field.get("type").isString()
+                    || !FIELD_TYPES.contains(field.get("type").asString())) {
+                throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 type 只能是 boolean、integer、number 或 string");
+            }
+            for (String text : List.of("title", "description")) {
+                if (field.has(text) && (!field.get(text).isString() || field.get(text).asString().isBlank())) {
+                    throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 " + text + " 必须是非空文本");
+                }
+            }
+            validateSchemaKeywords(field, label);
+            if (field.has("enum")) {
+                for (JsonNode option : field.get("enum")) {
+                    if (!schemaValueTypeMatches(field.get("type").asString(), option)) {
+                        throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 enum 选项与字段类型不一致");
+                    }
+                }
+            }
+            if (field.has("x-enumLabels")) {
+                JsonNode labels = field.get("x-enumLabels");
+                if (!field.has("enum") || !labels.isObject()) {
+                    throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 x-enumLabels 必须是对应 enum 的对象");
+                }
+                for (var option : labels.properties()) {
+                    boolean known = false;
+                    for (JsonNode candidate : field.get("enum")) if (candidate.asString().equals(option.getKey())) known = true;
+                    if (!known || !option.getValue().isString() || option.getValue().asString().isBlank()) {
+                        throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 x-enumLabels 只能为已声明的 enum 选项提供非空名称");
+                    }
+                }
+            }
+            if (field.has("x-visibleWhen")) {
+                JsonNode condition = field.get("x-visibleWhen");
+                if (!condition.isObject() || condition.isEmpty()) {
+                    throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 x-visibleWhen 必须是非空对象");
+                }
+                for (var dependency : condition.properties()) {
+                    if (dependency.getKey().equals(name) || !properties.has(dependency.getKey())
+                            || !schemaValueTypeMatches(properties.get(dependency.getKey()).get("type").asString(), dependency.getValue())) {
+                        throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 x-visibleWhen 必须引用其他已声明字段的合法取值");
+                    }
+                }
+            }
+            if (field.has("default")) validateAgainstSchema(field.get("default"), field, fieldLabel(name, field));
+        }
+        if (schema.has("required")) {
+            for (JsonNode required : schema.get("required")) {
+                if (!properties.has(required.asString())) {
+                    throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 required 字段 " + required.asString() + " 未在 properties 中声明");
+                }
+            }
+        }
+    }
+
+    private static String fieldLabel(String name, JsonNode field) {
+        return "字段「" + (field.has("title") && field.get("title").isString() ? field.get("title").asString() : name) + "」";
     }
 
     private boolean schemaTypeMatches(String schemaType, ConfigurationValueType valueType) {
@@ -917,15 +1004,15 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         };
     }
 
-    private void validateNumericKeyword(JsonNode schema, String keyword) {
+    private void validateNumericKeyword(JsonNode schema, String keyword, String label) {
         if (schema.has(keyword) && !schema.get(keyword).isNumber()) {
-            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 " + keyword + " 必须是数值");
+            throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 " + keyword + " 必须是数值");
         }
     }
 
-    private void validateLengthKeyword(JsonNode schema, String keyword) {
+    private void validateLengthKeyword(JsonNode schema, String keyword, String label) {
         if (schema.has(keyword) && (!schema.get(keyword).isIntegralNumber() || schema.get(keyword).bigIntegerValue().signum() < 0)) {
-            throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 " + keyword + " 必须是非负整数");
+            throw badRequest("PARAMETER_SCHEMA_INVALID", label + " 的 " + keyword + " 必须是非负整数");
         }
     }
 
@@ -935,37 +1022,37 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         return schema;
     }
 
-    private void validateAgainstSchema(JsonNode value, JsonNode schema) {
+    private void validateAgainstSchema(JsonNode value, JsonNode schema, String label) {
         if (schema.has("type") && !schemaValueTypeMatches(schema.get("type").asString(), value)) {
-            throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值与 JSON Schema type 不匹配");
+            throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "与 JSON Schema type 不匹配");
         }
         JsonNode enumeration = schema.get("enum");
         if (enumeration != null && enumeration.isArray()) {
             boolean found = false;
             for (JsonNode option : enumeration) if (option.equals(value)) found = true;
-            if (!found) throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值不在 JSON Schema 枚举范围内");
+            if (!found) throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "不在 JSON Schema 枚举范围内");
         }
         if (value.isNumber()) {
             BigDecimal number = value.decimalValue();
             if (schema.has("minimum") && number.compareTo(schema.get("minimum").decimalValue()) < 0) {
-                throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值小于允许的最小值");
+                throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "小于允许的最小值");
             }
             if (schema.has("maximum") && number.compareTo(schema.get("maximum").decimalValue()) > 0) {
-                throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值大于允许的最大值");
+                throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "大于允许的最大值");
             }
         }
         if (value.isString()) {
             int length = value.asString().length();
             if (schema.has("minLength") && BigInteger.valueOf(length).compareTo(schema.get("minLength").bigIntegerValue()) < 0) {
-                throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值长度小于允许的最小长度");
+                throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "长度小于允许的最小长度");
             }
             if (schema.has("maxLength") && BigInteger.valueOf(length).compareTo(schema.get("maxLength").bigIntegerValue()) > 0) {
-                throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值长度超过允许的最大长度");
+                throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "长度超过允许的最大长度");
             }
             if (schema.has("pattern")) {
                 try {
                     if (!Pattern.compile(schema.get("pattern").asString()).matcher(value.asString()).matches()) {
-                        throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值不符合 JSON Schema 格式约束");
+                        throw badRequest("PARAMETER_SCHEMA_VIOLATION", label + "不符合 JSON Schema 格式约束");
                     }
                 } catch (PatternSyntaxException exception) {
                     throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 中的正则表达式不合法");
@@ -975,8 +1062,19 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         if (value.isObject() && schema.has("required") && schema.get("required").isArray()) {
             for (JsonNode required : schema.get("required")) {
                 if (!value.has(required.asString())) {
-                    throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值缺少必填属性 " + required.asString());
+                    JsonNode field = schema.path("properties").get(required.asString());
+                    throw badRequest("PARAMETER_SCHEMA_VIOLATION", field == null
+                            ? label + "缺少必填属性 " + required.asString() : "参数值缺少必填" + fieldLabel(required.asString(), field));
                 }
+            }
+        }
+        if (value.isObject() && schema.has("properties") && schema.get("properties").isObject()) {
+            JsonNode properties = schema.get("properties");
+            boolean closed = schema.has("additionalProperties") && !schema.get("additionalProperties").asBoolean();
+            for (var entry : value.properties()) {
+                JsonNode field = properties.get(entry.getKey());
+                if (field != null) validateAgainstSchema(entry.getValue(), field, "参数值" + fieldLabel(entry.getKey(), field));
+                else if (closed) throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值包含未声明的属性 " + entry.getKey());
             }
         }
     }

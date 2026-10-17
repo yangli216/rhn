@@ -23,6 +23,8 @@ class MedicationKnowledgeDraftModelTest {
         when(standards.requireSpecification("S1")).thenReturn(new Reference("C", "V1", "hash", "source", "E1", "S1", "合成甲", "TABLET", "合成规格甲"));
         when(standards.requireSpecification("S2")).thenReturn(new Reference("C", "V1", "hash", "source", "E2", "S2", "合成乙", "TABLET", "合成规格乙"));
         when(standards.requireSpecification("S3")).thenReturn(new Reference("C", "V1", "hash", "source", "E1", "S3", "合成甲另一规格", "TABLET", "合成规格丙"));
+        when(standards.requireCategory("甲类")).thenReturn(new StandardMedicationReferenceDirectory.CategoryReference("C", "V1", "hash", "source", "甲类", "甲类", List.of("E1", "E3")));
+        when(standards.requireCategory("乙类")).thenReturn(new StandardMedicationReferenceDirectory.CategoryReference("C", "V1", "hash", "source", "乙类", "乙类", List.of("E2", "E3")));
         when(routes.resolveActive(any(), eq("PO"), any(), any())).thenReturn(Optional.of(new MedicationRouteDirectory.RouteSnapshot(1L,"PO","口服","R","1","NONE")));
         when(routes.resolveActive(any(), eq("IV"), any(), any())).thenReturn(Optional.of(new MedicationRouteDirectory.RouteSnapshot(2L,"IV","静脉","R","1","INFUSION")));
     }
@@ -39,6 +41,31 @@ class MedicationKnowledgeDraftModelTest {
         assertThat(run(b,r,row("2","E2","S2","PO")).outcome()).isEqualTo("NO_MATCH");
         assertThat(run(b,r,r).outcome()).isEqualTo("NO_MATCH");
         assertThat(run(b,r,row("1","E2","S2","PO")).outcome()).isEqualTo("UNAVAILABLE");
+    }
+    static Target category(String key) {return new Target("CATEGORY", null, "C", "V1", "hash", key);}
+    static Body withGroups(Body b, List<Target> a, List<Target> g) {return new Body(b.title(),b.kind(),b.matchMode(),a,g,b.minimumOrders(),b.exposureScope(),b.conditions(),b.evidence(),b.clinicalMeaning(),b.severity(),b.proposedAction());}
+    @Test void category_targets_match_any_member_entry_regardless_of_specification() {
+        var b=withGroups(interaction(),List.of(category("甲类")),List.of(category("乙类")));
+        assertThat(validator.assess(1L,b).structureComplete()).isFalse(); // E3 belongs to both groups: ambiguous self-interaction
+        var ok=withGroups(interaction(),List.of(category("甲类")),List.of(target("ENTRY","S2")));
+        assertThat(validator.assess(1L,ok).structureComplete()).isTrue();
+        assertThat(run(ok,row("1","E3","any-spec","PO"),row("2","E2","S2","PO")).outcome()).isEqualTo("MATCH");
+        assertThat(run(ok,row("1","E1","S9","PO"),row("2","E2","S2","PO")).outcome()).isEqualTo("MATCH");
+        assertThat(run(ok,row("1","E4","S9","PO"),row("2","E2","S2","PO")).outcome()).isEqualTo("NO_MATCH");
+        assertThat(run(ok,row("1","E1","S1","PO"),new Row("2","C","OLD","hash","E2","S2","PO","ACTIVE")).outcome()).isEqualTo("UNAVAILABLE");
+    }
+    @Test void category_duplicate_group_counts_distinct_orders_across_member_entries() {
+        var b=withGroups(new Body("合成分类重复","DUPLICATE_THERAPY","EXPLICIT_GROUP",List.of(),List.of(),2,"SAME_PRESCRIPTION",CONDITIONS,evidence(),"仅测试","MEDIUM","WARN"),List.of(category("甲类")),List.of());
+        assertThat(run(b,row("1","E1","S1","PO"),row("2","E3","S7","PO")).outcome()).isEqualTo("MATCH");
+        assertThat(run(b,row("1","E1","S1","PO"),row("2","E2","S2","PO")).outcome()).isEqualTo("NO_MATCH");
+        assertThat(run(b,row("1","E1","S1","PO"),row("1","E1","S1","PO")).outcome()).isEqualTo("NO_MATCH");
+    }
+    @Test void category_and_member_entry_in_one_group_are_rejected_as_overlapping() {
+        var b=withGroups(new Body("合成","DUPLICATE_THERAPY","EXPLICIT_GROUP",List.of(),List.of(),2,"SAME_PRESCRIPTION",CONDITIONS,evidence(),"x","MEDIUM","WARN"),List.of(category("甲类"),target("ENTRY","S1")),List.of());
+        assertThat(validator.assess(1L,b).issues()).anyMatch(i->"OVERLAPPING_TARGET".equals(i.code()));
+        var unknown=withGroups(b,List.of(category("不存在")),List.of());
+        when(standards.requireCategory("不存在")).thenThrow(com.rhn.shared.api.BusinessErrors.notFound("X","y"));
+        assertThat(validator.assess(1L,unknown).issues()).anyMatch(i->"UNKNOWN_STANDARD".equals(i.code()));
     }
     @Test void reports_all_participating_orders_across_duplicate_groups_and_interaction_pairs() {
         var duplicate=run(duplicate(),row("1","E1","S1","PO"),row("2","E1","S3","PO"),row("3","E2","S2","PO"),row("4","E2","S2","PO"));

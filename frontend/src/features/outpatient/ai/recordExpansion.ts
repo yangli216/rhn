@@ -16,6 +16,11 @@ function filled(context: ExpansionContext, field: AiRecordDraftField) {
   return isAiVitalField(field) ? value != null : typeof value === 'string' && value.trim() !== ''
 }
 
+/** The record already has its narrative (present illness), written by the doctor or adopted from AI. */
+export function hasRecordNarrative(context: ExpansionContext) {
+  return filled(context, 'presentIllness')
+}
+
 /**
  * Offered only while the record is still just a short chief complaint: once the present illness is written —
  * by the doctor, an expansion, a chronic follow-up draft or any other AI adoption — the record has its narrative

@@ -30,10 +30,10 @@ function strengthText(spec: StandardMedicationSpecification) {
   if (s.kind === 'TRADITIONAL_PRESENTATION') return '中成药制剂规格，保留原文'
   return '强度语义待核验'
 }
-export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, setupDisabled }: { api: RhnApi; organizationId?: string;
-  onSetup?: (entry: StandardMedicationDetail, spec: StandardMedicationSpecification) => void; setupDisabled?: boolean }) {
-  const [inputQuery, setInputQuery] = useState('')
-  const [appliedQuery, setAppliedQuery] = useState('')
+export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, setupDisabled, initialQuery = '' }: { api: RhnApi; organizationId?: string;
+  onSetup?: (entry: StandardMedicationDetail, spec: StandardMedicationSpecification) => void; setupDisabled?: boolean; initialQuery?: string }) {
+  const [inputQuery, setInputQuery] = useState(initialQuery)
+  const [appliedQuery, setAppliedQuery] = useState(initialQuery)
   const [type, setType] = useState('')
   const [state, setState] = useState('')
   const [page, setPage] = useState(0)

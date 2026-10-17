@@ -17,8 +17,7 @@
 
 /* 单行紧凑筛选条 (严格控制桌面端宽度，杜绝换行) */
 .qmed-governance__filters {
-
-
+  align-items: center;
   min-height: 42px;
   padding: 4px 10px;
   background: var(--color-surface);
@@ -27,6 +26,15 @@
   box-shadow: var(--shadow-sm);
 
 
+}
+
+.qmed-governance__filters > .ui-query-filters__actions {
+  margin-left: auto;
+}
+
+.qmed-governance__list-head strong {
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .qmed-governance__filters-count {
@@ -221,6 +229,24 @@
   min-height: 0;
 }
 
+/* 纵向 flex 容器内的卡片不得被压缩，内容超出时由容器滚动 */
+.qmed-governance__detail > * {
+  flex-shrink: 0;
+}
+
+/* 默认折叠的次要内容（DSL、循证依据） */
+.qmed-fold > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  padding: var(--space-2) 0;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+.qmed-fold[open] > summary { margin-bottom: var(--space-2); }
+
 /* 详情顶部核心看板 (Hero: 2 行紧凑内聚结构) */
 .qmed-detail-hero {
   display: flex;
@@ -257,7 +283,7 @@
 
 .qmed-detail-hero__row2 {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
 }
@@ -300,6 +326,8 @@
 
 .qmed-detail-hero__action-inline {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;

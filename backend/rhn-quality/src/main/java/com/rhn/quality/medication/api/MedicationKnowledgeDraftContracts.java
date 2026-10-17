@@ -9,7 +9,10 @@ import java.util.List;
 /** Draft knowledge, independent of clinical execution or publication approval. */
 public final class MedicationKnowledgeDraftContracts {
     private MedicationKnowledgeDraftContracts() {}
-    public record Target(String level, String specificationId, String catalogId, String catalogVersion, String contentHash) {}
+    /** level ENTRY/SPECIFICATION address a standard entry or specification; CATEGORY addresses a catalog classification by categoryKey. */
+    public record Target(String level, String specificationId, String catalogId, String catalogVersion, String contentHash, String categoryKey) {
+        public Target(String level, String specificationId, String catalogId, String catalogVersion, String contentHash) {this(level,specificationId,catalogId,catalogVersion,contentHash,null);}
+    }
     public record RouteCondition(String mode, List<String> codes) {}
     public record Conditions(String ageMode, String ageUnit, Integer minimumAgeInclusive, Integer maximumAgeExclusive,
             RouteCondition groupARoutes, RouteCondition groupBRoutes, String additionalConditions) {}
@@ -23,7 +26,20 @@ public final class MedicationKnowledgeDraftContracts {
         public Save(Integer expectedVersion, Body body, String changeReason) {this(expectedVersion,body,changeReason,null);}
     }
     public record Issue(String field, String code, String message) {}
-    public record ResolvedTarget(String level, Reference reference) {}
+    /** Frozen expansion of a classification: the member entries as of the referenced catalog edition. */
+    public record Category(String key, String label, List<String> entryIds) {
+        public Category {entryIds=List.copyOf(entryIds);}
+    }
+    /** For CATEGORY, reference carries the catalog edition only (no entry/specification) and category the frozen members. */
+    public record ResolvedTarget(String level, Reference reference, Category category) {
+        public ResolvedTarget(String level, Reference reference) {this(level,reference,null);}
+        public boolean byCategory() {return "CATEGORY".equals(level) && category != null;}
+        /** True when a prescription row's standard identity falls inside this target (edition checked by the caller). */
+        public boolean covers(String entryId, String specificationId) {
+            if (byCategory()) return entryId != null && category.entryIds().contains(entryId);
+            return java.util.Objects.equals(entryId, reference.entryId()) && ("ENTRY".equals(level) || java.util.Objects.equals(specificationId, reference.specificationId()));
+        }
+    }
     public record Assessment(boolean structureComplete, List<Issue> issues, String ruleDescription,
             List<ResolvedTarget> groupA, List<ResolvedTarget> groupB, List<RouteSnapshot> groupARoutes, List<RouteSnapshot> groupBRoutes) {}
     public record Version(Long id, int version, String status, Body body, Assessment assessment,

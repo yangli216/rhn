@@ -1639,3 +1639,23 @@
 .doctor-record-expand > .ui-button { height: 1.5rem; padding-inline: var(--space-1); }
 .doctor-record-expand__key { font: inherit; }
 .doctor-record-expand__error { color: var(--color-danger); font-size: var(--font-size-small); }
+
+.doctor-ai-copilot-pill__tag.is-next {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+}
+
+.doctor-ai-next-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-surface));
+}
+
+.doctor-ai-next-step__hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}

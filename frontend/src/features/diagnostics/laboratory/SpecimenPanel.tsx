@@ -48,12 +48,11 @@ export function SpecimenPanel({ api, task, candidates, onRefresh, refreshing, ca
     && item.residentId === task.residentId && item.encounterId === task.encounterId
     && item.organizationId === task.organizationId && item.departmentId === task.departmentId)
   const run = (specimen: DiagnosticSpecimen, operation: string) => action.mutate({ specimen, operation })
-  return <section aria-label="实际标本" className="diagnostic-specimens"><h3>标本采集与接收</h3>
+  return <section aria-label="标本采集管理" className="diagnostic-specimens">
     {(specimens.error || generate.error || (!rejecting && action.error)) && <Alert>{errorMessage(specimens.error || generate.error || action.error)}</Alert>}
     {specimens.isPending ? <LoadingState label="正在读取标本…" /> : specimens.isError
       ? <Button onClick={() => void specimens.refetch()}>重新读取标本</Button> : <>
-        {task.status === 'READY' && specimens.data?.length === 0 && <div>
-          <p>选择本页中同一患者、同次就诊的待采集申请，按国家标准（YY/T 0314-2007）采血管色标分管。</p>
+        {task.status === 'READY' && specimens.data?.length === 0 && <div className="diagnostic-specimen-generate-block">
           <DataTable compact aria-label="待生成标本申请"><thead><tr><th className={tableCellClass('control')}>选择</th>
             <th className={tableCellClass('text')}>申请项目</th>
             <th className={tableCellClass('text')}>推荐采血管/耗材</th>
@@ -63,7 +62,7 @@ export function SpecimenPanel({ api, task, candidates, onRefresh, refreshing, ca
               return <tr key={item.id}><td className={tableCellClass('control')}><input type="checkbox"
                 aria-label={`生成标本：${item.itemName} ${item.requestNo}`} checked={selected.includes(item.id)} disabled={busy}
                 onChange={(event) => { setCommand(crypto.randomUUID()); setSelected((previous) => event.target.checked ? [...previous, item.id] : previous.filter((id) => id !== item.id)) }} /></td>
-                <td className={tableCellClass('text')}>{item.itemName}</td>
+                <td className={tableCellClass('text')}><strong>{item.itemName}</strong></td>
                 <td className={tableCellClass('text')}>
                   <span className="diagnostic-tube-badge">
                     <span className={`diagnostic-tube-dot diagnostic-tube-dot--${tube.capColorKey}`} aria-hidden="true" />
@@ -73,7 +72,7 @@ export function SpecimenPanel({ api, task, candidates, onRefresh, refreshing, ca
                 </td>
                 <td className={tableCellClass('text')}>{item.requestNo}</td></tr>
             })}</tbody></DataTable>
-          <div className="diagnostic-specimen-generate"><span>已选 {eligible.filter((item) => selected.includes(item.id)).length} 项</span>
+          <div className="diagnostic-specimen-generate"><span>已选 <strong>{eligible.filter((item) => selected.includes(item.id)).length}</strong> 项待采集申请</span>
             <Button disabled={busy || !eligible.some((item) => selected.includes(item.id))} busy={generate.isPending} onClick={() => generate.mutate()}>生成标本条码</Button></div>
         </div>}
         {!!specimens.data?.length && <DataTable compact aria-label="标本列表" className="diagnostic-specimen-table"><thead><tr>
@@ -83,11 +82,20 @@ export function SpecimenPanel({ api, task, candidates, onRefresh, refreshing, ca
             const tube = findSpecimenTubeByCode(item.containerCode) ?? recommendSpecimenTubeByItemName(item.specimenName)
             return <tr key={item.id}><td className={tableCellClass('text')}>
               <div className="diagnostic-tube-item">
-                <span className={`diagnostic-tube-bar diagnostic-tube-bar--${tube?.capColorKey ?? 'default'}`} aria-hidden="true" />
-                <strong>{item.specimenNo}</strong>
+                <span
+                  className={`diagnostic-tube-badge diagnostic-tube-badge--${tube?.capColorKey ?? 'default'}`}
+                  title={`采血管帽颜色：${tube?.colorName ?? '标准'}（${tube?.tubeName ?? item.containerName ?? '未指定'}）`}
+                >
+                  <span className={`diagnostic-tube-dot diagnostic-tube-dot--${tube?.capColorKey ?? 'default'}`} aria-hidden="true" />
+                  <span className="diagnostic-tube-cap-text">{tube?.colorName ?? '标准管'}</span>
+                </span>
+                <strong className="diagnostic-specimen-no">{item.specimenNo}</strong>
                 {item.previousSpecimenId && <small>（重采）</small>}
               </div>
-              <small>{item.specimenName} · {item.containerName || tube?.tubeName || '未指定容器'} · 关联 {item.taskIds.length} 项</small></td>
+              <div className="diagnostic-specimen-desc">
+                <span>{item.specimenName} · {item.containerName || tube?.tubeName || '未指定容器'}</span>
+                <span> · 关联 {item.taskIds.length} 项</span>
+              </div></td>
               <td className={tableCellClass('text')}><small>采集 {formatTime(item.collectedAt) || '—'}</small>
                 <small>接收 {formatTime(item.receivedAt) || '—'}</small></td>
               <td className={tableCellClass('status')}><StatusBadge tone={item.status === 'REJECTED' ? 'danger' : item.status === 'RECEIVED' ? 'success' : 'warning'}>

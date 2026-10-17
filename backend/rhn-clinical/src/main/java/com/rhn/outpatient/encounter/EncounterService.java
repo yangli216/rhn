@@ -73,6 +73,7 @@ public class EncounterService implements EncounterDirectory {
     private final JsonCodec jsonCodec;
     private final com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory;
     private final RegistrationValidityPolicy validityPolicy;
+    private final OutpatientBloodPressurePolicy bloodPressurePolicy;
 
     public EncounterService(EncounterRepository encounterRepository,
                             EncounterDiagnosisRepository diagnosisRepository,
@@ -96,7 +97,9 @@ public class EncounterService implements EncounterDirectory {
                             ExecutionContextProvider executionContextProvider,
                             JsonCodec jsonCodec,
                             com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory,
-                            RegistrationValidityPolicy validityPolicy, BusinessNumberGenerator numbers) {
+                            RegistrationValidityPolicy validityPolicy, BusinessNumberGenerator numbers,
+                            OutpatientBloodPressurePolicy bloodPressurePolicy) {
+        this.bloodPressurePolicy = bloodPressurePolicy;
         this.numbers = numbers;
         this.encounterRepository = encounterRepository;
         this.diagnosisRepository = diagnosisRepository;
@@ -316,14 +319,22 @@ public class EncounterService implements EncounterDirectory {
         return response;
     }
 
-    /** 校验血压必填规则、生命体征取值范围与诊断输入。 */
-    private void validateClinicalInput(Encounter encounter, RecordClinicalDataRequest request) {
+    private OutpatientBloodPressurePolicy.Requirement bloodPressureRequirement(Encounter encounter) {
         var birthDate = residentDirectory.requireSnapshot(encounter.residentId()).birthDate();
         var visitDate = encounter.registeredAt().atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate();
-        boolean bloodPressureRequired = birthDate == null || birthDate.isAfter(visitDate)
-                || java.time.Period.between(birthDate, visitDate).getYears() >= 18;
-        if (bloodPressureRequired && (request.systolic() == null || request.diastolic() == null)) {
-            throw badRequest("OUTPATIENT_BLOOD_PRESSURE_REQUIRED", "成年患者或年龄未确认的患者，请填写收缩压和舒张压");
+        return bloodPressurePolicy.evaluate(encounter, birthDate, visitDate);
+    }
+
+    @Transactional(readOnly = true)
+    public OutpatientBloodPressurePolicy.Requirement bloodPressureRequirement(Long encounterId) {
+        return bloodPressureRequirement(requireEncounter(encounterId));
+    }
+
+    /** 校验血压必填规则、生命体征取值范围与诊断输入。 */
+    private void validateClinicalInput(Encounter encounter, RecordClinicalDataRequest request) {
+        var requirement = bloodPressureRequirement(encounter);
+        if (requirement.blocksDraft() && (request.systolic() == null || request.diastolic() == null)) {
+            throw badRequest("OUTPATIENT_BLOOD_PRESSURE_REQUIRED", requirement.message());
         }
         clinicalValidationDirectory.validateVitalSigns(new ClinicalValidationDirectory.VitalSignsInput(
                 request.temperature(), decimal(request.pulseRate()), decimal(request.respiratoryRate()),
@@ -517,8 +528,11 @@ public class EncounterService implements EncounterDirectory {
                 encounter.tenantId(), encounter.id(), "PASS");
         boolean hasPrimaryDiagnosis = currentDiagnoses.stream()
                 .anyMatch(diagnosis -> diagnosis.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY);
+        var bloodPressure = bloodPressureRequirement(encounter);
+        boolean bloodPressureMissing = bloodPressure.blocksCompletion()
+                && (encounter.systolic() == null || encounter.diastolic() == null);
         EncounterCompletionService.CompletionDecision decision = completionService.evaluate(encounter,
-                identityChecked, noteSigned, hasPrimaryDiagnosis);
+                identityChecked, noteSigned, hasPrimaryDiagnosis, bloodPressureMissing);
         if (!decision.passed()) {
             completionService.recordBlocked(encounter, decision, context, commandCode);
             if (documentFailure != null && decision.issues().size() == 1) throw documentFailure;

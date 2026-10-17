@@ -1958,6 +1958,9 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .parameter-toggle small { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-body); }
 .parameter-value-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
 .parameter-value-form .ui-alert { margin: 0; }
+.parameter-field-mode { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.parameter-field-mode .ui-alert { align-self: stretch; }
+.parameter-change-list .parameter-change-field { color: var(--color-text-primary); }
 .parameter-category-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-4); }
 .parameter-category-workspace { min-height: 30rem; display: grid; grid-template-columns: minmax(21rem, .85fr) minmax(0, 1.15fr); gap: var(--space-5); align-items: stretch; }
 .parameter-category-workspace .ui-tree-panel { max-height: 34rem; }

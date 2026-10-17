@@ -91,6 +91,14 @@ public class DiagnosticExecutionTask {
 
     public void collect(long expectedRevision, String value, String note, Long actor, Instant occurredAt) {
         requireRevision(expectedRevision);
+        internalCollect(value, note, actor, occurredAt);
+    }
+
+    public void markCollectedFromSpecimens(String value, String note, Long actor, Instant occurredAt) {
+        internalCollect(value, note, actor, occurredAt);
+    }
+
+    private void internalCollect(String value, String note, Long actor, Instant occurredAt) {
         if (!"LABORATORY".equals(requestType)) invalid("DIAGNOSTIC_COLLECTION_TYPE_INVALID", "检查项目不需要标本采集");
         if (status != DiagnosticExecutionTaskStatus.READY) invalid("DIAGNOSTIC_COLLECTION_STATE_INVALID", "只有待执行的检验申请可以采集标本");
         status = DiagnosticExecutionTaskStatus.COLLECTED; specimenNo = value; collectionNote = note;
@@ -166,7 +174,9 @@ public class DiagnosticExecutionTask {
     }
 
     private void requireRevision(long expected) {
-        if (revision != expected) invalid("DIAGNOSTIC_TASK_REVISION_CONFLICT", "医技任务已被其他用户更新，请刷新后重试");
+        if (revision != expected) {
+            invalid("DIAGNOSTIC_TASK_REVISION_CONFLICT", "医技任务已被其他用户更新，请刷新后重试");
+        }
     }
 
     private void invalid(String code, String message) { throw new BusinessException(code, message, HttpStatus.CONFLICT); }

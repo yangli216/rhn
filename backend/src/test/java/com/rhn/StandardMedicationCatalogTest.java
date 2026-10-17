@@ -11,6 +11,22 @@ class StandardMedicationCatalogTest extends RhnIntegrationTestSupport {
     com.rhn.platform.masterdata.application.StandardMedicationCatalogService catalog;
     private static final String PATH = "/api/platform/master-data/medication-standard-catalog";
 
+    @org.springframework.beans.factory.annotation.Autowired
+    com.rhn.platform.masterdata.api.StandardMedicationReferenceDirectory references;
+
+    @Test
+    void classifications_are_addressable_by_name_and_expand_to_their_member_entries() throws Exception {
+        var penicillins = references.categoryCandidates("青霉素类");
+        assertThat(penicillins).hasSize(1);
+        assertThat(penicillins.getFirst().label()).isEqualTo("（一）青霉素类（一、抗微生物药）");
+        assertThat(penicillins.getFirst().entryIds()).hasSize(8).allSatisfy(id -> assertThat(references.exactNameCandidates("青霉素")).isNotNull());
+        assertThat(references.categoryCandidates("青霉素")).isEmpty(); // a drug name is not a classification
+        assertThat(references.categoryCandidates("抗感染药").size()).isGreaterThan(1); // ambiguous names are returned for the maintainer to choose
+        assertThat(references.requireCategory(penicillins.getFirst().key()).entryIds()).isEqualTo(penicillins.getFirst().entryIds());
+        mockMvc.perform(get(PATH + "/categories").with(rhn()).param("query", "青霉素类"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].entryIds.length()").value(8));
+    }
+
     @Test
     void exposes_reference_provenance_without_claiming_clinical_approval() throws Exception {
         mockMvc.perform(get(PATH + "/summary").with(rhn()))

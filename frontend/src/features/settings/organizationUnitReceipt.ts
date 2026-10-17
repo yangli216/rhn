@@ -9,8 +9,8 @@ const fail = (): never => { throw new Error('组织保存结果未确认：返�
 /** Compatibility projection used by Department.structuralType; this is not a department type default. */
 export function departmentStructure(property?: string | null): OrganizationUnit['sdOrgType'] {
   switch (property) {
-    case 'ADMINISTRATIVE': return 'ADMINISTRATIVE_DEPARTMENT'
-    case 'MEDICAL_TECHNOLOGY': return 'MEDICAL_TECHNOLOGY_DEPARTMENT'
+    case 'RESEARCH_EDUCATION': case 'ADMINISTRATIVE': return 'ADMINISTRATIVE_DEPARTMENT'
+    case 'PHARMACY': case 'EQUIPMENT_ASSET': case 'SUPPLY_LOGISTICS': case 'MEDICAL_TECHNOLOGY': return 'MEDICAL_TECHNOLOGY_DEPARTMENT'
     case 'NURSING': return 'NURSING_UNIT'
     default: return 'CLINICAL_DEPARTMENT'
   }

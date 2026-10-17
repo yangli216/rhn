@@ -11,7 +11,7 @@ import './clinical-evidence.css'
 export interface MedicalInsertTarget {
   name?: string
   id?: string
-  type?: 'medication' | 'guideline' | 'protocol' | string
+  type?: 'medication' | 'guideline' | 'protocol' | 'laboratory' | 'examination' | string
 }
 
 export interface MedicalInsertViewerModalProps {
@@ -142,7 +142,9 @@ export function MedicalInsertViewerModal({
 
   return (
     <ClinicalKnowledgePanel
-      title={isMedication ? `药品说明书 · ${title}` : `临床指南 · ${title}`}
+      title={isMedication ? `药品说明书 · ${title}`
+        : target?.type === 'laboratory' ? `检验项目说明 · ${title}`
+          : target?.type === 'examination' ? `检查项目说明 · ${title}` : `临床指南 · ${title}`}
       onClose={onClose}
     >
       {loading && <LoadingState label="正在加载知识库资料…" />}

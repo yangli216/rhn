@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { OrganizationProfileInput, OrganizationProfileResult } from '../../shared/rhnApi'
 import { requireOrganizationUnit } from './organizationPersonnelFacts'
 import { requireOrganizationProfile } from './organizationProfileFacts'
-import { assertNewProfileItem, requireCreatedProfileItem } from './organizationProfileReceipt'
+import { assertNewProfileItem, requireCreatedProfileItem, requireMaintainedProfile } from './organizationProfileReceipt'
 
 const organization = requireOrganizationUnit({ id: 'org', revision: 1, code: 'ORG', name: '机构', sdOrgKind: 'LEGAL_ORGANIZATION',
   sdOrgKindText: '机构', sdOrgType: 'HOSPITAL', sdOrgTypeText: '医院', sdOrgStatus: 'ACTIVE', sdOrgStatusText: '正常',
@@ -17,7 +17,7 @@ const cases: Array<{ input: OrganizationProfileInput; field: string; row: Record
   { input: { section: 'identifier', ...period, identifierSystem: ' urn:test:org ', identifierCode: ' code-1 ', sdIdentifierType: 'LOCAL',
       primaryIdentifier: false, sdVerifyStatus: 'UNVERIFIED', issuerOrganizationId: 'issuer' }, field: 'identifiers',
     row: { ...base, identifierSystem: 'urn:test:org', identifierCode: 'code-1', sdIdentifierType: 'LOCAL', sdIdentifierTypeText: '内部代码',
-      primaryIdentifier: false, sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '待核验', issuerOrganizationId: 'issuer' },
+      primaryIdentifier: false, sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '未确认', issuerOrganizationId: 'issuer' },
     patches: [{ identifierSystem: 'other' }, { identifierCode: 'CODE-1' }, { sdIdentifierType: 'OTHER' }, { primaryIdentifier: true }, { sdVerifyStatus: 'VERIFIED' }, { issuerOrganizationId: null }] },
   { input: { section: 'contact', ...period, sdContactType: 'EMAIL', contactValue: ' office@example.test ', sdContactUse: 'WORK', primaryContact: false, sortOrder: 7 },
     field: 'contacts', row: { ...base, sdContactType: 'EMAIL', sdContactTypeText: '邮箱', contactValue: 'office@example.test', sdContactUse: 'WORK', sdContactUseText: '办公', primaryContact: false, sortOrder: 7 },
@@ -29,7 +29,7 @@ const cases: Array<{ input: OrganizationProfileInput; field: string; row: Record
     field: 'relations', row: { ...base, targetOrganizationId: 'other-org', targetOrganizationName: '其他机构', sdRelationType: 'SUPPORT', sdRelationTypeText: '支持', primaryRelation: false, description: '业务支持' },
     patches: [{ targetOrganizationId: 'wrong-org' }, { sdRelationType: 'OTHER' }, { primaryRelation: true }, { description: null }] },
   { input: { section: 'capability', ...period, sdCapabilityType: 'CONSULTING', qualificationBasisCode: ' Q001 ', capabilityScope: ' 咨询范围 ', sdVerifyStatus: 'UNVERIFIED' },
-    field: 'capabilities', row: { ...base, sdCapabilityType: 'CONSULTING', sdCapabilityTypeText: '咨询', qualificationBasisCode: 'Q001', capabilityScope: '咨询范围', sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '待核验' },
+    field: 'capabilities', row: { ...base, sdCapabilityType: 'CONSULTING', sdCapabilityTypeText: '咨询', qualificationBasisCode: 'Q001', capabilityScope: '咨询范围', sdVerifyStatus: 'UNVERIFIED', sdVerifyStatusText: '未确认' },
     patches: [{ sdCapabilityType: 'OTHER' }, { qualificationBasisCode: null }, { capabilityScope: null }, { sdVerifyStatus: 'VERIFIED' }] },
   { input: { section: 'responsibility', ...period, externalResponsibleName: ' 负责人 ', sdResponsibilityType: 'BUSINESS', primaryResponsibility: false },
     field: 'responsibilities', row: { ...base, responsibleName: '负责人', sdResponsibilityType: 'BUSINESS', sdResponsibilityTypeText: '业务负责人', primaryResponsibility: false },
@@ -83,5 +83,25 @@ describe('governance profile creation receipts', () => {
   })
   it.each([null, {}, { ...empty, contacts: undefined }, { ...empty, organization: { ...organization, id: 'other' } }])('rejects incomplete or wrong-subject receipts %j', source => {
     expect(() => requireCreatedProfileItem(source, organization, empty as OrganizationProfileResult, cases[1].input)).toThrow()
+  })
+})
+
+
+describe('unified maintenance receipts', () => {
+  it.each(cases)('requires every changed $field to retain identity and match its submitted result', item => {
+    const before = requireOrganizationProfile({ ...empty, [item.field]: [item.row] }, organization)
+    const source = { ...before, organization: { ...organization, revision: 3 }, [item.field]: [{ ...item.row, sdDetailStatus: 'INACTIVE' }] }
+    const changes = [{ id: 'new-record', input: item.input, status: 'INACTIVE' }]
+    expect(requireMaintainedProfile(source, organization, before, changes)).toEqual(source)
+    expect(() => requireMaintainedProfile(before, organization, before, changes)).toThrow()
+    for (const patch of item.patches) expect(() => requireMaintainedProfile({ ...source, [item.field]: [{ ...item.row, ...patch, sdDetailStatus: 'INACTIVE' }] }, organization, before, changes)).toThrow()
+  })
+  it('confirms multiple categories together and rejects a response that loses history or omits a change', () => {
+    const before = requireOrganizationProfile({ ...empty, contacts: [{ ...cases[1].row, id: 'historical', contactValue: 'old@example.test' }] }, organization)
+    const source = { ...before, organization: { ...organization, revision: 4 }, contacts: [...before.contacts, cases[1].row], capabilities: [cases[4].row] }
+    const changes = [cases[1], cases[4]].map(item => ({ input: item.input, status: 'ACTIVE' }))
+    expect(requireMaintainedProfile(source, organization, before, changes)).toEqual(source)
+    expect(() => requireMaintainedProfile({ ...source, contacts: [cases[1].row] }, organization, before, changes)).toThrow()
+    expect(() => requireMaintainedProfile({ ...source, capabilities: [] }, organization, before, changes)).toThrow()
   })
 })

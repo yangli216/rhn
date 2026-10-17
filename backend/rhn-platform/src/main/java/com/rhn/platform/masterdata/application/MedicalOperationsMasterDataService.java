@@ -945,6 +945,9 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
             return active.stream().filter(v -> v.id().equals(order.specimenConfigurationId())).findFirst()
                     .orElseThrow(() -> badRequest("LAB_SPECIMEN_SELECTION_INVALID", "所选标本配置不存在、已停用或不属于检验项目"));
         }
+        if (active.isEmpty()) {
+            throw badRequest("LAB_SPECIMEN_NOT_CONFIGURED", "检验项目未配置可用标本，请联系管理员配置标本规则");
+        }
         List<LaboratoryServiceSpecimen> defaults = active.stream().filter(LaboratoryServiceSpecimen::defaultSpecimen).toList();
         if (defaults.size() == 1) return defaults.getFirst();
         if (active.size() == 1) return active.getFirst();

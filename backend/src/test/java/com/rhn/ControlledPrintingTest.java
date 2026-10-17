@@ -63,6 +63,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         String residentId = createResident(suffix);
         String encounterId = createActiveEncounter(residentId);
+        recordInpatientNoKnownDrugAllergy(residentId, encounterId);
 
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

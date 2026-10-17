@@ -92,6 +92,55 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     expect(guide()).not.toBeInTheDocument()
   })
 
+  it('does not show the record-only guide once the record narrative is written, even if written later', () => {
+    const refill = controller({ ready: false, stablePlan: undefined, medications: [] })
+    const written = { ...context, chiefComplaint: '高血压、糖尿病复诊配药', presentIllness: '长期规律服药' }
+    const { rerender } = renderHub({ chronicRefill: refill, context: written })
+    expect(guide()).not.toBeInTheDocument()
+
+    const fresh = renderHub({ chronicRefill: refill, context: { ...context, chiefComplaint: '高血压复诊' } })
+    expect(guide()).toBeInTheDocument()
+    fresh.rerender({ context: { ...context, chiefComplaint: '高血压复诊', presentIllness: '长期规律服药' } })
+    expect(guide()).not.toBeInTheDocument()
+    rerender({})
+  })
+
+  it('keeps the copilot present after the record is written by pointing at the next step', async () => {
+    const onGenerate = vi.fn().mockResolvedValue('s-1')
+    const written = { ...context, chiefComplaint: '高血压、糖尿病复诊配药', presentIllness: '长期规律服药' }
+    renderHub({ context: written, onGenerate, sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' }, chronicRefill: undefined })
+    expect(screen.getByText('下一步 · 待定诊断')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'AI 辅诊' }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'AI 推荐诊断' })) })
+    expect(onGenerate).toHaveBeenCalledWith()
+  })
+
+  it('opens the report follow-up guide once, generates from the reports, and stays away from a written record', async () => {
+    const onGenerate = vi.fn().mockResolvedValue('s-1')
+    const onOpenResults = vi.fn()
+    const reportScene: ReceptionSceneAssessment = { ...chronicScene, scene: 'REPORT_FOLLOW_UP', sceneLabel: '报告回诊',
+      badgeTone: 'warning', summaryText: '关联 1 份报告（血常规），1 项异常需核对。', matchedConditions: [],
+      reportHighlights: ['血常规：白细胞计数 12 ↑'], selectedReportIds: ['r'], reportCount: 1,
+      followUpOf: { encounterId: 'e0', registeredAt: '2026-09-06T08:00:00Z', diagnoses: ['急性上呼吸道感染'] } }
+    const { rerender } = renderHub({ sceneAssessment: reportScene, chronicRefill: undefined, onGenerate, onOpenResults })
+    expect(screen.getByRole('region', { name: '报告回诊引导' })).toBeInTheDocument()
+    expect(screen.getByText('血常规：白细胞计数 12 ↑')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /查看结果/ }))
+    expect(onOpenResults).toHaveBeenCalled()
+    expect(screen.queryByRole('region', { name: '报告回诊引导' })).not.toBeInTheDocument()
+    rerender({ busy: true }); rerender({ busy: false })
+    expect(screen.queryByRole('region', { name: '报告回诊引导' })).not.toBeInTheDocument()
+
+    cleanup()
+    renderHub({ sceneAssessment: reportScene, chronicRefill: undefined, onGenerate })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '生成回诊病历' })) })
+    expect(onGenerate).toHaveBeenCalledWith(expect.stringContaining('白细胞计数'))
+    cleanup()
+    renderHub({ sceneAssessment: reportScene, chronicRefill: undefined,
+      context: { ...context, chiefComplaint: '看报告', presentIllness: '已写' } })
+    expect(screen.queryByRole('region', { name: '报告回诊引导' })).not.toBeInTheDocument()
+  })
+
   it('routes one-click refill through the hub generator', () => {
     const refill = controller()
     renderHub({ chronicRefill: refill })

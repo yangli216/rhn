@@ -169,6 +169,8 @@ function createMockApi({
       socialRelations: vi.fn().mockResolvedValue([]),
     },
     encounters: {
+      bloodPressureRequirement: vi.fn().mockResolvedValue({ required: true, enforceAt: 'DRAFT', minAge: 18,
+        message: '按本机构要求，18 周岁及以上患者就诊须填写收缩压和舒张压' }),
       byResident: vi.fn().mockImplementation(() =>
         Promise.resolve([encounterStatus === 'REGISTERED' ? mockRegisteredEncounter
           : encounterStatus === 'SUSPENDED' ? mockSuspendedEncounter
@@ -1401,6 +1403,28 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('收缩压必须大于舒张压'))
   })
 
+  it('saves the draft without blood pressure when the requirement is enforced at completion, with a reminder', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.encounters.bloodPressureRequirement = vi.fn().mockResolvedValue({ required: true, enforceAt: 'COMPLETION', minAge: 35,
+      message: '按本机构要求，35 周岁及以上患者就诊须填写收缩压和舒张压' })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const systolic = await screen.findByLabelText('收缩压'), diastolic = screen.getByLabelText('舒张压')
+    await waitFor(() => expect(systolic).toHaveAttribute('aria-required', 'true'))
+    await user.clear(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'))
+    await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '发热3天')
+    await user.clear(systolic); await user.clear(diastolic)
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalled())
+    expect(api.encounters.recordClinicalData).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ systolic: undefined, diastolic: undefined }))
+    expect(await screen.findByText(/35 周岁及以上患者就诊须填写收缩压和舒张压，诊毕前需补录/)).toBeInTheDocument()
+  })
+
   it('preserves chief complaint, diagnoses, and physical exam data without clearing after saving draft', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -2543,6 +2567,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
   it('edits template marks inline and confirms their remaining sources through the existing save action', async () => {
     const api = aiApi()
     api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
+    api.encounters.bloodPressureRequirement = vi.fn().mockResolvedValue({ required: false, enforceAt: 'COMPLETION', minAge: 18 })
     api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
       diagnoses: [{ code: 'R05', display: '咳嗽', type: 'PRIMARY' }] }])
     const [base] = await api.outpatientNoteTemplates.list()
@@ -2592,6 +2617,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
   it('saves a six-year-old patient record without blood pressure', async () => {
     const api = aiApi()
     api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
+    api.encounters.bloodPressureRequirement = vi.fn().mockResolvedValue({ required: false, enforceAt: 'COMPLETION', minAge: 18 })
     api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
       diagnoses: [{ code: 'R05', display: '咳嗽', type: 'PRIMARY' }] }])
     const user = await enter(api)

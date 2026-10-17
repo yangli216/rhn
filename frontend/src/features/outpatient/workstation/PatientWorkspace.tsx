@@ -33,6 +33,7 @@ import { AllergySafetyPanel } from '../record/AllergySafetyPanel'
 import { ReferralCoordinationPanel } from '../referrals/ReferralCoordination'
 import { EncounterPrintPanel, BatchPrintDialog } from '../printing/EncounterPrintPanel'
 import { EncounterCompletionDialog } from '../record/EncounterCompletionDialog'
+import { bloodPressureMissing, useBloodPressureRequirement } from '../bloodPressurePolicy'
 import { EncounterCancelCompletionDialog, EncounterSuspendDialog, EncounterTerminationDialog } from './EncounterFlowDialogs'
 
 export const ClinicalAiAssistantPanel = lazy(() => import('../ai/ClinicalAiAssistantPanel')
@@ -153,8 +154,10 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     staleTime: 5 * 60 * 1000,
   })
   const completionMode = completionModeQuery.isSuccess && !completionModeQuery.isFetching ? completionModeQuery.data : undefined
+  const bloodPressureRequirement = useBloodPressureRequirement(api, encounter?.id ?? '')
   const hasCompletionBasics = Boolean(encounter?.chiefComplaint
-    && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote)
+    && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote
+    && !bloodPressureMissing(bloodPressureRequirement.data, encounter))
   const readyToComplete = Boolean(completionMode && hasCompletionBasics && (outpatientNote?.status === 'SIGNED'
     || completionMode === 'COMBINED_CONFIRMATION'))
   const captureDocumentSession = useClinicalDocumentSession(api, JSON.stringify([encounter?.id, resident.id,
@@ -452,10 +455,10 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
             aria-busy={aiAdoptionBusy || undefined}>
             {(start.error || resume.error) && <Alert className="ui-page-feedback">{errorMessage(start.error || resume.error)}</Alert>}
             {saveDraftNotice && <Alert tone={saveDraftNotice.tone ?? 'success'} className="ui-page-feedback">
-              <Icon name={saveDraftNotice.tone === 'error' ? 'error' : 'check'} /> {saveDraftNotice.message}
+              {saveDraftNotice.message}
             </Alert>}
             <ClinicalRecordPanel aiSurfaceRefs={aiSurfaceRefs} key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
-                completionMode={completionMode} birthDate={resident.birthDate}
+                completionMode={completionMode}
                 enteringEdit={start.isPending || resume.isPending}
                 currentDepartmentName={clinicalContext.department.name}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}

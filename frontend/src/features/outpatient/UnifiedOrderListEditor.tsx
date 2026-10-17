@@ -9,12 +9,12 @@ import { OrderComposerResource } from './orders/OrderComposerResource'
 import { type MedicationEntry, emptyMedicationEntry, withSkinTestExemption } from './orders/medicationEntry'
 import { SavedOrderList } from './orders/SavedOrderList'
 import { DraftOrderList } from './orders/DraftOrderList'
-import { MedicalInsertViewerModal } from './ai/MedicalInsertViewerModal'
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from './ai/MedicalInsertViewerModal'
 import { useAiOrderReview } from './orders/useAiOrderReview'
 import { savedOrderEntries, draftOrderEntries, findGroupingComposerTarget } from './orders/orderEntries'
 import { calculatePackageQuantity, resolveFrequencyTimesPerDay } from './orders/medicationQuantity'
 import { useQuery } from '@tanstack/react-query'
-import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
 import type { MedicationRequest, Prescription, ServiceRequest } from '../../shared/api/encountersApi'
 import type { ItemGroup, MedicationKnowledge, ServiceCatalogItem } from '../../shared/api/masterDataApi'
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
@@ -101,7 +101,8 @@ export function UnifiedOrderListEditor({
   const [serviceQuantity, setServiceQuantity] = useState(1)
   const [serviceDescription, setServiceDescription] = useState('')
   const [validationError, setValidationError] = useState('')
-  const [inspectMedicationName, setInspectMedicationName] = useState<string | null>(null)
+  const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
+  const setInspectMedicationName = useCallback((name: string | null) => setInspectTarget(name ? { name, type: 'medication' } : null), [])
   const [composerOpen, setComposerOpen] = useState(false)
   const composerRef = useRef<HTMLDivElement>(null)
   const shouldFocusOnOpenRef = useRef(false)
@@ -1041,7 +1042,7 @@ export function UnifiedOrderListEditor({
         onCancelService={onCancelService} onPrintService={onPrintService}
         onCancelMedication={onCancelMedication} onPrint={onPrint} skinTestByRequest={skinTestByRequest}
         groupingComposerTarget={groupingComposerTarget} groupingSession={groupingSession}
-        onInspectMedication={setInspectMedicationName}
+        onInspectMedication={setInspectMedicationName} onInspectService={setInspectTarget}
         isComposerActive={isComposerActive} composer={renderComposer()} />
 
       {!readOnly && <DraftOrderList draftEntries={draftEntries}
@@ -1056,7 +1057,7 @@ export function UnifiedOrderListEditor({
         onEditDraft={(draft) => { setComposerOpen(false); setEditingDraft(draft) }}
         onSaveMedicationDraft={saveMedicationDraft} continueGroupingFromDraft={continueGroupingFromDraft}
         groupingSession={groupingSession} currentDept={currentDept} encounter={encounter} api={api}
-        allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} />}
+        allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} onInspectService={setInspectTarget} />}
 
       {!readOnly && isComposerActive && !groupingComposerTarget && !(entryType === 'HERBAL' && draftHerbalCount > 0) && renderComposer()}
       {!readOnly && !isComposerActive && !editingDraft && (
@@ -1073,9 +1074,9 @@ export function UnifiedOrderListEditor({
     </div>
 
     <MedicalInsertViewerModal
-      isOpen={Boolean(inspectMedicationName)}
-      onClose={() => setInspectMedicationName(null)}
-      target={inspectMedicationName ? { name: inspectMedicationName, type: 'medication' } : null}
+      isOpen={Boolean(inspectTarget)}
+      onClose={() => setInspectTarget(null)}
+      target={inspectTarget}
       api={api}
     />
   </div>

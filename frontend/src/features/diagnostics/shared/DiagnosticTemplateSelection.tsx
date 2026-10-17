@@ -17,13 +17,19 @@ export function DiagnosticTemplateSelection({ current, selected, input, disabled
     setConfirm(false)
   }
   const requestApply = () => input.observations?.some((item) => item.observationValue?.trim()) ? setConfirm(true) : apply()
+  if (!current && selected?.serviceType !== 'EXAMINATION') {
+    return null
+  }
   return <section aria-label="报告模板选择">
     <div className="diagnostic-editor-head"><h3>{selected ? `机构模板 V${selected.version}` : '报告模板'}</h3>
       {current && <Button size="sm" variant="secondary" disabled={disabled || selected?.id === current.id} onClick={requestApply}>
         {selected ? `改用当前模板 V${current.version}` : `载入机构模板 V${current.version}`}</Button>}</div>
-    {!current && !selected && <Alert tone="info">本项目未配置机构报告模板；人工录入结果不会自动使用示例阈值。</Alert>}
     {selected && <p>生效：{selected.effectiveFrom} · 依据：{selected.publicationBasis}</p>}
-    {current && !selected && <Alert tone="info">请载入机构模板后填写；已有模板的项目不能绕过机构规则签发。</Alert>}
+    {current && !selected && (
+      <Alert tone="info" placement="inline">
+        请载入机构模板后填写；已有模板的项目不能绕过机构规则签发。
+      </Alert>
+    )}
     {selected?.serviceType === 'EXAMINATION' && selected.content.phrases.length > 0 && <div className="diagnostic-form-row">
       <Select aria-label="选择检查词条" disabled={disabled} value={phraseCode} options={selected.content.phrases.map((phrase) => ({ value: phrase.code, label: phrase.title }))}
         onChange={setPhrase} /><Button variant="secondary" disabled={disabled || !phraseCode} onClick={() => {

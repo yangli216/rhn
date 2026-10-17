@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.time.Instant;
 import java.util.*;
 import static org.mockito.Mockito.when;
@@ -24,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationStandardImpactTest extends RhnIntegrationTestSupport {
+class MedicationStandardImpactTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationStandardImpactService impact;
     @Autowired MedicationStandardSourceRepository sources;
     @Autowired MedicationKnowledgeDraftStore drafts;
@@ -32,7 +31,6 @@ class MedicationStandardImpactTest extends RhnIntegrationTestSupport {
     @Autowired MedicationRuleGovernanceStore governance;
     @Autowired CatalogLifecycleDirectory catalog;
     @Autowired JdbcTemplate jdbc;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long TENANT_ID=Long.valueOf(TENANT);
     static final Scope ALL=new Scope("TEST-CATALOG",null,null);
     static final String PATH="/api/quality/medication-standard-impact";

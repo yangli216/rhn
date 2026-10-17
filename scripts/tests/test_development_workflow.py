@@ -281,7 +281,7 @@ class ScopePlanTest(unittest.TestCase):
         scopes = json.loads((ROOT / "scripts/verification-scopes.json").read_text())["scopes"]
         self.assertEqual(set(scopes), {"frequency", "outpatient-draft", "round1", "knowledge-panel",
                                       "billing", "master-data", "inventory", "medication-safety", "ai-matching", "triage", "decision-observation",
-                                      "maintenance", "diagnostics"})
+                                      "maintenance", "diagnostics", "organization"})
         for scope in scopes:
             with self.subTest(scope=scope):
                 planned = self.plan(ROOT, scope)

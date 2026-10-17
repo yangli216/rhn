@@ -1871,3 +1871,61 @@ describe('Parameter definition content preservation', () => {
     expect(update.mock.calls[0][2].defaultValueJson).toBe('"明确替换"')
   })
 })
+
+describe('Structured JSON parameter values', () => {
+  const schema = JSON.stringify({
+    type: 'object', additionalProperties: false, required: ['enabled', 'minAge', 'enforceAt'],
+    properties: {
+      enabled: { type: 'boolean', title: '门诊就诊必测血压' },
+      minAge: { type: 'integer', title: '必测起始年龄（周岁）', minimum: 0, maximum: 120, 'x-visibleWhen': { enabled: true } },
+      enforceAt: { type: 'string', title: '拦截时机', enum: ['COMPLETION', 'DRAFT'],
+        'x-enumLabels': { COMPLETION: '诊毕时', DRAFT: '保存草稿时' }, 'x-visibleWhen': { enabled: true } },
+    },
+  })
+  function setup(overrides: Partial<ParameterDefinition> = {}) {
+    const definition: ParameterDefinition = { ...mockDetailMode, sdParamValueType: 'JSON', sdParamControlType: 'JSON_EDITOR',
+      jsonSchema: schema, defaultValueJson: '{"enabled":true,"minAge":18,"enforceAt":"COMPLETION"}', hasDefaultValue: true, ...overrides }
+    const saveValue = vi.fn().mockImplementation((_id: string, input: ParameterValueInput) => Promise.resolve(savedValueResult(definition, input)))
+    const changes = vi.fn().mockResolvedValue([{ id: 'chg-1', definitionId: definition.id, sdParamChangeTargetType: 'VALUE', valueId: 'value-structured',
+      sdParamChangeTargetTypeText: '当前值', sdParamChangeType: 'UPDATE', sdParamChangeTypeText: '修改', requestCode: 'req-1',
+      changedAt: '2026-10-16T00:00:00Z', changedBy: 'u1', reason: '改为 35 岁首诊测压',
+      before: { valueJson: '{"enabled":true,"minAge":18,"enforceAt":"COMPLETION"}' },
+      after: { valueJson: '{"enabled":true,"minAge":35,"enforceAt":"COMPLETION"}' } }])
+    const api = {
+      dictionaries: { systemEnums: vi.fn().mockResolvedValue(mockSystemEnums) },
+      configuration: { categories: vi.fn().mockResolvedValue(mockCategories), definitions: vi.fn().mockResolvedValue([definition]),
+        get: vi.fn().mockResolvedValue(definition), changes, saveValue },
+    } as unknown as RhnApi
+    return { ...renderWorkspace(api), user: userEvent.setup(), saveValue }
+  }
+
+  it('maintains declared fields through a generated form and saves the object', async () => {
+    const { user, saveValue } = setup()
+    await user.click(await screen.findByRole('button', { name: '维护当前值' }))
+    expect(screen.queryByRole('textbox', { name: '参数值' })).not.toBeInTheDocument()
+    const minAge = screen.getByRole('textbox', { name: /必测起始年龄（周岁）/ })
+    expect(minAge).toHaveValue('18')
+    await user.clear(minAge)
+    await user.type(minAge, '150')
+    await user.click(screen.getByRole('button', { name: '保存当前值' }))
+    expect(await screen.findAllByText(/不能大于 120/)).not.toHaveLength(0)
+    expect(saveValue).not.toHaveBeenCalled()
+    await user.clear(minAge)
+    await user.type(minAge, '35')
+    await user.click(screen.getByRole('button', { name: '保存当前值' }))
+    await waitFor(() => expect(saveValue).toHaveBeenCalled())
+    expect(saveValue.mock.calls[0][1].valueJson).toBe('{"enabled":true,"minAge":35,"enforceAt":"COMPLETION"}')
+  })
+
+  it('falls back to raw JSON on request and shows field-level change history', async () => {
+    const { user } = setup()
+    await user.click(await screen.findByRole('button', { name: '维护当前值' }))
+    await user.click(screen.getByRole('button', { name: '编辑原始 JSON' }))
+    expect(screen.getByRole('textbox', { name: '参数值' })).toHaveValue('{"enabled":true,"minAge":18,"enforceAt":"COMPLETION"}')
+    await user.click(screen.getByRole('button', { name: '返回表单维护' }))
+    expect(screen.getByRole('textbox', { name: /必测起始年龄（周岁）/ })).toHaveValue('18')
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    await user.click(await screen.findByRole('button', { name: /变更记录/ }))
+    expect(await screen.findByText('必测起始年龄（周岁）：18 → 35')).toBeInTheDocument()
+  })
+})

@@ -45,7 +45,7 @@ public final class MedicationKnowledgeRuleEngine {
     }
     private static boolean blank(String s) {return s==null||s.isBlank();}
     private static boolean sameEdition(Row r,ResolvedTarget t) {var s=t.reference();return r.catalogId().equals(s.catalogId())&&r.catalogVersion().equals(s.catalogVersion())&&r.contentHash().equals(s.contentHash());}
-    private static boolean inGroup(Row r,Group g,boolean all) {return all||g.targets().stream().anyMatch(t->sameEdition(r,t)&&r.entryId().equals(t.reference().entryId())&&("ENTRY".equals(t.level())||r.specificationId().equals(t.reference().specificationId())));}
+    private static boolean inGroup(Row r,Group g,boolean all) {return all||g.targets().stream().anyMatch(t->sameEdition(r,t)&&t.covers(r.entryId(),r.specificationId()));}
     private static boolean missingRoute(Row r,Group g) {return g.routeMode()==RangeMode.LIST&&blank(r.routeCode());}
     private static boolean routeMatches(Row r,Group g) {return g.routeMode()==RangeMode.ALL||g.routes().stream().anyMatch(route->route.code().equals(r.routeCode()));}
     private static Result result(String outcome,String reason) {return new Result(outcome,List.of(reason),List.of());}

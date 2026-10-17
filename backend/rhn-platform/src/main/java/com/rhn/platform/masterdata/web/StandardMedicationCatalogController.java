@@ -66,6 +66,12 @@ public class StandardMedicationCatalogController {
         return reviews.summary(contextProvider.requireCurrent().tenantId());
     }
 
+    @GetMapping("/categories")
+    public List<StandardMedicationCatalogService.Category> categories(@RequestParam(defaultValue = "") String query) {
+        contextProvider.requireCurrent();
+        return service.categories(query);
+    }
+
     @GetMapping("/source-review")
     public StandardCatalogReview.View sourceReview(@RequestParam(defaultValue = "0") int historyPage) { return reviews.view(historyPage); }
 

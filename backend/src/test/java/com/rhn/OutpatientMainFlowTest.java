@@ -453,17 +453,17 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
     }
 
     private Reviewer createReviewer(String suffix) throws Exception {
-        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
+        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"OPD-PHARM-%s","fullName":"门诊主流程药师","sdPractGender":"2"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())
+        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"OPD-POS-%s","name":"门诊药师","sdPositionType":"PHARMACY"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhn())
+        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "practitionerId":"%s","organizationId":"%s","code":"OPD-EMP-%s",
@@ -472,7 +472,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(practitioner.get("id").asString(), ORGANIZATION, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
+        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "employmentId":"%s","organizationId":"%s","departmentId":"%s",

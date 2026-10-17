@@ -9,7 +9,6 @@ import com.rhn.quality.medication.domain.rule.AgeContraindicationRule;
 import com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule;
 import com.rhn.quality.medication.domain.rule.NsaidDuplicateRule;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import com.rhn.platform.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,8 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class MedicationSafetyCategoryTest extends RhnIntegrationTestSupport {
-    @MockitoBean ExecutionContextProvider contexts;
+class MedicationSafetyCategoryTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationSafetyCategoryService service;
     @Autowired JsonCodec codec;
 

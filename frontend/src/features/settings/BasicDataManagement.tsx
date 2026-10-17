@@ -67,6 +67,8 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
   const [diseaseScopeEditor, setDiseaseScopeEditor] = useState<{ program: DiseaseManagementProgram; api: RhnApi }>()
   useEffect(() => { setDiseaseScopeEditor(undefined) }, [api])
   const [feedback, setFeedback] = useState('')
+  const [standardNotice, setStandardNotice] = useState('')
+  const [standardQuery, setStandardQuery] = useState('')
   const [operationError, setOperationError] = useState('')
 
   const handleSearch = () => {
@@ -208,6 +210,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       </>} />
 
     {feedback && <Alert tone="success" className="master-data-feedback">{feedback}</Alert>}
+    {standardNotice && medicationMode === 'standard' && <Alert tone="warning" className="master-data-feedback">{standardNotice}</Alert>}
     {(operationError || currentError) && <Alert className="master-data-feedback">
       {operationError || errorMessage(currentError)}
     </Alert>}
@@ -228,7 +231,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
           { value: 'terms', label: '疾病术语' },
           { value: 'management', label: '管理规则' },
         ]} />}
-      {tab === 'medication' && <Tabs value={medicationMode === 'semantics' ? 'readiness' : medicationMode} onChange={setMedicationMode} label="药品目录视图"
+      {tab === 'medication' && <Tabs value={medicationMode === 'semantics' ? 'readiness' : medicationMode} onChange={(next) => { setStandardNotice(''); setStandardQuery(''); setMedicationMode(next) }} label="药品目录视图"
         variant="line" className="medication-management-mode" actions={scope !== 'all' ? pageActions : undefined} items={[
           { value: 'standard', label: '标准目录' },
           { value: 'readiness', label: '主档标准关联' },
@@ -307,7 +310,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       )}
       {tab === 'medication' && medicationMode === 'standard' && (
         <Suspense fallback={<LoadingState label="正在加载标准药品目录…" />}>
-          <StandardMedicationCatalogPanel api={api} organizationId={organization.id}
+          <StandardMedicationCatalogPanel key={standardQuery} api={api} organizationId={organization.id} initialQuery={standardQuery}
             setupDisabled={!dictionaries.data || manufacturers.isPending || frequencies.isPending || routes.isPending}
             onSetup={(entry, spec) => setDialog(<StandardMedicationSetupDialog key={spec.id} api={api}
               entry={entry} spec={spec} organization={organization} dictionaries={dictionaries.data!}
@@ -334,7 +337,9 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
         onComposition={(value) => setDialog(<MedicationCompositionDialog api={api} medication={value} onClose={() => setDialog(undefined)} />)}
         onProduct={(value) => {
           if (value.standardReference?.status !== 'LINKED') {
-            setFeedback(`请先在标准参考目录中为「${value.name}」关联标准规格，再建立产品。`)
+            setFeedback('')
+            setStandardNotice(`「${value.name}」尚未关联标准规格，请在下方标准目录中找到对应规格并关联后，再回药品主档建立产品。`)
+            setStandardQuery(standardSearchName(value.name))
             setMedicationMode('standard'); return
           }
           setDialog(<ProductDialog medication={value} manufacturers={manufacturers.data ?? []}
@@ -381,6 +386,18 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       </Suspense>
     )}
   </div>
+}
+
+// The standard catalog is keyed by generic name with specifications beneath it, so a dose-form suffix in a local
+// medication name (丁卡因凝胶剂) would match nothing; strip the longest known suffix before searching.
+const DOSE_FORM_SUFFIXES = ['注射用无菌粉末', '注射用浓溶液', '注射液', '输液', '缓释胶囊', '肠溶胶囊', '胶囊剂', '胶囊',
+  '缓释片', '控释片', '肠溶片', '分散片', '泡腾片', '咀嚼片', '口腔崩解片', '含片', '片剂', '片', '干混悬剂', '混悬液',
+  '口服溶液', '口服液', '糖浆', '颗粒剂', '颗粒', '散剂', '凝胶剂', '凝胶', '乳膏剂', '乳膏', '软膏剂', '软膏', '滴眼液',
+  '滴耳液', '滴鼻液', '眼膏', '栓剂', '栓', '贴剂', '贴', '气雾剂', '喷雾剂', '吸入粉雾剂', '吸入溶液', '丸']
+export function standardSearchName(name: string) {
+  const suffix = DOSE_FORM_SUFFIXES.filter((item) => name.endsWith(item) && name.length - item.length >= 2)
+    .sort((left, right) => right.length - left.length)[0]
+  return suffix ? name.slice(0, -suffix.length) : name
 }
 
 function tabLabel(tab: Tab) { return tab === 'disease' ? '疾病' : tab === 'service' ? '项目' : '药品' }

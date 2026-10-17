@@ -14,7 +14,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.*;
 import java.util.concurrent.*;
 import static com.rhn.MedicationKnowledgeDraftModelTest.*;
@@ -24,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationKnowledgeReviewTest extends RhnIntegrationTestSupport {
+class MedicationKnowledgeReviewTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationKnowledgeReviewService reviews;
     @Autowired MedicationKnowledgeRuleService rules;
     @Autowired MedicationKnowledgeDraftService drafts;
@@ -32,7 +31,6 @@ class MedicationKnowledgeReviewTest extends RhnIntegrationTestSupport {
     @Autowired MedicationRuleCatalogService catalog;
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT);
     @BeforeEach void context() {context(T,7L,true);}
     void context(Long tenant,Long actor,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,actor,"reviewer-"+actor,"test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}

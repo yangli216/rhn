@@ -68,3 +68,10 @@ describe('organization unit write receipts', () => {
     expect(departmentStructure(property)).toBe(expected)
   })
 })
+
+ it.each(['PHARMACY', 'EQUIPMENT_ASSET', 'SUPPLY_LOGISTICS'])('retains %s structural semantics', property => {
+   expect(departmentStructure(property)).toBe('MEDICAL_TECHNOLOGY_DEPARTMENT')
+ })
+ it('retains research and teaching administrative structure', () => {
+   expect(departmentStructure('RESEARCH_EDUCATION')).toBe('ADMINISTRATIVE_DEPARTMENT')
+ })

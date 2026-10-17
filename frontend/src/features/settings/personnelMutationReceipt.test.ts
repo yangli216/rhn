@@ -55,7 +55,7 @@ describe('personnel mutation receipts', () => {
   })
   it.each([{ practitionerId: 'other' }, { employmentId: 'other' }, { organizationId: 'other' }, { departmentId: 'other' },
     { positionId: 'other' }, { code: 'OTHER' }, { sdAssignmentType: 'PRIMARY' }, { specialtyCode: null }, { primaryAssignment: true },
-    { workloadPercent: null }, { workloadPercent: 100 }, { validFrom: '2026-02-01' }, { validTo: null }, { sdPersonnelStatus: 'INACTIVE' },
+    { validFrom: '2026-02-01' }, { validTo: null }, { sdPersonnelStatus: 'INACTIVE' },
   ])('rejects a mismatched assignment %j', patch => {
     expect(() => requireCreatedAssignment({ ...assignment, ...patch }, assignmentInput, 'person', [])).toThrow()
   })
@@ -65,8 +65,8 @@ describe('personnel mutation receipts', () => {
     expect(() => requireCreatedAssignment(assignment, assignmentInput, 'person', requirePersonnelAssignments([assignment]))).toThrow()
   })
   it('accepts a reported null only for fields left unspecified, without filling a business default', () => {
-    expect(requireCreatedAssignment({ ...assignment, specialtyCode: null, workloadPercent: null, validTo: null },
-      { ...assignmentInput, specialtyCode: undefined, workloadPercent: undefined, validTo: undefined }, 'person', []).workloadPercent).toBeNull()
+    expect(requireCreatedAssignment({ ...assignment, specialtyCode: null, validTo: null },
+      { ...assignmentInput, specialtyCode: undefined, validTo: undefined }, 'person', []).validTo).toBeNull()
     expect(requireCreatedEmployment({ ...employment, leaveDate: null }, { ...employmentInput, leaveDate: undefined }, []).leaveDate).toBeNull()
   })
   it.each([null, {}, { id: 'unconfirmed' }])('does not synthesize a success result from partial receipts %j', source => {

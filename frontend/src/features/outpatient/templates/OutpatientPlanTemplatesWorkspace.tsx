@@ -1,3 +1,5 @@
+import { MedicalInsertViewerModal, type MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { planNoteContent } from './planNoteContent'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import './outpatient-plan-templates.css'
@@ -49,6 +51,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
     kind: 'NOTE' | 'PLAN'; note?: OutpatientNoteTemplate; plan?: OutpatientPlanTemplate
   } | null>(null)
   const [notice, setNotice] = useState('')
+  const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
 
   const templatesQuery = useQuery({
     queryKey: ['outpatient-plan-templates'],
@@ -691,7 +694,10 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                       selectedTemplate.services.map((s, idx) => (
                         <tr key={idx}>
                           <td className={`${tableCellClass('text')} doctor-col--service-name`}>
-                            <strong>{s.itemName}</strong> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
+                            <span className="doctor-order-name-with-action">
+                              <strong>{s.itemName}</strong>
+                              <ServiceInsertButton name={s.itemName} serviceType={s.serviceType} onView={setInspectTarget} />
+                            </span> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
                           </td>
                           <td className={`${tableCellClass('status')} doctor-col--service-type`}>
                             <StatusBadge tone="neutral">
@@ -752,6 +758,8 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
           setNotice(`${isNote ? '病历模板' : '诊疗方案'}“${saved.name}”已保存。`)
           setManualEditor(null)
         }} />}
+      <MedicalInsertViewerModal isOpen={Boolean(inspectTarget)} onClose={() => setInspectTarget(null)}
+        target={inspectTarget} api={api} />
     </MasterDetailPage>
   )
 }

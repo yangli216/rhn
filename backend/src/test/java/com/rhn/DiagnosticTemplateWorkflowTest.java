@@ -1,7 +1,6 @@
 package com.rhn;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.JsonNode;
 import java.util.UUID;
@@ -9,8 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@TestPropertySource(properties = "rhn.diagnostics.require-settlement-authorization=false")
-class DiagnosticTemplateWorkflowTest extends RhnIntegrationTestSupport {
+class DiagnosticTemplateWorkflowTest extends SettlementWaivedDiagnosticsTestSupport {
     private static final String CATALOG = "362387869795101";
     private static final String TEMPLATE_URL = "/api/platform/master-data/operations/services/" + CATALOG + "/report-templates";
     @Test void saved_template_and_rule_evidence_survive_a_later_publication() throws Exception {

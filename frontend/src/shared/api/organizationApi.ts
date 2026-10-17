@@ -1,4 +1,16 @@
 import type { ApiClient } from './httpClient'
+import type { components } from './generated'
+
+export type EmploymentUpdateInput = components['schemas']['EmploymentUpdate']
+export type AssignmentUpdateInput = components['schemas']['AssignmentUpdate']
+export type TransferAssignmentInput = components['schemas']['TransferRequest']
+export type EndRelationshipInput = components['schemas']['EndRequest']
+export type PositionUpdateInput = components['schemas']['PositionUpdate']
+export type ProfileItemUpdateInput = components['schemas']['ProfileItemUpdate']
+export type OrganizationChange = components['schemas']['ChangeView']
+export type DepartmentBusinessConfiguration = components['schemas']['DepartmentBusinessConfiguration']
+export type OrganizationMaintenanceInput = components['schemas']['OrganizationMaintenanceCommand']
+
 
 export type OrganizationKind = 'LEGAL_ORGANIZATION' | 'ORG_UNIT'
 export type OrganizationType = 'TOWNSHIP_HEALTH_CENTER' | 'COMMUNITY_HEALTH_CENTER' | 'HOSPITAL' | 'CLINIC'
@@ -325,6 +337,9 @@ export function createOrganizationApi(client: ApiClient) {
     updateUnit: (id: string, input: Omit<OrganizationUnitInput, 'code' | 'sdOrgKind'> & { expectedRevision: number }) =>
       client.request<OrganizationUnit>(`/api/platform/organization-units/${id}`,
         { method: 'PUT', body: JSON.stringify(input) }),
+    maintainUnit: (unit: Pick<OrganizationUnit, 'id' | 'sdOrgKind'>, input: OrganizationMaintenanceInput) =>
+      client.request<OrganizationProfileResult>(`/api/platform/${unit.sdOrgKind === 'ORG_UNIT' ? 'departments' : 'organization-units'}/${unit.id}/maintenance`,
+        { method: 'PUT', body: JSON.stringify(input) }),
     changeUnitStatus: (id: string, expectedRevision: number, sdOrgStatus: OrganizationStatus) =>
       client.request<OrganizationUnit>(`/api/platform/organization-units/${id}/status`,
         { method: 'POST', body: JSON.stringify({ expectedRevision, sdOrgStatus }) }),
@@ -368,6 +383,26 @@ export function createOrganizationApi(client: ApiClient) {
     createAssignment: (input: AssignmentInput) => client.request<PersonnelAssignment>(
       '/api/platform/assignments', { method: 'POST', body: JSON.stringify(input) },
     ),
+    updateEmployment: (id: string, input: EmploymentUpdateInput) => client.request<PractitionerDetail>(
+      `/api/platform/employments/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    endEmployment: (id: string, input: EndRelationshipInput) => client.request<PractitionerDetail>(
+      `/api/platform/employments/${id}/end`, { method: 'POST', body: JSON.stringify(input) }),
+    updateAssignment: (id: string, input: AssignmentUpdateInput) => client.request<PractitionerDetail>(
+      `/api/platform/assignments/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    endAssignment: (id: string, input: EndRelationshipInput) => client.request<PractitionerDetail>(
+      `/api/platform/assignments/${id}/end`, { method: 'POST', body: JSON.stringify(input) }),
+    transferAssignment: (id: string, input: TransferAssignmentInput) => client.request<PractitionerDetail>(
+      `/api/platform/assignments/${id}/transfer`, { method: 'POST', body: JSON.stringify(input) }),
+    updatePosition: (id: string, input: PositionUpdateInput) => client.request<Position>(
+      `/api/platform/positions/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    updateProfileItem: (unit: Pick<OrganizationUnit, 'id' | 'sdOrgKind'>, section: OrganizationProfileSection, id: string, input: ProfileItemUpdateInput) =>
+      client.request<OrganizationProfileResult>(`/api/platform/${unit.sdOrgKind === 'ORG_UNIT' ? 'departments' : 'organization-units'}/${unit.id}/profile-items/${section}/${id}`,
+        { method: 'PUT', body: JSON.stringify(input) }),
+    changes: (type: 'organization' | 'department' | 'practitioner', id: string) => client.request<OrganizationChange[]>(
+      `/api/platform/${type === 'department' ? 'departments' : type === 'practitioner' ? 'practitioners' : 'organization-units'}/${id}/changes`),
+    businessConfiguration: (id: string) => client.request<DepartmentBusinessConfiguration>(`/api/platform/departments/${id}/business-configuration`),
+    deactivationImpact: (unit: Pick<OrganizationUnit, 'id' | 'sdOrgKind'>) => client.request<{ activeChildren: number; continuingAssignments: number; continuingEmployments: number }>(
+      `/api/platform/${unit.sdOrgKind === 'ORG_UNIT' ? 'departments' : 'organization-units'}/${unit.id}/deactivation-impact`),
     assignments: (params?: { organizationId?: string; departmentId?: string }) => {
       const search = new URLSearchParams()
       if (params?.organizationId) search.set('organizationId', params.organizationId)

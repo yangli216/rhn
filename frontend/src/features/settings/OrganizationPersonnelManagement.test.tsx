@@ -3,8 +3,8 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
-import type { OrganizationProfileInput, OrganizationUnit, PersonnelAssignment, Practitioner, PractitionerOnboardingInput, RhnApi } from '../../shared/rhnApi'
-import { OrganizationPersonnelManagement, resolveDepartmentTypeText } from './OrganizationPersonnelManagement'
+import type { OrganizationUnit, PersonnelAssignment, Practitioner, PractitionerOnboardingInput, RhnApi } from '../../shared/rhnApi'
+import { OrganizationPersonnelManagement, departmentTypeOptions, resolveDepartmentTypeText } from './OrganizationPersonnelManagement'
 
 const mockOrganizationEnums = Object.entries({
   ORG_KIND: [['LEGAL_ORGANIZATION', '法定机构'], ['ORG_UNIT', '科室']],
@@ -198,6 +198,11 @@ const mockAssignments: PersonnelAssignment[] = [
   },
 ]
 
+function emptyProfileFor(unit: OrganizationUnit) {
+  return unit.sdOrgKind === 'ORG_UNIT' ? { department: { ...unit, organizationId: 'org-1', sdDepartmentType: unit.sdDepartmentType ?? 'GENERAL', sdDepartmentTypeText: unit.sdDepartmentTypeText ?? '科室' }, contacts: [], relations: [], capabilities: [], responsibilities: [] }
+    : { organization: unit, identifiers: [], contacts: [], addresses: [], relations: [], capabilities: [], responsibilities: [] }
+}
+
 function onboardingResult(input: PractitionerOnboardingInput) {
   const practitioner = { ...mockPractitioners[0], id: 'prac-new', code: input.code.toUpperCase(), fullName: input.fullName,
     sdPractGender: input.sdPractGender, sdPersonnelStatus: 'ACTIVE', revision: 0 }
@@ -219,6 +224,7 @@ function renderComponent(people: Practitioner[] = mockPractitioners, assignments
   const api = {
     organization: {
       tree: vi.fn().mockResolvedValue(mockUnits),
+      maintainUnit: vi.fn(),
       profile: vi.fn().mockImplementation((unit: OrganizationUnit) => Promise.resolve(unit.sdOrgKind === 'ORG_UNIT'
         ? { department: { ...unit, organizationId: 'org-1', sdDepartmentType: unit.sdDepartmentType ?? 'GENERAL', sdDepartmentTypeText: unit.sdDepartmentTypeText ?? '科室' },
           contacts: [], relations: [], capabilities: [], responsibilities: [] }
@@ -268,6 +274,9 @@ function renderComponent(people: Practitioner[] = mockPractitioners, assignments
         { id: 'pos-2', code: 'POS02', name: '全科主治医师', revision: 1, sdPositionType: 'CLINICAL', sdPositionTypeText: '临床', sdPersonnelStatus: 'ACTIVE', sdPersonnelStatusText: '正常' },
       ]),
       assignments: vi.fn().mockResolvedValue(assignmentsList),
+      deactivationImpact: vi.fn().mockResolvedValue({ activeChildren: 0, continuingAssignments: 0, continuingEmployments: 0 }),
+      businessConfiguration: vi.fn().mockResolvedValue({ runtimeUses: [], suggestedCapabilityTypes: [], warnings: [] }),
+      changes: vi.fn().mockResolvedValue([]),
       createUnit: vi.fn().mockResolvedValue(mockUnits[2]),
       updateUnit: vi.fn().mockResolvedValue(mockUnits[2]),
       ...organizationOverrides,
@@ -282,7 +291,7 @@ function renderComponent(people: Practitioner[] = mockPractitioners, assignments
   const utils = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <OrganizationPersonnelManagement api={api} />
+        <OrganizationPersonnelManagement canManage api={api} />
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -291,66 +300,66 @@ function renderComponent(people: Practitioner[] = mockPractitioners, assignments
 }
 
 describe('organization unit writes confirm actual saved facts', () => {
-  const edited = (before: OrganizationUnit, input: Record<string, unknown>) => ({ ...before, ...input, revision: before.revision + 1,
-    parentId: before.sdOrgKind === 'ORG_UNIT' && !input.parentId ? 'org-1' : input.parentId })
+  const edited = (before: OrganizationUnit, input: Record<string, unknown>) => emptyProfileFor({ ...before, ...(input.details as object), revision: before.revision + 1,
+    parentId: before.sdOrgKind === 'ORG_UNIT' && !(input.details as Record<string, unknown>).parentId ? 'org-1' : (input.details as Record<string, unknown>).parentId as string })
   async function editRoot() {
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: '编辑' }))
-    const dialog = screen.getByRole('dialog', { name: '编辑组织节点' })
+    await user.click(await screen.findByRole('button', { name: '编辑资料' }))
+    const dialog = await screen.findByRole('region', { name: '组织资料维护' })
     await user.clear(within(dialog).getByLabelText(/组织名称/))
     await user.type(within(dialog).getByLabelText(/组织名称/), '更新机构')
     return { user, dialog }
   }
   it.each(['partial', 'old', 'wrong', 'failed'])('retains the edit draft on %s receipt and permits verified retry', async kind => {
-    const updateUnit = vi.fn().mockImplementationOnce(async () => {
+    const maintainUnit = vi.fn().mockImplementationOnce(async () => {
       if (kind === 'failed') throw new Error('response lost')
       return kind === 'partial' ? { id: 'org-1' } : kind === 'old' ? mockUnits[0] : { ...mockUnits[0], revision: 2, name: 'other' }
     }).mockImplementation(async (_id, input) => edited(mockUnits[0], input))
-    renderComponent(mockPractitioners, mockAssignments, { updateUnit })
+    renderComponent(mockPractitioners, mockAssignments, { maintainUnit })
     const { user, dialog } = await editRoot()
-    await user.click(within(dialog).getByRole('button', { name: '保存组织' }))
+    await user.click(within(dialog).getByRole('button', { name: '保存全部资料' }))
     expect(await within(dialog).findByText(/组织保存结果未确认/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText(/组织名称/)).toHaveValue('更新机构')
-    expect(screen.queryByText('已更新“更新机构”')).not.toBeInTheDocument()
+    expect(screen.queryByText('已更新“更新机构”的全部资料')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: '重新核实保存结果' }))
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: '保存组织' })).toBeEnabled())
-    await user.click(within(dialog).getByRole('button', { name: '保存组织' }))
-    expect(await screen.findByText('已更新“更新机构”')).toBeInTheDocument()
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: '保存全部资料' })).toBeEnabled())
+    await user.click(within(dialog).getByRole('button', { name: '保存全部资料' }))
+    expect(await screen.findByText('已更新“更新机构”的全部资料')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
   it('saves a top-level department without sending its owning organization as a department parent', async () => {
-    const updateUnit = vi.fn().mockImplementation(async (_id, input) => edited(mockUnits[2], input))
+    const maintainUnit = vi.fn().mockImplementation(async (_id, input) => edited(mockUnits[2], input))
     const tree = vi.fn().mockResolvedValue(mockUnits.map(item => item.id === 'dept-2' ? { ...item, sdDepartmentProperty: 'CLINICAL' } : item))
-    renderComponent(mockPractitioners, mockAssignments, { updateUnit, tree })
+    renderComponent(mockPractitioners, mockAssignments, { maintainUnit, tree })
     const user = userEvent.setup()
-    await user.click(await within(await screen.findByRole('tree', { name: '组织节点' })).findByText('全科诊室'))
-    await user.click(screen.getByRole('button', { name: '编辑' }))
-    const dialog = screen.getByRole('dialog', { name: '编辑组织节点' })
+    await user.click(await within(await screen.findByRole('tree', { name: '组织树' })).findByText('全科诊室'))
+    await user.click(screen.getByRole('button', { name: '编辑资料' }))
+    const dialog = await screen.findByRole('region', { name: '组织资料维护' })
     expect(within(dialog).queryByLabelText('IANA 时区')).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('combobox', { name: /组织结构类型/ })).not.toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: '保存组织' }))
-    expect(await screen.findByText('已更新“全科诊室”')).toBeInTheDocument()
-    expect(updateUnit).toHaveBeenCalledWith('dept-2', expect.objectContaining({ parentId: undefined, timezoneCode: undefined, expectedRevision: 1 }))
-    expect(updateUnit.mock.calls[0][1]).not.toHaveProperty('unit')
+    await user.click(within(dialog).getByRole('button', { name: '保存全部资料' }))
+    expect(await screen.findByText('已更新“全科诊室”的全部资料')).toBeInTheDocument()
+    expect(maintainUnit).toHaveBeenCalledWith(expect.objectContaining({ id: 'dept-2' }), expect.objectContaining({ details: expect.objectContaining({ parentId: undefined, timezoneCode: undefined }), expectedRevision: 1 }))
+    expect(maintainUnit.mock.calls[0][1]).not.toHaveProperty('unit')
   })
   it.each(['normal', 'api', 'selection'])('locks pending edit and ignores stale completion after %s changes', async scenario => {
     let finish!: () => void
-    const updateUnit = vi.fn().mockImplementation((_id, input) => new Promise(resolve => { finish = () => resolve(edited(mockUnits[0], input)) }))
-    const { api, queryClient, rerender } = renderComponent(mockPractitioners, mockAssignments, { updateUnit })
+    const maintainUnit = vi.fn().mockImplementation((_id, input) => new Promise(resolve => { finish = () => resolve(edited(mockUnits[0], input)) }))
+    const { api, queryClient, rerender } = renderComponent(mockPractitioners, mockAssignments, { maintainUnit })
     const { user, dialog } = await editRoot()
-    const saveButton = within(dialog).getByRole('button', { name: '保存组织' })
+    const saveButton = within(dialog).getByRole('button', { name: '保存全部资料' })
     await user.click(saveButton)
-    await waitFor(() => expect(updateUnit).toHaveBeenCalledTimes(1))
-    expect(within(dialog).getByRole('button', { name: '取消' })).toBeDisabled()
+    await waitFor(() => expect(maintainUnit).toHaveBeenCalledTimes(1))
+    expect(within(dialog).getByRole('button', { name: '返回人员与任职' })).toBeDisabled()
     await user.keyboard('{Escape}')
     expect(dialog).toBeInTheDocument()
     await user.click(saveButton)
-    expect(updateUnit).toHaveBeenCalledTimes(1)
-    if (scenario === 'api') rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement api={{ ...api }} /></MemoryRouter></QueryClientProvider>)
-    if (scenario === 'selection') await user.click(within(screen.getByRole('tree', { name: '组织节点' })).getByText('全科诊室'))
+    expect(maintainUnit).toHaveBeenCalledTimes(1)
+    if (scenario === 'api') rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement canManage api={{ ...api }} /></MemoryRouter></QueryClientProvider>)
+    if (scenario === 'selection') await user.click(within(screen.getByRole('tree', { name: '组织树' })).getByText('全科诊室'))
     await act(async () => finish())
-    if (scenario === 'normal') expect(await screen.findByText('已更新“更新机构”')).toBeInTheDocument()
-    else expect(screen.queryByText('已更新“更新机构”')).not.toBeInTheDocument()
+    if (scenario === 'normal') expect(await screen.findByText('已更新“更新机构”的全部资料')).toBeInTheDocument()
+    else expect(screen.queryByText('已更新“更新机构”的全部资料')).not.toBeInTheDocument()
   })
   it('keeps the original status target after a lost response and refreshed state', async () => {
     const saved = { ...mockUnits[0], revision: 2, sdOrgStatus: 'INACTIVE', sdOrgStatusText: '停用' }
@@ -361,7 +370,8 @@ describe('organization unit writes confirm actual saved facts', () => {
     }).mockResolvedValue(saved)
     renderComponent(mockPractitioners, mockAssignments, { tree, changeUnitStatus })
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: '停用' }))
+    await user.click(await screen.findByRole('button', { name: '更多' }))
+    await user.click(screen.getByRole('menuitem', { name: '停用组织' }))
     const dialog = screen.getByRole('dialog', { name: /确认停用/ })
     await user.click(within(dialog).getByRole('button', { name: '确认停用' }))
     expect(await within(dialog).findByText(/组织保存结果未确认/)).toBeInTheDocument()
@@ -379,7 +389,7 @@ describe('organization unit writes confirm actual saved facts', () => {
     })
     renderComponent(mockPractitioners, mockAssignments, { createUnit, tree })
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: '新建组织' }))
+    await user.click(await screen.findByRole('button', { name: '新建机构' }))
     const dialog = screen.getByRole('dialog', { name: '新建组织节点' })
     await user.type(within(dialog).getByRole('textbox', { name: /组织代码/ }), 'NEW')
     await user.type(within(dialog).getByLabelText(/组织名称/), '新机构')
@@ -398,7 +408,7 @@ describe('organization unit writes confirm actual saved facts', () => {
         : { ...mockUnits[0], ...input, code: input.code.toUpperCase(), id: 'new' })
     renderComponent(mockPractitioners, mockAssignments, { createUnit })
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: '新建组织' }))
+    await user.click(await screen.findByRole('button', { name: '新建机构' }))
     const dialog = screen.getByRole('dialog', { name: '新建组织节点' })
     await user.type(within(dialog).getByRole('textbox', { name: /组织代码/ }), 'NEW')
     await user.type(within(dialog).getByLabelText(/组织名称/), '新机构')
@@ -477,126 +487,27 @@ describe('personnel forms require confirmed type choices', () => {
   })
   it('retains the organization draft while its property dictionary is unconfirmed', async () => {
     const resolve = vi.fn().mockImplementation(async code => mockOrganizationDictionary(code))
-    const updateUnit = vi.fn()
-    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { updateUnit }, { resolve })
-    await userEvent.click(await screen.findByRole('button', { name: '编辑' }))
-    const dialog = within(screen.getByRole('dialog'))
+    const maintainUnit = vi.fn()
+    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { maintainUnit }, { resolve })
+    await userEvent.click(await screen.findByRole('button', { name: '编辑资料' }))
+    const dialog = within(await screen.findByRole('region', { name: '组织资料维护' }))
     await userEvent.type(dialog.getByLabelText(/组织名称/), '草稿')
     resolve.mockImplementationOnce(async () => { throw new Error('offline') })
     await act(async () => { await queryClient.invalidateQueries({ queryKey: ['dictionary-resolve', 'ORG_PROPERTY'] }) })
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存组织' })).toBeDisabled())
-    expect(updateUnit).not.toHaveBeenCalled()
+    await waitFor(() => expect(dialog.getByRole('button', { name: '保存全部资料' })).toBeDisabled())
+    expect(maintainUnit).not.toHaveBeenCalled()
     await userEvent.click(dialog.getByRole('button', { name: '重新加载组织类型与字典选项' }))
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存组织' })).toBeEnabled())
+    await waitFor(() => expect(dialog.getByRole('button', { name: '保存全部资料' })).toBeEnabled())
     expect(dialog.getByLabelText(/组织名称/)).toHaveValue('青禾镇中心卫生院草稿')
   })
 })
 
-describe('profile form dictionary and draft truth', () => {
-  const catalog = (code: string) => [{ code: code === 'ORG_CONTACT_USE' ? 'WORK' : 'CUSTOM', name: `${code}选项`, sortOrder: 0 }]
-  async function choose(label: string, option: string) {
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('combobox', { name: label }))
-    await userEvent.click(await screen.findByRole('option', { name: new RegExp(option) }))
-  }
-  it('keeps all six category drafts separate and never reuses identifier defaults as a person or contact', async () => {
-    renderComponent(mockPractitioners, mockAssignments, {}, { resolve: vi.fn().mockImplementation(async code => catalog(code)) })
-    await userEvent.click(await screen.findByRole('button', { name: '维护联络' }))
-    const dialog = within(screen.getByRole('dialog'))
-    await userEvent.type(dialog.getByLabelText('联系方式'), 'actual@example.test')
-    await choose('联系方式类型', 'ORG_CONTACT_TYPE选项')
-    await choose('使用场景', 'ORG_CONTACT_USE选项')
-    await choose('资料类别', '机构标识')
-    expect(dialog.getByLabelText('标识体系 URI')).toHaveValue('')
-    await userEvent.type(dialog.getByLabelText('标识体系 URI'), 'urn:actual')
-    await userEvent.type(dialog.getByLabelText('标识编码'), 'license-1')
-    expect(dialog.getByRole('combobox', { name: '核验状态' })).not.toHaveTextContent('UNVERIFIED')
-    await choose('资料类别', '地址')
-    expect(dialog.getByLabelText('国家代码')).toHaveValue('CN')
-    expect(dialog.getByLabelText('详细地址')).toHaveValue('')
-    await userEvent.type(dialog.getByLabelText('详细地址'), '真实地址')
-    await choose('资料类别', '机构关系')
-    await userEvent.type(dialog.getByLabelText('关系说明'), '转诊关系说明')
-    await choose('资料类别', '服务能力')
-    expect(dialog.getByLabelText('资质依据编码')).toHaveValue('')
-    expect(dialog.getByLabelText('能力范围说明')).toHaveValue('')
-    await userEvent.type(dialog.getByLabelText('能力范围说明'), '登记能力')
-    await choose('资料类别', '负责人')
-    expect(dialog.getByLabelText('外部负责人姓名')).toHaveValue('')
-    await userEvent.type(dialog.getByLabelText('外部负责人姓名'), '真实姓名')
-    await choose('资料类别', '联系方式')
-    expect(dialog.getByLabelText('联系方式')).toHaveValue('actual@example.test')
-    expect(dialog.getByRole('combobox', { name: '联系方式类型' })).toHaveTextContent('ORG_CONTACT_TYPE选项')
-    await choose('资料类别', '机构标识')
-    expect(dialog.getByLabelText('标识体系 URI')).toHaveValue('urn:actual')
-    expect(dialog.getByLabelText('标识编码')).toHaveValue('license-1')
-    await choose('资料类别', '地址')
-    expect(dialog.getByLabelText('详细地址')).toHaveValue('真实地址')
-    await choose('资料类别', '机构关系')
-    expect(dialog.getByLabelText('关系说明')).toHaveValue('转诊关系说明')
-    await choose('资料类别', '服务能力')
-    expect(dialog.getByLabelText('能力范围说明')).toHaveValue('登记能力')
-    await choose('资料类别', '负责人')
-    expect(dialog.getByLabelText('外部负责人姓名')).toHaveValue('真实姓名')
-  })
-  it.each(['failed', 'malformed', 'empty'])('blocks saves with %s dictionary and retains the draft during retry', async mode => {
-    let recovered = false
-    const resolve = vi.fn().mockImplementation(async code => {
-      if (code !== 'ORG_CONTACT_TYPE' || recovered) return catalog(code)
-      if (mode === 'failed') throw new Error('offline')
-      return mode === 'malformed' ? [{ code: 'CUSTOM' }] : []
-    })
-    const addProfileItem = vi.fn()
-    renderComponent(mockPractitioners, mockAssignments, { addProfileItem }, { resolve })
-    await userEvent.click(await screen.findByRole('button', { name: '维护联络' }))
-    const dialog = within(screen.getByRole('dialog'))
-    expect(await dialog.findByText(mode === 'empty' ? /没有可用字典选项/ : /字典尚未确认/)).toBeInTheDocument()
-    await userEvent.type(dialog.getByLabelText('联系方式'), 'draft@example.test')
-    expect(dialog.getByRole('button', { name: '保存档案' })).toBeDisabled()
-    expect(addProfileItem).not.toHaveBeenCalled()
-    recovered = true
-    await userEvent.click(dialog.getByRole('button', { name: '重新加载档案字典' }))
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存档案' })).toBeEnabled())
-    expect(dialog.getByLabelText('联系方式')).toHaveValue('draft@example.test')
-  })
-  it('blocks stale choices while a refetch fails and rejects a selection removed by a later catalog', async () => {
-    const resolve = vi.fn().mockImplementation(async code => catalog(code))
-    const addProfileItem = vi.fn()
-    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { addProfileItem }, { resolve })
-    await userEvent.click(await screen.findByRole('button', { name: '维护联络' }))
-    const dialog = within(screen.getByRole('dialog'))
-    await userEvent.type(dialog.getByLabelText('联系方式'), 'draft@example.test')
-    await choose('联系方式类型', 'ORG_CONTACT_TYPE选项')
-    await choose('使用场景', 'ORG_CONTACT_USE选项')
-    let fail!: (error: Error) => void
-    resolve.mockImplementation(code => code === 'ORG_CONTACT_TYPE' ? new Promise((_resolve, reject) => { fail = reject }) : Promise.resolve(catalog(code)))
-    await act(async () => { void queryClient.invalidateQueries({ queryKey: ['dictionary-resolve', 'ORG_CONTACT_TYPE'] }) })
-    expect(await dialog.findByText(/字典尚未确认/)).toBeInTheDocument()
-    expect(dialog.getByRole('button', { name: '保存档案' })).toBeDisabled()
-    await act(async () => fail(new Error('offline')))
-    expect(dialog.getByRole('button', { name: '保存档案' })).toBeDisabled()
-    resolve.mockImplementation(async code => code === 'ORG_CONTACT_TYPE' ? [{ code: 'CHANGED', name: '新选项', sortOrder: 0 }] : catalog(code))
-    await userEvent.click(dialog.getByRole('button', { name: '重新加载档案字典' }))
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存档案' })).toBeEnabled())
-    await userEvent.click(dialog.getByRole('button', { name: '保存档案' }))
-    expect(await dialog.findByText(/字典选项尚未确认或已失效/)).toBeInTheDocument()
-    expect(addProfileItem).not.toHaveBeenCalled()
-    expect(dialog.getByLabelText('联系方式')).toHaveValue('draft@example.test')
-  })
-  it('does not let an unrelated unavailable dictionary block contact maintenance', async () => {
-    renderComponent(mockPractitioners, mockAssignments, {}, { resolve: vi.fn().mockImplementation(async code => {
-      if (code === 'ORG_ADDRESS_TYPE') throw new Error('address offline')
-      return catalog(code)
-    }) })
-    await userEvent.click(await screen.findByRole('button', { name: '维护联络' }))
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: '保存档案' })).toBeEnabled()
-  })
+describe('personnel facts remain independent from result maintenance', () => {
   it('labels unread personnel credentials and contacts as unavailable rather than known missing', async () => {
     renderComponent()
     await userEvent.click(screen.getByRole('tab', { name: '人员任职' }))
-    const region = await screen.findByLabelText('法定执业与监管认证档案')
-    expect(within(region).queryByText('未维护')).not.toBeInTheDocument()
-    expect(within(region).getAllByText('尚未接入').length).toBeGreaterThan(0)
-    expect(within(region).getByText(/不能据此判断是否已登记/)).toBeInTheDocument()
+    expect(await screen.findByText(/执业资质、医保和 CA 尚未接入/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('法定执业与监管认证档案')).not.toBeInTheDocument()
   })
   it('opens the personnel directory and details for historical staff with unfilled gender', async () => {
     const people = mockPractitioners.map(person => ({ ...person, sdPractGender: null, sdPractGenderText: null }))
@@ -606,198 +517,6 @@ describe('profile form dictionary and draft truth', () => {
     expect(await within(screen.getByRole('listbox', { name: '人员列表' })).findByText('陈国华')).toBeInTheDocument()
     expect(await screen.findByText('未填写')).toBeInTheDocument()
     expect(screen.queryByText(/人员目录返回不完整|任职目录返回不完整|人员档案返回不完整/)).not.toBeInTheDocument()
-  })
-})
-
-describe('governance profile writes require an actual new record', () => {
-  const empty = (unit: OrganizationUnit) => ({ organization: unit, identifiers: [], contacts: [], addresses: [], relations: [], capabilities: [], responsibilities: [] })
-  const dictionaries = { resolve: vi.fn().mockImplementation(async (code: string) => code === 'ORG_CONTACT_TYPE'
-    ? [{ code: 'EMAIL', name: '电子邮箱', sortOrder: 1 }] : code === 'ORG_CONTACT_USE' ? [{ code: 'WORK', name: '办公', sortOrder: 1 }] : []) }
-  const receipt = (unit: OrganizationUnit, input: OrganizationProfileInput) => {
-    if (input.section !== 'contact') throw new Error('This fixture only writes a contact')
-    const { section: _section, ...body } = input
-    return { ...empty(unit), contacts: [{ ...body, id: 'new-contact', contactValue: input.contactValue.trim(),
-      sdContactTypeText: '电子邮箱', sdContactUseText: '办公', sdDetailStatus: 'ACTIVE', sdDetailStatusText: '启用' }] }
-  }
-  async function fillContact() {
-    await userEvent.click(await screen.findByRole('button', { name: '维护联络' }))
-    const element = screen.getByRole('dialog'), dialog = within(element)
-    await userEvent.click(dialog.getByRole('combobox', { name: '联系方式类型' }))
-    await userEvent.click(await screen.findByRole('option', { name: /电子邮箱/ }))
-    await userEvent.click(dialog.getByRole('combobox', { name: '使用场景' }))
-    await userEvent.click(await screen.findByRole('option', { name: /办公/ }))
-    await userEvent.type(dialog.getByLabelText('联系方式'), 'new@example.test')
-    return { element, dialog }
-  }
-
-  it.each(['partial', 'unchanged', 'wrong-value', 'wrong-subject', 'failed', 'success'])('only closes after a matching contact is present: %s', async mode => {
-    const profile = vi.fn().mockImplementation(async (unit: OrganizationUnit) => empty(unit))
-    const addProfileItem = vi.fn().mockImplementation(async (unit: OrganizationUnit, input: OrganizationProfileInput) => {
-      if (mode === 'failed') throw new Error('保存未完成')
-      if (mode === 'partial') return { contacts: [] }
-      if (mode === 'unchanged') return empty(unit)
-      const result = receipt(unit, input)
-      if (mode === 'wrong-value') return { ...result, contacts: [{ ...result.contacts[0], contactValue: 'other@example.test' }] }
-      if (mode === 'wrong-subject') return { ...result, organization: { ...unit, id: 'other' } }
-      profile.mockResolvedValue(result as never)
-      return result
-    })
-    renderComponent(mockPractitioners, mockAssignments, { profile, addProfileItem }, dictionaries)
-    const { element, dialog } = await fillContact()
-    await userEvent.click(dialog.getByRole('button', { name: '保存档案' }))
-    await waitFor(() => expect(addProfileItem).toHaveBeenCalledTimes(1))
-    if (mode === 'success') {
-      expect(await screen.findByText('机构或科室扩展信息已保存')).toBeInTheDocument()
-      expect(element).not.toBeInTheDocument()
-      expect(await screen.findByText('new@example.test')).toBeInTheDocument()
-    } else {
-      expect(await dialog.findByText(/治理档案保存结果未确认/)).toBeInTheDocument()
-      expect(dialog.getByLabelText('联系方式')).toHaveValue('new@example.test')
-      expect(screen.queryByText('机构或科室扩展信息已保存')).not.toBeInTheDocument()
-      await userEvent.click(dialog.getByRole('button', { name: '重新核实保存结果' }))
-      await waitFor(() => expect(dialog.getByRole('button', { name: '保存档案' })).toBeEnabled())
-      expect(dialog.getByLabelText('联系方式')).toHaveValue('new@example.test')
-      addProfileItem.mockImplementation(async (unit: OrganizationUnit, input: OrganizationProfileInput) => receipt(unit, input))
-      await userEvent.click(dialog.getByRole('button', { name: '保存档案' }))
-      expect(await screen.findByText('机构或科室扩展信息已保存')).toBeInTheDocument()
-      expect(addProfileItem.mock.calls[1]).toEqual(addProfileItem.mock.calls[0])
-    }
-  })
-
-  it.each(['api', 'unit'] as const)('locks the submitted form and ignores late results after changing %s', async mode => {
-    let complete!: () => void
-    const profile = vi.fn().mockImplementation(async (unit: OrganizationUnit) => empty(unit))
-    const addProfileItem = vi.fn().mockImplementation((unit: OrganizationUnit, input: OrganizationProfileInput) => new Promise(resolve => {
-      complete = () => resolve(receipt(unit, input))
-    }))
-    const { api, queryClient, rerender } = renderComponent(mockPractitioners, mockAssignments, { profile, addProfileItem }, dictionaries)
-    const { element, dialog } = await fillContact()
-    const save = dialog.getByRole('button', { name: '保存档案' })
-    await userEvent.click(save)
-    await waitFor(() => expect(addProfileItem).toHaveBeenCalledTimes(1))
-    expect(save).toBeDisabled()
-    expect(dialog.getByRole('button', { name: '取消' })).toBeDisabled()
-    expect(element.querySelector('form')).toHaveAttribute('inert')
-    await userEvent.keyboard('{Escape}'); expect(element).toBeInTheDocument()
-    await userEvent.click(save); expect(addProfileItem).toHaveBeenCalledTimes(1)
-    if (mode === 'api') {
-      rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement api={{ ...api }} /></MemoryRouter></QueryClientProvider>)
-    } else {
-      vi.mocked(api.organization.tree).mockResolvedValue([{ ...mockUnits[0], id: 'other-org', code: 'OTHER', name: '另一机构' }])
-      await act(async () => { await queryClient.invalidateQueries({ queryKey: ['organization-units'] }) })
-      expect(await screen.findByRole('heading', { name: '另一机构' })).toBeInTheDocument()
-    }
-    await act(async () => { complete() })
-    expect(screen.queryByText('机构或科室扩展信息已保存')).not.toBeInTheDocument()
-    if (mode === 'api') expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(addProfileItem.mock.calls[0][0].id).toBe('org-1')
-  })
-
-  it.each(['维护地址', '维护服务能力'])('does not offer an unsaved primary flag for %s', async label => {
-    renderComponent()
-    await userEvent.click(await screen.findByRole('button', { name: label }))
-    expect(within(screen.getByRole('dialog')).queryByRole('checkbox', { name: '设为主要记录' })).not.toBeInTheDocument()
-  })
-
-  it('does not resend a command when rechecking finds that the first unconfirmed attempt was already persisted', async () => {
-    const profile = vi.fn().mockImplementation(async (unit: OrganizationUnit) => empty(unit))
-    const addProfileItem = vi.fn().mockImplementation(async (unit: OrganizationUnit, input: OrganizationProfileInput) => {
-      profile.mockResolvedValue(receipt(unit, input) as never)
-      throw new Error('响应中断，保存结果未知')
-    })
-    renderComponent(mockPractitioners, mockAssignments, { profile, addProfileItem }, dictionaries)
-    const { dialog } = await fillContact()
-    await userEvent.click(dialog.getByRole('button', { name: '保存档案' }))
-    expect(await dialog.findByText(/治理档案保存结果未确认/)).toBeInTheDocument()
-    await userEvent.click(dialog.getByRole('button', { name: '重新核实保存结果' }))
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存档案' })).toBeEnabled())
-    await userEvent.click(dialog.getByRole('button', { name: '保存档案' }))
-    expect(await dialog.findByText(/未重复提交/)).toBeInTheDocument()
-    expect(addProfileItem).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText('机构或科室扩展信息已保存')).not.toBeInTheDocument()
-  })
-})
-
-describe('organization governance profiles retain their actual meaning', () => {
-  const emptyProfile = { organization: mockUnits[0], identifiers: [], contacts: [], addresses: [], relations: [], capabilities: [], responsibilities: [] }
-  const base = { id: 'record', sdDetailStatus: 'INACTIVE', sdDetailStatusText: '停用', validFrom: '2026-01-01', validTo: '2026-02-01' }
-  const contact = { ...base, id: 'email', sdContactType: 'EMAIL', sdContactTypeText: '电子邮箱', contactValue: 'office@example.test',
-    sdContactUse: 'WORK', sdContactUseText: '办公', primaryContact: false, sortOrder: 0 }
-
-  it('shows every contact, address and responsibility with its recorded type, status and dates', async () => {
-    const profile = vi.fn().mockResolvedValue({ ...emptyProfile,
-      contacts: [contact, { ...contact, id: 'phone', sdContactType: 'PHONE', sdContactTypeText: '电话', contactValue: '010-12345678', primaryContact: true }],
-      addresses: [{ ...base, sdAddressType: 'MAILING', sdAddressTypeText: '通信地址', countryCode: 'CN', streetAddress: '通信街1号' },
-        { ...base, id: 'practice', sdAddressType: 'PRACTICE', sdAddressTypeText: '执业地址', countryCode: 'CN', streetAddress: '诊疗街2号' }],
-      responsibilities: [{ ...base, sdResponsibilityType: 'SAFETY', sdResponsibilityTypeText: '安全负责人', responsibleName: '安全专员', primaryResponsibility: false },
-        { ...base, id: 'leader', sdResponsibilityType: 'BUSINESS', sdResponsibilityTypeText: '业务负责人', responsibleName: '业务主管', primaryResponsibility: true }],
-    })
-    renderComponent(mockPractitioners, mockAssignments, { profile })
-    const contacts = within(await screen.findByRole('article', { name: '登记联系方式' }))
-    expect(contacts.getByText('office@example.test').closest('.master-prop-item')).toHaveTextContent('电子邮箱 · 办公')
-    expect(contacts.getByText('010-12345678').closest('.master-prop-item')).toHaveTextContent('电话 · 办公 · 主要')
-    expect(contacts.getByText('office@example.test').closest('.master-prop-item')).toHaveTextContent('停用 · 有效期：2026-01-01 至 2026-02-01')
-    const addresses = within(screen.getByRole('article', { name: '登记地址' }))
-    expect(addresses.getByText('通信街1号').closest('.master-prop-item')).toHaveTextContent('通信地址')
-    expect(addresses.getByText('诊疗街2号').closest('.master-prop-item')).toHaveTextContent('执业地址')
-    const responsibilities = within(screen.getByRole('article', { name: '登记负责人' }))
-    expect(responsibilities.getByText('安全专员')).toBeInTheDocument()
-    expect(responsibilities.getByText('业务主管')).toBeInTheDocument()
-    expect(screen.queryByText('联系电话 / 分机')).not.toBeInTheDocument()
-    expect(screen.queryByText('机构执业地址')).not.toBeInTheDocument()
-  })
-
-  it.each(['identifiers', 'addresses', 'contacts', 'responsibilities', 'capabilities', 'relations'])('does not replace a missing %s array with an empty list', async field => {
-    renderComponent(mockPractitioners, mockAssignments, { profile: vi.fn().mockResolvedValue({ ...emptyProfile, [field]: undefined }) })
-    expect(await screen.findByText('组织治理档案加载失败，尚未核验')).toBeInTheDocument()
-    expect(screen.queryByRole('article', { name: '登记联系方式' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '维护联络' })).not.toBeInTheDocument()
-    expect(screen.queryByText('尚未登记机构标识')).not.toBeInTheDocument()
-  })
-
-  it('rejects an organization response returned for a selected department', async () => {
-    renderComponent(mockPractitioners, mockAssignments, { profile: vi.fn().mockResolvedValue(emptyProfile) })
-    await userEvent.click(await within(screen.getByRole('tree', { name: '组织节点' })).findByText('中医科'))
-    expect(await screen.findByText('组织治理档案加载失败，尚未核验')).toBeInTheDocument()
-    expect(screen.queryByText('尚未登记联系方式')).not.toBeInTheDocument()
-  })
-
-  it('hides cached records when refreshing fails, keeps the failure inline and recovers on retry', async () => {
-    const profile = vi.fn().mockResolvedValue({ ...emptyProfile, contacts: [contact] })
-    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { profile })
-    expect(await screen.findByText('office@example.test')).toBeInTheDocument()
-    let reject!: (error: Error) => void
-    profile.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
-    act(() => { void queryClient.invalidateQueries({ queryKey: ['organization-profile'] }) })
-    expect(await screen.findByText('正在加载组织治理档案…')).toBeInTheDocument()
-    expect(screen.queryByText('office@example.test')).not.toBeInTheDocument()
-    await act(async () => { reject(new Error('治理档案读取失败')) })
-    const error = await screen.findByText('组织治理档案加载失败，尚未核验')
-    expect(error.closest('[role="alert"]')).not.toHaveClass('ui-alert')
-    expect(screen.queryByText('尚未登记联系方式')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '重试组织档案' }))
-    expect(await screen.findByText('office@example.test')).toBeInTheDocument()
-  })
-
-  it('preserves an open profile draft but disables saving while the profile is unconfirmed', async () => {
-    const profile = vi.fn().mockResolvedValue(emptyProfile), addProfileItem = vi.fn()
-    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { profile, addProfileItem }, {
-      resolve: vi.fn().mockImplementation(async code => ['ORG_CONTACT_TYPE', 'ORG_CONTACT_USE'].includes(code)
-        ? [{ code: 'CUSTOM', name: '测试选项', sortOrder: 0 }] : []),
-    })
-    await userEvent.click(await screen.findByRole('button', { name: '维护联络' }))
-    const dialog = within(screen.getByRole('dialog'))
-    await userEvent.type(dialog.getByLabelText('联系方式'), 'retained@example.test')
-    profile.mockRejectedValueOnce(new Error('档案读取失败'))
-    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['organization-profile'] }) })
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存档案' })).toBeDisabled())
-    expect(dialog.getByLabelText('联系方式')).toHaveValue('retained@example.test')
-    expect(dialog.getByRole('alert')).toHaveTextContent('组织治理档案尚未确认')
-    await userEvent.click(dialog.getByRole('button', { name: '保存档案' }))
-    expect(addProfileItem).not.toHaveBeenCalled()
-    await userEvent.click(dialog.getByRole('button', { name: '重新加载组织治理档案' }))
-    await waitFor(() => expect(dialog.getByRole('button', { name: '保存档案' })).toBeEnabled())
-    expect(dialog.getByLabelText('联系方式')).toHaveValue('retained@example.test')
   })
 })
 
@@ -936,7 +655,7 @@ describe('personnel writes only succeed with confirmed receipts', () => {
     expect(dialogElement.querySelector('form')).toHaveAttribute('inert')
     await user.keyboard('{Escape}'); expect(dialogElement).toBeInTheDocument()
     await user.click(save); expect(write).toHaveBeenCalledTimes(1)
-    rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement api={{ ...api }} /></MemoryRouter></QueryClientProvider>)
+    rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement canManage api={{ ...api }} /></MemoryRouter></QueryClientProvider>)
     await act(async () => { resolve() })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByText(item.success)).not.toBeInTheDocument()
@@ -990,7 +709,7 @@ describe('organization personnel read failures', () => {
     practitioner.mockResolvedValue({ practitioner: mockPractitioners[0], employments: [], assignments: [] })
     await userEvent.click(screen.getByRole('button', { name: '重新加载人员档案' }))
     expect(await screen.findByRole('button', { name: '编辑人员' })).toBeEnabled()
-    expect(screen.getByText('尚未建立科室任职')).toBeInTheDocument()
+    expect(screen.getByText('当前暂无科室任职，可新增任职或查看历史。')).toBeInTheDocument()
   })
 
   it('preserves an edit draft and blocks saving while its authoritative detail is being rechecked', async () => {
@@ -1015,10 +734,9 @@ describe('organization personnel read failures', () => {
   it('does not invent primary relationships or a hire date from a secondary assignment', async () => {
     renderComponent(mockPractitioners, mockAssignments.map(item => ({ ...item, primaryAssignment: false, sdAssignmentType: 'PART_TIME' })))
     await userEvent.click(screen.getByRole('tab', { name: '人员任职' }))
-    expect(await screen.findByText('未设置主要聘用')).toBeInTheDocument()
-    expect(screen.getAllByText('未设置主要任职')).toHaveLength(2)
+    expect(await screen.findByText('未设置当前主任职')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '编辑人员' }))
-    expect(within(screen.getByRole('dialog')).getByLabelText('入职聘用日期')).toHaveValue('')
+    expect(within(screen.getByRole('dialog')).queryByLabelText('入职聘用日期')).not.toBeInTheDocument()
   })
 
   it('keeps genuine detail visible but blocks new relationships when the position catalog fails', async () => {
@@ -1036,7 +754,7 @@ describe('organization personnel read failures', () => {
     await userEvent.click(screen.getByRole('tab', { name: '人员任职' }))
     expect(await screen.findByRole('button', { name: '编辑人员' })).toBeInTheDocument()
     const other = { ...api, organization: { ...api.organization, practitioners: vi.fn().mockRejectedValue(new Error('新上下文未确认')) } }
-    rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement api={other} /></MemoryRouter></QueryClientProvider>)
+    rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement canManage api={other} /></MemoryRouter></QueryClientProvider>)
     expect(await screen.findByText('人员与任职目录尚未确认，不能据此判断有无记录。')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '编辑人员' })).not.toBeInTheDocument()
     expect(screen.queryByText('陈国华')).not.toBeInTheDocument()
@@ -1067,7 +785,7 @@ describe('OrganizationPersonnelManagement Department Staff Query & Cross-linking
     expect(dialogElement).toBeInTheDocument()
     if (changeContext) {
       rerender(<QueryClientProvider client={queryClient}><MemoryRouter>
-        <OrganizationPersonnelManagement api={{ ...api }} />
+        <OrganizationPersonnelManagement canManage api={{ ...api }} />
       </MemoryRouter></QueryClientProvider>)
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     }
@@ -1125,7 +843,8 @@ describe('OrganizationPersonnelManagement Department Staff Query & Cross-linking
     })
 
     // 2. Click on "中医科" department node
-    const tcmNode = screen.getByText('中医科')
+    const tree = screen.getByRole('tree', { name: '组织树' })
+    const tcmNode = within(tree).getByText('中医科')
     await userEvent.click(tcmNode)
 
     // 3. Right detail panel should display "科室任职记录" and list 陈国华
@@ -1231,7 +950,7 @@ describe('personnel pagination and scroll boundaries', () => {
   it('reveals a linked practitioner on the correct directory page', async () => {
     const user = userEvent.setup()
     renderComponent([...people.slice(0, 43), ...mockPractitioners])
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
     await user.click(await within(tree).findByText('中医科'))
     await user.click(await screen.findByRole('button', { name: '查看任职档案' }))
     const list = await screen.findByRole('listbox', { name: '人员列表' })
@@ -1243,19 +962,19 @@ describe('personnel pagination and scroll boundaries', () => {
   it('resets detail scroll when changing organization without moving its fixed actions', async () => {
     const user = userEvent.setup()
     renderComponent()
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
     await waitFor(() => expect(within(tree).getAllByRole('treeitem').length).toBeGreaterThan(1))
     const detail = screen.getByRole('region', { name: '组织详情内容' })
     detail.scrollTop = 400
     await user.click(within(tree).getByText('中医科'))
     expect(detail.scrollTop).toBe(0)
-    expect(detail).not.toContainElement(screen.getByRole('button', { name: '编辑' }))
+    expect(detail).not.toContainElement(screen.getByRole('button', { name: '编辑资料' }))
   })
 
   it('maintains stable container classes for staff list whether populated or empty', async () => {
     const user = userEvent.setup()
     renderComponent()
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
 
     // 1. Check department with staff (中医科)
     const tcmNode = await within(tree).findByText('中医科')
@@ -1281,7 +1000,7 @@ describe('personnel pagination and scroll boundaries', () => {
   it('renders split workbench layout with recorded capabilities and unverified regulatory status', async () => {
     const user = userEvent.setup()
     renderComponent()
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
 
     const tcmNode = await within(tree).findByText('中医科')
     await user.click(tcmNode)
@@ -1292,34 +1011,27 @@ describe('personnel pagination and scroll boundaries', () => {
       expect(screen.getByText('任职记录数')).toBeInTheDocument()
     })
 
-    // 2. Verify split workbench regions
     expect(screen.getByRole('region', { name: '任职记录工作区' })).toBeInTheDocument()
-    expect(screen.getByRole('complementary', { name: '科室业务属性与档案治理' })).toBeInTheDocument()
-
-    // 3. Only recorded capability data is presented; no inferred permissions.
-    expect(screen.getByRole('heading', { name: '已登记服务能力' })).toBeInTheDocument()
-    expect(screen.getByText('尚未登记服务能力，不能据此判断业务权限')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '医保对照与法定标识' })).toBeInTheDocument()
-    expect(screen.getByText('未接入标准对照数据')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: '运行规则' }))
+    expect(await screen.findByRole('heading', { name: '服务能力登记' })).toBeInTheDocument()
+    expect(screen.getByText(/机构能力不会自动成为下属科室能力/)).toBeInTheDocument()
+    expect(screen.getByText('暂无当前有效的能力登记，可在资料维护中填写。')).toBeInTheDocument()
     expect(screen.queryByText('01.01 (中医内科专业)')).not.toBeInTheDocument()
-
-    // 4. Verify clinical qualification badges in staff table
     expect(screen.queryByText('普通处方')).not.toBeInTheDocument()
-    expect(screen.queryByText('麻精/抗菌')).not.toBeInTheDocument()
-    expect(screen.getAllByText('未核验').length).toBeGreaterThan(0)
   })
 
   it('shows recorded organization facts without inferring permissions, regulatory codes, or descriptions', async () => {
     const user = userEvent.setup()
     renderComponent()
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
     await user.click(await within(tree).findByText('全科诊室'))
     expect(await screen.findByText('其他自定义科室')).toBeInTheDocument()
     expect(screen.queryByText(/承担辖区居民常见病/)).not.toBeInTheDocument()
     expect(screen.queryByText('01.04 (全科医疗科)')).not.toBeInTheDocument()
     expect(screen.queryByText('已接入医疗保障平台')).not.toBeInTheDocument()
     expect(screen.queryByText(/具备开单权|具备管床权|参与排班/)).not.toBeInTheDocument()
-    expect(await screen.findByText('尚未登记服务能力，不能据此判断业务权限')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: '运行规则' }))
+    expect(await screen.findByText('暂无当前有效的能力登记，可在资料维护中填写。')).toBeInTheDocument()
     expect(screen.getByText('未维护科室性质')).toBeInTheDocument()
   })
 
@@ -1328,15 +1040,15 @@ describe('personnel pagination and scroll boundaries', () => {
     const { api } = renderComponent(mockPractitioners, mockAssignments, {
       tree: vi.fn().mockResolvedValue(mockUnits.map(item => item.id === 'dept-2' ? { ...item, sdDepartmentProperty: 'CLINICAL' } : item)),
     })
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
     await user.click(await within(tree).findByText('全科诊室'))
-    await user.click(screen.getByRole('button', { name: '编辑' }))
-    const dialog = screen.getByRole('dialog', { name: '编辑组织节点' })
+    await user.click(screen.getByRole('button', { name: '编辑资料' }))
+    const dialog = await screen.findByRole('region', { name: '组织资料维护' })
     expect(within(dialog).getByLabelText('组织说明')).toHaveValue('')
     expect(within(dialog).getByRole('combobox', { name: /具体科室类型/ })).toHaveTextContent('其他自定义科室')
-    await user.click(within(dialog).getByRole('button', { name: '保存组织' }))
-    await waitFor(() => expect(api.organization.updateUnit).toHaveBeenCalledWith('dept-2',
-      expect.objectContaining({ sdDepartmentType: 'CUSTOM_OTHER', description: undefined })))
+    await user.click(within(dialog).getByRole('button', { name: '保存全部资料' }))
+    await waitFor(() => expect(api.organization.maintainUnit).toHaveBeenCalledWith(expect.objectContaining({ id: 'dept-2' }),
+      expect.objectContaining({ details: expect.objectContaining({ sdDepartmentType: 'CUSTOM_OTHER', description: undefined }) })))
   })
 
   it('does not choose a department type from the first dictionary item for a new unit', async () => {
@@ -1345,8 +1057,8 @@ describe('personnel pagination and scroll boundaries', () => {
       resolve: vi.fn().mockImplementation(async (code) => code === 'DEPT_TYPE'
         ? [{ code: '02', name: '全科医疗科', sortOrder: 1 }] : mockOrganizationDictionary(code)),
     })
-    await screen.findByRole('button', { name: '新增下级' })
-    await user.click(screen.getByRole('button', { name: '新增下级' }))
+    await screen.findByRole('button', { name: '新增科室' })
+    await user.click(screen.getByRole('button', { name: '新增科室' }))
     const dialog = screen.getByRole('dialog', { name: '新建组织节点' })
     expect(within(dialog).getByRole('combobox', { name: /具体科室类型/ })).toHaveTextContent('请选择')
     await user.click(within(dialog).getByRole('combobox', { name: /具体科室类型/ }))
@@ -1368,9 +1080,11 @@ describe('personnel pagination and scroll boundaries', () => {
         validFrom: '2026-01-01', validTo: '2026-12-31', capabilityScope: '实际登记的服务范围' }],
     })
     renderComponent(mockPractitioners, mockAssignments, { profile })
-    expect(await screen.findByText('组织治理档案加载失败，尚未核验')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('tab', { name: '资料维护' }))
+    expect(await screen.findByText('组织资料加载失败')).toBeInTheDocument()
     expect(screen.queryByText('尚未登记服务能力，不能据此判断业务权限')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '重试组织档案' }))
+    await user.click(screen.getByRole('tab', { name: '运行规则' }))
     expect(await screen.findByText('实际登记能力')).toBeInTheDocument()
     expect(screen.getByText('实际登记的服务范围')).toBeInTheDocument()
     expect(screen.getByText('待核验')).toBeInTheDocument()
@@ -1381,7 +1095,8 @@ describe('personnel pagination and scroll boundaries', () => {
 
   it.each([null, {}])('does not treat incomplete profile data as an empty valid profile: %j', async (profile) => {
     renderComponent(mockPractitioners, mockAssignments, { profile: vi.fn().mockResolvedValue(profile) })
-    expect(await screen.findByText('组织治理档案加载失败，尚未核验')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('tab', { name: '资料维护' }))
+    expect(await screen.findByText('组织资料加载失败')).toBeInTheDocument()
     expect(screen.queryByText('尚未登记服务能力，不能据此判断业务权限')).not.toBeInTheDocument()
   })
 
@@ -1395,7 +1110,7 @@ describe('personnel pagination and scroll boundaries', () => {
   it('shows the server-translated department type of a clinical department', async () => {
     const user = userEvent.setup()
     renderComponent()
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
 
     const surgeryNode = await within(tree).findByText('外科门诊')
     await user.click(surgeryNode)
@@ -1436,7 +1151,7 @@ describe('personnel pagination and scroll boundaries', () => {
     }))
 
     renderComponent(mockPractitioners, extraAssignments)
-    const tree = await screen.findByRole('tree', { name: '组织节点' })
+    const tree = await screen.findByRole('tree', { name: '组织树' })
     const tcmNode = await within(tree).findByText('中医科')
     await user.click(tcmNode)
 
@@ -1488,36 +1203,12 @@ describe('personnel pagination and scroll boundaries', () => {
     const chengOption = within(list).getByText('陈国华')
     await user.click(chengOption)
 
-    // 3. Verify facts bar
-    await waitFor(() => {
-      expect(screen.getByText('主要任职岗位')).toBeInTheDocument()
-      expect(screen.getByText('核心处方准入')).toBeInTheDocument()
-      expect(screen.getByText('执业与医保未核验')).toBeInTheDocument()
-      expect(screen.getByText('数字证书未核验')).toBeInTheDocument()
-    })
-
-    // 4. Verify left column: HIS clinical access & prescribing matrix
-    expect(screen.getByRole('region', { name: '临床资质与任职工作区' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'HIS 临床准入与处方权限管控' })).toBeInTheDocument()
-    expect(screen.getByText(/尚无已核验的处方权限记录/)).toBeInTheDocument()
-    expect(screen.queryByText('国家平台实名已备案')).not.toBeInTheDocument()
-    expect(screen.queryByText('UKEY-ZH82910-P001')).not.toBeInTheDocument()
-    expect(screen.queryByText('110330100000001')).not.toBeInTheDocument()
-
-    // 5. Verify left column: assignments & employments tables
-    expect(screen.getByRole('heading', { name: '科室任职与工作量配置' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '机构劳动与聘用档案' })).toBeInTheDocument()
-
-    // 6. Verify right column: regulatory license, insurance, CA and demographics
-    expect(screen.getByRole('complementary', { name: '法定执业与监管认证档案' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '法定执业证书与监管登记' })).toBeInTheDocument()
-    expect(screen.getByText('医师执业证书编码')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '国家医保代码与信用备案' })).toBeInTheDocument()
-    expect(screen.getByText('全国医保医师代码')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'CA 数字证书与电子签名' })).toBeInTheDocument()
-    expect(screen.getByText('CA 认证机构')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '人口学档案与联络信息' })).toBeInTheDocument()
-    expect(screen.getByText('法定身份证号')).toBeInTheDocument()
+    expect(await screen.findByText('当前主任职')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '科室任职' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '机构聘用' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '维护任职' })).toBeInTheDocument()
+    expect(screen.queryByText('HIS 临床准入与处方权限管控')).not.toBeInTheDocument()
+    expect(screen.queryByText('CA 认证机构')).not.toBeInTheDocument()
   })
 
   it('opens PractitionerDialog with comprehensive HIS attributes and grouped sections when clicking 新增人员', async () => {
@@ -1541,33 +1232,22 @@ describe('personnel pagination and scroll boundaries', () => {
 
     // 4. Verify 4 grouped sections
     expect(screen.getByRole('region', { name: '基础身份与人口学档案' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: '医疗资格与执业准入' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '医疗资格与执业准入' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: '聘用与任职分配' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: '国家医保与数字证书档案' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '国家医保与数字证书档案' })).not.toBeInTheDocument()
 
     // 5. Verify onboarding banner
-    expect(screen.getByText('新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用、主任职和100%工作量配置；任一步失败均不保存。')).toBeInTheDocument()
+    expect(screen.getByText('新增人员时指定聘用机构、科室与岗位，系统将一次性建立正式主聘用与主任职配置；任一步失败均不保存。')).toBeInTheDocument()
 
     // 6. Verify HIS fields are present
     expect(screen.getByLabelText(/人员代码 \/ 工号/, { selector: 'input' })).toBeInTheDocument()
     expect(screen.getByLabelText(/姓名/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/居民身份证号/)).toBeDisabled()
-    expect(screen.getByLabelText(/居民身份证号/)).toHaveValue('')
-    expect(screen.getByLabelText(/移动联络电话/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/最高学历与院校专业/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/从业人员大类/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/专业技术职称/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/核心处方准入级别/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/医师\/护士执业证书编码/, { selector: 'input' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/医师\/护士资格证书编码/, { selector: 'input' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/法定执业专业范围/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/居民身份证号/)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/聘用医疗机构/)).toBeInTheDocument()
     expect(screen.getByLabelText(/任职业务科室/)).toBeInTheDocument()
     expect(screen.getByLabelText(/标准任职岗位/)).toBeInTheDocument()
     expect(screen.getByLabelText(/入职聘用日期/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/全国医保医师代码/, { selector: 'input' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/CA 数字证书 Key ID/, { selector: 'input' })).toBeDisabled()
-    expect(screen.getByLabelText(/CA 数字证书 Key ID/, { selector: 'input' })).toHaveValue('')
+    expect(screen.queryByLabelText(/CA 数字证书 Key ID/)).not.toBeInTheDocument()
 
     // 7. Fill required fields and submit
     await user.type(screen.getByLabelText(/人员代码 \/ 工号/, { selector: 'input' }), 'DOC888')
@@ -1615,5 +1295,161 @@ describe('personnel pagination and scroll boundaries', () => {
     expect(nameInput.value).toBe('陈国华')
 
     expect(screen.getByRole('button', { name: '保存人员档案' })).toBeInTheDocument()
+  })
+
+  it('renders department column and excludes workload column in organization staff table', async () => {
+    renderComponent()
+    const table = await screen.findByRole('table', { name: '组织任职记录' })
+    expect(within(table).getByRole('columnheader', { name: '任职科室' })).toBeInTheDocument()
+    expect(within(table).queryByRole('columnheader', { name: /工时占比|工作量/ })).not.toBeInTheDocument()
+
+    // 验证表格行数据展示了任职科室和主任职标签
+    const rows = within(table).getAllByRole('row')
+    expect(rows.length).toBeGreaterThan(1)
+    expect(within(table).getByText('中医科')).toBeInTheDocument()
+    expect(within(table).getByText('全科诊室')).toBeInTheDocument()
+    expect(within(table).getAllByText('主任职').length).toBeGreaterThan(0)
+  })
+})
+
+
+describe('organization management permissions and department option semantics', () => {
+  it('keeps navigation usable and disables writes without management permission', async () => {
+    const { api, queryClient, rerender } = renderComponent()
+    rerender(<QueryClientProvider client={queryClient}><MemoryRouter><OrganizationPersonnelManagement api={api} /></MemoryRouter></QueryClientProvider>)
+    const tree = await screen.findByRole('tree', { name: '组织树' })
+    await userEvent.click(await within(tree).findByText('中医科'))
+    expect(screen.getByRole('heading', { name: '中医科' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '编辑资料' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '新增科室' })).toBeDisabled()
+    expect(screen.queryByRole('tab', { name: '变更记录' })).not.toBeInTheDocument()
+  })
+  it('offers property-specific department types without misclassifying logistics or labs as clinical', () => {
+    const values = ['02', '30.03', 'MED_PHARMACY', 'MED_PHARMACY_OUTPATIENT', 'MED_EQUIPMENT_DEPT', 'LOG_GENERAL_DEPT', 'NUR_CSSD', 'CUSTOM_OTHER']
+      .map(code => ({ code, name: code, sortOrder: 0 }))
+    expect(departmentTypeOptions(values, 'MEDICAL_TECHNOLOGY_DEPARTMENT', 'PHARMACY').map(item => item.code))
+      .toEqual(['MED_PHARMACY', 'MED_PHARMACY_OUTPATIENT', 'CUSTOM_OTHER'])
+    expect(departmentTypeOptions(values, 'MEDICAL_TECHNOLOGY_DEPARTMENT', 'SUPPLY_LOGISTICS').map(item => item.code))
+      .toEqual(['LOG_GENERAL_DEPT', 'NUR_CSSD', 'CUSTOM_OTHER'])
+    expect(departmentTypeOptions(values, 'CLINICAL_DEPARTMENT', 'CLINICAL').map(item => item.code)).toEqual(['02', 'CUSTOM_OTHER'])
+  })
+})
+
+
+describe('unified organization maintenance', () => {
+  const catalog = (code: string) => code === 'ORG_VERIFY_STATUS'
+    ? [{ code: 'UNVERIFIED', name: '未确认', sortOrder: 0 }, { code: 'VERIFIED', name: '符合', sortOrder: 1 }, { code: 'REJECTED', name: '不符合', sortOrder: 2 }]
+    : [{ code: code === 'ORG_CONTACT_USE' ? 'WORK' : 'CUSTOM', name: `${code}选项`, sortOrder: 0 }]
+  const dictionaries = { resolve: vi.fn().mockImplementation(async code => catalog(code)) }
+  const common = { validFrom: '2026-01-01', validTo: null, sdDetailStatus: 'ACTIVE', sdDetailStatusText: '启用' }
+  async function editor() {
+    await userEvent.click(await screen.findByRole('tab', { name: '资料维护' }))
+    await screen.findByLabelText(/组织名称/)
+    return within(screen.getByRole('region', { name: '组织资料维护' }))
+  }
+  const section = (name: string) => within(screen.getByRole('region', { name }))
+  async function choose(scope: ReturnType<typeof within>, label: string, name: string) {
+    await userEvent.click(scope.getByRole('combobox', { name: label }))
+    await userEvent.click(await screen.findByRole('option', { name }))
+  }
+  async function addContact() {
+    await userEvent.click(section('联系方式').getByRole('button', { name: '新增联系方式' }))
+    await userEvent.type(section('联系方式').getByLabelText('联系方式'), 'actual@example.test')
+    await choose(section('联系方式'), '联系方式类型', 'ORG_CONTACT_TYPE选项')
+    await choose(section('联系方式'), '使用场景', 'ORG_CONTACT_USE选项')
+  }
+  it('shows every category together and keeps independent drafts with direct result choices', async () => {
+    renderComponent(mockPractitioners, mockAssignments, {}, dictionaries)
+    const form = await editor()
+    for (const name of ['服务能力', '机构标识', '联系方式', '地址', '负责人', '协作关系']) expect(screen.getByRole('region', { name })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '资料类别' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await addContact()
+    await userEvent.click(section('地址').getByRole('button', { name: '新增地址' }))
+    expect(section('地址').getByLabelText('国家代码')).toHaveValue('CN')
+    await userEvent.type(section('地址').getByLabelText('详细地址'), '真实地址')
+    await userEvent.click(section('机构标识').getByRole('button', { name: '新增机构标识' }))
+    await userEvent.type(section('机构标识').getByLabelText('标识体系 URI'), 'urn:actual')
+    await userEvent.click(section('服务能力').getByRole('button', { name: '新增服务能力' }))
+    expect(section('服务能力').queryByRole('checkbox', { name: '主要记录' })).not.toBeInTheDocument()
+    await userEvent.click(section('服务能力').getByRole('combobox', { name: /确认结果/ }))
+    expect(screen.getByRole('option', { name: '符合' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /待核验/ })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(section('联系方式').getByLabelText('联系方式')).toHaveValue('actual@example.test')
+    expect(section('地址').getByLabelText('详细地址')).toHaveValue('真实地址')
+    expect(section('机构标识').getByLabelText('标识体系 URI')).toHaveValue('urn:actual')
+    expect(form.getAllByRole('button', { name: '保存全部资料' })).toHaveLength(1)
+  })
+  it('saves changes from multiple sections with basic data in one request and retains failed drafts', async () => {
+    const maintainUnit = vi.fn().mockRejectedValueOnce(new Error('整单失败')).mockImplementation(async (_unit, command) => ({
+      ...emptyProfileFor({ ...mockUnits[0], ...command.details, revision: 4 }),
+      contacts: [{ ...common, id: 'contact-new', ...command.changes[0].values, sdContactTypeText: '电话', sdContactUseText: '工作' }],
+      capabilities: [{ ...common, id: 'cap-new', ...command.changes[1].values, sdCapabilityTypeText: '服务', sdVerifyStatusText: '符合' }],
+    }))
+    renderComponent(mockPractitioners, mockAssignments, { maintainUnit }, dictionaries)
+    const form = await editor()
+    await userEvent.clear(form.getByLabelText(/组织名称/)); await userEvent.type(form.getByLabelText(/组织名称/), '统一资料')
+    await addContact()
+    await userEvent.click(section('服务能力').getByRole('button', { name: '新增服务能力' }))
+    await choose(section('服务能力'), '能力类型', 'ORG_CAPABILITY_TYPE选项')
+    await choose(section('服务能力'), '确认结果', '符合')
+    await userEvent.click(form.getByRole('button', { name: '保存全部资料' }))
+    expect(await form.findByText(/整单失败/)).toBeInTheDocument()
+    expect(form.getByLabelText(/组织名称/)).toHaveValue('统一资料')
+    expect(section('联系方式').getByLabelText('联系方式')).toHaveValue('actual@example.test')
+    await waitFor(() => expect(form.getByRole('button', { name: '保存全部资料' })).toBeEnabled())
+    await userEvent.click(form.getByRole('button', { name: '保存全部资料' }))
+    expect(await screen.findByText('已更新“统一资料”的全部资料')).toBeInTheDocument()
+    expect(maintainUnit).toHaveBeenLastCalledWith(mockUnits[0], expect.objectContaining({ expectedRevision: 1,
+      details: expect.objectContaining({ name: '统一资料' }), changes: [expect.objectContaining({ section: 'contact' }), expect.objectContaining({ section: 'capability' })] }))
+  })
+  it.each(['failed', 'malformed', 'empty'])('blocks adding a category with %s dictionaries without blocking other categories', async mode => {
+    const resolve = vi.fn().mockImplementation(async code => {
+      if (code !== 'ORG_CONTACT_TYPE') return catalog(code)
+      if (mode === 'failed') throw new Error('offline')
+      return mode === 'malformed' ? [{ code: 'CUSTOM' }] : []
+    })
+    renderComponent(mockPractitioners, mockAssignments, {}, { resolve })
+    await editor()
+    expect(section('联系方式').getByRole('button', { name: '新增联系方式' })).toBeDisabled()
+    expect(section('地址').getByRole('button', { name: '新增地址' })).toBeEnabled()
+  })
+  it('rejects stale dictionary selections before writing while preserving the draft', async () => {
+    const resolve = vi.fn().mockImplementation(async code => catalog(code)), maintainUnit = vi.fn()
+    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { maintainUnit }, { resolve })
+    const form = await editor(); await addContact()
+    resolve.mockImplementation(async code => code === 'ORG_CONTACT_TYPE' ? [{ code: 'CHANGED', name: '新选项', sortOrder: 0 }] : catalog(code))
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['dictionary-resolve', 'ORG_CONTACT_TYPE'] }) })
+    await userEvent.click(form.getByRole('button', { name: '保存全部资料' }))
+    await waitFor(() => expect(section('联系方式').getByRole('combobox', { name: '联系方式类型' })).toHaveTextContent('请选择'))
+    expect(maintainUnit).not.toHaveBeenCalled()
+    expect(section('联系方式').getByLabelText('联系方式')).toHaveValue('actual@example.test')
+  })
+  it('preserves the draft but disables saving when profile refresh fails', async () => {
+    const profile = vi.fn().mockResolvedValue(emptyProfileFor(mockUnits[0])), maintainUnit = vi.fn()
+    const { queryClient } = renderComponent(mockPractitioners, mockAssignments, { profile, maintainUnit }, dictionaries)
+    const form = await editor(); await addContact()
+    profile.mockRejectedValueOnce(new Error('offline'))
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['organization-profile'] }) })
+    await waitFor(() => expect(form.getByRole('button', { name: '保存全部资料' })).toBeDisabled())
+    expect(section('联系方式').getByLabelText('联系方式')).toHaveValue('actual@example.test')
+    expect(maintainUnit).not.toHaveBeenCalled()
+  })
+  it('updates an existing record by identity while preserving unrelated history', async () => {
+    const before = { ...emptyProfileFor(mockUnits[0]), contacts: [
+      { ...common, id: 'phone', sdContactType: 'CUSTOM', sdContactTypeText: '电话', contactValue: '111', sdContactUse: 'WORK', sdContactUseText: '工作', primaryContact: true, sortOrder: 0 },
+      { ...common, id: 'old', sdContactType: 'CUSTOM', sdContactTypeText: '电话', contactValue: '000', sdContactUse: 'WORK', sdContactUseText: '工作', primaryContact: false, sortOrder: 1, validTo: '2026-01-02' },
+    ] }
+    const maintainUnit = vi.fn().mockImplementation(async (_unit, command) => ({ ...before, organization: { ...mockUnits[0], revision: 3 },
+      contacts: [{ ...before.contacts[0], ...command.changes[0].values }, before.contacts[1]] }))
+    renderComponent(mockPractitioners, mockAssignments, { profile: vi.fn().mockResolvedValue(before), maintainUnit }, dictionaries)
+    const form = await editor()
+    expect(section('联系方式').getByLabelText('联系方式')).toHaveValue('111')
+    await userEvent.clear(section('联系方式').getByLabelText('联系方式')); await userEvent.type(section('联系方式').getByLabelText('联系方式'), '222')
+    await userEvent.click(form.getByRole('button', { name: '保存全部资料' }))
+    expect(await screen.findByText('已更新“青禾镇中心卫生院”的全部资料')).toBeInTheDocument()
+    expect(maintainUnit.mock.calls[0][1].changes).toHaveLength(1)
+    expect(maintainUnit.mock.calls[0][1].changes[0]).toEqual(expect.objectContaining({ id: 'phone', values: expect.objectContaining({ primaryContact: true }) }))
   })
 })

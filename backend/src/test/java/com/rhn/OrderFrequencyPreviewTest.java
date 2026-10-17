@@ -3,12 +3,10 @@ package com.rhn;
 import com.rhn.platform.masterdata.api.OrderFrequencyCommands.*;
 import com.rhn.platform.masterdata.application.OrderFrequencyService;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import java.math.BigDecimal;
@@ -20,11 +18,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class OrderFrequencyPreviewTest extends RhnIntegrationTestSupport {
+class OrderFrequencyPreviewTest extends StubbedExecutionContextTestSupport {
     @Autowired OrderFrequencyService frequencies;
     @Autowired JdbcTemplate jdbc;
     @Autowired JsonCodec json;
-    @MockitoBean ExecutionContextProvider contexts;
     static final LocalDateTime START=LocalDateTime.parse("2026-09-21T10:00:00");
     @BeforeEach void setup() {context(Long.valueOf(TENANT),true);}
     void context(Long tenant,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,7L,"frequency-author","test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}

@@ -17,7 +17,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -27,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class ClinicalUsageStandardImpactTest extends RhnIntegrationTestSupport {
+class ClinicalUsageStandardImpactTest extends StubbedExecutionContextTestSupport {
     @Autowired ClinicalUsageStandardService standards;
     @Autowired org.springframework.beans.factory.ObjectProvider<ClinicalSemanticImpactContributor> contributors;
     @Autowired ClinicalSemanticHistory history;
@@ -39,7 +38,6 @@ class ClinicalUsageStandardImpactTest extends RhnIntegrationTestSupport {
     @Autowired MedicationRouteDirectory routes;
     @Autowired JdbcTemplate jdbc;
     @Autowired JsonCodec codec;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long T=Long.valueOf(TENANT);
     static final String PATH="/api/platform/master-data/clinical-semantics/impact/references";
     @BeforeEach void setup() {context(T,true);}

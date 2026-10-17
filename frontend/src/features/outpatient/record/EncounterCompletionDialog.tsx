@@ -13,6 +13,7 @@ import type { SettlementPaymentCommand } from "../../../shared/billing/Settlemen
 import { Alert, Button, Dialog, FormField, Icon, IconButton, LoadingState, Panel, PanelHead, Select } from "../../../shared/ui";
 import { commandCode } from '../workstation/workstationShared'
 import { money } from '../printing/EncounterPrintPanel'
+import { bloodPressureMissing, useBloodPressureRequirement } from '../bloodPressurePolicy'
 
 export const SettlementPaymentPanel = lazy(() => import('../../../shared/billing/SettlementPaymentPanel')
   .then((module) => ({ default: module.SettlementPaymentPanel })))
@@ -102,6 +103,8 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
   const primaryDiag = encounter.diagnoses.find((value) => value.type === 'PRIMARY')?.display || '未录入'
   const hasChiefComplaint = Boolean(encounter.chiefComplaint?.trim())
   const hasPrimaryDiagnosis = encounter.diagnoses.some((value) => value.type === 'PRIMARY')
+  const bloodPressureRequirement = useBloodPressureRequirement(api, encounter.id).data
+  const missingBloodPressure = bloodPressureMissing(bloodPressureRequirement, encounter)
   const signatureReady = signed || completionMode === 'COMBINED_CONFIRMATION'
   return <Dialog title="诊毕确认" size="xwide" className="doctor-completion-modal"
     closeOnBackdrop={false} onClose={() => !dialogBusy && onClose()}
@@ -118,7 +121,7 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
         <div className="doctor-completion-footer__actions">
           <Button variant="secondary" disabled={dialogBusy} onClick={onClose}>继续诊疗</Button>
           <Button busy={dialogBusy} disabled={!canComplete || !dispositionCode || billingOperation.isPending}
-            title={!factsReady ? '诊毕资料尚未确认' : !ready ? '病历或主要诊断尚未完成' : signed ? '确认诊毕' : '签署病历并完成诊毕'}
+            title={!factsReady ? '诊毕资料尚未确认' : !ready ? '病历、主要诊断或血压尚未完成' : signed ? '确认诊毕' : '签署病历并完成诊毕'}
             onClick={() => canComplete && onComplete({ commandCode: requestCommand, dispositionCode },
               batchPrintOnComplete)}>{signed ? '确认诊毕' : completionMode === 'COMBINED_CONFIRMATION'
                 ? '签署并诊毕' : '确认诊毕'}</Button>
@@ -256,6 +259,11 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
               <Icon name={hasPrimaryDiagnosis ? 'check' : 'warning'} className="ui-icon-inline" />
               <span>{hasPrimaryDiagnosis ? '主要诊断' : '未录入主要诊断'}</span>
             </span>
+            {bloodPressureRequirement?.required && <span className={`doctor-checklist-chip ${missingBloodPressure ? 'is-missing' : 'is-ready'}`}
+              title={missingBloodPressure ? bloodPressureRequirement.message ?? undefined : undefined}>
+              <Icon name={missingBloodPressure ? 'warning' : 'check'} className="ui-icon-inline" />
+              <span>{missingBloodPressure ? '血压未填写' : '血压已填写'}</span>
+            </span>}
             <span className={`doctor-checklist-chip ${signatureReady ? 'is-ready' : 'is-missing'}`}>
               <Icon name={signatureReady ? 'check' : 'warning'} className="ui-icon-inline" />
               <span>{signed ? '病历已签署' : completionMode === 'COMBINED_CONFIRMATION' ? '确认时自动签署' : '病历签署'}</span>

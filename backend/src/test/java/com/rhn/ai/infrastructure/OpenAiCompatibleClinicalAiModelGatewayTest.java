@@ -174,7 +174,12 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(request.get("messages").get(0).get("content").asString().contains("血压读数升高，未诊断为高血压 [R03.0]"));
         assertTrue(request.get("messages").get(0).get("content").asString().contains("不得将螺内酯作为普通初始治疗"));
         assertTrue(request.get("messages").get(0).get("content").asString().contains("不要重复已列出的诊断名称"));
-        assertTrue(request.get("messages").get(0).get("content").asString().contains("只有无法可靠确定该剂型的常见规格时"));
+        String planPrompt = request.get("messages").get(0).get("content").asString();
+        assertTrue(planPrompt.contains("无法可靠确定时写“规格：待确认”"));
+        assertTrue(planPrompt.contains("规格：<单件含量>；常规用法："), "药品 details 必须带规格标签，否则前端无法解析规格");
+        assertTrue(planPrompt.contains("不重复药名、规格、剂量、途径、频次、疗程、触发条件（适用条件）"));
+        assertTrue(planPrompt.contains("属于药品说明书，不要重复"));
+        assertFalse(planPrompt.contains("每次 0.3g 口服 PRN 疗程 3天；适用条件"), "提示词不得再携带可被模型原样照抄的药品示例");
         assertTrue(request.get("messages").get(1).get("content").asString().contains("一周后复诊"));
     }
 

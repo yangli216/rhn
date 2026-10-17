@@ -70,6 +70,11 @@ public class EncounterController {
         return encounterService.get(encounterId);
     }
 
+    @GetMapping("/{encounterId}/blood-pressure-requirement")
+    OutpatientBloodPressurePolicy.Requirement bloodPressureRequirement(@PathVariable Long encounterId) {
+        return encounterService.bloodPressureRequirement(encounterId);
+    }
+
     @GetMapping
     List<EncounterResponse> byResident(@RequestParam Long residentId) {
         return encounterService.byResident(residentId);

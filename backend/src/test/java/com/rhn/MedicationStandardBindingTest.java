@@ -6,13 +6,11 @@ import com.rhn.platform.masterdata.api.StandardCatalogReview.Identity;
 import com.rhn.platform.masterdata.infrastructure.ClinicalSemanticHistory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -24,13 +22,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationStandardBindingTest extends RhnIntegrationTestSupport {
+class MedicationStandardBindingTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationStandardBindingService bindings;
     @Autowired JdbcTemplate jdbc;
     @Autowired JsonCodec codec;
     @Autowired ClinicalSemanticHistory history;
     @Autowired PlatformTransactionManager transactions;
-    @MockitoBean ExecutionContextProvider contexts;
     static final Long MED = 362387880000024L;
     static final String SPEC = "STD-9405B86DD5B404C44E1B92B5";
     static final String PATH = "/api/platform/master-data/medications/" + MED + "/standard-binding";

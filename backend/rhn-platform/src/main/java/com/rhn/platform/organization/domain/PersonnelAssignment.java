@@ -1,5 +1,6 @@
 package com.rhn.platform.organization.domain;
 
+import com.rhn.shared.api.StaleRevisionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -63,6 +64,20 @@ public class PersonnelAssignment {
         this.createdBy = actorId;
         this.updatedAt = this.createdAt;
         this.updatedBy = actorId;
+    }
+
+    public void update(Long nextPositionId, AssignmentType type, String specialty, boolean primary,
+                       BigDecimal workload, LocalDate from, LocalDate to, PersonnelStatus nextStatus,
+                       long expectedRevision, Long actorId) {
+        requireRevision(expectedRevision);
+        Organization.validateDates(from, to);
+        positionId = nextPositionId; assignmentType = type; specialtyCode = specialty; primaryAssignment = primary;
+        workloadPercent = workload; validFrom = from; validTo = to; status = nextStatus;
+        updatedAt = Instant.now(); updatedBy = actorId;
+    }
+
+    private void requireRevision(long expectedRevision) {
+        if (revision != expectedRevision) throw new StaleRevisionException(revision, "记录已被其他用户修改，请刷新后重试");
     }
 
     public Long id() { return id; }

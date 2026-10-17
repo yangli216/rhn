@@ -20,13 +20,14 @@ class EncounterCompletionService {
     }
 
     CompletionDecision evaluate(Encounter encounter, boolean identityChecked, boolean noteSigned,
-                                boolean hasPrimaryDiagnosis) {
+                                boolean hasPrimaryDiagnosis, boolean bloodPressureMissing) {
         List<CompletionIssue> issues = new ArrayList<>();
         if (!identityChecked) issues.add(new CompletionIssue("IDENTITY_CHECK_MISSING", "接诊身份核验未完成"));
         if (encounter.chiefComplaint() == null || encounter.chiefComplaint().isBlank()) {
             issues.add(new CompletionIssue("CHIEF_COMPLAINT_MISSING", "主诉未填写"));
         }
         if (!hasPrimaryDiagnosis) issues.add(new CompletionIssue("PRIMARY_DIAGNOSIS_MISSING", "主要诊断未确认"));
+        if (bloodPressureMissing) issues.add(new CompletionIssue("BLOOD_PRESSURE_MISSING", "血压未填写"));
         if (!noteSigned) issues.add(new CompletionIssue("OUTPATIENT_NOTE_UNSIGNED", "门诊病历尚未签署"));
 
         return new CompletionDecision(issues.isEmpty(), List.copyOf(issues));

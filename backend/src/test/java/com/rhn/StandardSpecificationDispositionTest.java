@@ -5,19 +5,16 @@ import com.rhn.platform.masterdata.application.StandardCatalogReviewService;
 import com.rhn.platform.masterdata.application.StandardMedicationCatalogService;
 import com.rhn.platform.masterdata.application.StandardSpecificationDispositionService;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class StandardSpecificationDispositionTest extends RhnIntegrationTestSupport {
-    @MockitoBean ExecutionContextProvider contexts;
+class StandardSpecificationDispositionTest extends StubbedExecutionContextTestSupport {
     @Autowired StandardSpecificationDispositionService dispositions;
     @Autowired StandardMedicationCatalogService catalog;
     @Autowired StandardCatalogReviewService reviews;

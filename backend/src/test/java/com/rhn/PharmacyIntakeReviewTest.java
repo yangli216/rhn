@@ -166,7 +166,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
         assertEquals("医生已核对重复开立：合成业务测试说明", task.path("prescriptionSafety").get(0).path("doctorReason").asString());
         assertEquals(request.path("prescriptionId").asString(), task.path("prescriptionSafety").get(0).path("prescriptionId").asString());
         assertEquals(2, task.path("prescriptionSafety").get(0).path("medications").size());
-        assertEquals("SHADOW", task.path("prescriptionSafety").get(0).path("evaluation").path("mode").asString());
+        assertEquals("ENFORCED", task.path("prescriptionSafety").get(0).path("evaluation").path("mode").asString());
         org.assertj.core.api.Assertions.assertThat(task.path("prescriptionSafety").get(0).path("evaluation").path("findings").toString())
                 .contains("QMED.EXACT_GENERIC_DUPLICATE");
 
@@ -369,12 +369,12 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
     }
 
     private Reviewer createReviewer(String suffix, String positionType) throws Exception {
-        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
+        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"PHARM-%s","fullName":"验收药师%s","sdPractGender":"2"}
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())
+        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"PHARM-POS-%s","name":"门诊药师%s",
@@ -382,7 +382,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix, suffix, positionType)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhn())
+        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "practitionerId":"%s","organizationId":"%s","code":"PHARM-EMP-%s",
@@ -391,7 +391,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(practitioner.get("id").asString(), ORGANIZATION, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
+        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "employmentId":"%s","organizationId":"%s","departmentId":"%s",

@@ -92,7 +92,8 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
         var record=catalog.runs("KNOWLEDGE:"+c.knowledgeId()).getFirst();assertThat(record.organizationId()).isEqualTo(O);assertThat(record.departmentId()).isEqualTo(D);
         assertThat(record.details()).contains("inputHash").doesNotContain("patientId","patientContext","encounterId");
         assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_RULE_VER where ID_RULE_VER=?",Integer.class,c.id())).isEqualTo(1);
-        var decision=safety.evaluate(new PrescriptionSafetyRequest(input));assertThat(decision.mode()).isEqualTo("SHADOW");assertThat(decision.evaluationId()).isNotNull();assertThat(decision.findings()).anyMatch(f->f.ruleCode().equals("QMED.KNOWLEDGE."+c.knowledgeId()));
+        var decision=safety.evaluate(new PrescriptionSafetyRequest(input));assertThat(decision.mode()).isEqualTo("ENFORCED");assertThat(decision.evaluationId()).isNotNull();assertThat(decision.findings()).noneMatch(f->f.ruleCode().equals("QMED.KNOWLEDGE."+c.knowledgeId()));
+        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='SHADOW'",Integer.class,input.prescriptionId())).isEqualTo(1);
     }
     @Test void missing_and_unmatched_facts_are_separate_and_pagination_counts_all_runs() {
         var c=candidate();ready(c);approve(c);var d=deploy(c);
@@ -163,7 +164,7 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
         assertThat(runtime.evaluate(mixed,runtime.plan(mixed,List.of(),Instant.now()).shadow(),Instant.now()).decision()).isEqualTo(MedicationSafetyDecision.Status.UNAVAILABLE);
         assertThat(deployments.observations(c.id(),d.id(),0).counts()).containsEntry("MATCH",1L).containsEntry("UNAVAILABLE",1L);
     }
-    @Test void clinical_prescription_submission_records_shadow_block_without_blocking_submission() throws Exception {
+    @Test void clinical_prescription_submission_records_shadow_block_without_changing_formal_result() throws Exception {
         var c=candidate();ready(c);reviews.command(c.id(),command(reviews.preview(c.id()),"SUBMIT"));context(T,8L,true);
         var p=reviews.preview(c.id());reviews.command(c.id(),new Command(p.revision(),"APPROVE",p.submission().basis().fingerprint(),"合成拦截策略测试","BLOCK","BLOCK",true,true,true,"仅验证旁路不执行拦截"));var d=deploy(c);
         var doctor=identities.findActiveAccount(T,"doctor").orElseThrow();
@@ -182,10 +183,10 @@ class MedicationKnowledgeDeploymentTest extends RhnIntegrationTestSupport {
             {"prescriptionId":"%s","medicationId":"%s","quantity":1,"quantityUnit":"片","doseValue":5,"doseUnit":"mg","routeCode":"PO","frequencyCode":"QD","durationValue":7,"durationUnit":"DAY","allergyReviewConfirmed":true,"substitutionAllowed":false,"selfProvided":true,"pricingRequired":false}
             """.formatted(prescription,medication))).andExpect(status().isCreated());
         mockMvc.perform(post("/api/encounters/{e}/prescriptions/{p}/submit",encounter,prescription).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":"+rx.path("revision").asLong()+"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE")).andExpect(jsonPath("$.safetyEvaluation.mode").value("SHADOW"))
-                .andExpect(jsonPath("$.safetyEvaluation.decision").value("BLOCK"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE")).andExpect(jsonPath("$.safetyEvaluation.mode").value("ENFORCED"))
+                .andExpect(jsonPath("$.safetyEvaluation.findings[?(@.ruleCode =~ /QMED\\.KNOWLEDGE.*/)]").isEmpty());
         assertThat(deployments.observations(c.id(),d.id(),0).counts()).containsEntry("MATCH",1L);
-        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='ENFORCED'",Integer.class,prescription)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_RX=? and SD_MODE='SHADOW' and SD_DCSN='BLOCK'",Integer.class,prescription)).isEqualTo(1);
     }
 
     @Test void concurrent_deployments_cannot_overwrite_the_same_governance_revision() throws Exception {

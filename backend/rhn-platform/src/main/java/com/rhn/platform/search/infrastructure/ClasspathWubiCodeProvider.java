@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,7 +19,7 @@ public class ClasspathWubiCodeProvider implements WubiCodeProvider {
     private final Map<Integer, String> codes;
 
     public ClasspathWubiCodeProvider() {
-        this.codes = load();
+        this.codes = Dictionary.CODES;
     }
 
     @Override
@@ -31,7 +32,12 @@ public class ClasspathWubiCodeProvider implements WubiCodeProvider {
         return VERSION;
     }
 
-    private Map<Integer, String> load() {
+    /** The bundled dictionary is immutable, so every application context in one JVM shares a single load. */
+    private static final class Dictionary {
+        private static final Map<Integer, String> CODES = load();
+    }
+
+    private static Map<Integer, String> load() {
         ClassPathResource resource = new ClassPathResource(RESOURCE);
         if (!resource.exists()) throw new IllegalStateException("缺少五笔简码词典：" + RESOURCE);
         Map<Integer, String> result = new HashMap<>();
@@ -48,6 +54,7 @@ public class ClasspathWubiCodeProvider implements WubiCodeProvider {
             throw new IllegalStateException("五笔简码词典加载失败", exception);
         }
         if (result.isEmpty()) throw new IllegalStateException("五笔简码词典为空");
-        return Map.copyOf(result);
+        // Map.copyOf probes tens of thousands of clustered Integer keys slowly; a read-only HashMap view loads in milliseconds.
+        return Collections.unmodifiableMap(result);
     }
 }

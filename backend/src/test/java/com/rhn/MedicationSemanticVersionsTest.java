@@ -5,12 +5,10 @@ import com.rhn.platform.masterdata.api.MedicationSemanticDirectory.*;
 import com.rhn.platform.masterdata.application.MedicationSemanticsService;
 import com.rhn.platform.masterdata.infrastructure.ClinicalSemanticHistory;
 import com.rhn.shared.context.ExecutionContext;
-import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,8 +18,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-class MedicationSemanticVersionsTest extends RhnIntegrationTestSupport {
-    @MockitoBean ExecutionContextProvider contexts;
+class MedicationSemanticVersionsTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationSemanticsService semantics;
     @Autowired CatalogLifecycleDirectory catalog;
     @Autowired ClinicalSemanticHistory history;

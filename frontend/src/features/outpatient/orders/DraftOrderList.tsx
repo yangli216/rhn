@@ -1,3 +1,4 @@
+import type { MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
 import { summarizeExecutingDepartments } from './orderPresentation'
 import { draftOrderSubtotal } from './orderSubtotal'
 import { Fragment, type Dispatch, type ReactNode, type SetStateAction } from 'react'
@@ -23,7 +24,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   routeOptions, administrationGroupOptions, routes, frequencies, readOnly, isComposerActive, entryType, setMedicationDrafts,
   setServiceDrafts, startHerbalGrouping, groupingComposerTarget, composer, editingDraft,
   setEditingDraft, onEditDraft, onSaveMedicationDraft, continueGroupingFromDraft, groupingSession,
-  currentDept, encounter, api, allergies, skinTests, onInspectMedication }: {
+  currentDept, encounter, api, allergies, skinTests, onInspectMedication, onInspectService }: {
   draftEntries: DraftOrderEntry[]
   herbalFormula: HerbalComposerFormula
   onHerbalFormulaChange: (formula: HerbalComposerFormula) => void
@@ -52,6 +53,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   allergies: AllergyIntolerance[]
   skinTests: SkinTestWorklistState
   onInspectMedication?: (name: string) => void
+  onInspectService?: (target: MedicalInsertTarget) => void
 }) {
   return <>{draftEntries.map((entry, index) => {
         const currCat = draftCategoryOf(entry)
@@ -249,7 +251,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                   setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))
                 }} />
             : <ServiceDraftRow key={`draft-service-${entry.value.id}`} value={entry.value}
-                currentDept={currentDept}
+                currentDept={currentDept} onInspectService={onInspectService}
                 onEdit={() => onEditDraft({ kind: 'service', id: entry.value.id })}
                 onRemove={() => setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
           : editingDraft?.kind === 'medication' && editingDraft.id === entry.value.id

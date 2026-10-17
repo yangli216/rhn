@@ -8,7 +8,6 @@ import com.rhn.shared.context.*;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import java.util.*;
@@ -18,21 +17,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ResetDatabaseBeforeEachTestMethod
-class MedicationRuleIntakeTest extends RhnIntegrationTestSupport {
+class MedicationRuleIntakeTest extends StubbedExecutionContextTestSupport {
     @Autowired MedicationRuleIntakeService intakes;
     @Autowired MedicationKnowledgeDraftService drafts;
     @Autowired MedicationKnowledgeRuleService rules;
     @Autowired JsonCodec json;
     @Autowired JdbcTemplate jdbc;
-    @MockitoBean ExecutionContextProvider contexts;
-    @MockitoBean MedicationRuleAuthoringAi ai;
     static final Long T=Long.valueOf(TENANT);
     static final String PATH="/api/quality/medication-rule-intakes";
     static final String NEED="所有药品单次用量超过3倍制剂规格用量时警告；同一处方重复用药，以及甲药与乙药的相互作用需要核对。";
-    @BeforeEach void setup() {context(T,true);when(ai.status()).thenReturn(new MedicationRuleAuthoringAi.Status(true,"test-model","test"));}
+    @BeforeEach void setup() {context(T,true);doReturn(new MedicationRuleAuthoringAi.Status(true,"test-model","test")).when(ai).status();}
     void context(Long tenant,boolean manage) {when(contexts.requireCurrent()).thenReturn(new ExecutionContext(tenant,7L,"需求作者","test",manage?Set.of("MASTER_DATA.MANAGE"):Set.of(),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"DEPARTMENT",Set.of(),Set.of()));}
     Proposed intent(String kind,String quote) {return new Proposed(kind,"requirement",quote,"ALL_DRUGS","requirement","所有药品",List.of(),List.of("该需求的例外条件是什么？"));}
-    Run analyze(Proposed... proposals) {when(ai.generate(anyString(),anyString(),eq(MedicationRuleIntakeService.PROMPT_VERSION))).thenReturn(json.write(new Output(List.of(proposals))));return intakes.analyze(new Request(NEED,null,List.of()));}
+    Run analyze(Proposed... proposals) {doReturn(json.write(new Output(List.of(proposals)))).when(ai).generate(anyString(),anyString(),eq(MedicationRuleIntakeService.PROMPT_VERSION));return intakes.analyze(new Request(NEED,null,List.of()));}
     @Test void global_dose_demand_is_kept_without_forcing_medication_selection_or_creating_a_rule() {
         var run=analyze(intent("SINGLE_DOSE","单次用量超过3倍制剂规格用量时警告"));
         var i=run.result().intents().getFirst();assertThat(i.scope()).isEqualTo("ALL_DRUGS");assertThat(i.capability().knowledgeWorkflow()).isFalse();assertThat(i.capability().prerequisites()).anyMatch(p->p.contains("制剂规格不是常规用量"));
@@ -61,11 +58,11 @@ class MedicationRuleIntakeTest extends RhnIntegrationTestSupport {
     }
     @Test void clarification_pins_parent_question_and_cites_answers_without_overwriting_original() {
         var parent=analyze(intent("DUPLICATE_THERAPY","重复用药"));var q=parent.result().questions().getFirst();
-        when(ai.generate(anyString(),anyString(),anyString())).thenReturn(json.write(new Output(List.of(new Proposed("DUPLICATE_THERAPY","requirement","重复用药","NAMED_DRUGS","answer:1","仅指定药品",List.of(new Quoted("EXCEPTION","answer:1","仅指定药品")),List.of())))));
+        doReturn(json.write(new Output(List.of(new Proposed("DUPLICATE_THERAPY","requirement","重复用药","NAMED_DRUGS","answer:1","仅指定药品",List.of(new Quoted("EXCEPTION","answer:1","仅指定药品")),List.of()))))).when(ai).generate(anyString(),anyString(),anyString());
         var next=intakes.analyze(new Request(NEED,parent.id(),List.of(new Answer(q.id(),"仅指定药品"))));
         assertThat(next.parentId()).isEqualTo(parent.id());assertThat(next.input().clarifications()).singleElement().satisfies(c->{assertThat(c.analysisId()).isEqualTo(parent.id());assertThat(c.question()).isEqualTo(q.text());});
         assertThat(next.result().intents().getFirst().scopeCitation().source()).isEqualTo("answer:1");assertThat(intakes.get(parent.id())).isEqualTo(parent);assertThat(intakes.history(0).totalElements()).isEqualTo(2);
-        when(ai.generate(anyString(),anyString(),anyString())).thenThrow(new IllegalStateException("retryable"));
+        doThrow(new IllegalStateException("retryable")).when(ai).generate(anyString(),anyString(),anyString());
         var failed=intakes.analyze(new Request(NEED,parent.id(),List.of(new Answer(q.id(),"仅指定药品"))));
         doReturn(json.write(new Output(List.of(intent("DUPLICATE_THERAPY","重复用药"))))).when(ai).generate(anyString(),anyString(),anyString());
         var retried=intakes.analyze(new Request(NEED,failed.id(),List.of()));assertThat(retried.input()).isEqualTo(failed.input());assertThat(retried.parentId()).isEqualTo(failed.id());
@@ -74,16 +71,16 @@ class MedicationRuleIntakeTest extends RhnIntegrationTestSupport {
         assertThatThrownBy(()->intakes.analyze(new Request(NEED,parent.id(),List.of(new Answer(q.id(),"a"),new Answer(q.id(),"b"))))).hasMessageContaining("只回答一次");
     }
     @Test void invalid_output_and_provider_errors_are_audited_without_claiming_success() {
-        when(ai.generate(anyString(),anyString(),anyString())).thenReturn("{broken");var broken=intakes.analyze(new Request(NEED,null,List.of()));assertThat(broken.result().status()).isEqualTo("INVALID_OUTPUT");assertThat(broken.rawOutput()).isEqualTo("{broken");
-        when(ai.generate(anyString(),anyString(),anyString())).thenThrow(new IllegalStateException("private upstream detail"));
+        doReturn("{broken").when(ai).generate(anyString(),anyString(),anyString());var broken=intakes.analyze(new Request(NEED,null,List.of()));assertThat(broken.result().status()).isEqualTo("INVALID_OUTPUT");assertThat(broken.rawOutput()).isEqualTo("{broken");
+        doThrow(new IllegalStateException("private upstream detail")).when(ai).generate(anyString(),anyString(),anyString());
         var failure=intakes.analyze(new Request(NEED,null,List.of()));
         assertThat(failure.result().status()).isEqualTo("MODEL_ERROR");
         assertThat(json.write(failure)).doesNotContain("private upstream detail");
         assertThat(intakes.history(0).totalElements()).isEqualTo(2);assertThatThrownBy(()->intakes.checkOrigin(T,broken.id(),"DUPLICATE_THERAPY")).hasMessageContaining("没有可进入");
-        when(ai.status()).thenReturn(new MedicationRuleAuthoringAi.Status(false,"","disabled"));assertThatThrownBy(()->intakes.analyze(new Request(NEED,null,List.of()))).hasMessageContaining("暂不可用");
+        doReturn(new MedicationRuleAuthoringAi.Status(false,"","disabled")).when(ai).status();assertThatThrownBy(()->intakes.analyze(new Request(NEED,null,List.of()))).hasMessageContaining("暂不可用");
     }
     @Test void oversized_output_is_bounded_and_no_unquoted_derived_parameters_are_adopted() {
-        when(ai.generate(anyString(),anyString(),anyString())).thenReturn("x".repeat(61000));var huge=intakes.analyze(new Request(NEED,null,List.of()));assertThat(huge.rawOutput()).hasSize(60000);assertThat(huge.rawTruncated()).isTrue();assertThat(huge.result().status()).isEqualTo("INVALID_OUTPUT");
+        doReturn("x".repeat(61000)).when(ai).generate(anyString(),anyString(),anyString());var huge=intakes.analyze(new Request(NEED,null,List.of()));assertThat(huge.rawOutput()).hasSize(60000);assertThat(huge.rawTruncated()).isTrue();assertThat(huge.result().status()).isEqualTo("INVALID_OUTPUT");
         assertThatThrownBy(()->intakes.analyze(new Request("x".repeat(4001),null,List.of()))).hasMessageContaining("4000");
         assertThatThrownBy(()->intakes.analyze(new Request(NEED,null,List.of(new Answer("Q1","x"))))).hasMessageContaining("必须关联");
     }

@@ -5,7 +5,7 @@
  * 数据结构严格对齐后端 DiagnosticIndicatorDefinition 及 DiagnosticTemplateValidation。
  */
 
-import type { DiagnosticIndicatorDefinition, DiagnosticReferenceRule, DiagnosticTemplateContent } from '../api/diagnosticTemplateTypes'
+import type { DiagnosticIndicatorDefinition, DiagnosticReferenceRule, DiagnosticTemplateContent, DiagnosticTemplateVersion } from '../api/diagnosticTemplateTypes'
 
 /** 1. 血常规五分类指标集（WS/T 405-2012 血细胞分析参考区间，24 项指标，紫头 EDTA-K2 管） */
 export const CBC_5PART_INDICATORS: readonly DiagnosticIndicatorDefinition[] = [
@@ -811,6 +811,45 @@ export function findNationalLabTemplateByCode(templateCode?: string): NationalSt
   return NATIONAL_STANDARD_LAB_TEMPLATES.find((tpl) => tpl.templateCode === templateCode)
 }
 
+/** 将国家标准检验模板封装为 DiagnosticTemplateVersion 格式，便于前端统一渲染 */
+export function nationalTemplateAsVersion(tpl: NationalStandardLabTemplate): DiagnosticTemplateVersion {
+  return {
+    id: tpl.templateCode,
+    organizationId: '',
+    catalogItemId: '',
+    version: 1,
+    serviceType: tpl.serviceType,
+    effectiveFrom: '2012-12-25',
+    publicationBasis: tpl.standardBasis,
+    publishedBy: '国家卫生健康委员会',
+    publishedAt: '2012-12-25T00:00:00Z',
+    content: tpl.content,
+  }
+}
+
+/**
+ * 检验项目结果模板预设匹配策略
+ *
+ * 当项目明确指定为“血常规（五分类）”或特定标准套餐时，系统直接预设绑定对应的国标模板，无需技师人工在下拉框选择。
+ */
+export function matchPresetTemplateByTask(task: { itemName?: string; itemCode?: string }): NationalStandardLabTemplate | undefined {
+  if (!task.itemName) return undefined
+  const name = task.itemName.trim()
+  if (name.includes('五分类') || name.includes('5-PART') || name.includes('5DIFF')) {
+    return NATIONAL_STANDARD_LAB_TEMPLATES[0] // 血常规五分类标准模板 (24项指标)
+  }
+  if (name.includes('尿液分析') || name.includes('尿沉渣') || name.includes('尿常规（化学+沉渣）')) {
+    return NATIONAL_STANDARD_LAB_TEMPLATES[1] // 尿液常规分析标准模板
+  }
+  if (name.includes('肝功八项') || name.includes('肝功常用') || name.includes('肝功十二项')) {
+    return NATIONAL_STANDARD_LAB_TEMPLATES[2] // 肝功能常用组标准模板
+  }
+  if (name.includes('肾功三项') || name.includes('肾功四项')) {
+    return NATIONAL_STANDARD_LAB_TEMPLATES[3] // 肾功能三项标准模板
+  }
+  return undefined
+}
+
 /** 根据开单项目名称匹配国家标准检验模板 */
 export function matchNationalLabTemplateByItemName(itemName?: string): NationalStandardLabTemplate | undefined {
   if (!itemName) return undefined
@@ -820,6 +859,16 @@ export function matchNationalLabTemplateByItemName(itemName?: string): NationalS
   if (name.includes('肝功') || name.includes('ALT') || name.includes('转氨酶')) return NATIONAL_STANDARD_LAB_TEMPLATES[2]
   if (name.includes('肾功') || name.includes('肌酐') || name.includes('尿酸')) return NATIONAL_STANDARD_LAB_TEMPLATES[3]
   if (name.includes('血糖') || name.includes('葡萄糖') || name.includes('GLU')) return NATIONAL_STANDARD_LAB_TEMPLATES[4]
+  return undefined
+}
+
+/** 根据指标代码查找国家标准指标定义 */
+export function findNationalIndicatorDefinition(code?: string): DiagnosticIndicatorDefinition | undefined {
+  if (!code) return undefined
+  for (const tpl of NATIONAL_STANDARD_LAB_TEMPLATES) {
+    const found = tpl.content.indicators.find((ind) => ind.code === code)
+    if (found) return found
+  }
   return undefined
 }
 

@@ -91,7 +91,7 @@ then
       { label: '规则模型', value: '模板 C · 动态分类同类重复用药', badgeTone: 'info' },
       { label: '挂载分类', value: 'RASI_DUPLICATE_THERAPY (普利类与沙坦类降压药)' },
       { label: '触发阈值', value: '同方开立 ≥ 2 种', badgeTone: 'danger' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [
       { code: 'RASI_DUPLICATE_THERAPY', name: '肾素-血管紧张素系统抑制剂', description: '依那普利、贝那普利、氯沙坦、缬沙坦、替米沙坦等' }
@@ -122,7 +122,7 @@ then
       { label: '规则模型', value: '模板 C · 动态分类同类重复用药', badgeTone: 'info' },
       { label: '挂载分类', value: 'SEDATIVE_HYPNOTIC_DUPLICATE (镇静催眠与抗焦虑药)' },
       { label: '触发阈值', value: '同方开立 ≥ 2 种', badgeTone: 'warning' },
-      { label: '拦截级别', value: '提醒核对 (WARN)', badgeTone: 'warning' }
+      { label: '拦截级别', value: '提醒核对', badgeTone: 'warning' }
     ],
     boundCategories: [
       { code: 'SEDATIVE_HYPNOTIC_DUPLICATE', name: '镇静催眠类药物', description: '艾司唑仑、阿普唑仑、地西泮、佐匹克隆、唑吡坦等' }
@@ -153,7 +153,7 @@ then
       { label: '规则模型', value: '模板 B · 分类与特殊人群禁忌', badgeTone: 'warning' },
       { label: '限定年龄', value: '年龄 < 8 周岁 (儿童/婴幼儿)', badgeTone: 'danger' },
       { label: '挂载分类', value: 'TETRACYCLINE_PEDIATRIC_CONTRA (四环素类儿童禁忌)' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [
       { code: 'TETRACYCLINE_PEDIATRIC_CONTRA', name: '四环素类抗生素', description: '多西环素、米诺环素、四环素等' }
@@ -184,7 +184,7 @@ then
       { label: '规则模型', value: '模板 B · 分类与特殊人群禁忌', badgeTone: 'warning' },
       { label: '限定年龄', value: '年龄 < 6 周岁 (学龄前儿童及婴幼儿)', badgeTone: 'danger' },
       { label: '挂载分类', value: 'AMINOGLYCOSIDE_PEDIATRIC_CONTRA (氨基糖苷类儿童禁忌)' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [
       { code: 'AMINOGLYCOSIDE_PEDIATRIC_CONTRA', name: '氨基糖苷类抗生素', description: '阿米卡星、庆大霉素、依替米星、妥布霉素等' }
@@ -216,7 +216,7 @@ then
       { label: '规则模型', value: '模板 A · 动态双分类药对冲突', badgeTone: 'danger' },
       { label: '第一分类', value: 'MACROLIDE_STATIN_INTERACTION (大环内酯类抗菌药)' },
       { label: '第二分类', value: 'STATIN_LIPID_LOWERING (他汀类降脂药)' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [
       { code: 'MACROLIDE_STATIN_INTERACTION', name: '大环内酯类抗菌药', description: '红霉素、克拉霉素、阿奇霉素等' },
@@ -250,7 +250,7 @@ then
       { label: '目标性别', value: '女性 (2)', badgeTone: 'info' },
       { label: '育龄年龄段', value: '12 ~ 50 周岁 (未填写年龄默认防御拦截)', badgeTone: 'danger' },
       { label: '挂载分类', value: 'PREGNANCY_CONTRA_CATEGORY_X (妊娠期禁用致畸药)' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [
       { code: 'PREGNANCY_CONTRA_CATEGORY_X', name: '妊娠期禁用（X级/致畸）', description: '利巴韦林、维A酸类（异维A酸）、沙利度胺、甲氨蝶呤等' }
@@ -281,7 +281,7 @@ then
       { label: '规则模型', value: '模板 C · 动态分类同类重复用药', badgeTone: 'info' },
       { label: '挂载分类', value: 'SYSTEMIC_NSAID (全身用非甾体抗炎药)' },
       { label: '触发阈值', value: '同方开立 ≥ 2 种', badgeTone: 'warning' },
-      { label: '拦截级别', value: '提醒核对 (WARN)', badgeTone: 'warning' }
+      { label: '拦截级别', value: '提醒核对', badgeTone: 'warning' }
     ],
     boundCategories: [
       { code: 'SYSTEMIC_NSAID', name: '全身用非甾体抗炎药', description: '布洛芬、双氯芬酸、塞来昔布、吲哚美辛、对乙酰氨基酚等' }
@@ -315,7 +315,7 @@ then
       { label: '规则模型', value: '平台基线 · 年龄区间校验引擎', badgeTone: 'neutral' },
       { label: '判定依据', value: '患者实名就诊年龄 vs 药品主数据规格年龄区间' },
       { label: '经典覆盖', value: '18岁以下禁用喹诺酮类软骨发育毒性等' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [
       { code: 'QUINOLONE_PEDIATRIC', name: '喹诺酮类儿童禁忌', description: '左氧氟沙星、莫西沙星、环丙沙星等（18岁以下儿童软骨发育不良风险）' }
@@ -373,7 +373,7 @@ then
     parameters: [
       { label: '规则模型', value: '平台基线 · 过敏史交集判定引擎', badgeTone: 'neutral' },
       { label: '比对源', value: '患者主索引既往过敏史 vs 药品知识图谱致敏原' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [],
     messageTemplate: '开立药品成分与患者既往过敏史记录重叠，存在严重过敏性休克高危风险。',
@@ -400,7 +400,7 @@ then
     parameters: [
       { label: '规则模型', value: '平台基线 · 临床前置皮试闭环', badgeTone: 'neutral' },
       { label: '判定条件', value: '药品主数据 skinTestRequired = true 且无有效阴性医嘱' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [],
     messageTemplate: '该药品按国家药典要求须进行皮试，未检出有效阴性皮试结果前禁止开立与调配。',
@@ -428,7 +428,7 @@ then
     parameters: [
       { label: '规则模型', value: '平台基线 · 通用名与标准编码精准比对', badgeTone: 'neutral' },
       { label: '比对源', value: '国家标准药品编码 (StandardReferenceCode)' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [],
     messageTemplate: '处方中同时开立了相同通用名或相同标准规格的药品【{medName}】，属于无指征重复开立。',
@@ -458,7 +458,7 @@ then
       { label: '规则模型', value: '模板 A · 药对相互作用冲突', badgeTone: 'danger' },
       { label: '第一分类', value: '头孢哌酮、甲硝唑、替硝唑等具甲硫四氮唑侧链抗菌药' },
       { label: '第二分类', value: '含乙醇溶媒制剂（氢化可的松注射液、藿香正气水等）' },
-      { label: '拦截级别', value: '阻止提交 (BLOCK)', badgeTone: 'danger' }
+      { label: '拦截级别', value: '阻止提交', badgeTone: 'danger' }
     ],
     boundCategories: [],
     messageTemplate: '双硫仑高危抗菌药物与含乙醇制剂/溶媒联用，可抑制乙醛脱氢酶导致致死性乙醛蓄积。',

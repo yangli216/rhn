@@ -569,9 +569,9 @@
 .master-facts { margin: 0; padding: var(--space-2) 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--layout-section-gap); border-bottom: 1px solid var(--color-border); }
 .master-facts dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .master-facts dd { overflow-wrap: anywhere; font-size: var(--font-size-body); margin: var(--space-1) 0 0; font-weight: var(--font-weight-semibold); }
-.master-note { margin: var(--layout-section-gap) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); color: var(--color-text-secondary); background: var(--color-brand-soft); }
+.master-note { margin: 0 0 var(--space-2); padding: var(--space-1-5) var(--space-3); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-brand-soft); flex-shrink: 0; }
 .master-note strong { color: var(--color-brand-strong); }
-.master-note p { margin: var(--space-1) 0 0; }
+.master-note p { margin: var(--space-0-5) 0 0; font-size: var(--font-size-small); }
 .master-profile-grid { padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-panel-gap); }
 .master-profile-card { min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .master-profile-card header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
@@ -579,26 +579,27 @@
 .master-profile-card p { margin: 0; padding: var(--space-2) 0; display: flex; justify-content: space-between; gap: var(--space-3); border-top: 1px solid var(--color-border); }
 .master-profile-card p strong { overflow-wrap: anywhere; font-weight: var(--font-weight-medium); }
 .master-profile-card p span, .master-profile-card em { min-width: 0; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-small); font-style: normal; text-align: end; }
-.master-section-head { min-height: var(--panel-header-min-height); padding: var(--space-2) 0; display: flex; align-items: center; justify-content: space-between; gap: var(--layout-section-gap); flex-wrap: wrap; }
-.master-section-head h3 { font-size: var(--font-size-h3); margin: 0; display: block; }
-.master-section-head > div:first-child > span { margin-top: var(--space-1); display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.master-section-head { flex-shrink: 0; min-height: auto; padding: var(--space-1) 0 var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--layout-section-gap); flex-wrap: wrap; }
+.master-section-head h3 { font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); margin: 0; display: block; }
+.master-section-head > div:first-child > span { margin-top: var(--space-0-5); display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 /* 顶部紧凑指标概览条 */
 .master-facts-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-2) var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-1-5) var(--space-3);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  margin-bottom: var(--layout-section-gap);
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
 }
 .master-facts-bar__item {
   display: flex;
   flex-direction: column;
   gap: var(--space-0-5);
-  min-width: 7rem;
+  min-width: 6.5rem;
 }
 .master-facts-bar__label {
   font-size: var(--font-size-small);
@@ -626,14 +627,25 @@
   flex-direction: column;
 }
 
+.master-workspace .master-detail .ui-page-template__pane-body:has(.master-staff-card) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
+}
+
 /* PC 端宽屏双栏协同布局 */
 .master-detail-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: var(--layout-panel-gap);
   align-items: stretch;
   flex: 1 1 0%;
-  min-height: 28rem;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 .master-detail-split__main {
   min-width: 0;
@@ -641,12 +653,18 @@
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
 .master-detail-split__side {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--layout-section-gap);
+  gap: var(--space-3);
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: var(--space-1);
 }
 .master-detail-split__main--personnel {
   gap: var(--layout-section-gap);
@@ -664,7 +682,8 @@
 /* 在任人员独立全高卡片 */
 .master-staff-card {
   flex: 1 1 0%;
-  min-height: 22rem;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--color-border);
@@ -709,27 +728,32 @@
 
 /* 侧栏管控与档案卡片 */
 .master-control-card {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 .master-control-card header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+  margin-bottom: var(--space-2-5);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--color-border);
 }
 .master-control-card h4 {
   margin: 0;
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1-5);
+}
+.master-control-card > p {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
 }
 .master-switch-list {
   display: flex;
@@ -768,19 +792,95 @@
 .master-switch-item__badge.is-disabled {
   color: var(--color-text-secondary);
 }
-.master-prop-list {
+
+/* 服务能力专有卡片条目 */
+.master-cap-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin: 0;
   padding: 0;
 }
+.master-cap-card {
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-2-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.master-cap-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.master-cap-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+.master-cap-card__status {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+.master-cap-card__body {
+  margin: 0;
+}
+.master-cap-card__body p {
+  margin: var(--space-0-5) 0 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-base);
+}
+
+.master-prop-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+}
+.master-prop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+.master-prop-cell {
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-2-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+.master-prop-cell dt {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.master-prop-cell dd {
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+  word-break: break-all;
+}
 .master-prop-item {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-1) 0;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
   border-bottom: 1px dashed var(--color-border);
   font-size: var(--font-size-small);
 }
@@ -798,9 +898,25 @@
   text-align: right;
   word-break: break-all;
 }
-.master-prop-empty {
+.master-prop-item p {
+  margin: var(--space-0-5) 0 0;
+  font-size: var(--font-size-small);
+}
+.master-prop-item small {
+  display: block;
+  margin-top: var(--space-0-5);
   color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+.master-prop-empty {
+  margin: 0;
+  padding: var(--space-2-5) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
   font-style: normal;
+  text-align: center;
 }
 .master-legacy-details {
   margin-top: var(--space-2);
@@ -818,7 +934,7 @@
 .master-table-wrap--staff {
   flex: 1 1 0%;
   min-height: 0;
-  height: auto;
+  height: 100%;
   max-height: none;
   overflow-y: auto;
   overflow-x: auto;
@@ -826,6 +942,9 @@
   border-radius: 0;
   margin-bottom: 0;
   background: var(--color-surface);
+}
+.master-staff-card .ui-table-footer {
+  flex-shrink: 0;
 }
 .master-table-wrap--staff.is-empty {
   flex: 1 1 0%;
@@ -955,3 +1074,15 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* 组织维护使用完整详情宽度，人员表单在既有网格内紧凑排列。 */
+.master-detail-split--single { grid-template-columns: minmax(0, 1fr); }
+.master-form--practitioner > .master-form-column { display: contents; }
+.master-form--personnel-edit { grid-template-columns: minmax(0, 1fr); }
+
+.organization-profile-editor { display: grid; gap: var(--layout-section-gap); }
+.organization-profile-editor__section { min-width: 0; }
+.organization-profile-editor__row, .organization-profile-editor__basic { min-width: 0; padding: 0; margin: 0; border: 0; }
+.organization-profile-editor__row + .organization-profile-editor__row { border-top: 1px solid var(--color-border); padding-top: var(--layout-section-gap); margin-top: var(--layout-section-gap); }
+.organization-maintenance-form { display: grid; gap: var(--layout-section-gap); }
+.organization-maintenance-form > form { display: grid; gap: var(--layout-section-gap); }

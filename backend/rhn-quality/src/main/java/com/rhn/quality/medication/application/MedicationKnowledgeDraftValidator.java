@@ -79,7 +79,8 @@ public class MedicationKnowledgeDraftValidator {
         var result = new ArrayList<ResolvedTarget>();
         for (var t : list(targets)) {
             if (t == null) {issue(issues, field, "INVALID", "药品范围不可为空"); continue;}
-            choice(issues, field, t.level(), "范围层级", "ENTRY", "SPECIFICATION");
+            choice(issues, field, t.level(), "范围层级", "ENTRY", "SPECIFICATION", "CATEGORY");
+            if ("CATEGORY".equals(t.level())) {resolveCategory(issues, field, t, result); continue;}
             if (blank(t.specificationId())) {issue(issues, field, "REQUIRED", "缺少标准规格标识"); continue;}
             try {
                 var r = standards.requireSpecification(t.specificationId());
@@ -91,6 +92,18 @@ public class MedicationKnowledgeDraftValidator {
             } catch (BusinessException missing) {issue(issues, field, "UNKNOWN_STANDARD", "标准规格已不存在：" + t.specificationId());}
         }
         return List.copyOf(result);
+    }
+    private void resolveCategory(List<Issue> issues, String field, Target t, List<ResolvedTarget> result) {
+        if (blank(t.categoryKey())) {issue(issues, field, "REQUIRED", "缺少标准目录分类标识"); return;}
+        try {
+            var c = standards.requireCategory(t.categoryKey());
+            if (!Objects.equals(t.catalogId(), c.catalogId()) || !Objects.equals(t.catalogVersion(), c.catalogVersion()) || !Objects.equals(t.contentHash(), c.contentHash()))
+                issue(issues, field, "STALE_STANDARD", "标准目录版本已变化，请重新核对药品范围");
+            var reference = new com.rhn.platform.masterdata.api.StandardMedicationReferenceDirectory.Reference(c.catalogId(), c.catalogVersion(), c.contentHash(), c.sourceHash(), null, null, c.label(), null, null);
+            var resolved = new ResolvedTarget("CATEGORY", reference, new Category(c.key(), c.label(), c.entryIds()));
+            if (result.stream().anyMatch(x -> overlap(x, resolved))) issue(issues, field, "OVERLAPPING_TARGET", "同组药品范围重复或分类与其中的药品重叠，请合并范围");
+            result.add(resolved);
+        } catch (BusinessException missing) {issue(issues, field, "UNKNOWN_STANDARD", "标准目录分类已不存在：" + t.categoryKey());}
     }
     private List<RouteSnapshot> route(Long tenant, List<Issue> issues, String field, RouteCondition condition) {
         if (condition == null) {issue(issues, field, "REQUIRED", "需明确给药途径范围"); return List.of();}
@@ -107,7 +120,13 @@ public class MedicationKnowledgeDraftValidator {
         return List.copyOf(result);
     }
     public static boolean overlap(ResolvedTarget a, ResolvedTarget b) {
-        return a.reference().catalogId().equals(b.reference().catalogId()) && a.reference().entryId().equals(b.reference().entryId())
+        if (!a.reference().catalogId().equals(b.reference().catalogId())) return false;
+        if (a.byCategory() && b.byCategory()) return a.category().entryIds().stream().anyMatch(b.category().entryIds()::contains);
+        if (a.byCategory() || b.byCategory()) {
+            var category = a.byCategory() ? a : b; var other = a.byCategory() ? b : a;
+            return category.category().entryIds().contains(other.reference().entryId());
+        }
+        return a.reference().entryId().equals(b.reference().entryId())
                 && ("ENTRY".equals(a.level()) || "ENTRY".equals(b.level()) || a.reference().specificationId().equals(b.reference().specificationId()));
     }
     static boolean blank(String s) {return s == null || s.isBlank();}

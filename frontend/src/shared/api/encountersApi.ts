@@ -17,6 +17,14 @@ export interface OrderableMedicationKnowledge extends MedicationKnowledge {
 type DiagnosisInputContract = components['schemas']['DiagnosisInput']
 type ClinicalRecordContract = components['schemas']['RecordClinicalDataRequest']
 
+/** 本次就诊的血压测量要求，由服务端按机构参数和患者年龄判定。 */
+export interface BloodPressureRequirement {
+  required: boolean
+  enforceAt: 'DRAFT' | 'COMPLETION'
+  minAge: number
+  message?: string | null
+}
+
 export type DiagnosisInput = DiagnosisInputContract & {
   conceptId?: string
   codeSystem?: string
@@ -361,6 +369,8 @@ export function createEncountersApi(client: ApiClient) {
       `/api/encounters?residentId=${encodeURIComponent(residentId)}`,
     ),
     get: (encounterId: string) => client.request<Encounter>(`/api/encounters/${encodeURIComponent(encounterId)}`),
+    bloodPressureRequirement: (encounterId: string) => client.request<BloodPressureRequirement>(
+      `/api/encounters/${encodeURIComponent(encounterId)}/blood-pressure-requirement`),
     register: (input: RegisterEncounterInput) =>
       client.request<Encounter>('/api/encounters', {
         method: 'POST', body: JSON.stringify(input),

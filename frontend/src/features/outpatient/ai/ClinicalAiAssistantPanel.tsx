@@ -5,6 +5,7 @@ import { clinicalAiPreview, type ClinicalAiPreview, type ClinicalAiFieldStream }
 import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelection } from './ClinicalAiInlineWorkspace'
 import { ClinicalEvidenceDrawer } from './ClinicalEvidenceDrawer'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
+import { ServiceInsertButton } from './ServiceInsertButton'
 import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import { ChronicRefillActionCard } from './ChronicRefillActionCard'
 import { useChronicRefill } from './useChronicRefill'
@@ -1140,6 +1141,7 @@ function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, 
                   title={`查阅《${item.name}》说明书`}
                 />
               )}
+              {item.type !== 'MEDICATION' && <ServiceInsertButton name={item.name} serviceType={item.type} onView={onOpenInsert} />}
             </article>
           ))}
         </div>

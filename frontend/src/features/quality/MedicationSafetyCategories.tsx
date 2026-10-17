@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type {
@@ -162,7 +162,8 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
   const [standardCatalogs, setStandardCatalogs] = useState<StandardCatalogCategorySummary[]>([])
 
   // 成员列表
-  const [members, setMembers] = useState<SafetyCategoryMemberView[]>([])
+  const [loadedMembers, setLoadedMembers] = useState<{ categoryId: string; items: SafetyCategoryMemberView[] }>({ categoryId: '', items: [] })
+  const memberRequestSeq = useRef(0)
   const [membersLoading, setMembersLoading] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
 
@@ -216,6 +217,13 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
   const [clearingMembers, setClearingMembers] = useState(false)
 
   // 手工直属纳管成员数量（排除目录继承项）
+  // 只采用属于当前所选分类的成员，切换分类时不会短暂显示上一个分类的数据
+  const members = useMemo(
+    () => (loadedMembers.categoryId === selectedCategoryId ? loadedMembers.items : []),
+    [loadedMembers, selectedCategoryId])
+  // 无搜索过滤且已加载完当前分类时，成员数才代表该分类的实际药品数（含目录继承）
+  const membersCountReliable = loadedMembers.categoryId === selectedCategoryId && !membersLoading && !memberSearch
+
   const directMembersCount = useMemo(() => members.filter(m => !m.inherited).length, [members])
 
   // 删除确认弹窗
@@ -317,14 +325,15 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
 
   // 加载成员列表
   const fetchMembers = async (catId: string, q = '') => {
+    const seq = ++memberRequestSeq.current
     setMembersLoading(true)
     try {
       const mems = await api.medicationWorkbench.listSafetyCategoryMembers(catId, q)
-      setMembers(mems)
+      if (seq === memberRequestSeq.current) setLoadedMembers({ categoryId: catId, items: mems })
     } catch (e) {
-      onError?.(`获取分类药品成员失败: ${errorMessage(e)}`)
+      if (seq === memberRequestSeq.current) onError?.(`获取分类药品成员失败: ${errorMessage(e)}`)
     } finally {
-      setMembersLoading(false)
+      if (seq === memberRequestSeq.current) setMembersLoading(false)
     }
   }
 
@@ -332,7 +341,8 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
     if (selectedCategoryId) {
       fetchMembers(selectedCategoryId, memberSearch)
     } else {
-      setMembers([])
+      memberRequestSeq.current++
+      setLoadedMembers({ categoryId: '', items: [] })
     }
   }, [selectedCategoryId, memberSearch])
 
@@ -763,7 +773,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
             <div className="qmed-cat-filter-row">
               <SearchField
                 label="分类搜索"
-                placeholder="搜索分类代码 / 名称..."
+                placeholder="搜索分类名称"
                 value={categorySearch}
                 onChange={setCategorySearch}
               />
@@ -800,7 +810,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                   <div className="qmed-cat-item-top">
                     <span className="qmed-cat-item-name">{cat.name}</span>
                     {(() => {
-                      const effectiveCount = (cat.id === selectedCategoryId && members.length > 0) ? members.length : cat.memberCount
+                      const effectiveCount = (cat.id === selectedCategoryId && membersCountReliable && members.length > 0) ? members.length : cat.memberCount
                       if (!effectiveCount || effectiveCount <= 0) {
                         return null
                       }
@@ -811,16 +821,10 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                       )
                     })()}
                   </div>
-                  <div className="qmed-cat-item-code">{cat.code}</div>
                   <div className="qmed-cat-item-tags">
                     <span className="qmed-cat-tag">
                       {ruleKindNameMap[cat.ruleKind] || cat.ruleKind}
                     </span>
-                    {cat.catalogSub && (
-                      <span className="qmed-cat-tag" title={`关联标准基药目录：${cat.catalogSub}`}>
-                        目录绑定
-                      </span>
-                    )}
                     {(() => {
                       const bound = CATEGORY_BOUND_RULES_MAP[cat.code]
                       if (bound && bound.length > 0) {
@@ -832,11 +836,6 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                       }
                       return null
                     })()}
-                    {cat.isSystem && (
-                      <span className="qmed-cat-tag is-system">
-                        系统预置
-                      </span>
-                    )}
                     {cat.status === 'INACTIVE' && (
                       <span className="qmed-cat-tag is-inactive">
                         已停用
@@ -856,80 +855,15 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
               {/* 分类元数据头部卡片 */}
               <div className="qmed-cat-detail-card">
                 <div className="qmed-cat-detail-header">
-                  <div className="qmed-cat-detail-info">
-                    <div className="qmed-cat-detail-title-line">
-                      <h2>{selectedCategory.name}</h2>
-                      <span className="qmed-cat-detail-code">{selectedCategory.code}</span>
-                      <StatusBadge tone={selectedCategory.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                        {selectedCategory.status === 'ACTIVE' ? '启用中' : '已停用'}
-                      </StatusBadge>
-                      {selectedCategory.isSystem && (
-                        <span className="qmed-cat-sys-badge">系统基线内置保护</span>
-                      )}
-                    </div>
-
-                    {selectedCategory.catalogSub ? (
-                      <div className="qmed-cat-catalog-badge">
-                        <Icon name="database" />
-                        <span>标准目录关联：<strong>{selectedCategory.catalogMajor ? `${selectedCategory.catalogMajor} / ` : ''}{selectedCategory.catalogSub}</strong></span>
-                        {selectedCategory.systemicOnly && (
-                          <span className="qmed-cat-systemic-pill">仅全身剂型</span>
-                        )}
-                        <div className="qmed-cat-catalog-badge-actions">
-                          <Button size="sm" variant="text" onClick={handleOpenBindCatalogModal}>
-                            更换目录
-                          </Button>
-                          <Button size="sm" variant="text" onClick={handleUnbindCatalog}>
-                            解除绑定
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="qmed-cat-catalog-unbind-prompt">
-                        <Button size="sm" variant="secondary" onClick={handleOpenBindCatalogModal}>
-                          <Icon name="database" /> 绑定基药标准目录（推荐）
-                        </Button>
-                        <span className="qmed-cat-unbind-tip">
-                          尚未绑定标准目录。绑定后全院同类药品自动级联继承，后续主档新药自动动态生效！
-                        </span>
-                      </div>
+                  <div className="qmed-cat-detail-title-line">
+                    <h2>{selectedCategory.name}</h2>
+                    <StatusBadge tone={selectedCategory.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                      {selectedCategory.status === 'ACTIVE' ? '启用中' : '已停用'}
+                    </StatusBadge>
+                    {selectedCategory.isSystem && (
+                      <span className="qmed-cat-sys-badge">系统基线内置保护</span>
                     )}
-
-                    <div className="qmed-cat-detail-meta">
-                      <span>规则类别: <strong>{ruleKindNameMap[selectedCategory.ruleKind] || selectedCategory.ruleKind}</strong></span>
-                      <span>纳管药品数: <strong>{(() => {
-                        const effectiveCount = members.length > 0 ? members.length : selectedCategory.memberCount
-                        if (effectiveCount > 0) return `${effectiveCount} 种`
-                        if (selectedCategory.catalogSub) return '目录级联生效'
-                        return '暂未纳管'
-                      })()}</strong></span>
-                      <span>版本修订: <strong>rev.{selectedCategory.revision}</strong></span>
-                    </div>
-
-                    {(() => {
-                      const bound = CATEGORY_BOUND_RULES_MAP[selectedCategory.code]
-                      if (!bound || bound.length === 0) return null
-                      return (
-                        <div className="qmed-cat-bound-rules-section">
-                          <div className="qmed-cat-bound-rules-title">
-                            <Icon name="check" /> 关联在行合理用药质控规则（{bound.length} 条）
-                          </div>
-                          <div className="qmed-cat-bound-rules-list">
-                            {bound.map(r => (
-                              <div key={r.code} className="qmed-cat-bound-rule-pill">
-                                <span className="bound-rule-code">{r.code}</span>
-                                <span className="bound-rule-name">{r.name}</span>
-                                <StatusBadge tone={r.decision === 'BLOCK' ? 'danger' : 'warning'}>
-                                  {r.decision === 'BLOCK' ? '绝对拦截 (BLOCK)' : '阻断需理由'}
-                                </StatusBadge>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    })()}
                   </div>
-
                   <div className="qmed-cat-detail-actions">
                     <Button variant="primary" onClick={handleOpenAddMedModal}>
                       <Icon name="add" /> 纳入药品
@@ -945,6 +879,64 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                   </div>
                 </div>
 
+                <div className="qmed-cat-info-grid">
+                  <section className="qmed-cat-info-cell">
+                    <span className="qmed-cat-info-label">标准目录关联</span>
+                    {selectedCategory.catalogSub ? (
+                      <div className="qmed-cat-info-body">
+                        <strong>{selectedCategory.catalogMajor ? `${selectedCategory.catalogMajor} / ` : ''}{selectedCategory.catalogSub}</strong>
+                        {selectedCategory.systemicOnly && <span className="qmed-cat-systemic-pill">仅全身剂型</span>}
+                        <span className="qmed-cat-info-actions">
+                          <Button size="sm" variant="text" onClick={handleOpenBindCatalogModal}>更换目录</Button>
+                          <Button size="sm" variant="text" onClick={handleUnbindCatalog}>解除绑定</Button>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="qmed-cat-info-body">
+                        <span className="qmed-text-muted">尚未绑定。绑定后全院同类药品自动继承，新药自动生效。</span>
+                        <Button size="sm" variant="secondary" onClick={handleOpenBindCatalogModal}>
+                          <Icon name="database" /> 绑定基药标准目录（推荐）
+                        </Button>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="qmed-cat-info-cell">
+                    {(() => {
+                      const bound = CATEGORY_BOUND_RULES_MAP[selectedCategory.code] ?? []
+                      return (
+                        <>
+                          <span className="qmed-cat-info-label">关联质控规则{bound.length > 0 ? `（${bound.length} 条）` : ''}</span>
+                          <div className="qmed-cat-info-body">
+                            {bound.length === 0 && <span className="qmed-text-muted">暂无关联在行规则</span>}
+                            {bound.map(r => (
+                              <span key={r.code} className="qmed-cat-info-rule">
+                                {r.name}
+                                <StatusBadge tone={r.decision === 'BLOCK' ? 'danger' : 'warning'}>
+                                  {r.decision === 'BLOCK' ? '绝对拦截' : '阻断需理由'}
+                                </StatusBadge>
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </section>
+
+                  <section className="qmed-cat-info-cell">
+                    <span className="qmed-cat-info-label">分类概况</span>
+                    <div className="qmed-cat-info-body">
+                      <span>规则类别：<strong>{ruleKindNameMap[selectedCategory.ruleKind] || selectedCategory.ruleKind}</strong></span>
+                      <span>纳管药品：<strong>{(() => {
+                        const effectiveCount = membersCountReliable && members.length > 0 ? members.length : selectedCategory.memberCount
+                        if (effectiveCount > 0) return `${effectiveCount} 种`
+                        if (selectedCategory.catalogSub) return '目录级联生效'
+                        return '暂未纳管'
+                      })()}</strong></span>
+                    </div>
+                  </section>
+                </div>
+
                 {/* 临床机制与警示说明 */}
                 <div className="qmed-cat-rationale-box">
                   <div className="qmed-cat-rationale-title">
@@ -958,7 +950,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                       <Icon name="check" />
                       <span>
                         <strong>标准目录级联继承已启用：</strong>
-                        全院药品目录中属于【{selectedCategory.catalogSub}】且{selectedCategory.systemicOnly ? '为全身给药剂型（自动排除眼/耳/鼻/外用软膏）' : '为有效剂型'}的在库药品均自动纳入规则计算，无需逐一手工录入！
+                        全院药品目录中属于【{selectedCategory.catalogSub}】且{selectedCategory.systemicOnly ? '为全身给药剂型（自动排除眼/耳/鼻/外用软膏）' : '为有效剂型'}的在库药品均自动纳入规则计算，无需逐一手工录入。
                       </span>
                     </div>
                   )}
@@ -1008,7 +1000,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                     <DataTable className="qmed-data-table" aria-label="已纳管药品清单">
                       <thead>
                         <tr>
-                          <th style={{ width: 140 }}>药品代码</th>
+                          <th style={{ width: 170 }}>药品代码</th>
                           <th>药品通用名称</th>
                           <th style={{ width: 180 }}>制剂规格</th>
                           <th style={{ width: 120 }}>剂型</th>
@@ -1019,7 +1011,7 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
                       <tbody>
                         {members.map(mbr => (
                           <tr key={mbr.id}>
-                            <td className="qmed-font-mono">{mbr.medicationCode}</td>
+                            <td className="qmed-font-mono" style={{ whiteSpace: 'nowrap' }}>{mbr.medicationCode}</td>
                             <td className="qmed-name-cell">
                               <strong>{mbr.medicationName}</strong>
                               {mbr.inherited && (
