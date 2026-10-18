@@ -58,6 +58,23 @@ class DirectVisitIntegrationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void parent_category_lists_parameters_of_all_child_categories() throws Exception {
+        // 门诊医疗（父）应包含门诊医生站（子）下的血压参数和排班与号源（子）下的直接接诊参数。
+        JsonNode parent = json(mockMvc.perform(get("/api/platform/configuration/definitions")
+                        .param("categoryId", "362387869794020").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        parent.forEach(item -> keys.add(item.get("key").asString()));
+        assertTrue(keys.contains("outpatient.vital-signs.blood-pressure.requirement"));
+        assertTrue(keys.contains("outpatient.doctor-workstation.completion-mode"));
+        JsonNode child = json(mockMvc.perform(get("/api/platform/configuration/definitions")
+                        .param("categoryId", "362387869794071").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        child.forEach(item -> assertEquals("362387869794071", item.get("categoryId").asString()));
+        assertTrue(parent.size() > child.size());
+    }
+
+    @Test
     void structured_blood_pressure_parameter_is_validated_field_by_field() throws Exception {
         for (String invalid : java.util.List.of(
                 "{\"enabled\":true,\"minAge\":150,\"unknownAgeRequired\":true,\"enforceAt\":\"DRAFT\"}",

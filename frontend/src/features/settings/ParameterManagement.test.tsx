@@ -599,6 +599,23 @@ describe('ParameterManagement query facts', () => {
     } as unknown as RhnApi
   }
 
+  it('counts parameters of all child categories on the parent category', async () => {
+    const categories = [
+      { id: 'cat-root', code: 'OUTPATIENT', name: '门诊医疗', sortOrder: 1, sdParamStatus: 'ACTIVE', sdParamStatusText: '启用', revision: 1 },
+      { id: 'cat-doctor', parentId: 'cat-root', code: 'OUTPATIENT_DOCTOR', name: '门诊医生站', sortOrder: 1, sdParamStatus: 'ACTIVE', sdParamStatusText: '启用', revision: 1 },
+      { id: 'cat-schedule', parentId: 'cat-root', code: 'OUTPATIENT_SCHEDULE', name: '排班与号源', sortOrder: 2, sdParamStatus: 'ACTIVE', sdParamStatusText: '启用', revision: 1 },
+    ]
+    const definitions = vi.fn().mockResolvedValue([
+      { ...mockDefinitions[0], id: 'def-a', categoryId: 'cat-doctor', categoryName: '门诊医生站' },
+      { ...mockDefinitions[0], id: 'def-b', key: 'b.key', categoryId: 'cat-doctor', categoryName: '门诊医生站' },
+      { ...mockDefinitions[0], id: 'def-c', key: 'c.key', categoryId: 'cat-schedule', categoryName: '排班与号源' },
+    ])
+    renderWorkspace(apiWith({ categories: vi.fn().mockResolvedValue(categories), definitions }))
+    await waitFor(() => expect(screen.getByRole('treeitem', { name: /门诊医疗/ })).toHaveTextContent('3 项'))
+    expect(screen.getByRole('treeitem', { name: /门诊医生站/ })).toHaveTextContent('2 项')
+    expect(screen.getByRole('treeitem', { name: /排班与号源/ })).toHaveTextContent('1 项')
+  })
+
   it('shows unknown category counts when the totals query fails and recovers on retry', async () => {
     const user = userEvent.setup()
     let failed = true

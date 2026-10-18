@@ -327,14 +327,17 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
 
   const categoryOptions = useMemo(() => flattenCategories(categories.data ?? []), [categories.data])
   const categoryCountMap = useMemo(() => {
-    const map: Record<string, number> = {}
+    const own: Record<string, number> = {}
     for (const item of allDefinitions.data ?? []) {
       if (item.categoryId && (!fixedConfigType || item.sdParamConfigType === fixedConfigType)) {
-        map[item.categoryId] = (map[item.categoryId] ?? 0) + 1
+        own[item.categoryId] = (own[item.categoryId] ?? 0) + 1
       }
     }
-    return map
-  }, [allDefinitions.data, fixedConfigType])
+    // 父分类计数包含所有下级分类，与选中父分类时的参数列表一致。
+    const list = categories.data ?? []
+    return Object.fromEntries(list.map((category) => [category.id, [category.id, ...descendantCategoryIds(list, category.id)]
+      .reduce((total, id) => total + (own[id] ?? 0), 0)]))
+  }, [allDefinitions.data, categories.data, fixedConfigType])
 
   const currentCategoryName = useMemo(() => {
     if (!categoryFilter) return '全部参数'

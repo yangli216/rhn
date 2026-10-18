@@ -184,6 +184,18 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 .map(this::categoryResponse).toList();
     }
 
+    private static Set<Long> categoryWithDescendants(Long rootId, java.util.Collection<ParameterCategory> categories) {
+        Set<Long> result = new HashSet<>(Set.of(rootId));
+        boolean added = true;
+        while (added) {
+            added = false;
+            for (ParameterCategory category : categories) {
+                if (category.parentId() != null && result.contains(category.parentId()) && result.add(category.id())) added = true;
+            }
+        }
+        return result;
+    }
+
     @Transactional(readOnly = true)
     public List<ParameterDefinitionSummaryResponse> definitions(String query, Long categoryId,
                                                                 ConfigurationCategory category,
@@ -191,8 +203,10 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         Map<Long, ParameterCategory> categories = categoryRepository.findAll().stream()
                 .collect(Collectors.toMap(ParameterCategory::id, value -> value));
+        // 选中父分类时同时返回所有下级分类的参数。
+        Set<Long> categoryScope = categoryId == null ? null : categoryWithDescendants(categoryId, categories.values());
         return definitionRepository.findAllByOrderByUpdatedAtDesc().stream()
-                .filter(value -> categoryId == null || Objects.equals(value.categoryId(), categoryId))
+                .filter(value -> categoryScope == null || categoryScope.contains(value.categoryId()))
                 .filter(value -> category == null || value.category() == category)
                 .filter(value -> status == null || value.status() == status)
                 .filter(value -> normalizedQuery.isEmpty()
