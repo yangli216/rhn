@@ -1,7 +1,7 @@
-import type { ClinicalAiDraftContext } from '../../../shared/api/clinicalAiApi'
+import type { ClinicalAiDraftContext, ClinicalAiRecommendedPlan } from '../../../shared/api/clinicalAiApi'
 import { canExpandRecord, hasRecordNarrative } from './recordExpansion'
 
-export type CopilotNextStepKind = 'RECORD' | 'DIAGNOSIS' | 'ORDERS'
+export type CopilotNextStepKind = 'PLAN' | 'RECORD' | 'DIAGNOSIS' | 'ORDERS'
 
 export interface CopilotNextStep {
   kind: CopilotNextStepKind
@@ -22,8 +22,15 @@ export function copilotNextStep(
   context: Pick<ClinicalAiDraftContext, 'chiefComplaint' | 'presentIllness' | 'diagnoses'>,
   hasOrders?: boolean,
   scene?: string,
+  plans: readonly Pick<ClinicalAiRecommendedPlan, 'name'>[] = [],
 ): CopilotNextStep | undefined {
-  if (!context.chiefComplaint?.trim() || canExpandRecord(context)) return undefined
+  if (!context.chiefComplaint?.trim()) return undefined
+  // A doctor-verified whole plan beats any generated draft: faster to review and already proofread.
+  if (plans.length > 0 && hasOrders === false) {
+    return { kind: 'PLAN', tag: '可用方案', action: '核对方案',
+      hint: `匹配到 ${plans.length} 个已校对的诊疗方案，可整体带入病历、诊断与医嘱` }
+  }
+  if (canExpandRecord(context)) return undefined
   if (!hasRecordNarrative(context)) {
     return { kind: 'RECORD', tag: '补全病历', hint: '主诉已写，现病史等段落还空着', action: 'AI 补全病历' }
   }

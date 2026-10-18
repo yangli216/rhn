@@ -306,6 +306,8 @@ public class ClinicalAssistantApplicationService {
         Access access = requireAccess(encounterId, true);
         var index = planDirectory.searchIndexForCurrentContext();
         if (index.isEmpty()) return List.of();
+        // Proactive lookups are free: deterministic diagnosis/keyword matching only, never a model call.
+        if (input.planPreview()) return recommendedPlans(retrievePlans(input, index));
         ClinicalAssistantSettings runtime = runtimePolicy.current(access.context());
         List<String> expansion = List.of();
         if (runtime.mode() == ClinicalAssistantSettings.Mode.MODEL && !planSearchText(input).isBlank()) {
@@ -350,6 +352,7 @@ public class ClinicalAssistantApplicationService {
 
     public Suggestion generate(Long encounterId, GenerateRequest input, java.util.function.Consumer<String> onDelta,
                                java.util.function.Consumer<GenerationStage> onStage) {
+        if (input.planPreview()) throw badRequest("AI_INTENT_UNSUPPORTED", "PLAN_PREVIEW 仅用于诊疗方案匹配");
         long started = System.nanoTime();
         ExecutionContext requestContext = contextProvider.requireCurrent();
         ClinicalAssistantSettings runtime = runtimePolicy.current(requestContext);

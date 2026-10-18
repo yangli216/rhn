@@ -5,16 +5,16 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { AiPlanTemplateDraftModal } from './AiPlanTemplateDraftModal'
 import { maintainedPlanFixture } from './maintainedTemplateSave.testFixtures'
-import { catalogPage, catalogService } from './templateCatalogSearch.testFixtures'
+import { catalogService } from './templateCatalogSearch.testFixtures'
 
 function fixture(task = true, organizationId: string | undefined = 'org') {
   const plan = maintainedPlanFixture(); plan.medications = []
   plan.tasks = task ? [{ kind: 'EXAMINATION', text: '目录检查项目', origin: 'EXPLICIT', status: 'NEEDS_REVIEW',
     sourceQuote: '必要时复查两次，暂缓增强检查', details: '先核对适应证' }] : []
   const service = catalogService()
-  const searchServices = vi.fn().mockResolvedValue(catalogPage([service]))
+  const searchServices = vi.fn().mockResolvedValue([service])
   const update = vi.fn(async (_id, input) => ({ ...plan, ...input, revision: 4 }))
-  const api = { masterData: { searchServices }, outpatientPlanTemplates: { update },
+  const api = { masterData: { services: searchServices }, outpatientPlanTemplates: { update },
     clinicalAi: { capabilities: vi.fn().mockResolvedValue({ mode: 'MODEL', available: true, features: ['PLAN_COMPILATION'] }) } } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }), saved = vi.fn()
   const tree = (current = api, org = organizationId) => <QueryClientProvider client={client}><AiPlanTemplateDraftModal api={current}
@@ -22,14 +22,11 @@ function fixture(task = true, organizationId: string | undefined = 'org') {
   const view = render(tree()), user = userEvent.setup()
   async function search() {
     await user.click(screen.getByRole('button', { name: task ? '对齐院内项目' : '添加检验/检查' }))
-    if (!task) {
-      await user.type(screen.getByPlaceholderText(/输入项目名称搜索院内/), '检查')
-      await user.click(screen.getByRole('button', { name: '搜索' }))
-    }
+    await user.type(await screen.findByPlaceholderText('输入项目名称、编码或项目类型'), '检查')
   }
   async function select() {
     await search()
-    await user.click(await screen.findByRole('button', { name: '选用' }))
+    await user.click(await screen.findByRole('option', { name: /目录检查项目/ }))
     return within(await screen.findByRole('dialog', { name: '确认项目数量与说明' }))
   }
   return { ...view, tree, api, plan, service, searchServices, update, saved, user, search, select }
@@ -38,7 +35,7 @@ function fixture(task = true, organizationId: string | undefined = 'org') {
 describe('AI plan service confirmation', () => {
   it('prefills one project while preserving restrictions for doctor confirmation', async () => {
     const f = fixture(), dialog = await f.select()
-    expect(f.searchServices).toHaveBeenCalledWith('目录检查项目', '', 'ACTIVE', 'org', 0, 10)
+    expect(f.searchServices).toHaveBeenCalledWith('检查', '', 'ACTIVE', 'org')
     expect(dialog.getByRole('spinbutton', { name: '项目数量' })).toHaveValue(1)
     expect(dialog.getByRole('region', { name: '原始项目建议' })).toHaveTextContent('必要时复查两次，暂缓增强检查')
     expect(dialog.getByRole('button', { name: '确认项目加入方案' })).toBeEnabled()
@@ -100,12 +97,13 @@ describe('AI plan service confirmation', () => {
   })
   it('discards a late catalog result after the institution changes', async () => {
     const f = fixture()
-    let resolve!: (value: unknown) => void
+    let resolve: ((value: unknown) => void) | undefined
     f.searchServices.mockImplementationOnce(() => new Promise(done => { resolve = done }))
     await f.search()
+    await waitFor(() => expect(resolve).toBeDefined())
     f.rerender(f.tree(f.api, 'other'))
-    await act(async () => resolve(catalogPage([f.service])))
-    expect(screen.queryByRole('button', { name: '选用' })).not.toBeInTheDocument()
+    await act(async () => resolve?.([f.service]))
+    expect(screen.queryByRole('option', { name: /目录检查项目/ })).not.toBeInTheDocument()
     expect(f.update).not.toHaveBeenCalled()
   })
   it('does not silently duplicate a service', async () => {
@@ -114,7 +112,7 @@ describe('AI plan service confirmation', () => {
     await f.user.type(dialog.getByRole('spinbutton', { name: '项目数量' }), '2')
     await f.user.click(dialog.getByRole('button', { name: '确认项目加入方案' }))
     await f.search()
-    await f.user.click(await screen.findByRole('button', { name: '选用' }))
+    await f.user.click(await screen.findByRole('option', { name: /目录检查项目/ }))
     expect(screen.getByText(/方案中已有该项目/)).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: '确认项目数量与说明' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: '调量' })).toHaveLength(1)

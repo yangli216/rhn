@@ -4933,3 +4933,15 @@
 }
 
 .doctor-completion-print-option { display: flex; align-items: center; gap: var(--space-2); }
+
+.ai-plan-diagnosis-add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ai-plan-diagnosis-add > :first-child {
+  flex: 1;
+  min-width: 0;
+}

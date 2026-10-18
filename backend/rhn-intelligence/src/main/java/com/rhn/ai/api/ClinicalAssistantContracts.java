@@ -35,8 +35,11 @@ public final class ClinicalAssistantContracts {
             @Size(max = 12) List<@NotBlank @Size(max = 100) String> selectedConditions,
             @Size(max = 50) List<@NotNull @Positive Long> selectedReportIds) {}
 
-    /** FULL_ANALYSIS (default) drafts record, diagnoses and orders; RECORD_EXPANSION only expands the record. */
-    public enum GenerationIntent { FULL_ANALYSIS, RECORD_EXPANSION }
+    /**
+     * FULL_ANALYSIS (default) drafts record, diagnoses and orders; RECORD_EXPANSION only expands the record;
+     * PLAN_PREVIEW is only valid for plan recommendations: deterministic matching, no model call.
+     */
+    public enum GenerationIntent { FULL_ANALYSIS, RECORD_EXPANSION, PLAN_PREVIEW }
 
     @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAssistantGenerateRequest")
     public record GenerateRequest(
@@ -59,6 +62,7 @@ public final class ClinicalAssistantContracts {
                     receptionSceneContext, null);
         }
         public boolean recordExpansion() { return intent == GenerationIntent.RECORD_EXPANSION; }
+        public boolean planPreview() { return intent == GenerationIntent.PLAN_PREVIEW; }
     }
 
     public record Transcription(String text, String provider, String model, String contentType,

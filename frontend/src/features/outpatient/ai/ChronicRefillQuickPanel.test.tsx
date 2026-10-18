@@ -160,6 +160,33 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     expect(screen.getByRole('region', { name: '下一步建议' })).toHaveTextContent('待开医嘱')
   })
 
+  it('quietly looks up proofread plans once and offers them ahead of AI generation', async () => {
+    vi.useFakeTimers()
+    try {
+      const plan = { templateId: 't1', name: '高血压复诊方案', rationale: '主诉与诊断匹配' }
+      const onFindPlans = vi.fn().mockResolvedValue([plan])
+      const onReviewRecommendedPlan = vi.fn()
+      const onGenerate = vi.fn().mockResolvedValue('s-1')
+      const ctx = { ...context, chiefComplaint: '高血压复诊配药',
+        medicationDraftFingerprint: stableClinicalAiFingerprint('medications', []),
+        serviceDraftFingerprint: stableClinicalAiFingerprint('services', []) }
+      const { rerender } = renderHub({ context: ctx, onFindPlans, onReviewRecommendedPlan, onGenerate,
+        capability: { ...capability, features: ['RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS'] },
+        sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' }, chronicRefill: undefined })
+      expect(onFindPlans).not.toHaveBeenCalled()
+      await act(async () => { await vi.advanceTimersByTimeAsync(1300) })
+      expect(onFindPlans).toHaveBeenCalledTimes(1)
+      expect(onFindPlans).toHaveBeenCalledWith({ preview: true })
+      expect(screen.getByRole('region', { name: '下一步建议' })).toHaveTextContent('高血压复诊方案')
+      rerender({ busy: true }); rerender({ busy: false })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1300) })
+      expect(onFindPlans).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: '核对' }))
+      expect(onReviewRecommendedPlan).toHaveBeenCalledWith(plan)
+      expect(onGenerate).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
+  })
+
   it('routes one-click refill through the hub generator', () => {
     const refill = controller()
     renderHub({ chronicRefill: refill })

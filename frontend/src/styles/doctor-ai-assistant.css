@@ -1659,3 +1659,21 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
+
+.doctor-ai-refill-quick__plan {
+  align-items: center;
+}
+
+.doctor-ai-refill-quick__plan .doctor-ai-refill-quick__med-name {
+  flex: none;
+  max-width: 45%;
+}
+
+.doctor-ai-refill-quick__plan-note {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}

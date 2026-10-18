@@ -24010,7 +24010,7 @@ export interface components {
             receptionScene?: "FIRST_VISIT" | "CHRONIC_REFILL" | "REPORT_FOLLOW_UP";
             receptionSceneContext?: components["schemas"]["ReceptionSceneContext"];
             /** @enum {string} */
-            intent?: "FULL_ANALYSIS" | "RECORD_EXPANSION";
+            intent?: "FULL_ANALYSIS" | "RECORD_EXPANSION" | "PLAN_PREVIEW";
         };
         ReceptionSceneContext: {
             selectedConditions?: string[];

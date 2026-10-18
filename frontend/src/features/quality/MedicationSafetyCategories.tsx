@@ -337,9 +337,11 @@ export function MedicationSafetyCategories({ api, onNotice, onError }: Medicatio
     }
   }
 
+  const fetchMembersRef = useRef(fetchMembers)
+  fetchMembersRef.current = fetchMembers
   useEffect(() => {
     if (selectedCategoryId) {
-      fetchMembers(selectedCategoryId, memberSearch)
+      fetchMembersRef.current(selectedCategoryId, memberSearch)
     } else {
       memberRequestSeq.current++
       setLoadedMembers({ categoryId: '', items: [] })

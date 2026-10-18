@@ -959,20 +959,22 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       voiceInput={voiceInput} interimTranscript={interimTranscript} question={question} onQuestionChange={setQuestion}
       onClearVoice={() => { setVoiceTranscript(''); setInterimTranscript('') }}
       planInputKey={inputKey} stableVoiceTranscript={voiceTranscript}
-      onFindPlans={onReviewRecommendedPlan ? async () => {
+      onFindPlans={onReviewRecommendedPlan ? async (options) => {
         const context = latestContext.current
-        const fingerprint = clinicalAiContextFingerprint(context), key = latestInputKey.current
+        const fingerprint = clinicalAiContextFingerprint(context), key = `${options?.preview ? 'preview:' : ''}${latestInputKey.current}`
         if (disabled || context.busy || context.encounterId !== encounter.id) throw new Error('当前就诊上下文正在变化，请稍后再分析。')
         const cached = planCache.current.get(key)
         if (cached && cached.expires > Date.now()) return cached.plans
-        planController.current?.abort()
+        // A free preview must not cancel a doctor-initiated (model) match that is already in flight.
+        if (!options?.preview) planController.current?.abort()
         const controller = new AbortController()
-        planController.current = controller
+        if (!options?.preview) planController.current = controller
         const plans = await api.clinicalAi.recommendPlans(encounter.id, {
           clientContextFingerprint: fingerprint, question: question.trim().slice(0, 500) || undefined,
           voiceTranscript: voiceTranscript.trim() || undefined, draft: clinicalAiDraftInput(context),
+          intent: options?.preview ? 'PLAN_PREVIEW' : undefined,
         }, controller.signal)
-        if (controller.signal.aborted || key !== latestInputKey.current
+        if (controller.signal.aborted || key.replace(/^preview:/, '') !== latestInputKey.current
           || clinicalAiContextFingerprint(latestContext.current) !== fingerprint) throw new DOMException('问诊资料已变化', 'AbortError')
         if (planCache.current.size >= 20) planCache.current.delete(planCache.current.keys().next().value!)
         planCache.current.set(key, { expires: Date.now() + 15000, plans })

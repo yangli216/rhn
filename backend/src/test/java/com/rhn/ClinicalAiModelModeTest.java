@@ -78,6 +78,27 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void planPreviewMatchesDeterministicallyWithoutAnyModelCall() throws Exception {
+        String encounterId = createStartedEncounter();
+        String name = "预览模板" + UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"scopeType":"DEPARTMENT","name":"%s","diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}],"medications":[],"services":[]}
+                                """.formatted(name))).andExpect(status().isCreated());
+        org.mockito.Mockito.clearInvocations(modelGateway);
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/plan-recommendations", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"PLAN-PREVIEW","intent":"PLAN_PREVIEW","question":"%s","draft":{"diagnoses":[]}}
+                                """.formatted(name)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value(name));
+        org.mockito.Mockito.verifyNoInteractions(modelGateway);
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"PLAN-PREVIEW","intent":"PLAN_PREVIEW","draft":{"diagnoses":[]}}
+                                """)).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void expandsRecallWithoutPromotingExpansionTermsToPatientFacts() throws Exception {
         String encounterId = createStartedEncounter();
         String name = "已核对模板" + UUID.randomUUID().toString().substring(0, 8);

@@ -453,13 +453,13 @@ describe('AiPlanTemplateDraftModal', () => {
         { kind: 'MEDICATION', text: '阿莫西林胶囊', origin: 'SUGGESTED', status: 'UNMATCHED', details: '缺少在库唯一规格' },
       ],
     })
-    const searchMedicationProducts = vi.fn().mockResolvedValue(catalogPage([catalogProduct('prod-001', 'med-001', '阿莫西林胶囊 (哈药)')]))
+    const searchMedications = vi.fn().mockResolvedValue([catalogProduct('prod-001', 'med-001', '阿莫西林胶囊 (哈药)').medication])
     const api = {
       clinicalAi: { capabilities: vi.fn().mockResolvedValue({
         mode: 'MODEL', available: true, model: 'qwen-test', features: ['PLAN_COMPILATION'],
       }) },
       outpatientPlanTemplates: { compileDraftStream, reviseDraftStream: vi.fn(), convertDraft },
-      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()), searchMedicationProducts, searchMedications: vi.fn().mockResolvedValue(catalogPage([])) },
+      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()), medications: searchMedications },
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}>
@@ -478,11 +478,11 @@ describe('AiPlanTemplateDraftModal', () => {
 
     // 点击对齐目录药品
     await user.click(screen.getByRole('button', { name: /对齐目录药品/ }))
-    expect(searchMedicationProducts).toHaveBeenCalledWith('阿莫西林胶囊', '', 'ACTIVE', '', 0, 10)
+    await user.type(await screen.findByPlaceholderText('输入通用名、编码或别名'), '阿莫西林')
+    await waitFor(() => expect(searchMedications).toHaveBeenCalledWith('阿莫西林', '', 'ACTIVE', undefined))
 
-    // 选用候选药品
-    const chooseBtn = await screen.findByRole('button', { name: '选用' })
-    await user.click(chooseBtn)
+    // 选用候选药品（与医生站共用的药品检索）
+    await user.click(await screen.findByRole('option', { name: /阿莫西林胶囊/ }))
 
     const confirmation = within(screen.getByRole('dialog', { name: '确认药品用法与数量' }))
     const dose = confirmation.getByRole('spinbutton', { name: '单次剂量' })
@@ -498,8 +498,8 @@ describe('AiPlanTemplateDraftModal', () => {
     await user.type(confirmation.getByRole('spinbutton', { name: '药品数量' }), '2')
     await user.click(confirmation.getByRole('button', { name: '确认加入方案' }))
 
-    // 明确确认后才变为产品已对齐，保存按钮可用
-    expect(await screen.findByText('产品已对齐')).toBeInTheDocument()
+    // 明确确认后才变为已对齐（通用药品级，与医生站、手动模板一致），保存按钮可用
+    expect(await screen.findByText('已对齐')).toBeInTheDocument()
     expect(screen.getByText('阿莫西林胶囊 (哈药)')).toBeInTheDocument()
     expect(screen.queryByText('待匹配目录')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认存入方案池' })).toBeEnabled()
@@ -628,13 +628,13 @@ describe('AiPlanTemplateDraftModal', () => {
     const update = vi.fn(async (_id, input) => ({ ...editingTemplate, ...input, revision: 2,
       medications: input.medications.map((item: object, index: number) => ({ ...item, lineId: `line-${index}`, editorMode: 'regular', categoryCode: 'WESTERN', medicationCode: `M${index}` })),
     }))
-    const searchMedicationProducts = vi.fn().mockResolvedValue(catalogPage([catalogProduct('prod-002', 'med-002', '布洛芬缓释胶囊')]))
-    const searchServices = vi.fn().mockResolvedValue(catalogPage([{ ...catalogService('srv-002', 'C反应蛋白测定', 'LABORATORY'), code: '2502' }]))
+    const searchMedications = vi.fn().mockResolvedValue([catalogProduct('prod-002', 'med-002', '布洛芬缓释胶囊').medication])
+    const searchServices = vi.fn().mockResolvedValue([{ ...catalogService('srv-002', 'C反应蛋白测定', 'LABORATORY'), code: '2502' }])
     const api = {
       clinicalAi: { capabilities: vi.fn().mockResolvedValue({ mode: 'MODEL', available: true }) },
       outpatientPlanTemplates: { update },
       outpatientNoteTemplates: { create: vi.fn(async input => ({ ...maintainedNoteReceipt(input), id: 'note-linked' })) },
-      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()), searchMedicationProducts, searchServices, searchMedications: vi.fn().mockResolvedValue(catalogPage([])) },
+      masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue(editorStandardsFixture()), medications: searchMedications, services: searchServices },
     } as unknown as RhnApi
 
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -679,11 +679,8 @@ describe('AiPlanTemplateDraftModal', () => {
 
     // 5. 手动添加目录药品
     await user.click(screen.getByRole('button', { name: '添加目录药品' }))
-    const medInput = screen.getByPlaceholderText(/输入药品名称搜索目录产品/)
-    await user.type(medInput, '布洛芬')
-    await user.click(screen.getAllByRole('button', { name: '搜索' })[0])
-    expect(await screen.findByText('布洛芬缓释胶囊')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '选用' }))
+    await user.type(await screen.findByPlaceholderText('输入通用名、编码或别名'), '布洛芬')
+    await user.click(await screen.findByRole('option', { name: /布洛芬缓释胶囊/ }))
     expect(await screen.findByRole('dialog', { name: '确认药品用法与数量' })).toHaveTextContent('布洛芬缓释胶囊')
 
     const confirmation = within(screen.getByRole('dialog', { name: '确认药品用法与数量' }))
@@ -693,12 +690,8 @@ describe('AiPlanTemplateDraftModal', () => {
 
     // 6. 手动添加检验检查
     await user.click(screen.getByRole('button', { name: '添加检验/检查' }))
-    const srvInput = screen.getByPlaceholderText(/输入项目名称搜索院内服务/)
-    await user.type(srvInput, 'C反应蛋白')
-    const serviceSearchRegion = within(srvInput.closest<HTMLElement>('.ai-plan-inline-search')!)
-    await user.click(serviceSearchRegion.getByRole('button', { name: '搜索' }))
-    expect(await screen.findByText('C反应蛋白测定')).toBeInTheDocument()
-    await user.click(serviceSearchRegion.getByRole('button', { name: '选用' }))
+    await user.type(await screen.findByPlaceholderText('输入项目名称、编码或项目类型'), 'C反应蛋白')
+    await user.click(await screen.findByRole('option', { name: /C反应蛋白测定/ }))
     const serviceConfirmation = within(screen.getByRole('dialog', { name: '确认项目数量与说明' }))
     await user.click(serviceConfirmation.getByRole('button', { name: '确认项目加入方案' }))
 

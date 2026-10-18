@@ -72,7 +72,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   existingTreatmentKeys?: string[]
   stableVoiceTranscript?: string
   planInputKey?: string
-  onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
+  onFindPlans?: (options?: { preview?: boolean }) => Promise<ClinicalAiRecommendedPlan[]>
   onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   onOpenDetail?: () => void
   onOpenHistory?: () => void

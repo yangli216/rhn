@@ -60,7 +60,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
       tags: [item.sdMedicationTypeText],
       raw: item,
     }))
-  }, [api, organizationId])
+  }, [api])
 
   const loadServices = useCallback(async (query: string): Promise<RemoteSearchOption<ServiceCatalogItem>[]> => {
     if (!organizationId) throw new Error('当前工作机构尚未确认，不能检索机构诊疗项目。')

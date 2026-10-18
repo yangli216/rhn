@@ -17,16 +17,18 @@ import type { RhnApi } from '../../../shared/api'
 import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlanTemplateScope,
   type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
   type CompiledPlanMedicationItem, type CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
-import { Alert, Button, Dialog, FormField, Icon, IconButton, PanelHead, StatusBadge, Tooltip, UnitNumberInput, type IconName } from '../../../shared/ui'
+import { Alert, Button, ClinicalResourceSearch, Dialog, FormField, Icon, IconButton, PanelHead, StatusBadge, Tooltip, UnitNumberInput,
+  type ClinicalResourceOption, type IconName } from '../../../shared/ui'
+import type { DiseaseConcept, MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { safeRandomUUID } from '../../../shared/utils/uuid'
 import { formatRouteName, medicationSingleDoseLabel } from './planMedicationPresentation'
 import { requireNoteTemplateList, templateApiScope } from './templateApplicationReceipt'
 import { saveAiMaintainedPlan, type NoteSaveCheckpoint } from './maintainedTemplateSave'
 import { useTemplateApplication } from './useTemplateApplication'
-import { searchTemplateDiagnoses, searchTemplateMedications, searchTemplateServices,
-  type TemplateDiagnosisCandidate, type TemplateMedicationCandidate, type TemplateServiceCandidate } from './templateCatalogSearch'
-import { TemplateCatalogSearchStatus, useTemplateCatalogSearch } from './useTemplateCatalogSearch'
+import { requireEditorDiagnosis } from './templateEditorFacts'
+import type { TemplateMedicationCandidate, TemplateServiceCandidate } from './templateCatalogSearch'
+import { medicationCandidateFromKnowledge, planServiceFilter, serviceCandidateFromCatalog } from './templateResourceCandidates'
 import { speechRecognitionConstructor, type BrowserSpeechRecognition } from '../../../shared/utils/speechRecognition'
 
 
@@ -323,20 +325,16 @@ export function AiPlanTemplateDraftModal({
 
   const [insertTarget, setInsertTarget] = useState<MedicalInsertTarget | null>(null)
   const [activeMedSearchTaskIndex, setActiveMedSearchTaskIndex] = useState<number | null>(null)
-  const [medSearchKeyword, setMedSearchKeyword] = useState('')
 
   const [activeServiceSearchTaskIndex, setActiveServiceSearchTaskIndex] = useState<number | null>(null)
-  const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
 
   // 诊断微调状态
   const [activeDiagSearchTaskIndex, setActiveDiagSearchTaskIndex] = useState<number | null>(null)
   const [isAddingDiagnosis, setIsAddingDiagnosis] = useState(false)
-  const [diagSearchKeyword, setDiagSearchKeyword] = useState('')
 
   // 药品微调状态
   const [editingMedIndex, setEditingMedIndex] = useState<number | null>(null)
   const [isAddingMed, setIsAddingMed] = useState(false)
-  const [newMedSearchKeyword, setNewMedSearchKeyword] = useState('')
 
   const [pendingMedication, setPendingMedication] = useState<{
     api: RhnApi; context: string; taskIndex?: number; item: CompiledPlanMedicationItem; source?: string
@@ -357,7 +355,6 @@ export function AiPlanTemplateDraftModal({
   // 检验检查微调状态
   const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null)
   const [isAddingService, setIsAddingService] = useState(false)
-  const [newServiceSearchKeyword, setNewServiceSearchKeyword] = useState('')
 
   const [pendingService, setPendingService] = useState<{
     api: RhnApi; context: string; item: CompiledPlanServiceItem; taskIndex?: number; source?: string
@@ -369,27 +366,6 @@ export function AiPlanTemplateDraftModal({
 
   const searchContext = JSON.stringify([templateApiScope(api), organizationId, editingTemplate?.id, editingTemplate?.revision, scope, compiledDraft?.tasks])
   const canSearch = !saving && !compiling && !converting
-  const medSearch = useTemplateCatalogSearch(`${searchContext}:${activeMedSearchTaskIndex}`, medSearchKeyword,
-    canSearch && activeMedSearchTaskIndex !== null, query => searchTemplateMedications(api, query))
-  const serviceSearch = useTemplateCatalogSearch(`${searchContext}:${activeServiceSearchTaskIndex}`, serviceSearchKeyword,
-    canSearch && activeServiceSearchTaskIndex !== null, query => searchTemplateServices(api, query, organizationId))
-  const diagSearch = useTemplateCatalogSearch(`${searchContext}:${activeDiagSearchTaskIndex}:${isAddingDiagnosis}`, diagSearchKeyword,
-    canSearch && (activeDiagSearchTaskIndex !== null || isAddingDiagnosis), query => searchTemplateDiagnoses(api, query))
-  const newMedSearch = useTemplateCatalogSearch(searchContext, newMedSearchKeyword,
-    canSearch && isAddingMed, query => searchTemplateMedications(api, query))
-  const newServiceSearch = useTemplateCatalogSearch(searchContext, newServiceSearchKeyword,
-    canSearch && isAddingService, query => searchTemplateServices(api, query, organizationId))
-  const medSearchResults = medSearch.rows, serviceSearchResults = serviceSearch.rows, diagSearchResults = diagSearch.rows
-  const newMedSearchResults = newMedSearch.rows, newServiceSearchResults = newServiceSearch.rows
-  const handleSearchMed = (_keyword: string) => medSearch.search()
-  const handleSearchService = (_keyword: string) => serviceSearch.search()
-  const handleSearchDiagnosis = (_keyword: string) => diagSearch.search()
-  const handleSearchNewMed = (_keyword: string) => newMedSearch.search()
-  const handleSearchNewService = (_keyword: string) => newServiceSearch.search()
-  useEffect(() => { if (activeMedSearchTaskIndex !== null) void medSearch.search() }, [activeMedSearchTaskIndex])
-  useEffect(() => { if (activeServiceSearchTaskIndex !== null) void serviceSearch.search() }, [activeServiceSearchTaskIndex])
-  useEffect(() => { if (activeDiagSearchTaskIndex !== null) void diagSearch.search() }, [activeDiagSearchTaskIndex])
-
   // 其他安排（宣教/随访）微调状态
 
   const tasksWithIndex = useMemo(() => {
@@ -722,8 +698,15 @@ export function AiPlanTemplateDraftModal({
   }
 
 
-  const handleSelectMedProduct = (taskIndex: number, prod: TemplateMedicationCandidate) => {
-    if (!compiledDraft || taskIndex !== activeMedSearchTaskIndex || !medSearch.canSelect(prod)) return
+  /** Shared-search pick → plan candidate; directory-identity problems surface as the modal error. */
+  const pickCandidate = <R, C>(option: ClinicalResourceOption<R> | undefined, convert: (raw: R) => C): C | undefined => {
+    if (!option?.raw) return undefined
+    try { setError(null); return convert(option.raw) } catch (cause) { setError(errorMessage(cause)); return undefined }
+  }
+
+  const handleSelectMedProduct = (taskIndex: number, option?: ClinicalResourceOption<MedicationKnowledge>) => {
+    const prod = pickCandidate(option, medicationCandidateFromKnowledge)
+    if (!compiledDraft || taskIndex !== activeMedSearchTaskIndex || !prod) return
     beginMedicationConfirmation(prod, taskIndex)
   }
 
@@ -747,12 +730,12 @@ export function AiPlanTemplateDraftModal({
     setPendingMedication(null)
     setActiveMedSearchTaskIndex(null)
     setIsAddingMed(false)
-    setNewMedSearchKeyword('')
   }
 
 
-  const handleSelectServiceItem = (taskIndex: number, srv: TemplateServiceCandidate) => {
-    if (!compiledDraft || taskIndex !== activeServiceSearchTaskIndex || !serviceSearch.canSelect(srv)) return
+  const handleSelectServiceItem = (taskIndex: number, option?: ClinicalResourceOption<ServiceCatalogItem>) => {
+    const srv = pickCandidate(option, (raw) => serviceCandidateFromCatalog(raw, organizationId))
+    if (!compiledDraft || taskIndex !== activeServiceSearchTaskIndex || !srv) return
     beginServiceConfirmation(srv, taskIndex)
   }
 
@@ -776,7 +759,6 @@ export function AiPlanTemplateDraftModal({
     setPendingService(null)
     setActiveServiceSearchTaskIndex(null)
     setIsAddingService(false)
-    setNewServiceSearchKeyword('')
   }
 
 
@@ -794,51 +776,42 @@ export function AiPlanTemplateDraftModal({
   }
 
 
-  const handleSelectDiagnosis = (diag: TemplateDiagnosisCandidate) => {
-    if (!compiledDraft || !isAddingDiagnosis || !diagSearch.canSelect(diag)) return
-    if (compiledDraft.diagnoses.some((d) => d.conceptId === diag.id || d.codeSystem === diag.codeSystem && d.code === diag.code && d.diagnosisDomain === diag.diagnosisDomain)) {
+  /** Same catalog search as the doctor workstation; the picked concept becomes a plan diagnosis. */
+  const diagnosisFromOption = (option?: ClinicalResourceOption<DiseaseConcept>) => {
+    const item = option?.raw
+    if (!compiledDraft || !item) return undefined
+    try { requireEditorDiagnosis(item) } catch (cause) { setError(errorMessage(cause)); return undefined }
+    if (compiledDraft.diagnoses.some((d) => d.conceptId === item.id
+      || d.codeSystem === item.systemCode && d.code === item.code && d.diagnosisDomain === item.sdDiagnosisDomain)) {
       setError('该诊断已在方案中')
-      return
+      return undefined
     }
     setError(null)
-    const isFirst = compiledDraft.diagnoses.length === 0
-    const newDiag = {
-      conceptId: diag.id, codeSystem: diag.codeSystem,
-      diagnosisDomain: diag.diagnosisDomain,
-      code: diag.code,
-      display: diag.display,
-      type: (isFirst ? 'PRIMARY' : 'SECONDARY') as 'PRIMARY' | 'SECONDARY',
+    return {
+      conceptId: item.id, codeSystem: item.systemCode, diagnosisDomain: item.sdDiagnosisDomain,
+      code: item.code, display: item.display,
+      type: (compiledDraft.diagnoses.length === 0 ? 'PRIMARY' : 'SECONDARY') as 'PRIMARY' | 'SECONDARY',
     }
-    setCompiledDraft({
-      ...compiledDraft,
-      diagnoses: [...compiledDraft.diagnoses, newDiag],
-    })
-    setIsAddingDiagnosis(false)
-
-    setDiagSearchKeyword('')
   }
 
-  const handleAlignDiagnosisTask = (taskIndex: number, diag: TemplateDiagnosisCandidate) => {
-    if (!compiledDraft || taskIndex !== activeDiagSearchTaskIndex || !diagSearch.canSelect(diag)) return
-    const isFirst = compiledDraft.diagnoses.length === 0
-    const newDiag = {
-      conceptId: diag.id, codeSystem: diag.codeSystem,
-      diagnosisDomain: diag.diagnosisDomain,
-      code: diag.code,
-      display: diag.display,
-      type: (isFirst ? 'PRIMARY' : 'SECONDARY') as 'PRIMARY' | 'SECONDARY',
-    }
-    const nextTasks = (compiledDraft.tasks ?? []).map((t, i) =>
-      i === taskIndex ? { ...t, status: 'MATCHED' as const } : t
-    )
+  const handleSelectDiagnosis = (option?: ClinicalResourceOption<DiseaseConcept>) => {
+    if (!isAddingDiagnosis) return
+    const diagnosis = diagnosisFromOption(option)
+    if (!compiledDraft || !diagnosis) return
+    setCompiledDraft({ ...compiledDraft, diagnoses: [...compiledDraft.diagnoses, diagnosis] })
+    setIsAddingDiagnosis(false)
+  }
+
+  const handleAlignDiagnosisTask = (taskIndex: number, option?: ClinicalResourceOption<DiseaseConcept>) => {
+    if (taskIndex !== activeDiagSearchTaskIndex) return
+    const diagnosis = diagnosisFromOption(option)
+    if (!compiledDraft || !diagnosis) return
     setCompiledDraft({
       ...compiledDraft,
-      diagnoses: [...compiledDraft.diagnoses, newDiag],
-      tasks: nextTasks,
+      diagnoses: [...compiledDraft.diagnoses, diagnosis],
+      tasks: (compiledDraft.tasks ?? []).map((t, i) => i === taskIndex ? { ...t, status: 'MATCHED' as const } : t),
     })
     setActiveDiagSearchTaskIndex(null)
-
-    setDiagSearchKeyword('')
   }
 
   const updateMedication = (idx: number, patch: Partial<CompiledPlanMedicationItem>) => {
@@ -850,8 +823,9 @@ export function AiPlanTemplateDraftModal({
   }
 
 
-  const handleAddMedProduct = (prod: TemplateMedicationCandidate) => {
-    if (!compiledDraft || !newMedSearch.canSelect(prod)) return
+  const handleAddMedProduct = (option?: ClinicalResourceOption<MedicationKnowledge>) => {
+    const prod = pickCandidate(option, medicationCandidateFromKnowledge)
+    if (!compiledDraft || !prod) return
     beginMedicationConfirmation(prod)
   }
 
@@ -865,8 +839,9 @@ export function AiPlanTemplateDraftModal({
   }
 
 
-  const handleAddServiceItem = (srv: TemplateServiceCandidate) => {
-    if (!compiledDraft || !newServiceSearch.canSelect(srv)) return
+  const handleAddServiceItem = (option?: ClinicalResourceOption<ServiceCatalogItem>) => {
+    const srv = pickCandidate(option, (raw) => serviceCandidateFromCatalog(raw, organizationId))
+    if (!compiledDraft || !srv) return
     beginServiceConfirmation(srv)
   }
 
@@ -1355,34 +1330,11 @@ export function AiPlanTemplateDraftModal({
                                 )}
                               </div>
                               {activeDiagSearchTaskIndex === index ? (
-                                <div className="ai-plan-inline-search">
-                                  <div className="ai-plan-inline-search__bar">
-                                    <input
-                                      type="text"
-                                      className="ui-field__control"
-                                      value={diagSearchKeyword}
-                                      onChange={(e) => setDiagSearchKeyword(e.target.value)}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchDiagnosis(diagSearchKeyword) }}
-                                      placeholder="输入疾病名称、编码或拼音搜索标准诊断..."
-                                      autoFocus
-                                    />
-                                    <Button size="sm" variant="secondary" onClick={() => void handleSearchDiagnosis(diagSearchKeyword)}>搜索</Button>
-                                    <Button size="sm" variant="text" onClick={() => setActiveDiagSearchTaskIndex(null)}>取消</Button>
-                                  </div>
-                                  <TemplateCatalogSearchStatus search={diagSearch} />
-                        {diagSearchResults.length > 0 && (
-                                    <div className="ai-plan-inline-search__list">
-                                      {diagSearchResults.map((diag) => (
-                                        <div key={diag.id} className="ai-plan-inline-search__item" onClick={() => handleAlignDiagnosisTask(index, diag)}>
-                                          <div>
-                                            <strong>{diag.display}</strong>
-                                            <small>{diag.codeSystem} · {diag.code}</small>
-                                          </div>
-                                          <Button size="sm" variant="secondary">选用</Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                <div className="ai-plan-diagnosis-add">
+                                  <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={undefined} defaultOpen autoFocus
+                                    aria-label={`对齐标准诊断 ${task.text}`} disabled={!canSearch}
+                                    onChange={(option) => handleAlignDiagnosisTask(index, option)} />
+                                  <Button size="sm" variant="text" onClick={() => setActiveDiagSearchTaskIndex(null)}>取消</Button>
                                 </div>
                               ) : null}
                             </div>
@@ -1390,7 +1342,6 @@ export function AiPlanTemplateDraftModal({
                               {activeDiagSearchTaskIndex !== index && (
                                 <Button size="sm" variant="secondary" onClick={() => {
                                   setIsAddingDiagnosis(false); setActiveDiagSearchTaskIndex(index)
-                                  setDiagSearchKeyword(task.text)
                                 }}>
                                   <Icon name="search" /> 对齐标准诊断
                                 </Button>
@@ -1406,37 +1357,13 @@ export function AiPlanTemplateDraftModal({
                   </div>
                   <footer className="ai-plan-review-group__footer">
                     {isAddingDiagnosis ? (
-                      <div className="ai-plan-inline-search ai-plan-inline-search--footer">
-                        <div className="ai-plan-inline-search__bar">
-                          <input
-                            type="text"
-                            className="ui-field__control"
-                            value={diagSearchKeyword}
-                            onChange={(e) => setDiagSearchKeyword(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchDiagnosis(diagSearchKeyword) }}
-                            placeholder="输入疾病名称、编码或拼音搜索标准诊断..."
-                            autoFocus
-                          />
-                          <Button size="sm" variant="secondary" onClick={() => void handleSearchDiagnosis(diagSearchKeyword)}>搜索</Button>
-                          <Button size="sm" variant="text" onClick={() => { setIsAddingDiagnosis(false) }}>取消</Button>
-                        </div>
-                        <TemplateCatalogSearchStatus search={diagSearch} />
-                        {diagSearchResults.length > 0 && (
-                          <div className="ai-plan-inline-search__list">
-                            {diagSearchResults.map((diag) => (
-                              <div key={diag.id} className="ai-plan-inline-search__item" onClick={() => handleSelectDiagnosis(diag)}>
-                                <div>
-                                  <strong>{diag.display}</strong>
-                                  <small>{diag.codeSystem} · {diag.code}</small>
-                                </div>
-                                <Button size="sm" variant="secondary">选用</Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      <div className="ai-plan-diagnosis-add">
+                        <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={undefined} defaultOpen autoFocus
+                          aria-label="添加标准诊断" disabled={!canSearch} onChange={handleSelectDiagnosis} />
+                        <Button size="sm" variant="text" onClick={() => setIsAddingDiagnosis(false)}>取消</Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="secondary" onClick={() => { setActiveDiagSearchTaskIndex(null); setIsAddingDiagnosis(true); setDiagSearchKeyword('') }}>
+                      <Button size="sm" variant="secondary" onClick={() => { setActiveDiagSearchTaskIndex(null); setIsAddingDiagnosis(true) }}>
                         <Icon name="add" /> 添加标准诊断
                       </Button>
                     )}
@@ -1474,10 +1401,10 @@ export function AiPlanTemplateDraftModal({
                               </div>
                               {editingMedIndex === idx ? (
                                 <div>
-                                  <AiPlanMedicationFields item={m} standards={standards} disabled={saving}
-                                    onChange={patch => updateMedication(idx, patch)} />
-                                  <Button size="sm" variant="secondary" disabled={Boolean(aiMedicationValidation(m, standards))}
-                                    onClick={() => setEditingMedIndex(null)}>完成</Button>
+                                  <AiPlanMedicationFields compact item={m} standards={standards} disabled={saving}
+                                    onChange={patch => updateMedication(idx, patch)}
+                                    actions={<Button size="sm" variant="secondary" disabled={Boolean(aiMedicationValidation(m, standards))}
+                                      onClick={() => setEditingMedIndex(null)}>完成</Button>} />
                                 </div>
                               ) : (
                                 <small className="ai-plan-modal-row-sub">用法: {[
@@ -1522,35 +1449,11 @@ export function AiPlanTemplateDraftModal({
                                 </div>
                                 {usageHint && <PlanMedicationBrief details={usageHint} />}
                                 {activeMedSearchTaskIndex === index ? (
-                                  <div className="ai-plan-inline-search">
-                                    <div className="ai-plan-inline-search__bar">
-                                      <input
-                                        type="text"
-                                        className="ui-field__control"
-                                        value={medSearchKeyword}
-                                        onChange={(e) => setMedSearchKeyword(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchMed(medSearchKeyword) }}
-                                        placeholder="输入药品名称搜索目录产品或通用主档..."
-                                        autoFocus
-                                      />
-                                      <Button size="sm" variant="secondary" onClick={() => void handleSearchMed(medSearchKeyword)}>搜索</Button>
-                                      <Button size="sm" variant="text" onClick={() => setActiveMedSearchTaskIndex(null)}>取消</Button>
-                                    </div>
-                                    <TemplateCatalogSearchStatus search={medSearch} />
-                        {medSearchResults.length > 0 && (
-                                      <div className="ai-plan-inline-search__list">
-                                        {medSearchResults.map((prod) => (
-                                          <div key={prod.key} className="ai-plan-inline-search__item" onClick={() => handleSelectMedProduct(index, prod)}>
-                                            <div>
-                                              <strong>{prod.name}</strong>
-                                              <small>{prod.preparationSpec || ''} {prod.tradeName ? `(${prod.tradeName})` : ''}</small>
-                                              {prod.isGenericOnly && <StatusBadge tone="neutral">通用主档</StatusBadge>}
-                                            </div>
-                                            <Button size="sm" variant="secondary">选用</Button>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
+                                  <div className="ai-plan-diagnosis-add">
+                                    <ClinicalResourceSearch<MedicationKnowledge> api={api} resource="medication" value={undefined} defaultOpen autoFocus
+                                      aria-label={`对齐目录药品 ${task.text}`} disabled={!canSearch}
+                                      onChange={(option) => handleSelectMedProduct(index, option)} />
+                                    <Button size="sm" variant="text" onClick={() => setActiveMedSearchTaskIndex(null)}>取消</Button>
                                   </div>
                                 ) : null}
                               </div>
@@ -1558,7 +1461,6 @@ export function AiPlanTemplateDraftModal({
                                 {activeMedSearchTaskIndex !== index && (
                                   <Button size="sm" variant="secondary" onClick={() => {
                                     setActiveMedSearchTaskIndex(index)
-                                    setMedSearchKeyword(task.text)
                                   }}>
                                     <Icon name="search" /> 对齐目录药品
                                   </Button>
@@ -1575,38 +1477,13 @@ export function AiPlanTemplateDraftModal({
                   </div>
                   <footer className="ai-plan-review-group__footer">
                     {isAddingMed ? (
-                      <div className="ai-plan-inline-search ai-plan-inline-search--footer">
-                        <div className="ai-plan-inline-search__bar">
-                          <input
-                            type="text"
-                            className="ui-field__control"
-                            value={newMedSearchKeyword}
-                            onChange={(e) => setNewMedSearchKeyword(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchNewMed(newMedSearchKeyword) }}
-                            placeholder="输入药品名称搜索目录产品或通用主档..."
-                            autoFocus
-                          />
-                          <Button size="sm" variant="secondary" onClick={() => void handleSearchNewMed(newMedSearchKeyword)}>搜索</Button>
-                          <Button size="sm" variant="text" onClick={() => { setIsAddingMed(false) }}>取消</Button>
-                        </div>
-                        <TemplateCatalogSearchStatus search={newMedSearch} />
-                        {newMedSearchResults.length > 0 && (
-                          <div className="ai-plan-inline-search__list">
-                            {newMedSearchResults.map((prod) => (
-                              <div key={prod.key} className="ai-plan-inline-search__item" onClick={() => handleAddMedProduct(prod)}>
-                                <div>
-                                  <strong>{prod.name}</strong>
-                                  <small>{prod.preparationSpec || ''} {prod.tradeName ? `(${prod.tradeName})` : ''}</small>
-                                  {prod.isGenericOnly && <StatusBadge tone="neutral">通用主档</StatusBadge>}
-                                </div>
-                                <Button size="sm" variant="secondary">选用</Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      <div className="ai-plan-diagnosis-add">
+                        <ClinicalResourceSearch<MedicationKnowledge> api={api} resource="medication" value={undefined} defaultOpen autoFocus
+                          aria-label="添加目录药品" disabled={!canSearch} onChange={handleAddMedProduct} />
+                        <Button size="sm" variant="text" onClick={() => setIsAddingMed(false)}>取消</Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="secondary" onClick={() => { setIsAddingMed(true); setNewMedSearchKeyword('') }}>
+                      <Button size="sm" variant="secondary" onClick={() => setIsAddingMed(true)}>
                         <Icon name="add" /> 添加目录药品
                       </Button>
                     )}
@@ -1690,34 +1567,12 @@ export function AiPlanTemplateDraftModal({
                                 )}
                               </div>
                               {activeServiceSearchTaskIndex === index ? (
-                                <div className="ai-plan-inline-search">
-                                  <div className="ai-plan-inline-search__bar">
-                                    <input
-                                      type="text"
-                                      className="ui-field__control"
-                                      value={serviceSearchKeyword}
-                                      onChange={(e) => setServiceSearchKeyword(e.target.value)}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchService(serviceSearchKeyword) }}
-                                      placeholder="输入项目名称搜索院内服务..."
-                                      autoFocus
-                                    />
-                                    <Button size="sm" variant="secondary" onClick={() => void handleSearchService(serviceSearchKeyword)}>搜索</Button>
-                                    <Button size="sm" variant="text" onClick={() => setActiveServiceSearchTaskIndex(null)}>取消</Button>
-                                  </div>
-                                  <TemplateCatalogSearchStatus search={serviceSearch} />
-                        {serviceSearchResults.length > 0 && (
-                                    <div className="ai-plan-inline-search__list">
-                                      {serviceSearchResults.map((srv) => (
-                                        <div key={srv.id} className="ai-plan-inline-search__item" onClick={() => handleSelectServiceItem(index, srv)}>
-                                          <div>
-                                            <strong>{srv.name}</strong>
-                                            <small>编码: {srv.code}</small>
-                                          </div>
-                                          <Button size="sm" variant="secondary">选用</Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                <div className="ai-plan-diagnosis-add">
+                                  <ClinicalResourceSearch<ServiceCatalogItem> api={api} resource="service" organizationId={organizationId}
+                                    value={undefined} defaultOpen autoFocus filterResult={planServiceFilter}
+                                    aria-label={`对齐院内项目 ${task.text}`} disabled={!canSearch}
+                                    onChange={(option) => handleSelectServiceItem(index, option)} />
+                                  <Button size="sm" variant="text" onClick={() => setActiveServiceSearchTaskIndex(null)}>取消</Button>
                                 </div>
                               ) : null}
                             </div>
@@ -1725,7 +1580,6 @@ export function AiPlanTemplateDraftModal({
                               {activeServiceSearchTaskIndex !== index && (
                                 <Button size="sm" variant="secondary" onClick={() => {
                                   setActiveServiceSearchTaskIndex(index)
-                                  setServiceSearchKeyword(task.text)
                                 }}>
                                   <Icon name="search" /> 对齐院内项目
                                 </Button>
@@ -1743,37 +1597,14 @@ export function AiPlanTemplateDraftModal({
                   </div>
                   <footer className="ai-plan-review-group__footer">
                     {isAddingService ? (
-                      <div className="ai-plan-inline-search ai-plan-inline-search--footer">
-                        <div className="ai-plan-inline-search__bar">
-                          <input
-                            type="text"
-                            className="ui-field__control"
-                            value={newServiceSearchKeyword}
-                            onChange={(e) => setNewServiceSearchKeyword(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') void handleSearchNewService(newServiceSearchKeyword) }}
-                            placeholder="输入项目名称搜索院内服务..."
-                            autoFocus
-                          />
-                          <Button size="sm" variant="secondary" onClick={() => void handleSearchNewService(newServiceSearchKeyword)}>搜索</Button>
-                          <Button size="sm" variant="text" onClick={() => { setIsAddingService(false) }}>取消</Button>
-                        </div>
-                        <TemplateCatalogSearchStatus search={newServiceSearch} />
-                        {newServiceSearchResults.length > 0 && (
-                          <div className="ai-plan-inline-search__list">
-                            {newServiceSearchResults.map((srv) => (
-                              <div key={srv.id} className="ai-plan-inline-search__item" onClick={() => handleAddServiceItem(srv)}>
-                                <div>
-                                  <strong>{srv.name}</strong>
-                                  <small>编码: {srv.code}</small>
-                                </div>
-                                <Button size="sm" variant="secondary">选用</Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      <div className="ai-plan-diagnosis-add">
+                        <ClinicalResourceSearch<ServiceCatalogItem> api={api} resource="service" organizationId={organizationId}
+                          value={undefined} defaultOpen autoFocus filterResult={planServiceFilter}
+                          aria-label="添加检验/检查" disabled={!canSearch} onChange={handleAddServiceItem} />
+                        <Button size="sm" variant="text" onClick={() => setIsAddingService(false)}>取消</Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="secondary" onClick={() => { setIsAddingService(true); setNewServiceSearchKeyword('') }}>
+                      <Button size="sm" variant="secondary" onClick={() => setIsAddingService(true)}>
                         <Icon name="add" /> 添加检验/检查
                       </Button>
                     )}
@@ -1807,7 +1638,7 @@ export function AiPlanTemplateDraftModal({
       {pendingMedicationValidation && <Alert duration={null}>{pendingMedicationValidation}</Alert>}
       {medicationStandards.isError && <Alert duration={null}>用法字典加载失败：{errorMessage(medicationStandards.error)}
         <Button variant="text" onClick={() => void medicationStandards.refetch()}>重新加载用法字典</Button></Alert>}
-      <AiPlanMedicationFields item={pendingMedication.item} standards={standards} requireDirections={pendingMedication.taskIndex !== undefined} disabled={saving || compiling || pendingContextChanged}
+      <AiPlanMedicationFields compact item={pendingMedication.item} standards={standards} requireDirections={pendingMedication.taskIndex !== undefined} disabled={saving || compiling || pendingContextChanged}
         onChange={patch => setPendingMedication(current => current ? { ...current, item: { ...current.item, ...patch } } : current)} />
     </Dialog>}
     {pendingService && <Dialog title="确认项目数量与说明" size="wide" onClose={() => setPendingService(null)} closeOnBackdrop={false}

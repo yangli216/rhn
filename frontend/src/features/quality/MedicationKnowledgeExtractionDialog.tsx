@@ -22,7 +22,8 @@ export function KnowledgeExtractionPanel({ api, evidence: initial, runId, onBusy
   const saved = useQuery({ queryKey: ['knowledge-extraction', runId], queryFn: () => api.medicationKnowledgeDrafts.extraction(runId!), enabled: !!runId })
   const setBusy = (value: boolean) => { setBusyState(value); onBusy?.(value) }
   const current = runId ? saved.data : run
-  useEffect(() => { onStage?.(current ? 'review' : 'input') }, [current?.id])
+  const stage = current ? 'review' : 'input'
+  useEffect(() => { onStage?.(stage) }, [stage, current?.id, onStage])
   const displayedEvidence = runId ? current?.input.evidence ?? initial : evidence
   const clearResult = () => { setRun(undefined); setSelected({}); setReviewed(false); setError('') }
   const change = (patch: Partial<KnowledgeEvidence>) => { setEvidence(value => ({ ...value, ...patch })); clearResult() }

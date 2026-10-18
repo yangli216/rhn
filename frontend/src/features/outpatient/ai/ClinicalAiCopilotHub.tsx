@@ -43,7 +43,7 @@ export interface ClinicalAiCopilotHubProps {
   onGenerate: (focus?: string, options?: ClinicalAiGenerateOptions) => Promise<string>
   stableVoiceTranscript?: string
   planInputKey?: string
-  onFindPlans?: () => Promise<ClinicalAiRecommendedPlan[]>
+  onFindPlans?: (options?: { preview?: boolean }) => Promise<ClinicalAiRecommendedPlan[]>
   onReviewRecommendedPlan?: (plan: ClinicalAiRecommendedPlan) => void
   onApply: (selection: InlineAiSelection) => void
   onOpenDetail?: () => void
@@ -327,9 +327,42 @@ export function ClinicalAiCopilotHub({
   const emptyServices = stableClinicalAiFingerprint('services', [])
   const hasOrders = context.medicationDraftFingerprint !== emptyMedications
     || context.serviceDraftFingerprint !== emptyServices
-  const nextStep = disabled || !canAdopt || !recordFeature ? undefined : copilotNextStep(context, hasOrders, sceneAssessment?.scene)
+  // Proofread whole plans are looked up quietly once per distinct complaint/diagnosis/scene, after typing settles.
+  const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
+  const templateApplied = Boolean(context.annotations?.some((mark) => mark.source === 'TEMPLATE'))
+  const planTrigger = `${context.encounterId}|${context.chiefComplaint?.trim() ?? ''}|${context.diagnoses.map((item) => item.code).sort().join(',')}|${sceneAssessment?.scene ?? ''}`
+  const planLookupReady = Boolean(onFindPlans) && planFeature && !disabled && canAdopt && !busy && !generating
+    && !sceneLoading && !templateApplied && !hasOrders && Boolean(context.chiefComplaint?.trim() || context.diagnoses.length)
+  const [matchedPlans, setMatchedPlans] = useState<{ trigger: string; plans: ClinicalAiRecommendedPlan[] }>({ trigger: '', plans: [] })
+  const planLookedUp = useRef(new Set<string>())
+  const findPlansRef = useRef(onFindPlans)
+  findPlansRef.current = onFindPlans
+  useEffect(() => {
+    if (!planLookupReady || findingPlans || planLookedUp.current.has(planTrigger)) return
+    const timer = window.setTimeout(() => {
+      planLookedUp.current.add(planTrigger)
+      findPlansRef.current?.({ preview: true }).then((plans) => setMatchedPlans({ trigger: planTrigger, plans }))
+        .catch(() => undefined)
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [planLookupReady, planTrigger, findingPlans])
+  // Transient busy states must not retract a shown offer; only a plan being applied or orders appearing does.
+  const availablePlans = matchedPlans.trigger === planTrigger && !templateApplied && !hasOrders ? matchedPlans.plans : []
+  const nextStep = disabled || !canAdopt || !recordFeature ? undefined
+    : copilotNextStep(context, hasOrders, sceneAssessment?.scene, availablePlans)
+  const reviewPlan = (plan: ClinicalAiRecommendedPlan) => {
+    awaitingTemplate.current = templateMarks
+    setNextPanelOpen(false); setHubOpen(false)
+    onReviewRecommendedPlan?.(plan)
+  }
   const runNextStep = () => {
     if (!nextStep || busy || generating || findingPlans || sceneLoading) return
+    if (nextStep.kind === 'PLAN') {
+      // "No plan, generate instead": mark this lookup as declined so the AI draft path takes over.
+      setMatchedPlans({ trigger: '', plans: [] })
+      void onGenerate('RECORD').catch(() => undefined)
+      return
+    }
     if (nextStep.kind === 'RECORD') {
       appliedSuggestionId.current = null
       incrementalAdoption.current = true
@@ -343,7 +376,8 @@ export function ClinicalAiCopilotHub({
 
   // Next-step shortcut: each step is offered once per encounter, never over another guide or the open hub.
   const nextKey = nextStep ? `${context.encounterId}:${nextStep.kind}` : ''
-  const otherGuideOpen = refillPanelOpen || reportPanelOpen || chronicGuideReady || reportGuideReady
+  const otherGuideOpen = refillPanelOpen || reportPanelOpen
+    || (nextStep?.kind !== 'PLAN' && (chronicGuideReady || reportGuideReady))
   const nextBlocked = busy || generating || findingPlans || Boolean(sceneLoading)
   useEffect(() => {
     if (!nextKey || hubOpen || otherGuideOpen || nextBlocked || nextShown.current.has(nextKey)) return
@@ -437,7 +471,7 @@ export function ClinicalAiCopilotHub({
       </button>
 
       {nextPanelOpen && nextStep && !hubOpen && (
-        <NextStepQuickPanel step={nextStep} disabled={nextBlocked}
+        <NextStepQuickPanel step={nextStep} plans={availablePlans} onReviewPlan={reviewPlan} disabled={nextBlocked}
           onRun={() => { setNextPanelOpen(false); runNextStep() }}
           onOpenHub={() => { setNextPanelOpen(false); setHubOpen(true); onView() }}
           onClose={() => setNextPanelOpen(false)} />

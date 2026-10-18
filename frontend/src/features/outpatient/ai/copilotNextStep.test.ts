@@ -23,4 +23,10 @@ describe('copilotNextStep', () => {
     expect(copilotNextStep(written, undefined)).toBeUndefined()
     expect(copilotNextStep(written, true)).toBeUndefined()
   })
+  it('puts a matched proofread plan first, while no orders exist', () => {
+    const plans = [{ name: '高血压复诊方案' }]
+    expect(copilotNextStep(base, false, undefined, plans)?.kind).toBe('PLAN')
+    expect(copilotNextStep(base, true, undefined, plans)).toBeUndefined()
+    expect(copilotNextStep({ ...base, chiefComplaint: '' }, false, undefined, plans)).toBeUndefined()
+  })
 })

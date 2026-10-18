@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { AiPlanTemplateDraftModal } from './AiPlanTemplateDraftModal'
 import { maintainedPlanFixture } from './maintainedTemplateSave.testFixtures'
-import { catalogPage, catalogProduct } from './templateCatalogSearch.testFixtures'
+import { catalogProduct } from './templateCatalogSearch.testFixtures'
 import { editorStandardsFixture } from './templateEditorFacts.testFixtures'
 
 function fixture(task = true) {
@@ -18,18 +18,15 @@ function fixture(task = true) {
   const update = vi.fn(async (_id, input) => ({ ...plan, ...input, revision: 4,
     medications: input.medications.map((item: object) => ({ ...item, lineId: 'line', medicationCode: 'M', editorMode: 'regular', categoryCode: 'WESTERN' })) }))
   const api = { masterData: { clinicalMedicationStandards: standards,
-    searchMedicationProducts: vi.fn().mockResolvedValue(catalogPage([candidate])), searchMedications: vi.fn().mockResolvedValue(catalogPage([])) },
+    medications: vi.fn().mockResolvedValue([candidate.medication]) },
     outpatientPlanTemplates: { update }, clinicalAi: { capabilities: vi.fn().mockResolvedValue({ mode: 'MODEL', available: true }) } } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }), saved = vi.fn()
   const tree = (current = api) => <QueryClientProvider client={client}><AiPlanTemplateDraftModal api={current} editingTemplate={plan} onSaved={saved} onClose={vi.fn()} /></QueryClientProvider>
   const view = render(tree()), user = userEvent.setup()
   async function select() {
     await user.click(screen.getByRole('button', { name: task ? '对齐目录药品' : '添加目录药品' }))
-    if (!task) {
-      await user.type(screen.getByPlaceholderText(/输入药品名称搜索目录/), '药品')
-      await user.click(screen.getByRole('button', { name: '搜索' }))
-    }
-    await user.click(await screen.findByRole('button', { name: '选用' }))
+    await user.type(await screen.findByPlaceholderText('输入通用名、编码或别名'), '药品')
+    await user.click(await screen.findByRole('option', { name: /目录药品/ }))
     return within(await screen.findByRole('dialog', { name: '确认药品用法与数量' }))
   }
   return { ...view, api, tree, plan, standards, update, saved, user, select }
@@ -63,7 +60,7 @@ describe('AI plan medication confirmation', () => {
     await f.user.click(screen.getByRole('button', { name: '确认保存调整' }))
     await waitFor(() => expect(f.update).toHaveBeenCalledTimes(1))
     const input = f.update.mock.calls[0][1]
-    expect(input.medications[0]).toMatchObject({ doseValue: 0.5, doseUnit: 'g', routeCode: 'PO', frequencyCode: 'BID', quantity: 3, quantityUnit: '盒', medicationInstruction: '核实后使用，保留限制说明' })
+    expect(input.medications[0]).toMatchObject({ doseValue: 0.5, doseUnit: 'g', routeCode: 'PO', frequencyCode: 'BID', quantity: 3, quantityUnit: '粒', medicationInstruction: '核实后使用，保留限制说明' })
     expect(input.medications[0].durationValue).toBeUndefined()
     expect(input.tasks[0]).toEqual({ ...f.plan.tasks[0], status: 'MATCHED' })
     await waitFor(() => expect(f.saved).toHaveBeenCalledTimes(1))
