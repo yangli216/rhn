@@ -1,6 +1,19 @@
 package com.rhn.billing.application;
 
 import com.rhn.billing.domain.CashierCloseStatus;
+import com.rhn.billing.domain.ReliefApplicationStatus;
+import com.rhn.billing.domain.ReliefFailurePolicy;
+import com.rhn.billing.domain.ReliefMethod;
+import com.rhn.billing.domain.ReliefPolicyStatus;
+import com.rhn.billing.domain.ReliefQualificationMode;
+import com.rhn.billing.domain.ReliefQualificationSource;
+import com.rhn.billing.domain.ReliefQuotaPeriod;
+import com.rhn.billing.domain.ReliefQuotaTransactionType;
+import com.rhn.billing.domain.ReliefRosterStatus;
+import com.rhn.billing.domain.ReliefScopeType;
+import com.rhn.billing.domain.ReliefSponsor;
+import com.rhn.billing.domain.ReliefTiming;
+import com.rhn.billing.domain.ReliefVersionStatus;
 import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.platform.dictionary.api.SystemEnumContribution;
 import com.rhn.platform.dictionary.api.SystemEnumDefinition;
@@ -95,6 +108,49 @@ class BillingSystemEnums implements SystemEnumContribution {
                 of(WORK_STATUS, "收费工作状态", "就诊账户在收费工作台上的待办状态", items(
                         "PENDING_CHARGE", "待计费", "存在未计费的医嘱事件", "PENDING_INVOICE", "待结算", "存在未结算费用",
                         "PENDING_PAYMENT", "待收款", "账户应收余额大于零", "PENDING_REFUND", "待退款", "账户余额为负",
-                        "SETTLED", "已平账", "费用与收付款已平")));
+                        "SETTLED", "已平账", "费用与收付款已平")),
+                of("BIL_RELIEF_POLICY_STATUS", "惠民政策状态", "惠民减免政策的生效状态", ReliefPolicyStatus.class, items(
+                        "DRAFT", "草稿", "尚未发布任何版本", "ACTIVE", "生效中", "已发布并参与结算减免",
+                        "SUSPENDED", "已暂停", "暂停参与结算减免", "RETIRED", "已停用", "政策停止执行")),
+                of("BIL_RELIEF_VERSION_STATUS", "惠民政策版本状态", "政策版本的发布状态", ReliefVersionStatus.class, items(
+                        "DRAFT", "草稿", "可修改的待发布版本", "PUBLISHED", "已发布", "当前执行版本",
+                        "SUPERSEDED", "已替代", "已被新版本替代")),
+                of("BIL_RELIEF_TIMING", "减免时机", "减免在医保结算前还是后执行", ReliefTiming.class, items(
+                        "PRE_INSURANCE", "医保前减免", "降低结算净额，医保按减免后金额结算",
+                        "POST_INSURANCE", "医保后减免", "冲抵医保结算后的剩余个人自付")),
+                of("BIL_RELIEF_SPONSOR", "减免承担主体", "减免资金由谁承担", ReliefSponsor.class, items(
+                        "HOSPITAL", "医院", "医院让利或惠民减免", "GOVERNMENT", "政府", "民政、卫健等政府补助",
+                        "CHARITY", "慈善机构", "基金会或慈善组织补助", "OTHER", "其他", "其他承担单位")),
+                of("BIL_RELIEF_QUALIFICATION_MODE", "资格组合方式", "多项资格条件如何组合", ReliefQualificationMode.class, items(
+                        "ANY", "满足任一", "满足任一资格条件即可", "ALL", "全部满足", "必须同时满足全部资格条件")),
+                of("BIL_RELIEF_QUALIFICATION_SOURCE", "资格来源", "资格条件的判定依据", ReliefQualificationSource.class, items(
+                        "ALL", "全部患者", "不限资格", "ROSTER", "资格名单", "按院内维护的资格名单判定",
+                        "ATTRIBUTE", "属性条件", "按年龄、性别、险种等患者属性判定",
+                        "PROVIDER", "外部接口", "调用妇幼、民政、家医签约等外部资格接口")),
+                of("BIL_RELIEF_FAILURE_POLICY", "资格接口失败处理", "外部资格查询失败时的处理方式", ReliefFailurePolicy.class, items(
+                        "BLOCK", "阻断结算", "提示失败并阻断本次结算", "INELIGIBLE", "视为不符合", "本次不享受该政策",
+                        "MANUAL_CONFIRM", "人工确认", "由有权限人员人工确认资格")),
+                of("BIL_RELIEF_QUOTA_PERIOD", "额度周期", "周期累计额度的计算区间", ReliefQuotaPeriod.class, items(
+                        "NONE", "不设周期", "不限制周期累计", "DAY", "每日", "按自然日累计", "MONTH", "每月", "按自然月累计",
+                        "QUARTER", "每季度", "按自然季度累计", "YEAR", "每年", "按自然年累计",
+                        "POLICY_TERM", "政策期", "在政策有效期内累计")),
+                of("BIL_RELIEF_SCOPE_TYPE", "减免费用范围", "减免规则覆盖的费用范围", ReliefScopeType.class, items(
+                        "ALL", "全部费用", "本次结算的全部费用", "ACCOUNTING_CATEGORY", "费用大类", "按会计分类匹配",
+                        "CATALOG_ITEM", "收费项目", "按收费项目明细匹配", "SOURCE_TYPE", "收费来源", "按挂号、药品、检查等来源匹配")),
+                of("BIL_RELIEF_METHOD", "减免方式", "减免金额的计算方式", ReliefMethod.class, items(
+                        "RATIO", "按比例", "计算基数乘以减免比例", "FREE", "全免", "计算基数全部减免",
+                        "FIXED_AMOUNT", "固定金额", "本次结算固定减免金额", "UNIT_AMOUNT", "单位减免", "每计费单位减免固定金额",
+                        "PRICE_CAP", "个人限价", "每计费单位患者最高负担金额", "MANUAL", "人工核准", "收费时按权限人工核准金额")),
+                of("BIL_RELIEF_ROSTER_STATUS", "资格名单状态", "资格名单记录的状态", ReliefRosterStatus.class, items(
+                        "ACTIVE", "有效", "资格有效", "REVOKED", "已停用", "资格已停用")),
+                of("BIL_RELIEF_APPLICATION_STATUS", "减免记录状态", "结算减免记录的冲销状态", ReliefApplicationStatus.class, items(
+                        "APPLIED", "已减免", "减免有效", "REVERSED", "已冲销", "减免已全部冲销")),
+                of("BIL_RELIEF_OUTCOME_STATUS", "减免计算结果", "一项政策在本次结算中的计算结果",
+                        com.rhn.billing.domain.ReliefCalculator.OutcomeStatus.class, items(
+                        "APPLIED", "已减免", "本次结算享受减免", "SKIPPED", "不适用", "不符合条件或额度已用完",
+                        "AWAITING_MANUAL", "待人工核准", "需有权限人员录入核准金额")),
+                of("BIL_RELIEF_QUOTA_TXN_TYPE", "额度变动类型", "减免额度流水的变动类型", ReliefQuotaTransactionType.class, items(
+                        "RESERVE", "占用", "结算减免占用额度", "CONFIRM", "确认", "结算完成确认额度",
+                        "RELEASE", "释放", "结算放弃释放额度", "REVERSE", "恢复", "退费冲销恢复额度")));
     }
 }

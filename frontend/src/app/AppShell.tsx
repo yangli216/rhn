@@ -74,6 +74,10 @@ const RefundManagementWorkspace = lazy(() => import('../features/billing/RefundM
   .then((module) => ({ default: module.RefundManagementWorkspace })))
 const CashierCloseWorkspace = lazy(() => import('../features/billing/CashierCloseWorkspace')
   .then((module) => ({ default: module.CashierCloseWorkspace })))
+const ReliefPolicyManagement = lazy(() => import('../features/billing/relief/ReliefPolicyManagement')
+  .then((module) => ({ default: module.ReliefPolicyManagement })))
+const ReliefRosterManagement = lazy(() => import('../features/billing/relief/ReliefRosterManagement')
+  .then((module) => ({ default: module.ReliefRosterManagement })))
 const LaboratoryWorkspace = lazy(() => import('../features/diagnostics/laboratory/LaboratoryWorkspace')
   .then((module) => ({ default: module.LaboratoryWorkspace })))
 const ExaminationWorkspace = lazy(() => import('../features/diagnostics/examination/ExaminationWorkspace')
@@ -265,6 +269,8 @@ export const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'billing-query', label: '收费查询', icon: 'search', to: '/billing/query', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-refunds', label: '退费管理', icon: 'billing', to: '/billing/refunds', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-close', label: '日终结账', icon: 'billing', to: '/billing/daily-close', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'billing-relief-policies', label: '惠民政策', icon: 'settings', to: '/billing/relief-policies', requiredAuthority: 'BILLING_RELIEF.MANAGE' },
+      { id: 'billing-relief-roster', label: '惠民资格名单', icon: 'residents', to: '/billing/relief-roster', requiredAuthority: 'BILLING_RELIEF.ROSTER' },
     ],
   },
   {
@@ -1015,15 +1021,19 @@ export function AppShell() {
                   <Route path="/pharmacy/warehouse" element={<WarehouseManagement api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/billing" element={<BillingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} />} />
+                    clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} />} />
                   <Route path="/billing/settlement" element={<BillingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} />} />
+                    clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} />} />
                   <Route path="/billing/query" element={<BillingQueryWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/refunds" element={<RefundManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/daily-close" element={<CashierCloseWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/billing/relief-policies" element={<ReliefPolicyManagement api={tabSlot.api}
+                    canManage={tabAuthorities.has('BILLING_RELIEF.MANAGE')} />} />
+                  <Route path="/billing/relief-roster" element={<ReliefRosterManagement api={tabSlot.api}
+                    canEdit={tabAuthorities.has('BILLING_RELIEF.ROSTER')} />} />
                   <Route path="/diagnostics/laboratory" element={<LaboratoryWorkspace api={tabSlot.api}
                     authorities={[...tabAuthorities]}
                     clinicalContext={tabSlot.clinicalContext} onDirtyChange={(value) => markDirty(tab.id, value)}

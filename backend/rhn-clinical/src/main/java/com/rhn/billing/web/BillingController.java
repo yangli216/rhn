@@ -14,6 +14,7 @@ import com.rhn.billing.application.BillingApplicationService.PaymentCommand;
 import com.rhn.billing.application.BillingApplicationService.RefundCommand;
 import com.rhn.billing.application.BillingApplicationService.SynchronizeCommand;
 import com.rhn.billing.application.PaymentOrchestrationService;
+import com.rhn.billing.api.ReliefViews;
 import com.rhn.billing.application.SettlementApplicationService;
 import com.rhn.billing.application.PaymentOrchestrationService.CreatePaymentOrderCommand;
 import com.rhn.billing.application.PaymentOrchestrationService.CreateRefundOrderCommand;
@@ -27,6 +28,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -80,7 +82,8 @@ public class BillingController {
     @ResponseStatus(HttpStatus.CREATED)
     InvoiceView issueInvoice(@PathVariable Long accountId, @Valid @RequestBody IssueInvoiceRequest input) {
         return service.issueInvoice(accountId, new IssueInvoiceCommand(input.invoiceNo(), input.issuedAt(),
-                input.settlementScene(), input.terminalScene(), input.terminalCode(), input.chargeItemIds()));
+                input.settlementScene(), input.terminalScene(), input.terminalCode(), input.chargeItemIds(),
+                input.settlementMode()));
     }
 
     @PostMapping("/invoices/{invoiceId}/payments")
@@ -128,6 +131,20 @@ public class BillingController {
     @PostMapping("/payment-orders/{paymentOrderId}/business-completion/retry")
     PaymentOrderView retryBusinessCompletion(@PathVariable Long paymentOrderId) {
         return payments.retryBusinessCompletion(paymentOrderId);
+    }
+
+    @GetMapping("/settlements/{settlementId}/relief")
+    ReliefViews.SettlementReliefView settlementRelief(@PathVariable Long settlementId) {
+        return settlements.relief(settlementId);
+    }
+
+    @PostMapping("/settlements/{settlementId}/relief/confirm")
+    ReliefViews.SettlementReliefView confirmSettlementRelief(@PathVariable Long settlementId,
+                                                             @Valid @RequestBody ConfirmReliefRequest input) {
+        return settlements.confirmRelief(settlementId, new SettlementApplicationService.ConfirmReliefCommand(
+                input.manual() == null ? List.of() : input.manual().stream()
+                        .map(item -> new SettlementApplicationService.ManualReliefInput(item.policyId(), item.amount(),
+                                item.reason(), item.evidence())).toList()));
     }
 
     @GetMapping("/settlements/{settlementId}")
@@ -186,13 +203,18 @@ public class BillingController {
         ));
     }
 
+    record ManualReliefRequest(@NotNull Long policyId,
+                               @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 2) BigDecimal amount,
+                               @NotBlank @Size(max = 1000) String reason, @Size(max = 1000) String evidence) {}
+    record ConfirmReliefRequest(List<@Valid ManualReliefRequest> manual) {}
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
     record IssueInvoiceRequest(
             @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,
             @Size(max = 32) String settlementScene,
             @Size(max = 32) String terminalScene,
             @Size(max = 128) String terminalCode,
-            List<Long> chargeItemIds) {}
+            List<Long> chargeItemIds,
+            @Pattern(regexp = "SELF_PAY|MEDICAL_INSURANCE") String settlementMode) {}
     record PaymentRequest(
             @NotBlank @Size(max = 64) String paymentNo,
             @NotBlank @Size(max = 128) String paymentMethodCode,

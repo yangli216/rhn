@@ -18,6 +18,7 @@ import { Icon, type IconName } from '../../shared/ui/Icon'
 import { age } from '../../shared/format'
 import { chargeCategoryTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
+import { actionableRelief, SettlementReliefPanel } from './relief/SettlementReliefPanel'
 import '../../styles/features/billing-settlement.css'
 
 const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
@@ -84,7 +85,9 @@ function formatItemDisplayName(itemName: string, packageSpec?: string) {
   return `${itemName} ${packageSpec}`
 }
 
-export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
+export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
+  api: RhnApi; clinicalContext: ClinicalContext; authorities?: string[]
+}) {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const linkedEncounterId = searchParams.get('encounterId')
@@ -200,6 +203,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),
       queryClient.invalidateQueries({ queryKey: ['billing-payment-orders'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-workspace-receipts', encounterId] }),
+      queryClient.invalidateQueries({ queryKey: ['settlement-relief'] }),
     ])
   }
 
@@ -477,6 +481,25 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     return { ...target, grossAmount: insuranceClaimView.grossAmount, claimId: insuranceClaimView.claimId }
   }
 
+  // 新结算单开具时已执行医保前减免，或自费患者可享受医保后减免时，暂停收款，由收费员核对或确认减免后再收。
+  const reliefInterruption = async (settlementId: string, outstandingAmount: number, expectedAmount: number) => {
+    if (expectedAmount - outstandingAmount > 0.005) {
+      return `已执行惠民减免，应收由 ${money(expectedAmount, statement.data?.currencyCode)} 调整为 ${money(outstandingAmount, statement.data?.currencyCode)}，请核对后再收款。`
+    }
+    if (settlementMode !== 'SELF_PAY') return null
+    const available = actionableRelief(await api.relief.settlementRelief(settlementId))
+    return available.length
+      ? `患者可享受惠民减免（${available.map((value) => value.policyName).join('、')}），请在“惠民减免”中确认后再收款。`
+      : null
+  }
+  // 医保正式结算回执后会自动执行医保后减免，收款前以结算单待收金额为准。
+  const insuranceReliefInterruption = async (settlementId: string, amount: number) => {
+    const current = await api.billing.settlement(settlementId)
+    return amount - current.outstandingAmount > 0.005
+      ? `医保已结算并执行惠民减免，待收调整为 ${money(current.outstandingAmount, statement.data?.currencyCode)}，请按调整后的金额收款。`
+      : null
+  }
+
   const handlePreSettleInsurance = async (targetSettlementId: string) => {
     const session = captureInsuranceSession()
     let finalSettlementId = targetSettlementId
@@ -492,6 +515,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           `INV-CHS-${idempotencySuffix}`,
           undefined,
           Array.from(selectedChargeIds),
+          'CASHIER', 'CASHIER-WEB', settlementMode,
         )
         session.check()
         const updatedStatement = await api.billing.statement(encounterId)
@@ -551,6 +575,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
 
         // 若有现金自付且选择了现金等方式支付：
         if (settledClaim.patientCashAmount > 0 && command.amount > 0 && command.paymentMethodCode) {
+          const interruption = await insuranceReliefInterruption(settledClaim.settlementId,
+            command.amount - (command.roundingAdjustment ?? 0))
+          if (interruption) throw new Error(interruption)
           return api.billing.createPaymentOrder(settledClaim.settlementId, {
             idempotencyKey: command.idempotencyKey,
             businessScene: 'OUTPATIENT',
@@ -571,6 +598,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           `INV-${command.idempotencyKey.replace(/^PAY-/, '')}`,
           undefined,
           Array.from(selectedChargeIds),
+          'CASHIER', 'CASHIER-WEB', settlementMode,
         )
         if (command.amount <= 0) return invoice
         const updatedStatement = await api.billing.statement(encounterId)
@@ -578,6 +606,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           value.legacyInvoiceId === invoice.id && value.settlementType === 'NORMAL')
         if (!createdSettlement) throw new Error('结算单已生成，但暂未读取到支付信息，请刷新后继续。')
         settlementId = createdSettlement.id
+        const interruption = await reliefInterruption(createdSettlement.id, createdSettlement.outstandingAmount,
+          selectedChargesAmount)
+        if (interruption) throw new Error(interruption)
       }
       if (command.amount <= 0) return api.billing.settlement(settlementId)
       setCheckoutStage('CREATING_PAYMENT')
@@ -621,6 +652,11 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           session.check()
           throw new Error('医保已结算，自付金额与试算不一致，请刷新结算余额后收款。')
         }
+        const interruption = await insuranceReliefInterruption(settledClaim.settlementId, command.amount)
+        if (interruption) {
+          await refresh()
+          throw new Error(interruption)
+        }
       } catch (err: unknown) {
         if (!session.isCurrent()) return
         setScanNotice({
@@ -639,6 +675,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           `INV-${idempotencySuffix}`,
           undefined,
           Array.from(selectedChargeIds),
+          'CASHIER', 'CASHIER-WEB', settlementMode,
         )
         session.check()
         const updatedStatement = await api.billing.statement(encounterId)
@@ -648,6 +685,13 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         if (!createdSettlement) throw new Error('结算单已生成，但暂未读取到支付信息，请刷新后继续。')
         finalSettlementId = createdSettlement.id
         finalSettlementCode = createdSettlement.settlementNo
+        const interruption = await reliefInterruption(createdSettlement.id, createdSettlement.outstandingAmount,
+          selectedChargesAmount)
+        session.check()
+        if (interruption) {
+          await refresh()
+          throw new Error(interruption)
+        }
       } catch (err: unknown) {
         setScanNotice({
           tone: 'warning',
@@ -1086,6 +1130,12 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           <EmptyState icon="billing" title="等待生成收费事项" copy="请先在费用明细面板中同步计费以生成费用账户。" />
         ) : (
           <>
+            <SettlementReliefPanel api={api} settlementMode={settlementMode}
+              canApprove={authorities.includes('BILLING_RELIEF.APPROVE')} onChanged={refresh}
+              settlements={payableSettlements.map((settlement) => ({
+                id: settlement.id, settlementNo: settlement.settlementNo, currencyCode: settlement.currencyCode,
+                insuranceSettled: insuranceSettlementReady(settlement),
+              }))} />
             <div className="billing-action-form">
               <SettlementPaymentPanel key={`${encounterId}-${selected.accountId}`} settlements={settlementOptions}
                 methods={paymentMethods.options}

@@ -18,6 +18,12 @@ public interface ResidentDirectory {
      */
     ResidentSnapshot requireSnapshotForUpdate(Long residentId);
 
+    /**
+     * Exact lookup of an active identifier (NATIONAL_ID, PASSPORT, OTHER or a dictionary system code) in the current
+     * tenant; returns the canonical resident. Used by roster imports that match people by identifier.
+     */
+    java.util.Optional<ResidentSnapshot> findByIdentifier(String identifierSystem, String identifierValue);
+
     default void requireResident(Long residentId) {
         resolveCanonicalResidentId(residentId);
     }

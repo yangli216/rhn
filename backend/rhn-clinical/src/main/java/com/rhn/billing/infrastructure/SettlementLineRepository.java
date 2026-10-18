@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface SettlementLineRepository extends JpaRepository<SettlementLine, Long> {
     List<SettlementLine> findByTenantIdAndSettlementIdOrderByLineNoAsc(Long tenantId, Long settlementId);
+    List<SettlementLine> findByTenantIdAndChargeItemIdIn(Long tenantId, java.util.Collection<Long> chargeItemIds);
 }

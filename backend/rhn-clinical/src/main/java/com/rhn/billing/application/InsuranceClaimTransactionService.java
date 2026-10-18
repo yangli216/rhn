@@ -160,6 +160,7 @@ class InsuranceClaimTransactionService {
         if (claims.findByTenantIdAndSettlementId(context.tenantId(), settlement.id()).isPresent()) {
             throw conflict("INSURANCE_CLAIM_ALREADY_EXISTS", "当前结算单已经存在医保申请");
         }
+        settlementService.requireInsuranceAllowed(context, settlement.id());
         PatientAccount account = requireAccount(context, settlement.patientAccountId());
         CoverageDirectory.CoverageView coverage = coverages.requireActive(input.coverageId(), account.residentId(),
                 quickResolver.serviceDate(account, input.serviceStartedAt()));

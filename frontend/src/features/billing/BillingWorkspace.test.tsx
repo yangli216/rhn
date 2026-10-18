@@ -106,6 +106,7 @@ describe('BillingWorkspace deep link', () => {
         issueInvoice,
         createPaymentOrder,
       },
+      relief: { settlementRelief: vi.fn().mockResolvedValue({ applications: [], pending: [] }) },
       dictionaries: { applicable: vi.fn().mockResolvedValue([
         { code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }, { code: 'MEDICAL_INSURANCE', name: '医保支付', attributes: { TENDER_TYPE: 'PERSONAL_ACCOUNT' } },
       ]) },
@@ -134,10 +135,73 @@ describe('BillingWorkspace deep link', () => {
       expect.stringMatching(/^INV-/),
       undefined,
       ['charge-1'],
+      'CASHIER', 'CASHIER-WEB', 'SELF_PAY',
     ))
     await waitFor(() => expect(createPaymentOrder).toHaveBeenCalledWith('settlement-1', expect.objectContaining({
       paymentMethodCode: 'CASH', amount: 28.6,
     })))
+  })
+
+  it.each([
+    { name: 'pre-insurance relief lowered the amount due', discount: 8.6, pending: [],
+      message: '已执行惠民减免，应收由 ¥28.60 调整为 ¥20.00，请核对后再收款。' },
+    { name: 'post-insurance relief awaits confirmation', discount: 0,
+      pending: [{ policyId: 'p-1', policyName: '民政救助', status: 'APPLIED', reliefAmount: 14.3 }],
+      message: '患者可享受惠民减免（民政救助），请在“惠民减免”中确认后再收款。' },
+  ])('stops before collecting when $name', async ({ discount, pending, message }) => {
+    const charge = {
+      id: 'charge-1', patientAccountId: 'account-1', residentId: 'resident-1', encounterId: 'encounter-1',
+      catalogItemId: 'catalog-1', sourceType: 'SERVICE_REQUEST', sourceId: 'request-1', requestCode: 'REQ-1',
+      status: 'POSTED', quantity: 1, unitCode: '次', unitPrice: 28.6, totalAmount: 28.6, currencyCode: 'CNY',
+      itemCode: 'SRV-GP', itemName: '全科门诊诊查', occurredAt: '2026-08-31T01:00:00Z',
+    }
+    const initialStatement = {
+      accountId: 'account-1', revision: 1, residentId: 'resident-1', encounterId: 'encounter-1',
+      organizationId: 'org-1', departmentId: 'dept-1', accountType: 'OUTPATIENT', currencyCode: 'CNY',
+      status: 'OPEN', chargeAmount: 28.6, invoicedAmount: 0, uninvoicedAmount: 28.6, paymentAmount: 0,
+      refundAmount: 0, accountBalance: 28.6, charges: [charge], invoices: [], settlements: [], payments: [], ledgerEntries: [],
+    }
+    const net = Number((28.6 - discount).toFixed(2))
+    const settlement = {
+      id: 'settlement-1', revision: 0, patientAccountId: 'account-1', legacyInvoiceId: 'invoice-1',
+      settlementNo: 'STL-1', commandCode: 'INV-1', settlementType: 'NORMAL', settlementScene: 'OUTPATIENT',
+      terminalScene: 'CASHIER', status: 'PAYMENT_PENDING', grossAmount: 28.6, discountAmount: discount,
+      insuranceAmount: 0, patientAmount: net, otherAmount: 0, roundingAmount: 0, netAmount: net,
+      tenderedAmount: 0, outstandingAmount: net, currencyCode: 'CNY', createdBy: 'cashier',
+      createdAt: '2026-08-31T01:01:00Z', lines: [], tenders: [], events: [],
+    }
+    const statement = vi.fn().mockResolvedValueOnce(initialStatement).mockResolvedValue({
+      ...initialStatement, revision: 2, invoicedAmount: net, uninvoicedAmount: 0, settlements: [settlement],
+    })
+    const createPaymentOrder = vi.fn()
+    const settlementRelief = vi.fn().mockResolvedValue({ settlementId: 'settlement-1', applications: [], pending })
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([{ encounterId: 'encounter-1', residentId: 'resident-1',
+          residentName: '王建国', accountId: 'account-1', status: 'PENDING_INVOICE', sourceEventCount: 1,
+          chargedEventCount: 1, chargeAmount: 28.6, accountBalance: 28.6, currencyCode: 'CNY' }]),
+        statement, paymentOrders: vi.fn().mockResolvedValue([]), settlementReceipts: vi.fn().mockResolvedValue([]),
+        issueInvoice: vi.fn().mockResolvedValue({ id: 'invoice-1' }), createPaymentOrder,
+      },
+      relief: { settlementRelief },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([
+        { code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } },
+      ]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    const settleButton = await screen.findByRole('button', { name: '结算开票 (Ctrl+Enter)' })
+    expect(await screen.findByPlaceholderText('28.6')).toHaveValue(28.6)
+    await waitFor(() => expect(settleButton).toBeEnabled())
+    await userEvent.click(settleButton)
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(createPaymentOrder).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -206,6 +270,7 @@ describe('BillingWorkspace deep link', () => {
     await user.click(button)
     await waitFor(() => expect(issueInvoice).toHaveBeenCalledWith(
       'account-1', expect.stringMatching(/^INV-/), undefined, expect.arrayContaining(charges.map(charge => charge.id)),
+      'CASHIER', 'CASHIER-WEB', 'SELF_PAY',
     ))
     await waitFor(() => expect(screen.queryByLabelText('勾选项目 费用0')).not.toBeInTheDocument())
     expect(createPaymentOrder).not.toHaveBeenCalled()
@@ -452,6 +517,7 @@ describe('BillingWorkspace deep link', () => {
       expect.stringMatching(/^INV-/),
       undefined,
       ['charge-rx-1'],
+      'CASHIER', 'CASHIER-WEB', 'SELF_PAY',
     ))
   })
 

@@ -22418,6 +22418,11 @@
         "previousPhysical": "ID_CLAIM_RESPONSE"
       },
       {
+        "logical": "relief_application_id",
+        "physical": "ID_RELIEF_APPLY",
+        "comment": "减免记录标识，医保后减免的资金来源"
+      },
+      {
         "logical": "line_no",
         "physical": "SN_LINE",
         "comment": "明细编号"
@@ -22544,6 +22549,11 @@
         "comment": "other金额"
       },
       {
+        "logical": "relief_amount",
+        "physical": "AMT_RELIEF",
+        "comment": "医保后惠民减免与补助金额"
+      },
+      {
         "logical": "rounding_amount",
         "physical": "AMT_RND",
         "comment": "舍入金额"
@@ -22602,6 +22612,752 @@
         "logical": "department_id",
         "physical": "ID_DEPT",
         "comment": "科室标识"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_application",
+    "legacy": "relief_application",
+    "physical": "RHN_BIL_RELIEF_APPLY",
+    "domain": "BIL",
+    "comment": "结算减免记录；一行代表一项政策对一张结算单的一次减免或冲销",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_APPLY",
+        "comment": "减免记录主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "结算机构标识"
+      },
+      {
+        "logical": "settlement_id",
+        "physical": "ID_STL",
+        "comment": "结算单标识"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "居民标识"
+      },
+      {
+        "logical": "policy_id",
+        "physical": "ID_RELIEF_POLICY",
+        "comment": "减免政策标识"
+      },
+      {
+        "logical": "policy_version_id",
+        "physical": "ID_POLICY_VER",
+        "comment": "政策版本标识"
+      },
+      {
+        "logical": "timing",
+        "physical": "SD_TIMING",
+        "comment": "减免时机"
+      },
+      {
+        "logical": "sponsor",
+        "physical": "SD_SPONSOR",
+        "comment": "减免承担主体"
+      },
+      {
+        "logical": "settlement_scene",
+        "physical": "SD_STL_SCENE",
+        "comment": "结算场景"
+      },
+      {
+        "logical": "base_amount",
+        "physical": "AMT_BASE",
+        "comment": "计算基数"
+      },
+      {
+        "logical": "relief_amount",
+        "physical": "AMT_RELIEF",
+        "comment": "减免金额，冲销记录为负"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "减免记录状态"
+      },
+      {
+        "logical": "reverses_application_id",
+        "physical": "ID_RELIEF_APPLY_RVRS",
+        "comment": "被冲销的原减免记录标识"
+      },
+      {
+        "logical": "tender_id",
+        "physical": "ID_STL_TENDER",
+        "comment": "医保后减免对应的结算支付标识"
+      },
+      {
+        "logical": "qualification_evidence",
+        "physical": "JSON_QUALIF_EVID",
+        "comment": "资格认定依据快照"
+      },
+      {
+        "logical": "manual_reason",
+        "physical": "DES_MANUAL_REASON",
+        "comment": "人工核准原因"
+      },
+      {
+        "logical": "manual_evidence",
+        "physical": "DES_MANUAL_EVID",
+        "comment": "人工核准依据"
+      },
+      {
+        "logical": "approved_by",
+        "physical": "ID_USER_APRVD",
+        "comment": "人工核准人标识"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_COMMAND",
+        "comment": "幂等命令码"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_application_line",
+    "legacy": "relief_application_line",
+    "physical": "RHN_BIL_RELIEF_APPLY_LINE",
+    "domain": "BIL",
+    "comment": "结算减免分配明细；一行代表一条减免记录在一个结算行上的分配",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_APPLY_LINE",
+        "comment": "减免分配明细主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "application_id",
+        "physical": "ID_RELIEF_APPLY",
+        "comment": "减免记录标识"
+      },
+      {
+        "logical": "settlement_line_id",
+        "physical": "ID_STL_LINE",
+        "comment": "结算行标识"
+      },
+      {
+        "logical": "charge_item_id",
+        "physical": "ID_CHARGE_ITEM",
+        "comment": "收费事项标识"
+      },
+      {
+        "logical": "rule_id",
+        "physical": "ID_RELIEF_RULE",
+        "comment": "命中的减免规则标识"
+      },
+      {
+        "logical": "base_amount",
+        "physical": "AMT_BASE",
+        "comment": "本行计算基数"
+      },
+      {
+        "logical": "relief_amount",
+        "physical": "AMT_RELIEF",
+        "comment": "本行减免金额，冲销为负"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_policy",
+    "legacy": "relief_policy",
+    "physical": "RHN_BIL_RELIEF_POLICY",
+    "domain": "BIL",
+    "comment": "惠民减免政策；一行代表一项政策，计算内容见政策版本",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_POLICY",
+        "comment": "减免政策主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "code",
+        "physical": "CD_POLICY",
+        "comment": "政策编码"
+      },
+      {
+        "logical": "name",
+        "physical": "NA_POLICY",
+        "comment": "政策名称"
+      },
+      {
+        "logical": "description",
+        "physical": "DES_POLICY",
+        "comment": "政策说明"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "政策状态"
+      },
+      {
+        "logical": "current_version_id",
+        "physical": "ID_POLICY_VER_CUR",
+        "comment": "当前发布版本标识"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "最后修改人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后修改时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_policy_version",
+    "legacy": "relief_policy_version",
+    "physical": "RHN_BIL_RELIEF_POLICY_VER",
+    "domain": "BIL",
+    "comment": "惠民减免政策版本；一行代表一项政策的一个版本，发布后不再修改",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_POLICY_VER",
+        "comment": "政策版本主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "policy_id",
+        "physical": "ID_RELIEF_POLICY",
+        "comment": "减免政策标识"
+      },
+      {
+        "logical": "version_no",
+        "physical": "SN_VER",
+        "comment": "版本序号"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "版本状态"
+      },
+      {
+        "logical": "timing",
+        "physical": "SD_TIMING",
+        "comment": "减免时机：医保前或医保后"
+      },
+      {
+        "logical": "sponsor",
+        "physical": "SD_SPONSOR",
+        "comment": "减免承担主体"
+      },
+      {
+        "logical": "payer_code",
+        "physical": "CD_PAYER",
+        "comment": "承担单位编码"
+      },
+      {
+        "logical": "payer_name",
+        "physical": "NA_PAYER",
+        "comment": "承担单位名称"
+      },
+      {
+        "logical": "applicable_scope",
+        "physical": "JSON_APPL_SCOPE",
+        "comment": "适用机构与结算场景"
+      },
+      {
+        "logical": "effective_from",
+        "physical": "DA_EFF_FROM",
+        "comment": "生效日期"
+      },
+      {
+        "logical": "effective_to",
+        "physical": "DA_EFF_TO",
+        "comment": "失效日期，空表示长期有效"
+      },
+      {
+        "logical": "priority",
+        "physical": "SN_PRI",
+        "comment": "执行优先级，数值小者先执行"
+      },
+      {
+        "logical": "mutex_group",
+        "physical": "CD_MUTEX_GROUP",
+        "comment": "互斥组编码，同组只执行一项"
+      },
+      {
+        "logical": "stackable",
+        "physical": "FG_STACK",
+        "comment": "是否允许与其他政策叠加"
+      },
+      {
+        "logical": "qualification_mode",
+        "physical": "SD_QUALIF_MODE",
+        "comment": "资格条件组合方式"
+      },
+      {
+        "logical": "insured_applicable",
+        "physical": "FG_INS_APPL",
+        "comment": "医保结算患者是否适用"
+      },
+      {
+        "logical": "base_includes_personal_account",
+        "physical": "FG_BASE_PERS_ACCT",
+        "comment": "医保后计算基数是否包含个人账户支付"
+      },
+      {
+        "logical": "once_max_amount",
+        "physical": "AMT_ONCE_MAX",
+        "comment": "单次减免上限"
+      },
+      {
+        "logical": "quota_period",
+        "physical": "SD_QUOTA_PERIOD",
+        "comment": "额度周期"
+      },
+      {
+        "logical": "period_max_amount",
+        "physical": "AMT_PERIOD_MAX",
+        "comment": "周期累计减免上限"
+      },
+      {
+        "logical": "period_max_count",
+        "physical": "QTY_PERIOD_MAX",
+        "comment": "周期最多享受次数"
+      },
+      {
+        "logical": "share_across_scenes",
+        "physical": "FG_SHARE_SCENE",
+        "comment": "门诊与住院是否共享额度"
+      },
+      {
+        "logical": "share_across_organizations",
+        "physical": "FG_SHARE_ORG",
+        "comment": "不同机构是否共享额度"
+      },
+      {
+        "logical": "version_note",
+        "physical": "DES_VER_NOTE",
+        "comment": "版本说明"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "published_by",
+        "physical": "ID_USER_PUBLISD",
+        "comment": "发布人标识"
+      },
+      {
+        "logical": "published_at",
+        "physical": "DT_PUBLISD",
+        "comment": "发布时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_qualification",
+    "legacy": "relief_qualification",
+    "physical": "RHN_BIL_RELIEF_QUALIF",
+    "domain": "BIL",
+    "comment": "惠民减免资格条件；一行代表政策版本要求的一项资格条件",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_QUALIF",
+        "comment": "资格条件主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "policy_version_id",
+        "physical": "ID_POLICY_VER",
+        "comment": "政策版本标识"
+      },
+      {
+        "logical": "line_no",
+        "physical": "SN_LINE",
+        "comment": "条件行号"
+      },
+      {
+        "logical": "source",
+        "physical": "SD_QUALIF_SRC",
+        "comment": "资格来源"
+      },
+      {
+        "logical": "qualification_type",
+        "physical": "CD_QUALIF_TYPE",
+        "comment": "资格类别编码"
+      },
+      {
+        "logical": "conditions",
+        "physical": "JSON_COND",
+        "comment": "属性条件"
+      },
+      {
+        "logical": "provider_code",
+        "physical": "CD_PRVDR",
+        "comment": "外部资格接口编码"
+      },
+      {
+        "logical": "failure_policy",
+        "physical": "SD_FAIL_POLICY",
+        "comment": "外部资格查询失败时的处理"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_quota",
+    "legacy": "relief_quota",
+    "physical": "RHN_BIL_RELIEF_QUOTA",
+    "domain": "BIL",
+    "comment": "惠民减免额度累计；一行代表一位居民在一个额度范围和周期内的已用金额与次数",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_QUOTA",
+        "comment": "额度累计主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "policy_id",
+        "physical": "ID_RELIEF_POLICY",
+        "comment": "减免政策标识"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "居民标识"
+      },
+      {
+        "logical": "period_key",
+        "physical": "CD_PERIOD",
+        "comment": "周期键，如 2026 或 2026-10"
+      },
+      {
+        "logical": "share_key",
+        "physical": "CD_SHARE",
+        "comment": "共享范围键：结算场景与机构"
+      },
+      {
+        "logical": "scope_key",
+        "physical": "CD_SCOPE",
+        "comment": "额度对象：整项政策或规则范围"
+      },
+      {
+        "logical": "used_amount",
+        "physical": "AMT_USED",
+        "comment": "已用减免金额"
+      },
+      {
+        "logical": "used_count",
+        "physical": "QTY_USED",
+        "comment": "已享受次数"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后变动时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_quota_transaction",
+    "legacy": "relief_quota_transaction",
+    "physical": "RHN_BIL_RELIEF_QUOTA_TXN",
+    "domain": "BIL",
+    "comment": "惠民减免额度流水；一行代表一次额度占用、确认、释放或恢复",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_QUOTA_TXN",
+        "comment": "额度流水主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "quota_id",
+        "physical": "ID_RELIEF_QUOTA",
+        "comment": "额度累计标识"
+      },
+      {
+        "logical": "application_id",
+        "physical": "ID_RELIEF_APPLY",
+        "comment": "减免记录标识"
+      },
+      {
+        "logical": "transaction_type",
+        "physical": "SD_TXN_TYPE",
+        "comment": "额度变动类型"
+      },
+      {
+        "logical": "amount_delta",
+        "physical": "AMT_DELTA",
+        "comment": "金额变动，释放与恢复为负"
+      },
+      {
+        "logical": "count_delta",
+        "physical": "QTY_DELTA",
+        "comment": "次数变动，释放与恢复为负"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_COMMAND",
+        "comment": "幂等命令码"
+      },
+      {
+        "logical": "actor_id",
+        "physical": "ID_USER",
+        "comment": "操作人标识"
+      },
+      {
+        "logical": "occurred_at",
+        "physical": "DT_OCCRD",
+        "comment": "发生时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_roster",
+    "legacy": "relief_roster",
+    "physical": "RHN_BIL_RELIEF_ROSTER",
+    "domain": "BIL",
+    "comment": "惠民资格名单；一行代表一位居民的一项资格及其有效期",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_ROSTER",
+        "comment": "资格名单主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "登记机构标识"
+      },
+      {
+        "logical": "qualification_type",
+        "physical": "CD_QUALIF_TYPE",
+        "comment": "资格类别编码"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "居民标识"
+      },
+      {
+        "logical": "resident_name_snapshot",
+        "physical": "NA_PAT_SNAP",
+        "comment": "居民姓名快照"
+      },
+      {
+        "logical": "effective_from",
+        "physical": "DA_EFF_FROM",
+        "comment": "资格生效日期"
+      },
+      {
+        "logical": "effective_to",
+        "physical": "DA_EFF_TO",
+        "comment": "资格失效日期，空表示长期有效"
+      },
+      {
+        "logical": "evidence_no",
+        "physical": "CD_EVID_NO",
+        "comment": "资格证明编号"
+      },
+      {
+        "logical": "evidence",
+        "physical": "DES_EVID",
+        "comment": "资格依据说明"
+      },
+      {
+        "logical": "import_batch",
+        "physical": "CD_BATCH",
+        "comment": "导入批次"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "名单状态"
+      },
+      {
+        "logical": "status_reason",
+        "physical": "DES_REASON",
+        "comment": "停用原因"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "最后修改人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后修改时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.relief_rule",
+    "legacy": "relief_rule",
+    "physical": "RHN_BIL_RELIEF_RULE",
+    "domain": "BIL",
+    "comment": "惠民减免规则；一行代表政策版本中的一条费用范围及其计算方式",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RELIEF_RULE",
+        "comment": "减免规则主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "policy_version_id",
+        "physical": "ID_POLICY_VER",
+        "comment": "政策版本标识"
+      },
+      {
+        "logical": "line_no",
+        "physical": "SN_LINE",
+        "comment": "规则行号"
+      },
+      {
+        "logical": "scope_type",
+        "physical": "SD_SCOPE_TYPE",
+        "comment": "费用范围类型"
+      },
+      {
+        "logical": "scope_value",
+        "physical": "CD_SCOPE_VAL",
+        "comment": "会计大类或收费来源编码"
+      },
+      {
+        "logical": "catalog_item_id",
+        "physical": "ID_CATALOG_ITEM",
+        "comment": "收费项目标识"
+      },
+      {
+        "logical": "scope_name_snapshot",
+        "physical": "NA_SCOPE_SNAP",
+        "comment": "范围名称快照"
+      },
+      {
+        "logical": "excluded",
+        "physical": "FG_EXCLUDE",
+        "comment": "是否为排除范围"
+      },
+      {
+        "logical": "method",
+        "physical": "SD_METHOD",
+        "comment": "减免方式，排除范围为空"
+      },
+      {
+        "logical": "relief_ratio",
+        "physical": "VAL_RATIO",
+        "comment": "减免比例，0 至 1"
+      },
+      {
+        "logical": "rule_amount",
+        "physical": "AMT_RULE",
+        "comment": "固定减免、单位减免或个人限价金额"
+      },
+      {
+        "logical": "manual_max_amount",
+        "physical": "AMT_MANUAL_MAX",
+        "comment": "人工核准金额上限"
+      },
+      {
+        "logical": "period_max_count",
+        "physical": "QTY_PERIOD_MAX",
+        "comment": "本规则范围周期最多享受次数"
       }
     ]
   },

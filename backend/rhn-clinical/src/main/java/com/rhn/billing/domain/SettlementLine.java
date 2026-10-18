@@ -41,6 +41,24 @@ public class SettlementLine {
         this.insuranceAmount = insurance; this.otherAmount = other;
         this.patientAmount = netAmount.subtract(insurance).subtract(other);
     }
+    /** 医保前减免落到行：降低行净额，须在医保分摊之前。 */
+    public void applyDiscount(BigDecimal amount) {
+        if (insuranceAmount.signum() != 0 || otherAmount.signum() != 0) throw new IllegalStateException("医保分摊后不能再应用医保前减免");
+        if (amount.signum() <= 0 || amount.compareTo(netAmount) > 0) throw new IllegalArgumentException("结算行减免金额不正确");
+        this.discountAmount = discountAmount.add(amount); this.netAmount = grossAmount.subtract(discountAmount);
+        this.patientAmount = netAmount.abs();
+    }
+
+    /** 冲正行冲回医保前减免：负向优惠，冲正净额 = 冲正原额 + 冲回优惠。 */
+    public void applyDiscountReversal(BigDecimal amount) {
+        if (grossAmount.signum() >= 0 || amount.signum() <= 0
+                || amount.compareTo(grossAmount.abs().subtract(discountAmount.abs())) > 0) {
+            throw new IllegalArgumentException("冲正行冲回的减免金额不正确");
+        }
+        this.discountAmount = discountAmount.subtract(amount); this.netAmount = grossAmount.subtract(discountAmount);
+        this.patientAmount = netAmount.abs();
+    }
+
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
     public Long id() { return id; } public Long settlementId() { return settlementId; }
     public Long legacyInvoiceLineId() { return legacyInvoiceLineId; }

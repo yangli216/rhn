@@ -50,10 +50,13 @@ function mount(preStatus: InsuranceSettlementView['status'], finalStatus: Insura
     }),
     insuranceClaim: vi.fn().mockImplementation(async () => persisted),
     createPaymentOrder: vi.fn().mockResolvedValue({ id: 'pay-1', status: 'SUCCEEDED' }),
+    // After the formal insurance settlement the cashier collects the settlement's outstanding patient share.
+    settlement: vi.fn().mockImplementation(async () => ({ id: 'settlement-1', outstandingAmount: persisted.patientCashAmount })),
     issueSettlementReceipt: vi.fn().mockResolvedValue({ id: 'receipt-1', settlementId: 'settlement-1',
       status: 'FAILED', receiptNo: 'REQUEST-1', amount: 30, currencyCode: 'CNY', errorMessage: '财政平台拒绝开票' }),
   }
-  const api = { billing, dictionaries: { applicable: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
+  const relief = { settlementRelief: vi.fn().mockResolvedValue({ settlementId: 'settlement-1', applications: [], pending: [] }) }
+  const api = { billing, relief, dictionaries: { applicable: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
   const view = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
     <MemoryRouter><BillingWorkspace api={api} clinicalContext={{ organization: { id: 'org-1', name: '机构' },
       department: { id: 'dept-1', name: '科室' } } as ClinicalContext} /></MemoryRouter>

@@ -17,6 +17,7 @@ public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
     @Query("select c from ChargeItem c where c.id = :id and c.tenantId = :tenantId")
     Optional<ChargeItem> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
     List<ChargeItem> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
+    List<ChargeItem> findByTenantIdAndReversesChargeItemIdIn(Long tenantId, Collection<Long> reversedChargeItemIds);
     List<ChargeItem> findByTenantIdAndReversesChargeItemIdOrderByOccurredAtAscIdAsc(Long tenantId,
                                                                                      Long reversesChargeItemId);
     List<ChargeItem> findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(Long tenantId, Long accountId);

@@ -1,0 +1,58 @@
+/* 惠民减免：政策、名单与收费减免块的业务布局；控件外观沿用 shared/ui。 */
+.relief-page { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+
+.relief-policy-list { display: flex; flex-direction: column; gap: var(--space-2); }
+button.relief-policy-item,
+.relief-policy-item {
+  width: 100%;
+  height: auto;
+  min-height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  white-space: normal;
+  text-align: left;
+}
+.relief-policy-item:hover { border-color: var(--color-info-border); background: var(--color-surface-subtle); }
+.relief-policy-item.is-selected { border-color: var(--color-info); background: var(--color-info-soft); }
+.relief-policy-item__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.relief-policy-item__name { color: var(--color-text-primary); overflow-wrap: anywhere; }
+.relief-policy-item__meta { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+.relief-detail-meta { display: inline-flex; align-items: center; gap: var(--space-2); }
+.relief-detail-footer { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.relief-detail-footer__hint { flex: 1; min-width: 12rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+.relief-editor { display: flex; flex-direction: column; gap: var(--layout-section-gap); }
+.relief-editor__section { min-width: 0; }
+.relief-editor__section--table { overflow-x: auto; }
+.relief-editor__note { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.relief-editor__muted { color: var(--color-text-secondary); }
+.relief-editor__errors { margin: 0; padding-left: var(--space-5); }
+.relief-rule-table { min-width: 60rem; }
+.relief-rule-table td:nth-child(3) { min-width: 14rem; }
+
+.relief-qualification-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.relief-qualification { padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.relief-qualification__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+
+.relief-roster-actions { display: inline-flex; gap: var(--space-1); justify-content: flex-end; }
+.relief-dialog-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-4); }
+.relief-dialog-fields > .ui-field { margin-block: var(--space-2); }
+.relief-dialog-fields > .is-wide { grid-column: 1 / -1; }
+.relief-import-summary { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: var(--space-2) 0; }
+.relief-import-table { max-height: 18rem; overflow: auto; }
+
+.relief-cashier { display: flex; flex-direction: column; gap: var(--space-2); }
+.relief-cashier__settlement { padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.relief-cashier__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+.relief-cashier__totals { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.relief-cashier__list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.relief-cashier__item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2); }
+.relief-cashier__item-name { min-width: 0; overflow-wrap: anywhere; }
+.relief-cashier__item-reason { grid-column: 1 / -1; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.relief-cashier__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }

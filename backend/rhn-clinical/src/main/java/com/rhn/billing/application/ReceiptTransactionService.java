@@ -197,7 +197,7 @@ class ReceiptTransactionService {
         return new ReceiptInstruction(receipt.id(), settlement.id(), receipt.receiptNo(), receipt.commandCode(),
                 receipt.receiptType(), receipt.issueChannel(), receipt.fiscalAuthorityCode(), receipt.externalReceiptNo(), receipt.payerName(),
                 receipt.payerIdentityDigest(), receipt.receiptAmount(), settlement.roundingAmount(), receipt.currencyCode(),
-                allocation.insuranceAmount(), allocation.personalAccountAmount(), allocation.patientAmount(), allocation.otherFundAmount(), lines,
+                allocation.insuranceAmount(), allocation.personalAccountAmount(), allocation.patientAmount(), allocation.otherPaymentAmount(), lines,
                 receipt.correlationId());
     }
 

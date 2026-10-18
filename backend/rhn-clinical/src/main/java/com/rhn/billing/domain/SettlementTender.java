@@ -16,6 +16,7 @@ public class SettlementTender {
     @Column(name = "ID_STL", nullable = false) private Long settlementId;
     @Column(name = "ID_PAY") private Long paymentId;
     @Column(name = "ID_CLAIM_RESP") private Long claimResponseId;
+    @Column(name = "ID_RELIEF_APPLY") private Long reliefApplicationId;
     @Column(name = "SN_LINE", nullable = false) private int lineNo;
     @Column(name = "SD_TENDER_TYPE", nullable = false) private String tenderType;
     @Column(name = "CD_PAYER") private String payerCode;
@@ -38,6 +39,17 @@ public class SettlementTender {
         this(tenantId, settlementId, null, lineNo, tenderType, payerCode, payerName, amount, currencyCode);
         this.claimResponseId = claimResponseId;
     }
+    /** 医保后减免或补助：资金来源是减免记录，不是患者支付或医保回执。 */
+    public static SettlementTender relief(Long tenantId, Long settlementId, Long reliefApplicationId, int lineNo,
+                                          String tenderType, String payerCode, String payerName,
+                                          BigDecimal amount, String currencyCode) {
+        SettlementTender value = new SettlementTender(tenantId, settlementId, null, lineNo, tenderType, payerCode,
+                payerName, amount, currencyCode);
+        value.reliefApplicationId = reliefApplicationId;
+        return value;
+    }
+
+    public Long reliefApplicationId() { return reliefApplicationId; }
     public Long id() { return id; } public Long paymentId() { return paymentId; } public Long claimResponseId() { return claimResponseId; }
     public int lineNo() { return lineNo; } public String tenderType() { return tenderType; }
     public String payerCode() { return payerCode; } public String payerNameSnapshot() { return payerNameSnapshot; }

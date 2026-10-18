@@ -31,6 +31,7 @@ import { createPrintingApi } from './printingApi'
 import { createDiagnosticsApi } from './diagnosticsApi'
 import { createPharmacyApi } from './pharmacyApi'
 import { createBillingApi } from './billingApi'
+import { createReliefApi } from './reliefApi'
 import { createHealthPlanningApi } from './healthPlanningApi'
 import { createSchedulingApi } from './schedulingApi'
 import { createGridAddressApi } from './gridAddressApi'
@@ -64,6 +65,7 @@ export * from './printingApi'
 export * from './diagnosticsApi'
 export * from './pharmacyApi'
 export * from './billingApi'
+export * from './reliefApi'
 export * from './healthPlanningApi'
 export * from './schedulingApi'
 export * from './gridAddressApi'
@@ -110,6 +112,7 @@ function createApiModules(client: ApiClient) {
     diagnostics: createDiagnosticsApi(client),
     pharmacy: createPharmacyApi(client),
     billing: createBillingApi(client),
+    relief: createReliefApi(client),
     healthPlanning: createHealthPlanningApi(client),
     scheduling: createSchedulingApi(client),
     gridAddresses: createGridAddressApi(client),

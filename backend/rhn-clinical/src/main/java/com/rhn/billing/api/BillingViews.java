@@ -54,7 +54,7 @@ public final class BillingViews {
             @DictionaryBinding("BIL_SETTLEMENT_SCENE") String settlementScene,
             @DictionaryBinding("PAY_USE_SCENE") String terminalScene, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String status, BigDecimal grossAmount,
             BigDecimal discountAmount, BigDecimal insuranceAmount, BigDecimal patientAmount,
-            BigDecimal otherAmount, BigDecimal roundingAmount, BigDecimal netAmount,
+            BigDecimal otherAmount, BigDecimal reliefAmount, BigDecimal roundingAmount, BigDecimal netAmount,
             BigDecimal tenderedAmount, BigDecimal outstandingAmount, String currencyCode,
             String terminalCode, Long createdBy, Instant createdAt, Long finalizedBy, Instant finalizedAt,
             String errorCode, String errorMessage, List<SettlementLineView> lines,

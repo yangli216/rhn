@@ -22,8 +22,9 @@ class ReceiptFundingServiceTest {
     final InsuranceClaimResponseRepository responses = mock(InsuranceClaimResponseRepository.class);
     final DictionaryDirectory dictionaries = mock(DictionaryDirectory.class);
     final SystemEnumDirectory systemEnums = mock(SystemEnumDirectory.class);
+    final ReliefApplicationRepository reliefs = mock(ReliefApplicationRepository.class);
     final ReceiptFundingService service = new ReceiptFundingService(tenders, payments, claims, responses,
-            new BillingCodes(dictionaries, systemEnums));
+            new BillingCodes(dictionaries, systemEnums), reliefs);
     final Settlement settlement = new Settlement(2L, 1L, 3L, 4L, "STL", "CMD", "NORMAL", "OUTPATIENT",
             "CASHIER", money("10"), "CNY", "TEST", 5L, Instant.now());
     final List<SettlementTender> rows = new ArrayList<>();
@@ -114,6 +115,28 @@ class ReceiptFundingServiceTest {
     @Test void duplicateOrMissingPaymentLinkIsRejected() {
         payment("10","CASH",false,"10");finish();rows.add(rows.getFirst());rejected();rows.removeLast();
         ReflectionTestUtils.setField(rows.getFirst(),"paymentId",null);rejected();
+    }
+    @Test void postInsuranceReliefIsAFundingSourceReportedAsOtherPayment() {
+        settlement.applyPostInsuranceRelief(money("4"));
+        var application=relief(2L,"4");
+        rows.add(SettlementTender.relief(1L,2L,application.id(),1,"SUBSIDY","MZJ","民政局",money("4"),"CNY"));
+        payment("6","CASH",false,"6");finish();
+        var result=service.resolve(settlement);
+        equal("4",result.reliefAmount());equal("6",result.patientAmount());equal("4",result.otherPaymentAmount());
+    }
+    @Test void reliefTenderMustMatchItsApplication() {
+        settlement.applyPostInsuranceRelief(money("4"));
+        var application=relief(99L,"4");
+        rows.add(SettlementTender.relief(1L,2L,application.id(),1,"SUBSIDY","MZJ","民政局",money("4"),"CNY"));
+        payment("6","CASH",false,"6");finish();rejected();
+        when(application.settlementId()).thenReturn(2L);when(application.reliefAmount()).thenReturn(money("3"));rejected();
+    }
+    ReliefApplication relief(Long settlementId,String amount) {
+        var value=mock(ReliefApplication.class);
+        when(value.id()).thenReturn(77L);when(value.tenantId()).thenReturn(1L);when(value.settlementId()).thenReturn(settlementId);
+        when(value.timing()).thenReturn(ReliefTiming.POST_INSURANCE);when(value.reliefAmount()).thenReturn(money(amount));
+        when(reliefs.findById(77L)).thenReturn(Optional.of(value));
+        return value;
     }
     void rejected(){assertThrows(BusinessException.class,()->service.resolve(settlement));}
     void finish(){settlement.applyPaidAmount(money("10"),5L,Instant.now());}

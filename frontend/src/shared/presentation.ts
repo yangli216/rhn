@@ -27,6 +27,16 @@ export function chargeCategoryTone(code: string): SemanticTone {
   return tones[code.trim().toUpperCase()] ?? 'neutral'
 }
 
+// 惠民减免状态文案由服务端字典翻译（statusText），此处仅维护视觉语义。
+export function reliefStatusTone(status: string | undefined): SemanticTone {
+  const tones: Record<string, SemanticTone> = {
+    ACTIVE: 'success', PUBLISHED: 'success', APPLIED: 'success',
+    DRAFT: 'info', AWAITING_MANUAL: 'warning', SUSPENDED: 'warning', SKIPPED: 'neutral',
+    SUPERSEDED: 'neutral', RETIRED: 'neutral', REVOKED: 'neutral', REVERSED: 'neutral',
+  }
+  return tones[status ?? ''] ?? 'neutral'
+}
+
 export interface StatusPresentation {
   label: string
   tone: SemanticTone

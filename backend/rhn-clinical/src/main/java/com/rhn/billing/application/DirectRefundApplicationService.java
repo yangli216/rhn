@@ -57,6 +57,7 @@ public class DirectRefundApplicationService {
     private final RefundPreCheckService preCheckService;
     private final com.rhn.billing.api.RefundDiagnosticDirectory diagnostics;
     private final ExecutionContextProvider contextProvider;
+    private final SettlementReliefService relief;
 
     public DirectRefundApplicationService(PaymentRepository payments,
                                           PatientAccountRepository accounts,
@@ -70,7 +71,8 @@ public class DirectRefundApplicationService {
                                           ReceiptApplicationService receiptService,
                                           RefundPreCheckService preCheckService,
                                           com.rhn.billing.api.RefundDiagnosticDirectory diagnostics,
-                                          ExecutionContextProvider contextProvider) {
+                                          ExecutionContextProvider contextProvider,
+                                          SettlementReliefService relief) {
         this.payments = payments;
         this.accounts = accounts;
         this.charges = charges;
@@ -84,6 +86,7 @@ public class DirectRefundApplicationService {
         this.preCheckService = preCheckService;
         this.diagnostics = diagnostics;
         this.contextProvider = contextProvider;
+        this.relief = relief;
     }
 
     @Transactional
@@ -211,11 +214,12 @@ public class DirectRefundApplicationService {
             if (alreadyReversed.contains(original.id())) continue;
             if (credited.compareTo(neededCredit) >= 0) break;
 
-            credited = credited.add(reverseSingleCharge(context, original, now));
+            credited = credited.add(reverseSingleCharge(context, account, original, now));
         }
     }
 
-    private BigDecimal reverseSingleCharge(ExecutionContext context, ChargeItem original, Instant now) {
+    /** 冲销收费事项并冲回其已享受的惠民减免；返回本次实际增加的可退金额（冲销原额 - 冲回减免）。 */
+    private BigDecimal reverseSingleCharge(ExecutionContext context, PatientAccount account, ChargeItem original, Instant now) {
         BigDecimal reversalAmount = original.totalAmount().negate();
         ChargeItem reversal = charges.save(new ChargeItem(
                 context.tenantId(), original.organizationId(), original.departmentId(),
@@ -245,7 +249,8 @@ public class DirectRefundApplicationService {
                 null, null, originalLedger, now, context.subjectId()
         ));
 
-        return original.totalAmount();
+        BigDecimal relieved = relief.reverseForChargeReversals(context, account, List.of(reversal), null, null);
+        return original.totalAmount().subtract(relieved);
     }
 
     private void cancelPharmacyFulfillment(Long tenantId, Long requestId) {

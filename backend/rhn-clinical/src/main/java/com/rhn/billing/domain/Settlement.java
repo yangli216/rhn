@@ -34,6 +34,7 @@ public class Settlement {
     @Column(name = "AMT_INS", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
     @Column(name = "AMT_PAT", nullable = false, precision = 24, scale = 6) private BigDecimal patientAmount;
     @Column(name = "AMT_OTHER", nullable = false, precision = 24, scale = 6) private BigDecimal otherAmount;
+    @Column(name = "AMT_RELIEF", nullable = false, precision = 24, scale = 6) private BigDecimal reliefAmount;
     @Column(name = "AMT_RND", nullable = false, precision = 24, scale = 6) private BigDecimal roundingAmount;
     @Column(name = "AMT_NET", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
     @Column(name = "CD_CCY", nullable = false) private String currencyCode;
@@ -68,7 +69,7 @@ public class Settlement {
         this.settlementType = settlementType; this.settlementScene = settlementScene;
         this.terminalScene = terminalScene; this.status = SettlementStatus.PRICED; this.grossAmount = amount;
         this.discountAmount = zero(); this.insuranceAmount = zero(); this.patientAmount = amount.abs();
-        this.otherAmount = zero(); this.roundingAmount = zero(); this.netAmount = amount;
+        this.otherAmount = zero(); this.reliefAmount = zero(); this.roundingAmount = zero(); this.netAmount = amount;
         this.currencyCode = currencyCode; this.terminalCode = terminalCode;
         this.createdBy = createdBy; this.createdAt = createdAt;
     }
@@ -98,6 +99,7 @@ public class Settlement {
         if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL).contains(status)) {
             throw new IllegalStateException("当前结算状态不能应用医保分摊");
         }
+        if (reliefAmount.signum() != 0) throw new IllegalStateException("已按自费确认医保后减免，不能再应用医保分摊");
         BigDecimal total = insuranceFund.add(personalAccount).add(patientCash).add(otherFund);
         if (total.compareTo(netAmount) != 0) throw new IllegalStateException("医保资金分摊合计与结算净额不一致");
         this.insuranceAmount = insuranceFund; this.patientAmount = personalAccount.add(patientCash);
@@ -108,7 +110,60 @@ public class Settlement {
         if (!List.of(SettlementStatus.SETTLED, SettlementStatus.PARTIAL).contains(status)) {
             throw new IllegalStateException("当前结算状态不能冲正医保分摊");
         }
-        this.insuranceAmount = zero(); this.otherAmount = zero(); this.patientAmount = netAmount.abs();
+        this.insuranceAmount = zero(); this.otherAmount = zero();
+        this.patientAmount = netAmount.abs().subtract(reliefAmount);
+    }
+
+    /** 医保前减免：在收款和医保预结算之前降低结算净额。 */
+    public void applyPreInsuranceDiscount(BigDecimal amount) {
+        if (status != SettlementStatus.PRICED || !"NORMAL".equals(settlementType)) {
+            throw new IllegalStateException("医保前减免只能在正常结算计价后、收款前应用");
+        }
+        if (amount.signum() <= 0 || amount.compareTo(netAmount) > 0) throw new IllegalArgumentException("医保前减免金额不正确");
+        this.discountAmount = this.discountAmount.add(amount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.netAmount = this.grossAmount.add(this.roundingAmount).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = patientShare();
+    }
+
+    /** 医保后减免：作为非患者资金来源冲抵个人自付，结算净额不变。 */
+    public void applyPostInsuranceRelief(BigDecimal amount) {
+        if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL).contains(status)
+                || !"NORMAL".equals(settlementType)) {
+            throw new IllegalStateException("当前结算状态不能应用医保后减免");
+        }
+        if (amount.signum() <= 0 || amount.compareTo(patientAmount) > 0) throw new IllegalArgumentException("医保后减免金额超过个人自付");
+        this.reliefAmount = this.reliefAmount.add(amount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = patientShare();
+    }
+
+    /** 冲正结算冲回医保前减免：负向优惠，使冲正净额只包含患者与医保实际承担部分。 */
+    public void applyDiscountReversal(BigDecimal amount) {
+        requireReversalPriced();
+        if (amount.signum() <= 0 || amount.compareTo(grossAmount.abs().subtract(discountAmount.abs())) > 0) {
+            throw new IllegalArgumentException("冲回的医保前减免金额不正确");
+        }
+        this.discountAmount = this.discountAmount.subtract(amount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.netAmount = this.grossAmount.add(this.roundingAmount).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = patientShare();
+    }
+
+    /** 冲正结算冲回医保后减免：负向减免资金，退款只退患者实际支付部分。 */
+    public void applyReliefReversal(BigDecimal amount) {
+        requireReversalPriced();
+        if (amount.signum() <= 0 || amount.compareTo(patientAmount) > 0) throw new IllegalArgumentException("冲回的医保后减免金额不正确");
+        this.reliefAmount = this.reliefAmount.subtract(amount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = patientShare();
+    }
+
+    private void requireReversalPriced() {
+        if (!"REVERSAL".equals(settlementType) || status != SettlementStatus.PRICED) {
+            throw new IllegalStateException("只有新生成的冲正结算可以冲回减免");
+        }
+    }
+
+    private BigDecimal patientShare() {
+        return netAmount.subtract(insuranceAmount).subtract(otherAmount).subtract(reliefAmount).abs()
+                .setScale(6, java.math.RoundingMode.HALF_UP);
     }
 
     public String requestPayment() {
@@ -124,7 +179,7 @@ public class Settlement {
         }
         this.roundingAmount = adjustment.setScale(6, java.math.RoundingMode.HALF_UP);
         this.netAmount = this.grossAmount.add(this.roundingAmount).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
-        this.patientAmount = this.netAmount.subtract(this.insuranceAmount).subtract(this.otherAmount).abs().setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = patientShare();
     }
 
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
@@ -147,6 +202,7 @@ public class Settlement {
     public BigDecimal insuranceAmount() { return insuranceAmount; }
     public BigDecimal patientAmount() { return patientAmount; }
     public BigDecimal otherAmount() { return otherAmount; }
+    public BigDecimal reliefAmount() { return reliefAmount; }
     public BigDecimal roundingAmount() { return roundingAmount; }
     public BigDecimal netAmount() { return netAmount; }
     public String currencyCode() { return currencyCode; }

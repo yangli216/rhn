@@ -316,9 +316,10 @@ export function createBillingApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify({ requestCode }),
       },
     ),
-    issueInvoice: (accountId: string, invoiceNo: string, settlementScene?: string, chargeItemIds?: string[], terminalScene: Settlement['terminalScene'] = 'CASHIER', terminalCode = 'CASHIER-WEB') => client.request<Invoice>(
+    issueInvoice: (accountId: string, invoiceNo: string, settlementScene?: string, chargeItemIds?: string[], terminalScene: Settlement['terminalScene'] = 'CASHIER', terminalCode = 'CASHIER-WEB',
+      settlementMode?: 'SELF_PAY' | 'MEDICAL_INSURANCE') => client.request<Invoice>(
       `/api/billing/accounts/${accountId}/invoices`, {
-        method: 'POST', body: JSON.stringify({ invoiceNo, settlementScene, chargeItemIds, terminalScene, terminalCode }),
+        method: 'POST', body: JSON.stringify({ invoiceNo, settlementScene, chargeItemIds, terminalScene, terminalCode, settlementMode }),
       },
     ),
     collect: (invoiceId: string, input: {

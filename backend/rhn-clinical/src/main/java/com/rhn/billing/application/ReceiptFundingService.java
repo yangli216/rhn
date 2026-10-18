@@ -18,11 +18,13 @@ class ReceiptFundingService {
     private final InsuranceClaimRepository claims;
     private final InsuranceClaimResponseRepository responses;
     private final BillingCodes codes;
+    private final ReliefApplicationRepository reliefs;
 
     ReceiptFundingService(SettlementTenderRepository tenders, PaymentRepository payments,
-                          InsuranceClaimRepository claims, InsuranceClaimResponseRepository responses, BillingCodes codes) {
+                          InsuranceClaimRepository claims, InsuranceClaimResponseRepository responses, BillingCodes codes,
+                          ReliefApplicationRepository reliefs) {
         this.tenders = tenders; this.payments = payments; this.claims = claims; this.responses = responses;
-        this.codes = codes;
+        this.codes = codes; this.reliefs = reliefs;
     }
 
     Funding resolve(Settlement settlement) {
@@ -35,13 +37,24 @@ class ReceiptFundingService {
                 .collect(Collectors.toMap(InsuranceClaimResponse::id, value -> value));
         Map<Long, Map<String, BigDecimal>> insuranceRows = new HashMap<>();
         Set<Long> paymentIds = new HashSet<>();
-        BigDecimal fund = BigDecimal.ZERO, personal = BigDecimal.ZERO, patient = BigDecimal.ZERO, other = BigDecimal.ZERO;
+        BigDecimal fund = BigDecimal.ZERO, personal = BigDecimal.ZERO, patient = BigDecimal.ZERO, other = BigDecimal.ZERO,
+                relief = BigDecimal.ZERO;
         for (var row : rows) {
             require(Objects.equals(settlement.currencyCode(), row.currencyCode()) && row.tenderAmount() != null
                     && row.tenderAmount().signum() != 0, "收款明细币种或金额不完整");
             var amount = row.tenderAmount();
-            require((row.paymentId() == null) != (row.claimResponseId() == null), "收款明细缺少唯一资金来源");
-            if (row.claimResponseId() != null) {
+            int sources = (row.paymentId() == null ? 0 : 1) + (row.claimResponseId() == null ? 0 : 1)
+                    + (row.reliefApplicationId() == null ? 0 : 1);
+            require(sources == 1, "收款明细缺少唯一资金来源");
+            if (row.reliefApplicationId() != null) {
+                var application = reliefs.findById(row.reliefApplicationId()).orElse(null);
+                require(application != null && Objects.equals(application.tenantId(), settlement.tenantId())
+                        && Objects.equals(application.settlementId(), settlement.id())
+                        && application.timing() == ReliefTiming.POST_INSURANCE
+                        && application.reliefAmount().compareTo(amount) == 0
+                        && Set.of("HOSPITAL_DISCOUNT", "SUBSIDY").contains(row.tenderType()), "减免资金来源与减免记录不一致");
+                relief = relief.add(amount);
+            } else if (row.claimResponseId() != null) {
                 require(claim != null && Objects.equals(claim.currencyCode(), settlement.currencyCode())
                         && Objects.equals(claim.patientAccountId(), settlement.patientAccountId()), "医保来源与结算不一致");
                 var response = byResponse.get(row.claimResponseId());
@@ -89,12 +102,13 @@ class ReceiptFundingService {
             matchReported(entry.getValue(), "PERSONAL_ACCOUNT", response.personalAccountAmount(), sign);
             matchReported(entry.getValue(), "SUBSIDY", response.otherFundAmount(), sign);
         }
-        require(fund.signum() >= 0 && personal.signum() >= 0 && other.signum() >= 0 && patient.signum() >= 0,
-                "冲销后的资金分摊为负数");
+        require(fund.signum() >= 0 && personal.signum() >= 0 && other.signum() >= 0 && patient.signum() >= 0
+                && relief.signum() >= 0, "冲销后的资金分摊为负数");
         require(equal(fund, settlement.insuranceAmount()) && equal(other, settlement.otherAmount())
-                && equal(personal.add(patient), settlement.patientAmount())
-                && equal(fund.add(personal).add(other).add(patient), settlement.netAmount()), "实收资金分摊与结算金额不一致");
-        return new Funding(fund, personal, patient, other);
+                && equal(relief, settlement.reliefAmount()) && equal(personal.add(patient), settlement.patientAmount())
+                && equal(fund.add(personal).add(other).add(relief).add(patient), settlement.netAmount()),
+                "实收资金分摊与结算金额不一致");
+        return new Funding(fund, personal, patient, other, relief);
     }
 
     private static void matchReported(Map<String, BigDecimal> rows, String type, BigDecimal reported, int sign) {
@@ -108,5 +122,9 @@ class ReceiptFundingService {
     private static void require(boolean condition, String message) {
         if (!condition) throw conflict("RECEIPT_FUNDING_UNVERIFIED", message);
     }
-    record Funding(BigDecimal insuranceAmount, BigDecimal personalAccountAmount, BigDecimal patientAmount, BigDecimal otherFundAmount) {}
+    /** reliefAmount：医保后惠民减免与补助，财政票据按“其他支付”申报。 */
+    record Funding(BigDecimal insuranceAmount, BigDecimal personalAccountAmount, BigDecimal patientAmount,
+                   BigDecimal otherFundAmount, BigDecimal reliefAmount) {
+        BigDecimal otherPaymentAmount() { return otherFundAmount.add(reliefAmount); }
+    }
 }

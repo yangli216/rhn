@@ -632,6 +632,133 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.outstandingAmount").value(originalAmount.doubleValue()));
     }
 
+    @Test
+    void partial_and_full_returns_reverse_pre_insurance_relief_and_restore_quota() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        reliefPolicy("PRE_INSURANCE", "HOSPITAL");
+        PharmacyFixture pharmacy = createPharmacy(suffix);
+        JsonNode lot = createLot(pharmacy.stockItemId(), "RLF-" + suffix);
+        receive("RLF-RCV-" + suffix, pharmacy, lot.get("id").asString(), "2");
+        Reviewer pharmacist = createReviewer(suffix);
+        TaskFixture task = createReviewedTask(suffix, pharmacy.stockItemId(), pharmacist, 2);
+        reserveAndPrepare(task.taskId(), pharmacist);
+        JsonNode dispense = dispense(task.taskId(), "RLF-DSP-" + suffix, "2", pharmacist);
+        JsonNode charges = synchronize(task.encounterId(), "RLF-SYNC-" + suffix);
+        String accountId = charges.at("/statement/accountId").asString();
+        BigDecimal full = charges.at("/statement/chargeAmount").decimalValue();
+        BigDecimal half = full.divide(BigDecimal.valueOf(2));
+        BigDecimal initial = cents(full.multiply(new BigDecimal("0.5")));
+        BigDecimal retainedRelief = cents(half.multiply(new BigDecimal("0.5")));
+        BigDecimal reversed = initial.subtract(retainedRelief);
+
+        JsonNode invoice = issueInvoice(accountId, "RLF-INV-" + suffix);
+        assertEquals(0, initial.compareTo(invoice.get("discountAmount").decimalValue()));
+        paymentOrder(invoice.get("id").asString(), "RLF-PAY-" + suffix, full.subtract(initial));
+        String paymentId = statement(task.encounterId()).at("/payments/0/id").asString();
+
+        returnOne(dispense, "RLF-RET1-" + suffix, pharmacist);
+        synchronize(task.encounterId(), "RLF-SYNC-RET1-" + suffix);
+        JsonNode credit = issueInvoice(accountId, "RLF-CRN1-" + suffix);
+        assertEquals("CREDIT", credit.get("invoiceType").asString());
+        assertEquals(0, reversed.negate().compareTo(credit.get("discountAmount").decimalValue()));
+        assertEquals(0, half.subtract(reversed).negate().compareTo(credit.get("netAmount").decimalValue()));
+        JsonNode reversal = settlementRelief(credit.get("id").asString());
+        assertEquals("PRE_INSURANCE", reversal.at("/applications/0/timing").asString());
+        assertEquals(0, reversed.negate().compareTo(reversal.at("/applications/0/reliefAmount").decimalValue()));
+        assertEquals("APPLIED", settlementRelief(invoice.get("id").asString()).at("/applications/0/status").asString());
+
+        // 退款只覆盖患者实际支付部分：按冲销原额退款会超出账户可退余额。
+        mockMvc.perform(post("/api/billing/payments/{paymentId}/refund-orders", paymentId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(refundOrderBody("RLF-RF-OVER-" + suffix, half)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("REFUND_ORDER_EXCEEDS_ACCOUNT_CREDIT"));
+        refundOrder(paymentId, "RLF-RF1-" + suffix, half.subtract(reversed));
+        assertEquals(0, retainedRelief.compareTo(quotaUsed()));
+
+        returnOne(dispense, "RLF-RET2-" + suffix, pharmacist);
+        synchronize(task.encounterId(), "RLF-SYNC-RET2-" + suffix);
+        JsonNode secondCredit = issueInvoice(accountId, "RLF-CRN2-" + suffix);
+        assertEquals(0, retainedRelief.negate().compareTo(secondCredit.get("discountAmount").decimalValue()));
+        assertEquals("REVERSED", settlementRelief(invoice.get("id").asString()).at("/applications/0/status").asString());
+        assertEquals(0, BigDecimal.ZERO.compareTo(quotaUsed()));
+        assertEquals(0, returnJdbc.queryForObject("select QTY_USED from RHN_BIL_RELIEF_QUOTA", Integer.class));
+        refundOrder(paymentId, "RLF-RF2-" + suffix, half.subtract(retainedRelief));
+        assertEquals(0, BigDecimal.ZERO.compareTo(statement(task.encounterId()).get("accountBalance").decimalValue()));
+    }
+
+    @Test
+    void partial_return_reverses_post_insurance_relief_as_a_negative_subsidy() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        reliefPolicy("POST_INSURANCE", "GOVERNMENT");
+        PharmacyFixture pharmacy = createPharmacy(suffix);
+        JsonNode lot = createLot(pharmacy.stockItemId(), "RLP-" + suffix);
+        receive("RLP-RCV-" + suffix, pharmacy, lot.get("id").asString(), "2");
+        Reviewer pharmacist = createReviewer(suffix);
+        TaskFixture task = createReviewedTask(suffix, pharmacy.stockItemId(), pharmacist, 2);
+        reserveAndPrepare(task.taskId(), pharmacist);
+        JsonNode dispense = dispense(task.taskId(), "RLP-DSP-" + suffix, "2", pharmacist);
+        JsonNode charges = synchronize(task.encounterId(), "RLP-SYNC-" + suffix);
+        String accountId = charges.at("/statement/accountId").asString();
+        BigDecimal full = charges.at("/statement/chargeAmount").decimalValue();
+        BigDecimal half = full.divide(BigDecimal.valueOf(2));
+        BigDecimal initial = cents(full.multiply(new BigDecimal("0.5")));
+        BigDecimal reversed = initial.subtract(cents(half.multiply(new BigDecimal("0.5"))));
+
+        JsonNode invoice = issueInvoice(accountId, "RLP-INV-" + suffix);
+        mockMvc.perform(post("/api/billing/settlements/{id}/relief/confirm", invoice.get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.reliefAmount").value(initial.doubleValue()));
+        paymentOrder(invoice.get("id").asString(), "RLP-PAY-" + suffix, full.subtract(initial));
+        String paymentId = statement(task.encounterId()).at("/payments/0/id").asString();
+
+        returnOne(dispense, "RLP-RET-" + suffix, pharmacist);
+        synchronize(task.encounterId(), "RLP-SYNC-RET-" + suffix);
+        JsonNode credit = issueInvoice(accountId, "RLP-CRN-" + suffix);
+        assertEquals(0, half.negate().compareTo(credit.get("netAmount").decimalValue()));
+        JsonNode settlement = json(mockMvc.perform(get("/api/billing/settlements/{id}", credit.get("id").asString())
+                        .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals("REVERSAL", settlement.get("settlementType").asString());
+        assertEquals(0, reversed.negate().compareTo(settlement.get("reliefAmount").decimalValue()));
+        assertEquals(0, half.subtract(reversed).compareTo(settlement.get("patientAmount").decimalValue()));
+        assertEquals("SUBSIDY", settlement.at("/tenders/0/tenderType").asString());
+        assertEquals(0, reversed.negate().compareTo(settlement.at("/tenders/0/amount").decimalValue()));
+        refundOrder(paymentId, "RLP-RF-" + suffix, half.subtract(reversed));
+        assertEquals(0, BigDecimal.ZERO.compareTo(statement(task.encounterId()).get("accountBalance").decimalValue()));
+    }
+
+    private void reliefPolicy(String timing, String sponsor) throws Exception {
+        JsonNode created = json(mockMvc.perform(post("/api/billing/relief/policies").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"code":"RLF-%s","name":"退费冲销测试","draft":{"timing":"%s","sponsor":"%s",
+                                 "scope":{"scenes":["OUTPATIENT"]},"effectiveFrom":"2026-01-01","insuredApplicable":true,
+                                 "quotaPeriod":"YEAR","periodMaxAmount":100000,
+                                 "rules":[{"feeScope":"ALL","method":"RATIO","ratio":0.5}],
+                                 "qualifications":[{"source":"ALL"}]}}
+                                """.formatted(timing, timing, sponsor)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(post("/api/billing/relief/policies/{id}/publish", created.get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":" + created.get("revision").asLong() + "}"))
+                .andExpect(status().isOk());
+    }
+
+    private JsonNode settlementRelief(String settlementId) throws Exception {
+        return json(mockMvc.perform(get("/api/billing/settlements/{id}/relief", settlementId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private JsonNode statement(String encounterId) throws Exception {
+        return json(mockMvc.perform(get("/api/billing/encounters/{encounterId}/statement", encounterId)
+                .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private BigDecimal quotaUsed() {
+        return returnJdbc.queryForObject("select AMT_USED from RHN_BIL_RELIEF_QUOTA", BigDecimal.class);
+    }
+
+    private static BigDecimal cents(BigDecimal value) { return value.setScale(2, java.math.RoundingMode.HALF_UP); }
+
     private JsonNode createLot(String stockItemId, String lotNo) throws Exception {
         return json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", stockItemId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

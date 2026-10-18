@@ -346,7 +346,7 @@ public class BillingApplicationService {
         categoryAmounts.forEach((category, amount) -> categoryRepository.save(new InvoiceCategorySummary(
                 context.tenantId(), invoice.id(), category.code(), category.name(), money(amount))));
         var settlement = settlements.createFromInvoice(context, account, invoice, charges, invoiceLines,
-                input.settlementScene(), input.terminalScene(), input.terminalCode());
+                input.settlementScene(), input.terminalScene(), input.terminalCode(), input.settlementMode());
         if ("INPATIENT".equalsIgnoreCase(input.settlementScene())) {
             settlements.applyInpatientPrepayments(context, settlement,
                     paymentRepository.findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(
@@ -756,11 +756,18 @@ public class BillingApplicationService {
                                  BigDecimal unitFactor, String itemCode, String itemName) {}
 
     public record SynchronizeCommand(String requestCode) {}
+    /** settlementMode：SELF_PAY 或 MEDICAL_INSURANCE；未声明时医保前减免只执行允许医保患者享受的政策。 */
     public record IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,
-                                      String terminalScene, String terminalCode, List<Long> chargeItemIds) {
+                                      String terminalScene, String terminalCode, List<Long> chargeItemIds,
+                                      String settlementMode) {
+        public IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,
+                                   String terminalScene, String terminalCode, List<Long> chargeItemIds) {
+            this(invoiceNo, issuedAt, settlementScene, terminalScene, terminalCode, chargeItemIds, null);
+        }
+
         public IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,
                                    String terminalScene, String terminalCode) {
-            this(invoiceNo, issuedAt, settlementScene, terminalScene, terminalCode, null);
+            this(invoiceNo, issuedAt, settlementScene, terminalScene, terminalCode, null, null);
         }
     }
     public record PaymentCommand(String paymentNo, String paymentMethodCode, String paymentSceneCode, BigDecimal amount,

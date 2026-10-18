@@ -45,6 +45,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DirectRefundApplicationServiceTest {
+    private final SettlementReliefService relief = mock(SettlementReliefService.class);
 
     private PaymentRepository payments;
     private PatientAccountRepository accounts;
@@ -81,8 +82,10 @@ class DirectRefundApplicationServiceTest {
         service = new DirectRefundApplicationService(
                 payments, accounts, charges, components, ledger,
                 settlements, receipts, pharmacy,
-                paymentOrchestration, receiptService, preCheckService, mock(com.rhn.billing.api.RefundDiagnosticDirectory.class), contextProvider
+                paymentOrchestration, receiptService, preCheckService, mock(com.rhn.billing.api.RefundDiagnosticDirectory.class), contextProvider,
+                relief
         );
+        when(relief.reverseForChargeReversals(any(), any(), any(), any(), any())).thenReturn(java.math.BigDecimal.ZERO);
     }
 
     @Test

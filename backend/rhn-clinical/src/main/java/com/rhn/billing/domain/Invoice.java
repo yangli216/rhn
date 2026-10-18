@@ -57,6 +57,22 @@ public class Invoice {
         this.issuedBy = issuedBy;
     }
 
+    /** 医保前减免同步到账单，收款按减免后的净额计算。 */
+    public void applyDiscount(BigDecimal amount) {
+        if (amount.signum() <= 0 || !"STANDARD".equals(invoiceType)) throw new IllegalArgumentException("账单减免金额不正确");
+        BigDecimal rounding = this.netAmount.subtract(this.grossAmount).add(this.discountAmount);
+        this.discountAmount = this.discountAmount.add(amount);
+        this.netAmount = this.grossAmount.add(rounding).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** 贷项账单冲回医保前减免，冲减金额只包含实际收取部分。 */
+    public void applyDiscountReversal(BigDecimal amount) {
+        if (amount.signum() <= 0 || !"CREDIT".equals(invoiceType)) throw new IllegalArgumentException("贷项账单冲回金额不正确");
+        BigDecimal rounding = this.netAmount.subtract(this.grossAmount).add(this.discountAmount);
+        this.discountAmount = this.discountAmount.subtract(amount);
+        this.netAmount = this.grossAmount.add(rounding).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+    }
+
     public void adjustRounding(BigDecimal adjustment) {
         if (adjustment == null) return;
         this.netAmount = this.grossAmount.add(adjustment).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);

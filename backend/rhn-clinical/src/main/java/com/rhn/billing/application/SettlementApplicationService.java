@@ -5,6 +5,7 @@ import com.rhn.billing.api.BillingViews.SettlementLineView;
 import com.rhn.billing.api.BillingViews.SettlementRecordView;
 import com.rhn.billing.api.BillingViews.SettlementTenderView;
 import com.rhn.billing.api.BillingViews.SettlementView;
+import com.rhn.billing.api.ReliefViews;
 import com.rhn.billing.domain.ChargeCategory;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.Invoice;
@@ -52,6 +53,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.rhn.shared.api.BusinessErrors.badRequest;
+import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
@@ -73,6 +76,7 @@ public class SettlementApplicationService {
     private final BillingCashierResolver cashierResolver;
     private final com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders;
     private final BillingCodes codes;
+    private final SettlementReliefService relief;
 
     @Autowired
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
@@ -84,7 +88,7 @@ public class SettlementApplicationService {
                                         EncounterDirectory encounterDirectory,
                                         ChargeCategoryResolver categoryResolver, BillingCashierResolver cashierResolver,
                                         com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders,
-                                        BillingCodes codes) {
+                                        BillingCodes codes, SettlementReliefService relief) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
         this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
         this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
@@ -93,12 +97,23 @@ public class SettlementApplicationService {
         this.cashierResolver = cashierResolver;
         this.paymentOrders = paymentOrders;
         this.codes = codes;
+        this.relief = relief;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     Settlement createFromInvoice(ExecutionContext context, PatientAccount account, Invoice invoice,
                                  List<ChargeItem> chargeItems, List<InvoiceLine> invoiceLines,
                                  String settlementScene, String terminalScene, String terminalCode) {
+        return createFromInvoice(context, account, invoice, chargeItems, invoiceLines, settlementScene, terminalScene,
+                terminalCode, null);
+    }
+
+    /** settlementMode：SELF_PAY 或 MEDICAL_INSURANCE，决定医保前减免是否包含仅限自费患者的政策。 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Settlement createFromInvoice(ExecutionContext context, PatientAccount account, Invoice invoice,
+                                 List<ChargeItem> chargeItems, List<InvoiceLine> invoiceLines,
+                                 String settlementScene, String terminalScene, String terminalCode,
+                                 String settlementMode) {
         Settlement existing = settlements.findByTenantIdAndLegacyInvoiceId(context.tenantId(), invoice.id()).orElse(null);
         if (existing != null) return existing;
         String type = "CREDIT".equals(invoice.invoiceType()) ? "REVERSAL" : "NORMAL";
@@ -120,6 +135,8 @@ public class SettlementApplicationService {
                 context.tenantId(), value.id(), category.code(), category.name(), money(amount), invoice.issuedAt())));
         events.save(new SettlementEvent(context.tenantId(), value.id(), "CREATE", null, value.status().name(),
                 "CREATE-" + invoice.invoiceNo(), context.subjectId(), invoice.issuedAt()));
+        if ("NORMAL".equals(type)) relief.applyPreInsurance(context, account, value, invoice, settlementMode);
+        else relief.reverseForChargeReversals(context, account, chargeItems, value, invoice);
         if ("NORMAL".equals(type) && value.netAmount().signum() == 0) {
             String previous = value.applyPaidAmount(BigDecimal.ZERO.setScale(6), context.subjectId(), invoice.issuedAt());
             events.save(new SettlementEvent(context.tenantId(), value.id(), "FINALIZE", previous,
@@ -215,6 +232,8 @@ public class SettlementApplicationService {
         recordInsuranceLedger(context, value, claimResponseId, "INSURANCE_FUND", insuranceFund, occurredAt);
         recordInsuranceLedger(context, value, claimResponseId, "PERSONAL_ACCOUNT", personalAccount, occurredAt);
         recordInsuranceLedger(context, value, claimResponseId, "OTHER_FUND", otherFund, occurredAt);
+        accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
+                .ifPresent(account -> relief.applyAfterInsurance(context, account, value));
         BigDecimal funded = money(tenders.totalTendered(context.tenantId(), settlementId));
         String previous = value.applyPaidAmount(funded, context.subjectId(), occurredAt);
         events.save(new SettlementEvent(context.tenantId(), settlementId,
@@ -268,6 +287,7 @@ public class SettlementApplicationService {
         boolean finalized = !"SETTLED".equals(previousStatus) && settlement.status() == SettlementStatus.SETTLED;
         boolean reversed = "SETTLED".equals(previousStatus) && settlement.status() != SettlementStatus.SETTLED;
         if (!finalized && !reversed) return;
+        if (finalized) relief.confirmQuota(context, settlement, occurredAt);
         PatientAccount account = accounts.findByIdAndTenantId(settlement.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
         List<ChargeItem> settledCharges = lines
@@ -320,6 +340,81 @@ public class SettlementApplicationService {
         events.save(new SettlementEvent(context.tenantId(), settlementId, "REQUEST_PAYMENT", previous,
                 value.status().name(), command, context.subjectId(), Instant.now()));
     }
+
+    /** 结算减免概况：已落账减免与当前可执行的医保后政策预览。 */
+    @Transactional(readOnly = true)
+    public ReliefViews.SettlementReliefView relief(Long settlementId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Settlement value = requireAccessible(context, settlementId, false);
+        PatientAccount account = accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId()).orElseThrow();
+        boolean payable = List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL)
+                .contains(value.status());
+        return reliefView(context, value, payable ? relief.previewPostInsurance(context, account, value) : List.of());
+    }
+
+    /**
+     * 确认医保后减免：自费患者在收款前确认；医保患者在正式结算后补充人工核准项。已执行的政策不会重复执行。
+     * 减免作为非患者资金计入结算，个人应付为零时结算直接完成。
+     */
+    @Transactional
+    public ReliefViews.SettlementReliefView confirmRelief(Long settlementId, ConfirmReliefCommand input) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Settlement value = requireAccessible(context, settlementId, true);
+        if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL)
+                .contains(value.status())) {
+            throw conflict("RELIEF_SETTLEMENT_STATE_INVALID", "结算已完成或已冲正，不能再确认减免");
+        }
+        PatientAccount account = accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId()).orElseThrow();
+        Map<Long, SettlementReliefService.ManualDecision> manual = new LinkedHashMap<>();
+        for (ManualReliefInput item : input == null || input.manual() == null ? List.<ManualReliefInput>of() : input.manual()) {
+            if (item.policyId() == null || manual.put(item.policyId(), new SettlementReliefService.ManualDecision(
+                    item.amount(), item.reason(), item.evidence())) != null) {
+                throw badRequest("RELIEF_MANUAL_POLICY_INVALID", "人工核准的政策缺失或重复");
+            }
+        }
+        BigDecimal before = value.reliefAmount();
+        List<ReliefViews.ReliefOutcomeView> outcomes = relief.applyPostInsurance(context, account, value, manual, "RELIEF-POST-");
+        if (value.reliefAmount().compareTo(before) != 0) {
+            Instant occurredAt = Instant.now();
+            String previous = value.applyPaidAmount(money(tenders.totalTendered(context.tenantId(), value.id())),
+                    context.subjectId(), occurredAt);
+            events.save(new SettlementEvent(context.tenantId(), value.id(),
+                    value.status() == SettlementStatus.SETTLED ? "FINALIZE" : "PARTIAL_PAY", previous,
+                    value.status().name(), "RELIEF-" + value.id() + "-" + occurredAt.toEpochMilli(),
+                    context.subjectId(), occurredAt));
+            publishStatusTransition(context, value, value.legacyInvoiceId(), previous, occurredAt);
+        }
+        return reliefView(context, value, outcomes);
+    }
+
+    private Settlement requireAccessible(ExecutionContext context, Long settlementId, boolean lock) {
+        Settlement value = (lock ? settlements.lockByIdAndTenantId(settlementId, context.tenantId())
+                : settlements.findByIdAndTenantId(settlementId, context.tenantId()))
+                .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
+        PatientAccount account = accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
+        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())) {
+            throw forbidden("SETTLEMENT_FORBIDDEN", "当前工作上下文不能访问该结算单");
+        }
+        return value;
+    }
+
+    private ReliefViews.SettlementReliefView reliefView(ExecutionContext context, Settlement value,
+                                                        List<ReliefViews.ReliefOutcomeView> pending) {
+        BigDecimal tendered = money(tenders.totalTendered(context.tenantId(), value.id()));
+        return new ReliefViews.SettlementReliefView(value.id(), value.discountAmount(), value.reliefAmount(),
+                money(value.netAmount().subtract(tendered)), relief.applications(context, value.id()), pending);
+    }
+
+    /** 由医保结算前置检查调用：已按自费享受减免的结算不能再走医保。 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    void requireInsuranceAllowed(ExecutionContext context, Long settlementId) {
+        relief.requireInsuranceAllowed(context, settlementId);
+    }
+
+    public record ManualReliefInput(Long policyId, BigDecimal amount, String reason, String evidence) {}
+
+    public record ConfirmReliefCommand(List<ManualReliefInput> manual) {}
 
     @Transactional(readOnly = true)
     public SettlementView get(Long settlementId) {
@@ -442,7 +537,7 @@ public class SettlementApplicationService {
                 value.legacyInvoiceId(), value.settlementNo(), value.commandCode(), value.settlementType(),
                 value.settlementScene(), value.terminalScene(), value.status().name(), value.grossAmount(),
                 value.discountAmount(), value.insuranceAmount(), value.patientAmount(), value.otherAmount(),
-                value.roundingAmount(), value.netAmount(), tendered, money(value.netAmount().subtract(tendered)),
+                value.reliefAmount(), value.roundingAmount(), value.netAmount(), tendered, money(value.netAmount().subtract(tendered)),
                 value.currencyCode(), value.terminalCode(), value.createdBy(), value.createdAt(),
                 value.finalizedBy(), value.finalizedAt(), value.errorCode(), value.errorMessage(),
                 lineViews, tenderViews, eventViews);
