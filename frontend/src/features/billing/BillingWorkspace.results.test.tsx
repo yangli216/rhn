@@ -18,7 +18,7 @@ vi.mock('../../shared/billing/SettlementPaymentPanel', () => ({
     <output aria-label="trial-status">{props.insuranceClaimView?.status}</output>
     <button onClick={() => void props.onSubmit({ settlementId: 'settlement-1', paymentMethodCode: 'CASH',
       amount: 10, roundingAdjustment: 0, idempotencyKey: 'PAY-stable' }).catch(() => {})}>现金收款</button>
-    <button onClick={() => props.onInitiateScanPay?.({ settlementId: 'settlement-1', paymentMethodCode: 'WECHAT', paymentMethodName: '微信', amount: 10 })}>扫码收款</button>
+    <button onClick={() => props.onInitiateChannelPay?.({ settlementId: 'settlement-1', paymentMethodCode: 'WECHAT', paymentMethodName: '微信', amount: 10 })}>扫码收款</button>
   </div>,
 }))
 vi.mock('../../shared/billing/AggregatedPaymentModal', () => ({

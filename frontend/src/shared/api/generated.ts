@@ -11990,6 +11990,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/payment-methods/{paymentMethodCode}/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentChannelCapabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -23254,6 +23270,8 @@ export interface components {
             terminalCode?: string;
             /** Format: date-time */
             expiresAt?: string;
+            /** @description 患者付款码，仅用于当次渠道请求，不持久化 */
+            authorizationCode?: string;
         };
         PaymentEventView: {
             /** @example 824633720832983041 */
@@ -27760,6 +27778,30 @@ export interface components {
             selected?: string[];
             baseline?: string[];
             exceptionType?: string;
+        };
+        PaymentAuthorizationCodeRule: {
+            pattern?: string;
+            /** Format: int32 */
+            minLength?: number;
+            /** Format: int32 */
+            maxLength?: number;
+        };
+        PaymentChannelCapabilities: {
+            adapterCode?: string;
+            /** @enum {string} */
+            interaction?: "DIRECT" | "AUTHORIZATION_CODE";
+            authorizationCodeRule?: components["schemas"]["PaymentAuthorizationCodeRule"];
+            querySupported?: boolean;
+            refundSupported?: boolean;
+            confirmBeforeCancel?: boolean;
+        };
+        PaymentChannelCapabilityView: {
+            paymentMethodCode?: string;
+            available?: boolean;
+            capabilities?: components["schemas"]["PaymentChannelCapabilities"];
+            unavailableReason?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
         };
     };
     responses: never;
@@ -56332,6 +56374,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    paymentChannelCapabilities: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                paymentMethodCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentChannelCapabilityView"];
+                };
             };
         };
     };

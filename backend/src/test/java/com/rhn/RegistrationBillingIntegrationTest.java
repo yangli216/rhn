@@ -1042,7 +1042,11 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         @Bean
         PaymentChannelAdapter pendingThenQueryablePaymentAdapter() {
             return new PaymentChannelAdapter() {
-                @Override public boolean supports(String method) { return "WECHAT".equals(method); }
+                @Override public java.util.Set<String> paymentMethods() { return java.util.Set.of("WECHAT"); }
+                @Override public com.rhn.billing.api.PaymentChannelCapabilities capabilities(String method) {
+                    return new com.rhn.billing.api.PaymentChannelCapabilities("REGISTRATION_TEST", com.rhn.billing.api.PaymentChannelCapabilities.PaymentInteraction.DIRECT,
+                            null,true,true,true);
+                }
                 @Override public InitiationResult initiate(PaymentInstruction input) {
                     return InitiationResult.pending("WX-" + input.orderNo());
                 }

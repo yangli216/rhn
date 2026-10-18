@@ -142,3 +142,12 @@ rhn:
     critical-value:
       acknowledgement-window: ${RHN_CRITICAL_VALUE_ACKNOWLEDGEMENT_WINDOW:PT15M}
       escalation-interval-ms: ${RHN_CRITICAL_VALUE_ESCALATION_INTERVAL_MS:60000}
+
+# Payment SDKs may log raw requests at DEBUG, including one-time authorization codes.
+# Keep their protocol logging disabled even when application debug logging is enabled.
+logging:
+  level:
+    com.alipay: "OFF"
+    com.github.binarywang.wxpay: "OFF"
+    org.apache.http.wire: "OFF"
+    org.apache.http.headers: "OFF"

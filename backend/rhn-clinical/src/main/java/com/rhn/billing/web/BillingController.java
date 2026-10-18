@@ -99,7 +99,7 @@ public class BillingController {
                                         @Valid @RequestBody PaymentOrderRequest input) {
         return payments.create(new CreatePaymentOrderCommand(settlementId, input.idempotencyKey(),
                 input.businessScene(), input.paymentSceneCode(), input.paymentMethodCode(), input.amount(),
-                input.roundingAdjustment(), input.correlationId(), input.terminalCode(), input.expiresAt()));
+                input.roundingAdjustment(), input.correlationId(), input.terminalCode(), input.expiresAt(), input.authorizationCode()));
     }
 
     @GetMapping("/payment-orders/{paymentOrderId}")
@@ -234,7 +234,12 @@ public class BillingController {
             @Digits(integer = 18, fraction = 6) BigDecimal roundingAdjustment,
             @Size(max = 128) String correlationId,
             @Size(max = 128) String terminalCode,
-            Instant expiresAt) {}
+            Instant expiresAt,
+            @io.swagger.v3.oas.annotations.media.Schema(accessMode = io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY,
+                    description = "患者付款码，仅用于当次渠道请求，不持久化")
+            @Size(max = 32) String authorizationCode) {
+        @Override public String toString() { return "PaymentOrderRequest[authorizationCode=REDACTED]"; }
+    }
     record RefundRequest(
             @NotBlank @Size(max = 64) String refundNo,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)

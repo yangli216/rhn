@@ -146,6 +146,17 @@ class PaymentOrderTransactionService {
         return new CreateResult(value, false);
     }
 
+    @Transactional(readOnly = true)
+    String refundPaymentMethod(Long originalPaymentId) {
+        ExecutionContext context = requireWorkContext();
+        Payment original = paymentRepository.findByIdAndTenantId(originalPaymentId, context.tenantId())
+                .orElseThrow(() -> notFound("PAYMENT_NOT_FOUND", "未找到原支付事实"));
+        PatientAccount account = accountRepository.findByIdAndTenantId(original.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
+        requireAccess(context, account);
+        return original.paymentMethodCode();
+    }
+
     @Transactional
     CreateResult createRefund(CreateRefundCommand input) {
         ExecutionContext context = requireWorkContext();

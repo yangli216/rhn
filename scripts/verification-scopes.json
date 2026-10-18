@@ -282,6 +282,7 @@
         "src/features/billing/RefundManagementWorkspace.test.tsx",
         "src/features/billing/RefundManagementWorkspace.truth.test.tsx",
         "src/shared/billing/SettlementPaymentPanel.test.tsx",
+        "src/shared/billing/AggregatedPaymentModal.test.tsx",
         "src/shared/billing/useCashierPaymentMethods.test.tsx",
         "src/shared/billing/roundAmount.test.ts"
       ],
@@ -295,7 +296,10 @@
         "InpatientBillingFlowTest",
         "com.rhn.billing.application.BillingChargeDisplayTest",
         "com.rhn.billing.application.BillingOrderOriginResolverTest",
-        "com.rhn.billing.application.MedicationReturnChargeTruthTest"
+        "com.rhn.billing.application.MedicationReturnChargeTruthTest",
+        "com.rhn.billing.application.DirectPaymentOrchestrationTest",
+        "com.rhn.billing.application.PaymentChannelRegistryTest",
+        "com.rhn.billing.infrastructure.payment.DirectPaymentChannelAdapterTest"
       ]
     },
     "master-data": {

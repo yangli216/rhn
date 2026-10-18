@@ -15,6 +15,8 @@
     <description>Regional Health Nexus modular monolith</description>
     <properties>
         <java.version>21</java.version>
+        <alipay-sdk.version>4.40.1036.ALL</alipay-sdk.version>
+        <wxjava-pay.version>4.8.0</wxjava-pay.version>
         <archunit.version>1.4.1</archunit.version>
         <hutool.version>5.8.47</hutool.version>
         <poi.version>5.4.1</poi.version>
@@ -38,6 +40,16 @@
     </modules>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.alipay.sdk</groupId>
+                <artifactId>alipay-sdk-java</artifactId>
+                <version>${alipay-sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-pay</artifactId>
+                <version>${wxjava-pay.version}</version>
+            </dependency>
             <dependency>
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-core</artifactId>

@@ -5,6 +5,14 @@ type ContractProjection<Wire, Overrides extends Partial<Wire>> = Omit<Wire, keyo
 type RequiredWireView<Wire, Keys extends keyof Wire> = Omit<Wire, Keys> & { [Key in Keys]-?: NonNullable<Wire[Key]> }
 
 
+export type PaymentAuthorizationCodeRule = RequiredWireView<components['schemas']['PaymentAuthorizationCodeRule'], 'pattern' | 'minLength' | 'maxLength'>
+export type PaymentChannelCapabilities = ContractProjection<RequiredWireView<components['schemas']['PaymentChannelCapabilities'],
+  'adapterCode' | 'interaction' | 'querySupported' | 'refundSupported' | 'confirmBeforeCancel'>, {
+  authorizationCodeRule?: PaymentAuthorizationCodeRule
+}>
+export type PaymentChannelCapability = ContractProjection<RequiredWireView<components['schemas']['PaymentChannelCapabilityView'],
+  'paymentMethodCode' | 'available'>, { capabilities?: PaymentChannelCapabilities }>
+
 export interface BillingWorkItem {
   encounterId: string
   residentId: string
@@ -329,6 +337,9 @@ export function createBillingApi(client: ApiClient) {
     }) => client.request<Payment>(`/api/billing/invoices/${invoiceId}/payments`, {
       method: 'POST', body: JSON.stringify(input),
     }),
+    paymentChannelCapabilities: (paymentMethodCode: string) => client.request<PaymentChannelCapability>(
+      `/api/billing/payment-methods/${encodeURIComponent(paymentMethodCode)}/capabilities`,
+    ),
     createPaymentOrder: (settlementId: string, input: {
       idempotencyKey: string
       businessScene: PaymentOrder['businessScene']
@@ -336,6 +347,7 @@ export function createBillingApi(client: ApiClient) {
       paymentMethodCode: string
       amount: number
       roundingAdjustment?: number
+      authorizationCode?: string
       correlationId?: string
       terminalCode?: string
       expiresAt?: string

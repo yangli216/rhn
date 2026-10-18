@@ -49,6 +49,10 @@ rhn:
     fiscal:
       mock-enabled: true
     payment:
+      routing:
+        external-handoff-enabled: true
+      direct:
+        enabled: false
       aggregated-adapter:
         enabled: false
     insurance:

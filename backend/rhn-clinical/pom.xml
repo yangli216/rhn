@@ -9,6 +9,14 @@
     <artifactId>rhn-clinical</artifactId>
     <dependencies>
         <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-pay</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.rhn</groupId>
             <artifactId>rhn-health-core</artifactId>
             <version>${project.version}</version>

@@ -5,9 +5,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 class CashPaymentChannelAdapter implements PaymentChannelAdapter {
-    @Override
-    public boolean supports(String paymentMethodCode) {
-        return "CASH".equals(paymentMethodCode);
+    @Override public java.util.Set<String> paymentMethods() { return java.util.Set.of("CASH"); }
+    @Override public com.rhn.billing.api.PaymentChannelCapabilities capabilities(String method) {
+        return new com.rhn.billing.api.PaymentChannelCapabilities("CASH", com.rhn.billing.api.PaymentChannelCapabilities.PaymentInteraction.DIRECT,
+                null, false, true, false);
     }
 
     @Override

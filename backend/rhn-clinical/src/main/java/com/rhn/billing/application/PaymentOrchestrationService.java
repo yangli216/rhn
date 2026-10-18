@@ -34,21 +34,25 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
     private final PaymentResultTransactionService results;
     private final ExternalMessageService messages;
     private final ExecutionContextProvider contextProvider;
-    private final List<PaymentChannelAdapter> adapters;
+    private final PaymentChannelRegistry channels;
     private final List<BillingSceneCompletionHandler> completionHandlers;
 
     public PaymentOrchestrationService(PaymentOrderTransactionService transactions,
                                        PaymentResultTransactionService results,
                                        ExternalMessageService messages,
                                        ExecutionContextProvider contextProvider,
-                                       List<PaymentChannelAdapter> adapters,
+                                       PaymentChannelRegistry channels,
                                        List<BillingSceneCompletionHandler> completionHandlers) {
         this.transactions = transactions; this.results = results; this.messages = messages;
-        this.contextProvider = contextProvider; this.adapters = List.copyOf(adapters);
+        this.contextProvider = contextProvider; this.channels = channels;
         this.completionHandlers = List.copyOf(completionHandlers);
     }
 
     public PaymentOrderView create(CreatePaymentOrderCommand input) {
+        PaymentChannelAdapter adapter = channels.resolve(input.paymentMethodCode());
+        if (adapter == null && input.authorizationCode() != null && !input.authorizationCode().isBlank()) {
+            throw conflict("PAYMENT_EXTERNAL_AUTHORIZATION_CODE_UNSUPPORTED", "外部消息交接未声明付款码交互，不能接收一次性付款码");
+        }
         var created = transactions.create(new PaymentOrderTransactionService.CreateCommand(
                 input.settlementId(), input.idempotencyKey(), input.businessScene(), input.paymentSceneCode(),
                 input.paymentMethodCode(), input.amount(), input.roundingAdjustment(), input.correlationId(), input.terminalCode(), input.expiresAt()));
@@ -59,10 +63,15 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
             return transactions.view(order.id(), created.duplicate());
         }
 
-        PaymentInstruction instruction = instruction(order);
-        PaymentChannelAdapter adapter = adapters.stream().filter(value -> value.supports(order.paymentMethodCode()))
-                .findFirst().orElse(null);
+        PaymentInstruction instruction = instruction(order, input.authorizationCode());
         if (adapter == null) return queueForExternalAdapter(order, instruction);
+        try {
+            adapter.capabilities(order.paymentMethodCode()).validateAuthorizationCode(instruction.authorizationCode());
+            adapter.validate(instruction);
+        } catch (com.rhn.shared.api.BusinessException exception) {
+            applyInitiationResult(order, InitiationResult.failed(order.orderNo(), exception.code(), exception.getMessage()));
+            return transactions.view(order.id(), false);
+        }
 
         transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
                 "SUBMIT", "PROCESSING", "SUBMIT-" + order.orderNo(), null,
@@ -82,6 +91,11 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
     }
 
     public PaymentOrderView refund(CreateRefundOrderCommand input) {
+        String method = transactions.refundPaymentMethod(input.originalPaymentId());
+        PaymentChannelAdapter adapter = channels.resolve(method);
+        if (adapter != null && !adapter.capabilities(method).refundSupported()) {
+            throw conflict("PAYMENT_CHANNEL_REFUND_UNSUPPORTED", "当前渠道不支持原路退款");
+        }
         var created = transactions.createRefund(new PaymentOrderTransactionService.CreateRefundCommand(
                 input.originalPaymentId(), input.idempotencyKey(), input.amount(), input.reason(),
                 input.correlationId(), input.terminalCode()));
@@ -89,8 +103,6 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         if (created.duplicate() || terminal(order.status())) return transactions.view(order.id(), created.duplicate());
         Payment original = transactions.requireOriginalPayment(order);
         RefundInstruction instruction = refundInstruction(order, original, input.reason());
-        PaymentChannelAdapter adapter = adapters.stream().filter(value -> value.supports(order.paymentMethodCode()))
-                .findFirst().orElse(null);
         if (adapter == null) return queueRefundForExternalAdapter(order, instruction);
         transactions.transitionRefund(order.id(), new PaymentOrderTransactionService.RefundTransitionCommand(
                 "REFUND_REQUEST", "REFUNDING", "SUBMIT-" + order.orderNo(), null,
@@ -134,10 +146,12 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         if (terminal(order.status())) return transactions.view(order.id(), false);
         String queryCode = "QUERY-" + GlobalIds.external(GlobalIds.next());
         QueryInstruction instruction = queryInstruction(order);
-        PaymentChannelAdapter adapter = adapters.stream().filter(value -> value.supports(order.paymentMethodCode()))
-                .findFirst().orElse(null);
+        PaymentChannelAdapter adapter = channels.resolve(order.paymentMethodCode());
         if (adapter == null) return queueQueryForExternalAdapter(order, instruction, queryCode);
 
+        if (!adapter.capabilities(order.paymentMethodCode()).querySupported()) {
+            throw conflict("PAYMENT_CHANNEL_QUERY_UNSUPPORTED", "当前渠道不支持自动查单，请核对实际收退记录");
+        }
         markQueryStarted(order, queryCode);
         QueryResult result;
         try {
@@ -153,6 +167,11 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
     public PaymentOrderView cancel(Long orderId) {
         PaymentOrder order = transactions.require(orderId);
         if (terminal(order.status())) return transactions.view(order.id(), false);
+        PaymentChannelAdapter adapter = channels.resolve(order.paymentMethodCode());
+        // A remote request can still capture money. A local cancellation must never release that reservation.
+        if (adapter != null && adapter.capabilities(order.paymentMethodCode()).confirmBeforeCancel()) {
+            return query(orderId);
+        }
         transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
                 "CANCEL", "CANCELLED", "CANCEL-" + order.orderNo(), null,
                 order.externalOrderNo(), null, null, order.capturedAmount(),
@@ -374,23 +393,27 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         results.completeRefund(order.id(), reason, commandCode, externalMessageId, externalOrderNo, externalTransactionNo, refundedAmount);
     }
 
-    private PaymentInstruction instruction(PaymentOrder order) {
+    private PaymentInstruction instruction(PaymentOrder order, String authorizationCode) {
         return new PaymentInstruction(order.id(), order.orderNo(), order.idempotencyKey(), order.patientAccountId(),
                 order.invoiceId(), order.businessScene(), order.paymentSceneCode(), order.paymentMethodCode(),
-                order.requestedAmount(), order.currencyCode(), order.correlationId(), order.terminalCode(), order.expiresAt());
+                order.requestedAmount(), order.currencyCode(), order.correlationId(), order.terminalCode(), order.expiresAt(),
+                authorizationCode, order.tenantId(), order.organizationId());
     }
 
     private RefundInstruction refundInstruction(PaymentOrder order, Payment original, String reason) {
         return new RefundInstruction(order.id(), order.orderNo(), order.idempotencyKey(), original.id(),
                 original.paymentNo(), original.externalTransactionNo(), order.businessScene(),
                 order.paymentSceneCode(), order.paymentMethodCode(), order.requestedAmount(),
-                order.currencyCode(), reason, order.correlationId(), order.terminalCode());
+                order.currencyCode(), reason, order.correlationId(), order.terminalCode(), original.amount(),
+                order.tenantId(), order.organizationId());
     }
 
     private QueryInstruction queryInstruction(PaymentOrder order) {
         return new QueryInstruction(order.id(), order.orderNo(), order.orderType(), order.paymentMethodCode(),
                 order.externalOrderNo(), order.requestedAmount(), order.currencyCode(), order.correlationId(),
-                order.terminalCode());
+                order.terminalCode(), "REFUND".equals(order.orderType())
+                        ? transactions.requireOriginalPayment(order).externalTransactionNo() : null,
+                order.tenantId(), order.organizationId());
     }
 
     private boolean terminal(String status) {
@@ -405,7 +428,14 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
             Long settlementId, String idempotencyKey, String businessScene, String paymentSceneCode,
             String paymentMethodCode, BigDecimal amount, BigDecimal roundingAdjustment,
             String correlationId, String terminalCode,
-            Instant expiresAt) {
+            Instant expiresAt, String authorizationCode) {
+        public CreatePaymentOrderCommand(Long settlementId, String idempotencyKey, String businessScene,
+                String paymentSceneCode, String paymentMethodCode, BigDecimal amount, BigDecimal roundingAdjustment,
+                String correlationId, String terminalCode, Instant expiresAt) {
+            this(settlementId, idempotencyKey, businessScene, paymentSceneCode, paymentMethodCode, amount,
+                    roundingAdjustment, correlationId, terminalCode, expiresAt, null);
+        }
+        @Override public String toString() { return "CreatePaymentOrderCommand[idempotencyKey=" + idempotencyKey + ", authorizationCode=REDACTED]"; }
         public CreatePaymentOrderCommand(
                 Long settlementId, String idempotencyKey, String businessScene, String paymentSceneCode,
                 String paymentMethodCode, BigDecimal amount, String correlationId, String terminalCode,

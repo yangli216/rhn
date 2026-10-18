@@ -1,0 +1,36 @@
+# External deployment configuration; never store actual credentials in this repository.
+rhn:
+  billing:
+    payment:
+      aggregated-adapter:
+        enabled: false
+      direct:
+        enabled: true
+      routing:
+        # Enable only for an independently deployed adapter consuming durable messages.
+        external-handoff-enabled: false
+      alipay:
+        enabled: true
+        merchants:
+          - tenant-id: ${RHN_PAYMENT_TENANT_ID}
+            organization-id: ${RHN_PAYMENT_ORGANIZATION_ID}
+            app-id: "${RHN_ALIPAY_APP_ID}"
+            merchant-id: "${RHN_ALIPAY_MERCHANT_PID}"
+            private-key-path: "${RHN_ALIPAY_PRIVATE_KEY_PATH}"
+            public-key-path: "${RHN_ALIPAY_PUBLIC_KEY_PATH}"
+            # Certificate mode replaces public-key-path with all three certificate paths:
+            # app-cert-path: /run/secrets/alipay-app.crt
+            # alipay-cert-path: /run/secrets/alipay-public.crt
+            # root-cert-path: /run/secrets/alipay-root.crt
+            server-url: https://openapi.alipay.com/gateway.do
+            # Sandbox: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+      wechat:
+        enabled: true
+        merchants:
+          - tenant-id: ${RHN_PAYMENT_TENANT_ID}
+            organization-id: ${RHN_PAYMENT_ORGANIZATION_ID}
+            app-id: "${RHN_WECHAT_APP_ID}"
+            merchant-id: "${RHN_WECHAT_MERCHANT_ID}"
+            api-key: "${RHN_WECHAT_API_V2_KEY}"
+            certificate-path: "${RHN_WECHAT_P12_PATH}"
+            client-ip: "${RHN_PAYMENT_CLIENT_IP}"

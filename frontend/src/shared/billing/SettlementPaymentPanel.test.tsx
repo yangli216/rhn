@@ -292,6 +292,19 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(screen.getByRole('button', { name: '微信支付未对接，请改选现金' })).toBeDisabled()
   })
 
+  it('opens generic channel collection for a new bank-card method without submitting directly', async () => {
+    const user = userEvent.setup()
+    const onInitiateChannelPay = vi.fn()
+    const onSubmit = vi.fn()
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 38.5, currencyCode: 'CNY' }]}
+      methods={[{ code: 'NEW_CARD_PROVIDER', name: '新增银行卡渠道', tenderType: 'BANK_CARD', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      orders={[]} onInitiateChannelPay={onInitiateChannelPay} onSubmit={onSubmit} />)
+    await user.click(screen.getByRole('button', { name: '发起渠道收款' }))
+    expect(onInitiateChannelPay).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodCode: 'NEW_CARD_PROVIDER' }))
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   it('verifies that physical cash drawer button is removed per requirements', async () => {
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 20, currencyCode: 'CNY' }]}
@@ -303,27 +316,27 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(screen.queryByRole('button', { name: /开钱箱/ })).not.toBeInTheDocument()
   })
 
-  it('delegates to onInitiateScanPay when WeChat or Alipay is selected and onInitiateScanPay is provided', async () => {
+  it('delegates to onInitiateChannelPay when WeChat or Alipay is selected and onInitiateChannelPay is provided', async () => {
     const user = userEvent.setup()
-    const onInitiateScanPay = vi.fn()
+    const onInitiateChannelPay = vi.fn()
 
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 38.5, currencyCode: 'CNY' }]}
       methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }, { code: 'WECHAT', name: '微信支付', tenderType: 'DIGITAL', precision: '0.01', roundingMode: 'HALF_UP' }]}
       orders={[]}
-      onInitiateScanPay={onInitiateScanPay}
+      onInitiateChannelPay={onInitiateChannelPay}
       onSubmit={vi.fn()}
     />)
 
     await user.click(screen.getByRole('button', { name: /微信支付/ }))
 
-    // Notice should NOT be displayed when onInitiateScanPay is provided
+    // Notice should NOT be displayed when onInitiateChannelPay is provided
     expect(screen.queryByText('接口未对接')).not.toBeInTheDocument()
-    const scanPayBtn = screen.getByRole('button', { name: '发起扫码收款' })
+    const scanPayBtn = screen.getByRole('button', { name: '发起渠道收款' })
     expect(scanPayBtn).toBeEnabled()
 
     await user.click(scanPayBtn)
-    expect(onInitiateScanPay).toHaveBeenCalledWith({
+    expect(onInitiateChannelPay).toHaveBeenCalledWith({
       settlementId: 'settlement-1',
       paymentMethodCode: 'WECHAT',
       paymentMethodName: '微信支付',

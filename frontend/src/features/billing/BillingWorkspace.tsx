@@ -110,8 +110,8 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
   }>({
     open: false,
     settlementId: '',
-    paymentMethodCode: 'WECHAT',
-    paymentMethodName: '微信支付',
+    paymentMethodCode: '',
+    paymentMethodName: '',
     amount: 0,
   })
   const [fiscalModalOpen, setFiscalModalOpen] = useState(false)
@@ -1151,7 +1151,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
                 actionLabel="结算开票 (Ctrl+Enter)" busyLabel={checkoutStage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : isPreSettlingInsurance ? '正在试算医保' : '正在支付'}
                 recoveringOrderId={recoverPaymentOrder.isPending ? recoverPaymentOrder.variables : undefined}
                 onRecoverOrder={(order) => recoverPaymentOrder.mutateAsync(order.id)}
-                onInitiateScanPay={handleInitiateScanPay}
+                onInitiateChannelPay={handleInitiateScanPay}
                 insuranceIntegrated
                 insuranceClaimView={insuranceClaimView}
                 onPreSettleInsurance={handlePreSettleInsurance}
@@ -1211,6 +1211,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       </div>
     </div>}
     <AggregatedPaymentModal
+      contextKey={JSON.stringify(clinicalContext)}
       open={scanModalState.open}
       onClose={() => setScanModalState((prev) => ({ ...prev, open: false }))}
       paymentMethodCode={scanModalState.paymentMethodCode}

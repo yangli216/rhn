@@ -29,6 +29,20 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
     private static final String PACKAGE_ID = "362387869795403";
     private static final String BUSINESS_DAY = LocalDate.now(ZoneOffset.UTC).toString();
 
+    @org.junit.jupiter.api.Test
+    void paymentChannelCapabilitiesExposeInteractionWithoutMerchantCredentials() throws Exception {
+        mockMvc.perform(get("/api/billing/payment-methods/CASH/capabilities").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.capabilities.adapterCode").value("CASH"))
+                .andExpect(jsonPath("$.capabilities.interaction").value("DIRECT"))
+                .andExpect(jsonPath("$.capabilities.querySupported").value(false))
+                .andExpect(jsonPath("$.capabilities.merchantId").doesNotExist())
+                .andExpect(jsonPath("$.capabilities.privateKeyPath").doesNotExist());
+        mockMvc.perform(get("/api/billing/payment-methods/UNREGISTERED/capabilities").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.available").value(false));
+    }
+
     private void verifyReturnEventReplay(String taskId) {
         var stored = returnEvents.findByAggregateIdOrderByRecordedAt(Long.valueOf(taskId)).stream()
                 .filter(e -> "MEDICATION_RETURN_POSTED".equals(e.eventType())).findFirst().orElseThrow().envelope(returnJson);

@@ -7,13 +7,15 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 
 @Component
-@ConditionalOnProperty(name = "rhn.billing.payment.aggregated-adapter.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "rhn.billing.payment.aggregated-adapter.enabled", havingValue = "true")
 public class AggregatedPaymentChannelAdapter implements PaymentChannelAdapter {
     private static final Set<String> SUPPORTED = Set.of("WECHAT", "ALIPAY");
 
-    @Override
-    public boolean supports(String paymentMethodCode) {
-        return paymentMethodCode != null && SUPPORTED.contains(paymentMethodCode.trim().toUpperCase());
+    @Override public Set<String> paymentMethods() { return SUPPORTED; }
+    @Override public com.rhn.billing.api.PaymentChannelCapabilities capabilities(String method) {
+        return new com.rhn.billing.api.PaymentChannelCapabilities("AGGREGATED_SIMULATOR",
+                com.rhn.billing.api.PaymentChannelCapabilities.PaymentInteraction.AUTHORIZATION_CODE,
+                new com.rhn.billing.api.PaymentChannelCapabilities.PaymentAuthorizationCodeRule("[0-9]{16,24}", 16, 24), true, true, true);
     }
 
     @Override

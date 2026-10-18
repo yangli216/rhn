@@ -47,7 +47,7 @@ export interface SettlementPaymentPanelProps {
   onSettlementModeChange?: (value: SettlementModeCode) => void
   onSubmit: (command: SettlementPaymentCommand) => Promise<unknown>
   onRecoverOrder?: (order: PaymentOrder) => Promise<unknown>
-  onInitiateScanPay?: (command: { settlementId: string; paymentMethodCode: string; paymentMethodName: string; amount: number }) => void
+  onInitiateChannelPay?: (command: { settlementId: string; paymentMethodCode: string; paymentMethodName: string; amount: number }) => void
   // 医保中台扩展能力
   insuranceIntegrated?: boolean
   insuranceClaimView?: InsuranceSettlementView | null
@@ -63,7 +63,7 @@ export function SettlementPaymentPanel({
   settlements, methods, methodsStatus = 'ready', onReloadMethods, orders, busy, recoveringOrderId,
   sceneLabel = '收款', targetLabel = '待支付结算单', actionLabel, busyLabel,
   showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder,
-  onInitiateScanPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
+  onInitiateChannelPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
   onCancelInsurancePreSettle, isPreSettlingInsurance = false, submitShortcut = false,
   showAmountInput = true, defaultCashToPayable = false,
 }: SettlementPaymentPanelProps) {
@@ -156,8 +156,8 @@ export function SettlementPaymentPanel({
   const numericTendered = Number(cashTendered)
   const isCashShort = isCashMethod && paymentRequired && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < numericAmount)
 
-  const isAggregatedScanMethod = Boolean(onInitiateScanPay && isScanMethod)
-  const isMethodUnintegrated = !onInitiateScanPay && isScanMethod
+  const isChannelMethod = Boolean(paymentRequired && selectedMethod && onInitiateChannelPay && !isCashMethod)
+  const isMethodUnintegrated = !onInitiateChannelPay && isScanMethod
 
   const maxAllowed = isAmountLocked ? (autoAmount ?? NaN) : (effectiveOutstanding + Math.max(0, roundingAdjustment))
   const isAmountInvalid = !Number.isFinite(numericAmount) || (isAmountLocked ? numericAmount !== autoAmount : (numericAmount <= 0 || numericAmount > maxAllowed))
@@ -183,8 +183,8 @@ export function SettlementPaymentPanel({
 
     if (disabled) return
 
-    if (paymentRequired && isAggregatedScanMethod && onInitiateScanPay) {
-      onInitiateScanPay({
+    if (paymentRequired && isChannelMethod && onInitiateChannelPay) {
+      onInitiateChannelPay({
         settlementId: settlement.id,
         paymentMethodCode: methodCode,
         paymentMethodName: selectedMethod?.name || methodCode,
@@ -419,8 +419,8 @@ export function SettlementPaymentPanel({
             ? '执行医保预结算 (试算)'
             : insuranceMode && hasPreSettled && chsCashAmount <= 0
               ? '确认医保结算并记账'
-              : isAggregatedScanMethod
-                ? '发起扫码收款'
+              : isChannelMethod
+                ? '发起渠道收款'
                 : (actionLabel ?? (isCashMethod ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`))}
     </Button>
   </div>
