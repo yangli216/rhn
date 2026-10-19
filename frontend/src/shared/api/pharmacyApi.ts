@@ -898,7 +898,7 @@ export function createPharmacyApi(client: ApiClient) {
       requestCode: string
       sourceCode: string
       stockItemId: string
-      stockBinId: string
+      stockBinId?: string
       stockLotId: string
       operationQuantity: number
       unitCost?: number
@@ -943,7 +943,7 @@ export function createPharmacyApi(client: ApiClient) {
     submitPurchaseOrder: (id: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/submit`, { method: 'POST' }),
     approvePurchaseOrder: (id: string, reason?: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/approve`, { method: 'POST', body: JSON.stringify({ reason }) }),
     goodsReceipts: (siteId: string) => client.request<GoodsReceipt[]>(`/api/pharmacy/goods-receipts?stockSiteId=${encodeURIComponent(siteId)}`),
-    createGoodsReceipt: (input: { purchaseOrderId: string; receiptNo?: string; requestCode: string; deliveryNoteNo?: string; receivedAt?: string; description?: string; lines: Array<{ purchaseOrderLineId: string; destinationBinId: string; lotNo: string; productionDate?: string; expiryDate?: string; deliveredQuantity: number; unitCost?: number }> }) => client.request<GoodsReceipt>('/api/pharmacy/goods-receipts', { method: 'POST', body: JSON.stringify(input) }),
+    createGoodsReceipt: (input: { purchaseOrderId: string; receiptNo?: string; requestCode: string; deliveryNoteNo?: string; receivedAt?: string; description?: string; lines: Array<{ purchaseOrderLineId: string; destinationBinId?: string; lotNo: string; productionDate?: string; expiryDate?: string; deliveredQuantity: number; unitCost?: number }> }) => client.request<GoodsReceipt>('/api/pharmacy/goods-receipts', { method: 'POST', body: JSON.stringify(input) }),
     inspectGoodsReceipt: (id: string, lines: Array<{ goodsReceiptLineId: string; acceptedQuantity: number; rejectedQuantity: number; rejectionReason?: string }>) => client.request<GoodsReceipt>(`/api/pharmacy/goods-receipts/${id}/inspect`, { method: 'POST', body: JSON.stringify({ lines }) }),
     postGoodsReceipt: (id: string) => client.request<GoodsReceipt>(`/api/pharmacy/goods-receipts/${id}/post`, { method: 'POST' }),
     directGoodsReceipt: (input: {
@@ -958,7 +958,7 @@ export function createPharmacyApi(client: ApiClient) {
       lines: Array<{
         stockItemId: string
         packageId: string
-        destinationBinId: string
+        destinationBinId?: string
         lotNo: string
         productionDate?: string
         expiryDate?: string
@@ -1066,7 +1066,7 @@ export function createPharmacyApi(client: ApiClient) {
     approveTransfer: (id: string, lines: Array<{ transferLineId: string; approvedQuantity: number }>) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/approve`, { method: 'POST', body: JSON.stringify({ lines }) }),
     pickTransfer: (id: string) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/pick`, { method: 'POST' }),
     dispatchTransfer: (id: string) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/dispatch`, { method: 'POST' }),
-    receiveTransfer: (id: string, input: { reason?: string; allocations: Array<{ transferAllocationId: string; destinationBinId: string; receivedQuantity: number; damagedQuantity: number; discrepancyReason?: string }> }) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/receive`, { method: 'POST', body: JSON.stringify(input) }),
+    receiveTransfer: (id: string, input: { reason?: string; allocations: Array<{ transferAllocationId: string; destinationBinId?: string; receivedQuantity: number; damagedQuantity: number; discrepancyReason?: string }> }) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/receive`, { method: 'POST', body: JSON.stringify(input) }),
     stockCounts: (siteId: string) => client.request<StockCount[]>(`/api/pharmacy/stock-counts?stockSiteId=${encodeURIComponent(siteId)}`),
     createStockCount: (input: { stockSiteId: string; stockBinId?: string; requestCode: string; countType: 'FULL' | 'BIN' | 'ITEM' | 'CYCLE'; stockItemIds?: string[]; reason?: string }) => client.request<StockCount>('/api/pharmacy/stock-counts', { method: 'POST', body: JSON.stringify(input) }),
     startStockCount: (id: string) => client.request<StockCount>(`/api/pharmacy/stock-counts/${id}/start`, { method: 'POST' }),

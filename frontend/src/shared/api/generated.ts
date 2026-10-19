@@ -21255,7 +21255,7 @@ export interface components {
             /** @example 824633720832983041 */
             purchaseOrderLineId: string;
             /** @example 824633720832983041 */
-            destinationBinId: string;
+            destinationBinId?: string;
             lotNo: string;
             /** Format: date */
             productionDate?: string;
@@ -21683,7 +21683,7 @@ export interface components {
             /** @example 824633720832983041 */
             packageId: string;
             /** @example 824633720832983041 */
-            destinationBinId: string;
+            destinationBinId?: string;
             lotNo: string;
             /** Format: date */
             productionDate?: string;
@@ -28411,6 +28411,34 @@ export interface components {
             mobile?: boolean;
             certificate?: boolean;
             vendorCode?: string;
+        };
+        ReceiveAllocationRequest: {
+            /** @example 824633720832983041 */
+            transferAllocationId: string;
+            /** @example 824633720832983041 */
+            destinationBinId?: string;
+            receivedQuantity: number;
+            damagedQuantity: number;
+            discrepancyReason?: string;
+        };
+        StockTransferReceiptRequest: {
+            reason?: string;
+            allocations: components["schemas"]["ReceiveAllocationRequest"][];
+        };
+        InventoryReceiptRequest: {
+            requestCode: string;
+            sourceCode: string;
+            /** @example 824633720832983041 */
+            stockItemId: string;
+            /** @example 824633720832983041 */
+            stockBinId?: string;
+            /** @example 824633720832983041 */
+            stockLotId: string;
+            operationQuantity: number;
+            unitCost?: number;
+            /** Format: date-time */
+            occurredAt: string;
+            description?: string;
         };
     };
     responses: never;
@@ -40518,7 +40546,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReceiveRequest"];
+                "application/json": components["schemas"]["StockTransferReceiptRequest"];
             };
         };
         responses: {
@@ -41666,7 +41694,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReceiveRequest"];
+                "application/json": components["schemas"]["InventoryReceiptRequest"];
             };
         };
         responses: {

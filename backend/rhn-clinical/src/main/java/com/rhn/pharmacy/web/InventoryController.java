@@ -87,7 +87,7 @@ public class InventoryController {
     @PostMapping("/inventory/receipts")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_RECEIVE)
     @ResponseStatus(HttpStatus.CREATED)
-    InventoryTransactionView receive(@Valid @RequestBody ReceiveRequest input) { return service.receive(input.command()); }
+    InventoryTransactionView receive(@Valid @RequestBody InventoryReceiptRequest input) { return service.receive(input.command()); }
 
     @GetMapping("/inventory/balances")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
@@ -202,10 +202,10 @@ public class InventoryController {
                 approvalCodeSnapshot, manufacturerNameSnapshot, qualityStatus); }
     }
 
-    record ReceiveRequest(
+    record InventoryReceiptRequest(
             @NotBlank @Size(max = 128) String requestCode,
             @NotBlank @Size(max = 128) String sourceCode,
-            @NotNull Long stockItemId, @NotNull Long stockBinId, @NotNull Long stockLotId,
+            @NotNull Long stockItemId, Long stockBinId, @NotNull Long stockLotId,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 20, fraction = 8)
             BigDecimal operationQuantity,
             @DecimalMin("0") @Digits(integer = 18, fraction = 6) BigDecimal unitCost,

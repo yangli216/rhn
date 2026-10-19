@@ -14,11 +14,11 @@ const order = { id: 'order', orderNo: 'PO-1', lines: [
 const bin = { id: 'bin', name: '合格品区', active: true, receiveAllowed: true } as StockBin
 const receipt = (status: string, qty: number, orderId = 'order') => ({ status, purchaseOrderId: orderId,
   lines: [{ purchaseOrderLineId: 'line', deliveredQuantity: qty }] }) as GoodsReceipt
-function showReceipt(createGoodsReceipt = vi.fn().mockResolvedValue({ id: 'receipt' }), receipts: GoodsReceipt[] = []) {
+function showReceipt(createGoodsReceipt = vi.fn().mockResolvedValue({ id: 'receipt' }), receipts: GoodsReceipt[] = [], bins = [bin]) {
   const onDone = vi.fn()
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>
     <GoodsReceiptDialog api={{ pharmacy: { createGoodsReceipt } } as unknown as RhnApi} order={order}
-      receipts={receipts} items={[item]} bins={[bin]} onClose={vi.fn()} onDone={onDone} />
+      receipts={receipts} items={[item]} bins={bins} onClose={vi.fn()} onDone={onDone} />
   </QueryClientProvider>)
   return { createGoodsReceipt, onDone }
 }
@@ -52,6 +52,36 @@ it('explains excess quantity and blocks negative, zero and reversed dates', () =
   fireEvent.change(screen.getByLabelText('生产日期'), { target: { value: '2031-01-01' } })
   expect(submit).toBeDisabled()
   expect(screen.getByText('有效期不能早于生产日期')).toBeInTheDocument()
+})
+it('registers arrival without maintaining or selecting a bin', async () => {
+  const { createGoodsReceipt, onDone } = showReceipt(undefined, [], [])
+  completeBatch()
+  const submit = screen.getByRole('button', { name: '登记并继续验收' })
+  expect(submit).toBeEnabled()
+  fireEvent.click(submit)
+  await waitFor(() => expect(onDone).toHaveBeenCalled())
+  expect(createGoodsReceipt).toHaveBeenCalledWith(expect.objectContaining({
+    lines: [expect.objectContaining({ destinationBinId: undefined, lotNo: 'LOT-1' })],
+  }))
+})
+
+it('posts direct purchase without maintaining or selecting a bin', async () => {
+  const directGoodsReceipt = vi.fn().mockResolvedValue({ id: 'receipt' })
+  render(<PurchaseDialog api={{ pharmacy: { supplyItems: vi.fn().mockResolvedValue([]), directGoodsReceipt } } as unknown as RhnApi}
+    site={{ id: 'site' } as StockSite} suppliers={[{ id: 'supplier', name: '供应商' }] as never}
+    items={[item]} bins={[]} initialMode="direct" onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第1行药品' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+  fireEvent.change(screen.getByLabelText('第1行采购单价'), { target: { value: '2' } })
+  fireEvent.change(screen.getByLabelText('第1行批号'), { target: { value: 'LOT-1' } })
+  fireEvent.change(screen.getByLabelText('第1行有效期至'), { target: { value: '20301231' } })
+  const submit = screen.getByRole('button', { name: '直接验收入库并记账' })
+  expect(submit).toBeEnabled()
+  fireEvent.click(submit)
+  await waitFor(() => expect(directGoodsReceipt).toHaveBeenCalledWith(expect.objectContaining({
+    lines: [expect.objectContaining({ destinationBinId: undefined, lotNo: 'LOT-1' })],
+  })))
 })
 it('retries an uncertain receipt with identical data and request code', async () => {
   const create = vi.fn().mockRejectedValueOnce(new TypeError('network error')).mockResolvedValueOnce({ id: 'receipt' })

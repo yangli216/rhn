@@ -20,7 +20,6 @@ import com.rhn.pharmacy.domain.StockTransferLine;
 import com.rhn.pharmacy.domain.StockTransferStatus;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.InventoryDocumentEventRepository;
-import com.rhn.pharmacy.infrastructure.StockBinRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.pharmacy.infrastructure.StockTransferAllocationRepository;
@@ -59,7 +58,7 @@ public class StockTransferApplicationService {
     private final StockTransferAllocationRepository allocationRepository;
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
-    private final StockBinRepository binRepository;
+    private final StockBinResolver binResolver;
     private final InventoryAvailabilityService availabilityService;
     private final InventoryDocumentEventRepository eventRepository;
     private final InventoryLedgerPostingService inventoryService;
@@ -69,7 +68,7 @@ public class StockTransferApplicationService {
 
     public StockTransferApplicationService(StockTransferRepository repository,
             StockTransferLineRepository lineRepository, StockTransferAllocationRepository allocationRepository,
-            StockSiteRepository siteRepository, StockItemRepository itemRepository, StockBinRepository binRepository,
+            StockSiteRepository siteRepository, StockItemRepository itemRepository, StockBinResolver binResolver,
             InventoryAvailabilityService availabilityService, InventoryDocumentEventRepository eventRepository,
             InventoryLedgerPostingService inventoryService, InventoryTraceApplicationService traceService,
             CatalogLifecycleDirectory catalogDirectory, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
@@ -79,7 +78,7 @@ public class StockTransferApplicationService {
         this.allocationRepository = allocationRepository;
         this.siteRepository = siteRepository;
         this.itemRepository = itemRepository;
-        this.binRepository = binRepository;
+        this.binResolver = binResolver;
         this.availabilityService = availabilityService;
         this.eventRepository = eventRepository;
         this.inventoryService = inventoryService;
@@ -293,7 +292,7 @@ public class StockTransferApplicationService {
             for (StockTransferAllocation a : allocations) {
                 ReceiveAllocationCommand d = decisions.get(a.id());
                 if (d == null) throw badRequest("TRANSFER_RECEIPT_INCOMPLETE", "存在未确认的在途批次");
-                StockBin bin = requireBin(c, d.destinationBinId(), v.destinationSiteId());
+                StockBin bin = binResolver.receive(c, v.destinationSiteId(), d.destinationBinId());
                 if (!bin.active() || !bin.receiveAllowed())
                     throw conflict("STOCK_BIN_NOT_RECEIVABLE", "调入货位未开放收货");
                 BigDecimal r = nonNegative(d.receivedQuantity());
@@ -376,12 +375,7 @@ public class StockTransferApplicationService {
         return v;
     }
 
-    private StockBin requireBin(ExecutionContext c, Long id, Long siteId) {
-        StockBin v = binRepository.findByIdAndTenantId(id, c.tenantId())
-                .orElseThrow(() -> notFound("STOCK_BIN_NOT_FOUND", "未找到库存货位"));
-        if (!siteId.equals(v.stockSiteId())) throw badRequest("STOCK_BIN_SITE_MISMATCH", "调入货位不属于目标站点");
-        return v;
-    }
+
 
     private void append(ExecutionContext c, StockTransfer v, String event, String from, String to, String reason) {
         eventRepository.save(new InventoryDocumentEvent(c.tenantId(), v.organizationId(), "TRANSFER", v.id(),

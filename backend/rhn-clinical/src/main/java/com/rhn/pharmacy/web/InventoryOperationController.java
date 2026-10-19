@@ -246,7 +246,7 @@ public class InventoryOperationController {
     }
 
     record GoodsReceiptLineRequest(
-            @NotNull Long purchaseOrderLineId, @NotNull Long destinationBinId,
+            @NotNull Long purchaseOrderLineId, Long destinationBinId,
             @NotBlank @Size(max = 128) String lotNo, LocalDate productionDate, LocalDate expiryDate,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 20, fraction = 8)
             BigDecimal deliveredQuantity,
@@ -284,7 +284,7 @@ public class InventoryOperationController {
     record DirectGoodsReceiptLineRequest(
             @NotNull Long stockItemId,
             @NotNull Long packageId,
-            @NotNull Long destinationBinId,
+            Long destinationBinId,
             @NotBlank @Size(max = 128) String lotNo,
             LocalDate productionDate,
             LocalDate expiryDate,

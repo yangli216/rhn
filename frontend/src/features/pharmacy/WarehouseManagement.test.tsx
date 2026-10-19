@@ -99,6 +99,28 @@ function renderComponent(api: RhnApi, context = clinicalContext) {
 }
 
 describe('WarehouseManagement', () => {
+  it('allows manual receipt when the warehouse has no bins', async () => {
+    const api = createMockApi()
+    vi.mocked(api.pharmacy.stockBins).mockResolvedValue([])
+    api.pharmacy.createLot = vi.fn().mockResolvedValue({ id: 'lot' })
+    vi.mocked(api.pharmacy.receive).mockResolvedValue({} as never)
+    renderComponent(api, {
+      organization: { id: 'org-1' }, department: { id: 'dept-warehouse' },
+    } as ClinicalContext)
+    fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
+    const receive = await screen.findByRole('button', { name: '入库' })
+    expect(receive).toBeEnabled()
+    fireEvent.click(receive)
+    const dialog = screen.getByRole('dialog', { name: /入库记账/ })
+    fireEvent.change(within(dialog).getByLabelText(/来源单号/), { target: { value: 'OPENING' } })
+    fireEvent.change(within(dialog).getByLabelText(/批号/), { target: { value: 'LOT-1' } })
+    fireEvent.change(within(dialog).getByLabelText(/入库数量/), { target: { value: '1' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '确认入库' }))
+    await waitFor(() => expect(api.pharmacy.receive).toHaveBeenCalledWith(expect.objectContaining({
+      stockItemId: 'item-1', stockLotId: 'lot', stockBinId: undefined,
+    })))
+  })
+
   it('uses the top-level warehouse context without rendering an in-module switcher', async () => {
     const api = createMockApi()
     renderComponent(api, {

@@ -82,6 +82,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
 
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
+    private final StockBinResolver binResolver;
     private final StockBinRepository binRepository;
     private final StockLotRepository lotRepository;
     private final InventoryPeriodRepository periodRepository;
@@ -101,7 +102,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
 
     public InventoryApplicationService(
             StockSiteRepository siteRepository, StockItemRepository itemRepository,
-            StockBinRepository binRepository, StockLotRepository lotRepository,
+            StockBinRepository binRepository, StockBinResolver binResolver, StockLotRepository lotRepository,
             InventoryPeriodRepository periodRepository, InventoryTransactionRepository transactionRepository,
             InventoryTransactionLineRepository transactionLineRepository,
             InventoryAvailabilityService availabilityService,
@@ -112,7 +113,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             DomainEventPublisher eventPublisher,
             ExecutionContextProvider contextProvider, MaintenanceWriteGuard maintenanceWrites) {
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
-        this.binRepository = binRepository; this.lotRepository = lotRepository;
+        this.binRepository = binRepository; this.binResolver = binResolver; this.lotRepository = lotRepository;
         this.periodRepository = periodRepository; this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository; this.availabilityService = availabilityService;
         this.reservationRepository = reservationRepository; this.taskRepository = taskRepository;
@@ -134,6 +135,9 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         ExecutionContext context = requireWorkContext();
         StockSite site = requireSite(context, siteId); requireOrganizationAccess(context, site.organizationId());
         String code = required(input.code(), "STOCK_BIN_CODE_REQUIRED", "货位编码不能为空");
+        if (StockBinResolver.DEFAULT_CODE.equalsIgnoreCase(code)) {
+            throw badRequest("STOCK_BIN_CODE_RESERVED", "该货位编码由系统保留");
+        }
         String name = required(input.name(), "STOCK_BIN_NAME_REQUIRED", "货位名称不能为空");
         String binType = upper(input.binType()); String stockDefault = upper(input.stockDefault());
         if (!BIN_TYPES.contains(binType)) throw badRequest("STOCK_BIN_TYPE_INVALID", "货位类型不受支持");
@@ -218,7 +222,7 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         }
         StockItem item = requireItem(context, input.stockItemId()); StockSite site = requireSite(context, item.stockSiteId());
         requireOrganizationAccess(context, site.organizationId());
-        StockBin bin = requireBin(context, input.stockBinId()); StockLot lot = requireLot(context, input.stockLotId());
+        StockBin bin = binResolver.receive(context, site.id(), input.stockBinId()); StockLot lot = requireLot(context, input.stockLotId());
         if (!bin.stockSiteId().equals(site.id()) || !bin.active() || !bin.receiveAllowed()) {
             throw conflict("STOCK_BIN_NOT_RECEIVABLE", "所选货位不属于经营项目站点或未开放收货");
         }
@@ -728,7 +732,10 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             throw conflict("INVENTORY_REQUEST_CODE_REUSED", "库存请求编码已被其他类型事务使用");
         }
         InventoryTransactionLine line = lines.get(0);
-        if (!line.stockBinId().equals(input.stockBinId()) || !line.stockItemId().equals(input.stockItemId())
+        Long expectedBinId = input.stockBinId() == null
+                ? binResolver.receive(requireWorkContext(), line.stockSiteId(), null).id()
+                : input.stockBinId();
+        if (!line.stockBinId().equals(expectedBinId) || !line.stockItemId().equals(input.stockItemId())
                 || !line.stockLotId().equals(input.stockLotId())
                 || line.operationQuantity().compareTo(input.operationQuantity()) != 0
                 || !existing.sourceCode().equals(Strings.trimToNull(input.sourceCode()))) {

@@ -52,7 +52,7 @@ public class StockTransferController {
     TransferView dispatch(@PathVariable Long id) { return service.dispatch(id); }
 
     @PostMapping("/{id}/receive")
-    TransferView receive(@PathVariable Long id, @Valid @RequestBody ReceiveRequest input) {
+    TransferView receive(@PathVariable Long id, @Valid @RequestBody StockTransferReceiptRequest input) {
         return service.receive(id, input.command());
     }
 
@@ -97,7 +97,7 @@ public class StockTransferController {
     record DecisionRequest(@NotBlank @Size(max = 1000) String reason) {}
 
     record ReceiveAllocationRequest(
-            @NotNull Long transferAllocationId, @NotNull Long destinationBinId,
+            @NotNull Long transferAllocationId, Long destinationBinId,
             @NotNull @DecimalMin("0") @Digits(integer = 20, fraction = 8) BigDecimal receivedQuantity,
             @NotNull @DecimalMin("0") @Digits(integer = 20, fraction = 8) BigDecimal damagedQuantity,
             @Size(max = 1000) String discrepancyReason) {
@@ -107,7 +107,7 @@ public class StockTransferController {
         }
     }
 
-    record ReceiveRequest(
+    record StockTransferReceiptRequest(
             @Size(max = 1000) String reason,
             @NotNull @Size(min = 1, max = 1000) List<@Valid ReceiveAllocationRequest> allocations) {
         ReceiveTransferCommand command() {

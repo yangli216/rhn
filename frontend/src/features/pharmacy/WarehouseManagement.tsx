@@ -25,7 +25,7 @@ type ActiveTab = 'bins' | 'items' | 'inventory' | 'trace' | 'accuracy' | 'period
 type BinInput = Parameters<RhnApi['pharmacy']['createStockBin']>[1]
 type ItemInput = Parameters<RhnApi['pharmacy']['createStockItem']>[1]
 type ReceiptDraft = {
-  stockItemId: string; stockBinId: string; lotNo: string; expiryDate?: string
+  stockItemId: string; stockBinId?: string; lotNo: string; expiryDate?: string
   operationQuantity: number; unitCost?: number; sourceCode: string; description?: string
 }
 type InventorySummary = {
@@ -120,6 +120,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
     },
     onSuccess: async () => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pharmacy-stock-bins', siteId] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse-balances', siteId] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse-transaction-summary', siteId] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse-item-ledger', siteId] }),
@@ -315,7 +316,6 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
   const inStockCount = summaries.filter(summary => summary.onHand !== 0).length
   const activeLotCount = balances.filter(row => Number(row.quantityOnHand) !== 0).length
   const expiringCount = summaries.reduce((sum, row) => sum + row.expiringLots, 0)
-  const hasReceiveBin = bins.some(bin => bin.active && bin.receiveAllowed)
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const visible = filtered.slice(page * pageSize, (page + 1) * pageSize)
   useEffect(() => { setPage(0) }, [query, siteId, stockFilter])
@@ -357,7 +357,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
           <th className={tableCellClass('actions')} aria-label="操作">操作</th>
         </tr></thead><tbody>{visible.map(summary => {
           const item = summary.item
-          const canReceive = hasReceiveBin && !item.traceRequired
+          const canReceive = !item.traceRequired
           const status = summary.onHand === 0
             ? <StatusBadge tone="neutral">零库存</StatusBadge>
             : summary.available <= 0 ? <StatusBadge tone="warning">暂无可用</StatusBadge>
@@ -486,19 +486,19 @@ function ReceiptDialog({ item, bins, busy, error, onClose, onSubmit }: {
   const [quantity, setQuantity] = useState(''); const [unitCost, setUnitCost] = useState('')
   const [sourceCode, setSourceCode] = useState(''); const [description, setDescription] = useState('')
   const quantityValue = Number(quantity); const costValue = unitCost ? Number(unitCost) : undefined
-  const valid = stockBinId && lotNo.trim() && sourceCode.trim() && quantityValue > 0
+  const valid = lotNo.trim() && sourceCode.trim() && quantityValue > 0
     && (costValue === undefined || costValue >= 0)
   return <Dialog title="入库记账" eyebrow="库存收货" size="wide"
     description={`按“${item.packageSpec || item.packageUnitName}”录入，系统自动换算为 ${item.baseUnitCode} 并形成不可变库存流水。`}
     onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button busy={busy} disabled={!valid} onClick={() => onSubmit({ stockItemId: item.id, stockBinId,
+      <Button busy={busy} disabled={!valid} onClick={() => onSubmit({ stockItemId: item.id, stockBinId: stockBinId || undefined,
         lotNo: lotNo.trim(), expiryDate: expiryDate || undefined, operationQuantity: quantityValue,
         unitCost: costValue, sourceCode: sourceCode.trim(), description: description.trim() || undefined })}>确认入库</Button></>}>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
     <div className="warehouse-receipt-product"><div><span>经营项目</span><strong>{item.productName}</strong><code>{item.productCode}</code>{item.manufacturerName && <small>{item.manufacturerName}</small>}</div>
       <div><span>库存包装</span><strong>{item.packageSpec || item.packageUnitName}</strong><small>换算系数 {item.packageFactor}</small></div></div>
-    <div className="warehouse-form-grid"><FormField label="收货库位" required><Select value={stockBinId}
-      onChange={setStockBinId} showValue clearable={false} options={receivableBins.map((bin) => ({ value: bin.id,
+    <div className="warehouse-form-grid"><FormField label="收货库位"><Select value={stockBinId}
+      onChange={setStockBinId} showValue clearable placeholder="选填，未选使用默认货位" options={receivableBins.map((bin) => ({ value: bin.id,
         label: bin.name, secondaryText: bin.code }))} /></FormField>
       <FormField label="来源单号" required><input className="ui-field__control" value={sourceCode}
         onChange={(event) => setSourceCode(event.target.value)} placeholder="采购入库单或外部凭证号" /></FormField>

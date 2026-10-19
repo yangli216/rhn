@@ -29,7 +29,6 @@ import com.rhn.pharmacy.infrastructure.GoodsReceiptRepository;
 import com.rhn.pharmacy.infrastructure.InventoryDocumentEventRepository;
 import com.rhn.pharmacy.infrastructure.PurchaseOrderLineRepository;
 import com.rhn.pharmacy.infrastructure.PurchaseOrderRepository;
-import com.rhn.pharmacy.infrastructure.StockBinRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.pharmacy.infrastructure.SupplierRepository;
@@ -73,7 +72,7 @@ public class InventoryOperationApplicationService {
     private final InventoryDocumentEventRepository eventRepository;
     private final StockSiteRepository siteRepository;
     private final StockItemRepository stockItemRepository;
-    private final StockBinRepository binRepository;
+    private final StockBinResolver binResolver;
     private final InventoryApplicationService inventoryService;
     private final InventoryTraceApplicationService traceService;
     private final ExecutionContextProvider contextProvider;
@@ -83,7 +82,7 @@ public class InventoryOperationApplicationService {
             PurchaseOrderRepository orderRepository, PurchaseOrderLineRepository orderLineRepository,
             GoodsReceiptRepository receiptRepository, GoodsReceiptLineRepository receiptLineRepository,
             InventoryDocumentEventRepository eventRepository, StockSiteRepository siteRepository,
-            StockItemRepository stockItemRepository, StockBinRepository binRepository,
+            StockItemRepository stockItemRepository, StockBinResolver binResolver,
             InventoryApplicationService inventoryService, InventoryTraceApplicationService traceService,
             ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
         this.numbers = numbers;
@@ -91,7 +90,7 @@ public class InventoryOperationApplicationService {
         this.orderRepository = orderRepository; this.orderLineRepository = orderLineRepository;
         this.receiptRepository = receiptRepository; this.receiptLineRepository = receiptLineRepository;
         this.eventRepository = eventRepository; this.siteRepository = siteRepository;
-        this.stockItemRepository = stockItemRepository; this.binRepository = binRepository;
+        this.stockItemRepository = stockItemRepository; this.binResolver = binResolver;
         this.inventoryService = inventoryService; this.traceService = traceService; this.contextProvider = contextProvider;
     }
 
@@ -318,7 +317,7 @@ public class InventoryOperationApplicationService {
                 if (inputLine.deliveredQuantity().compareTo(available) > 0) {
                     throw conflict("GOODS_RECEIPT_OVER_DELIVERY", "到货数量超过采购明细剩余可到货数量");
                 }
-                StockBin bin = requireBin(context, inputLine.destinationBinId(), order.stockSiteId());
+                StockBin bin = binResolver.receive(context, order.stockSiteId(), inputLine.destinationBinId());
                 if (!bin.active() || !bin.receiveAllowed()) throw conflict("STOCK_BIN_NOT_RECEIVABLE", "目标货位未开放收货");
                 String lotNo = required(inputLine.lotNo(), "GOODS_RECEIPT_LOT_REQUIRED", "到货批号不能为空");
                 if (inputLine.expiryDate() != null && inputLine.productionDate() != null
@@ -572,7 +571,7 @@ public class InventoryOperationApplicationService {
         int grSort = 0;
         for (DirectReceiptLineCommand line : input.lines()) {
             PurchaseOrderLine poLine = poLinesByStockItem.get(line.stockItemId());
-            StockBin bin = requireBin(context, line.destinationBinId(), site.id());
+            StockBin bin = binResolver.receive(context, site.id(), line.destinationBinId());
             if (!bin.active() || !bin.receiveAllowed()) {
                 throw conflict("STOCK_BIN_NOT_RECEIVABLE", "目标货位未开放收货");
             }
@@ -674,12 +673,7 @@ public class InventoryOperationApplicationService {
         return value;
     }
 
-    private StockBin requireBin(ExecutionContext context, Long id, Long siteId) {
-        StockBin value = binRepository.findByIdAndTenantId(id, context.tenantId())
-                .orElseThrow(() -> notFound("STOCK_BIN_NOT_FOUND", "未找到库存货位"));
-        if (!siteId.equals(value.stockSiteId())) throw badRequest("STOCK_BIN_SITE_MISMATCH", "库存货位不属于当前库房");
-        return value;
-    }
+
 
     private PurchaseOrderView orderView(ExecutionContext context, PurchaseOrder value) {
         List<PurchaseOrderLineView> lines = orderLineRepository

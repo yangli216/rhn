@@ -118,6 +118,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   const orders = useQuery({ queryKey: ['warehouse-purchase-orders', site.id], queryFn: async () => requirePurchaseOrders(await api.pharmacy.purchaseOrders(site.id)) })
   const receipts = useQuery({ queryKey: ['warehouse-goods-receipts', site.id], queryFn: async () => requireGoodsReceipts(await api.pharmacy.goodsReceipts(site.id)) })
   const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['pharmacy-stock-bins', site.id] }),
     queryClient.invalidateQueries({ queryKey: ['warehouse-purchase-orders', site.id] }),
     queryClient.invalidateQueries({ queryKey: ['warehouse-goods-receipts', site.id] }),
     queryClient.invalidateQueries({ queryKey: ['warehouse-balances', site.id] }),
@@ -793,7 +794,10 @@ function TransferWorkbench({ api, site, sites, items, bins, isOperator = true }:
   const client = useQueryClient(); const [open, setOpen] = useState(false); const [receiving, setReceiving] = useState<StockTransfer>()
   const source = useQuery({ queryKey: ['warehouse-transfers', site.id, 'SOURCE'], queryFn: () => api.pharmacy.transfers(site.id, 'SOURCE') })
   const incoming = useQuery({ queryKey: ['warehouse-transfers', site.id, 'DESTINATION'], queryFn: () => api.pharmacy.transfers(site.id, 'DESTINATION') })
-  const refresh = () => Promise.all(['SOURCE', 'DESTINATION'].map(role => client.invalidateQueries({ queryKey: ['warehouse-transfers', site.id, role] })))
+  const refresh = () => Promise.all([
+    client.invalidateQueries({ queryKey: ['pharmacy-stock-bins', site.id] }),
+    ...['SOURCE', 'DESTINATION'].map(role => client.invalidateQueries({ queryKey: ['warehouse-transfers', site.id, role] })),
+  ])
   const action = useMutation({ mutationFn: async (value: StockTransfer) => {
     if (value.status === 'DRAFT') return api.pharmacy.submitTransfer(value.id)
     if (value.status === 'SUBMITTED') return api.pharmacy.approveTransfer(value.id, value.lines.map(v => ({ transferLineId: v.id, approvedQuantity: v.requestedQuantity })))
@@ -1377,8 +1381,7 @@ export function DirectPurchaseReceiptDialog({
     const hasLot = !item?.lotRequired || Boolean(row.lotNo.trim())
     const hasExpiry = !item?.lotRequired || Boolean(row.expiryDate)
     const dateValid = !row.productionDate || !row.expiryDate || row.productionDate <= row.expiryDate
-    const hasBin = Boolean(row.binId || commonBin)
-    const isValid = Boolean(hasItem && hasQty && hasPrc && hasLot && hasExpiry && dateValid && hasBin)
+    const isValid = Boolean(hasItem && hasQty && hasPrc && hasLot && hasExpiry && dateValid)
     return { item, quantity: qty, price: prc, salePrice: row.salePrice, lotNo: row.lotNo, productionDate: row.productionDate, expiryDate: row.expiryDate, binId: row.binId, isValid }
   }).filter((v): v is { item: StockItem; quantity: number; price: number; salePrice: string | undefined; lotNo: string; productionDate: string; expiryDate: string; binId: string; isValid: true } => Boolean(v.isValid && v.item))
 
@@ -1387,7 +1390,7 @@ export function DirectPurchaseReceiptDialog({
   const totalAmount = validRows.reduce((sum, r) => sum + r.quantity * r.price, 0)
   const totalSaleAmount = validRows.length > 0 && !incomplete && validRows.every(row => recordedPrice(row.salePrice) !== undefined)
     ? validRows.reduce((sum, row) => sum + row.quantity * recordedPrice(row.salePrice)!, 0) : undefined
-  const canSubmit = validRows.length > 0 && !incomplete && Boolean(supplierId) && Boolean(commonBin || validRows.every(r => r.binId)) && !busy && !submissionBlocked
+  const canSubmit = validRows.length > 0 && !incomplete && Boolean(supplierId) && !busy && !submissionBlocked
 
   const triggerSubmit = async () => {
     setHasAttemptedSubmit(true)
@@ -1404,7 +1407,7 @@ export function DirectPurchaseReceiptDialog({
         lines: validRows.map(r => ({
           stockItemId: r.item.id,
           packageId: r.item.packageId,
-          destinationBinId: r.binId || commonBin,
+          destinationBinId: r.binId || commonBin || undefined,
           lotNo: r.lotNo.trim() || 'NO-LOT',
           productionDate: r.productionDate || undefined,
           expiryDate: r.expiryDate || undefined,
@@ -1453,9 +1456,9 @@ export function DirectPurchaseReceiptDialog({
       <FormField label="送货单号">
         <input className="ui-field__control" value={deliveryNoteNo} onChange={e => setDeliveryNoteNo(e.target.value)} placeholder="随货凭单号（选填）" />
       </FormField>
-      <FormField label="统一收货货位" required={!receiveBins.length}>
-        <Select value={commonBin} onChange={setCommonBin} clearable={false} showValue
-          placeholder={receiveBins.length ? '应用于未单独指定行' : '请先维护合格货位'}
+      <FormField label="统一收货货位">
+        <Select value={commonBin} onChange={setCommonBin} clearable showValue
+          placeholder="选填，未选使用默认货位"
           options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} />
       </FormField>
       <FormField label="入库时间">
@@ -1467,7 +1470,6 @@ export function DirectPurchaseReceiptDialog({
     </div>
 
     {hasAttemptedSubmit && incomplete && <p role="status" className="warehouse-receipt-error">请补全已录入行的药品、正数数量、单价、批号与有效期，或删除未填完行。</p>}
-    {!receiveBins.length && <p role="status" className="warehouse-receipt-error">当前库房没有允许收货的货位，请先维护货位。</p>}
 
     {!items.length ? <EmptyState icon="pharmacy" title="暂无可选择的经营项目" copy="当前没有可选药品" />
       : <div className="warehouse-entry-table-container">
@@ -1540,7 +1542,7 @@ export function DirectPurchaseReceiptDialog({
                     />
                   </EditableCell>
                   <EditableCell display={receiveBins.find(bin => bin.id === (row.binId || commonBin))?.name}>
-                    <Select value={row.binId || commonBin} clearable={false} searchable={false} openOnFocus={false} popoverMinWidth={220}
+                    <Select value={row.binId || commonBin} clearable placeholder="默认货位" searchable={false} openOnFocus={false} popoverMinWidth={220}
                       onChange={value => updateRow(index, 'binId', value)} aria-label={`第${index + 1}行货位`}
                       options={receiveBins.map(bin => ({ value: bin.id, label: bin.name }))} />
                   </EditableCell>
@@ -1696,7 +1698,6 @@ export function GoodsReceiptDialog({ api, order, receipts = [], items, bins, onC
     const qty = Number(quantities[line.id]); const errors: string[] = []
     if (!Number.isFinite(qty) || qty <= 0) errors.push('数量须大于 0')
     if (qty > line.availableQuantity) errors.push(`超出可收数量 ${formatQuantity(line.availableQuantity)}${item?.packageUnitName ?? ''}`)
-    if (!(binIds[line.id] || commonBin)) errors.push('请选择收货货位')
     if (item?.lotRequired && !lots[line.id]?.trim()) errors.push('请填写批号')
     if (item?.lotRequired && !expiryDates[line.id]) errors.push('请填写有效期')
     if (productionDates[line.id] && expiryDates[line.id] && productionDates[line.id] > expiryDates[line.id]) errors.push('有效期不能早于生产日期')
@@ -1708,7 +1709,7 @@ export function GoodsReceiptDialog({ api, order, receipts = [], items, bins, onC
     // Keep an uncertain request immutable so retry cannot create a second receipt or silently change its contents.
     submitted.current ??= { purchaseOrderId: order.id, requestCode, deliveryNoteNo: deliveryNoteNo.trim() || undefined,
       receivedAt: new Date(receivedAt).toISOString(), lines: selectedLines.map(line => ({
-        purchaseOrderLineId: line.id, destinationBinId: binIds[line.id] || commonBin,
+        purchaseOrderLineId: line.id, destinationBinId: binIds[line.id] || commonBin || undefined,
         lotNo: lots[line.id]?.trim() || 'NO-LOT', productionDate: productionDates[line.id] || undefined,
         expiryDate: expiryDates[line.id] || undefined, deliveredQuantity: Number(quantities[line.id]), unitCost: line.unitPrice,
       })) }
@@ -1724,7 +1725,6 @@ export function GoodsReceiptDialog({ api, order, receipts = [], items, bins, onC
       <div className="warehouse-entry-actions"><Button variant="secondary" disabled={mutation.isPending} onClick={onClose}>取消</Button>
         <Button busy={mutation.isPending} disabled={!valid} onClick={() => mutation.mutate()}>登记并继续验收</Button></div></div>}>
     {Boolean(mutation.error) && <Alert>{errorMessage(mutation.error)}{submitted.current && '；本次内容已锁定，请重试以确认登记结果。'}</Alert>}
-    {!receiveBins.length && <p role="status" className="warehouse-receipt-error">当前库房没有允许收货的货位，请先维护货位。</p>}
     {!availableLines.length && <Alert>该采购单已全部登记到货，请先处理待验收或待入库单据。</Alert>}
     <fieldset className="warehouse-receipt-fields" disabled={mutation.isPending || Boolean(submitted.current)}>
       <div className="warehouse-form-grid warehouse-form-grid--item warehouse-form-grid--compact">
@@ -1732,8 +1732,8 @@ export function GoodsReceiptDialog({ api, order, receipts = [], items, bins, onC
           onChange={event => setDeliveryNoteNo(event.target.value)} placeholder="供应商送货凭证号（选填）" /></FormField>
         <FormField label="实际到货时间" required><input className="ui-field__control" type="datetime-local" value={receivedAt}
           onChange={event => setReceivedAt(event.target.value)} /></FormField>
-        <FormField label="统一收货货位"><Select disabled={mutation.isPending || Boolean(submitted.current)} value={commonBin} onChange={setCommonBin} clearable={false} showValue
-          placeholder="应用于未单独指定的行" options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></FormField>
+        <FormField label="统一收货货位"><Select disabled={mutation.isPending || Boolean(submitted.current)} value={commonBin} onChange={setCommonBin} clearable showValue
+          placeholder="选填，未选使用默认货位" options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></FormField>
       </div>
       <div className="warehouse-receipt-grid"><OperationTable headers={['药品 / 规格 / 厂家', '可收 / 本次到货', '批号', '生产日期', '有效期至', '收货货位']}>
         {availableLines.map(line => {
@@ -1755,7 +1755,7 @@ export function GoodsReceiptDialog({ api, order, receipts = [], items, bins, onC
             <td><DatePicker aria-label="有效期" disabled={!selected} min={productionDates[line.id]}
               value={expiryDates[line.id] ?? ''} onChange={val => setExpiryDates(current => ({ ...current, [line.id]: val }))} placeholder="YYYY-MM-DD" /></td>
             <td><Select value={binIds[line.id] || commonBin} disabled={!selected || mutation.isPending || Boolean(submitted.current)}
-              onChange={id => setBinIds(current => ({ ...current, [line.id]: id }))} clearable showValue placeholder="沿用统一货位"
+              onChange={id => setBinIds(current => ({ ...current, [line.id]: id }))} clearable showValue placeholder="统一货位或默认货位"
               options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></td>
           </tr>
         })}
@@ -1842,7 +1842,7 @@ function TransferDialog({ api, site, sites, items, onClose, onDone }: { api: Rhn
   const destinations = sites.filter(v => v.id !== site.id && v.active); const [destinationId, setDestinationId] = useState(destinations[0]?.id ?? '')
   const destinationItems = useQuery({ queryKey: ['pharmacy-stock-items', destinationId], queryFn: () => api.pharmacy.stockItems(destinationId), enabled: Boolean(destinationId) })
   if (!destinations.length) return <Dialog title="新建库间调拨" eyebrow="调拨作业" onClose={onClose}>
-    <EmptyState icon="pharmacy" title="暂无可调入库房" copy="请先在组织与人员中将目标科室启用为库存站点，再为其配置经营项目和收货货位。" />
+    <EmptyState icon="pharmacy" title="暂无可调入库房" copy="请先在组织与人员中将目标科室启用为库存站点，再为其配置经营项目。" />
   </Dialog>
   return <MultiItemDialog title="新建库间调拨" submitText="创建调拨单" items={items.filter(item => destinationItems.data?.some(d => d.catalogItemId === item.catalogItemId && d.packageId === item.packageId))} quantityLabel="调拨数量（包装单位）" showBaseConversion emptyCopy="调入站点尚未配置与本库匹配的经营项目，请先在目标科室完成批量调入。"
     lead={<FormField label="调入站点" required><Select value={destinationId} onChange={setDestinationId} clearable={false} showValue options={destinations.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>}
@@ -1864,7 +1864,7 @@ function TransferReceiveDialog({ api, value, items, bins, onClose, onDone }: { a
   const mutation = useMutation({
     mutationFn: () => api.pharmacy.receiveTransfer(value.id, { allocations: allocations.map(({ allocation }) => ({
       transferAllocationId: allocation.id,
-      destinationBinId: binIds[allocation.id],
+      destinationBinId: binIds[allocation.id] || undefined,
       receivedQuantity: Number(received[allocation.id]),
       damagedQuantity: Number(damaged[allocation.id]),
       discrepancyReason: Number(damaged[allocation.id]) > 0 ? reasons[allocation.id]?.trim() : undefined,
@@ -1873,12 +1873,12 @@ function TransferReceiveDialog({ api, value, items, bins, onClose, onDone }: { a
   })
   const valid = allocations.length > 0 && allocations.every(({ allocation }) => {
     const receivedQuantity = Number(received[allocation.id]); const damagedQuantity = Number(damaged[allocation.id])
-    return Boolean(binIds[allocation.id]) && receivedQuantity >= 0 && damagedQuantity >= 0
+    return receivedQuantity >= 0 && damagedQuantity >= 0
       && receivedQuantity + damagedQuantity === allocation.dispatchedQuantity
       && (damagedQuantity === 0 || Boolean(reasons[allocation.id]?.trim()))
   })
   return <Dialog title="逐批调入确认" eyebrow={value.transferNo} size="wide" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button busy={mutation.isPending} disabled={!valid} onClick={() => mutation.mutate()}>确认调入</Button></>}>
-    {Boolean(mutation.error || lots.error) && <Alert>{errorMessage(mutation.error || lots.error)}</Alert>}{!receiveBins.length && <Alert>当前库房没有允许收货的货位，请先维护货位。</Alert>}
+    {Boolean(mutation.error || lots.error) && <Alert>{errorMessage(mutation.error || lots.error)}</Alert>}
     <OperationTable headers={['药品 / 批号 / 效期', '调出数', '正常入库', '破损 / 短少', '目标货位', '差异原因']}>
       {allocations.map(({ line, allocation }) => { const lot = lots.data?.find(value => value.id === allocation.stockLotId)
         const item = items.find(v => v.id === line.destinationStockItemId)
@@ -1889,7 +1889,7 @@ function TransferReceiveDialog({ api, value, items, bins, onClose, onDone }: { a
           <small>申请 {formatQuantity(line.requestedOperationQuantity)}{operationUnitName} · 1{operationUnitName} = {formatQuantity(line.baseQuantityFactor)}{baseUnitName}</small></td>
         <td><input aria-label="正常调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={received[allocation.id]} onChange={e => setReceived(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
         <td><input aria-label="破损调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={damaged[allocation.id]} onChange={e => setDamaged(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
-        <td><Select value={binIds[allocation.id]} onChange={id => setBinIds(v => ({ ...v, [allocation.id]: id }))} clearable={false} options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></td>
+        <td><Select value={binIds[allocation.id]} onChange={id => setBinIds(v => ({ ...v, [allocation.id]: id }))} clearable placeholder="默认货位" options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></td>
         <td><input aria-label="调入差异原因" className="ui-field__control" disabled={Number(damaged[allocation.id]) === 0} value={reasons[allocation.id] ?? ''} onChange={e => setReasons(v => ({ ...v, [allocation.id]: e.target.value }))} placeholder="破损或短少时必填" /></td></tr>})}
     </OperationTable>
   </Dialog>

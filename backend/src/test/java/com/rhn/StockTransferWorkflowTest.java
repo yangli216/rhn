@@ -34,7 +34,10 @@ class StockTransferWorkflowTest extends RhnIntegrationTestSupport {
         String packageUnit=sourceItem.get("packageUnitCode").asString();
         BigDecimal packageFactor=sourceItem.get("packageFactor").decimalValue();
         BigDecimal receivedBaseQuantity=packageFactor.subtract(new BigDecimal("2"));
-        JsonNode sourceBin=createBin(SOURCE_SITE,"SRC-"+suffix,"药库拣货位",source),destinationBin=createBin(DESTINATION_SITE,"DST-"+suffix,"药房收货位",destination);
+        boolean defaultBin = sourceCost == 10;
+        JsonNode sourceBin=createBin(SOURCE_SITE,"SRC-"+suffix,"药库拣货位",source);
+        JsonNode destinationBin=defaultBin ? null : createBin(DESTINATION_SITE,"DST-"+suffix,"药房收货位",destination);
+        String destinationInput = defaultBin ? "null" : "\"" + destinationBin.get("id").asString() + "\"";
         JsonNode lot=json(mockMvc.perform(post("/api/pharmacy/stock-items/{id}/lots",sourceItem.get("id").asString()).with(source).contentType(MediaType.APPLICATION_JSON).content("""
                 {"lotNo":"TR-%s","productionDate":"2026-01-01","expiryDate":"2028-01-01","qualityStatus":"QUALIFIED"}
                 """.formatted(suffix))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
@@ -42,8 +45,14 @@ class StockTransferWorkflowTest extends RhnIntegrationTestSupport {
                 {"requestCode":"TR-RCV-%s","sourceCode":"OPENING-%s","stockItemId":"%s","stockBinId":"%s","stockLotId":"%s","operationQuantity":1,"unitCost":%s,"occurredAt":"%s"}
                 """.formatted(suffix,suffix,sourceItem.get("id").asString(),sourceBin.get("id").asString(),lot.get("id").asString(),sourceCost < 0 ? "null" : Integer.toString(sourceCost),occurredAt))).andExpect(status().isCreated());
         mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(destination).contentType(MediaType.APPLICATION_JSON).content("""
-                {"requestCode":"TR-DEST-%s","sourceCode":"DEST-%s","stockItemId":"%s","stockBinId":"%s","stockLotId":"%s","operationQuantity":1,"unitCost":6,"occurredAt":"%s"}
-                """.formatted(suffix,suffix,destinationItem.get("id").asString(),destinationBin.get("id").asString(),lot.get("id").asString(),occurredAt))).andExpect(status().isCreated());
+                {"requestCode":"TR-DEST-%s","sourceCode":"DEST-%s","stockItemId":"%s","stockBinId":%s,"stockLotId":"%s","operationQuantity":1,"unitCost":6,"occurredAt":"%s"}
+                """.formatted(suffix,suffix,destinationItem.get("id").asString(),destinationInput,lot.get("id").asString(),occurredAt))).andExpect(status().isCreated());
+        if (defaultBin) {
+            JsonNode bins = json(mockMvc.perform(get("/api/pharmacy/stock-sites/{id}/stock-bins", DESTINATION_SITE).with(destination))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+            for (JsonNode candidate : bins) if ("__DEFAULT__".equals(candidate.get("code").asString())) destinationBin = candidate;
+            org.junit.jupiter.api.Assertions.assertNotNull(destinationBin);
+        }
         JsonNode transfer=json(mockMvc.perform(post("/api/pharmacy/stock-transfers").with(source).contentType(MediaType.APPLICATION_JSON).content("""
                 {"sourceSiteId":"%s","destinationSiteId":"%s","requestCode":"TR-%s","reason":"门诊药房整包装补货","lines":[{"sourceStockItemId":"%s","destinationStockItemId":"%s","requestedQuantity":1,"operationUnitCode":"%s","baseQuantityFactor":%s}]}
                 """.formatted(SOURCE_SITE,DESTINATION_SITE,suffix,sourceItem.get("id").asString(),destinationItem.get("id").asString(),packageUnit,packageFactor.toPlainString())))
@@ -70,8 +79,8 @@ class StockTransferWorkflowTest extends RhnIntegrationTestSupport {
         jdbc.update("update RHN_SUP_INV_BAL set PRICE_AVERAGE_UNIT_COST = 99 where ID_STOCK_BIN = ? and ID_STOCK_LOT = ?",
                 sourceBin.get("id").asString(), lot.get("id").asString());
         JsonNode received=json(mockMvc.perform(post("/api/pharmacy/stock-transfers/{id}/receive",id).with(destination).contentType(MediaType.APPLICATION_JSON).content("""
-                {"reason":"运输破损2个最小单位","allocations":[{"transferAllocationId":"%s","destinationBinId":"%s","receivedQuantity":%s,"damagedQuantity":2,"discrepancyReason":"外箱挤压"}]}
-                """.formatted(allocationId,destinationBin.get("id").asString(),receivedBaseQuantity.toPlainString())))
+                {"reason":"运输破损2个最小单位","allocations":[{"transferAllocationId":"%s","destinationBinId":%s,"receivedQuantity":%s,"damagedQuantity":2,"discrepancyReason":"外箱挤压"}]}
+                """.formatted(allocationId,destinationInput,receivedBaseQuantity.toPlainString())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.lines[0].receivedQuantity").value(receivedBaseQuantity.doubleValue()))
                 .andExpect(jsonPath("$.lines[0].damagedQuantity").value(2.0)).andReturn().getResponse().getContentAsString());
