@@ -42,21 +42,34 @@ public class RefreshLoginSessionService {
         return enabled;
     }
 
-    void ensureIssued(HttpServletRequest request, HttpServletResponse response, ExecutionContext context) {
-        if (!enabled || context.subjectId() == null) return;
+    /** Issues a password session unless the request already carries one of the same account; true when issued. */
+    boolean ensureIssued(HttpServletRequest request, HttpServletResponse response, ExecutionContext context) {
+        if (!enabled || context.subjectId() == null) return false;
         String currentToken = token(request).orElse(null);
         if (currentToken != null) {
             Optional<RefreshLoginSession> current = sessions.find(context.tenantId(), currentToken);
-            if (current.filter(value -> context.subjectId().equals(value.userId())).isPresent()) return;
-            sessions.delete(context.tenantId(), currentToken);
+            if (current.filter(value -> context.subjectId().equals(value.userId())).isPresent()) return false;
         }
+        issue(request, response, context.tenantId(), context.subjectId(), context.actor(), LoginMethods.PASSWORD);
+        return true;
+    }
+
+    /** Replaces any session the request carries with a new one established by {@code authenticationMethod}. */
+    void issue(HttpServletRequest request, HttpServletResponse response, Long tenantId, Long userId,
+               String username, String authenticationMethod) {
+        if (!enabled) throw new IllegalStateException("Refresh login is disabled");
+        token(request).ifPresent(value -> sessions.delete(tenantId, value));
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         Instant now = Instant.now();
-        sessions.save(token, new RefreshLoginSession(context.tenantId(), context.subjectId(), context.actor(),
-                now, now.plus(ttl)), ttl);
+        sessions.save(token, new RefreshLoginSession(tenantId, userId, username, now, now.plus(ttl),
+                authenticationMethod), ttl);
         writeCookie(response, token, ttl);
+    }
+
+    boolean cookieSecure() {
+        return cookieSecure;
     }
 
     Optional<RefreshLoginSession> find(HttpServletRequest request, Long tenantId) {

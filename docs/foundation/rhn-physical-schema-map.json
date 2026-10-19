@@ -3416,6 +3416,31 @@
         "logical": "recorded_at",
         "physical": "DT_RECDD",
         "comment": "记录时间"
+      },
+      {
+        "logical": "signature_channel",
+        "physical": "SD_SIGN_CHANNEL",
+        "comment": "签名私钥所在通道"
+      },
+      {
+        "logical": "signature_format",
+        "physical": "SD_SIGN_FMT",
+        "comment": "个人签名值格式"
+      },
+      {
+        "logical": "signer_certificate_fingerprint",
+        "physical": "HASH_SIGNER_CERT",
+        "comment": "签名证书SM3指纹"
+      },
+      {
+        "logical": "signing_order_id",
+        "physical": "ID_SIGN_ORDER",
+        "comment": "个人签名任务标识"
+      },
+      {
+        "logical": "signed_envelope",
+        "physical": "DES_SIGNED_ENVLP",
+        "comment": "厂商签名原文封装"
       }
     ]
   },
@@ -30815,6 +30840,348 @@
         "logical": "updated_at",
         "physical": "DT_UPDATED",
         "comment": "最后修改时间"
+      }
+    ]
+  },
+  {
+    "logical": "sys.ca_signer",
+    "legacy": "ca_signer",
+    "physical": "RHN_SYS_CA_SIGNER",
+    "domain": "SYS",
+    "comment": "CA签名人绑定；一行代表一个账号在一家CA厂商的签名身份",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_CA_SIGNER",
+        "comment": "CA签名人绑定主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "user_id",
+        "physical": "ID_USER",
+        "comment": "绑定账号标识"
+      },
+      {
+        "logical": "practitioner_id",
+        "physical": "ID_PRACT",
+        "comment": "执业人员标识"
+      },
+      {
+        "logical": "vendor_code",
+        "physical": "CD_CA_VENDOR",
+        "comment": "CA厂商适配器编码"
+      },
+      {
+        "logical": "external_signer_id",
+        "physical": "ID_EXT_SIGNER",
+        "comment": "厂商侧签名人标识"
+      },
+      {
+        "logical": "medium",
+        "physical": "SD_MEDIUM",
+        "comment": "证书介质"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "绑定状态"
+      },
+      {
+        "logical": "certificate_fingerprint",
+        "physical": "HASH_CERT",
+        "comment": "当前证书SM3指纹"
+      },
+      {
+        "logical": "certificate_serial",
+        "physical": "CD_CERT_SERIAL",
+        "comment": "当前证书序列号"
+      },
+      {
+        "logical": "certificate_issuer",
+        "physical": "CERT_ISSUER",
+        "comment": "当前证书签发者"
+      },
+      {
+        "logical": "certificate_subject",
+        "physical": "DES_CERT_SUBJ",
+        "comment": "当前证书主体"
+      },
+      {
+        "logical": "certificate_not_before",
+        "physical": "DT_CERT_FROM",
+        "comment": "证书生效时间"
+      },
+      {
+        "logical": "certificate_not_after",
+        "physical": "DT_CERT_TO",
+        "comment": "证书失效时间"
+      },
+      {
+        "logical": "bound_by_user_id",
+        "physical": "ID_USER_BOUND",
+        "comment": "绑定操作账号标识"
+      },
+      {
+        "logical": "bound_at",
+        "physical": "DT_BOUND",
+        "comment": "绑定时间"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      }
+    ]
+  },
+  {
+    "logical": "aud.cryptographic_certificate",
+    "legacy": "cryptographic_certificate",
+    "physical": "RHN_AUD_CRYPTO_CERT",
+    "domain": "AUD",
+    "comment": "签名证书材料；一行代表一张按指纹只追加保存的证书",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_CRYPTO_CERT",
+        "comment": "证书材料主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "fingerprint",
+        "physical": "HASH_CERT",
+        "comment": "证书SM3指纹"
+      },
+      {
+        "logical": "vendor_code",
+        "physical": "CD_CA_VENDOR",
+        "comment": "CA厂商适配器编码"
+      },
+      {
+        "logical": "serial_number",
+        "physical": "CD_CERT_SERIAL",
+        "comment": "证书序列号"
+      },
+      {
+        "logical": "issuer",
+        "physical": "CERT_ISSUER",
+        "comment": "证书签发者"
+      },
+      {
+        "logical": "subject",
+        "physical": "DES_CERT_SUBJ",
+        "comment": "证书主体"
+      },
+      {
+        "logical": "not_before",
+        "physical": "DT_CERT_FROM",
+        "comment": "证书生效时间"
+      },
+      {
+        "logical": "not_after",
+        "physical": "DT_CERT_TO",
+        "comment": "证书失效时间"
+      },
+      {
+        "logical": "der_base64",
+        "physical": "DES_CERT_DER",
+        "comment": "证书DER编码Base64"
+      },
+      {
+        "logical": "recorded_at",
+        "physical": "DT_RECDD",
+        "comment": "首次记录时间"
+      }
+    ]
+  },
+  {
+    "logical": "aud.ca_signing_order",
+    "legacy": "ca_signing_order",
+    "physical": "RHN_AUD_CA_SIGN_ORDER",
+    "domain": "AUD",
+    "comment": "个人CA签名任务；一行代表一次对签署行为证据的个人签名请求",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SIGN_ORDER",
+        "comment": "签名任务主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "发起机构标识"
+      },
+      {
+        "logical": "user_id",
+        "physical": "ID_USER",
+        "comment": "签名人账号标识"
+      },
+      {
+        "logical": "actor",
+        "physical": "NA_ACTOR",
+        "comment": "签名人账号名称快照"
+      },
+      {
+        "logical": "signer_id",
+        "physical": "ID_CA_SIGNER",
+        "comment": "CA签名人绑定标识"
+      },
+      {
+        "logical": "attestation_evidence_id",
+        "physical": "ID_CRYPTO_EVID_ATTEST",
+        "comment": "被签名的签署行为证据标识"
+      },
+      {
+        "logical": "result_evidence_id",
+        "physical": "ID_CRYPTO_EVID_RESULT",
+        "comment": "预分配的个人签名证据标识"
+      },
+      {
+        "logical": "scene_code",
+        "physical": "CD_SCENE",
+        "comment": "业务签名场景编码"
+      },
+      {
+        "logical": "vendor_code",
+        "physical": "CD_CA_VENDOR",
+        "comment": "CA厂商适配器编码"
+      },
+      {
+        "logical": "vendor_assurance",
+        "physical": "PRVDR_ASSUR",
+        "comment": "厂商适配器可信等级"
+      },
+      {
+        "logical": "signing_mode",
+        "physical": "SD_SIGN_MODE",
+        "comment": "签名方式"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "签名任务状态"
+      },
+      {
+        "logical": "statement_version",
+        "physical": "SN_STMT_VER",
+        "comment": "待签声明版本"
+      },
+      {
+        "logical": "statement_json",
+        "physical": "JSON_STMT",
+        "comment": "冻结的待签声明JSON"
+      },
+      {
+        "logical": "statement_digest_algorithm",
+        "physical": "STMT_DIGEST_ALGO",
+        "comment": "声明摘要算法"
+      },
+      {
+        "logical": "statement_digest",
+        "physical": "HASH_STMT",
+        "comment": "声明摘要"
+      },
+      {
+        "logical": "content_digest_algorithm",
+        "physical": "CONTENT_DIGEST_ALGO",
+        "comment": "被签内容摘要算法"
+      },
+      {
+        "logical": "content_digest",
+        "physical": "HASH_CONTENT",
+        "comment": "被签内容摘要"
+      },
+      {
+        "logical": "previous_evidence_id",
+        "physical": "ID_CRYPTO_EVID_PREV",
+        "comment": "声明引用的上一证据标识"
+      },
+      {
+        "logical": "correlation_id",
+        "physical": "ID_CORR",
+        "comment": "关联标识"
+      },
+      {
+        "logical": "subject",
+        "physical": "DES_SUBJECT",
+        "comment": "签名人端展示主题"
+      },
+      {
+        "logical": "patient_display",
+        "physical": "DES_PAT_DISP",
+        "comment": "已脱敏的患者展示名"
+      },
+      {
+        "logical": "external_order_id",
+        "physical": "ID_EXT_ORDER",
+        "comment": "厂商签名任务号"
+      },
+      {
+        "logical": "claim_content",
+        "physical": "DES_CLAIM",
+        "comment": "扫码认领内容"
+      },
+      {
+        "logical": "attempts",
+        "physical": "SN_ATMPTS",
+        "comment": "厂商调用次数"
+      },
+      {
+        "logical": "next_check_at",
+        "physical": "DT_NEXT_CHECK",
+        "comment": "下次处理时间"
+      },
+      {
+        "logical": "error_code",
+        "physical": "CD_ERROR",
+        "comment": "最近错误编码"
+      },
+      {
+        "logical": "error_message",
+        "physical": "DES_ERROR_MSG",
+        "comment": "最近错误说明"
+      },
+      {
+        "logical": "expires_at",
+        "physical": "DT_EXPIRES",
+        "comment": "任务过期时间"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "completed_at",
+        "physical": "DT_CMPLD",
+        "comment": "进入终态时间"
       }
     ]
   }

@@ -1,7 +1,28 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import type { CaLoginApi } from '../../shared/rhnApi'
 import { LoginScreen } from './LoginScreen'
+
+function caLoginApi(overrides: Partial<CaLoginApi> = {}, development: Partial<CaLoginApi['development']> = {}): CaLoginApi {
+  return {
+    options: vi.fn().mockResolvedValue({ mobile: true, certificate: true, vendorCode: 'development-ca' }),
+    startMobile: vi.fn().mockResolvedValue({
+      loginRequestId: 'login-1', qrContent: 'rhn-dev-ca://login/dev-login-1',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(), pollIntervalSeconds: 0,
+    }),
+    pollMobile: vi.fn().mockResolvedValue({ state: 'CONFIRMED' }),
+    certificateChallenge: vi.fn().mockResolvedValue({ challengeId: 'challenge-1', toBeSigned: 'UkhOLUNBLUxPR0lOLTE=' }),
+    completeCertificate: vi.fn().mockResolvedValue({ state: 'CONFIRMED' }),
+    ...overrides,
+    development: {
+      confirmMobile: vi.fn().mockResolvedValue(undefined),
+      rejectMobile: vi.fn().mockResolvedValue(undefined),
+      signToken: vi.fn().mockResolvedValue({ signatureValue: 'c2ln', certificate: 'Y2VydA==' }),
+      ...development,
+    },
+  }
+}
 
 describe('LoginScreen', () => {
   it('renders default credentials and submits properly', async () => {
@@ -32,6 +53,62 @@ describe('LoginScreen', () => {
     render(<LoginScreen onLogin={vi.fn()} error="用户名或密码错误" />)
 
     expect(screen.getByText('用户名或密码错误')).toBeInTheDocument()
+  })
+
+  it('offers QR login when the tenant has CA login and loads the session once confirmed', async () => {
+    const user = userEvent.setup()
+    const api = caLoginApi()
+    const confirmed = vi.fn().mockResolvedValue(undefined)
+    render(<LoginScreen onLogin={vi.fn()} error="" caLogin={() => api} onCaLoginConfirmed={confirmed} />)
+
+    await user.click(await screen.findByRole('tab', { name: '扫码登录' }))
+
+    expect(screen.queryByLabelText('密码')).not.toBeInTheDocument()
+    expect(await screen.findByText('rhn-dev-ca://login/dev-login-1')).toBeInTheDocument()
+    await waitFor(() => expect(confirmed).toHaveBeenCalledWith('362387869790209'))
+    expect(api.pollMobile).toHaveBeenCalledWith('login-1')
+  })
+
+  it('shows rejection from the phone app and keeps the page usable', async () => {
+    const user = userEvent.setup()
+    const api = caLoginApi({ pollMobile: vi.fn().mockResolvedValue({ state: 'REJECTED', failureMessage: '已在手机端拒绝登录' }) })
+    const confirmed = vi.fn()
+    render(<LoginScreen onLogin={vi.fn()} error="" caLogin={() => api} onCaLoginConfirmed={confirmed} />)
+
+    await user.click(await screen.findByRole('tab', { name: '扫码登录' }))
+
+    expect(await screen.findByText('已在手机端拒绝登录')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '刷新二维码' })).toBeInTheDocument()
+    expect(confirmed).not.toHaveBeenCalled()
+  })
+
+  it('keeps password login only when CA login is unavailable', async () => {
+    const api = caLoginApi({ options: vi.fn().mockResolvedValue({ mobile: false, certificate: false }) })
+    render(<LoginScreen onLogin={vi.fn()} error="" caLogin={() => api} onCaLoginConfirmed={vi.fn()} />)
+
+    await waitFor(() => expect(api.options).toHaveBeenCalled())
+    expect(screen.queryByRole('tab', { name: '扫码登录' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '进入工作台' })).toBeInTheDocument()
+  })
+
+  it('completes the second factor with the development UKey for the password account', async () => {
+    const user = userEvent.setup()
+    const api = caLoginApi({ options: vi.fn().mockResolvedValue({ mobile: false, certificate: true, vendorCode: 'development-ca' }) })
+    const confirmed = vi.fn().mockResolvedValue(undefined)
+    const cancel = vi.fn()
+    render(<LoginScreen onLogin={vi.fn()} error="" secondFactor={{
+      username: 'doctor', api, onConfirmed: confirmed, onCancel: cancel,
+    }} />)
+
+    await user.click(await screen.findByRole('button', { name: '读取 UKey 并验证' }))
+
+    await waitFor(() => expect(confirmed).toHaveBeenCalled())
+    expect(api.development.signToken).toHaveBeenCalledWith('doctor', 'UkhOLUNBLUxPR0lOLTE=')
+    expect(api.completeCertificate).toHaveBeenCalledWith({
+      challengeId: 'challenge-1', signatureValue: 'c2ln', certificate: 'Y2VydA==',
+    })
+    await user.click(screen.getByRole('button', { name: '返回口令登录' }))
+    expect(cancel).toHaveBeenCalled()
   })
 
   it('validates empty username and password', async () => {

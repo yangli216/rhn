@@ -10,4 +10,6 @@ public interface CryptographicEvidenceRepository extends JpaRepository<Cryptogra
 
     Optional<CryptographicEvidence> findFirstByTenantIdAndTargetTypeAndTargetIdOrderByRecordedAtDescIdDesc(
             Long tenantId, String targetType, Long targetId);
+
+    boolean existsByIdAndTenantId(Long id, Long tenantId);
 }

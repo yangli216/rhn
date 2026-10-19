@@ -1,11 +1,12 @@
 import { FontSizeControl } from '../shared/ui/FontSizeControl'
 import { useFontSizePreference } from '../shared/preferences/useFontSizePreference'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { ModuleSearch } from './ModuleSearch'
-import { LoginScreen } from '../features/auth/LoginScreen'
+import { LoginScreen, type SecondFactorStep } from '../features/auth/LoginScreen'
+import { CaCertificateDialog } from '../features/auth/CaCertificateDialog'
 import { Dashboard } from '../features/dashboard/Dashboard'
 import { requirePortalSummary } from '../features/dashboard/portalSummary'
 import { requirePortalNotifications } from './portalNotificationTruth'
@@ -567,6 +568,7 @@ export function AppShell() {
   const [authenticated, setAuthenticated] = useState<AuthenticatedState | null>(null)
   const [restoringSession, setRestoringSession] = useState(true)
   const [loginError, setLoginError] = useState('')
+  const [secondFactor, setSecondFactor] = useState<Credentials | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => window.matchMedia('(max-width: 760px)').matches)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('rhn.sidebar.collapsed') === 'true')
@@ -753,6 +755,22 @@ export function AppShell() {
     }
   }, [sidebarOpen])
 
+  /** 扫码、证书登录或第二步认证确认后，服务端已写入会话 Cookie，改用会话客户端加载工作台。 */
+  async function completeSessionLogin(tenantId: string) {
+    setLoginError('')
+    try {
+      const api = createRhnSessionApi(tenantId)
+      const session = await api.session.current()
+      localStorage.setItem(REFRESH_LOGIN_TENANT_KEY, tenantId)
+      setSecondFactor(null)
+      setAuthenticated(await loadAuthenticatedState(api, session))
+      navigate('/')
+    } catch (error) {
+      localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY)
+      setLoginError(errorMessage(error))
+    }
+  }
+
   async function login(credentials: Credentials) {
     const passwordApi = createRhnApi(credentials)
     setLoginError('')
@@ -769,9 +787,23 @@ export function AppShell() {
       navigate('/')
     } catch (error) {
       localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY)
+      if ((error as { code?: string })?.code === 'SECOND_FACTOR_REQUIRED') {
+        setSecondFactor(credentials)
+        return
+      }
       setLoginError(errorMessage(error))
     }
   }
+
+  // 第二步沿用口令凭据的客户端；按凭据记忆，避免重新渲染打断扫码轮询。
+  const secondFactorApi = useMemo(() => secondFactor ? createRhnApi(secondFactor).caLogin : null, [secondFactor])
+  const caLoginForTenant = useCallback((tenantId: string) => createRhnSessionApi(tenantId).caLogin, [])
+  const secondFactorStep: SecondFactorStep | null = secondFactor && secondFactorApi ? {
+    username: secondFactor.username,
+    api: secondFactorApi,
+    onConfirmed: () => completeSessionLogin(secondFactor.tenantId),
+    onCancel: () => { setSecondFactor(null); setLoginError('') },
+  } : null
 
   async function switchWorkContext(contextType: WorkContextType, contextKey: string) {
     if (!authenticated) return
@@ -909,7 +941,8 @@ export function AppShell() {
   }
 
   if (restoringSession) return <LoadingState label="正在恢复登录状态…" />
-  if (!authenticated) return <LoginScreen onLogin={login} error={loginError} />
+  if (!authenticated) return <LoginScreen onLogin={login} error={loginError} secondFactor={secondFactorStep}
+    caLogin={caLoginForTenant} onCaLoginConfirmed={completeSessionLogin} />
   const { session, activeContexts } = authenticated
   const fallbackSlot = Object.values(activeContexts)[0]
   if (!fallbackSlot) return <LoginScreen onLogin={login} error="当前账号没有可用工作上下文" />
@@ -993,7 +1026,7 @@ export function AppShell() {
             <NotificationCenter api={activeSlot.api} contextKey={activeContextKey}
               onNavigate={(path) => navigate(path)} />
             <FullscreenButton />
-            <UserAccountMenu session={session} activeContexts={activeContexts}
+            <UserAccountMenu api={activeSlot.api} session={session} activeContexts={activeContexts}
               activeContextType={activeSlot.option.workContextType}
               themeColor={themeColor} onThemeChange={setThemeColor}
               onSwitchWorkContext={switchWorkContext} onNavigate={(path) => navigate(path)} onLogout={logout} />
@@ -1280,7 +1313,8 @@ function AccountContextSelect({
   )
 }
 
-function UserAccountMenu({ session, activeContexts, activeContextType, themeColor, onThemeChange, onSwitchWorkContext, onNavigate, onLogout }: {
+function UserAccountMenu({ api, session, activeContexts, activeContextType, themeColor, onThemeChange, onSwitchWorkContext, onNavigate, onLogout }: {
+  api: RhnApi
   session: Session
   activeContexts: Partial<Record<WorkContextType, WorkContextSlot>>
   activeContextType: WorkContextType
@@ -1293,6 +1327,7 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
   const [open, setOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [switchingContext, setSwitchingContext] = useState(false)
+  const [caCertificatesOpen, setCaCertificatesOpen] = useState(false)
   const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement))
   const menuRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
@@ -1463,6 +1498,9 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
         <button type="button" onClick={() => navigateFromMenu('/settings/parameters')}>
           <Icon name="settings" /><span>常用参数设置</span><Icon name="chevron-right" />
         </button>
+        <button type="button" onClick={() => { setOpen(false); setCaCertificatesOpen(true) }}>
+          <Icon name="lock" /><span>我的 CA 证书</span><Icon name="chevron-right" />
+        </button>
       </div>
 
       <footer className="account-panel__footer">
@@ -1470,6 +1508,7 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
         <button type="button" onClick={onLogout}><Icon name="logout" />退出登录</button>
       </footer>
     </section>}
+    {caCertificatesOpen && <CaCertificateDialog api={api} onClose={() => setCaCertificatesOpen(false)} />}
   </div>
 }
 

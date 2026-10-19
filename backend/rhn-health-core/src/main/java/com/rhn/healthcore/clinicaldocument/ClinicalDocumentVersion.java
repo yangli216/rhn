@@ -82,8 +82,8 @@ class ClinicalDocumentVersion {
             throw new BusinessException("DOCUMENT_VERSION_ALREADY_SIGNED", "该文档版本已经签署",
                     HttpStatus.CONFLICT);
         }
-        if (!"NON_REPUDIATION".equals(receipt.purpose())) {
-            throw new IllegalArgumentException("Clinical document signature requires non-repudiation evidence");
+        if (!"ATTESTATION".equals(receipt.purpose())) {
+            throw new IllegalArgumentException("Clinical document signature requires attestation evidence");
         }
         this.signedBy = actor;
         this.signedAt = receipt.signedAt();

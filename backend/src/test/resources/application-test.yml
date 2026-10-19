@@ -32,8 +32,12 @@ rhn:
     refresh-login:
       cookie-secure: false
   crypto:
-    active-provider: development-jca
+    active-provider: software-sm
     enforce-compliance: false
+    software-sm:
+      ephemeral: true
+    ca:
+      worker-enabled: false
     secret-encryption-key: cmhuLXRlc3QtZGV2ZWxvcG1lbnQta2V5LTIwMjYhISE=
     secret-encryption-key-id: test-development
   eventing:

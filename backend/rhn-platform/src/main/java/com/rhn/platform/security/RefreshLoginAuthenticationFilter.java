@@ -14,6 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 class RefreshLoginAuthenticationFilter extends OncePerRequestFilter {
+    /** Request attribute holding the {@link RefreshLoginSession} that authenticated the request. */
+    static final String SESSION_ATTRIBUTE = RefreshLoginAuthenticationFilter.class.getName() + ".SESSION";
     private final RefreshLoginSessionService refreshLogin;
     private final IdentityAccessDirectory identityAccessDirectory;
 
@@ -43,6 +45,7 @@ class RefreshLoginAuthenticationFilter extends OncePerRequestFilter {
                 var authentication = UsernamePasswordAuthenticationToken.authenticated(
                         principal, null, principal.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                request.setAttribute(SESSION_ATTRIBUTE, saved.get());
             } else {
                 refreshLogin.invalidateCurrent(request, response, tenantId);
             }

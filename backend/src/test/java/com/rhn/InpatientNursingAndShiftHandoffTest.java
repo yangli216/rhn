@@ -53,7 +53,7 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
         assertEquals(encounterId, nursing.get("encounterId").asString());
         assertEquals("发热观察", nursing.at("/content/focus").asString());
         assertEquals("FALL", nursing.at("/observationSummary/riskFlags/0").asString());
-        assertEquals("SHA-256", nursing.get("contentDigestAlgorithm").asString());
+        assertEquals("SM3", nursing.get("contentDigestAlgorithm").asString());
 
         JsonNode nursingReplay = postJson("/api/inpatient/episodes/" + episodeId + "/nursing-records",
                 nursingBody, ward, 201);
@@ -216,7 +216,7 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 Long.valueOf(TENANT)));
         assertEquals(2, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_AUD_CRYPTO_EVID where SD_TARGET_TYPE = 'InpatientShiftHandoff' "
-                        + "and SD_PROT_PURPOSE = 'NON_REPUDIATION'", Integer.class));
+                        + "and SD_PROT_PURPOSE = 'ATTESTATION'", Integer.class));
     }
 
     private RequestPostProcessor wardContext() {

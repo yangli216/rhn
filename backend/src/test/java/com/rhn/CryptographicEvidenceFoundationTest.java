@@ -61,7 +61,8 @@ class CryptographicEvidenceFoundationTest extends RhnIntegrationTestSupport {
         assertTrue(valid.signatureValid());
         assertTrue(valid.statementBound());
         assertTrue(valid.chainLinkValid());
-        assertEquals("DEVELOPMENT_ONLY", valid.providerAssurance());
+        assertEquals("SOFTWARE", valid.providerAssurance());
+        assertEquals("software-sm", valid.providerCode());
 
         EvidenceVerification changedContent = evidenceService.verify(second.evidenceId(), bytes("被篡改的内容"));
         assertFalse(changedContent.valid());
@@ -90,7 +91,8 @@ class CryptographicEvidenceFoundationTest extends RhnIntegrationTestSupport {
                 "",
                 true,
                 "SM3",
-                "SM2");
+                "SM2",
+                null);
 
         BusinessException exception = assertThrows(BusinessException.class, () -> productionService.protect(
                 new ProtectionRequest(ProtectionProfile.CLINICAL_DOCUMENT_CONTENT, "CriticalData",
@@ -99,6 +101,39 @@ class CryptographicEvidenceFoundationTest extends RhnIntegrationTestSupport {
         assertEquals("CRYPTO_PROVIDER_UNAVAILABLE", exception.code());
         assertEquals(503, exception.status().value());
     }
+
+    @Test
+    void enforced_policy_accepts_software_sm_for_attestation_but_not_for_certified_only_profiles() {
+        DefaultCryptographicEvidenceService enforced = new DefaultCryptographicEvidenceService(
+                evidenceRepository, contextProvider, jsonCodec, providers, "software-sm", true, "SM3", "SM2",
+                null);
+        Long targetId = com.rhn.shared.id.GlobalIds.next();
+
+        EvidenceReceipt attestation = enforced.protect(new ProtectionRequest(
+                ProtectionProfile.CLINICAL_ACTION_ATTESTATION, "FoundationTestData", targetId, 1L, "SIGN",
+                "RHN.TEST.V1", bytes("签署内容"), Map.of("signatureMeaning", "AUTHOR")));
+        assertEquals("ATTESTATION", attestation.purpose());
+        assertEquals("SM3", attestation.contentDigestAlgorithm());
+        assertEquals("SM3withSM2", attestation.signatureAlgorithm());
+        assertTrue(evidenceService.verify(attestation.evidenceId(), bytes("签署内容")).valid());
+
+        BusinessException certifiedOnly = assertThrows(BusinessException.class, () -> enforced.protect(
+                new ProtectionRequest(ProtectionProfile.CLINICAL_DOCUMENT_SIGNATURE, "FoundationTestData",
+                        targetId, 1L, "SIGN", "RHN.TEST.V1", bytes("签署内容"), Map.of())));
+        assertEquals("CRYPTO_PROVIDER_UNAVAILABLE", certifiedOnly.code());
+        assertThrows(IllegalArgumentException.class, () -> enforced.protect(new ProtectionRequest(
+                ProtectionProfile.PERSONAL_CA_SIGNATURE, "FoundationTestData", targetId, 1L, "SIGN",
+                "RHN.TEST.V1", bytes("签署内容"), Map.of())));
+    }
+
+    @Autowired
+    com.rhn.platform.cryptography.infrastructure.CryptographicEvidenceRepository evidenceRepository;
+    @Autowired
+    com.rhn.shared.context.ExecutionContextProvider contextProvider;
+    @Autowired
+    com.rhn.shared.json.JsonCodec jsonCodec;
+    @Autowired
+    java.util.List<com.rhn.platform.cryptography.spi.CryptographicProvider> providers;
 
     private EvidenceReceipt protect(Long targetId, long version, String operation, String content) {
         return evidenceService.protect(new ProtectionRequest(

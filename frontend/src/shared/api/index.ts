@@ -24,6 +24,8 @@ import { ApiClient, type Credentials } from './httpClient'
 import { createOrganizationApi } from './organizationApi'
 import { createResidentsApi } from './residentsApi'
 import { createSessionApi } from './sessionApi'
+import { createCaLoginApi, createCaSignerApi } from './caLoginApi'
+export * from './caLoginApi'
 import { createTimelineApi } from './timelineApi'
 import { createMasterDataApi } from './masterDataApi'
 import { createPortalApi } from './portalApi'
@@ -98,6 +100,8 @@ function createApiModules(client: ApiClient) {
     medicationKnowledgeDrafts: createMedicationKnowledgeDraftApi(client),
     analytics: createAnalyticsApi(client),
     session: createSessionApi(client),
+    caLogin: createCaLoginApi(client),
+    caSigners: createCaSignerApi(client),
     organization: createOrganizationApi(client),
     residents: createResidentsApi(client),
     encounters: createEncountersApi(client),

@@ -12070,6 +12070,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/crypto/signers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["caSignersForUser"];
+        put?: never;
+        post: operations["bindCaSigner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signers/{signerId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeCaSignerStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personalSignaturesForAttestations"];
+        put?: never;
+        post: operations["requestPersonalSignature"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures/{orderId}/client-signature": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submitPersonalClientSignature"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures/{orderId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelPersonalSignature"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signers/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["myCaSigners"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures/{orderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personalSignatureStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures/{orderId}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["verifyPersonalSignature"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures/{orderId}/client-material": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personalSignatureClientMaterial"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/crypto/signatures/capability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personalSigningCapability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/ca-login/mobile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startMobileLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/ca-login/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["completeCertificateLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/ca-login/certificate-challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startCertificateLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/ca-login/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["caLoginOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/session/ca-login/mobile/{loginRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pollMobileLogin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -28029,6 +28269,141 @@ export interface components {
             /** @example 824633720832983041 */
             id?: string;
             name?: string;
+        };
+        BindSignerRequest: {
+            /** @example 824633720832983041 */
+            userId: string;
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            vendorCode: string;
+            externalSignerId: string;
+            medium: string;
+            certificate?: string;
+        };
+        SignerView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            userId?: string;
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            vendorCode?: string;
+            externalSignerId?: string;
+            medium?: string;
+            status?: string;
+            certificateFingerprint?: string;
+            certificateSerial?: string;
+            certificateIssuer?: string;
+            certificateSubject?: string;
+            /** Format: date-time */
+            certificateNotBefore?: string;
+            /** Format: date-time */
+            certificateNotAfter?: string;
+            /** Format: date-time */
+            boundAt?: string;
+            /** Format: int64 */
+            revision?: number;
+        };
+        ChangeStatusRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            status: string;
+        };
+        CreateSignatureRequest: {
+            /** @example 824633720832983041 */
+            attestationEvidenceId: string;
+            sceneCode: string;
+            /** @enum {string} */
+            mode?: "CLIENT_TOKEN" | "PUSH" | "QR_CLAIM" | "AUTO";
+            subject: string;
+            patientDisplay?: string;
+        };
+        SignatureStatus: {
+            /** @example 824633720832983041 */
+            orderId?: string;
+            /** @example 824633720832983041 */
+            attestationEvidenceId?: string;
+            status?: string;
+            reason?: string;
+            /** @enum {string} */
+            mode?: "CLIENT_TOKEN" | "PUSH" | "QR_CLAIM" | "AUTO";
+            vendorCode?: string;
+            claimContent?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** @example 824633720832983041 */
+            evidenceId?: string;
+            signerName?: string;
+            certificateIssuer?: string;
+            certificateSerial?: string;
+            /** Format: date-time */
+            signedAt?: string;
+            trustedTimestamp?: boolean;
+            errorCode?: string;
+            errorMessage?: string;
+        };
+        ClientSignatureRequest: {
+            signatureValue: string;
+            certificate: string;
+        };
+        EvidenceVerification: {
+            /** @example 824633720832983041 */
+            evidenceId?: string;
+            valid?: boolean;
+            contentIntact?: boolean;
+            statementDigestValid?: boolean;
+            signatureValid?: boolean;
+            statementBound?: boolean;
+            chainLinkValid?: boolean;
+            status?: string;
+            providerCode?: string;
+            providerAssurance?: string;
+        };
+        ClientSigningMaterial: {
+            /** @example 824633720832983041 */
+            orderId?: string;
+            toBeSigned?: string;
+            digestAlgorithm?: string;
+            digest?: string;
+            allowedCertificateFingerprints?: string[];
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        SigningCapability: {
+            enabled?: boolean;
+            vendorCode?: string;
+            modes?: ("CLIENT_TOKEN" | "PUSH" | "QR_CLAIM" | "AUTO")[];
+            signers?: components["schemas"]["SignerView"][];
+        };
+        MobileChallenge: {
+            loginRequestId?: string;
+            qrContent?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: int32 */
+            pollIntervalSeconds?: number;
+        };
+        CertificateLoginRequest: {
+            challengeId: string;
+            signatureValue: string;
+            certificate: string;
+        };
+        CaLoginResult: {
+            /** @enum {string} */
+            state?: "PENDING" | "CONFIRMED" | "REJECTED" | "EXPIRED" | "FAILED";
+            failureCode?: string;
+            failureMessage?: string;
+        };
+        CertificateChallenge: {
+            challengeId?: string;
+            toBeSigned?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        CaLoginOptions: {
+            mobile?: boolean;
+            certificate?: boolean;
+            vendorCode?: string;
         };
     };
     responses: never;
@@ -56804,6 +57179,537 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PaymentConfigurationCatalog"];
+                };
+            };
+        };
+    };
+    caSignersForUser: {
+        parameters: {
+            query: {
+                userId: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignerView"][];
+                };
+            };
+        };
+    };
+    bindCaSigner: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindSignerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignerView"];
+                };
+            };
+        };
+    };
+    changeCaSignerStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                signerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignerView"];
+                };
+            };
+        };
+    };
+    personalSignaturesForAttestations: {
+        parameters: {
+            query: {
+                attestationEvidenceIds: string[];
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignatureStatus"][];
+                };
+            };
+        };
+    };
+    requestPersonalSignature: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSignatureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignatureStatus"];
+                };
+            };
+        };
+    };
+    submitPersonalClientSignature: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientSignatureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignatureStatus"];
+                };
+            };
+        };
+    };
+    cancelPersonalSignature: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignatureStatus"];
+                };
+            };
+        };
+    };
+    myCaSigners: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignerView"][];
+                };
+            };
+        };
+    };
+    personalSignatureStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignatureStatus"];
+                };
+            };
+        };
+    };
+    verifyPersonalSignature: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EvidenceVerification"];
+                };
+            };
+        };
+    };
+    personalSignatureClientMaterial: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ClientSigningMaterial"];
+                };
+            };
+        };
+    };
+    personalSigningCapability: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SigningCapability"];
+                };
+            };
+        };
+    };
+    startMobileLogin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MobileChallenge"];
+                };
+            };
+        };
+    };
+    completeCertificateLogin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CertificateLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CaLoginResult"];
+                };
+            };
+        };
+    };
+    startCertificateLogin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CertificateChallenge"];
+                };
+            };
+        };
+    };
+    caLoginOptions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CaLoginOptions"];
+                };
+            };
+        };
+    };
+    pollMobileLogin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                loginRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CaLoginResult"];
                 };
             };
         };
