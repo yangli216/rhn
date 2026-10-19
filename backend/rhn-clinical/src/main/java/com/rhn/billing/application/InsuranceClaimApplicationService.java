@@ -40,6 +40,23 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         this.nationalInsuranceClient = nationalInsuranceClient;
     }
 
+    private RegistrationBillingService registrations;
+
+    /** 挂号结算单被医保资金结清时没有支付指令触发建就诊，由本服务在医保结算成功后补触发；缺省（如单测）不触发。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setRegistrations(RegistrationBillingService registrations) { this.registrations = registrations; }
+
+    private InsuranceSettlementView afterSettle(InsuranceSettlementView view) {
+        if (registrations != null && "SETTLED".equals(view.status())) {
+            try { registrations.completeIfSettled(view.settlementId()); }
+            catch (RuntimeException exception) {
+                org.slf4j.LoggerFactory.getLogger(InsuranceClaimApplicationService.class).warn(
+                        "Insurance settlement {} succeeded but registration completion failed", view.settlementId(), exception);
+            }
+        }
+        return view;
+    }
+
     /** 1101 医保人员信息获取与鉴权（对外契约，屏蔽 CHS 专网报文模型）。 */
     public PersonInfoView queryPersonInfo(PersonInfoQuery query) {
         var response = nationalInsuranceClient.queryPersonInfo(
@@ -95,7 +112,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
 
     public InsuranceSettlementView settle(Long claimId, String commandCode) {
         String command = operationCommand("SETTLE-", commandCode);
-        if (transactions.responseApplied(claimId, command)) return transactions.view(claimId, true);
+        if (transactions.responseApplied(claimId, command)) return afterSettle(transactions.view(claimId, true));
         InsuranceSettlementView view = transactions.view(claimId, false);
         if ("PRE_SETTLED".equals(view.status())) transactions.prepareSettlement(claimId);
         else if (!"SETTLEMENT_PENDING".equals(view.status())) {
@@ -113,7 +130,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
         var applied = transactions.apply(claimId, "SETTLE", result, command, messageId, false);
-        return transactions.view(claimId, applied.duplicate());
+        return afterSettle(transactions.view(claimId, applied.duplicate()));
     }
 
     public InsuranceSettlementView query(Long claimId, String commandCode) {

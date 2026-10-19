@@ -119,8 +119,14 @@ public final class ChsModels {
             String setlId,                // 原医保结算流水号
             String psnNo,
             String operatorId,
-            String reversalReason
-    ) {}
+            String reversalReason,
+            boolean registrationCancel,   // 挂号场景：结算撤销后需撤销挂号登记(2202)
+            String visitNo                // 登记时使用的就诊流水（ipt_otp_no）
+    ) {
+        public ReversalRequest(String setlId, String psnNo, String operatorId, String reversalReason) {
+            this(setlId, psnNo, operatorId, reversalReason, false, null);
+        }
+    }
 
     public record ReversalResponse(
             String reversalId,            // 撤销流水号

@@ -84,11 +84,19 @@ public class RegistrationBillingIntent {
         this.paymentOrderId = orderId; this.updatedAt = Instant.now();
     }
 
-    public boolean beginCompletion(Long orderId) {
+    /** 医保身份且挂号费并入诊间统一结算：没有挂号结算单，建立就诊时不要求先付款。 */
+    public boolean insuranceDeferred() {
+        return "MEDICAL_INSURANCE".equals(settlementMode) && settlementId == null && feeAmount.signum() > 0;
+    }
+
+    public boolean beginCompletion(Long orderId) { return beginCompletion(orderId, insuranceDeferred()); }
+
+    /** @param settledWithoutPayment 结算单已由医保资金结清或挂号费并入诊间结算，无需支付指令 */
+    public boolean beginCompletion(Long orderId, boolean settledWithoutPayment) {
         if (status == RegistrationBillingIntentStatus.COMPLETED) return false;
         if (!(status == RegistrationBillingIntentStatus.PAYMENT_PENDING || status == RegistrationBillingIntentStatus.PAID
                 || status == RegistrationBillingIntentStatus.COMPLETION_FAILED || status == RegistrationBillingIntentStatus.COMPLETING)) return false;
-        if (feeAmount.signum() > 0 && orderId == null) return false;
+        if (feeAmount.signum() > 0 && orderId == null && !settledWithoutPayment) return false;
         if (paymentOrderId != null && orderId != null && !paymentOrderId.equals(orderId)) return false;
         if (orderId != null) paymentOrderId = orderId;
         status = RegistrationBillingIntentStatus.COMPLETING; completionAttempts++; lastErrorCode = null; lastErrorMessage = null;

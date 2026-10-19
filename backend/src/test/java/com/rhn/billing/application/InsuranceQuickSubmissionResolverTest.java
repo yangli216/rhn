@@ -53,6 +53,33 @@ class InsuranceQuickSubmissionResolverTest {
     }
     private InsuranceQuickSubmissionResolver.Submission submit() { return resolver.resolve(account, resolver.visit(account), "310", null); }
 
+    @Test void registrationAccountUsesRegistrarCodeAccountOpenTimeAndNeverInventsDiagnoses() {
+        var registering = mock(PatientAccount.class);
+        when(registering.tenantId()).thenReturn(1L); when(registering.organizationId()).thenReturn(2L);
+        when(registering.departmentId()).thenReturn(3L); when(registering.encounterId()).thenReturn(null);
+        when(registering.accountType()).thenReturn("REGISTRATION"); when(registering.openedAt()).thenReturn(started);
+        var registrar = registration(1L, "360100", Map.of("front-desk", "REGISTERED-REGISTRAR"));
+        resolver = resolver(List.of(registrar));
+
+        var visit = resolver.visit(registering, "front-desk");
+        assertEquals(started, visit.startedAt());
+        assertEquals("front-desk", visit.clinician());
+        assertEquals("2026-10-04", visit.serviceDate().toString());
+        var submission = resolver.resolve(registering, visit, "310", null);
+        assertEquals("REGISTERED-REGISTRAR", submission.practitionerCode());
+        assertEquals(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction.REGISTRATION_SCENE_DIGEST,
+                submission.diagnosisDigest());
+        verifyNoInteractions(diagnoses);
+        assertTrue(resolver.diagnosesMatching(1L, null, submission.diagnosisDigest()).isEmpty());
+
+        assertEquals("INSURANCE_REGISTRATION_OPERATOR_REQUIRED",
+                assertThrows(BusinessException.class, () -> resolver.visit(registering, " ")).code());
+        // 未登记的办理人不会借用其他人员的医保编码
+        var other = resolver.visit(registering, "someone-else");
+        assertEquals("INSURANCE_REGISTRATION_UNCONFIRMED",
+                assertThrows(BusinessException.class, () -> resolver.resolve(registering, other, "310", null)).code());
+    }
+
     @Test void diagnosesAreReturnedOnlyWhenTheyStillMatchTheClaimDigest() {
         String digest = submit().diagnosisDigest();
         var result = resolver.diagnosesMatching(1L, 5L, digest);

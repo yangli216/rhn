@@ -38,7 +38,18 @@ class InsuranceQuickSubmissionResolver {
         this.organizations = organizations; this.json = json;
     }
 
-    Visit visit(PatientAccount account) {
+    /** 挂号环节的费用账户：尚未建立就诊，医保申请不携带诊断，就诊时间取账户开立时间以保证幂等重试稳定。 */
+    static boolean registrationAccount(PatientAccount account) {
+        return "REGISTRATION".equals(account.accountType()) && account.encounterId() == null;
+    }
+
+    Visit visit(PatientAccount account) { return visit(account, null); }
+
+    Visit visit(PatientAccount account, String actor) {
+        if (registrationAccount(account)) {
+            if (blank(actor)) throw conflict("INSURANCE_REGISTRATION_OPERATOR_REQUIRED", "挂号医保结算缺少办理人，无法确定医保经办人编码");
+            return new Visit(actor, account.openedAt(), null, serviceDate(account, account.openedAt()));
+        }
         if (!"OUTPATIENT".equals(account.accountType()) || account.encounterId() == null) {
             throw conflict("INSURANCE_OUTPATIENT_ENCOUNTER_REQUIRED", "快捷医保预结算需要已接诊的门诊就诊记录");
         }
@@ -83,6 +94,11 @@ class InsuranceQuickSubmissionResolver {
         String departmentCode = required(registration.departmentCode(), "科室医保编码", 128);
         String practitionerCode = required(registration.practitionerCodes().get(visit.clinician()), "接诊医师医保编码", 128);
         String system = required(registration.insuranceSystemCode(), "医保目录体系", 128);
+        if (registrationAccount(account)) {
+            // 挂号发生在接诊之前，没有已确认诊断：不补造，申请以固定标记表明“挂号场景、无诊断”。
+            return new Submission(region, organizationCode, departmentCode, practitionerCode, system,
+                    com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction.REGISTRATION_SCENE_DIGEST);
+        }
         var facts = diagnoses.findActiveDiagnoses(account.tenantId(), account.encounterId(), "ENCOUNTER");
         if (facts == null || facts.isEmpty() || facts.stream().anyMatch(d -> d == null
                 || !Objects.equals(d.encounterId(), account.encounterId()) || !"ENCOUNTER".equals(d.diagnosisStage())

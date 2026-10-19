@@ -1092,38 +1092,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/billing/reconciliation/policies/{method}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["policy"];
-        put: operations["policy_1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/organizations/{organizationId}/policies/{method}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["organizationPolicy"];
-        put: operations["saveOrganizationPolicy"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/billing/payment-channel-management/organizations/{organizationId}/channels/{method}": {
         parameters: {
             query?: never;
@@ -7284,134 +7252,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/billing/reconciliation/unallocated/{id}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["reviewMerchant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/unallocated/{id}/propose": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["proposeMerchant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_23"];
-        put?: never;
-        post: operations["create_27"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/tasks/{id}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["retry_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/items/{id}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["review_3"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/items/{id}/query": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["query"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/items/{id}/propose": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["propose"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/batches/{id}/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["close_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/billing/reconciliation-items/{id}/resolve": {
         parameters: {
             query?: never;
@@ -11957,62 +11797,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/billing/reconciliation/tasks/{id}": {
+    "/api/billing/registration-intents/insurance-timing": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["detail_6"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/tasks/{id}/unallocated": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["unallocated"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/tasks/{id}/files/{fileId}/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["evidence"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/items/{id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["events_1"];
+        get: operations["insuranceTiming"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12029,54 +11821,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["reconcile_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/channels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["catalog_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/batches/{id}/items": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["items"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/billing/reconciliation/batches/{id}/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["export_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12657,6 +12401,278 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/policies/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["policy"];
+        put: operations["policy_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/organizations/{organizationId}/policies/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["organizationPolicy"];
+        put: operations["saveOrganizationPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/unallocated/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reviewMerchant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/unallocated/{id}/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["proposeMerchant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_23"];
+        put?: never;
+        post: operations["create_27"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["review_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/batches/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["close_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}/unallocated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["unallocated"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}/files/{fileId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["events_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalog_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/batches/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["items"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/batches/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["export_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -16915,32 +16931,6 @@ export interface components {
             readonly sponsorText?: string;
             /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
             readonly timingText?: string;
-        };
-        PaymentReconciliationPolicyUpdate: {
-            /** Format: int64 */
-            expectedRevision: number;
-            autoEnabled: boolean;
-            fetchTime: string;
-            /** Format: int32 */
-            backfillDays?: number;
-        };
-        PaymentReconciliationPolicyView: {
-            /** Format: int64 */
-            revision?: number;
-            paymentMethodCode?: string;
-            autoEnabled?: boolean;
-            fetchTime?: string;
-            /** Format: int32 */
-            backfillDays?: number;
-            zoneId?: string;
-            availableAfter?: string;
-            /** Format: int32 */
-            maximumBackfillDays?: number;
-            scheduleError?: string;
-            /** Format: date-time */
-            scheduleErrorAt?: string;
-            /** @description 字典 PAY_METHOD 的显示文本 */
-            readonly paymentMethodCodeText?: string;
         };
         PaymentMerchantConfigurationUpdate: {
             /** Format: int64 */
@@ -24430,102 +24420,11 @@ export interface components {
             /** Format: date-time */
             completedAt?: string;
             duplicate?: boolean;
-            /** @description 字典 SC_VISIT_TYPE 的显示文本 */
-            readonly visitTypeText?: string;
+            insuranceTiming?: string;
             /** @description 字典 SC_REGISTRATION_SOURCE 的显示文本 */
             readonly registrationSourceText?: string;
-        };
-        PaymentReconciliationReviewCommand: {
-            /** Format: int64 */
-            expectedRevision: number;
-            commandCode: string;
-            reason: string;
-            approve: boolean;
-        };
-        PaymentReconciliationReasonCommand: {
-            /** Format: int64 */
-            expectedRevision: number;
-            commandCode: string;
-            reason: string;
-        };
-        PaymentReconciliationCreate: {
-            paymentMethodCode: string;
-            /** Format: date */
-            businessDate: string;
-            commandCode: string;
-        };
-        PaymentReconciliationBatchView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            batchNo?: string;
-            /** Format: int32 */
-            executionNumber?: number;
-            status?: string;
-            closure?: string;
-            /** Format: int32 */
-            localCount?: number;
-            /** Format: int32 */
-            externalCount?: number;
-            /** Format: int32 */
-            differenceCount?: number;
-            localAmount?: number;
-            externalAmount?: number;
-            differenceAmount?: number;
-            externalPayments?: number;
-            acceptedRefunds?: number;
-            finalRefunds?: number;
-            fees?: number;
-            currencyCode?: string;
-            /** Format: date-time */
-            snapshotAt?: string;
-            localSnapshotHash?: string;
-            /** @example 824633720832983041 */
-            statementFileId?: string;
-            /** @description 字典 BIL_RECON_CLOSURE 的显示文本 */
-            readonly closureText?: string;
-            /** @description 字典 BIL_RECON_RESULT 的显示文本 */
-            readonly statusText?: string;
-        };
-        PaymentReconciliationTaskView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            paymentMethodCode?: string;
-            /** Format: date */
-            businessDate?: string;
-            currencyCode?: string;
-            status?: string;
-            /** Format: int32 */
-            attempt?: number;
-            /** Format: date-time */
-            nextAttemptAt?: string;
-            errorCode?: string;
-            errorMessage?: string;
-            /** @example 824633720832983041 */
-            latestFileId?: string;
-            /** Format: date-time */
-            completedAt?: string;
-            merchantAllocationComplete?: boolean;
-            latestBatch?: components["schemas"]["PaymentReconciliationBatchView"];
-            /** @description 字典 PAY_METHOD 的显示文本 */
-            readonly paymentMethodCodeText?: string;
-            /** @description 字典 BIL_RECON_TASK_STATUS 的显示文本 */
-            readonly statusText?: string;
-        };
-        PaymentReconciliationVersionCommand: {
-            /** Format: int64 */
-            expectedRevision: number;
-            commandCode: string;
-        };
-        PaymentReconciliationVerificationView: {
-            outcome?: string;
-            completedAmount?: number;
-            message?: string;
-            /** @description 字典 BIL_RECON_QUERY_OUTCOME 的显示文本 */
-            readonly outcomeText?: string;
+            /** @description 字典 SC_VISIT_TYPE 的显示文本 */
+            readonly visitTypeText?: string;
         };
         StatementRequest: {
             externalBatchNo?: string;
@@ -28567,99 +28466,8 @@ export interface components {
             /** @description 字典 BIL_RELIEF_POLICY_STATUS 的显示文本 */
             readonly statusText?: string;
         };
-        PageResultPaymentReconciliationTaskView: {
-            content?: components["schemas"]["PaymentReconciliationTaskView"][];
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-        };
-        PaymentReconciliationAttemptView: {
-            /** Format: int32 */
-            attempt?: number;
-            status?: string;
-            /** Format: date-time */
-            startedAt?: string;
-            /** Format: date-time */
-            finishedAt?: string;
-            errorCode?: string;
-            errorMessage?: string;
-            /** @example 824633720832983041 */
-            fileId?: string;
-            /** @description 字典 BIL_RECON_TASK_STATUS 的显示文本 */
-            readonly statusText?: string;
-        };
-        PaymentReconciliationFileView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int32 */
-            attempt?: number;
-            sha256?: string;
-            parserVersion?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            proof?: string;
-            latest?: boolean;
-            validated?: boolean;
-        };
-        PaymentReconciliationTaskDetail: {
-            task?: components["schemas"]["PaymentReconciliationTaskView"];
-            files?: components["schemas"]["PaymentReconciliationFileView"][];
-            versions?: components["schemas"]["PaymentReconciliationBatchView"][];
-            attempts?: components["schemas"]["PaymentReconciliationAttemptView"][];
-        };
-        PageResultPaymentReconciliationUnallocatedView: {
-            content?: components["schemas"]["PaymentReconciliationUnallocatedView"][];
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-        };
-        PaymentReconciliationUnallocatedView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** Format: int32 */
-            lineNumber?: number;
-            transactionType?: string;
-            merchantOrderNo?: string;
-            refundRequestNo?: string;
-            externalTransactionNo?: string;
-            amount?: number;
-            currencyCode?: string;
-            channelStatus?: string;
-            status?: string;
-            reason?: string;
-            /** @example 824633720832983041 */
-            proposedBy?: string;
-            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
-            readonly statusText?: string;
-            /** @description 字典 BIL_RECON_TXN_TYPE 的显示文本 */
-            readonly transactionTypeText?: string;
-            /** @description 字典 BIL_RECON_CHANNEL_STATUS 的显示文本 */
-            readonly channelStatusText?: string;
-        };
-        PaymentReconciliationEventView: {
-            eventType?: string;
-            statusTo?: string;
-            /** @example 824633720832983041 */
-            actorId?: string;
-            reason?: string;
-            /** Format: date-time */
-            occurredAt?: string;
-            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
-            readonly statusToText?: string;
-            /** @description 字典 BIL_RECON_EVENT_TYPE 的显示文本 */
-            readonly eventTypeText?: string;
+        InsuranceTimingView: {
+            timing?: string;
         };
         DailyReconciliationView: {
             /** Format: date */
@@ -28680,77 +28488,6 @@ export interface components {
             ledgerCredit?: number;
             ledgerBalance?: number;
             lines?: components["schemas"]["ReconciliationLineView"][];
-        };
-        PaymentReconciliationChannelView: {
-            capability?: components["schemas"]["StatementCapability"];
-            configured?: boolean;
-            merchantLabel?: string;
-            unavailableReason?: string;
-        };
-        StatementCapability: {
-            paymentMethodCode?: string;
-            adapterCode?: string;
-            name?: string;
-            billType?: string;
-            zoneId?: string;
-            availableAfter?: string;
-            /** Format: int32 */
-            historyDays?: number;
-            parserVersion?: string;
-            /** @description 字典 PAY_METHOD 的显示文本 */
-            readonly paymentMethodCodeText?: string;
-        };
-        PageResultPaymentReconciliationItemView: {
-            content?: components["schemas"]["PaymentReconciliationItemView"][];
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-        };
-        PaymentReconciliationItemView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            paymentOrderId?: string;
-            /** @example 824633720832983041 */
-            paymentId?: string;
-            /** @example 824633720832983041 */
-            statementRowId?: string;
-            transactionType?: string;
-            externalTransactionNo?: string;
-            channelStatus?: string;
-            comparisonResult?: string;
-            status?: string;
-            localAmount?: number;
-            externalAmount?: number;
-            differenceAmount?: number;
-            currencyCode?: string;
-            /** Format: date-time */
-            channelOccurredAt?: string;
-            /** Format: date-time */
-            localPostedAt?: string;
-            /** @example 824633720832983041 */
-            proposedBy?: string;
-            resolution?: string;
-            /** @example 824633720832983041 */
-            reviewedBy?: string;
-            merchantOrderNo?: string;
-            refundRequestNo?: string;
-            externalRefundNo?: string;
-            /** @description 字典 BIL_RECON_TXN_TYPE 的显示文本 */
-            readonly transactionTypeText?: string;
-            /** @description 字典 BIL_RECON_MATCH_TYPE 的显示文本 */
-            readonly comparisonResultText?: string;
-            /** @description 字典 BIL_RECON_CHANNEL_STATUS 的显示文本 */
-            readonly channelStatusText?: string;
-            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
-            readonly statusText?: string;
         };
         PaymentAuthorizationCodeRule: {
             pattern?: string;
@@ -29220,6 +28957,289 @@ export interface components {
             selected?: string[];
             baseline?: string[];
             exceptionType?: string;
+        };
+        PaymentReconciliationPolicyUpdate: {
+            /** Format: int64 */
+            expectedRevision: number;
+            autoEnabled: boolean;
+            fetchTime: string;
+            /** Format: int32 */
+            backfillDays?: number;
+        };
+        PaymentReconciliationPolicyView: {
+            /** Format: int64 */
+            revision?: number;
+            paymentMethodCode?: string;
+            autoEnabled?: boolean;
+            fetchTime?: string;
+            /** Format: int32 */
+            backfillDays?: number;
+            zoneId?: string;
+            availableAfter?: string;
+            /** Format: int32 */
+            maximumBackfillDays?: number;
+            scheduleError?: string;
+            /** Format: date-time */
+            scheduleErrorAt?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+        };
+        PaymentReconciliationReviewCommand: {
+            /** Format: int64 */
+            expectedRevision: number;
+            commandCode: string;
+            reason: string;
+            approve: boolean;
+        };
+        PaymentReconciliationReasonCommand: {
+            /** Format: int64 */
+            expectedRevision: number;
+            commandCode: string;
+            reason: string;
+        };
+        PaymentReconciliationCreate: {
+            paymentMethodCode: string;
+            /** Format: date */
+            businessDate: string;
+            commandCode: string;
+        };
+        PaymentReconciliationBatchView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            batchNo?: string;
+            /** Format: int32 */
+            executionNumber?: number;
+            status?: string;
+            closure?: string;
+            /** Format: int32 */
+            localCount?: number;
+            /** Format: int32 */
+            externalCount?: number;
+            /** Format: int32 */
+            differenceCount?: number;
+            localAmount?: number;
+            externalAmount?: number;
+            differenceAmount?: number;
+            externalPayments?: number;
+            acceptedRefunds?: number;
+            finalRefunds?: number;
+            fees?: number;
+            currencyCode?: string;
+            /** Format: date-time */
+            snapshotAt?: string;
+            localSnapshotHash?: string;
+            /** @example 824633720832983041 */
+            statementFileId?: string;
+            /** @description 字典 BIL_RECON_CLOSURE 的显示文本 */
+            readonly closureText?: string;
+            /** @description 字典 BIL_RECON_RESULT 的显示文本 */
+            readonly statusText?: string;
+        };
+        PaymentReconciliationTaskView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            paymentMethodCode?: string;
+            /** Format: date */
+            businessDate?: string;
+            currencyCode?: string;
+            status?: string;
+            /** Format: int32 */
+            attempt?: number;
+            /** Format: date-time */
+            nextAttemptAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            /** @example 824633720832983041 */
+            latestFileId?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            merchantAllocationComplete?: boolean;
+            latestBatch?: components["schemas"]["PaymentReconciliationBatchView"];
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+            /** @description 字典 BIL_RECON_TASK_STATUS 的显示文本 */
+            readonly statusText?: string;
+        };
+        PaymentReconciliationVersionCommand: {
+            /** Format: int64 */
+            expectedRevision: number;
+            commandCode: string;
+        };
+        PaymentReconciliationVerificationView: {
+            outcome?: string;
+            completedAmount?: number;
+            message?: string;
+            /** @description 字典 BIL_RECON_QUERY_OUTCOME 的显示文本 */
+            readonly outcomeText?: string;
+        };
+        PageResultPaymentReconciliationTaskView: {
+            content?: components["schemas"]["PaymentReconciliationTaskView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PaymentReconciliationAttemptView: {
+            /** Format: int32 */
+            attempt?: number;
+            status?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            /** @example 824633720832983041 */
+            fileId?: string;
+            /** @description 字典 BIL_RECON_TASK_STATUS 的显示文本 */
+            readonly statusText?: string;
+        };
+        PaymentReconciliationFileView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int32 */
+            attempt?: number;
+            sha256?: string;
+            parserVersion?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            proof?: string;
+            latest?: boolean;
+            validated?: boolean;
+        };
+        PaymentReconciliationTaskDetail: {
+            task?: components["schemas"]["PaymentReconciliationTaskView"];
+            files?: components["schemas"]["PaymentReconciliationFileView"][];
+            versions?: components["schemas"]["PaymentReconciliationBatchView"][];
+            attempts?: components["schemas"]["PaymentReconciliationAttemptView"][];
+        };
+        PageResultPaymentReconciliationUnallocatedView: {
+            content?: components["schemas"]["PaymentReconciliationUnallocatedView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PaymentReconciliationUnallocatedView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** Format: int32 */
+            lineNumber?: number;
+            transactionType?: string;
+            merchantOrderNo?: string;
+            refundRequestNo?: string;
+            externalTransactionNo?: string;
+            amount?: number;
+            currencyCode?: string;
+            channelStatus?: string;
+            status?: string;
+            reason?: string;
+            /** @example 824633720832983041 */
+            proposedBy?: string;
+            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
+            readonly statusText?: string;
+            /** @description 字典 BIL_RECON_TXN_TYPE 的显示文本 */
+            readonly transactionTypeText?: string;
+            /** @description 字典 BIL_RECON_CHANNEL_STATUS 的显示文本 */
+            readonly channelStatusText?: string;
+        };
+        PaymentReconciliationEventView: {
+            eventType?: string;
+            statusTo?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            reason?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
+            readonly statusToText?: string;
+            /** @description 字典 BIL_RECON_EVENT_TYPE 的显示文本 */
+            readonly eventTypeText?: string;
+        };
+        PaymentReconciliationChannelView: {
+            capability?: components["schemas"]["StatementCapability"];
+            configured?: boolean;
+            merchantLabel?: string;
+            unavailableReason?: string;
+        };
+        StatementCapability: {
+            paymentMethodCode?: string;
+            adapterCode?: string;
+            name?: string;
+            billType?: string;
+            zoneId?: string;
+            availableAfter?: string;
+            /** Format: int32 */
+            historyDays?: number;
+            parserVersion?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+        };
+        PageResultPaymentReconciliationItemView: {
+            content?: components["schemas"]["PaymentReconciliationItemView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PaymentReconciliationItemView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            paymentOrderId?: string;
+            /** @example 824633720832983041 */
+            paymentId?: string;
+            /** @example 824633720832983041 */
+            statementRowId?: string;
+            transactionType?: string;
+            externalTransactionNo?: string;
+            channelStatus?: string;
+            comparisonResult?: string;
+            status?: string;
+            localAmount?: number;
+            externalAmount?: number;
+            differenceAmount?: number;
+            currencyCode?: string;
+            /** Format: date-time */
+            channelOccurredAt?: string;
+            /** Format: date-time */
+            localPostedAt?: string;
+            /** @example 824633720832983041 */
+            proposedBy?: string;
+            resolution?: string;
+            /** @example 824633720832983041 */
+            reviewedBy?: string;
+            merchantOrderNo?: string;
+            refundRequestNo?: string;
+            externalRefundNo?: string;
+            /** @description 字典 BIL_RECON_TXN_TYPE 的显示文本 */
+            readonly transactionTypeText?: string;
+            /** @description 字典 BIL_RECON_MATCH_TYPE 的显示文本 */
+            readonly comparisonResultText?: string;
+            /** @description 字典 BIL_RECON_CHANNEL_STATUS 的显示文本 */
+            readonly channelStatusText?: string;
+            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
+            readonly statusText?: string;
         };
     };
     responses: never;
@@ -32049,140 +32069,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ReliefPolicyView"];
-                };
-            };
-        };
-    };
-    policy: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                method: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
-                };
-            };
-        };
-    };
-    policy_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                method: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationPolicyUpdate"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
-                };
-            };
-        };
-    };
-    organizationPolicy: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                organizationId: string;
-                method: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
-                };
-            };
-        };
-    };
-    saveOrganizationPolicy: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                organizationId: string;
-                method: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationPolicyUpdate"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
                 };
             };
         };
@@ -48287,310 +48173,6 @@ export interface operations {
             };
         };
     };
-    reviewMerchant: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationReviewCommand"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    proposeMerchant: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    list_23: {
-        parameters: {
-            query: {
-                paymentMethodCode: string;
-                from: string;
-                to: string;
-                status?: string;
-                page?: number;
-                size?: number;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PageResultPaymentReconciliationTaskView"];
-                };
-            };
-        };
-    };
-    create_27: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationCreate"];
-            };
-        };
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationTaskView"];
-                };
-            };
-        };
-    };
-    retry_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationVersionCommand"];
-            };
-        };
-        responses: {
-            /** @description Accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationTaskView"];
-                };
-            };
-        };
-    };
-    review_3: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationReviewCommand"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    query: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationVersionCommand"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationVerificationView"];
-                };
-            };
-        };
-    };
-    propose: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    close_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     resolve_2: {
         parameters: {
             query?: never;
@@ -57997,42 +57579,11 @@ export interface operations {
             };
         };
     };
-    detail_6: {
+    insuranceTiming: {
         parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationTaskDetail"];
-                };
-            };
-        };
-    };
-    unallocated: {
-        parameters: {
-            query?: {
-                page?: number;
-                size?: number;
+            query: {
+                organizationId: string;
+                departmentId: string;
             };
             header: {
                 /** @description 当前县域医共体租户标识 */
@@ -58044,9 +57595,7 @@ export interface operations {
                 /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
                 "X-Department-Id"?: string;
             };
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -58057,70 +57606,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PageResultPaymentReconciliationUnallocatedView"];
-                };
-            };
-        };
-    };
-    evidence: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-                fileId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": string;
-                };
-            };
-        };
-    };
-    events_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationEventView"][];
+                    "*/*": components["schemas"]["InsuranceTimingView"];
                 };
             };
         };
@@ -58152,101 +57638,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DailyReconciliationView"];
-                };
-            };
-        };
-    };
-    catalog_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PaymentReconciliationChannelView"][];
-                };
-            };
-        };
-    };
-    items: {
-        parameters: {
-            query?: {
-                differencesOnly?: boolean;
-                page?: number;
-                size?: number;
-            };
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PageResultPaymentReconciliationItemView"];
-                };
-            };
-        };
-    };
-    export_1: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description 当前县域医共体租户标识 */
-                "X-Tenant-Id": string;
-                /** @description 调用链关联号；未提供时由服务端生成 */
-                "X-Correlation-Id"?: string;
-                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
-                "X-Organization-Id"?: string;
-                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
-                "X-Department-Id"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": string;
                 };
             };
         };
@@ -59353,6 +58744,667 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    policy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    policy_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    organizationPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    saveOrganizationPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    reviewMerchant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReviewCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    proposeMerchant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_23: {
+        parameters: {
+            query: {
+                paymentMethodCode: string;
+                from: string;
+                to: string;
+                status?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultPaymentReconciliationTaskView"];
+                };
+            };
+        };
+    };
+    create_27: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationTaskView"];
+                };
+            };
+        };
+    };
+    retry_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationVersionCommand"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationTaskView"];
+                };
+            };
+        };
+    };
+    review_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReviewCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    query: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationVersionCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationVerificationView"];
+                };
+            };
+        };
+    };
+    propose: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    close_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    detail_6: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationTaskDetail"];
+                };
+            };
+        };
+    };
+    unallocated: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultPaymentReconciliationUnallocatedView"];
+                };
+            };
+        };
+    };
+    evidence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    events_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationEventView"][];
+                };
+            };
+        };
+    };
+    catalog_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationChannelView"][];
+                };
+            };
+        };
+    };
+    items: {
+        parameters: {
+            query?: {
+                differencesOnly?: boolean;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultPaymentReconciliationItemView"];
+                };
+            };
+        };
+    };
+    export_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
             };
         };
     };

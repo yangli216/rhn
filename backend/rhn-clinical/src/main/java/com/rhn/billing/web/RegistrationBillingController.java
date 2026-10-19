@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,8 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/billing/registration-intents")
 public class RegistrationBillingController {
     private final RegistrationBillingService service;
+    private final com.rhn.billing.application.RegistrationCancellationBillingService cancellation;
 
-    public RegistrationBillingController(RegistrationBillingService service) { this.service = service; }
+    public RegistrationBillingController(RegistrationBillingService service,
+                                         com.rhn.billing.application.RegistrationCancellationBillingService cancellation) {
+        this.service = service; this.cancellation = cancellation;
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -31,6 +36,13 @@ public class RegistrationBillingController {
                 input.visitType(), input.settlementMode(), input.coverageId()));
     }
 
+    @GetMapping("/insurance-timing")
+    InsuranceTimingView insuranceTiming(@RequestParam Long organizationId, @RequestParam Long departmentId) {
+        return new InsuranceTimingView(service.insuranceTiming(organizationId, departmentId));
+    }
+
+    record InsuranceTimingView(String timing) {}
+
     @GetMapping("/{intentId}")
     RegistrationIntentView get(@PathVariable Long intentId) { return service.get(intentId); }
 
@@ -38,7 +50,7 @@ public class RegistrationBillingController {
     RegistrationIntentView retry(@PathVariable Long intentId) { return service.retry(intentId); }
 
     @PostMapping("/{intentId}/cancel")
-    RegistrationIntentView cancel(@PathVariable Long intentId) { return service.cancel(intentId); }
+    RegistrationIntentView cancel(@PathVariable Long intentId) { return cancellation.cancelIntent(intentId); }
 
     record CreateRegistrationIntentRequest(
             @NotNull Long residentId, @NotNull Long organizationId, @NotNull Long departmentId,

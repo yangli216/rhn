@@ -67,6 +67,7 @@ class HttpChsNationalInsuranceClientTest {
         ok("2207", "{\"setlinfo\":" + setl("SETL-FINAL", "100.00", "60.00", "10.00", "20.00", "10.00", "0.00")
                 .replace("}", ",\"setl_time\":\"2026-10-18 10:05:00\"}") + "}");
         ok("2208", "{\"setlinfo\":{\"setl_id\":\"REV-1\"}}");
+        ok("2202", "{}");
     }
 
     static String setl(String id, String total, String pool, String major, String acct, String cash, String mutual) {
@@ -90,6 +91,19 @@ class HttpChsNationalInsuranceClientTest {
                 NOW, null, "HASH", List.of(new InsuranceLine(7L, 8L, "LOCAL-1", "XA01", "阿莫西林",
                 new BigDecimal("2"), new BigDecimal("50"), new BigDecimal("100"), "DRUG", Map.of())),
                 new BigDecimal("100"), "CNY", "CORR", memberNo, memberNo == null ? List.of() : DIAGNOSES);
+    }
+
+    /** 挂号环节：无诊断，申请以固定标记表明场景；reusableVisitId 非空表示诊间沿用挂号时登记的就诊。 */
+    InsuranceInstruction registrationInstruction() {
+        return new InsuranceInstruction(1L, 2L, "SET", "KEY", 3L, 4L, null, 6L, "360100", "310", "H36010001", "D01", "DOC1",
+                NOW, null, InsuranceInstruction.REGISTRATION_SCENE_DIGEST, instruction("PSN001").lines(),
+                new BigDecimal("100"), "CNY", "CORR", "PSN001", List.of(), null);
+    }
+
+    InsuranceInstruction visitInstructionReusing(String visitId) {
+        var base = instruction("PSN001");
+        return new InsuranceInstruction(1L, 2L, "SET", "KEY", 3L, 4L, 5L, 6L, "360100", "310", "H36010001", "D01", "DOC1",
+                NOW, null, "HASH", base.lines(), new BigDecimal("100"), "CNY", "CORR", "PSN001", DIAGNOSES, visitId);
     }
 
     static final List<InsuranceDiagnosis> DIAGNOSES = List.of(new InsuranceDiagnosis("PRIMARY", 1, "J06.900", "急性上呼吸道感染"),
@@ -235,6 +249,52 @@ class HttpChsNationalInsuranceClientTest {
         attempts[0] = 0;
         assertThat(adapter.preSettle(instruction("PSN001")).outcome()).isEqualTo(InsuranceResult.Outcome.FAILED);
         assertThat(sent.stream().filter(n -> "2201".equals(n.path("infno").asString())).count()).isEqualTo(4);
+    }
+
+    @Test
+    void registrationSceneRegistersVisitButNeverUploadsDiagnosisOrInventsOne() {
+        client.queryPersonInfo(new ChsModels.PersonInfoRequest("01", "360102198801011234", "张三"));
+        var pre = adapter.preSettle(registrationInstruction());
+        assertThat(pre.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString())).contains("2201", "2204", "2206")
+                .doesNotContain("2203A");
+        assertThat(pre.externalSettlementNo()).isEqualTo("MDT001:SETL-PRE");
+    }
+
+    @Test
+    void visitSettlementReusesTheVisitRegisteredAtRegistrationWithoutRegisteringAgain() {
+        client.queryPersonInfo(new ChsModels.PersonInfoRequest("01", "360102198801011234", "张三"));
+        var pre = adapter.preSettle(visitInstructionReusing("MDT-FROM-REGISTRATION"));
+        assertThat(pre.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString())).doesNotContain("2201").contains("2203A", "2204", "2206");
+        assertThat(call("2203A").path("input").path("mdtrtinfo").path("mdtrt_id").asString()).isEqualTo("MDT-FROM-REGISTRATION");
+        assertThat(pre.externalSettlementNo()).startsWith("MDT-FROM-REGISTRATION:");
+    }
+
+    @Test
+    void registrationReversalCancelsInsuranceThenTheRegistrationAndStaysSuccessfulIfOnlyTheCancelFails() {
+        var reversal = new InsuranceReversal(1L, 2L, "SET", "REV", "360100", "310", "MDT001:SETL-FINAL",
+                new BigDecimal("100"), "退号", "CORR", 4L, 6L, "DOC1", "CNY", new BigDecimal("60"), new BigDecimal("20"),
+                new BigDecimal("10"), new BigDecimal("10"), "PSN001", true);
+        var done = adapter.reverse(reversal);
+        assertThat(done.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString()).toList().subList(sent.size() - 2, sent.size()))
+                .containsExactly("2208", "2202");
+        JsonNode cancel = call("2202").path("input").path("data");
+        assertThat(cancel.path("mdtrt_id").asString()).isEqualTo("MDT001");
+        assertThat(cancel.path("ipt_otp_no").asString()).isEqualTo("SET");
+
+        rejected("2202", "挂号已撤销");
+        var partial = adapter.reverse(reversal);
+        assertThat(partial.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().filter(n -> "2208".equals(n.path("infno").asString())).count()).isEqualTo(2);
+
+        sent.clear();
+        var plain = new InsuranceReversal(1L, 2L, "SET", "REV", "360100", "310", "MDT001:SETL-FINAL",
+                new BigDecimal("100"), "取消", "CORR", 4L, 6L, "DOC1", "CNY", new BigDecimal("60"), new BigDecimal("20"),
+                new BigDecimal("10"), new BigDecimal("10"), "PSN001");
+        assertThat(adapter.reverse(plain).outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString())).doesNotContain("2202");
     }
 
     @Test

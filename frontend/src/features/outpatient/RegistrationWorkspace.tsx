@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
-import type { RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
+import type { ChsPersonInfoResponse, RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
 import { systemEnumItemName, systemEnumItems, type SystemEnumDefinition } from '../../shared/api/dictionaryApi'
 import type { Appointment } from '../../shared/api/appointmentsApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
@@ -21,6 +21,7 @@ import { Alert, Button, DataTable, DatePicker, Dialog, DictionarySelect, SearchF
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
+import { RegistrationInsuranceAuth, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
 import '../../styles/features/scheduling-registration.css'
 
 export { getCashPresets }
@@ -423,6 +424,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [visitType, setVisitType] = useState<'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'>('GENERAL')
   const [coverageSelection, setCoverageSelection] = useState('SELF_PAY')
   const [coverageTouched, setCoverageTouched] = useState(false)
+  const [insurancePerson, setInsurancePerson] = useState<ChsPersonInfoResponse | null>(null)
   const [success, setSuccess] = useState<RegistrationSuccess | null>(null)
   const [intentId, setIntentId] = useState('')
   const [showQuickCreate, setShowQuickCreate] = useState(false)
@@ -643,6 +645,17 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       secondaryText: `${value.payerName}${value.primary ? ' · 主要保障' : ''}` })),
   ], [activeMedicalCoverages])
   const selectedCoverage = activeMedicalCoverages.find((value) => `COVERAGE:${value.id}` === coverageSelection)
+  const insuranceTiming = useRegistrationInsuranceTiming(api, clinicalContext.organization.id,
+    selectedSchedule?.departmentId || clinicalContext.department.id, Boolean(selectedCoverage))
+  // 医保身份挂号的前置条件：结算时机已确认；挂号时结算的机构还须先完成参保鉴权（1101）。
+  const insuranceBlock = !selectedCoverage ? null
+    : insuranceTiming.isError ? `无法确认本院医保挂号结算方式：${errorMessage(insuranceTiming.error)}`
+    : !insuranceTiming.data ? '正在确认本院医保挂号结算方式…'
+    : insuranceTiming.data.timing === 'REGISTRATION' && !insurancePerson ? '请先读取医保凭证完成参保鉴权后再挂号。'
+    : insuranceTiming.data.timing === 'REGISTRATION' && insurancePerson?.status !== 'NORMAL' ? '参保状态异常，不能办理医保挂号结算。'
+    : null
+  const needsPaymentAtCreate = !selectedCoverage
+  useEffect(() => { setInsurancePerson(null) }, [coverageSelection, selected?.id])
 
   // 选号阶段只展示目录有效价；医保支付与减免以正式结算结果为准。
   const feeBreakdown = useMemo(() => {
@@ -682,7 +695,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const numericTendered = Number(cashTendered)
   const cashChange = numericTendered >= feeBreakdown.payableAmount ? numericTendered - feeBreakdown.payableAmount : 0
-  const isCashShort = isCashMethod && feeBreakdown.payableAmount > 0 && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < feeBreakdown.payableAmount)
+  const isCashShort = isCashMethod && needsPaymentAtCreate && feeBreakdown.payableAmount > 0 && (!cashTendered || !Number.isFinite(numericTendered) || numericTendered < feeBreakdown.payableAmount)
 
   useEffect(() => {
     if (linkedResident.data) setSelected(linkedResident.data)
@@ -750,10 +763,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const createIntent = useMutation({
     mutationFn: () => {
       if (!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort
-        || (feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)) {
+        || (needsPaymentAtCreate && feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)) {
         throw new Error('请确认号源、支付方式与实收金额后再挂号')
       }
-      if (selectedCoverage || isScanMethod) {
+      if (insuranceBlock) throw new Error(insuranceBlock)
+      if (isScanMethod && !selectedCoverage) {
         throw new Error('当前结算接口未对接，请选择已支持的支付方式')
       }
       return api.billing.createRegistrationIntent({
@@ -765,7 +779,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         idempotencyCode: `REG-INTENT-${crypto.randomUUID()}`,
         registrationSource: scheduleId === 'DIRECT' ? (visitType === 'EMERGENCY' ? 'EMERGENCY' : 'DIRECT') : 'WINDOW',
         visitType,
-        settlementMode: 'SELF_PAY',
+        settlementMode: selectedCoverage ? 'MEDICAL_INSURANCE' : 'SELF_PAY',
+        coverageId: selectedCoverage?.id,
       })
     },
     onSuccess: async (value) => {
@@ -928,11 +943,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const displayedSchedules = linkedSchedule ? [linkedSchedule] : filteredSchedules
   const remainingSlots = displayedSchedules.reduce((total, item) => total + item.availableCount, 0)
+  const currentIntent = intent.data
+  const currentSettlement = intentSettlement.data
+  const insuranceSettlement = useRegistrationInsuranceSettlement(api, currentIntent, currentSettlement,
+    (command) => createPaymentOrder.mutateAsync(command),
+    async () => { await Promise.all([intent.refetch(), intentSettlement.refetch(), paymentOrders.refetch(),
+      queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })]) })
   const pageError = linkedResident.error || linkedAppointment.error || residentProfile.error || schedules.error
     || visitTypes.error || paymentMethods.error || intent.error || paymentOrders.error
     || intentSettlement.error || createIntent.error || createPaymentOrder.error || retryCompletion.error || cancelIntent.error
-  const currentIntent = intent.data
-  const currentSettlement = intentSettlement.data
+    || insuranceSettlement.preSettle.error || insuranceSettlement.submit.error
   const settlementOptions = currentIntent?.settlementId ? [{ id: currentIntent.settlementId,
     code: currentIntent.itemName ? `${currentIntent.itemName}挂号结算` : '挂号费结算',
     outstandingAmount: currentSettlement?.outstandingAmount ?? currentIntent.feeAmount,
@@ -1190,10 +1210,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               showShortcuts={showPaymentShortcuts}
             />
 
-            {selectedCoverage && (
-              <Alert tone="warning">
-                【医保接口未对接】当前系统未对接国家/地方医保平台，暂不支持医保预结算与统筹基金抵扣。如需结算出单，请在上方“费用类别”中切换为「自费」。
+            {selectedCoverage && insuranceTiming.data?.timing === 'VISIT_UNIFIED' && (
+              <Alert tone="info">
+                本院医保挂号费并入诊间统一结算：挂号时不做医保交易，挂号成功后挂号费随本次门诊费用一并办理医保结算。
               </Alert>
+            )}
+            {selectedCoverage && insuranceTiming.data?.timing === 'REGISTRATION' && !intentId && (
+              <RegistrationInsuranceAuth api={api} person={insurancePerson} onAuthenticated={setInsurancePerson} />
+            )}
+            {selectedCoverage && insuranceTiming.isError && (
+              <Alert tone="error">{insuranceBlock}</Alert>
             )}
 
             {isScanMethod && (
@@ -1202,7 +1228,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </Alert>
             )}
 
-            {isCashMethod && feeBreakdown.payableAmount > 0 && (
+            {isCashMethod && !selectedCoverage && feeBreakdown.payableAmount > 0 && (
               <CashPaymentCalculator
                 payableAmount={feeBreakdown.payableAmount}
                 tendered={cashTendered}
@@ -1227,13 +1253,13 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             {!intentId && !currentIntent && <div className="registration-submit-area">
               <Button ref={confirmButtonRef} className="registration-confirm-button"
                 busy={createIntent.isPending} busyLabel="正在核价并出单"
-                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort || (feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)}
+                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort || (needsPaymentAtCreate && feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)}
                 onClick={() => {
-                  if (selectedCoverage) {
-                    setValidationError('【医保接口未对接】当前系统未对接国家/地方医保平台，暂不支持医保预结算与统筹基金抵扣。请在“费用类别”中切换为「自费」后再办理。')
+                  if (insuranceBlock) {
+                    setValidationError(insuranceBlock)
                     return
                   }
-                  if (isScanMethod) {
+                  if (isScanMethod && !selectedCoverage) {
                     setValidationError(`【${selectedMethodName}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金或银行卡。`)
                     return
                   }
@@ -1273,9 +1299,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
             {intentId && intent.isPending && <LoadingState label="正在加载挂号结算信息…" />}
             {currentIntent && currentIntent.status !== 'COMPLETED' && <div className="registration-payment-step" style={{ padding: 'var(--space-2) 0' }}>
-              {currentIntent.settlementMode === 'MEDICAL_INSURANCE' && (!currentSettlement || !insuranceSettlementReady(currentSettlement)) && (
-                <Alert tone="error">
-                  【医保接口未对接】已生成挂号意向，但因医保信息平台未对接，无法执行医保预结算与统筹基金抵扣。请取消本次挂号并以自费模式重新办理。
+              {currentIntent.settlementMode === 'MEDICAL_INSURANCE' && currentIntent.insuranceTiming === 'REGISTRATION'
+                && !insuranceSettlement.claim && (!currentSettlement || !insuranceSettlementReady(currentSettlement)) && (
+                <Alert tone="info">
+                  医保挂号：请先在下方执行医保预结算，确认统筹基金与个人账户分摊后再办理结算；医保资金不足以结清的部分由个人自付，收款成功后生成挂号单。
                 </Alert>
               )}
               <Alert tone={currentIntent.status === 'COMPLETION_FAILED' ? 'error' : 'info'}>
@@ -1296,8 +1323,14 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   onReloadMethods={() => { void paymentMethods.refetch() }}
                   orders={paymentOrders.data ?? []} busy={createPaymentOrder.isPending} sceneLabel="挂号费收款"
                   settlementModeCode={currentIntent.settlementMode}
+                  insuranceIntegrated={currentIntent.settlementMode === 'MEDICAL_INSURANCE'}
+                  insuranceClaimView={insuranceSettlement.claim}
+                  onPreSettleInsurance={currentIntent.settlementMode === 'MEDICAL_INSURANCE'
+                    ? (settlementId) => insuranceSettlement.preSettle.mutateAsync(settlementId) : undefined}
+                  isPreSettlingInsurance={insuranceSettlement.preSettle.isPending}
                   submitShortcut
-                  onSubmit={(command) => createPaymentOrder.mutateAsync(command)} />}
+                  onSubmit={(command) => currentIntent.settlementMode === 'MEDICAL_INSURANCE'
+                    ? insuranceSettlement.submit.mutateAsync(command) : createPaymentOrder.mutateAsync(command)} />}
             </div>}
           </div>
         </CashierPanel>

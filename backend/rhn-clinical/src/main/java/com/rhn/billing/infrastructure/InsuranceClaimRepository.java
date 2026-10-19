@@ -15,6 +15,7 @@ public interface InsuranceClaimRepository extends JpaRepository<InsuranceClaim, 
     Optional<InsuranceClaim> findByIdAndTenantId(Long id, Long tenantId);
     Optional<InsuranceClaim> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
     Optional<InsuranceClaim> findByTenantIdAndSettlementId(Long tenantId, Long settlementId);
+    java.util.List<InsuranceClaim> findByTenantIdAndPatientAccountId(Long tenantId, Long patientAccountId);
     Optional<InsuranceClaim> findByTenantIdAndOrganizationIdAndClaimNo(Long tenantId, Long organizationId, String claimNo);
     @Query("""
             select value from InsuranceClaim value, PatientAccount account

@@ -196,7 +196,11 @@ export interface PaymentOrder {
   events: PaymentOrderEvent[]
 }
 
+export type RegistrationInsuranceTiming = 'REGISTRATION' | 'VISIT_UNIFIED'
+
 export interface RegistrationBillingIntent {
+  /** 医保身份挂号的结算时机；自费为空。 */
+  insuranceTiming?: RegistrationInsuranceTiming | null
   id: string
   revision: number
   residentId: string
@@ -432,6 +436,11 @@ export function createBillingApi(client: ApiClient) {
     registrationIntent: (intentId: string) => client.request<RegistrationBillingIntent>(
       `/api/billing/registration-intents/${intentId}`,
     ),
+    /** 机构／科室选择医保身份挂号时的结算时机：挂号时结算，或并入诊间统一结算。 */
+    registrationInsuranceTiming: (organizationId: string, departmentId: string) =>
+      client.request<{ timing: RegistrationInsuranceTiming }>(
+        `/api/billing/registration-intents/insurance-timing?organizationId=${encodeURIComponent(organizationId)}`
+        + `&departmentId=${encodeURIComponent(departmentId)}`),
     retryRegistrationCompletion: (intentId: string) => client.request<RegistrationBillingIntent>(
       `/api/billing/registration-intents/${intentId}/completion/retry`, { method: 'POST' },
     ),

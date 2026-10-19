@@ -1130,7 +1130,8 @@ describe('OutpatientRegistrationWorkspace', () => {
       },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
       dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
-      billing: { createRegistrationIntent, registrationIntent: vi.fn() },
+      billing: { createRegistrationIntent, registrationIntent: vi.fn(),
+        registrationInsuranceTiming: vi.fn().mockResolvedValue({ timing: 'VISIT_UNIFIED' }) },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
     } as unknown as RhnApi
@@ -1178,7 +1179,8 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // Now it recognizes insurance
     expect(await screen.findByText(/已智能识别医保/)).toBeInTheDocument()
-    expect(screen.getByText(/【医保接口未对接】/)).toBeInTheDocument()
+    expect(await screen.findByText(/挂号费并入诊间统一结算/)).toBeInTheDocument()
+    expect(screen.queryByText(/【医保接口未对接】/)).not.toBeInTheDocument()
   })
 
   it('automatically recognizes insurance coverage when scanning electronic insurance code', async () => {
@@ -1207,7 +1209,8 @@ describe('OutpatientRegistrationWorkspace', () => {
       },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
       dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金收款', sortOrder: 10, attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }]) },
-      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn(),
+        registrationInsuranceTiming: vi.fn().mockResolvedValue({ timing: 'REGISTRATION' }), queryInsurancePerson: vi.fn() },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
     } as unknown as RhnApi
@@ -1237,6 +1240,59 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // Smart recognition sets coverage to insurance directly
     expect(await screen.findByText(/已智能识别医保/)).toBeInTheDocument()
-    expect(screen.getByText(/【医保接口未对接】/)).toBeInTheDocument()
+    expect(screen.queryByText(/【医保接口未对接】/)).not.toBeInTheDocument()
+    // 挂号时结算的机构：必须先完成医保读证，未鉴权不能提交
+    expect(await screen.findByText(/请先读取医保电子凭证、证件或社保卡完成参保鉴权/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /确认挂号并出单/ }))
+    expect(await screen.findByText('请先读取医保凭证完成参保鉴权后再挂号。')).toBeInTheDocument()
+    expect(api.billing.createRegistrationIntent).not.toHaveBeenCalled()
+  })
+
+  it('creates a medical insurance intent after the certificate is authenticated at registration time', async () => {
+    const insuredResident: Resident = { ...resident, id: 'insured-res-3', fullName: '赵医保' }
+    const profile = {
+      resident: insuredResident, demographicProfile: {}, addresses: [], relatedPersons: [], employments: [],
+      coverages: [{ id: 'cov-3', sdCoverageType: '01', sdCoverageTypeText: '城镇职工基本医疗保险',
+        payerName: '市社保医保中心', primary: true, validFrom: '2020-01-01' }],
+    }
+    const queryInsurancePerson = vi.fn().mockResolvedValue({ psnNo: 'PSN-1', psnCertType: '02', certno: 'X', psnName: '赵医保',
+      insutype: '310', insutypeName: '职工基本医疗保险', balc: 100, insuOptins: '360100', status: 'NORMAL' })
+    const createRegistrationIntent = vi.fn().mockResolvedValue({
+      id: 'intent-ins-1', revision: 1, residentId: insuredResident.id, organizationId: 'org-1', departmentId: 'dept-1',
+      scheduleId: schedule.id, idempotencyCode: 'REG-INTENT-test', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'MEDICAL_INSURANCE', insuranceTiming: 'REGISTRATION', status: 'PAYMENT_PENDING', feeAmount: 10,
+      currencyCode: 'CNY', completionAttempts: 0, createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z', duplicate: false,
+    })
+    const api = {
+      residents: { get: vi.fn().mockResolvedValue(insuredResident), search: vi.fn().mockResolvedValue([insuredResident]),
+        profile: vi.fn().mockResolvedValue(profile) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent, registrationIntent: vi.fn().mockResolvedValue({ id: 'intent-ins-1' }),
+        registrationInsuranceTiming: vi.fn().mockResolvedValue({ timing: 'REGISTRATION' }), queryInsurancePerson },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = { organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/outpatient/registration']}>
+      <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </MemoryRouter></QueryClientProvider>)
+
+    const searchInput = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(searchInput, '赵医保{enter}')
+    await userEvent.type(searchInput, '{enter}')
+    expect(await screen.findByText('赵医保')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /一键切换为医保/ }))
+
+    await userEvent.type(await screen.findByLabelText('医保凭证号码'), '330102198801011234')
+    await userEvent.click(screen.getByRole('button', { name: '读取参保信息' }))
+    expect(await screen.findByText(/医保鉴权已完成/)).toBeInTheDocument()
+    expect(queryInsurancePerson).toHaveBeenCalledWith({ psnCertType: '01', certno: '330102198801011234', psnName: undefined })
+
+    await userEvent.click(screen.getByRole('button', { name: /确认挂号并出单/ }))
+    await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
+      settlementMode: 'MEDICAL_INSURANCE', coverageId: 'cov-3',
+    })))
   })
 })

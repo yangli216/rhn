@@ -287,6 +287,8 @@
         "src/features/settings/PaymentChannelManagement.test.tsx",
         "src/shared/billing/useCashierPaymentMethods.test.tsx",
         "src/shared/billing/roundAmount.test.ts",
+        "src/features/outpatient/RegistrationWorkspace.test.tsx",
+        "src/features/outpatient/registrationInsurance.test.tsx",
         "src/features/billing/PaymentReconciliationWorkspace.test.tsx"
       ],
       "backend": [
@@ -305,6 +307,9 @@
         "com.rhn.billing.application.MedicationReturnChargeTruthTest",
         "com.rhn.billing.application.DirectPaymentOrchestrationTest",
         "com.rhn.billing.application.PaymentChannelRegistryTest",
+        "com.rhn.billing.application.InsuranceQuickSubmissionResolverTest",
+        "com.rhn.billing.application.RegistrationInsuranceCompletionTest",
+        "com.rhn.billing.infrastructure.insurance.chs.HttpChsNationalInsuranceClientTest",
         "com.rhn.billing.infrastructure.payment.DirectPaymentChannelAdapterTest",
         "com.rhn.billing.infrastructure.payment.PaymentManagedClientsTest",
         "PaymentTransactionReconciliationTest",

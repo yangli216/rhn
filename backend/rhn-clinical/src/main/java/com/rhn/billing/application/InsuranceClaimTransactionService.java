@@ -96,7 +96,7 @@ class InsuranceClaimTransactionService {
         Settlement settlement = settlements.findByIdAndTenantId(settlementId, context.tenantId())
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
         PatientAccount account = requireAccount(context, settlement.patientAccountId());
-        var visit = quickResolver.visit(account);
+        var visit = quickResolver.visit(account, context.actor());
         CoverageDirectory.CoverageView coverage = coverages.requireExistingActive(coverageId, account.residentId(),
                 visit.serviceDate(), insuranceTypeCode);
         var submission = quickResolver.resolve(account, visit, coverage.coverageTypeCode(), regionCode);
@@ -110,7 +110,7 @@ class InsuranceClaimTransactionService {
         for (com.rhn.billing.domain.SettlementLine line : lines) {
             ChargeItem charge = chargesById.get(line.chargeItemId());
             if (charge == null || !context.tenantId().equals(charge.tenantId())
-                    || !account.id().equals(charge.patientAccountId()) || !account.encounterId().equals(charge.encounterId())) {
+                    || !account.id().equals(charge.patientAccountId()) || !java.util.Objects.equals(account.encounterId(), charge.encounterId())) {
                 throw conflict("INSURANCE_CHARGE_CONTEXT_INVALID", "医保费用明细缺失或不属于本次患者账户");
             }
             var candidates = itemMappings.resolve(context.tenantId(), "CATALOG_ITEM", charge.catalogItemId(),
@@ -308,7 +308,8 @@ class InsuranceClaimTransactionService {
                 value.organizationCode(), value.departmentCode(), value.practitionerCode(), value.serviceStartedAt(),
                 value.serviceEndedAt(), value.diagnosisPayloadDigest(), lines, value.grossAmount(), value.currencyCode(),
                 value.correlationId(), memberNo(value, account),
-                quickResolver.diagnosesMatching(context.tenantId(), account.encounterId(), value.diagnosisPayloadDigest()));
+                quickResolver.diagnosesMatching(context.tenantId(), account.encounterId(), value.diagnosisPayloadDigest()),
+                reusableVisitId(context, value, account));
     }
 
     @Transactional(readOnly = true)
@@ -332,7 +333,24 @@ class InsuranceClaimTransactionService {
                 value.reversalReason(), value.correlationId(), requireAccount(context, value.patientAccountId()).residentId(),
                 value.coverageId(), value.practitionerCode(), value.currencyCode(), value.insuranceFundAmount(),
                 value.personalAccountAmount(), value.patientCashAmount(), value.otherFundAmount(),
-                memberNo(value, requireAccount(context, value.patientAccountId())));
+                memberNo(value, requireAccount(context, value.patientAccountId())),
+                InsuranceInstruction.REGISTRATION_SCENE_DIGEST.equals(value.diagnosisPayloadDigest()));
+    }
+
+    /**
+     * 同一费用账户在挂号时已完成医保登记且未撤销时，诊间结算沿用其就诊 ID（外部流水形如 {@code 就诊ID:结算ID}），
+     * 避免在医保平台重复登记同一次就诊。挂号场景自身的申请不沿用。
+     */
+    private String reusableVisitId(ExecutionContext context, InsuranceClaim claim, PatientAccount account) {
+        if (InsuranceInstruction.REGISTRATION_SCENE_DIGEST.equals(claim.diagnosisPayloadDigest())) return null;
+        return claims.findByTenantIdAndPatientAccountId(context.tenantId(), account.id()).stream()
+                .filter(other -> !other.id().equals(claim.id())
+                        && InsuranceInstruction.REGISTRATION_SCENE_DIGEST.equals(other.diagnosisPayloadDigest())
+                        && "SETTLED".equals(other.status()) && other.externalSettlementNo() != null
+                        && other.coverageId().equals(claim.coverageId()))
+                .map(other -> other.externalSettlementNo())
+                .map(no -> no.indexOf(':') > 0 ? no.substring(0, no.indexOf(':')) : null)
+                .filter(java.util.Objects::nonNull).findFirst().orElse(null);
     }
 
     /** 医保个人编号取自已核实的患者保障记录；缺失时为空，不补造，由适配器据此拒绝。 */

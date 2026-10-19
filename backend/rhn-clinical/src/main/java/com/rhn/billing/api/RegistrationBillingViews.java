@@ -17,5 +17,6 @@ public final class RegistrationBillingViews {
             String coverageTypeCode, String coveragePayerName, String status, BigDecimal feeAmount,
             String currencyCode, String itemCode, String itemName, Instant expiresAt,
             int completionAttempts, String lastErrorCode, String lastErrorMessage,
-            Instant createdAt, Instant updatedAt, Instant completedAt, boolean duplicate) {}
+            Instant createdAt, Instant updatedAt, Instant completedAt, boolean duplicate,
+            String insuranceTiming) {}
 }

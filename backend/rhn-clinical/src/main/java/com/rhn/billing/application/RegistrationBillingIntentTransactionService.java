@@ -19,6 +19,7 @@ import com.rhn.billing.domain.Settlement;
 import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.billing.infrastructure.ChargeItemComponentRepository;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
+import com.rhn.billing.infrastructure.InsuranceClaimRepository;
 import com.rhn.billing.infrastructure.InvoiceCategorySummaryRepository;
 import com.rhn.billing.infrastructure.InvoiceLineRepository;
 import com.rhn.billing.infrastructure.InvoiceRepository;
@@ -74,6 +75,8 @@ class RegistrationBillingIntentTransactionService {
     private final OrganizationDirectory organizations;
     private final BusinessNumberGenerator numbers;
     private final ExecutionContextProvider contextProvider;
+    private final RegistrationInsurancePolicy insurancePolicy;
+    private final InsuranceClaimRepository claims;
 
     RegistrationBillingIntentTransactionService(RegistrationBillingIntentRepository intents,
             PatientAccountRepository accounts, PaymentRepository payments, ChargeItemRepository charges,
@@ -85,7 +88,9 @@ class RegistrationBillingIntentTransactionService {
             CatalogLifecycleDirectory catalog,
             EncounterDirectory encounters, CoverageDirectory coverages, OrganizationDirectory organizations,
             ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers,
-            SystemEnumDirectory systemEnums) {
+            SystemEnumDirectory systemEnums, RegistrationInsurancePolicy insurancePolicy,
+            InsuranceClaimRepository claims) {
+        this.insurancePolicy = insurancePolicy; this.claims = claims;
         this.numbers = numbers;
         this.systemEnums = systemEnums;
         this.intents = intents; this.accounts = accounts; this.payments = payments;
@@ -174,13 +179,17 @@ class RegistrationBillingIntentTransactionService {
                 source, visitType, settlementMode, coverageId,
                 coverage == null ? null : coverage.coverageTypeCode(), coverage == null ? null : coverage.payerName(),
                 amount, currency, itemCode, itemName, expiresAt, context.subjectId());
-        if (amount.signum() > 0) createFinancialFacts(context, intent, amount, currency);
+        // 医保身份且机构选择“诊间统一结算”：只形成费用事实，不开票也不建挂号结算单，挂号费并入后续门诊统一结算。
+        boolean deferred = "MEDICAL_INSURANCE".equals(settlementMode) && amount.signum() > 0
+                && insurancePolicy.timing(context, input.organizationId(), input.departmentId())
+                == RegistrationInsurancePolicy.Timing.VISIT_UNIFIED;
+        if (amount.signum() > 0) createFinancialFacts(context, intent, amount, currency, !deferred);
         intents.save(intent);
-        return new CreateResult(view(intent, false), amount.signum() == 0);
+        return new CreateResult(view(intent, false), amount.signum() == 0 || deferred);
     }
 
     private void createFinancialFacts(ExecutionContext context, RegistrationBillingIntent intent,
-                                      BigDecimal amount, String currency) {
+                                      BigDecimal amount, String currency, boolean withSettlement) {
         PatientAccount account = accounts.save(PatientAccount.registration(context.tenantId(), intent.residentId(),
                 intent.organizationId(), intent.departmentId(), currency));
         Instant now = Instant.now();
@@ -202,6 +211,7 @@ class RegistrationBillingIntentTransactionService {
                 amount, amount));
         ledger.save(new LedgerEntry(context.tenantId(), account.id(), "CHARGE", "DEBIT", amount, currency,
                 charge.id(), null, null, null, now, context.subjectId()));
+        if (!withSettlement) { intent.attachFinancials(account.id(), null); return; }
         Invoice invoice = invoices.save(new Invoice(context.tenantId(),
                 account.organizationId(), account.departmentId(), account.id(), numbers.next("invoice",
                         new BusinessNumberContext(context.tenantId(), intent.organizationId(), intent.departmentId())),
@@ -224,7 +234,30 @@ class RegistrationBillingIntentTransactionService {
         if (settlement.status() != SettlementStatus.SETTLED) {
             throw conflict("REGISTRATION_PAYMENT_INCOMPLETE", "挂号费尚未足额结清，不能生成挂号记录");
         }
-        return beginLocked(value.id(), paymentOrderId, accountId);
+        return beginLocked(value.id(), paymentOrderId, accountId, true);
+    }
+
+    /** 医保资金已使结算单结清（个人自付为零）时，不经支付指令直接完成挂号。 */
+    @Transactional(readOnly = true)
+    String insuranceTiming(Long organizationId, Long departmentId) {
+        ExecutionContext context = requireOrganizationContext(organizationId);
+        return insurancePolicy.timing(context, organizationId, departmentId).name();
+    }
+
+    @Transactional(readOnly = true)
+    boolean isSettlementSettled(Long settlementId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (intents.findByTenantIdAndSettlementId(context.tenantId(), settlementId).isEmpty()) return false;
+        return settlementRepository.findByIdAndTenantId(settlementId, context.tenantId())
+                .map(value -> value.status() == SettlementStatus.SETTLED).orElse(false);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    CompletionPlan beginBySettledSettlement(Long settlementId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        RegistrationBillingIntent value = intents.findByTenantIdAndSettlementId(context.tenantId(), settlementId).orElse(null);
+        if (value == null) return null;
+        return beginBySettlement(settlementId, value.paymentOrderId(), value.patientAccountId());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -241,10 +274,10 @@ class RegistrationBillingIntentTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     CompletionPlan beginById(Long intentId, Long paymentOrderId) {
-        return beginLocked(intentId, paymentOrderId, null);
+        return beginLocked(intentId, paymentOrderId, null, false);
     }
 
-    private CompletionPlan beginLocked(Long intentId, Long paymentOrderId, Long expectedAccountId) {
+    private CompletionPlan beginLocked(Long intentId, Long paymentOrderId, Long expectedAccountId, boolean settlementSettled) {
         ExecutionContext context = contextProvider.requireCurrent();
         RegistrationBillingIntent value = intents.lockByIdAndTenantId(intentId, context.tenantId())
                 .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到挂号收费意向"));
@@ -256,7 +289,7 @@ class RegistrationBillingIntentTransactionService {
                 && value.paymentOrderId() == null && paymentOrderId == null) {
             throw conflict("REGISTRATION_INTENT_EXPIRED", "挂号意向已经过期");
         }
-        if (!value.beginCompletion(paymentOrderId)) {
+        if (!value.beginCompletion(paymentOrderId, settlementSettled || value.insuranceDeferred())) {
             throw conflict("REGISTRATION_INTENT_NOT_COMPLETABLE", "当前挂号意向状态不允许完成");
         }
         return plan(value, true);
@@ -296,6 +329,13 @@ class RegistrationBillingIntentTransactionService {
             return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
                     null, true);
         }
+        if (value.insuranceDeferred() && value.paymentOrderId() == null) {
+            // 挂号费尚未并入任何结算单时才能直接冲销；已并入诊间结算的须先在收费处退费。
+            boolean stillUninvoiced = charges.findUninvoiced(context.tenantId(), value.patientAccountId()).stream()
+                    .anyMatch(charge -> "REGISTRATION".equals(charge.sourceType()) && value.id().equals(charge.sourceId()));
+            if (!stillUninvoiced) throw conflict("REGISTRATION_FEE_ALREADY_SETTLED",
+                    "挂号费已并入门诊结算，请先在收费处完成退费后再办理退号");
+        }
         value.beginCancellation();
         if (value.feeAmount().signum() == 0) {
             value.cancelledAfterCompletion();
@@ -327,10 +367,27 @@ class RegistrationBillingIntentTransactionService {
                     amount, original.currencyCode(), reversal.id(), null, null, reversesLedger,
                     now, context.subjectId()));
         }
-        Payment payment = payments.findByTenantIdAndPaymentOrderId(context.tenantId(), value.paymentOrderId())
-                .orElseThrow(() -> notFound("REGISTRATION_PAYMENT_NOT_FOUND", "未找到挂号费原支付事实"));
-        return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
-                payment.id(), false);
+        if (value.insuranceDeferred() && value.paymentOrderId() == null) {
+            value.cancelledAfterCompletion();
+            return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
+                    null, true);
+        }
+        // 医保挂号：个人自付部分才有支付事实，医保资金部分由冲正医保申请处理；全额医保覆盖时没有原支付。
+        Long claimId = value.settlementId() == null ? null
+                : claims.findByTenantIdAndSettlementId(context.tenantId(), value.settlementId())
+                        .filter(claim -> List.of("SETTLED", "REVERSAL_PENDING").contains(claim.status())
+                                || ("FAILED".equals(claim.status()) && "REVERSE".equals(claim.currentOperation())))
+                        .map(com.rhn.billing.domain.InsuranceClaim::id).orElse(null);
+        Payment payment = value.paymentOrderId() == null ? null
+                : payments.findByTenantIdAndPaymentOrderId(context.tenantId(), value.paymentOrderId()).orElse(null);
+        if (payment == null && claimId == null) {
+            throw notFound("REGISTRATION_PAYMENT_NOT_FOUND", "未找到挂号费原支付事实");
+        }
+        // 医保挂号只退个人实付（原支付金额），医保基金部分由冲正申请处理，不能按挂号费全额退款。
+        boolean insuranceIntent = "MEDICAL_INSURANCE".equals(value.settlementMode());
+        BigDecimal refundable = payment == null ? BigDecimal.ZERO.setScale(6) : payment.amount();
+        return new CancellationPlan(value.id(), value.status().name(), insuranceIntent ? refundable : value.feeAmount(),
+                value.currencyCode(), payment == null ? null : payment.id(), false, claimId);
     }
 
     @Transactional
@@ -347,6 +404,20 @@ class RegistrationBillingIntentTransactionService {
         RegistrationBillingIntent value = intents.lockByIdAndTenantId(intentId, context.tenantId())
                 .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到挂号收费意向"));
         value.cancellationFailed(code, truncate(message, 2000));
+    }
+
+    /** 取消尚未收款的挂号意向前，需要先冲正的已医保结算申请；没有则为空。 */
+    @Transactional(readOnly = true)
+    Long insuranceClaimToReverse(Long intentId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        RegistrationBillingIntent value = intents.findByIdAndTenantId(intentId, context.tenantId())
+                .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到挂号收费意向"));
+        requireOrganizationContext(value.organizationId());
+        if (value.settlementId() == null) return null;
+        return claims.findByTenantIdAndSettlementId(context.tenantId(), value.settlementId())
+                .filter(claim -> List.of("SETTLED", "REVERSAL_PENDING").contains(claim.status())
+                        || ("FAILED".equals(claim.status()) && "REVERSE".equals(claim.currentOperation())))
+                .map(com.rhn.billing.domain.InsuranceClaim::id).orElse(null);
     }
 
     @Transactional
@@ -391,7 +462,7 @@ class RegistrationBillingIntentTransactionService {
                 || !java.util.Objects.equals(value.coverageId(), coverageId)) {
             throw conflict("REGISTRATION_INTENT_IDEMPOTENCY_MISMATCH", "幂等编码已用于不同的挂号意向");
         }
-        return new CreateResult(view(value, true), value.feeAmount().signum() == 0);
+        return new CreateResult(view(value, true), value.feeAmount().signum() == 0 || value.insuranceDeferred());
     }
 
     private CompletionPlan plan(RegistrationBillingIntent value, boolean execute) {
@@ -456,7 +527,9 @@ class RegistrationBillingIntentTransactionService {
                 value.coverageId(), value.coverageTypeCode(), value.coveragePayerName(), value.status().name(),
                 value.feeAmount(), value.currencyCode(), value.itemCode(), value.itemName(), value.expiresAt(),
                 value.completionAttempts(), value.lastErrorCode(), value.lastErrorMessage(), value.createdAt(),
-                value.updatedAt(), value.completedAt(), duplicate);
+                value.updatedAt(), value.completedAt(), duplicate,
+                !"MEDICAL_INSURANCE".equals(value.settlementMode()) ? null
+                        : value.settlementId() != null ? "REGISTRATION" : "VISIT_UNIFIED");
     }
 
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
@@ -473,7 +546,11 @@ class RegistrationBillingIntentTransactionService {
                           Long appointmentId, Long scheduleId, Long slotHoldId, String idempotencyCode,
                           String registrationSource, String visitType, Long encounterId, boolean execute) {}
     record CancellationPlan(Long intentId, String billingStatus, BigDecimal amount, String currencyCode,
-                            Long originalPaymentId, boolean readyToClose) {
+                            Long originalPaymentId, boolean readyToClose, Long insuranceClaimId) {
+        CancellationPlan(Long intentId, String billingStatus, BigDecimal amount, String currencyCode,
+                         Long originalPaymentId, boolean readyToClose) {
+            this(intentId, billingStatus, amount, currencyCode, originalPaymentId, readyToClose, null);
+        }
         static CancellationPlan notApplicable() {
             return new CancellationPlan(null, "NOT_APPLICABLE", BigDecimal.ZERO.setScale(6), "CNY", null, true);
         }

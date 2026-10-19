@@ -38,6 +38,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     private static final String REGISTRATION_SERVICE = "362387869795104";
     private static final String INTERNAL_MEDICINE_DEPARTMENT = "362387869899001";
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.rhn.platform.configuration.infrastructure.ConfigurationValueCache configurationCache;
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
     com.rhn.platform.integration.application.ExternalMessageApplicationService externalMessages;
 
@@ -632,6 +633,148 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(residentId)));
     }
 
+    /** 在租户级覆盖“挂号医保结算时机”参数；测试方法结束后由数据库重置清除，缓存在此刷新。 */
+    private void useInsuranceTiming(String timing) {
+        jdbc.update("""
+                insert into RHN_SYS_PARAM_VAL (
+                    ID_PARAM_VAL, ID_PARAM_DEF, ID_TNT, SD_SCOPE_TYPE, ID_SCOPE, SCOPE_REF, CD_SCOPE,
+                    SD_VAL_MODE, JSON_VAL, SECRET_REF, FG_ACTIVE, REVISION,
+                    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED
+                ) values (?, 362387869796401, ?, 'TENANT', ?, null, ?,
+                    'OVERRIDE', ?, null, true, 0,
+                    current_timestamp, 362387869790222, current_timestamp, 362387869790222)
+                """, GlobalIds.next(), Long.valueOf(TENANT), Long.valueOf(TENANT), "TENANT:" + TENANT,
+                "{\"timing\":\"" + timing + "\"}");
+        configurationCache.invalidateAll();
+    }
+
+    private long insertCoverage(String residentId) {
+        long coverageId = GlobalIds.next();
+        jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, " +
+                        "NA_PAYER, CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, " +
+                        "DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) " +
+                        "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'PSN-TEST', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
+                coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
+        return coverageId;
+    }
+
+    @Test
+    void insurance_registration_defaults_to_visit_unified_and_defers_fee_to_the_encounter_account() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        long coverageId = insertCoverage(residentId);
+        String scheduleId = createTodaySchedule(suffix, 1);
+        mockMvc.perform(get("/api/billing/registration-intents/insurance-timing")
+                        .param("organizationId", ORGANIZATION).param("departmentId", DEPARTMENT).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.timing").value("VISIT_UNIFIED"));
+        JsonNode intent = json(mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "scheduleId":"%s","idempotencyCode":"DEFER-%s",
+                                  "registrationSource":"WINDOW","visitType":"GENERAL",
+                                  "settlementMode":"MEDICAL_INSURANCE","coverageId":"%s"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, suffix, coverageId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.insuranceTiming").value("VISIT_UNIFIED"))
+                .andExpect(jsonPath("$.settlementId").doesNotExist())
+                .andExpect(jsonPath("$.paymentOrderId").doesNotExist())
+                .andExpect(jsonPath("$.encounterId").isNotEmpty())
+                .andReturn().getResponse().getContentAsString());
+        long accountId = intent.get("patientAccountId").asLong();
+        assertEquals("OUTPATIENT", jdbc.queryForObject("select SD_ACCT_TYPE from RHN_BIL_PAT_ACCT where ID_PAT_ACCT = ?",
+                String.class, accountId));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? " +
+                "and SD_SRC_TYPE = 'REGISTRATION' and ID_ENC = ?", Integer.class, accountId, intent.get("encounterId").asLong()));
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_BIL_INVOICE where ID_PAT_ACCT = ?", Integer.class, accountId));
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_BIL_STL where ID_PAT_ACCT = ?", Integer.class, accountId));
+        // 重放同一幂等编码不重复建就诊
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "scheduleId":"%s","idempotencyCode":"DEFER-%s",
+                                  "registrationSource":"WINDOW","visitType":"GENERAL",
+                                  "settlementMode":"MEDICAL_INSURANCE","coverageId":"%s"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, suffix, coverageId)))
+                .andExpect(jsonPath("$.duplicate").value(true))
+                .andExpect(jsonPath("$.encounterId").value(intent.get("encounterId").asLong()));
+
+        // 费用尚未并入任何结算单时可直接退号：冲销费用、无需退款
+        mockMvc.perform(post("/api/encounters/{encounterId}/cancel", intent.get("encounterId").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commandCode\":\"DEFER-WD-%s\",\"reason\":\"患者取消\",\"terminalCode\":\"T\"}".formatted(suffix)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.billingStatus").value("CANCELLED"));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM " +
+                "where SD_SRC_TYPE = 'REGISTRATION_REVERSAL' and ID_SRC = ?", Integer.class, intent.get("id").asLong()));
+        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIR = 'DEBIT' then AMT_ENTRY " +
+                "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", BigDecimal.class, accountId);
+        assertEquals(0, balance.compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    void deferred_registration_fee_already_invoiced_cannot_be_withdrawn_without_refund() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        long coverageId = insertCoverage(residentId);
+        String scheduleId = createTodaySchedule(suffix, 1);
+        JsonNode intent = json(mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "scheduleId":"%s","idempotencyCode":"DEFER-INV-%s",
+                                  "registrationSource":"WINDOW","visitType":"GENERAL",
+                                  "settlementMode":"MEDICAL_INSURANCE","coverageId":"%s"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, suffix, coverageId)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        // 模拟诊间统一结算已把挂号费开票
+        long chargeId = jdbc.queryForObject("select ID_CHARGE_ITEM from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? " +
+                "and SD_SRC_TYPE = 'REGISTRATION'", Long.class, intent.get("patientAccountId").asLong());
+        mockMvc.perform(post("/api/billing/accounts/{accountId}/invoices", intent.get("patientAccountId").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"invoiceNo\":\"DEFER-INV-NO-%s\",\"settlementScene\":\"OUTPATIENT\",\"terminalScene\":\"CASHIER\"}"
+                                .formatted(suffix)))
+                .andExpect(status().is2xxSuccessful());
+        mockMvc.perform(post("/api/encounters/{encounterId}/cancel", intent.get("encounterId").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commandCode\":\"DEFER-INV-WD-%s\",\"reason\":\"患者取消\",\"terminalCode\":\"T\"}".formatted(suffix)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("REGISTRATION_FEE_ALREADY_SETTLED"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM " +
+                "where SD_SRC_TYPE = 'REGISTRATION_REVERSAL' and ID_SRC = ? and ID_CHARGE_ITEM <> ?", Integer.class,
+                intent.get("id").asLong(), chargeId));
+    }
+
+    @Test
+    void insurance_registration_at_registration_time_keeps_settlement_and_waits_for_insurance_and_payment() throws Exception {
+        useInsuranceTiming("REGISTRATION");
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        long coverageId = insertCoverage(residentId);
+        String scheduleId = createTodaySchedule(suffix, 1);
+        mockMvc.perform(get("/api/billing/registration-intents/insurance-timing")
+                        .param("organizationId", ORGANIZATION).param("departmentId", DEPARTMENT).with(rhnWorkContext()))
+                .andExpect(jsonPath("$.timing").value("REGISTRATION"));
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "scheduleId":"%s","idempotencyCode":"AT-REG-%s",
+                                  "registrationSource":"WINDOW","visitType":"GENERAL",
+                                  "settlementMode":"MEDICAL_INSURANCE","coverageId":"%s"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, suffix, coverageId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
+                .andExpect(jsonPath("$.insuranceTiming").value("REGISTRATION"))
+                .andExpect(jsonPath("$.settlementId").isNotEmpty())
+                .andExpect(jsonPath("$.encounterId").doesNotExist());
+    }
+
     @Test
     void quick_insurance_requires_explicit_command_and_does_not_provision_patient_facts() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
@@ -643,7 +786,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(post(path).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"idempotencyKey\":\"PRE-QUICK-" + suffix + "\"}"))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("INSURANCE_OUTPATIENT_ENCOUNTER_REQUIRED"));
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("COVERAGE_REQUIRED"));
         assertEquals(0, jdbc.queryForObject("select count(*) from RHN_INS_PAT_COVER where ID_PAT = ?", Integer.class, Long.valueOf(residentId)));
         assertEquals(0, jdbc.queryForObject("select count(*) from RHN_INS_CLAIM where ID_STL = ?", Integer.class,
                 intent.get("settlementId").asLong()));
@@ -651,6 +794,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
 
     @Test
     void insurance_funds_reduce_patient_payment_and_mixed_tenders_finalize_the_same_settlement() throws Exception {
+        useInsuranceTiming("REGISTRATION");
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);
         long coverageId = GlobalIds.next();

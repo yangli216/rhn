@@ -32,18 +32,38 @@ public class RegistrationBillingService implements BillingSceneCompletionHandler
 
     public RegistrationIntentView get(Long intentId) { return transactions.get(intentId); }
 
+    /** 当前机构／科室选择医保身份挂号时的结算时机：REGISTRATION（挂号时结算）或 VISIT_UNIFIED（诊间统一结算）。 */
+    public String insuranceTiming(Long organizationId, Long departmentId) {
+        return transactions.insuranceTiming(organizationId, departmentId);
+    }
+
     public RegistrationIntentView cancel(Long intentId) { return transactions.cancel(intentId); }
 
     public RegistrationIntentView retry(Long intentId) {
         RegistrationIntentView value = transactions.get(intentId);
         Long orderId = value.paymentOrderId();
-        if (value.feeAmount().signum() > 0) {
+        boolean deferred = "VISIT_UNIFIED".equals(value.insuranceTiming()) && value.feeAmount().signum() > 0;
+        if (value.feeAmount().signum() > 0 && !deferred) {
             if (orderId == null || !"SUCCEEDED".equals(paymentOrders.view(orderId, false).status())) {
+                if (value.settlementId() != null && transactions.isSettlementSettled(value.settlementId())) {
+                    completePlan(transactions.beginBySettledSettlement(value.settlementId()));
+                    return transactions.get(intentId);
+                }
                 throw conflict("REGISTRATION_PAYMENT_NOT_SUCCEEDED", "挂号费尚未支付成功，不能完成挂号");
             }
         }
         completePlan(transactions.beginById(intentId, orderId));
         return transactions.get(intentId);
+    }
+
+    /**
+     * 医保资金（含个人账户）已使挂号结算单结清时没有支付指令可触发完成，由医保结算成功后调用本方法建立就诊。
+     * 结算单不属于挂号意向或尚未结清时不做任何事。
+     */
+    public void completeIfSettled(Long settlementId) {
+        if (settlementId == null || !transactions.isSettlementSettled(settlementId)) return;
+        var plan = transactions.beginBySettledSettlement(settlementId);
+        if (plan != null) completePlan(plan);
     }
 
     @Override

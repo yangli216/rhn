@@ -111,39 +111,47 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
         String insuplc = credential.insuplcByInsutype().get(insutype);
         String time = TIME.format(LocalDateTime.ofInstant(input.serviceStartedAt() == null ? clock.instant() : input.serviceStartedAt(), zone));
 
-        // 先核实诊断，避免登记就诊后才发现无法上传
-        var primary = input.diagnoses().stream().filter(d -> "PRIMARY".equals(d.diagnosisTypeCode())).findFirst()
+        // 诊间场景先核实诊断，避免登记就诊后才发现无法上传；挂号场景发生在接诊之前，没有诊断也不补造，不上传 2203A。
+        boolean registrationScene = input.registrationScene();
+        var primary = registrationScene ? null : input.diagnoses().stream()
+                .filter(d -> "PRIMARY".equals(d.diagnosisTypeCode())).findFirst()
                 .orElseThrow(() -> BusinessErrors.conflict("CHS_REQUEST_CONTEXT_UNCONFIRMED",
                         "缺少与医保申请一致的已确认主诊断，不能上传就诊诊断"));
 
-        // 2201 就诊登记：取得 mdtrt_id
-        ObjectNode registration = JsonNodeFactory.instance.objectNode();
-        var data = registration.putObject("data");
-        data.put("psn_no", psnNo); data.put("insutype", insutype); data.put("begntime", time);
-        data.put("mdtrt_cert_type", credential.certType()); data.put("mdtrt_cert_no", credential.certNo());
-        data.put("ipt_otp_no", input.settlementNo());
-        data.put("atddr_no", operator); data.put("dr_name", operator);
-        data.put("dept_code", input.departmentCode()); data.put("dept_name", input.departmentCode());
-        data.put("caty", input.departmentCode());
-        JsonNode registered = call("2201", operator, insuplc, registration);
-        String mdtrtId = required(text(first(registered, "data", "result").path("mdtrt_id")), "2201 未返回就诊 ID");
-
-        // 2203A 门诊就诊信息（含诊断）上传：诊断必须来自与申请摘要一致的已确认诊断，缺主诊断则不继续
-        ObjectNode visit = JsonNodeFactory.instance.objectNode();
-        var info = visit.putObject("mdtrtinfo");
-        info.put("mdtrt_id", mdtrtId); info.put("psn_no", psnNo); info.put("med_type", properties.medType());
-        info.put("begntime", time); info.put("main_cond_dscr", primary.name());
-        info.put("dise_codg", primary.code()); info.put("dise_name", primary.name());
-        var diseases = visit.putArray("diseinfo");
-        for (var diagnosis : input.diagnoses()) {
-            var row = diseases.addObject();
-            row.put("diag_type", "PRIMARY".equals(diagnosis.diagnosisTypeCode()) ? "1" : "2");
-            row.put("diag_srt_no", diagnosis.sortNo());
-            row.put("diag_code", diagnosis.code()); row.put("diag_name", diagnosis.name());
-            row.put("diag_dept", input.departmentCode()); row.put("dise_dor_no", operator); row.put("dise_dor_name", operator);
-            row.put("diag_time", time);
+        // 2201 就诊登记：取得 mdtrt_id；挂号时已登记且未撤销的就诊直接沿用，避免重复登记
+        String mdtrtId = !registrationScene && input.reusableVisitId() != null && !input.reusableVisitId().isBlank()
+                ? input.reusableVisitId().trim() : null;
+        if (mdtrtId == null) {
+            ObjectNode registration = JsonNodeFactory.instance.objectNode();
+            var data = registration.putObject("data");
+            data.put("psn_no", psnNo); data.put("insutype", insutype); data.put("begntime", time);
+            data.put("mdtrt_cert_type", credential.certType()); data.put("mdtrt_cert_no", credential.certNo());
+            data.put("ipt_otp_no", input.settlementNo());
+            data.put("atddr_no", operator); data.put("dr_name", operator);
+            data.put("dept_code", input.departmentCode()); data.put("dept_name", input.departmentCode());
+            data.put("caty", input.departmentCode());
+            JsonNode registered = call("2201", operator, insuplc, registration);
+            mdtrtId = required(text(first(registered, "data", "result").path("mdtrt_id")), "2201 未返回就诊 ID");
         }
-        call("2203A", operator, insuplc, visit);
+
+        // 2203A 门诊就诊信息（含诊断）上传：诊断必须来自与申请摘要一致的已确认诊断
+        if (!registrationScene) {
+            ObjectNode visit = JsonNodeFactory.instance.objectNode();
+            var info = visit.putObject("mdtrtinfo");
+            info.put("mdtrt_id", mdtrtId); info.put("psn_no", psnNo); info.put("med_type", properties.medType());
+            info.put("begntime", time); info.put("main_cond_dscr", primary.name());
+            info.put("dise_codg", primary.code()); info.put("dise_name", primary.name());
+            var diseases = visit.putArray("diseinfo");
+            for (var diagnosis : input.diagnoses()) {
+                var row = diseases.addObject();
+                row.put("diag_type", "PRIMARY".equals(diagnosis.diagnosisTypeCode()) ? "1" : "2");
+                row.put("diag_srt_no", diagnosis.sortNo());
+                row.put("diag_code", diagnosis.code()); row.put("diag_name", diagnosis.name());
+                row.put("diag_dept", input.departmentCode()); row.put("dise_dor_no", operator); row.put("dise_dor_name", operator);
+                row.put("diag_time", time);
+            }
+            call("2203A", operator, insuplc, visit);
+        }
 
         // 2204 费用明细上传：回执给出每行的收费项目等级
         ObjectNode upload = JsonNodeFactory.instance.objectNode();
@@ -185,7 +193,7 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
     @Override
     public ReversalRequest prepareReversal(InsuranceReversal input) {
         return new ReversalRequest(input.originalExternalSettlementNo(), requirePersonNo(input.externalPersonNo()),
-                requireOperator(input.practitionerCode()), input.reason());
+                requireOperator(input.practitionerCode()), input.reason(), input.registrationScene(), input.settlementNo());
     }
 
     // ==================== 1101 / 2206 / 2207 / 2208 ====================
@@ -275,10 +283,29 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
         try {
             JsonNode output = call("2208", request.operatorId(), region(request.psnNo(), null), body);
             String reversalId = text(first(output, "setlinfo", "data", "result").path("setl_id"));
+            String message = "医保结算已撤销";
+            if (request.registrationCancel()) message += cancelRegistration(request, mdtrtId);
             return new ReversalResponse(reversalId == null ? setlId : reversalId, request.setlId(),
-                    clock.instant(), true, "医保结算已撤销");
+                    clock.instant(), true, message);
         } catch (ChsRejectedException rejected) {
             return new ReversalResponse(null, request.setlId(), clock.instant(), false, rejected.getMessage());
+        }
+    }
+
+    /**
+     * 2202 挂号撤销：结算撤销成功后撤销挂号登记。资金已冲正，此步失败不回滚结算撤销，
+     * 只在回执说明中提示需人工在医保平台核对撤销挂号。
+     */
+    private String cancelRegistration(ReversalRequest request, String mdtrtId) {
+        ObjectNode body = JsonNodeFactory.instance.objectNode();
+        var data = body.putObject("data");
+        data.put("mdtrt_id", mdtrtId); data.put("psn_no", request.psnNo());
+        data.put("ipt_otp_no", request.visitNo() == null ? "" : request.visitNo());
+        try {
+            call("2202", request.operatorId(), region(request.psnNo(), null), body);
+            return "，挂号登记已撤销";
+        } catch (RuntimeException failure) {
+            return "，但挂号登记撤销(2202)未成功，请人工核对医保平台：" + failure.getMessage();
         }
     }
 
