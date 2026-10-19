@@ -136,3 +136,6 @@ nbdist/
 # Historical browser outputs stay local.
 docs/design-qa/
 scratch/
+
+# Trae IDE 本地文件
+.trae/
