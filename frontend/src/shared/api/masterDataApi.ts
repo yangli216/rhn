@@ -1130,8 +1130,27 @@ function queryString(values: Record<string, string | undefined>) {
   return params.size ? `?${params}` : ''
 }
 
+export type InsuranceCoverageStatus = 'MAPPED' | 'UNMAPPED' | 'AMBIGUOUS' | 'EXPIRED'
+export type InsuranceCoverageCategory = 'DRUG' | 'SERVICE' | 'SUPPLY'
+export interface InsuranceCoverageQuery { systemCode?: string; category?: string; status?: string; query?: string }
+export interface InsuranceCoverageCategorySummary {
+  category: InsuranceCoverageCategory; categoryText: string; total: number; mapped: number; unmapped: number; ambiguous: number; expired: number; coverageRate?: number
+}
+export interface InsuranceCoverageItem {
+  catalogItemId: string; category: InsuranceCoverageCategory; categoryText: string; code: string; name: string
+  status: InsuranceCoverageStatus; statusText: string; detail: string; termCodes: string[]
+}
+export interface InsuranceCoverageReport {
+  businessDate: string; systemCode?: string; summary: InsuranceCoverageCategorySummary[]
+  items: InsuranceCoverageItem[]; page: number; size: number; total: number
+}
+
 export function createMasterDataApi(client: ApiClient) {
   return {
+    insuranceCoverage: (filter: InsuranceCoverageQuery, page: number, size: number) => client.request<InsuranceCoverageReport>(
+      `/api/platform/master-data/insurance-coverage${queryString({ ...filter, page: String(page), size: String(size) })}`),
+    insuranceCoverageExport: (filter: InsuranceCoverageQuery) => client.download(
+      `/api/platform/master-data/insurance-coverage/export${queryString({ ...filter })}`),
     diagnosticTemplates: (serviceId: string) => client.request<DiagnosticTemplateVersion[]>(
       `/api/platform/master-data/operations/services/${serviceId}/report-templates`),
     publishDiagnosticTemplate: (serviceId: string, input: DiagnosticTemplatePublication) => client.request<DiagnosticTemplateVersion>(

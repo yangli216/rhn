@@ -2,13 +2,13 @@ package com.rhn.billing.infrastructure.insurance.chs;
 
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.*;
 import com.rhn.shared.api.BusinessException;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-/** 正式网关尚未接入时拒绝执行，不能以本地试算替代医保平台结果。 */
+/** 未启用 gateway（也未启用 Mock）时拒绝执行，不能以本地试算替代医保平台结果。 */
 @Component
-@ConditionalOnProperty(name = "rhn.billing.insurance.chs.mock-enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnExpression("'${rhn.billing.insurance.chs.mock-enabled:false}' != 'true' and '${rhn.billing.insurance.chs.gateway.enabled:false}' != 'true'")
 public class StandardChsNationalInsuranceClient implements NationalInsuranceClient {
     static final String UNAVAILABLE_CODE = "CHS_GATEWAY_NOT_IMPLEMENTED";
     static final String UNAVAILABLE_MESSAGE = "医保正式网关尚未接入，无法查询参保信息或办理结算，请联系管理员";

@@ -307,7 +307,8 @@ class InsuranceClaimTransactionService {
                 account.residentId(), account.encounterId(), value.coverageId(), value.regionCode(), value.insuranceTypeCode(),
                 value.organizationCode(), value.departmentCode(), value.practitionerCode(), value.serviceStartedAt(),
                 value.serviceEndedAt(), value.diagnosisPayloadDigest(), lines, value.grossAmount(), value.currencyCode(),
-                value.correlationId());
+                value.correlationId(), memberNo(value, account),
+                quickResolver.diagnosesMatching(context.tenantId(), account.encounterId(), value.diagnosisPayloadDigest()));
     }
 
     @Transactional(readOnly = true)
@@ -330,7 +331,13 @@ class InsuranceClaimTransactionService {
                 value.regionCode(), value.insuranceTypeCode(), value.externalSettlementNo(), value.grossAmount(),
                 value.reversalReason(), value.correlationId(), requireAccount(context, value.patientAccountId()).residentId(),
                 value.coverageId(), value.practitionerCode(), value.currencyCode(), value.insuranceFundAmount(),
-                value.personalAccountAmount(), value.patientCashAmount(), value.otherFundAmount());
+                value.personalAccountAmount(), value.patientCashAmount(), value.otherFundAmount(),
+                memberNo(value, requireAccount(context, value.patientAccountId())));
+    }
+
+    /** 医保个人编号取自已核实的患者保障记录；缺失时为空，不补造，由适配器据此拒绝。 */
+    private String memberNo(InsuranceClaim claim, PatientAccount account) {
+        return coverages.findMemberNo(claim.coverageId(), account.residentId()).orElse(null);
     }
 
     @Transactional(readOnly = true)

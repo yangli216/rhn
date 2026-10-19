@@ -106,4 +106,14 @@ public interface MedicationProductRepository extends JpaRepository<MedicationPro
                                             @Param("organizationId") Long organizationId,
                                             @Param("sourceOrganizationId") Long sourceOrganizationId,
                                             @Param("at") java.time.LocalDate at, Pageable pageable);
+
+    /** 当前有效且可收费的目录项（id, code, name），用于标准映射覆盖率统计。 */
+    @org.springframework.data.jpa.repository.Query("""
+            select p.id, p.code, p.name from MedicationProduct p
+            where p.tenantId = :tenantId and p.status = 'ACTIVE' and p.chargeable = true
+              and p.validFrom <= :at and (p.validTo is null or p.validTo >= :at) and p.itemType = 'MED_PRODUCT'
+            order by p.code
+            """)
+    java.util.List<Object[]> findChargeableRefs(@org.springframework.data.repository.query.Param("tenantId") Long tenantId,
+                                               @org.springframework.data.repository.query.Param("at") java.time.LocalDate at);
 }

@@ -62,7 +62,9 @@ public class ChsInsuranceSettlementAdapter implements InsuranceSettlementAdapter
         } catch (RuntimeException exception) { return unconfirmedRequest(exception); }
 
         // A malformed response after submission is uncertain; the application keeps the claim pending.
-        var response = client.preSettle(request);
+        ChsModels.PreSettleResponse response;
+        try { response = client.preSettle(request); }
+        catch (ChsRejectedException rejected) { return rejected(rejected); }
         require(response != null, "医保预结算未返回结果");
         require(input.currencyCode().equals(response.currency()), "医保预结算币种不一致或缺失");
         same(response.medfeeSumamt(), input.grossAmount(), "医保预结算总额不一致");
@@ -80,7 +82,9 @@ public class ChsInsuranceSettlementAdapter implements InsuranceSettlementAdapter
             require(request != null && text(request.psnNo()) && text(request.operatorId()), "医保人员或操作员标识未确认");
             require(preSettlementNo.equals(request.preSetlId()) && input.settlementNo().equals(request.settlementNo()), "医保正式结算请求与原预结算不一致");
         } catch (RuntimeException exception) { return unconfirmedRequest(exception); }
-        var response = client.settle(request);
+        ChsModels.SettleResponse response;
+        try { response = client.settle(request); }
+        catch (ChsRejectedException rejected) { return rejected(rejected); }
         require(response != null && preSettlementNo.equals(response.preSetlId()) && response.setlTime() != null,
                 "医保正式结算未确认原预结算流水或结算时间");
         same(response.medfeeSumamt(), input.grossAmount(), "医保正式结算总额不一致");
@@ -143,7 +147,12 @@ public class ChsInsuranceSettlementAdapter implements InsuranceSettlementAdapter
     private static boolean text(String value) { return value != null && !value.isBlank(); }
     private static void require(boolean valid, String message) { if (!valid) throw new IllegalStateException(message); }
     private static InsuranceResult unconfirmedRequest(RuntimeException exception) {
+        if (exception instanceof ChsRejectedException rejected) return rejected(rejected);
         return unresolved(InsuranceResult.Outcome.FAILED, "CHS_REQUEST_CONTEXT_UNCONFIRMED", exception.getMessage(), null);
+    }
+    /** 平台明确拒绝的交易是确定失败，不同于超时等结果未知的情形。 */
+    private static InsuranceResult rejected(ChsRejectedException exception) {
+        return unresolved(InsuranceResult.Outcome.FAILED, "CHS_REJECTED_" + exception.infoCode(), exception.getMessage(), null);
     }
     private static InsuranceResult unavailable(InsuranceResult.Outcome outcome) {
         return unresolved(outcome, StandardChsNationalInsuranceClient.UNAVAILABLE_CODE, StandardChsNationalInsuranceClient.UNAVAILABLE_MESSAGE, null);

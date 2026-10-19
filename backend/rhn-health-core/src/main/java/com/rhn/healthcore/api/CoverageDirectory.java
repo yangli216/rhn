@@ -14,6 +14,12 @@ public interface CoverageDirectory {
         return requireActive(coverageId, residentId, serviceDate);
     }
 
+    /**
+     * 已登记的保障编号（如医保个人编号）。仅读取，不校验有效期；保障在申请创建时已核验，
+     * 缺失时返回空，调用方不得以其他标识替代。
+     */
+    default java.util.Optional<String> findMemberNo(Long coverageId, Long residentId) { return java.util.Optional.empty(); }
+
     record CoverageView(Long id, Long residentId, String coverageTypeCode, String payerName,
                         boolean primary, LocalDate validFrom, LocalDate validTo) {}
 }

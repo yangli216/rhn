@@ -45,6 +45,8 @@ const BusinessNumberManagement = lazy(() => import('../features/settings/Busines
   .then((module) => ({ default: module.BusinessNumberManagement })))
 const ParameterManagement = lazy(() => import('../features/settings/ParameterManagement')
   .then((module) => ({ default: module.ParameterManagement })))
+const InsuranceOnboardingWizard = lazy(() => import('../features/settings/InsuranceOnboardingWizard')
+  .then((module) => ({ default: module.InsuranceOnboardingWizard })))
 const PaymentChannelManagement = lazy(() => import('../features/settings/PaymentChannelManagement')
   .then((module) => ({ default: module.PaymentChannelManagement })))
 const AiConfigurationManagement = lazy(() => import('../features/settings/AiConfigurationManagement')
@@ -231,22 +233,26 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
 
-const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'medtech-services', 'inpatient-services', 'billing-management', 'analytics-management', 'platform-ops']
+const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-front', 'outpatient-services', 'medtech-services', 'inpatient-services', 'billing-management', 'analytics-management', 'platform-ops']
 
 export const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
-    id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
+    id: 'outpatient-front', label: '门诊前台', icon: 'residents', children: [
       { id: 'outpatient-triage', label: '预检分诊', icon: 'emergency', to: '/outpatient/triage', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-flow', label: '门诊流转', icon: 'refresh', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
-      { id: 'outpatient-encounter-query', label: '就诊查询', icon: 'search', to: '/outpatient/encounter-query', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
-      { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
-      { id: 'outpatient-plan-templates', label: '临床模板库', icon: 'sparkles', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
+    ],
+  },
+  {
+    id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
+      { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-encounter-query', label: '就诊查询', icon: 'search', to: '/outpatient/encounter-query', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-plan-templates', label: '临床模板库', icon: 'sparkles', to: '/outpatient/plan-templates', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
     ],
   },
   {
@@ -264,8 +270,6 @@ export const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'inpatient-admission-query', label: '入院登记查询', icon: 'search', to: '/inpatient/admission-query', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'inpatient-nurse-station', label: '病区护士站', icon: 'bed', to: '/inpatient/nurse-station', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'inpatient-doctor-station', label: '住院医生站', icon: 'stethoscope', to: '/inpatient/doctor-station', requiredAuthority: 'INPATIENT.ACCESS' },
-      { id: 'inpatient-deposits', label: '预交金管理', icon: 'billing', to: '/inpatient/deposits', requiredAuthority: 'INPATIENT.ACCESS' },
-      { id: 'inpatient-billing', label: '住院费用', icon: 'billing', to: '/inpatient/billing', requiredAuthority: 'INPATIENT.ACCESS' },
     ],
   },
   {
@@ -274,6 +278,8 @@ export const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'billing-query', label: '收费查询', icon: 'search', to: '/billing/query', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-refunds', label: '退费管理', icon: 'billing', to: '/billing/refunds', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-close', label: '日终结账', icon: 'billing', to: '/billing/daily-close', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'inpatient-deposits', label: '住院预交金', icon: 'card', to: '/inpatient/deposits', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-billing', label: '住院费用结算', icon: 'billing', to: '/inpatient/billing', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'billing-relief-policies', label: '惠民政策', icon: 'settings', to: '/billing/relief-policies', requiredAuthority: 'BILLING_RELIEF.MANAGE' },
       { id: 'billing-relief-roster', label: '惠民资格名单', icon: 'residents', to: '/billing/relief-roster', requiredAuthority: 'BILLING_RELIEF.ROSTER' },
       { id: 'billing-relief-records', label: '惠民减免查询', icon: 'search', to: '/billing/relief-records', requiredAuthority: 'BILLING_RELIEF.QUERY' },
@@ -307,6 +313,7 @@ export const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'medications', label: '药品知识与目录', icon: 'pill', to: '/settings/medications', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'services', label: '诊疗服务目录', icon: 'clinical', to: '/settings/services', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'standard-mappings', label: '标准映射管理', icon: 'roadmap', to: '/settings/standard-mappings', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'insurance-onboarding', label: '医保接入向导', icon: 'card', to: '/settings/insurance-onboarding', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'diseases', label: '疾病与诊断标准', icon: 'database', to: '/settings/diseases', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'operations', label: '耗材与运营主数据', icon: 'card', to: '/settings/operations', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
@@ -323,30 +330,26 @@ export const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'system-settings', label: '系统设置', icon: 'settings', children: [
-      { id: 'payment-channels', label: '支付渠道', icon: 'settings', to: '/settings/payment-channels', requiredAuthority: 'PAYMENT_CONFIGURATION.MANAGE' },
-    ],
-  },
-  {
-    id: 'business-config', label: '业务规则管理', icon: 'settings', children: [
+      { id: 'payment-channels', label: '支付渠道', icon: 'card', to: '/settings/payment-channels', requiredAuthority: 'PAYMENT_CONFIGURATION.MANAGE' },
       { id: 'business-parameters', label: '业务参数配置', icon: 'settings', to: '/settings/business-parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
+      { id: 'business-numbering', label: '业务编码管理', icon: 'tasks', to: '/settings/business-numbering', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'print-templates', label: '打印模板', icon: 'print', to: '/settings/print-templates', requiredAuthority: 'CONFIGURATION.ACCESS' },
-      { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
-      { id: 'access-control', label: '角色与权限', icon: 'settings', to: '/settings/access-control', requiredAuthority: 'IAM.MANAGE' },
+      { id: 'access-control', label: '角色与权限', icon: 'user', to: '/settings/access-control', requiredAuthority: 'IAM.MANAGE' },
       { id: 'announcements', label: '系统公告', icon: 'roadmap', to: '/settings/announcements', requiredAuthority: 'ANNOUNCEMENT.MANAGE' },
+      { id: 'dictionaries', label: '字典管理', icon: 'database', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
+      { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'database', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
+      { id: 'item-attributes', label: '主数据扩展配置', icon: 'database', to: '/settings/item-attributes', requiredAuthority: 'CONFIGURATION.ACCESS' },
     ],
   },
   {
-    id: 'platform-ops', label: '系统运行与运维', icon: 'sparkles', children: [
+    id: 'platform-ops', label: '系统运维', icon: 'sparkles', children: [
       ...(import.meta.env.DEV ? [{
         id: 'schema-workbench', label: '数据设计工作台', icon: 'database' as const,
         to: '/schema-workbench.html', requiredAuthority: 'PORTAL.ACCESS', fullPageNavigation: true,
       }] : []),
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
-      { id: 'business-maintenance', label: '业务初始化与清理', icon: 'settings', to: '/settings/business-maintenance', requiredAuthority: 'MAINTENANCE.VIEW' },
-      { id: 'business-numbering', label: '业务编码管理', icon: 'settings', to: '/settings/business-numbering', requiredAuthority: 'CONFIGURATION.ACCESS' },
-      { id: 'system-parameters', label: '系统运行参数', icon: 'settings', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
-      { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
-      { id: 'item-attributes', label: '主数据扩展配置', icon: 'settings', to: '/settings/item-attributes', requiredAuthority: 'CONFIGURATION.ACCESS' },
+      { id: 'system-parameters', label: '系统运行参数', icon: 'sparkles', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
+      { id: 'business-maintenance', label: '业务初始化与清理', icon: 'refresh', to: '/settings/business-maintenance', requiredAuthority: 'MAINTENANCE.VIEW' },
       { id: 'presence', label: '在线用户', icon: 'user', to: '/settings/presence', requiredAuthority: 'PRESENCE.USER.READ' },
     ],
   },
@@ -402,6 +405,16 @@ function initialExpandedDirectories() {
 function navigationNodeMatchesPath(node: NavigationNode, pathname: string): boolean {
   if (node.to) return node.end ? pathname === node.to : pathname === node.to || pathname.startsWith(`${node.to}/`)
   return node.children?.some((child) => navigationNodeMatchesPath(child, pathname)) ?? false
+}
+
+/** 把当前激活的菜单项滚动到侧栏可视区；目录刚展开时等动画结束后再定位。 */
+function scrollActiveNavigationIntoView(root: HTMLElement | null) {
+  const active = root?.querySelector<HTMLElement>('.nav-item[aria-current="page"]')
+  if (!root || !active) return
+  const rootBounds = root.getBoundingClientRect()
+  const bounds = active.getBoundingClientRect()
+  if (bounds.top >= rootBounds.top && bounds.bottom <= rootBounds.bottom) return
+  active.scrollIntoView({ block: 'center' })
 }
 
 function navigationAncestorsForPath(nodes: NavigationNode[], pathname: string, ancestors: string[] = []): string[] | null {
@@ -463,6 +476,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'database', closeable: true }
   if (pathname === '/settings/medications') return { id: pathname, path: pathname, title: '药品知识与目录', icon: 'pill', closeable: true }
   if (pathname === '/settings/services') return { id: pathname, path: pathname, title: '诊疗服务目录', icon: 'clinical', closeable: true }
+  if (pathname === '/settings/insurance-onboarding') return { id: pathname, path: pathname, title: '医保接入向导', icon: 'card', closeable: true }
   if (pathname === '/settings/standard-mappings') return { id: pathname, path: pathname, title: '标准映射管理', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/item-attributes') return { id: pathname, path: pathname, title: '扩展属性管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/diseases') return { id: pathname, path: pathname, title: '疾病与诊断标准', icon: 'database', closeable: true }
@@ -585,6 +599,7 @@ export function AppShell() {
     localStorage.setItem('rhn.theme.color', themeColor)
   }, [themeColor])
   const navigationHoverOpenTimer = useRef<number | null>(null)
+  const sidebarNavigationRef = useRef<HTMLElement>(null)
   const navigationHoverCloseTimer = useRef<number | null>(null)
   const [tabs, setTabs] = useState<WorkspaceTab[]>([HOME_TAB])
   const { markDirty, confirmDiscard, prompt: unsavedPrompt } = useWorkspaceUnsavedPrompt()
@@ -651,6 +666,13 @@ export function AppShell() {
       return next.size === current.size ? current : next
     })
   }, [location.pathname])
+
+  // 切换页签/路由或登录完成后，侧栏自动定位到当前页对应的菜单项（等目录展开动画结束）。
+  useEffect(() => {
+    if (!authenticated) return
+    const timer = window.setTimeout(() => scrollActiveNavigationIntoView(sidebarNavigationRef.current), 320)
+    return () => window.clearTimeout(timer)
+  }, [location.pathname, authenticated, sidebarCollapsed, mobileLayout, sidebarOpen])
 
   useEffect(() => {
     if (sidebarCollapsed && !mobileLayout) return
@@ -977,7 +999,7 @@ export function AppShell() {
       <aside id="primary-navigation" aria-label="主导航" aria-hidden={mobileLayout && !sidebarOpen || undefined}
         inert={mobileLayout && !sidebarOpen || undefined} className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand"><div className="brand-mark">R</div><div><strong>健域智枢</strong><span>Regional Health Nexus</span></div></div>
-        <nav className="sidebar-navigation" aria-label="功能菜单">
+        <nav className="sidebar-navigation" aria-label="功能菜单" ref={sidebarNavigationRef}>
           <NavigationTree nodes={visibleNavigation} pathname={location.pathname} collapsed={collapsedNavigation}
             expandedDirectories={expandedDirectories} onToggleDirectory={toggleDirectory}
             onCollapsedDirectory={openCollapsedDirectory} onNavigate={closeNavigationAfterNavigate}
@@ -1145,6 +1167,9 @@ export function AppShell() {
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/standard-mappings" element={<StandardMappingWorkspace api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} />} />
+                  <Route path="/settings/insurance-onboarding" element={<InsuranceOnboardingWizard api={tabSlot.api}
+                    contextKey={JSON.stringify([session.tenantId, session.userId, tabSlot.clinicalContext])}
+                    canProbe={tabAuthorities.has('INSURANCE_PROBE.EXECUTE')} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/item-attributes" element={<ItemAttributeWorkspace api={tabSlot.api}
                     onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/diseases" element={<BasicDataManagement api={tabSlot.api} scope="disease"

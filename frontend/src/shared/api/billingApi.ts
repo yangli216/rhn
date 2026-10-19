@@ -5,6 +5,32 @@ type ContractProjection<Wire, Overrides extends Partial<Wire>> = Omit<Wire, keyo
 type RequiredWireView<Wire, Keys extends keyof Wire> = Omit<Wire, Keys> & { [Key in Keys]-?: NonNullable<Wire[Key]> }
 
 
+export type InsuranceReadinessCheck = RequiredWireView<components['schemas']['ReadinessCheck'], 'code' | 'title' | 'status' | 'statusText' | 'detail'>
+export type InsuranceReadinessSection = ContractProjection<RequiredWireView<components['schemas']['ReadinessSection'], 'code' | 'title'>, { checks: InsuranceReadinessCheck[] }>
+export type InsuranceReadinessReport = ContractProjection<RequiredWireView<components['schemas']['ReadinessReport'],
+  'checkedAt' | 'clientMode' | 'clientModeText' | 'overall' | 'overallText'>, {
+  summary: { pass: number; warn: number; block: number }; sections: InsuranceReadinessSection[]; insuranceSystemCodes: string[]
+}>
+
+export type InsuranceProbeCapability = RequiredWireView<components['schemas']['ProbeCapability'],
+  'available' | 'mode' | 'modeText' | 'signInRequired' | 'settlementAllowed'>
+export type InsuranceProbeFact = RequiredWireView<components['schemas']['ProbeFact'], 'label' | 'value'>
+export type InsuranceProbeExchange = RequiredWireView<components['schemas']['ProbeExchange'],
+  'infno' | 'infnoText' | 'startedAt' | 'durationMs' | 'outcome' | 'outcomeText' | 'request' | 'response'>
+export type InsuranceProbeStepCode = 'SIGN_IN' | 'PERSON' | 'PRE_SETTLE' | 'SETTLE'
+export type InsuranceProbeStepResult = ContractProjection<RequiredWireView<components['schemas']['ProbeStepResult'],
+  'step' | 'stepText' | 'status' | 'statusText' | 'summary' | 'startedAt' | 'durationMs'>, {
+  facts: InsuranceProbeFact[]; exchanges: InsuranceProbeExchange[]
+}>
+export type InsuranceProbeRequest = {
+  person?: { certType: string; certNo: string; personName?: string }
+  preSettle?: {
+    departmentCode: string; practitionerCode?: string; diagnosisCode: string; diagnosisName: string
+    lines: { itemCode: string; insuranceItemCode: string; itemName: string; quantity: number; unitPrice: number }[]
+  }
+  settle?: { confirmed: boolean; confirmation: string }
+}
+
 export type PaymentAuthorizationCodeRule = RequiredWireView<components['schemas']['PaymentAuthorizationCodeRule'], 'pattern' | 'minLength' | 'maxLength'>
 export type PaymentChannelCapabilities = ContractProjection<RequiredWireView<components['schemas']['PaymentChannelCapabilities'],
   'adapterCode' | 'interaction' | 'querySupported' | 'refundSupported' | 'confirmBeforeCancel'>, {
@@ -354,6 +380,10 @@ export function createBillingApi(client: ApiClient) {
     }) => client.request<Payment>(`/api/billing/invoices/${invoiceId}/payments`, {
       method: 'POST', body: JSON.stringify(input),
     }),
+    insuranceReadiness: () => client.request<InsuranceReadinessReport>('/api/billing/insurance/readiness'),
+    insuranceProbeCapability: () => client.request<InsuranceProbeCapability>('/api/billing/insurance/probe/capability'),
+    runInsuranceProbe: (step: InsuranceProbeStepCode, input: InsuranceProbeRequest = {}) => client.request<InsuranceProbeStepResult>(
+      `/api/billing/insurance/probe/steps/${step}`, { method: 'POST', body: JSON.stringify(input) }),
     paymentConfigurationCatalog: () => client.request<PaymentConfigurationCatalog>('/api/billing/payment-channel-management'),
     paymentMerchantConfiguration: (organizationId: string, method: string) => client.request<PaymentMerchantConfiguration>(
       `/api/billing/payment-channel-management/organizations/${encodeURIComponent(organizationId)}/channels/${encodeURIComponent(method)}`,

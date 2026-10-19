@@ -223,6 +223,11 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
 
     private List<ItemTermMappingView> views(Long tenantId, ItemAttributeSubject subject,
                                             List<ItemTermMapping> mappings) {
+        return views(tenantId, Map.of(subject.id(), subject), mappings);
+    }
+
+    private List<ItemTermMappingView> views(Long tenantId, Map<Long, ItemAttributeSubject> subjects,
+                                            List<ItemTermMapping> mappings) {
         if (mappings.isEmpty()) return List.of();
         Map<Long, ConceptSnapshot> concepts = terminologyDirectory.findConcepts(mappings.stream()
                         .map(ItemTermMapping::conceptId).collect(Collectors.toSet())).stream()
@@ -232,9 +237,10 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
                 .filter(value -> visible(tenantId, value))
                 .collect(Collectors.toMap(CodeSystemSnapshot::id, Function.identity()));
         return mappings.stream().map(value -> {
+            ItemAttributeSubject subject = subjects.get(value.attributeSubjectId());
             ConceptSnapshot concept = concepts.get(value.conceptId());
             CodeSystemSnapshot system = concept == null ? null : systems.get(concept.codeSystemId());
-            if (concept == null || system == null) throw new IllegalStateException("标准映射引用的术语发布版不存在");
+            if (subject == null || concept == null || system == null) throw new IllegalStateException("标准映射引用的术语发布版不存在");
             return new ItemTermMappingView(value.id(), value.revision(), subject.id(), subject.subjectType(),
                     targetId(subject), concept.id(), system.id(), system.code(), system.name(), system.versionCode(),
                     system.authorityType(), concept.code(), concept.display(), value.mappingType(),
@@ -242,6 +248,41 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
                     value.status(), value.replacesMappingId(), value.createdAt(), value.createdBy(),
                     value.updatedAt(), value.updatedBy());
         }).toList();
+    }
+
+    /**
+     * 批量读取诊疗目录项（含药品产品、耗材）的医保用途映射历史，按目录项分组；没有映射的目录项不出现在结果中。
+     * 与单项维护使用同一视图转换，覆盖率统计据此判定，不另建映射解释逻辑。
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, List<ItemTermMappingView>> insuranceMappingHistory(Long tenantId, java.util.Collection<Long> catalogItemIds) {
+        Map<Long, List<ItemTermMappingView>> result = new java.util.HashMap<>();
+        List<Long> ids = List.copyOf(catalogItemIds);
+        for (int from = 0; from < ids.size(); from += 500) {
+            List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + 500));
+            Map<Long, ItemAttributeSubject> subjects = subjectRepository.findByTenantIdAndCatalogItemIdIn(tenantId, chunk).stream()
+                    .collect(Collectors.toMap(ItemAttributeSubject::id, Function.identity()));
+            if (subjects.isEmpty()) continue;
+            List<ItemTermMapping> mappings = mappingRepository.findByTenantIdAndMappingTypeAndAttributeSubjectIdIn(
+                    tenantId, "INSURANCE", subjects.keySet());
+            for (ItemTermMappingView view : views(tenantId, subjects, mappings)) {
+                result.computeIfAbsent(view.targetId(), key -> new java.util.ArrayList<>()).add(view);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 医保结算可使用的映射：启用、医保权威体系、（指定时）同一目录体系、EXACT/EQUIVALENT，且在业务日期有效。
+     * 与快捷预结算取目录映射的口径一致。
+     */
+    public static boolean isConfirmedInsuranceMapping(ItemTermMappingView value, String systemCode, LocalDate at) {
+        return "INSURANCE".equals(value.mappingType()) && "INSURANCE".equals(value.authorityType())
+                && "ACTIVE".equals(value.status())
+                && (systemCode == null || systemCode.isBlank() || systemCode.equals(value.systemCode()))
+                && ("EXACT".equals(value.equivalence()) || "EQUIVALENT".equals(value.equivalence()))
+                && value.termCode() != null && !value.termCode().isBlank()
+                && !value.validFrom().isAfter(at) && (value.validTo() == null || !value.validTo().isBefore(at));
     }
 
     private ItemAttributeSubject requireSubject(Long tenantId, String subjectType, Long targetId) {

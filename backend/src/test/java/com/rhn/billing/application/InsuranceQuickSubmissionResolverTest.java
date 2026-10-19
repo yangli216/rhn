@@ -53,6 +53,19 @@ class InsuranceQuickSubmissionResolverTest {
     }
     private InsuranceQuickSubmissionResolver.Submission submit() { return resolver.resolve(account, resolver.visit(account), "310", null); }
 
+    @Test void diagnosesAreReturnedOnlyWhenTheyStillMatchTheClaimDigest() {
+        String digest = submit().diagnosisDigest();
+        var result = resolver.diagnosesMatching(1L, 5L, digest);
+        assertEquals(1, result.size());
+        assertEquals("I10", result.getFirst().code());
+        assertEquals("PRIMARY", result.getFirst().diagnosisTypeCode());
+        assertEquals(1, result.getFirst().sortNo());
+        assertTrue(resolver.diagnosesMatching(1L, 5L, "SHA256-other").isEmpty());
+        assertTrue(resolver.diagnosesMatching(1L, 5L, null).isEmpty());
+        when(diagnoses.findActiveDiagnoses(1L, 5L, "ENCOUNTER")).thenReturn(List.of(diagnosis("E11")));
+        assertTrue(resolver.diagnosesMatching(1L, 5L, digest).isEmpty());
+    }
+
     @Test void usesRegisteredProviderAndTreatingDoctorWithActualServiceDateAndDiagnosisDigest() {
         var visit = resolver.visit(account);
         assertEquals(started, visit.startedAt());

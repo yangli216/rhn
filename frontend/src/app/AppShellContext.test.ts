@@ -28,6 +28,19 @@ describe('AppShell work context routing', () => {
     expect(outpatientChildren).not.toContain('clinical-printing')
   })
 
+  it('keeps menu groups cohesive: front desk vs clinic, billing owns inpatient fees, settings merged', () => {
+    const ids = (gid: string) => NAVIGATION_NODES.find((node) => node.id === gid)?.children?.map((c) => c.id) ?? []
+    expect(ids('outpatient-front')).toEqual(['outpatient-triage', 'outpatient-flow', 'outpatient-registration',
+      'outpatient-registration-query', 'outpatient-appointments', 'outpatient-scheduling'])
+    expect(ids('outpatient-services')).toEqual(['outpatient-reception', 'outpatient-encounter-query', 'outpatient-plan-templates'])
+    expect(ids('inpatient-services')).not.toContain('inpatient-deposits')
+    expect(ids('billing-management')).toEqual(expect.arrayContaining(['inpatient-deposits', 'inpatient-billing']))
+    expect(NAVIGATION_NODES.find((node) => node.id === 'business-config')).toBeUndefined()
+    expect(ids('system-settings')).toEqual(expect.arrayContaining(['payment-channels', 'business-parameters', 'access-control', 'dictionaries']))
+    const leafIds = NAVIGATION_NODES.flatMap((node) => node.children?.map((c) => c.id) ?? [node.id])
+    expect(new Set(leafIds).size).toBe(leafIds.length)
+  })
+
   it('requires category rights for medical technology menus and retained tab paths', () => {
     const lab = new Set(['DIAGNOSTICS.ACCESS', 'DIAGNOSTICS.LABORATORY.VIEW'])
     expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory?encounterId=e1', lab)).toBe(true)

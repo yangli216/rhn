@@ -10,4 +10,6 @@ public interface ItemTermMappingRepository extends JpaRepository<ItemTermMapping
     List<ItemTermMapping> findByTenantIdAndAttributeSubjectIdOrderByValidFromDescCreatedAtDesc(
             Long tenantId, Long attributeSubjectId);
     Optional<ItemTermMapping> findByIdAndTenantId(Long id, Long tenantId);
+    List<ItemTermMapping> findByTenantIdAndMappingTypeAndAttributeSubjectIdIn(
+            Long tenantId, String mappingType, java.util.Collection<Long> attributeSubjectIds);
 }

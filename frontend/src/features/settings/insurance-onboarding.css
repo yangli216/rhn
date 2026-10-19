@@ -1,0 +1,123 @@
+.insurance-onboarding__overall {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-onboarding__navigation {
+  display: grid;
+  align-content: start;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-onboarding__navigation .ui-button {
+  justify-content: space-between;
+}
+
+.insurance-onboarding__mode {
+  margin: 0 0 var(--layout-panel-gap);
+}
+
+.insurance-onboarding__coverage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  min-height: 0;
+}
+
+.insurance-onboarding__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-onboarding__summary dl {
+  margin: 0;
+}
+
+.insurance-onboarding__summary dd {
+  margin: 0;
+}
+
+.insurance-onboarding__rate {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.insurance-probe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+}
+
+.insurance-probe__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-probe__toolbar-actions {
+  display: flex;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-probe__step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-panel-gap);
+  padding: var(--layout-section-gap);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.insurance-probe__step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-probe__step-head h3 {
+  margin: 0;
+  margin-right: auto;
+}
+
+.insurance-probe__copy,
+.insurance-probe__summary {
+  margin: 0;
+}
+
+.insurance-probe__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-probe__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--layout-panel-gap);
+  margin: 0;
+}
+
+.insurance-probe__facts dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.insurance-probe__messages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-probe__messages pre {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

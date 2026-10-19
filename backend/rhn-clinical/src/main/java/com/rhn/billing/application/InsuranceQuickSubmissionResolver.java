@@ -1,5 +1,6 @@
 package com.rhn.billing.application;
 
+import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceDiagnosis;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.healthcore.api.EncounterDiagnosisDirectory;
 import com.rhn.outpatient.api.EncounterDirectory;
@@ -14,7 +15,9 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.HexFormat;
 import java.util.Objects;
 
@@ -88,15 +91,41 @@ class InsuranceQuickSubmissionResolver {
                 || facts.stream().noneMatch(d -> "PRIMARY".equals(d.diagnosisType()))) {
             throw conflict("INSURANCE_DIAGNOSES_UNCONFIRMED", "医保预结算需要已确认的本次就诊诊断及主诊断，请先完成诊断核实");
         }
-        var canonical = facts.stream().sorted(Comparator.comparing(EncounterDiagnosisDirectory.DiagnosisSnapshot::code)
+        String digest = digest(canonical(facts));
+        return new Submission(region, organizationCode, departmentCode, practitionerCode, system, digest);
+    }
+
+    private List<EncounterDiagnosisDirectory.DiagnosisSnapshot> canonical(List<EncounterDiagnosisDirectory.DiagnosisSnapshot> facts) {
+        return facts.stream().sorted(Comparator.comparing(EncounterDiagnosisDirectory.DiagnosisSnapshot::code)
                 .thenComparing(EncounterDiagnosisDirectory.DiagnosisSnapshot::diagnosisType)
                 .thenComparing(d -> String.valueOf(d.id()))).toList();
-        String digest;
+    }
+
+    private String digest(List<EncounterDiagnosisDirectory.DiagnosisSnapshot> canonical) {
         try {
-            digest = "SHA256-" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+            return "SHA256-" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(json.write(canonical).getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) { throw new IllegalStateException("SHA-256 unavailable", exception); }
-        return new Submission(region, organizationCode, departmentCode, practitionerCode, system, digest);
+    }
+
+    /**
+     * 取回与申请诊断摘要一致的已确认诊断，供正式网关上传。诊断自申请创建后被修改、缺主诊断或摘要不符时返回空，
+     * 不用当前诊断冒充申请时的诊断。
+     */
+    List<InsuranceDiagnosis> diagnosesMatching(Long tenantId, Long encounterId, String expectedDigest) {
+        if (encounterId == null || blank(expectedDigest)) return List.of();
+        var facts = diagnoses.findActiveDiagnoses(tenantId, encounterId, "ENCOUNTER");
+        if (facts == null || facts.isEmpty() || facts.stream().anyMatch(d -> d == null
+                || !Objects.equals(d.encounterId(), encounterId) || !"ENCOUNTER".equals(d.diagnosisStage())
+                || !"ACTIVE".equals(d.diagnosisStatus()) || !"CONFIRMED".equals(d.verificationStatus())
+                || blank(d.code()) || blank(d.display()) || blank(d.diagnosisType()))) return List.of();
+        var canonical = canonical(facts);
+        if (!expectedDigest.equals(digest(canonical))) return List.of();
+        var ordered = canonical.stream().sorted(Comparator.comparing((EncounterDiagnosisDirectory.DiagnosisSnapshot d) ->
+                !"PRIMARY".equals(d.diagnosisType()))).toList();
+        var result = new ArrayList<InsuranceDiagnosis>();
+        for (var d : ordered) result.add(new InsuranceDiagnosis(d.diagnosisType(), result.size() + 1, d.code().trim(), d.display().trim()));
+        return result;
     }
 
     private static boolean blank(String value) { return value == null || value.isBlank(); }

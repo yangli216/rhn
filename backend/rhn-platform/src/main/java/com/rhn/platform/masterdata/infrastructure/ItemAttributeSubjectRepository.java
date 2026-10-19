@@ -10,4 +10,5 @@ public interface ItemAttributeSubjectRepository extends JpaRepository<ItemAttrib
     Optional<ItemAttributeSubject> findByTenantIdAndCatalogItemId(Long tenantId, Long catalogItemId);
     Optional<ItemAttributeSubject> findByTenantIdAndServiceVariantId(Long tenantId, Long serviceVariantId);
     Optional<ItemAttributeSubject> findByItemMasterId(Long itemMasterId);
+    java.util.List<ItemAttributeSubject> findByTenantIdAndCatalogItemIdIn(Long tenantId, java.util.Collection<Long> catalogItemIds);
 }

@@ -27,7 +27,35 @@ public interface InsuranceSettlementAdapter {
             String organizationCode, String departmentCode, String practitionerCode,
             Instant serviceStartedAt, Instant serviceEndedAt, String diagnosisPayloadDigest,
             List<InsuranceLine> lines, BigDecimal grossAmount, String currencyCode,
-            String correlationId) {}
+            String correlationId, String externalPersonNo, List<InsuranceDiagnosis> diagnoses) {
+        public InsuranceInstruction(Long claimId, Long settlementId, String settlementNo, String idempotencyKey, Long patientAccountId,
+                                    Long residentId, Long encounterId, Long coverageId, String regionCode, String insuranceTypeCode,
+                                    String organizationCode, String departmentCode, String practitionerCode,
+                                    Instant serviceStartedAt, Instant serviceEndedAt, String diagnosisPayloadDigest,
+                                    List<InsuranceLine> lines, BigDecimal grossAmount, String currencyCode, String correlationId) {
+            this(claimId, settlementId, settlementNo, idempotencyKey, patientAccountId, residentId, encounterId, coverageId,
+                    regionCode, insuranceTypeCode, organizationCode, departmentCode, practitionerCode, serviceStartedAt,
+                    serviceEndedAt, diagnosisPayloadDigest, lines, grossAmount, currencyCode, correlationId, null, List.of());
+        }
+
+        public InsuranceInstruction {
+            diagnoses = diagnoses == null ? List.of() : List.copyOf(diagnoses);
+        }
+
+        public InsuranceInstruction(Long claimId, Long settlementId, String settlementNo, String idempotencyKey, Long patientAccountId,
+                                    Long residentId, Long encounterId, Long coverageId, String regionCode, String insuranceTypeCode,
+                                    String organizationCode, String departmentCode, String practitionerCode,
+                                    Instant serviceStartedAt, Instant serviceEndedAt, String diagnosisPayloadDigest,
+                                    List<InsuranceLine> lines, BigDecimal grossAmount, String currencyCode, String correlationId,
+                                    String externalPersonNo) {
+            this(claimId, settlementId, settlementNo, idempotencyKey, patientAccountId, residentId, encounterId, coverageId,
+                    regionCode, insuranceTypeCode, organizationCode, departmentCode, practitionerCode, serviceStartedAt,
+                    serviceEndedAt, diagnosisPayloadDigest, lines, grossAmount, currencyCode, correlationId, externalPersonNo, List.of());
+        }
+    }
+
+    /** 已确认的本次就诊结构化诊断；类型取 PRIMARY 或其他，序号自 1 起，主诊断在前。 */
+    record InsuranceDiagnosis(String diagnosisTypeCode, int sortNo, String code, String name) {}
 
     record InsuranceQuery(Long claimId, String claimNo, String operation, String regionCode,
                           String insuranceTypeCode, String externalPreSettlementNo,
@@ -52,5 +80,16 @@ public interface InsuranceSettlementAdapter {
             String originalExternalSettlementNo, BigDecimal amount, String reason,
             String correlationId, Long residentId, Long coverageId, String practitionerCode, String currencyCode,
             BigDecimal insuranceFundAmount, BigDecimal personalAccountAmount,
-            BigDecimal patientCashAmount, BigDecimal otherFundAmount) {}
+            BigDecimal patientCashAmount, BigDecimal otherFundAmount, String externalPersonNo) {
+        public InsuranceReversal(Long claimId, Long settlementId, String settlementNo, String idempotencyKey,
+                                 String regionCode, String insuranceTypeCode,
+                                 String originalExternalSettlementNo, BigDecimal amount, String reason,
+                                 String correlationId, Long residentId, Long coverageId, String practitionerCode, String currencyCode,
+                                 BigDecimal insuranceFundAmount, BigDecimal personalAccountAmount,
+                                 BigDecimal patientCashAmount, BigDecimal otherFundAmount) {
+            this(claimId, settlementId, settlementNo, idempotencyKey, regionCode, insuranceTypeCode, originalExternalSettlementNo,
+                    amount, reason, correlationId, residentId, coverageId, practitionerCode, currencyCode, insuranceFundAmount,
+                    personalAccountAmount, patientCashAmount, otherFundAmount, null);
+        }
+    }
 }

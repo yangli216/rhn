@@ -45,8 +45,21 @@ public final class ChsModels {
             String organizationCode,
             String departmentCode,
             String practitionerCode,
-            List<FeedetItem> feedetList
-    ) {}
+            List<FeedetItem> feedetList,
+            String mdtrtId,           // 就诊 ID（2201 返回，仅正式网关使用）
+            String mdtrtCertType,     // 就诊凭证类型 01 电子凭证, 02 身份证, 03 社保卡
+            String mdtrtCertNo        // 就诊凭证编号（正式网关使用，不入库不记日志）
+    ) {
+        public PreSettleRequest(String psnNo, String insutype, Long settlementId, String settlementNo, BigDecimal medfeeSumamt,
+                                String organizationCode, String departmentCode, String practitionerCode, List<FeedetItem> feedetList) {
+            this(psnNo, insutype, settlementId, settlementNo, medfeeSumamt, organizationCode, departmentCode,
+                    practitionerCode, feedetList, null, null, null);
+        }
+
+        @Override public String toString() {
+            return "PreSettleRequest[settlementNo=" + settlementNo + ", mdtrtId=" + mdtrtId + ", credentials=REDACTED]";
+        }
+    }
 
     public record FeedetItem(
             Long feedetId,
@@ -80,8 +93,13 @@ public final class ChsModels {
             String preSetlId,             // 预结算流水号
             String psnNo,
             String settlementNo,
-            String operatorId
-    ) {}
+            String operatorId,
+            String insutype           // 险种类型（正式网关使用）
+    ) {
+        public SettleRequest(String preSetlId, String psnNo, String settlementNo, String operatorId) {
+            this(preSetlId, psnNo, settlementNo, operatorId, null);
+        }
+    }
 
     public record SettleResponse(
             String setlId,                // 正式医保结算流水号

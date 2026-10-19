@@ -97,4 +97,14 @@ public interface ServiceCatalogItemRepository extends JpaRepository<ServiceCatal
                                              @Param("organizationId") Long organizationId,
                                              @Param("sourceOrganizationId") Long sourceOrganizationId,
                                              @Param("at") java.time.LocalDate at, Pageable pageable);
+
+    /** 当前有效且可收费的目录项（id, code, name），用于标准映射覆盖率统计。 */
+    @org.springframework.data.jpa.repository.Query("""
+            select s.id, s.code, s.name from ServiceCatalogItem s
+            where s.tenantId = :tenantId and s.status = 'ACTIVE' and s.chargeable = true
+              and s.validFrom <= :at and (s.validTo is null or s.validTo >= :at) and s.itemType = 'SERVICE'
+            order by s.code
+            """)
+    java.util.List<Object[]> findChargeableRefs(@org.springframework.data.repository.query.Param("tenantId") Long tenantId,
+                                               @org.springframework.data.repository.query.Param("at") java.time.LocalDate at);
 }
