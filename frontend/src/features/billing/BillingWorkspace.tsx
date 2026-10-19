@@ -487,7 +487,9 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       return `已执行惠民减免，应收由 ${money(expectedAmount, statement.data?.currencyCode)} 调整为 ${money(outstandingAmount, statement.data?.currencyCode)}，请核对后再收款。`
     }
     if (settlementMode !== 'SELF_PAY') return null
+    // 人工核准属酌情减免，不阻断收款；只在存在可自动执行的减免时暂停。
     const available = actionableRelief(await api.relief.settlementRelief(settlementId))
+      .filter((value) => value.status === 'APPLIED')
     return available.length
       ? `患者可享受惠民减免（${available.map((value) => value.policyName).join('、')}），请在“惠民减免”中确认后再收款。`
       : null
@@ -1131,7 +1133,8 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
         ) : (
           <>
             <SettlementReliefPanel api={api} settlementMode={settlementMode}
-              canApprove={authorities.includes('BILLING_RELIEF.APPROVE')} onChanged={refresh}
+              rights={{ canDecide: authorities.includes('BILLING_RELIEF.DECIDE'),
+                canApprove: authorities.includes('BILLING_RELIEF.APPROVE') }} onChanged={refresh}
               settlements={payableSettlements.map((settlement) => ({
                 id: settlement.id, settlementNo: settlement.settlementNo, currencyCode: settlement.currencyCode,
                 insuranceSettled: insuranceSettlementReady(settlement),

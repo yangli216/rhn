@@ -211,6 +211,10 @@ public class ReliefPolicyApplicationService {
         Map<String, String> categories = null;
         Set<String> sources = null;
         Set<String> scopeKeys = new HashSet<>();
+        if (version.manualApprovalAmount() != null
+                && ruleInputs.stream().noneMatch(input -> input.method() == ReliefMethod.MANUAL)) {
+            throw badRequest("RELIEF_MANUAL_APPROVAL_UNUSED", "只有包含人工核定规则的政策才能设置核定审批阈值");
+        }
         int lineNo = 1;
         for (ReliefRuleInput input : ruleInputs) {
             String name = trimToNull(input.scopeName());
@@ -288,7 +292,8 @@ public class ReliefPolicyApplicationService {
                 Boolean.TRUE.equals(draft.insuredApplicable()), Boolean.TRUE.equals(draft.baseIncludesPersonalAccount()),
                 draft.onceMaxAmount(), draft.quotaPeriod() == null ? ReliefQuotaPeriod.NONE : draft.quotaPeriod(),
                 draft.periodMaxAmount(), draft.periodMaxCount(), Boolean.TRUE.equals(draft.shareAcrossScenes()),
-                Boolean.TRUE.equals(draft.shareAcrossOrganizations()), trimToNull(draft.versionNote()));
+                Boolean.TRUE.equals(draft.shareAcrossOrganizations()), trimToNull(draft.versionNote()),
+                draft.manualApprovalAmount());
     }
 
     private Set<String> chargeSources() {
@@ -363,7 +368,7 @@ public class ReliefPolicyApplicationService {
                 version.qualificationMode().name(), version.insuredApplicable(), version.baseIncludesPersonalAccount(),
                 version.onceMaxAmount(), version.quotaPeriod().name(), version.periodMaxAmount(), version.periodMaxCount(),
                 version.shareAcrossScenes(), version.shareAcrossOrganizations(), version.versionNote(), ruleViews,
-                qualificationViews, version.createdAt(), version.publishedAt());
+                qualificationViews, version.createdAt(), version.publishedAt(), version.manualApprovalAmount());
     }
 
     private static String requiredText(String value, String code, String message) {
@@ -408,7 +413,8 @@ public class ReliefPolicyApplicationService {
                              Boolean insuredApplicable, Boolean baseIncludesPersonalAccount, BigDecimal onceMaxAmount,
                              ReliefQuotaPeriod quotaPeriod, BigDecimal periodMaxAmount, Integer periodMaxCount,
                              Boolean shareAcrossScenes, Boolean shareAcrossOrganizations, String versionNote,
-                             List<ReliefRuleInput> rules, List<ReliefQualificationInput> qualifications) {}
+                             List<ReliefRuleInput> rules, List<ReliefQualificationInput> qualifications,
+                             BigDecimal manualApprovalAmount) {}
 
     public record ReliefCreatePolicyCommand(String code, String name, String description, ReliefDraftInput draft) {}
 
@@ -450,7 +456,8 @@ public class ReliefPolicyApplicationService {
                               @DictionaryBinding("BIL_RELIEF_QUOTA_PERIOD") String quotaPeriod,
                               BigDecimal periodMaxAmount, Integer periodMaxCount, boolean shareAcrossScenes,
                               boolean shareAcrossOrganizations, String versionNote, List<ReliefRuleView> rules,
-                              List<ReliefQualificationView> qualifications, Instant createdAt, Instant publishedAt) {}
+                              List<ReliefQualificationView> qualifications, Instant createdAt, Instant publishedAt,
+                              BigDecimal manualApprovalAmount) {}
 
     public record ReliefPolicyView(Long id, long revision, String code, String name, String description,
                              @DictionaryBinding("BIL_RELIEF_POLICY_STATUS") String status, Long currentVersionId,

@@ -140,7 +140,7 @@ public final class ReliefCalculator {
         total = total.min(ceiling).setScale(SCALE, RoundingMode.HALF_UP);
 
         if (total.signum() <= 0) {
-            if (awaitingManual) return Outcome.of(policy, OutcomeStatus.AWAITING_MANUAL, "待人工核准减免金额",
+            if (awaitingManual) return Outcome.of(policy, OutcomeStatus.AWAITING_MANUAL, "可由收费员核定减免金额",
                     baseTotal, zero(), List.of(), Set.of());
             return Outcome.skipped(policy, notes.isEmpty() ? "本次无可减免金额" : String.join("；", notes));
         }
@@ -156,7 +156,7 @@ public final class ReliefCalculator {
                     candidate.base.setScale(SCALE, RoundingMode.HALF_UP), amounts.get(index)));
             if (candidate.rule.terms().periodMaxCount() != null) usedScopes.add(candidate.rule.terms().scopeKey());
         }
-        if (awaitingManual) notes.add("部分项目待人工核准");
+        if (awaitingManual) notes.add("部分项目可由收费员核定");
         return Outcome.of(policy, OutcomeStatus.APPLIED, notes.isEmpty() ? null : String.join("；", notes),
                 baseTotal.setScale(SCALE, RoundingMode.HALF_UP), total, List.copyOf(lines), usedScopes);
     }

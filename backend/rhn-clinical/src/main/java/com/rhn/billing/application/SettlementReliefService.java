@@ -74,7 +74,7 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
  * <ul>
  *   <li>医保前：开具账单生成正式结算后立即计算，降低结算行、结算单与账单净额，医保按减免后金额结算。</li>
  *   <li>医保后：医保正式结算回执落账后自动计算；自费患者由收费员确认后计算。减免作为“医院减免/补助”收款计入结算，
- *       不是患者支付。人工核准项只在确认时按权限录入。</li>
+ *       不是患者支付。人工核定项由收费员按需录入金额与原因：需核定权限，超过政策审批阈值时需审批权限。</li>
  *   <li>每笔减免记 RELIEF 贷方账务、按行分配，并在同一事务内加锁占用额度；结算完成时确认额度。</li>
  * </ul>
  * 本期接入门诊收费与药房收费场景；挂号与住院结算的收款时序不同，后续单独接入。
@@ -83,6 +83,7 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 class SettlementReliefService {
     static final Set<String> SUPPORTED_SCENES = Set.of("OUTPATIENT", "PHARMACY");
     static final String SELF_PAY = "SELF_PAY";
+    static final String DECIDE_AUTHORITY = "BILLING_RELIEF.DECIDE";
     static final String APPROVE_AUTHORITY = "BILLING_RELIEF.APPROVE";
     private static final BigDecimal PRECISION = new BigDecimal("0.01");
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
@@ -166,24 +167,25 @@ class SettlementReliefService {
         if (claim != null && !"SETTLED".equals(claim.status())) {
             throw conflict("RELIEF_INSURANCE_PENDING", "医保结算尚未完成，不能确认医保后减免");
         }
-        if (!manual.isEmpty() && !context.hasAuthority(APPROVE_AUTHORITY)) {
-            throw forbidden("RELIEF_MANUAL_FORBIDDEN", "没有人工核准惠民减免的权限");
+        if (!manual.isEmpty() && !context.hasAuthority(DECIDE_AUTHORITY) && !context.hasAuthority(APPROVE_AUTHORITY)) {
+            throw forbidden("RELIEF_MANUAL_FORBIDDEN", "没有人工核定惠民减免的权限");
         }
         for (var entry : manual.entrySet()) {
             ManualDecision decision = entry.getValue();
             if (decision.amount() == null || decision.amount().signum() <= 0) {
-                throw badRequest("RELIEF_MANUAL_AMOUNT_INVALID", "人工核准金额必须大于零");
+                throw badRequest("RELIEF_MANUAL_AMOUNT_INVALID", "人工核定金额必须大于零");
             }
             if (decision.reason() == null || decision.reason().isBlank()) {
-                throw badRequest("RELIEF_MANUAL_REASON_REQUIRED", "人工核准必须填写原因");
+                throw badRequest("RELIEF_MANUAL_REASON_REQUIRED", "人工核定必须填写原因");
             }
         }
         Stage stage = prepare(context, account, settlement, ReliefTiming.POST_INSURANCE,
                 claim == null ? null : claim.insuranceTypeCode(), true);
         if (stage.policies().isEmpty()) {
-            if (!manual.isEmpty()) throw conflict("RELIEF_MANUAL_POLICY_INVALID", "人工核准的政策不适用于本次结算");
+            if (!manual.isEmpty()) throw conflict("RELIEF_MANUAL_POLICY_INVALID", "人工核定的政策不适用于本次结算");
             return List.of();
         }
+        requireApprovalWithinThreshold(context, stage, manual);
         Map<Long, BigDecimal> manualAmounts = manual.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().amount()));
         ReliefCalculator.Result result = calculator.calculate(new ReliefCalculator.Request(ReliefTiming.POST_INSURANCE,
@@ -192,7 +194,7 @@ class SettlementReliefService {
             Outcome outcome = result.outcomes().stream().filter(value -> value.policyId().equals(policyId))
                     .findFirst().orElse(null);
             if (outcome == null || outcome.status() != OutcomeStatus.APPLIED) {
-                throw conflict("RELIEF_MANUAL_POLICY_INVALID", "人工核准的政策不能执行："
+                throw conflict("RELIEF_MANUAL_POLICY_INVALID", "人工核定的政策不能执行："
                         + (outcome == null ? "不适用于本次结算" : outcome.message()));
             }
         }
@@ -200,7 +202,10 @@ class SettlementReliefService {
         return views(result);
     }
 
-    /** 只读预览当前还能执行的医保后减免，供收费界面展示与人工核准。 */
+    /**
+     * 只读预览当前还能执行的医保后减免，供收费界面展示与人工核定。
+     * 可核定的政策同时给出本次最多可核定金额（已按项目范围、核定上限、单次与周期额度封顶）和审批阈值。
+     */
     List<ReliefOutcomeView> previewPostInsurance(ExecutionContext context, PatientAccount account, Settlement settlement) {
         if (!supported(settlement)) return List.of();
         InsuranceClaim claim = claims.findByTenantIdAndSettlementId(context.tenantId(), settlement.id()).orElse(null);
@@ -208,8 +213,33 @@ class SettlementReliefService {
         Stage stage = prepare(context, account, settlement, ReliefTiming.POST_INSURANCE,
                 claim == null ? null : claim.insuranceTypeCode(), false);
         if (stage.policies().isEmpty()) return List.of();
-        return views(calculator.calculate(new ReliefCalculator.Request(ReliefTiming.POST_INSURANCE, claim != null,
-                PRECISION, stage.lines(), stage.policyInputs(), stage.prior(), Map.of())));
+        ReliefCalculator.Result result = calculator.calculate(new ReliefCalculator.Request(ReliefTiming.POST_INSURANCE,
+                claim != null, PRECISION, stage.lines(), stage.policyInputs(), stage.prior(), Map.of()));
+        return result.outcomes().stream().map(outcome -> {
+            ReliefOutcomeView view = view(result.timing(), outcome);
+            if (outcome.status() != OutcomeStatus.AWAITING_MANUAL || outcome.baseAmount().signum() <= 0) return view;
+            ReliefCalculator.Result ceiling = calculator.calculate(new ReliefCalculator.Request(ReliefTiming.POST_INSURANCE,
+                    claim != null, PRECISION, stage.lines(), stage.policyInputs(), stage.prior(),
+                    Map.of(outcome.policyId(), outcome.baseAmount())));
+            BigDecimal maxAmount = ceiling.applied().stream().filter(value -> value.policyId().equals(outcome.policyId()))
+                    .map(Outcome::reliefAmount).findFirst().orElse(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal threshold = stage.policy(outcome.policyId()).version().manualApprovalAmount();
+            return view.withManualLimits(maxAmount, threshold == null ? null : threshold.setScale(2, RoundingMode.HALF_UP));
+        }).toList();
+    }
+
+    /** 核定金额超过政策审批阈值时，操作人必须有审批权限。 */
+    private static void requireApprovalWithinThreshold(ExecutionContext context, Stage stage, Map<Long, ManualDecision> manual) {
+        if (context.hasAuthority(APPROVE_AUTHORITY)) return;
+        for (var entry : manual.entrySet()) {
+            PreparedPolicy policy = stage.policies().stream()
+                    .filter(value -> value.version().policyId().equals(entry.getKey())).findFirst().orElse(null);
+            BigDecimal threshold = policy == null ? null : policy.version().manualApprovalAmount();
+            if (threshold != null && entry.getValue().amount().compareTo(threshold) > 0) {
+                throw forbidden("RELIEF_MANUAL_APPROVAL_REQUIRED", "“" + policy.input().name() + "”核定金额超过审批阈值 "
+                        + threshold.setScale(2, RoundingMode.HALF_UP).toPlainString() + " 元，需由有审批权限的人员核定");
+            }
+        }
     }
 
     /** 已按自费确认医保后减免，或享受了仅限自费的医保前减免时，不能再发起医保结算。 */
@@ -617,10 +647,13 @@ class SettlementReliefService {
     }
 
     private static List<ReliefOutcomeView> views(ReliefCalculator.Result result) {
-        return result.outcomes().stream().map(outcome -> new ReliefOutcomeView(outcome.policyId(), outcome.policyName(),
-                result.timing().name(), outcome.status().name(), outcome.message(),
-                outcome.baseAmount().setScale(2, RoundingMode.HALF_UP), outcome.reliefAmount().setScale(2, RoundingMode.HALF_UP)))
-                .toList();
+        return result.outcomes().stream().map(outcome -> view(result.timing(), outcome)).toList();
+    }
+
+    private static ReliefOutcomeView view(ReliefTiming timing, Outcome outcome) {
+        return new ReliefOutcomeView(outcome.policyId(), outcome.policyName(), timing.name(), outcome.status().name(),
+                outcome.message(), outcome.baseAmount().setScale(2, RoundingMode.HALF_UP),
+                outcome.reliefAmount().setScale(2, RoundingMode.HALF_UP), null, null);
     }
 
     private record PreparedPolicy(ReliefPolicyVersion version, ReliefCalculator.Policy input, Eligibility eligibility) {}
@@ -634,6 +667,6 @@ class SettlementReliefService {
         }
     }
 
-    /** 人工核准：金额、原因与依据；核准人为当前操作人，需人工核准权限。 */
+    /** 人工核定：金额、原因与依据；核定人为当前操作人，需核定权限，超过政策审批阈值时需审批权限。 */
     record ManualDecision(BigDecimal amount, String reason, String evidence) {}
 }

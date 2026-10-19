@@ -10,11 +10,20 @@ import java.util.List;
 public final class ReliefViews {
     private ReliefViews() {}
 
-    /** 一项政策在本次计算中的结果：已减免、不适用（附原因）或待人工核准。 */
+    /**
+     * 一项政策在本次计算中的结果：已减免、不适用（附原因）或可人工核定。
+     * 可人工核定时，manualMaxAmount 为本次最多可核定金额，manualApprovalAmount 为需审批权限的核定金额阈值（无阈值为空）。
+     */
     public record ReliefOutcomeView(Long policyId, String policyName,
                                     @DictionaryBinding("BIL_RELIEF_TIMING") String timing,
                                     @DictionaryBinding("BIL_RELIEF_OUTCOME_STATUS") String status, String message,
-                                    BigDecimal baseAmount, BigDecimal reliefAmount) {}
+                                    BigDecimal baseAmount, BigDecimal reliefAmount, BigDecimal manualMaxAmount,
+                                    BigDecimal manualApprovalAmount) {
+        public ReliefOutcomeView withManualLimits(BigDecimal maxAmount, BigDecimal approvalAmount) {
+            return new ReliefOutcomeView(policyId, policyName, timing, status, message, baseAmount, reliefAmount,
+                    maxAmount, approvalAmount);
+        }
+    }
 
     public record ReliefApplicationLineView(Long settlementLineId, Long chargeItemId, BigDecimal baseAmount,
                                             BigDecimal reliefAmount) {}

@@ -226,18 +226,15 @@ export function ReliefPolicyManagement({ api, canManage }: { api: RhnApi; canMan
 }
 
 function PolicyListItem({ item, selected, onSelect }: { item: ReliefPolicySummary; selected: boolean; onSelect: () => void }) {
-  return <Button variant="text" size="sm" aria-pressed={selected} onClick={onSelect}
+  const period = item.effectiveFrom ? `${item.effectiveFrom}${item.effectiveTo ? ` 至 ${item.effectiveTo}` : ' 起'}` : ''
+  const meta = [item.timingText, item.sponsorText, item.currentVersionNo ? `V${item.currentVersionNo}` : '未发布',
+    item.hasDraft ? '有草稿' : '', period].filter(Boolean).join(' · ')
+  return <Button variant="text" size="sm" aria-pressed={selected} onClick={onSelect} title={`${item.name}\n${meta}`}
     className={`relief-policy-item ${selected ? 'is-selected' : ''}`}>
     <span className="relief-policy-item__top">
       <strong className="relief-policy-item__name">{item.name}</strong>
       <StatusBadge tone={reliefStatusTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
     </span>
-    <span className="relief-policy-item__meta">
-      {[item.timingText, item.sponsorText, item.currentVersionNo ? `V${item.currentVersionNo}` : '未发布',
-        item.hasDraft ? '有草稿' : ''].filter(Boolean).join(' · ')}
-    </span>
-    <span className="relief-policy-item__meta">
-      {item.effectiveFrom ? `${item.effectiveFrom}${item.effectiveTo ? ` 至 ${item.effectiveTo}` : ' 起'}` : item.code}
-    </span>
+    <span className="relief-policy-item__meta">{meta || item.code}</span>
   </Button>
 }

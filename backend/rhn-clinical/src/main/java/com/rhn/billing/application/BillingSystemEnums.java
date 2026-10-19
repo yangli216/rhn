@@ -140,7 +140,7 @@ class BillingSystemEnums implements SystemEnumContribution {
                 of("BIL_RELIEF_METHOD", "减免方式", "减免金额的计算方式", ReliefMethod.class, items(
                         "RATIO", "按比例", "计算基数乘以减免比例", "FREE", "全免", "计算基数全部减免",
                         "FIXED_AMOUNT", "固定金额", "本次结算固定减免金额", "UNIT_AMOUNT", "单位减免", "每计费单位减免固定金额",
-                        "PRICE_CAP", "个人限价", "每计费单位患者最高负担金额", "MANUAL", "人工核准", "收费时按权限人工核准金额")),
+                        "PRICE_CAP", "个人限价", "每计费单位患者最高负担金额", "MANUAL", "人工核定", "收费时由收费员按实际情况核定金额")),
                 of("BIL_RELIEF_ROSTER_STATUS", "资格名单状态", "资格名单记录的状态", ReliefRosterStatus.class, items(
                         "ACTIVE", "有效", "资格有效", "REVOKED", "已停用", "资格已停用")),
                 of("BIL_RELIEF_APPLICATION_STATUS", "减免记录状态", "结算减免记录的冲销状态", ReliefApplicationStatus.class, items(
@@ -148,7 +148,7 @@ class BillingSystemEnums implements SystemEnumContribution {
                 of("BIL_RELIEF_OUTCOME_STATUS", "减免计算结果", "一项政策在本次结算中的计算结果",
                         com.rhn.billing.domain.ReliefCalculator.OutcomeStatus.class, items(
                         "APPLIED", "已减免", "本次结算享受减免", "SKIPPED", "不适用", "不符合条件或额度已用完",
-                        "AWAITING_MANUAL", "待人工核准", "需有权限人员录入核准金额")),
+                        "AWAITING_MANUAL", "可人工核定", "收费员可按需核定减免金额")),
                 of("BIL_RELIEF_QUOTA_TXN_TYPE", "额度变动类型", "减免额度流水的变动类型", ReliefQuotaTransactionType.class, items(
                         "RESERVE", "占用", "结算减免占用额度", "CONFIRM", "确认", "结算完成确认额度",
                         "RELEASE", "释放", "结算放弃释放额度", "REVERSE", "恢复", "退费冲销恢复额度")));

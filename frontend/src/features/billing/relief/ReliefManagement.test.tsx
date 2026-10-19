@@ -6,6 +6,7 @@ import type { ReliefPolicy, ReliefRosterEntry } from '../../../shared/api/relief
 import type { RhnApi } from '../../../shared/rhnApi'
 import { ReliefPolicyManagement } from './ReliefPolicyManagement'
 import { ReliefRosterManagement } from './ReliefRosterManagement'
+import { ReliefRecordQuery } from './ReliefRecordQuery'
 
 const enumItems: Record<string, string[]> = {
   BIL_RELIEF_TIMING: ['PRE_INSURANCE', 'POST_INSURANCE'], BIL_RELIEF_SPONSOR: ['HOSPITAL', 'GOVERNMENT'],
@@ -104,5 +105,38 @@ describe('ReliefRosterManagement', () => {
 
     await waitFor(() => expect(relief.revokeRoster).toHaveBeenCalledWith('r1', { expectedRevision: '2', reason: '签约解除' }))
     expect(await screen.findByText('名单已停用，之后的结算不再按该资格减免')).toBeInTheDocument()
+  })
+})
+
+describe('ReliefRecordQuery', () => {
+  it('summarizes relief by policy and payer and filters manual decisions', async () => {
+    const page = {
+      total: 2, page: 0, size: 50, reliefAmount: 75, reversalAmount: 10, netAmount: 65, patientCount: 2,
+      summary: [{ policyId: 'p1', policyCode: 'CIVIL', policyName: '民政医疗救助', sponsor: 'GOVERNMENT', sponsorText: '政府',
+        payerName: '县民政局', reliefCount: 2, reversalCount: 1, patientCount: 2, reliefAmount: 75, reversalAmount: 10, netAmount: 65 }],
+      items: [
+        { id: 'a1', occurredAt: '2026-10-18T02:00:00Z', settlementNo: 'STL001', residentName: '张三', healthRecordNo: 'H001',
+          policyName: '民政医疗救助', versionNo: 1, payerName: '县民政局', baseAmount: 90, reliefAmount: 45, reversal: false,
+          manual: true, manualReason: '家庭困难', manualEvidence: '村委会证明', approvedByName: '李收费', settlementStatusText: '已结清' },
+        { id: 'a2', occurredAt: '2026-10-18T03:00:00Z', settlementNo: 'STL009', originalSettlementNo: 'STL001', residentName: '张三',
+          policyName: '民政医疗救助', payerName: '县民政局', baseAmount: 0, reliefAmount: -10, reversal: true, manual: true,
+          manualReason: '家庭困难' },
+      ],
+    }
+    const relief = {
+      policies: vi.fn().mockResolvedValue([{ id: 'p1', revision: 1, code: 'CIVIL', name: '民政医疗救助', status: 'ACTIVE' }]),
+      records: vi.fn().mockResolvedValue(page),
+    }
+    renderWithQuery(<ReliefRecordQuery api={{ relief, dictionaries } as unknown as RhnApi} />)
+
+    const summary = await screen.findByRole('table', { name: '按政策汇总' })
+    expect(summary).toHaveTextContent('县民政局')
+    expect(summary).toHaveTextContent('¥65.00')
+    expect(relief.records).toHaveBeenCalledWith(expect.objectContaining({ settledOnly: true, page: 0, size: 50 }))
+
+    await userEvent.click(screen.getByRole('tab', { name: /减免明细/ }))
+    const detail = screen.getByRole('table', { name: '减免明细' })
+    expect(detail).toHaveTextContent('人工核定 · 村委会证明 · 李收费')
+    expect(detail).toHaveTextContent('冲销原结算 STL001')
   })
 })

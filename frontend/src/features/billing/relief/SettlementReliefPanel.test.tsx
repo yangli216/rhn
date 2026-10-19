@@ -14,8 +14,8 @@ const preview: SettlementRelief = {
   pending: [
     { policyId: 'p-civil', policyName: '民政救助', timing: 'POST_INSURANCE', timingText: '医保后减免', status: 'APPLIED',
       statusText: '已减免', baseAmount: 90, reliefAmount: 45 },
-    { policyId: 'p-hardship', policyName: '困难患者核准', timing: 'POST_INSURANCE', status: 'AWAITING_MANUAL',
-      statusText: '待人工核准', baseAmount: 45 },
+    { policyId: 'p-hardship', policyName: '困难患者核定', timing: 'POST_INSURANCE', status: 'AWAITING_MANUAL',
+      statusText: '可人工核定', baseAmount: 45, manualMaxAmount: 40, manualApprovalAmount: 20 },
     { policyId: 'p-aged', policyName: '老年人优惠', status: 'SKIPPED', statusText: '不适用', message: '年龄未达到 65 岁' },
   ],
 }
@@ -29,7 +29,7 @@ function renderPanel(props: Partial<Parameters<typeof SettlementReliefPanel>[0]>
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(<QueryClientProvider client={client}>
     <SettlementReliefPanel api={api as unknown as RhnApi} settlements={[target]} settlementMode="SELF_PAY"
-      canApprove={false} onChanged={onChanged} {...props} />
+      rights={{ canDecide: false, canApprove: false }} onChanged={onChanged} {...props} />
   </QueryClientProvider>)
   return { api, onChanged }
 }
@@ -39,7 +39,8 @@ describe('SettlementReliefPanel', () => {
     const { api, onChanged } = renderPanel()
     expect(await screen.findByText('签约居民诊查费减免 · 医保前减免')).toBeInTheDocument()
     expect(screen.getByText('民政救助 · 医保后减免')).toBeInTheDocument()
-    expect(screen.getByText('需有惠民减免核准权限的人员录入金额。')).toBeInTheDocument()
+    expect(screen.getByText('需有惠民减免核定权限的人员核定。')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '核定' })).not.toBeInTheDocument()
     expect(screen.getByText('年龄未达到 65 岁')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: '确认减免' }))
@@ -48,24 +49,44 @@ describe('SettlementReliefPanel', () => {
     expect(onChanged).toHaveBeenCalled()
   })
 
-  it('sends manual approvals only when amount and reason are filled', async () => {
+  it('lets a cashier decide manual relief on demand within the approval threshold', async () => {
     const manualOnly = { ...preview, pending: preview.pending!.filter((value) => value.status === 'AWAITING_MANUAL') }
-    const { api } = renderPanel({ canApprove: true }, manualOnly)
-    const amount = await screen.findByLabelText(/核准金额/)
-    const confirm = screen.getByRole('button', { name: '确认减免' })
+    const { api } = renderPanel({ rights: { canDecide: true, canApprove: false } }, manualOnly)
+    expect(await screen.findByText(/最多可核定/)).toHaveTextContent('超过 ¥20.00 需审批')
+    expect(screen.queryByLabelText(/核定金额/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /确认/ })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '核定' }))
+    const amount = screen.getByLabelText(/核定金额/)
     await userEvent.type(amount, '30')
+    expect(screen.getByText('超过审批阈值 20.00 元，需由有审批权限的人员核定')).toBeInTheDocument()
+    const confirm = screen.getByRole('button', { name: '确认核定与减免' })
     expect(confirm).toBeDisabled()
-    await userEvent.type(screen.getByLabelText(/核准原因/), '家庭困难')
+    await userEvent.clear(amount)
+    await userEvent.type(amount, '18')
+    await userEvent.type(screen.getByLabelText(/核定原因/), '家庭困难')
+    await userEvent.type(screen.getByLabelText(/^依据/), '村委会证明')
     await userEvent.click(confirm)
     await waitFor(() => expect(api.relief.confirmSettlementRelief).toHaveBeenCalledWith('stl-1',
-      [{ policyId: 'p-hardship', amount: 30, reason: '家庭困难', evidence: undefined }]))
+      [{ policyId: 'p-hardship', amount: 18, reason: '家庭困难', evidence: '村委会证明' }]))
+  })
+
+  it('lets an approver fill the allowed maximum and blocks amounts above it', async () => {
+    const manualOnly = { ...preview, pending: preview.pending!.filter((value) => value.status === 'AWAITING_MANUAL') }
+    renderPanel({ rights: { canDecide: false, canApprove: true } }, manualOnly)
+    await userEvent.click(await screen.findByRole('button', { name: '核定' }))
+    await userEvent.click(screen.getByRole('button', { name: '按上限' }))
+    expect(screen.getByLabelText(/核定金额/)).toHaveValue('40.00')
+    await userEvent.clear(screen.getByLabelText(/核定金额/))
+    await userEvent.type(screen.getByLabelText(/核定金额/), '41')
+    expect(screen.getByText('不能超过本次可核定金额 40.00 元')).toBeInTheDocument()
   })
 
   it('only previews post-insurance relief before the insurance settlement completes', async () => {
-    const { api } = renderPanel({ settlementMode: 'MEDICAL_INSURANCE', canApprove: true })
+    const { api } = renderPanel({ settlementMode: 'MEDICAL_INSURANCE', rights: { canDecide: true, canApprove: true } })
     expect(await screen.findByText('医保结算方式下，医保后减免在医保正式结算后自动执行。')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '确认减免' })).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/核准金额/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '核定' })).not.toBeInTheDocument()
     expect(api.relief.confirmSettlementRelief).not.toHaveBeenCalled()
   })
 

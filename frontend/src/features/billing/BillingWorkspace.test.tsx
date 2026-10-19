@@ -146,7 +146,8 @@ describe('BillingWorkspace deep link', () => {
     { name: 'pre-insurance relief lowered the amount due', discount: 8.6, pending: [],
       message: '已执行惠民减免，应收由 ¥28.60 调整为 ¥20.00，请核对后再收款。' },
     { name: 'post-insurance relief awaits confirmation', discount: 0,
-      pending: [{ policyId: 'p-1', policyName: '民政救助', status: 'APPLIED', reliefAmount: 14.3 }],
+      pending: [{ policyId: 'p-1', policyName: '民政救助', status: 'APPLIED', reliefAmount: 14.3 },
+        { policyId: 'p-2', policyName: '困难救助', status: 'AWAITING_MANUAL' }],
       message: '患者可享受惠民减免（民政救助），请在“惠民减免”中确认后再收款。' },
   ])('stops before collecting when $name', async ({ discount, pending, message }) => {
     const charge = {

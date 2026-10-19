@@ -7,6 +7,9 @@ import com.rhn.billing.application.ReliefPolicyApplicationService.ReliefPolicySu
 import com.rhn.billing.application.ReliefPolicyApplicationService.ReliefPolicyView;
 import com.rhn.billing.application.ReliefPolicyApplicationService.ReliefRevisionCommand;
 import com.rhn.billing.application.ReliefPolicyApplicationService.ReliefUpdateDraftCommand;
+import com.rhn.billing.application.ReliefRecordQueryService;
+import com.rhn.billing.application.ReliefRecordQueryService.ReliefRecordPage;
+import com.rhn.billing.application.ReliefRecordQueryService.ReliefRecordQuery;
 import com.rhn.billing.application.ReliefRosterApplicationService;
 import com.rhn.billing.application.ReliefRosterApplicationService.ReliefAddRosterCommand;
 import com.rhn.billing.application.ReliefRosterApplicationService.ReliefRosterImportResultView;
@@ -16,6 +19,8 @@ import com.rhn.billing.application.ReliefRosterApplicationService.ReliefRevokeRo
 import com.rhn.billing.application.ReliefRosterApplicationService.ReliefRosterEntryView;
 import com.rhn.billing.application.ReliefRosterApplicationService.ReliefUpdateRosterCommand;
 import com.rhn.billing.domain.ReliefRosterStatus;
+import com.rhn.billing.domain.ReliefSponsor;
+import com.rhn.billing.domain.ReliefTiming;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -36,19 +41,37 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 惠民政策与资格名单维护；查看对收费人员开放，维护分别需要政策管理或名单维护权限。 */
+/** 惠民政策与资格名单维护；查看对收费人员开放，维护分别需要政策管理或名单维护权限；减免明细查询需查询或政策管理权限。 */
 @RestController
 @RequestMapping("/api/billing/relief")
 public class ReliefController {
     private static final String READ = "hasAnyAuthority('BILLING_RELIEF.MANAGE','BILLING_RELIEF.ROSTER','BILLING.ACCESS')";
     private static final String MANAGE = "hasAuthority('BILLING_RELIEF.MANAGE')";
     private static final String ROSTER = "hasAnyAuthority('BILLING_RELIEF.ROSTER','BILLING_RELIEF.MANAGE')";
+    private static final String QUERY = "hasAnyAuthority('BILLING_RELIEF.QUERY','BILLING_RELIEF.MANAGE')";
 
     private final ReliefPolicyApplicationService policies;
     private final ReliefRosterApplicationService roster;
+    private final ReliefRecordQueryService records;
 
-    public ReliefController(ReliefPolicyApplicationService policies, ReliefRosterApplicationService roster) {
-        this.policies = policies; this.roster = roster;
+    public ReliefController(ReliefPolicyApplicationService policies, ReliefRosterApplicationService roster,
+                            ReliefRecordQueryService records) {
+        this.policies = policies; this.roster = roster; this.records = records;
+    }
+
+    @GetMapping("/records")
+    @PreAuthorize(QUERY)
+    ReliefRecordPage searchReliefRecords(@RequestParam LocalDate from, @RequestParam LocalDate to,
+                                         @RequestParam(required = false) Long policyId,
+                                         @RequestParam(required = false) ReliefSponsor sponsor,
+                                         @RequestParam(required = false) ReliefTiming timing,
+                                         @RequestParam(required = false) Boolean manualOnly,
+                                         @RequestParam(required = false) Boolean settledOnly,
+                                         @RequestParam(required = false) String keyword,
+                                         @RequestParam(required = false) Integer page,
+                                         @RequestParam(required = false) Integer size) {
+        return records.search(new ReliefRecordQuery(from, to, policyId, sponsor, timing, manualOnly, settledOnly, keyword,
+                page, size));
     }
 
     @GetMapping("/policies")

@@ -16,7 +16,7 @@ class ReliefDomainTest {
         return new ReliefPolicyVersion.Terms(ReliefTiming.POST_INSURANCE, ReliefSponsor.GOVERNMENT, "MZ", "民政局",
                 "{\"scenes\":[\"OUTPATIENT\"]}", LocalDate.of(2026, 1, 1), to, 10, null, true,
                 ReliefQualificationMode.ANY, true, false, new BigDecimal("200"), period,
-                periodMax == null ? null : new BigDecimal(periodMax), null, true, false, null);
+                periodMax == null ? null : new BigDecimal(periodMax), null, true, false, null, null);
     }
 
     @Test void quota_keys_follow_period_and_share_settings() {

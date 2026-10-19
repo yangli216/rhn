@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ReliefPolicy } from '../../../shared/api/reliefApi'
 import { emptyPolicyForm, emptyQualification, emptyRule, formFromPolicy, toDraftInput } from './reliefPolicyForm'
 import { normalizeDate, parseRosterText, splitLine } from './rosterImport'
+import { recordsCsv } from './reliefRecordExport'
+import type { ReliefRecord } from '../../../shared/api/reliefApi'
 
 describe('relief policy form', () => {
   it('converts percentages to ratios and drops fields that do not belong to the scope or method', () => {
@@ -29,6 +31,15 @@ describe('relief policy form', () => {
     ])
     expect(draft.periodMaxAmount).toBe(500)
     expect(draft.qualifications).toEqual([{ source: 'ROSTER', qualificationType: 'FAMILY_DOCTOR_SIGNED' }])
+  })
+
+  it('sends the manual approval threshold only when the policy has a manual rule', () => {
+    const form = emptyPolicyForm('2026-10-18')
+    form.manualApprovalAmount = '200'
+    form.rules = [{ ...emptyRule(), method: 'MANUAL', manualMaxAmount: '500' }]
+    expect(toDraftInput(form).draft.manualApprovalAmount).toBe(200)
+    form.rules = [{ ...emptyRule(), method: 'FREE' }]
+    expect(toDraftInput(form).draft.manualApprovalAmount).toBeUndefined()
   })
 
   it('reports entry problems before submitting', () => {
@@ -98,5 +109,24 @@ describe('relief roster import parsing', () => {
     expect(normalizeDate('2026.3.9')).toBe('2026-03-09')
     expect(normalizeDate('明年')).toBe('明年')
     expect(parseRosterText('证件类型,姓名\nNATIONAL_ID,张三', '2026-10-18').errors).toContain('表头缺少“证件号码”列')
+  })
+})
+
+describe('relief record export', () => {
+  it('writes reversals as negative amounts and quotes text that spreadsheets would misread', () => {
+    const csv = recordsCsv([
+      { id: '1', occurredAt: '2026-10-18T02:00:00Z', settlementNo: 'STL001', residentName: '张三', policyName: '民政救助',
+        payerName: '县民政局', baseAmount: 90, reliefAmount: 45, reversal: false, manual: true,
+        manualReason: '家庭困难, 收费员核定', manualEvidence: '=证明' },
+      { id: '2', occurredAt: '2026-10-18T03:00:00Z', settlementNo: 'STL002', originalSettlementNo: 'STL001',
+        residentName: '张三', policyName: '民政救助', baseAmount: 0, reliefAmount: -45, reversal: true, manual: false },
+    ] as ReliefRecord[])
+    const [header, first, second] = csv.split('\r\n')
+    expect(header.split(',').slice(0, 4)).toEqual(['减免时间', '记录类型', '结算单号', '原结算单号'])
+    expect(first).toContain('"家庭困难, 收费员核定"')
+    expect(first).toContain("'=证明")
+    expect(first).toContain(',90.00,45.00,')
+    expect(second).toContain('退费冲销,STL002,STL001')
+    expect(second).toContain(',,-45.00,')
   })
 })

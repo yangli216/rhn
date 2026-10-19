@@ -41,6 +41,7 @@ public class ReliefPolicyVersion {
     @Column(name = "QTY_PERIOD_MAX") private Integer periodMaxCount;
     @Column(name = "FG_SHARE_SCENE", nullable = false) private boolean shareAcrossScenes;
     @Column(name = "FG_SHARE_ORG", nullable = false) private boolean shareAcrossOrganizations;
+    @Column(name = "AMT_MANUAL_APRV", precision = 24, scale = 6) private BigDecimal manualApprovalAmount;
     @Column(name = "DES_VER_NOTE") private String versionNote;
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -87,15 +88,20 @@ public class ReliefPolicyVersion {
         this.periodMaxAmount = terms.periodMaxAmount(); this.periodMaxCount = terms.periodMaxCount();
         this.shareAcrossScenes = terms.shareAcrossScenes();
         this.shareAcrossOrganizations = terms.shareAcrossOrganizations(); this.versionNote = terms.versionNote();
+        this.manualApprovalAmount = terms.manualApprovalAmount();
     }
 
-    /** 版本内容；周期额度只有在设置周期时才有意义。 */
+    /**
+     * 版本内容；周期额度只有在设置周期时才有意义。
+     * manualApprovalAmount 为收费员人工核定的审批阈值：单次核定金额超过该值时需有审批权限的人员核定，为空表示不设阈值。
+     */
     public record Terms(ReliefTiming timing, ReliefSponsor sponsor, String payerCode, String payerName,
                         String applicableScopeJson, LocalDate effectiveFrom, LocalDate effectiveTo, int priority,
                         String mutexGroup, boolean stackable, ReliefQualificationMode qualificationMode,
                         boolean insuredApplicable, boolean baseIncludesPersonalAccount, BigDecimal onceMaxAmount,
                         ReliefQuotaPeriod quotaPeriod, BigDecimal periodMaxAmount, Integer periodMaxCount,
-                        boolean shareAcrossScenes, boolean shareAcrossOrganizations, String versionNote) {
+                        boolean shareAcrossScenes, boolean shareAcrossOrganizations, String versionNote,
+                        BigDecimal manualApprovalAmount) {
         void validate() {
             if (timing == null || sponsor == null || qualificationMode == null || quotaPeriod == null
                     || effectiveFrom == null || applicableScopeJson == null || applicableScopeJson.isBlank()) {
@@ -104,7 +110,7 @@ public class ReliefPolicyVersion {
             if (effectiveTo != null && effectiveTo.isBefore(effectiveFrom)) {
                 throw new IllegalArgumentException("失效日期不能早于生效日期");
             }
-            if (!positiveOrNull(onceMaxAmount) || !positiveOrNull(periodMaxAmount)
+            if (!positiveOrNull(onceMaxAmount) || !positiveOrNull(periodMaxAmount) || !positiveOrNull(manualApprovalAmount)
                     || (periodMaxCount != null && periodMaxCount <= 0)) {
                 throw new IllegalArgumentException("额度上限必须大于零");
             }
@@ -141,6 +147,7 @@ public class ReliefPolicyVersion {
     public boolean shareAcrossScenes() { return shareAcrossScenes; }
     public boolean shareAcrossOrganizations() { return shareAcrossOrganizations; }
     public String versionNote() { return versionNote; }
+    public BigDecimal manualApprovalAmount() { return manualApprovalAmount; }
     public Long createdBy() { return createdBy; }
     public Instant createdAt() { return createdAt; }
     public Long publishedBy() { return publishedBy; }

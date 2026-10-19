@@ -187,8 +187,9 @@ class BillingReliefSettlementTest extends RhnIntegrationTestSupport {
         }
         assertThat(awaiting).isNotNull();
         assertThat(awaiting.get("status").asString()).isEqualTo("AWAITING_MANUAL");
-
         BigDecimal remaining = cash.subtract(automatic);
+        assertThat(awaiting.get("manualMaxAmount").decimalValue()).isEqualByComparingTo(remaining);
+
         String manualBody = """
                 {"manual":[{"policyId":"%s","amount":%s%s}]}
                 """;
@@ -202,6 +203,64 @@ class BillingReliefSettlementTest extends RhnIntegrationTestSupport {
         assertThat(manual.get("outstandingAmount").decimalValue()).isZero();
         assertThat(send(get("/api/billing/settlements/{id}", settlementId), null, 200).get("status").asString())
                 .isEqualTo("SETTLED");
+    }
+
+    @Test
+    void cashier_decides_manual_relief_within_the_approval_threshold_and_records_are_queryable() throws Exception {
+        JsonNode policy = createPolicy("CASHIER-HARDSHIP", "POST_INSURANCE", "GOVERNMENT", true,
+                "{\"feeScope\":\"ALL\",\"method\":\"MANUAL\",\"manualMaxAmount\":5}", "{\"source\":\"ALL\"}",
+                ",\"payerCode\":\"MZJ\",\"payerName\":\"县民政局\",\"manualApprovalAmount\":1");
+        assertThat(policy.at("/current/manualApprovalAmount").decimalValue()).isEqualByComparingTo("1");
+        // 核定审批阈值只对含人工核定规则的政策有意义。
+        JsonNode invalid = send(post("/api/billing/relief/policies"), """
+                {"code":"BAD-THRESHOLD","name":"BAD","draft":{"timing":"POST_INSURANCE","sponsor":"HOSPITAL",
+                 "scope":{"scenes":["OUTPATIENT"]},"effectiveFrom":"%s","manualApprovalAmount":1,
+                 "rules":[{"feeScope":"ALL","method":"FREE"}],"qualifications":[{"source":"ALL"}]}}
+                """.formatted(LocalDate.now()), 400);
+        assertThat(invalid.get("code").asString()).isEqualTo("RELIEF_MANUAL_APPROVAL_UNUSED");
+        // 收费员只有核定权限、没有审批权限。
+        jdbc.update("delete from RHN_SYS_ROLE_PERM_ASSIGN where ID_ROLE_PERM_ASSIGN = 362387869940323");
+
+        Visit visit = visit();
+        String settlementId = issueInvoice(visit, "SELF_PAY", 201).get("id").asString();
+        JsonNode preview = send(get("/api/billing/settlements/{id}/relief", settlementId), null, 200);
+        assertThat(preview.at("/pending/0/status").asString()).isEqualTo("AWAITING_MANUAL");
+        assertThat(preview.at("/pending/0/manualMaxAmount").decimalValue())
+                .isEqualByComparingTo(visit.amount().min(new BigDecimal("5")));
+        assertThat(preview.at("/pending/0/manualApprovalAmount").decimalValue()).isEqualByComparingTo("1");
+
+        String body = """
+                {"manual":[{"policyId":"%s","amount":%s,"reason":"家庭困难，收费员核定","evidence":"村委会证明 018"}]}
+                """;
+        JsonNode overThreshold = send(post("/api/billing/settlements/{id}/relief/confirm", settlementId),
+                body.formatted(policy.get("id").asString(), "2"), 403);
+        assertThat(overThreshold.get("code").asString()).isEqualTo("RELIEF_MANUAL_APPROVAL_REQUIRED");
+        JsonNode decided = send(post("/api/billing/settlements/{id}/relief/confirm", settlementId),
+                body.formatted(policy.get("id").asString(), "1"), 200);
+        assertThat(decided.get("reliefAmount").decimalValue()).isEqualByComparingTo("1");
+
+        // 对账查询：人工核定的减免记录带出患者、承担方、核定原因与依据，汇总按政策与承担方。
+        String today = LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
+        JsonNode records = send(get("/api/billing/relief/records").param("from", today).param("to", today)
+                .param("manualOnly", "true"), null, 200);
+        assertThat(records.get("total").asLong()).isEqualTo(1);
+        JsonNode row = records.at("/items/0");
+        assertThat(row.get("residentName").asString()).isEqualTo("惠民测试患者");
+        assertThat(row.get("payerName").asString()).isEqualTo("县民政局");
+        assertThat(row.get("reliefAmount").decimalValue()).isEqualByComparingTo("1");
+        assertThat(row.get("manualReason").asString()).isEqualTo("家庭困难，收费员核定");
+        assertThat(row.get("manualEvidence").asString()).isEqualTo("村委会证明 018");
+        assertThat(row.get("qualificationText").asString()).isEqualTo("全部患者");
+        assertThat(records.at("/summary/0/policyCode").asString()).isEqualTo("CASHIER-HARDSHIP");
+        assertThat(records.at("/summary/0/patientCount").asLong()).isEqualTo(1);
+        assertThat(records.get("netAmount").decimalValue()).isEqualByComparingTo("1");
+        // 收款前的结算不计入“仅已完成结算”的对账口径；关键字按患者、结算号或政策匹配。
+        JsonNode settled = send(get("/api/billing/relief/records").param("from", today).param("to", today)
+                .param("settledOnly", "true"), null, 200);
+        assertThat(settled.get("total").asLong()).isZero();
+        JsonNode keyword = send(get("/api/billing/relief/records").param("from", today).param("to", today)
+                .param("keyword", "民政局"), null, 200);
+        assertThat(keyword.get("total").asLong()).isEqualTo(1);
     }
 
     private JsonNode createPolicy(String code, String timing, String sponsor, boolean insured, String rule,

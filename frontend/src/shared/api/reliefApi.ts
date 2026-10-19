@@ -32,6 +32,28 @@ export type ReliefApplication = Schemas['ReliefApplicationView']
 export type SettlementRelief = Schemas['SettlementReliefView']
 export type ManualReliefInput = Schemas['ManualReliefRequest']
 
+export type ReliefRecord = RequiredWireView<Schemas['ReliefRecordView'], 'id' | 'reliefAmount' | 'baseAmount' | 'reversal' | 'manual'>
+export type ReliefRecordSummary = RequiredWireView<Schemas['ReliefRecordSummaryView'], 'reliefCount' | 'reversalCount' | 'patientCount' | 'reliefAmount' | 'reversalAmount' | 'netAmount'>
+export type ReliefRecordPage = Omit<Schemas['ReliefRecordPage'], 'items' | 'summary'> & {
+  items: ReliefRecord[]
+  summary: ReliefRecordSummary[]
+  total: number
+}
+
+/** 减免明细查询条件；日期按减免记录时间，page 从 0 开始。 */
+export interface ReliefRecordFilter {
+  from: string
+  to: string
+  policyId?: string
+  sponsor?: string
+  timing?: string
+  manualOnly?: boolean
+  settledOnly?: boolean
+  keyword?: string
+  page?: number
+  size?: number
+}
+
 export interface ReliefRosterFilter {
   qualificationType?: string
   residentId?: string
@@ -75,6 +97,14 @@ export function createReliefApi(client: ApiClient) {
       client.request<ReliefRosterEntry>(`${base}/roster/${entryId}/revoke`, json('POST', input)),
     importRoster: (input: { batchCode: string; qualificationType: string; dryRun: boolean; rows: ReliefRosterImportRow[] }) =>
       client.request<ReliefRosterImportResult>(`${base}/roster/import`, json('POST', input)),
+
+    records: (filter: ReliefRecordFilter) => {
+      const params = new URLSearchParams()
+      Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== '' && value !== false) params.set(key, String(value))
+      })
+      return client.request<ReliefRecordPage>(`${base}/records?${params.toString()}`)
+    },
 
     settlementRelief: (settlementId: string) =>
       client.request<SettlementRelief>(`/api/billing/settlements/${settlementId}/relief`),

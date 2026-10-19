@@ -52,6 +52,8 @@ export interface PolicyForm {
   insuredApplicable: boolean
   baseIncludesPersonalAccount: boolean
   onceMaxAmount: string
+  /** 收费员单次核定超过该金额需审批权限；仅含人工核定规则时有效。 */
+  manualApprovalAmount: string
   quotaPeriod: QuotaPeriod
   periodMaxAmount: string
   periodMaxCount: string
@@ -80,7 +82,7 @@ export function emptyPolicyForm(today: string): PolicyForm {
     code: '', name: '', description: '', timing: 'POST_INSURANCE', sponsor: 'HOSPITAL', payerCode: '', payerName: '',
     organizationIds: [], scenes: ['OUTPATIENT'], effectiveFrom: today, effectiveTo: '', priority: '100', mutexGroup: '',
     stackable: true, qualificationMode: 'ANY', insuredApplicable: true, baseIncludesPersonalAccount: false,
-    onceMaxAmount: '', quotaPeriod: 'NONE', periodMaxAmount: '', periodMaxCount: '', shareAcrossScenes: true,
+    onceMaxAmount: '', manualApprovalAmount: '', quotaPeriod: 'NONE', periodMaxAmount: '', periodMaxCount: '', shareAcrossScenes: true,
     shareAcrossOrganizations: true, versionNote: '', rules: [emptyRule()], qualifications: [emptyQualification()],
   }
 }
@@ -106,7 +108,7 @@ export function formFromPolicy(policy: ReliefPolicy, today: string): PolicyForm 
     priority: text(version.priority), mutexGroup: version.mutexGroup ?? '', stackable: version.stackable ?? true,
     qualificationMode: version.qualificationMode === 'ALL' ? 'ALL' : 'ANY',
     insuredApplicable: version.insuredApplicable ?? true, baseIncludesPersonalAccount: version.baseIncludesPersonalAccount ?? false,
-    onceMaxAmount: text(version.onceMaxAmount), quotaPeriod: (version.quotaPeriod as QuotaPeriod) ?? 'NONE',
+    onceMaxAmount: text(version.onceMaxAmount), manualApprovalAmount: text(version.manualApprovalAmount), quotaPeriod: (version.quotaPeriod as QuotaPeriod) ?? 'NONE',
     periodMaxAmount: text(version.periodMaxAmount), periodMaxCount: text(version.periodMaxCount),
     shareAcrossScenes: version.shareAcrossScenes ?? true, shareAcrossOrganizations: version.shareAcrossOrganizations ?? true,
     versionNote: policy.draft ? version.versionNote ?? '' : '',
@@ -184,7 +186,7 @@ export function toDraftInput(form: PolicyForm): { draft: ReliefDraftInput; error
       method: rule.method || undefined,
       ratio: percent === undefined ? undefined : round(percent / 100),
       amount,
-      manualMaxAmount: rule.method === 'MANUAL' ? decimal(rule.manualMaxAmount, `${label}核准上限`, errors, { positive: true }) : undefined,
+      manualMaxAmount: rule.method === 'MANUAL' ? decimal(rule.manualMaxAmount, `${label}核定上限`, errors, { positive: true }) : undefined,
       periodMaxCount: integer(rule.periodMaxCount, `${label}周期次数`, errors),
     }
   })
@@ -223,6 +225,8 @@ export function toDraftInput(form: PolicyForm): { draft: ReliefDraftInput; error
     qualificationMode: form.qualificationMode, insuredApplicable: form.insuredApplicable,
     baseIncludesPersonalAccount: form.baseIncludesPersonalAccount,
     onceMaxAmount: decimal(form.onceMaxAmount, '单次限额', errors, { positive: true }),
+    manualApprovalAmount: form.rules.some((rule) => rule.method === 'MANUAL')
+      ? decimal(form.manualApprovalAmount, '核定审批阈值', errors, { positive: true }) : undefined,
     quotaPeriod: form.quotaPeriod,
     periodMaxAmount: form.quotaPeriod === 'NONE' ? undefined : decimal(form.periodMaxAmount, '周期限额', errors, { positive: true }),
     periodMaxCount: form.quotaPeriod === 'NONE' ? undefined : integer(form.periodMaxCount, '周期次数', errors),
@@ -242,7 +246,7 @@ export function ruleSummary(rule: Pick<RuleForm, 'excluded' | 'method' | 'percen
     case 'FIXED_AMOUNT': return rule.amount ? `每次结算合计减 ${rule.amount} 元` : methodName('FIXED_AMOUNT')
     case 'UNIT_AMOUNT': return rule.amount ? `每单位减 ${rule.amount} 元` : methodName('UNIT_AMOUNT')
     case 'PRICE_CAP': return rule.amount ? `每单位个人最多付 ${rule.amount} 元` : methodName('PRICE_CAP')
-    case 'MANUAL': return rule.manualMaxAmount ? `人工核准，上限 ${rule.manualMaxAmount} 元` : methodName('MANUAL')
+    case 'MANUAL': return rule.manualMaxAmount ? `人工核定，上限 ${rule.manualMaxAmount} 元` : methodName('MANUAL')
     case 'FREE': return methodName('FREE')
     default: return ''
   }

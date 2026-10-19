@@ -244,7 +244,7 @@ export function ReliefRulesSection({ api, form, enums, disabled, onChange }: Edi
                 onChange={(event) => update(rule.key, { percent: event.target.value })} />
               : rule.method === 'MANUAL'
                 ? <input className="ui-field__control" aria-label={`第 ${index + 1} 条规则核准上限`} inputMode="decimal"
-                  placeholder="核准上限（元）" value={rule.manualMaxAmount} disabled={disabled}
+                  placeholder="核定上限（元）" value={rule.manualMaxAmount} disabled={disabled}
                   onChange={(event) => update(rule.key, { manualMaxAmount: event.target.value })} />
                 : <input className="ui-field__control" aria-label={`第 ${index + 1} 条规则金额`} inputMode="decimal"
                   placeholder="金额（元）" value={rule.amount} disabled={disabled}
@@ -262,7 +262,7 @@ export function ReliefRulesSection({ api, form, enums, disabled, onChange }: Edi
       </EditableRow>)}</tbody>
     </EditableTable>
     <p className="relief-editor__note">
-      全免与比例按费用计算；固定金额为每次结算合计减免；单位减免与个人限价按数量计算；人工核准仅适用于医保后减免，由收费员按权限录入。
+      全免与比例按费用计算；固定金额为每次结算合计减免；单位减免与个人限价按数量计算；人工核定仅适用于医保后减免，由收费员在收费时按实际情况核定金额。
       周期次数需在“额度与组合”中设置额度周期。
     </p>
   </section>
@@ -278,6 +278,12 @@ export function ReliefQuotaSection({ form, enums, disabled, onChange }: EditorPr
         <FormField label="单次限额（元）" hint="每次结算本政策最多减免金额，不填不限">
           <input inputMode="decimal" value={form.onceMaxAmount} disabled={disabled}
             onChange={(event) => set('onceMaxAmount', event.target.value)} />
+        </FormField>
+        <FormField label="核定审批阈值（元）" hint={form.rules.some((rule) => rule.method === 'MANUAL')
+          ? '收费员单次核定超过此金额需有审批权限的人员核定，不填不设' : '含人工核定规则时可设置'}>
+          <input inputMode="decimal" value={form.manualApprovalAmount}
+            disabled={disabled || !form.rules.some((rule) => rule.method === 'MANUAL')}
+            onChange={(event) => set('manualApprovalAmount', event.target.value)} />
         </FormField>
         <FormField label="额度周期">
           <Select value={form.quotaPeriod} disabled={disabled} clearable={false} options={enums.quotaPeriod.options}
