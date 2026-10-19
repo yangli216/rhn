@@ -56,6 +56,18 @@ public class SecurityConfig {
     }
 
     @Bean
+    SecondFactorFilter secondFactorFilter(SecondFactorPolicy policy, JsonCodec jsonCodec) {
+        return new SecondFactorFilter(policy, jsonCodec);
+    }
+
+    @Bean
+    FilterRegistrationBean<SecondFactorFilter> disableSecondFactorContainerRegistration(SecondFactorFilter filter) {
+        FilterRegistrationBean<SecondFactorFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     FilterRegistrationBean<WorkContextAuthorizationFilter> disableContainerRegistration(
             WorkContextAuthorizationFilter filter) {
         FilterRegistrationBean<WorkContextAuthorizationFilter> registration = new FilterRegistrationBean<>(filter);
@@ -90,6 +102,7 @@ public class SecurityConfig {
                                             WorkContextAuthorizationFilter workContextAuthorizationFilter,
                                             ClientSessionRevocationFilter clientSessionRevocationFilter,
                                             RefreshLoginAuthenticationFilter refreshLoginAuthenticationFilter,
+                                            SecondFactorFilter secondFactorFilter,
                                             MaintenanceWriteFilter maintenanceWriteFilter) throws Exception {
         AuthenticationEntryPoint authenticationRequired = (request, response, exception) -> {
             Object correlationId = request.getAttribute(CorrelationIdFilter.ATTRIBUTE_NAME);
@@ -106,12 +119,16 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health/**", "/actuator/info", "/v3/api-docs/**").permitAll()
+                        // CA login and its development stand-ins run before a session exists; the
+                        // controllers decide whether a request is a login or a second factor.
+                        .requestMatchers(SecondFactorFilter.CA_LOGIN_PATH + "**", "/api/crypto/dev-ca/public/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationRequired))
                 .httpBasic(basic -> basic.authenticationEntryPoint(authenticationRequired))
                 .addFilterBefore(refreshLoginAuthenticationFilter, BasicAuthenticationFilter.class)
                 .addFilterAfter(clientSessionRevocationFilter, BasicAuthenticationFilter.class)
-                .addFilterAfter(workContextAuthorizationFilter, ClientSessionRevocationFilter.class)
+                .addFilterAfter(secondFactorFilter, ClientSessionRevocationFilter.class)
+                .addFilterAfter(workContextAuthorizationFilter, SecondFactorFilter.class)
                 .addFilterAfter(maintenanceWriteFilter, WorkContextAuthorizationFilter.class)
                 .build();
     }

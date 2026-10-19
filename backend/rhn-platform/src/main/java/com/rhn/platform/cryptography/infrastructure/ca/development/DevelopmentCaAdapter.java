@@ -2,6 +2,7 @@ package com.rhn.platform.cryptography.infrastructure.ca.development;
 
 import com.rhn.platform.cryptography.api.SigningMode;
 import com.rhn.platform.cryptography.infrastructure.SmCrypto;
+import com.rhn.platform.cryptography.spi.CaMobileLoginPort;
 import com.rhn.platform.cryptography.spi.CaRemoteSigningPort;
 import com.rhn.platform.cryptography.spi.CaSignerEnrollmentPort;
 import com.rhn.platform.cryptography.spi.CaSigningGrantPort;
@@ -43,6 +44,7 @@ public class DevelopmentCaAdapter implements CaVendorAdapter {
     private static final String TSA = "rhn-development-tsa";
     private static final String ORGANIZATION = "O=RHN DEVELOPMENT ONLY";
     private static final String ROOT_DN = "CN=RHN Development CA," + ORGANIZATION;
+    public static final String LOGIN_QR_PREFIX = "rhn-dev-ca://login/";
 
     private final JsonCodec jsonCodec;
     private final KeyPair rootKeys = SmCrypto.generateKeyPair();
@@ -52,6 +54,7 @@ public class DevelopmentCaAdapter implements CaVendorAdapter {
     private final Map<String, Instant> grants = new ConcurrentHashMap<>();
     private final Map<String, DevelopmentOrder> orders = new ConcurrentHashMap<>();
     private final Map<Long, String> ordersBySigningOrder = new ConcurrentHashMap<>();
+    private final Map<String, DevelopmentLogin> logins = new ConcurrentHashMap<>();
 
     public DevelopmentCaAdapter(JsonCodec jsonCodec) {
         this.jsonCodec = jsonCodec;
@@ -96,6 +99,31 @@ public class DevelopmentCaAdapter implements CaVendorAdapter {
     @Override
     public Optional<CaSigningGrantPort> signingGrant() {
         return Optional.of(signingGrant);
+    }
+
+    @Override
+    public Optional<CaMobileLoginPort> mobileLogin() {
+        return Optional.of(mobileLogin);
+    }
+
+    /** Signer already issued for the account, if any (keys are lost on restart). */
+    public Optional<String> issuedSigner(Long userId) {
+        String externalSignerId = "dev-" + userId;
+        return signers.containsKey(externalSignerId) ? Optional.of(externalSignerId) : Optional.empty();
+    }
+
+    /** Simulates scanning a login QR code and confirming it in the phone app. */
+    public void confirmLogin(String externalRequestId, String externalSignerId) {
+        requireSigner(externalSignerId);
+        DevelopmentLogin login = requireLogin(externalRequestId);
+        logins.put(externalRequestId, new DevelopmentLogin(externalRequestId, CaMobileLoginPort.State.CONFIRMED,
+                externalSignerId, login.expiresAt()));
+    }
+
+    public void rejectLogin(String externalRequestId) {
+        DevelopmentLogin login = requireLogin(externalRequestId);
+        logins.put(externalRequestId, new DevelopmentLogin(externalRequestId, CaMobileLoginPort.State.REJECTED,
+                null, login.expiresAt()));
     }
 
     /** Issues (or re-issues after a restart) the simulated certificate of an account. */
@@ -253,6 +281,30 @@ public class DevelopmentCaAdapter implements CaVendorAdapter {
         }
     };
 
+    private final CaMobileLoginPort mobileLogin = new CaMobileLoginPort() {
+        @Override
+        public LoginChallenge start(Long tenantId, Long organizationId, boolean enableAutoSign, int autoSignHours) {
+            Instant now = Instant.now();
+            logins.values().removeIf(value -> value.expiresAt().isBefore(now));
+            String externalRequestId = "dev-login-" + GlobalIds.next();
+            Instant expiresAt = now.plusSeconds(120);
+            logins.put(externalRequestId, new DevelopmentLogin(externalRequestId, State.PENDING, null, expiresAt));
+            return new LoginChallenge(externalRequestId, LOGIN_QR_PREFIX + externalRequestId, expiresAt);
+        }
+
+        @Override
+        public LoginResult poll(Long tenantId, Long organizationId, String externalRequestId) {
+            DevelopmentLogin login = logins.get(externalRequestId);
+            if (login == null || (login.state() == State.PENDING && login.expiresAt().isBefore(Instant.now()))) {
+                return new LoginResult(State.EXPIRED, null, null, false);
+            }
+            if (login.state() != State.PENDING) logins.remove(externalRequestId);
+            SignerKey key = login.externalSignerId() == null ? null : signers.get(login.externalSignerId());
+            return new LoginResult(login.state(), login.externalSignerId(),
+                    key == null ? null : base64(SmCrypto.encoded(key.certificate())), false);
+        }
+    };
+
     private DevelopmentOrder sign(DevelopmentOrder order, String externalSignerId) {
         SignerKey key = requireSigner(externalSignerId);
         Map<String, String> envelope = new LinkedHashMap<>();
@@ -299,6 +351,14 @@ public class DevelopmentCaAdapter implements CaVendorAdapter {
         return key;
     }
 
+    private DevelopmentLogin requireLogin(String externalRequestId) {
+        DevelopmentLogin login = externalRequestId == null ? null : logins.get(externalRequestId);
+        if (login == null || login.state() != CaMobileLoginPort.State.PENDING || login.expiresAt().isBefore(Instant.now())) {
+            throw new IllegalStateException("No pending development login " + externalRequestId);
+        }
+        return login;
+    }
+
     private DevelopmentOrder requireOrder(Long signingOrderId) {
         String externalOrderId = ordersBySigningOrder.get(signingOrderId);
         DevelopmentOrder order = externalOrderId == null ? null : orders.get(externalOrderId);
@@ -317,6 +377,9 @@ public class DevelopmentCaAdapter implements CaVendorAdapter {
     public record ClientSigned(String signatureValue, String certificate) {}
 
     private record SignerKey(KeyPair keys, X509Certificate certificate) {}
+
+    private record DevelopmentLogin(String externalRequestId, CaMobileLoginPort.State state, String externalSignerId,
+                                    Instant expiresAt) {}
 
     private record DevelopmentOrder(String externalOrderId, Long signingOrderId, String externalSignerId,
                                     SigningMode mode, String digestAlgorithm, String digest,

@@ -96,6 +96,14 @@ rhn:
       cookie-name: ${RHN_REFRESH_LOGIN_COOKIE_NAME:RHN_LOGIN}
       cookie-secure: ${RHN_REFRESH_LOGIN_COOKIE_SECURE:true}
       key-prefix: ${RHN_REFRESH_LOGIN_KEY_PREFIX:rhn:login-sessions}
+    # CA login (QR code / UKey) issues refresh-login sessions, so it needs refresh-login enabled.
+    ca-login:
+      key-prefix: ${RHN_CA_LOGIN_KEY_PREFIX:rhn:ca-login}
+    # Tenant parameter platform.identity.second-factor.policy decides who needs a CA second factor.
+    second-factor:
+      privileged-authorities: ${RHN_SECOND_FACTOR_PRIVILEGED_AUTHORITIES:IAM.MANAGE,MAINTENANCE.MANAGE,AI_CONFIGURATION.MANAGE}
+      # Break-glass accounts that may still use a password alone; each such login is audited.
+      exempt-usernames: ${RHN_SECOND_FACTOR_EXEMPT_USERNAMES:}
   crypto:
     # Production deliberately has no fallback provider. Critical-data writes fail closed
     # until a cryptographic service is configured; ADR-008 accepts `software-sm` (SM2/SM3 system key)

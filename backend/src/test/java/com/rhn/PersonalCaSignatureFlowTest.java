@@ -230,6 +230,18 @@ class PersonalCaSignatureFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.signers[0].certificateFingerprint").isNotEmpty());
     }
 
+    @Test
+    void ca_login_stays_unavailable_without_refresh_login_sessions() throws Exception {
+        mockMvc.perform(get("/api/session/ca-login/options").header("X-Tenant-Id", TENANT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mobile").value(false))
+                .andExpect(jsonPath("$.certificate").value(false));
+        mockMvc.perform(post("/api/session/ca-login/mobile").header("X-Tenant-Id", TENANT))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CA_LOGIN_REQUIRES_SESSION"));
+        mockMvc.perform(get("/api/session").with(rhn())).andExpect(status().isOk());
+    }
+
     private Long actAs(String username) {
         Long userId = GlobalIds.next();
         SecurityContextHolder.getContext().setAuthentication(UsernamePasswordAuthenticationToken.authenticated(

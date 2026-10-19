@@ -20,4 +20,7 @@ public interface CaSignerRepository extends JpaRepository<CaSigner, Long> {
 
     List<CaSigner> findByTenantIdAndVendorCodeAndCertificateFingerprintAndStatus(
             Long tenantId, String vendorCode, String certificateFingerprint, CaSignerStatus status);
+
+    List<CaSigner> findByTenantIdAndCertificateFingerprintAndStatus(
+            Long tenantId, String certificateFingerprint, CaSignerStatus status);
 }

@@ -276,28 +276,37 @@ sequenceDiagram
     participant R as RHN
     participant V as 医网信
     participant P as 医生 App
-    B->>R: POST /api/session/mobile-login {tenant, enableAutoSign?}
+    B->>R: POST /api/session/ca-login/mobile（X-Tenant-Id）
     R->>V: oauth/authorize (selfSign, sysTag=RHN, sessionTime)
     V-->>R: requestId, 二维码, 120 秒
-    R-->>B: loginRequestId, 二维码
+    R-->>B: loginRequestId, 二维码；Set-Cookie RHN_CA_LOGIN（浏览器绑定）
     P->>V: 扫码，指纹/PIN 确认
     loop 每 2 秒，最长 120 秒
-        B->>R: GET /api/session/mobile-login/{id}
+        B->>R: GET /api/session/ca-login/mobile/{id}
         R->>V: oauth/tokeninfo
     end
     R->>R: openId → 签名人绑定 → 账号；校验账号状态与证书
-    R-->>B: Set-Cookie RHN_LOGIN；返回会话
+    R-->>B: state=CONFIRMED；Set-Cookie RHN_LOGIN
 ```
 
-- 登录挑战只存在服务端（Redis/内存，120 秒，一次性，绑定租户和浏览器指纹 Cookie），前端只持有 RHN 自己的 `loginRequestId`。
+- 登录挑战只存在服务端（跟随 `rhn.security.session-registry` 用 Redis 或内存，120 秒，一次性，绑定租户和 `RHN_CA_LOGIN` 浏览器 Cookie），前端只持有 RHN 自己的 `loginRequestId`；确认结果只能被领取一次。
 - 找不到绑定或账号停用 → 登录失败并审计；**不自动创建账号**。
 - 医网信文档明确要求“不要把 OAuth 登录作为唯一登录方式”，与决策 4 一致：口令登录始终保留。
-- 登录成功后签发现有 `RHN_LOGIN` 会话，由 `RefreshLoginAuthenticationFilter` 认证后续请求。生产需开启 `rhn.security.refresh-login.enabled`。
-- 如果登录时开启了自动签，记录一条“自动签授权”审计（时长、范围 `sysTag`），会话退出时调用 `selfSign/quit`。
+- 登录成功后签发现有 `RHN_LOGIN` 会话（会话记录登录方式 `MOBILE` / `CERTIFICATE` / `PASSWORD+…`），由 `RefreshLoginAuthenticationFilter` 认证后续请求。CA 登录依赖 `rhn.security.refresh-login.enabled`，未开启时 `options` 返回不可用、发起接口返回 `CA_LOGIN_REQUIRES_SESSION`。
+- 登录时开启自动签（医网信 `selfSign`）推迟到 1c 与签名一起接入：1b 发起扫码登录时固定不开启。
 
 ### 8.2 UKey 登录（可选）
 
-`POST /api/session/certificate-challenges` 取 32 字节随机挑战（120 秒、一次性）→ `ClientTokenDriver.sign` → `POST /api/session/certificate-login` 提交签名和证书 → 本地验签 + 证书链 + 吊销 + 绑定关系 → 签发会话。UKey 拔出事件按机构策略锁屏或注销。
+`POST /api/session/ca-login/certificate-challenges` 取一次性挑战（120 秒，内容为 `RHN-CA-LOGIN-1` 前缀的文本，含租户、挑战号和随机数，与业务声明 JSON 区分）→ 浏览器 `ClientTokenDriver.sign`（PIN 由厂商中间件收集）→ `POST /api/session/ca-login/certificate` 提交签名和证书 → 按证书指纹找有效绑定，用绑定厂商的信任锚做本地验签、证书链、有效期和密钥用法校验 → 签发会话。挑战无论成败都只用一次。
+
+1b 未做：证书吊销（CRL/OCSP）检查、UKey 拔出锁屏，以及真实厂商浏览器驱动（取得 BJCA 证书助手接口文档后在 2 期接入）；开发环境用“开发模拟 UKey”驱动。
+
+### 8.2.1 口令后的第二步认证（双因子）
+
+- 租户参数 `platform.identity.second-factor.policy`（`{"mode":"NONE|REQUIRED_FOR_PRIVILEGED|REQUIRED"}`，缺省 `NONE`）。特权账号指拥有 `rhn.security.second-factor.privileged-authorities` 中任一权限的账号（默认账号授权、系统维护、AI 配置管理）。
+- 策略覆盖的账号只用口令（HTTP Basic，或仅凭口令签发的会话）访问时，`SecondFactorFilter` 返回 401 `SECOND_FACTOR_REQUIRED`；登录页转到“第二步”，用同一口令凭据调用 `/api/session/ca-login/**` 完成扫码或证书认证，后端要求 CA 对应账号与口令账号一致（否则 `CA_LOGIN_SECOND_FACTOR_MISMATCH`），通过后签发 `PASSWORD+MOBILE/CERTIFICATE` 会话。扫码或证书直接登录本身视为双因子。
+- 应急账号：部署配置 `rhn.security.second-factor.exempt-usernames` 中的账号仍可只用口令，每次签发会话写 `LOGIN_SECOND_FACTOR_EXEMPTED` 审计。启用策略前须先为相关账号绑定 CA 签名人并保留应急账号，否则会被锁在门外。
+- 登录审计写入 `RHN_AUD_IAM_AUTH_EVT`：`LOGIN_SUCCEEDED`（口令会话签发、CA 登录、第二步通过）、`LOGIN_FAILED`（拒绝、未绑定、验签失败、账号停用、账号不一致）、`LOGIN_SECOND_FACTOR_EXEMPTED`；明细只含方式、厂商、失败码和客户端地址，不含证书、签名值和挑战内容。口令错误的失败审计和失败锁定（参数 `platform.identity.failed-login.*` 已存在但未实现）不在本期。
 
 ### 8.3 门诊签署 + 可选 CA 签名
 
@@ -361,7 +370,19 @@ sequenceDiagram
 | `rhn.crypto.ca.enabled` / `.default-vendor` / `.organizations[*]` | `false` / 空 | 是否启用个人 CA 签名、默认厂商、按租户/机构覆盖 |
 | `rhn.crypto.ca.order-ttl` / `.poll-interval` / `.max-poll-interval` / `.max-submit-attempts` | `P7D` / `PT10S` / `PT5M` / `8` | 任务过期与派发退避 |
 | `rhn.crypto.ca.worker-enabled` / `.dispatch-interval-ms` / `.dispatch-batch-size` | `true` / `2000` / `50` | 后台派发 |
-| `rhn.crypto.ca.development.enabled` | `false` | 开发模拟 CA 与 `/api/crypto/dev-ca/**`；开启合规门禁时注册表拒绝启动 |
+| `rhn.crypto.ca.development.enabled` | `false` | 开发模拟 CA 与 `/api/crypto/dev-ca/**`（含登录页用的匿名替身 `/api/crypto/dev-ca/public/**`，只能确认登录二维码、只签登录挑战）；开启合规门禁时注册表拒绝启动 |
+
+**1b 已实现**
+
+| 配置键 / 参数 | 默认 | 含义 |
+|---|---|---|
+| `rhn.security.refresh-login.enabled` | `false` | CA 登录和第二步认证都签发会话 Cookie，必须开启 |
+| `rhn.security.ca-login.key-prefix` | `rhn:ca-login` | 登录挑战的 Redis 键前缀（`session-registry=redis` 时） |
+| `rhn.security.second-factor.privileged-authorities` | `IAM.MANAGE,MAINTENANCE.MANAGE,AI_CONFIGURATION.MANAGE` | “特权账号”的权限集合 |
+| `rhn.security.second-factor.exempt-usernames` | 空 | 应急账号，口令登录单独审计 |
+| 参数 `platform.identity.second-factor.policy`（平台/租户） | `{"mode":"NONE"}` | 双因子要求 |
+
+登录方式不单设参数：租户能否扫码 / 证书登录由 `rhn.crypto.ca` 的租户路由与厂商能力决定，口令登录始终保留。
 
 **1b/1c 计划（分层参数，暂定键名）**
 
@@ -373,8 +394,6 @@ sequenceDiagram
 | `crypto.ca.defaultMode` | 机构/用户 | `AUTO_IF_GRANTED` / `PUSH` / `QR_CLAIM` / `UKEY` / `OFF` |
 | `crypto.ca.autoSign.allowed` / `.maxHours` | 机构 | 是否允许登录时开启自动签及最长时长（医网信范围 1–24 小时） |
 | `crypto.ca.patientNameMasking` | 机构 | 外发患者姓名是否脱敏，默认是 |
-| `crypto.login.methods` | 机构 | 可用登录方式：`PASSWORD,MOBILE,UKEY` |
-| `crypto.login.secondFactor` | 机构/角色 | 双因子要求：`NONE` / `REQUIRED_FOR_PRIVILEGED` / `REQUIRED` |
 
 厂商连接参数（`baseUrl`、`clientId`、`clientSecret`）属于部署配置，按机构列在 `rhn.crypto.ca.vendors.bjca-ywx.organizations[*]`，示例放 `docs/operations/ca-bjca-ywx.example.yml`，不入库明文。
 
@@ -392,8 +411,8 @@ sequenceDiagram
 | 期次 | 内容 | 验收 |
 |---|---|---|
 | 1a 基础（已实现，待合入） | ADR-008；BouncyCastle 与 `software-sm`；`CLINICAL_ACTION_ATTESTATION` 替换病历与交接班签署证据；签名人绑定、证书库、签名任务、证据 v2；适配器 SPI、注册表、派发；`development-ca` | `PersonalCaSignatureFlowTest` 覆盖推送、UKey、自动签、拒签、过期、取消、非本人请求、他人证书、封装篡改；合规门禁下 `software-sm` 可写签署行为证据 |
-| 1b 登录 | 扫码登录（医网信 OAuth + 开发模拟）、UKey 登录（驱动抽象 + 模拟驱动）、双因子策略、登录页改造、登录审计 | 扫码登录、失败、超时、账号停用；口令登录不受影响 |
-| 1c 门诊 | 门诊病历、门诊处方提交、门诊审方接入签署行为证据和可选 CA 签名；工作站 CA 状态标记、“我的 CA 待签”；`bjca-ywx` 适配器 | 医网信集成环境中完成真实扫码签名、自动签、拒签和对账；CA 关闭时门诊流程回归不变 |
+| 1b 登录（已实现，待合入） | 扫码登录与 UKey 登录（通用流程 + 开发模拟 CA 与模拟驱动）、口令后的第二步认证与租户双因子策略、应急账号、登录页与“我的 CA 证书”、登录审计。医网信 OAuth 端口随 1c 的 `bjca-ywx` 适配器一起接入 | `CaLoginFlowTest` 覆盖扫码确认/拒绝/浏览器绑定/一次性、证书验签/篡改/重放、未绑定与账号停用、双因子拦截与账号不一致；口令登录不受影响 |
+| 1c 门诊 | 门诊病历、门诊处方提交、门诊审方接入签署行为证据和可选 CA 签名；工作站 CA 状态标记、“我的 CA 待签”；`bjca-ywx` 适配器（含扫码登录 OAuth 端口、登录时开启自动签） | 医网信集成环境中完成真实扫码签名、自动签、拒签和对账；CA 关闭时门诊流程回归不变 |
 | 2 | BJCA UKey 真实驱动（取得厂商文档后）、检查检验报告签发、住院医嘱/交接班改造到新模型、回调接入 | — |
 | 3 | 第二家厂商、机构电子签章、归档时间戳 | 多厂商按机构路由 |
 

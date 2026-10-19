@@ -542,6 +542,18 @@
 .login-card .ui-button { margin-top: var(--space-2); }
 .security-note { display: flex; align-items: center; justify-content: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .mobile-brand { display: none; }
+.login-card .ui-tabs { margin-bottom: var(--space-4); }
+.ca-login-panel { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+.ca-login-mobile { display: grid; justify-items: center; gap: var(--space-2); }
+.ca-login-mobile .subtle { margin: 0; text-align: center; }
+.ca-login-mobile__code { display: grid; place-items: center; width: 12rem; min-height: 12rem; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
+.ca-login-mobile__code img { width: 100%; height: auto; }
+.ca-login-mobile__code code { overflow-wrap: anywhere; }
+.ca-login-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
+.ca-signer-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.ca-signer-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.ca-signer-list li div { display: grid; gap: var(--space-1); min-width: 0; }
+.ca-signer-list small { color: var(--color-text-secondary); }
 
 /* Fixed page chrome; template panes own all vertical reading. */
 .organization-management-page { flex: 1 1 0%; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--layout-panel-gap); overflow: hidden; --page-header-gap: 0px; }
