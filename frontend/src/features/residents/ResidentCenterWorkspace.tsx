@@ -4,7 +4,8 @@ import { useState, type ReactNode } from 'react'
 import { age, formatTime } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import { residentIdentifierSystemLabel, residentStatusPresentation } from '../../shared/presentation'
-import { requireCoverageFacts, requireResidentPage, requireResidentProfile } from './residentFacts'
+import { requireResidentPage, requireResidentProfile } from './residentFacts'
+import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
 import type {
   CreateResidentInput, ResidentProfile, UpdateResidentProfileInput,
 } from '../../shared/api/residentsApi'

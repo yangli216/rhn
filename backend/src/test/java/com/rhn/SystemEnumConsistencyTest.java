@@ -28,6 +28,8 @@ class SystemEnumConsistencyTest extends RhnIntegrationTestSupport {
 
     private static final List<Column> COLUMNS = List.of(
             new Column("BIL_SETTLEMENT_SCENE", "RHN_BIL_STL", "SD_STL_SCENE", true),
+            new Column("SYS_CA_SIGNER_MEDIUM", "RHN_SYS_CA_SIGNER", "SD_MEDIUM", true),
+            new Column("SYS_CA_SIGNER_STATUS", "RHN_SYS_CA_SIGNER", "SD_STATUS", true),
             new Column("BIL_SETTLEMENT_TYPE", "RHN_BIL_STL", "SD_STL_TYPE", true),
             new Column("BIL_RECEIPT_TYPE", "RHN_BIL_RCPT", "SD_RCPT_TYPE", true),
             new Column("BIL_CHARGE_SOURCE_TYPE", "RHN_BIL_CHARGE_ITEM", "SD_SRC_TYPE", true),

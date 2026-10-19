@@ -1,19 +1,8 @@
 import type { Resident } from '../../shared/model'
-import type { ResidentCoverageInput, ResidentPageView, ResidentProfile } from '../../shared/api/residentsApi'
+import type { ResidentPageView, ResidentProfile } from '../../shared/api/residentsApi'
 
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
-
-export function requireCoverageFacts(values: ResidentCoverageInput[]): void {
-  const validDate = (value: unknown): value is string => text(value) && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value
-  values.forEach((value, index) => {
-    if (!text(value.sdCoverageType) || !text(value.payerName) || !validDate(value.validFrom)
-      || (value.validTo && (!validDate(value.validTo) || value.validTo < value.validFrom))) {
-      throw new Error(`第 ${index + 1} 条保障信息需明确保障类型、支付方和有效期；证件号码不能证明参保情况`)
-    }
-  })
-}
 
 function requireResident(value: unknown): asserts value is Resident {
   if (!object(value) || !text(value.id) || !text(value.healthRecordNo) || !text(value.fullName)

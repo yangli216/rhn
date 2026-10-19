@@ -20,7 +20,7 @@ import { Alert, Button, DataTable, DatePicker, Dialog, DictionarySelect, SearchF
   PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
-import { requireCoverageFacts } from '../residents/residentFacts'
+import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
 import '../../styles/features/scheduling-registration.css'
 
 export { getCashPresets }

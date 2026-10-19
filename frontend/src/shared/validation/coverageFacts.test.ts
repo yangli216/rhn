@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { requireCoverageFacts } from './residentFacts'
+import { requireCoverageFacts } from './coverageFacts'
 
 describe('explicit resident coverage facts', () => {
   const coverage = { sdCoverageType: '02', payerName: '实际支付机构', memberNo: 'MEMBER-7', primary: true, validFrom: '2021-01-01' }

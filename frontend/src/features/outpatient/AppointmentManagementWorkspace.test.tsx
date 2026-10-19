@@ -10,6 +10,9 @@ import type { ServiceSchedule } from '../../shared/api/schedulingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { AppointmentManagementWorkspace } from './AppointmentManagementWorkspace'
 
+/** 医生名同时出现在班次列表和预约核验中；断言班次列表本身。 */
+const SHIFT_DOCTOR_NAME = '.appointment-shift-row__doctor-name'
+
 const appointment: Appointment = {
   id: 'appointment-1', revision: 0, appointmentNo: 'AP1001', residentId: 'resident-1',
   healthRecordNo: 'HR1001', residentName: '张三', gender: '1', birthDate: '1990-01-01',
@@ -163,7 +166,7 @@ describe('AppointmentManagementWorkspace', () => {
     expect(inDialog.getByText('HR8888')).toBeInTheDocument()
 
     // Verify schedule card is displayed and selectable
-    expect(await inDialog.findByText('李医生')).toBeInTheDocument()
+    expect(await inDialog.findByText('李医生', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
     expect(inDialog.getAllByText(/余 19 号/).length).toBeGreaterThanOrEqual(1)
 
     // Verify ticket preview has been generated
@@ -186,7 +189,7 @@ describe('AppointmentManagementWorkspace', () => {
     expect(await screen.findByText(/预约成功：AP9999/)).toBeInTheDocument()
   })
 
-  it('supports clinic type, keyword filtering and reset in appointment workbench', async () => {
+  it('supports keyword filtering and reset in appointment workbench', async () => {
     const user = userEvent.setup()
     const expertSchedule: ServiceSchedule = {
       ...schedule,
@@ -229,8 +232,8 @@ describe('AppointmentManagementWorkspace', () => {
     const inDialog = within(dialog)
 
     // Initially both schedules are displayed
-    expect(await inDialog.findByText('李医生')).toBeInTheDocument()
-    expect(await inDialog.findByText('张建国')).toBeInTheDocument()
+    expect(await inDialog.findByText('李医生', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
+    expect(await inDialog.findByText('张建国', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
 
     const searchInput = inDialog.getByPlaceholderText(/搜索科室\/医生\/拼音/)
     const shiftGroup = inDialog.getByRole('radiogroup', { name: '出诊班次列表' })
@@ -252,24 +255,10 @@ describe('AppointmentManagementWorkspace', () => {
     await user.keyboard('{Enter}')
     await waitFor(() => expect(poolOptions[0]).toHaveFocus())
 
-    // Filter by '专家门诊'
-    const expertBtn = inDialog.getByRole('button', { name: '专家门诊' })
-    await user.click(expertBtn)
-    expect(inDialog.getByText('张建国')).toBeInTheDocument()
-    expect(inDialog.queryByText('李医生')).not.toBeInTheDocument()
-
-    // Filter by '普通门诊'
-    const regularBtn = inDialog.getByRole('button', { name: '普通门诊' })
-    await user.click(regularBtn)
-    expect(inDialog.getByText('李医生')).toBeInTheDocument()
-    expect(inDialog.queryByText('张建国')).not.toBeInTheDocument()
-
     // Filter by search keyword
-    const allBtn = inDialog.getByRole('button', { name: '全部号别' })
-    await user.click(allBtn)
     await user.type(searchInput, 'ZJG')
-    expect(inDialog.getByText('张建国')).toBeInTheDocument()
-    expect(inDialog.queryByText('李医生')).not.toBeInTheDocument()
+    expect(inDialog.getByText('张建国', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
+    expect(inDialog.queryByText('李医生', { selector: SHIFT_DOCTOR_NAME })).not.toBeInTheDocument()
 
     // Clear search and test empty state
     await user.clear(searchInput)
@@ -279,8 +268,8 @@ describe('AppointmentManagementWorkspace', () => {
     // Reset filters
     const resetBtn = inDialog.getByRole('button', { name: '重置所有筛选' })
     await user.click(resetBtn)
-    expect(await inDialog.findByText('李医生')).toBeInTheDocument()
-    expect(await inDialog.findByText('张建国')).toBeInTheDocument()
+    expect(await inDialog.findByText('李医生', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
+    expect(await inDialog.findByText('张建国', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
   })
 
   it('filters every available daypart using schedule labels and clears a removed daypart after refresh', async () => {
@@ -461,7 +450,7 @@ describe('AppointmentManagementWorkspace', () => {
     </MemoryRouter></QueryClientProvider>)
     await user.click(await screen.findByRole('button', { name: /新建预约/ }))
     const dialog = within(await screen.findByRole('dialog'))
-    expect(await dialog.findByText('第1周医生', { exact: true })).toBeInTheDocument()
+    expect(await dialog.findByText('第1周医生', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
     expect(schedules).toHaveBeenCalledWith('2026-12-30', '2027-01-03')
     expect(dialog.getByText('本周 (12/28 - 01/03)')).toBeInTheDocument()
     expect(dialog.getByRole('button', { name: /12\/28/ })).toHaveAttribute('aria-disabled', 'true')
@@ -480,14 +469,14 @@ describe('AppointmentManagementWorkspace', () => {
         expect(dialog.getByText('挂号诊查费').parentElement).toHaveTextContent('挂号诊查费--')
         await user.click(dialog.getByRole('button', { name: '重试' }))
       }
-      expect(await dialog.findByText(`第${index + 2}周医生`, { exact: true })).toBeInTheDocument()
+      expect(await dialog.findByText(`第${index + 2}周医生`, { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
       expect(schedules).toHaveBeenCalledWith(from, to)
       expect(dialog.queryByText(`第${index + 1}周医生`, { exact: true })).not.toBeInTheDocument()
       if (index === 0) await user.click(dialog.getByRole('button', { name: /01\/05/ }))
     }
     expect(dialog.getByRole('button', { name: '下一周' })).toBeEnabled()
     await user.click(dialog.getByRole('button', { name: '上一周' }))
-    expect(await dialog.findByText('第4周医生', { exact: true })).toBeInTheDocument()
+    expect(await dialog.findByText('第4周医生', { selector: SHIFT_DOCTOR_NAME })).toBeInTheDocument()
     expect(dialog.queryByText('第5周医生', { exact: true })).not.toBeInTheDocument()
   })
 

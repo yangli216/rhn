@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DEVELOPMENT_CA_VENDOR, errorMessage, type RhnApi } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, LoadingState, StatusBadge } from '../../shared/ui'
-
-const MEDIUM_LABELS: Record<string, string> = { MOBILE: '手机证书', UKEY: 'UKey' }
-const STATUS_LABELS: Record<string, string> = { ACTIVE: '有效', SUSPENDED: '已暂停', REVOKED: '已作废' }
+import { Alert, Button, Dialog, EmptyState, LoadingState, StatusBadge, useSystemEnum } from '../../shared/ui'
 
 /** 当前账号绑定的 CA 签名人与证书；用于扫码 / 证书登录和可选的个人 CA 签名。 */
 export function CaCertificateDialog({ api, onClose }: { api: RhnApi; onClose: () => void }) {
   const queryClient = useQueryClient()
+  const media = useSystemEnum(api.dictionaries, 'SYS_CA_SIGNER_MEDIUM')
+  const statuses = useSystemEnum(api.dictionaries, 'SYS_CA_SIGNER_STATUS')
   const capability = useQuery({ queryKey: ['ca-signing-capability'], queryFn: () => api.caSigners.capability() })
   const signers = useQuery({ queryKey: ['ca-signers-mine'], queryFn: () => api.caSigners.mine() })
   const enroll = useMutation({
@@ -34,11 +33,11 @@ export function CaCertificateDialog({ api, onClose }: { api: RhnApi; onClose: ()
             {signers.data.map((signer) => <li key={signer.id}>
               <div>
                 <strong>{signer.certificateSubject || signer.externalSignerId}</strong>
-                <small>{signer.vendorCode} · {MEDIUM_LABELS[signer.medium ?? ''] ?? signer.medium}
+                <small>{signer.vendorCode} · {signer.medium ? media.name(signer.medium) : ''}
                   {signer.certificateNotAfter && ` · 有效期至 ${signer.certificateNotAfter.slice(0, 10)}`}</small>
               </div>
               <StatusBadge tone={signer.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                {STATUS_LABELS[signer.status ?? ''] ?? signer.status}
+                {signer.status ? statuses.name(signer.status) : ''}
               </StatusBadge>
             </li>)}
           </ul>}
