@@ -125,7 +125,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.currentVersion").value(1))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.instanceKey").value("DEFAULT"))
-                .andExpect(jsonPath("$.history[0].contentDigestAlgorithm").value("SHA-256"))
+                .andExpect(jsonPath("$.history[0].contentDigestAlgorithm").value("SM3"))
                 .andExpect(jsonPath("$.history[0].contentDigest").isNotEmpty())
                 .andExpect(jsonPath("$.history[0].integrityEvidenceId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();

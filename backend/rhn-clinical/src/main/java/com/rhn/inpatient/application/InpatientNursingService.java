@@ -311,7 +311,7 @@ public class InpatientNursingService {
         byte[] protectedContent = handoffBytes(handoff, items);
         evidenceService.requireValid(handoff.integrityEvidenceId(), protectedContent);
         EvidenceReceipt receipt = evidenceService.protect(new ProtectionRequest(
-                ProtectionProfile.CLINICAL_DOCUMENT_SIGNATURE, "InpatientShiftHandoff", handoff.id(), 1L,
+                ProtectionProfile.CLINICAL_ACTION_ATTESTATION, "InpatientShiftHandoff", handoff.id(), 1L,
                 operation, HANDOFF_SCHEMA, protectedContent, Map.of(
                 "departmentId", handoff.departmentId().toString(),
                 "signatureMeaning", stage,

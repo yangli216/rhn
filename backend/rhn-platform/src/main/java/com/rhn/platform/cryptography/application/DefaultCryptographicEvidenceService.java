@@ -6,12 +6,16 @@ import com.rhn.platform.cryptography.api.EvidenceReceipt;
 import com.rhn.platform.cryptography.api.EvidenceVerification;
 import com.rhn.platform.cryptography.api.ProtectionProfile;
 import com.rhn.platform.cryptography.api.ProtectionRequest;
+import com.rhn.platform.cryptography.api.SignatureChannel;
 import com.rhn.platform.cryptography.domain.CryptographicEvidence;
+import com.rhn.platform.cryptography.domain.SigningOrder;
 import com.rhn.platform.cryptography.infrastructure.CryptographicEvidenceRepository;
+import com.rhn.platform.cryptography.infrastructure.SmCrypto;
 import com.rhn.platform.cryptography.spi.CryptographicProvider;
 import com.rhn.platform.cryptography.spi.DigestValue;
 import com.rhn.platform.cryptography.spi.ProviderAssurance;
 import com.rhn.platform.cryptography.spi.ProviderDescriptor;
+import com.rhn.platform.cryptography.spi.SignatureFormat;
 import com.rhn.platform.cryptography.spi.SignatureMaterial;
 import com.rhn.platform.cryptography.spi.SignerType;
 import com.rhn.platform.cryptography.spi.SigningCommand;
@@ -41,8 +45,11 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class DefaultCryptographicEvidenceService implements CryptographicEvidenceService {
-    private static final int STATEMENT_VERSION = 1;
-    private static final String STATEMENT_ENCODING = "RHN-EVIDENCE-JSON-1";
+    private static final int STATEMENT_VERSION = 2;
+    private static final String STATEMENT_ENCODING = "RHN-EVIDENCE-JSON-2";
+    static final String PERSONAL_TARGET_TYPE = "CryptographicEvidence";
+    static final String PERSONAL_OPERATION = "PERSONAL_SIGN";
+    static final String PERSONAL_CONTENT_SCHEMA = "RHN.EVIDENCE.STATEMENT";
 
     private final CryptographicEvidenceRepository repository;
     private final ExecutionContextProvider contextProvider;
@@ -52,6 +59,7 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
     private final boolean enforceCompliance;
     private final String requiredDigestAlgorithm;
     private final String requiredSignatureAlgorithm;
+    private final PersonalSignatureVerifier personalSignatures;
 
     public DefaultCryptographicEvidenceService(
             CryptographicEvidenceRepository repository,
@@ -61,7 +69,8 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
             @Value("${rhn.crypto.active-provider:}") String activeProviderCode,
             @Value("${rhn.crypto.enforce-compliance:true}") boolean enforceCompliance,
             @Value("${rhn.crypto.required-digest-algorithm:SM3}") String requiredDigestAlgorithm,
-            @Value("${rhn.crypto.required-signature-algorithm:SM2}") String requiredSignatureAlgorithm) {
+            @Value("${rhn.crypto.required-signature-algorithm:SM2}") String requiredSignatureAlgorithm,
+            PersonalSignatureVerifier personalSignatures) {
         this.repository = repository;
         this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
@@ -70,11 +79,15 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
         this.enforceCompliance = enforceCompliance;
         this.requiredDigestAlgorithm = requiredDigestAlgorithm;
         this.requiredSignatureAlgorithm = requiredSignatureAlgorithm;
+        this.personalSignatures = personalSignatures;
     }
 
     @Override
     @Transactional
     public EvidenceReceipt protect(ProtectionRequest request) {
+        if (request.profile().externallySigned()) {
+            throw new IllegalArgumentException(request.profile() + " is written by the personal CA signing flow");
+        }
         ExecutionContext context = contextProvider.requireCurrent();
         CryptographicProvider provider = requireActiveProvider();
         ProviderDescriptor descriptor = provider.descriptor();
@@ -86,16 +99,10 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
                 .findFirstByTenantIdAndTargetTypeAndTargetIdOrderByRecordedAtDescIdDesc(
                         context.tenantId(), request.targetType(), request.targetId());
 
-        EvidenceStatement statement = new EvidenceStatement(
-                STATEMENT_VERSION, STATEMENT_ENCODING, evidenceId, context.tenantId(),
-                request.targetType(), request.targetId(), request.targetVersion(), request.operationCode(),
-                request.profile().name(), request.profile().purpose().name(), request.contentSchema(),
-                contentDigest.algorithm(), contentDigestValue, descriptor.providerCode(),
-                descriptor.assurance().name(), context.subjectId(), context.actor(), context.correlationId(),
-                requestedAt, previous.map(CryptographicEvidence::id).orElse(null),
-                previous.map(CryptographicEvidence::statementDigestAlgorithm).orElse(null),
-                previous.map(CryptographicEvidence::statementDigest).orElse(null),
-                Map.copyOf(new TreeMap<>(request.attributes())));
+        EvidenceStatement statement = statement(evidenceId, context.tenantId(), request, contentDigest.algorithm(),
+                contentDigestValue, descriptor.providerCode(), descriptor.assurance().name(), context.subjectId(),
+                context.actor(), context.correlationId(), requestedAt, previous.orElse(null),
+                SignatureChannel.SYSTEM, null);
         String statementJson = jsonCodec.write(statement);
         byte[] statementBytes = statementJson.getBytes(StandardCharsets.UTF_8);
         DigestValue statementDigest = provider.digest(statementBytes);
@@ -103,11 +110,71 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
                 context.actor(), request.profile(), statementBytes, requestedAt));
         enforceCompliance(request.profile(), context, descriptor, signature, contentDigest.algorithm());
 
-        CryptographicEvidence evidence = repository.save(new CryptographicEvidence(
+        CryptographicEvidence evidence = new CryptographicEvidence(
                 evidenceId, context.tenantId(), request, contentDigest.algorithm(), contentDigestValue,
                 STATEMENT_VERSION, statementJson, statementDigest.algorithm(), encode(statementDigest.value()),
                 previous.map(CryptographicEvidence::id).orElse(null), descriptor, signature,
-                context.correlationId()));
+                context.correlationId());
+        evidence.signatureOrigin(SignatureChannel.SYSTEM.name(), null, null, null, null);
+        return receipt(repository.save(evidence));
+    }
+
+    /**
+     * Freezes the statement a personal CA signature must cover: the target is the attestation evidence
+     * and the protected content is its statement, so the CA signature binds account, meaning, content
+     * digest and version without the business re-supplying content.
+     */
+    SigningOrder.PreparedStatement preparePersonalStatement(Long evidenceId, Long signingOrderId,
+                                                            CryptographicEvidence attestation, String vendorCode,
+                                                            String vendorAssurance, SignatureChannel channel,
+                                                            String sceneCode, ExecutionContext context,
+                                                            Instant requestedAt) {
+        byte[] content = attestation.statementJson().getBytes(StandardCharsets.UTF_8);
+        String contentDigest = encode(SmCrypto.digest(SmCrypto.SM3, content));
+        Optional<CryptographicEvidence> previous = repository
+                .findFirstByTenantIdAndTargetTypeAndTargetIdOrderByRecordedAtDescIdDesc(
+                        context.tenantId(), PERSONAL_TARGET_TYPE, attestation.id());
+        EvidenceStatement statement = statement(evidenceId, context.tenantId(), personalRequest(attestation.id(),
+                        sceneCode), SmCrypto.SM3, contentDigest, vendorCode, vendorAssurance, context.subjectId(),
+                context.actor(), context.correlationId(), requestedAt, previous.orElse(null), channel, signingOrderId);
+        String json = jsonCodec.write(statement);
+        String statementDigest = encode(SmCrypto.digest(SmCrypto.SM3, json.getBytes(StandardCharsets.UTF_8)));
+        return new SigningOrder.PreparedStatement(STATEMENT_VERSION, json, SmCrypto.SM3, statementDigest,
+                SmCrypto.SM3, contentDigest, previous.map(CryptographicEvidence::id).orElse(null));
+    }
+
+    /** Persists a personal signature that {@link PersonalSignatureVerifier} has already accepted. */
+    CryptographicEvidence recordPersonalSignature(SigningOrder order, PersonalSignatureVerifier.Result verified,
+                                                  SignatureFormat format, String signatureValue,
+                                                  String signedEnvelope, String timestampAuthority,
+                                                  String timestampToken) {
+        if (!verified.valid()) throw new IllegalArgumentException("Unverified personal signature");
+        if (enforceCompliance && (StrUtil.isBlank(timestampAuthority) || StrUtil.isBlank(timestampToken))) {
+            throw unavailable("个人 CA 签名缺少可信时间戳");
+        }
+        String sceneCode = order.sceneCode();
+        ProviderDescriptor descriptor = new ProviderDescriptor(order.vendorCode(),
+                ProviderAssurance.valueOf(order.vendorAssurance()), SmCrypto.SM3, SmCrypto.SM2_SIGNATURE);
+        SignatureMaterial signature = new SignatureMaterial(SmCrypto.SM2_SIGNATURE, verified.fingerprint(),
+                SignerType.PERSON, order.userId(), order.actor(), signatureValue, null,
+                verified.certificate().getSerialNumber().toString(16).toUpperCase(java.util.Locale.ROOT),
+                verified.certificate().getIssuerX500Principal().getName(), verified.signedAt(),
+                timestampAuthority, timestampToken);
+        CryptographicEvidence evidence = new CryptographicEvidence(order.resultEvidenceId(), order.tenantId(),
+                personalRequest(order.attestationEvidenceId(), sceneCode), order.contentDigestAlgorithm(),
+                order.contentDigest(), order.statementVersion(), order.statementJson(),
+                order.statementDigestAlgorithm(), order.statementDigest(), order.previousEvidenceId(), descriptor,
+                signature, order.correlationId());
+        evidence.signatureOrigin(order.mode().channel().name(), format.name(), verified.fingerprint(), order.id(),
+                signedEnvelope);
+        return repository.save(evidence);
+    }
+
+    Optional<CryptographicEvidence> evidence(Long tenantId, Long evidenceId) {
+        return repository.findByIdAndTenantId(evidenceId, tenantId);
+    }
+
+    EvidenceReceipt receiptOf(CryptographicEvidence evidence) {
         return receipt(evidence);
     }
 
@@ -117,8 +184,9 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
         ExecutionContext context = contextProvider.requireCurrent();
         CryptographicEvidence evidence = repository.findByIdAndTenantId(evidenceId, context.tenantId())
                 .orElseThrow(() -> notFound("CRYPTO_EVIDENCE_NOT_FOUND", "未找到密码证据"));
-        Optional<CryptographicProvider> provider = provider(evidence.providerCode());
-        if (provider.isEmpty()) {
+        boolean personal = personalChannel(evidence);
+        Optional<CryptographicProvider> provider = personal ? Optional.empty() : provider(evidence.providerCode());
+        if (!personal && provider.isEmpty()) {
             return verification(evidence, false, false, false, false, false, false,
                     "PROVIDER_UNAVAILABLE");
         }
@@ -127,14 +195,15 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
             JsonNode statement = jsonCodec.readTree(evidence.statementJson());
             boolean statementBound = statementBound(statement, evidence);
             byte[] statementBytes = evidence.statementJson().getBytes(StandardCharsets.UTF_8);
-            DigestValue currentStatementDigest = provider.get().digest(
-                    evidence.statementDigestAlgorithm(), statementBytes);
             boolean statementDigestValid = MessageDigest.isEqual(
-                    currentStatementDigest.value(), decode(evidence.statementDigest()));
-            DigestValue currentDigest = provider.get().digest(evidence.contentDigestAlgorithm(),
-                    currentContent == null ? new byte[0] : currentContent.clone());
-            boolean contentIntact = MessageDigest.isEqual(currentDigest.value(), decode(evidence.contentDigest()));
-            boolean signatureValid = provider.get().verify(new VerificationCommand(
+                    SmCrypto.digest(evidence.statementDigestAlgorithm(), statementBytes),
+                    decode(evidence.statementDigest()));
+            byte[] content = currentContent == null ? new byte[0] : currentContent.clone();
+            boolean contentIntact = MessageDigest.isEqual(
+                    SmCrypto.digest(evidence.contentDigestAlgorithm(), content), decode(evidence.contentDigest()));
+            boolean signatureValid = personal
+                    ? personalSignatures.verifyStored(evidence, statementBytes)
+                    : provider.get().verify(new VerificationCommand(
                     statementBytes, evidence.signatureAlgorithm(),
                     evidence.keyId(), evidence.signatureValue(), evidence.verificationMaterial(),
                     evidence.certificateSerial(), evidence.certificateIssuer(), evidence.timestampAuthority(),
@@ -162,6 +231,33 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
         }
     }
 
+    private static boolean personalChannel(CryptographicEvidence evidence) {
+        return evidence.signatureChannel() != null
+                && !SignatureChannel.SYSTEM.name().equals(evidence.signatureChannel());
+    }
+
+    private static ProtectionRequest personalRequest(Long attestationEvidenceId, String sceneCode) {
+        return new ProtectionRequest(ProtectionProfile.PERSONAL_CA_SIGNATURE, PERSONAL_TARGET_TYPE,
+                attestationEvidenceId, null, PERSONAL_OPERATION, PERSONAL_CONTENT_SCHEMA, null,
+                Map.of("sceneCode", sceneCode));
+    }
+
+    private EvidenceStatement statement(Long evidenceId, Long tenantId, ProtectionRequest request,
+                                        String contentDigestAlgorithm, String contentDigest, String providerCode,
+                                        String providerAssurance, Long actorId, String actor, String correlationId,
+                                        Instant occurredAt, CryptographicEvidence previous,
+                                        SignatureChannel channel, Long signingOrderId) {
+        return new EvidenceStatement(
+                STATEMENT_VERSION, STATEMENT_ENCODING, evidenceId, tenantId,
+                request.targetType(), request.targetId(), request.targetVersion(), request.operationCode(),
+                request.profile().name(), request.profile().purpose().name(), request.contentSchema(),
+                contentDigestAlgorithm, contentDigest, providerCode, providerAssurance, actorId, actor,
+                correlationId, occurredAt, previous == null ? null : previous.id(),
+                previous == null ? null : previous.statementDigestAlgorithm(),
+                previous == null ? null : previous.statementDigest(),
+                Map.copyOf(new TreeMap<>(request.attributes())), channel.name(), signingOrderId);
+    }
+
     private CryptographicProvider requireActiveProvider() {
         if (StrUtil.isBlank(activeProviderCode)) {
             throw unavailable("未配置密码服务，关键数据操作已拒绝");
@@ -178,7 +274,10 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
                                    ProviderDescriptor descriptor, SignatureMaterial signature,
                                    String digestAlgorithm) {
         if (!enforceCompliance) return;
-        if (descriptor.assurance() != ProviderAssurance.CERTIFIED_CRYPTO_SERVICE) {
+        if (descriptor.assurance() == ProviderAssurance.DEVELOPMENT_ONLY) {
+            throw unavailable("开发密码服务不能用于开启合规门禁的环境");
+        }
+        if (profile.certifiedServiceRequired() && descriptor.assurance() != ProviderAssurance.CERTIFIED_CRYPTO_SERVICE) {
             throw unavailable("当前密码服务未声明为合规密码产品或服务");
         }
         if (!digestAlgorithm.equalsIgnoreCase(requiredDigestAlgorithm)
@@ -200,7 +299,7 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
     }
 
     private boolean statementBound(JsonNode node, CryptographicEvidence evidence) {
-        return text(node, "evidenceId").equals(evidence.id().toString())
+        boolean v1Bound = text(node, "evidenceId").equals(evidence.id().toString())
                 && text(node, "tenantId").equals(evidence.tenantId().toString())
                 && text(node, "targetType").equals(evidence.targetType())
                 && text(node, "targetId").equals(evidence.targetId().toString())
@@ -214,6 +313,12 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
                 && text(node, "providerCode").equals(evidence.providerCode())
                 && text(node, "providerAssurance").equals(evidence.providerAssurance())
                 && Objects.equals(nullableId(node, "previousEvidenceId"), evidence.previousEvidenceId());
+        if (!v1Bound) return false;
+        if (nullableLong(node, "statementVersion") == null || nullableLong(node, "statementVersion") < 2) {
+            return evidence.signatureChannel() == null || SignatureChannel.SYSTEM.name().equals(evidence.signatureChannel());
+        }
+        return Objects.equals(nullableText(node, "signatureChannel"), evidence.signatureChannel())
+                && Objects.equals(nullableId(node, "signingOrderId"), evidence.signingOrderId());
     }
 
     private boolean chainLinkValid(CryptographicEvidence evidence, JsonNode statement) {
@@ -278,6 +383,7 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
         return Base64.getDecoder().decode(value);
     }
 
+    /** Version 2 appends {@code signatureChannel} and {@code signingOrderId}; v1 fields keep their order. */
     private record EvidenceStatement(
             int statementVersion,
             String statementEncoding,
@@ -301,6 +407,8 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
             Long previousEvidenceId,
             String previousStatementDigestAlgorithm,
             String previousStatementDigest,
-            Map<String, String> attributes
+            Map<String, String> attributes,
+            String signatureChannel,
+            Long signingOrderId
     ) {}
 }

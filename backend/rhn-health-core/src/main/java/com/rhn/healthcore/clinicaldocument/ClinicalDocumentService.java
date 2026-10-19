@@ -118,7 +118,7 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
         cryptographicEvidenceService.requireValid(version.integrityEvidenceId(), contentBytes(version.contentJson()));
         document.sign(expectedCurrentVersion);
         EvidenceReceipt signatureEvidence = cryptographicEvidenceService.protect(new ProtectionRequest(
-                ProtectionProfile.CLINICAL_DOCUMENT_SIGNATURE, "ClinicalDocumentVersion", version.id(),
+                ProtectionProfile.CLINICAL_ACTION_ATTESTATION, "ClinicalDocumentVersion", version.id(),
                 (long) version.versionNumber(), "SIGN", version.contentSchema(), contentBytes(version.contentJson()),
                 Map.of("documentId", document.id().toString(),
                         "documentVersion", Integer.toString(version.versionNumber()),

@@ -83,6 +83,17 @@ public class CryptographicEvidence {
     private String correlationId;
     @Column(name = "DT_RECDD", nullable = false)
     private Instant recordedAt;
+    @Column(name = "SD_SIGN_CHANNEL")
+    private String signatureChannel;
+    @Column(name = "SD_SIGN_FMT")
+    private String signatureFormat;
+    @Column(name = "HASH_SIGNER_CERT")
+    private String signerCertificateFingerprint;
+    @Column(name = "ID_SIGN_ORDER")
+    private Long signingOrderId;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
+    @Column(name = "DES_SIGNED_ENVLP")
+    private String signedEnvelope;
 
     protected CryptographicEvidence() {
     }
@@ -159,4 +170,20 @@ public class CryptographicEvidence {
     public String timestampToken() { return timestampToken; }
     public String correlationId() { return correlationId; }
     public Instant recordedAt() { return recordedAt; }
+    public String signatureChannel() { return signatureChannel; }
+    public String signatureFormat() { return signatureFormat; }
+    public String signerCertificateFingerprint() { return signerCertificateFingerprint; }
+    public Long signingOrderId() { return signingOrderId; }
+    public String signedEnvelope() { return signedEnvelope; }
+
+    /** Records how a v2 signature was produced; only set before the evidence row is first persisted. */
+    public void signatureOrigin(String channel, String format, String certificateFingerprint,
+                                Long signingOrderId, String signedEnvelope) {
+        if (this.signatureChannel != null) throw new IllegalStateException("Signature origin is immutable");
+        this.signatureChannel = channel;
+        this.signatureFormat = format;
+        this.signerCertificateFingerprint = certificateFingerprint;
+        this.signingOrderId = signingOrderId;
+        this.signedEnvelope = signedEnvelope;
+    }
 }
