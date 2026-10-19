@@ -6,12 +6,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(AlipayPaymentProperties.class)
+@EnableConfigurationProperties({AlipayPaymentProperties.class, PaymentMockProperties.class})
 @ConditionalOnProperty(name = "rhn.billing.payment.aggregated-adapter.enabled", havingValue = "false", matchIfMissing = true)
 @ConditionalOnProperty(name = "rhn.billing.payment.direct.enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(name = "rhn.billing.payment.alipay.enabled", havingValue = "true", matchIfMissing = true)
 class AlipayPaymentConfiguration {
-    @Bean AlipayPaymentClients alipayPaymentClients(AlipayPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) { return new AlipayPaymentClients(properties, settings); }
+    @Bean AlipayPaymentClients alipayPaymentClients(AlipayPaymentProperties properties, PaymentMockProperties mock, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) { return new AlipayPaymentClients(properties, settings, mock); }
     @Bean AlipayPaymentChannelAdapter alipayPaymentChannelAdapter(AlipayPaymentClients clients) { return new AlipayPaymentChannelAdapter(clients); }
     @Bean AlipayReconciliationAdapter alipayReconciliationAdapter(AlipayPaymentClients clients) { return new AlipayReconciliationAdapter(clients); }
 }

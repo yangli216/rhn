@@ -157,7 +157,7 @@ class DirectPaymentChannelAdapterTest {
         assertFalse(wechatMerchant().toString().contains("secret"));
     }
     @Test void configurationNeverFallsBackToAnotherInstitutionOrDuplicateMerchant() {
-        var real=new WechatPaymentClients(new WechatPaymentProperties(true, List.of(wechatMerchant())), mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class));
+        var real=new WechatPaymentClients(new WechatPaymentProperties(true, List.of(wechatMerchant())), mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class), new PaymentMockProperties(false, null, null));
         assertThrows(BusinessException.class,()->real.merchant(1L,3L));
         assertThrows(BusinessException.class,()->real.merchant(2L,2L));
         assertThrows(IllegalArgumentException.class,()->new WechatPaymentProperties(true, List.of(wechatMerchant(),wechatMerchant())));

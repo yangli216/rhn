@@ -25,7 +25,7 @@ class PaymentManagedClientsTest {
         var settings=mock(PaymentMerchantConfigurationStore.class);
         var snapshot=new AtomicReference<>(new StoredPaymentConfiguration(true,0,alipayValues()));
         when(settings.find(1L,2L,"ALIPAY")).thenAnswer(invocation->Optional.of(snapshot.get()));
-        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),settings);
+        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),settings,new PaymentMockProperties(false,null,null));
         clients.checkConfiguration(snapshot.get().values());
         var merchant=clients.merchant(1L,2L);var first=clients.client(merchant);
         assertSame(first,clients.client(merchant));
@@ -36,7 +36,7 @@ class PaymentManagedClientsTest {
     @Test void disabledMerchantRejectsCollectionButKeepsRecoveryClientAvailable() throws Exception {
         var settings=mock(PaymentMerchantConfigurationStore.class);
         when(settings.find(1L,2L,"ALIPAY")).thenReturn(Optional.of(new StoredPaymentConfiguration(false,2,alipayValues())));
-        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),settings);
+        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),settings,new PaymentMockProperties(false,null,null));
         assertFalse(clients.configured(1L,2L));
         assertThrows(BusinessException.class,()->clients.requireCollectionEnabled(1L,2L));
         assertNotNull(clients.client(clients.merchant(1L,2L)));
@@ -49,7 +49,7 @@ class PaymentManagedClientsTest {
         values.put("certificate",Base64.getEncoder().encodeToString(Files.readAllBytes(path)));
         var settings=mock(PaymentMerchantConfigurationStore.class);
         when(settings.find(1L,2L,"WECHAT")).thenReturn(Optional.of(new StoredPaymentConfiguration(false,1,values)));
-        var clients=new WechatPaymentClients(new WechatPaymentProperties(true,List.of()),settings);
+        var clients=new WechatPaymentClients(new WechatPaymentProperties(true,List.of()),settings,new PaymentMockProperties(false,null,null));
         clients.checkConfiguration(values);
         assertFalse(clients.configured(1L,2L));assertThrows(BusinessException.class,()->clients.requireCollectionEnabled(1L,2L));
         assertNotNull(clients.client(clients.merchant(1L,2L)).getConfig().initSSLContext());
@@ -66,7 +66,7 @@ class PaymentManagedClientsTest {
                 "appCertificate",certificate,"alipayCertificate",certificate,"rootCertificate",certificate);
         var settings=mock(PaymentMerchantConfigurationStore.class);
         when(settings.find(1L,2L,"ALIPAY")).thenReturn(Optional.of(new StoredPaymentConfiguration(true,0,values)));
-        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),settings);
+        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),settings,new PaymentMockProperties(false,null,null));
         clients.checkConfiguration(values);
         assertTrue(clients.certificateMode(clients.merchant(1L,2L)));assertNotNull(clients.client(clients.merchant(1L,2L)));
         var mismatched=new HashMap<>(values);mismatched.put("privateKey",alipayValues().get("privateKey"));
@@ -81,7 +81,7 @@ class PaymentManagedClientsTest {
         return path;
     }
     @Test void invalidKeysAndUnofficialGatewaysNeverPassLocalCheck() throws Exception {
-        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),mock(PaymentMerchantConfigurationStore.class));
+        var clients=new AlipayPaymentClients(new AlipayPaymentProperties(true,List.of()),mock(PaymentMerchantConfigurationStore.class),new PaymentMockProperties(false,null,null));
         var values=new HashMap<>(alipayValues());values.put("serverUrl","http://127.0.0.1/internal");
         assertThrows(BusinessException.class,()->clients.checkConfiguration(values));
         values.put("serverUrl","https://openapi.alipay.com/gateway.do");values.put("privateKey","do-not-echo-this-key");

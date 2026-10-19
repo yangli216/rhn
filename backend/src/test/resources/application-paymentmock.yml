@@ -1,0 +1,36 @@
+# 联调 Mock 支付渠道（本地证据，非 CI 门禁）。
+# 覆盖 application-test.yml 中 direct.enabled=false，仅用于 PaymentMockContractIntegrationTest。
+# 密钥目录与网关地址由测试在启动前通过 @DynamicPropertySource 注入，不落库、不提交。
+rhn:
+  billing:
+    payment:
+      mock:
+        enabled: true
+        alipay-gateway-url: ${payment.mock.gateway-url}
+        wechat-api-host-url: ${payment.mock.wxpay-host-url}
+      routing:
+        external-handoff-enabled: true
+      direct:
+        enabled: true
+      aggregated-adapter:
+        enabled: false
+      alipay:
+        enabled: true
+        merchants:
+          - tenant-id: 1
+            organization-id: 2
+            app-id: mock-alipay-app
+            merchant-id: "2088mock"
+            server-url: ${payment.mock.gateway-url}
+            private-key-path: ${payment.mock.keys}/app-private-key.pem
+            public-key-path: ${payment.mock.keys}/alipay-public-key.pem
+      wechat:
+        enabled: true
+        merchants:
+          - tenant-id: 1
+            organization-id: 2
+            app-id: wxmockappid00001
+            merchant-id: "1900000109"
+            api-key: "0123456789abcdef0123456789abcdef"
+            certificate-path: ${payment.mock.keys}/merchant.p12
+            client-ip: 127.0.0.1

@@ -6,6 +6,7 @@ import com.alipay.api.DefaultAlipayClient;
 import com.rhn.billing.infrastructure.payment.AlipayPaymentProperties.AlipayMerchant;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -14,11 +15,13 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 class AlipayPaymentClients implements com.rhn.billing.api.PaymentChannelConfigurationAdapter {
     private final AlipayPaymentProperties properties;
     private final com.rhn.billing.application.PaymentMerchantConfigurationStore settings;
+    private final PaymentMockProperties mock;
     private final ConcurrentMap<String, ManagedClient> managedClients = new ConcurrentHashMap<>();
     private final ConcurrentMap<AlipayMerchant, AlipayClient> clients = new ConcurrentHashMap<>();
-    AlipayPaymentClients(AlipayPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) {
+    AlipayPaymentClients(AlipayPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings, PaymentMockProperties mock) {
         this.settings = settings;
         this.properties = properties;
+        this.mock = mock;
         com.alipay.api.internal.util.AlipayLogger.setNeedEnableLogger(false);
         com.alipay.api.internal.util.AlipayLogger.setJDKDebugEnabled(false);
     }
@@ -84,7 +87,7 @@ class AlipayPaymentClients implements com.rhn.billing.api.PaymentChannelConfigur
     @Override public void checkConfiguration(java.util.Map<String,String> values) {
         try {
             PaymentCredentialValidation.identity(values, "appId"); PaymentCredentialValidation.identity(values, "merchantId");
-            if (!Set.of("https://openapi.alipay.com/gateway.do", "https://openapi-sandbox.dl.alipaydev.com/gateway.do").contains(values.get("serverUrl"))) throw new IllegalArgumentException("Invalid gateway");
+            if (!allowedGateways().contains(values.get("serverUrl"))) throw new IllegalArgumentException("Invalid gateway");
             var privateKey = PaymentCredentialValidation.privateKey(values.get("privateKey"));
             if ("PUBLIC_KEY".equals(values.get("keyMode"))) PaymentCredentialValidation.publicKey(values.get("publicKey"));
             else if ("CERTIFICATE".equals(values.get("keyMode"))) {
@@ -113,7 +116,7 @@ class AlipayPaymentClients implements com.rhn.billing.api.PaymentChannelConfigur
     private AlipayClient buildAlipay(AlipayMerchant m) {
         try {
             String url = m.serverUrl() == null ? "https://openapi.alipay.com/gateway.do" : m.serverUrl();
-            if (!Set.of("https://openapi.alipay.com/gateway.do", "https://openapi-sandbox.dl.alipaydev.com/gateway.do").contains(url)) {
+            if (!allowedGateways().contains(url)) {
                 throw badRequest("PAYMENT_GATEWAY_INVALID", "支付宝网关必须为官方生产或沙箱地址");
             }
             AlipayConfig config = new AlipayConfig();
@@ -129,6 +132,15 @@ class AlipayPaymentClients implements com.rhn.billing.api.PaymentChannelConfigur
         } catch (Exception exception) {
             throw badRequest("PAYMENT_CREDENTIAL_INVALID", "支付宝密钥或证书配置不可用，请联系管理员");
         }
+    }
+
+    /** 生产默认仅官方生产/沙箱；{@code rhn.billing.payment.mock.enabled=true} 时追加联调 Mock 网关。 */
+    private Set<String> allowedGateways() {
+        Set<String> gateways = new HashSet<>(Set.of("https://openapi.alipay.com/gateway.do", "https://openapi-sandbox.dl.alipaydev.com/gateway.do"));
+        if (mock.enabled() && mock.alipayGatewayUrl() != null && !mock.alipayGatewayUrl().isBlank()) {
+            gateways.add(mock.alipayGatewayUrl());
+        }
+        return gateways;
     }
 
     private static String read(String path) throws java.io.IOException {

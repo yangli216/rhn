@@ -13,9 +13,10 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 class WechatPaymentClients implements com.rhn.billing.api.PaymentChannelConfigurationAdapter {
     private final WechatPaymentProperties properties;
     private final com.rhn.billing.application.PaymentMerchantConfigurationStore settings;
+    private final PaymentMockProperties mock;
     private final ConcurrentMap<String, ManagedClient> managedClients = new ConcurrentHashMap<>();
     private final ConcurrentMap<WechatMerchant, WxPayService> clients = new ConcurrentHashMap<>();
-    WechatPaymentClients(WechatPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) { this.properties = properties; this.settings = settings; }
+    WechatPaymentClients(WechatPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings, PaymentMockProperties mock) { this.properties = properties; this.settings = settings; this.mock = mock; }
     boolean configured(Long tenantId, Long organizationId) {
         return settings.find(tenantId, organizationId, "WECHAT").map(com.rhn.billing.application.PaymentMerchantConfigurationStore.StoredPaymentConfiguration::enabled)
                 .orElseGet(() -> PaymentMerchantSelection.configured(properties.merchants(), tenantId, organizationId));
@@ -76,6 +77,7 @@ class WechatPaymentClients implements com.rhn.billing.api.PaymentChannelConfigur
             config.setAppId(values.get("appId")); config.setMchId(values.get("merchantId")); config.setMchKey(values.get("apiKey"));
             config.setKeyContent(java.util.Base64.getDecoder().decode(values.get("certificate")));
             config.setHttpConnectionTimeout(5000); config.setHttpTimeout(15000);
+            applyMockApiHost(config);
             var service = new WxPayServiceImpl(); service.setConfig(config); return service;
         } catch (RuntimeException exception) { throw badRequest("PAYMENT_CREDENTIAL_INVALID", "微信凭证配置不可用，请联系管理员"); }
     }
@@ -88,7 +90,15 @@ class WechatPaymentClients implements com.rhn.billing.api.PaymentChannelConfigur
         WxPayConfig config = new WxPayConfig();
         config.setAppId(m.appId()); config.setMchId(m.merchantId()); config.setMchKey(m.apiKey());
         config.setKeyPath(m.certificatePath()); config.setHttpConnectionTimeout(5000); config.setHttpTimeout(15000);
+        applyMockApiHost(config);
         var service = new WxPayServiceImpl(); service.setConfig(config); return service;
+    }
+
+    /** 仅在 test-only Mock 开关打开且地址非空时把请求指向本地 Mock；生产默认不设置，行为零变化。 */
+    private void applyMockApiHost(WxPayConfig config) {
+        if (mock != null && mock.enabled() && mock.wechatApiHostUrl() != null && !mock.wechatApiHostUrl().isBlank()) {
+            config.setApiHostUrl(mock.wechatApiHostUrl());
+        }
     }
 
     private static void required(String value) {
