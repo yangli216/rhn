@@ -21,6 +21,7 @@ public class ReconciliationController {
 
     public ReconciliationController(ReconciliationApplicationService service) { this.service = service; }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('PAYMENT_RECONCILIATION.IMPORT')")
     @PostMapping("/reconciliation-batches")
     @ResponseStatus(HttpStatus.CREATED)
     BatchView create(@Valid @RequestBody CreateRequest request) {
@@ -28,6 +29,7 @@ public class ReconciliationController {
                 request.paymentMethodCode(), request.businessDate(), request.currencyCode()));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('PAYMENT_RECONCILIATION.IMPORT')")
     @PostMapping("/reconciliation-batches/{id}/statement")
     BatchView apply(@PathVariable Long id, @Valid @RequestBody StatementRequest request) {
         List<ExternalTransaction> lines = request.transactions().stream()
@@ -38,14 +40,17 @@ public class ReconciliationController {
                 new ReconciliationStatement(request.externalBatchNo(), request.generatedAt(), lines, null));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('PAYMENT_RECONCILIATION.HANDLE')")
     @PostMapping("/reconciliation-items/{id}/resolve")
     BatchView resolve(@PathVariable Long id, @Valid @RequestBody ResolveRequest request) {
         return service.resolve(id, request.commandCode(), request.reason(), request.ignore());
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('PAYMENT_RECONCILIATION.READ')")
     @GetMapping("/reconciliation-batches/{id}")
     BatchView get(@PathVariable Long id) { return service.get(id); }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('PAYMENT_RECONCILIATION.READ')")
     @GetMapping("/reconciliation-batches")
     List<BatchView> list() { return service.list(); }
 

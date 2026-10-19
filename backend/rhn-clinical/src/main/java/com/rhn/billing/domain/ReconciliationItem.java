@@ -17,10 +17,23 @@ public class ReconciliationItem {
     @Column(name = "CD_CCY") private String currencyCode; @Column(name = "ID_OWNER") private Long ownerId;
     @Column(name = "ID_USER_RSLVD") private Long resolvedBy; @Column(name = "DT_RSLVD") private Instant resolvedAt;
     @Column(name = "DES_RSLN") private String resolution;
+    @Column(name="ID_RECON_ROW") private Long statementRowId;
+    @Column(name="ID_PAY_ORDER") private Long paymentOrderId;
+    @Column(name="SD_TXN_TYPE") private String transactionType;
+    @Column(name="SD_CHANNEL_STATUS") private String channelStatus;
+    @Column(name="DT_CHANNEL") private Instant channelOccurredAt;
+    @Column(name="DT_POSTED") private Instant localPostedAt;
+    @Column(name="ID_RVWR") private Long reviewerId;
+    @Column(name="DT_RVWD") private Instant reviewedAt;
+    public void evidence(Long row,Long order,String type,String channelStatus,Instant occurred,Instant posted){statementRowId=row;paymentOrderId=order;transactionType=type;this.channelStatus=channelStatus;channelOccurredAt=occurred;localPostedAt=posted;}
+    public void propose(Long actor,String reason){status="REVIEW_PENDING";resolvedBy=actor;resolvedAt=Instant.now();resolution=reason;}
+    public void review(Long reviewer,boolean approve){status=approve?"ACCEPTED_EXCEPTION":"OPEN";reviewerId=reviewer;reviewedAt=Instant.now();}
+    public Long statementRowId(){return statementRowId;} public Long paymentOrderId(){return paymentOrderId;} public String transactionType(){return transactionType;} public String channelStatus(){return channelStatus;}
+    public Instant channelOccurredAt(){return channelOccurredAt;} public Instant localPostedAt(){return localPostedAt;} public Long reviewerId(){return reviewerId;}
     protected ReconciliationItem(){}
     public ReconciliationItem(Long tenant,Long batch,Long payment,String externalNo,String match,BigDecimal local,
                               BigDecimal external,String currency){id=GlobalIds.next();tenantId=tenant;reconciliationBatchId=batch;
-        paymentId=payment;externalTransactionNo=externalNo;matchType=match;status="MATCHED".equals(match)?"RESOLVED":"OPEN";
+        paymentId=payment;externalTransactionNo=externalNo;matchType=match;status=java.util.Set.of("MATCHED","TIME_DIFFERENCE").contains(match)?"RESOLVED":"OPEN";
         localAmount=local;externalAmount=external;differenceAmount=external.subtract(local);currencyCode=currency;}
     public void resolve(Long actor,String reason,boolean ignore){status=ignore?"IGNORED":"RESOLVED";resolvedBy=actor;resolvedAt=Instant.now();resolution=reason;}
     public Long id(){return id;} public long revision(){return revision;} public Long tenantId(){return tenantId;}

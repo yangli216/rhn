@@ -23,6 +23,26 @@ public class ReconciliationBatch {
     @Column(name = "CD_CCY") private String currencyCode; @Column(name = "ID_USER_CREATED") private Long createdBy;
     @Column(name = "DT_CREATED") private Instant createdAt; @Column(name = "ID_USER_CMPLD") private Long completedBy;
     @Column(name = "DT_CMPLD") private Instant completedAt;
+    @Column(name="ID_RECON_FILE") private Long statementFileId;
+    @Column(name="ID_RECON_TASK") private Long reconciliationTaskId;
+    @Column(name="NUM_EXEC",nullable=false) private int executionNumber;
+    @Column(name="CD_MERCH_SCOPE",nullable=false) private String merchantScope = "LEGACY";
+    @Column(name="SD_CLOSURE",nullable=false) private String closure = "OPEN";
+    @Column(name="ID_RVWR") private Long reviewerId;
+    @Column(name="DT_RVWD") private Instant reviewedAt;
+    @Column(name="DT_SNAP") private Instant snapshotAt;
+    @Column(name="TXT_LOCAL_HASH") private String localSnapshotHash;
+    public void bindStatement(Long task,Long file,int execution,String scope,Instant cutoff,String hash){reconciliationTaskId=task;statementFileId=file;executionNumber=execution;merchantScope=scope;snapshotAt=cutoff;localSnapshotHash=hash;}
+    public void close(boolean exception,Long reviewer){closure=exception?"CLOSED_WITH_EXCEPTION":"CLOSED_MATCHED";reviewerId=reviewer;reviewedAt=Instant.now();}
+    public Long statementFileId(){return statementFileId;} public Long reconciliationTaskId(){return reconciliationTaskId;} public int executionNumber(){return executionNumber;}
+    public String merchantScope(){return merchantScope;} public String closure(){return closure;} public Instant snapshotAt(){return snapshotAt;} public String localSnapshotHash(){return localSnapshotHash;}
+    public Long reviewerId(){return reviewerId;} public Instant reviewedAt(){return reviewedAt;}
+    @Column(name="AMT_EXT_PAY",precision=24,scale=6,nullable=false) private BigDecimal externalPayments=zero();
+    @Column(name="AMT_REF_ACCEPT",precision=24,scale=6,nullable=false) private BigDecimal acceptedRefunds=zero();
+    @Column(name="AMT_REF_FINAL",precision=24,scale=6,nullable=false) private BigDecimal finalRefunds=zero();
+    @Column(name="AMT_FEE",precision=24,scale=6,nullable=false) private BigDecimal fees=zero();
+    public void totals(BigDecimal pay,BigDecimal accepted,BigDecimal completed,BigDecimal fee){externalPayments=pay;acceptedRefunds=accepted;finalRefunds=completed;fees=fee;}
+    public BigDecimal externalPayments(){return externalPayments;} public BigDecimal acceptedRefunds(){return acceptedRefunds;} public BigDecimal finalRefunds(){return finalRefunds;} public BigDecimal fees(){return fees;}
     protected ReconciliationBatch() {}
     public ReconciliationBatch(Long tenantId,Long organizationId,String batchNo,String commandCode,String type,
                                String sourceCode,String method,LocalDate date,String currency,Long actor){

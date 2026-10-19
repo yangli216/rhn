@@ -11,6 +11,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+ List<Payment> findByTenantIdAndPaymentMethodCodeAndCurrencyCodeAndPaidAtGreaterThanEqualAndPaidAtLessThan(Long tenant,String method,String currency,Instant from,Instant to);
+ List<Payment> findByTenantIdAndIdIn(Long tenant,java.util.Collection<Long> ids);
+ List<Payment> findByTenantIdAndPaymentOrderIdIn(Long tenant,java.util.Collection<Long> orderIds);
+
     Optional<Payment> findByIdAndTenantId(Long id, Long tenantId);
     Optional<Payment> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
     Optional<Payment> findByTenantIdAndOrganizationIdAndPaymentNo(Long tenantId, Long organizationId, String paymentNo);

@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(110))
+                .andExpect(jsonPath("$.length()").value(119))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))
@@ -54,7 +54,9 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[46].code").value("BED_DISPLAY_STATUS"))
                 .andExpect(jsonPath("$[?(@.code == 'MED_SAFETY_DECISION')].items.length()").value(5))
                 .andExpect(jsonPath("$[?(@.code == 'SUP_DISPENSE_TASK_STATUS')].items.length()").value(11))
-                .andExpect(jsonPath("$[?(@.code == 'BIL_TENDER_TYPE')].items.length()").value(11));
+                .andExpect(jsonPath("$[?(@.code == 'BIL_TENDER_TYPE')].items.length()").value(11))
+                .andExpect(jsonPath("$[?(@.code == 'BIL_RECON_TASK_STATUS')].items.length()").value(8))
+                .andExpect(jsonPath("$[?(@.code == 'BIL_RECON_CHANNEL_STATUS')].items.length()").value(4));
 
         mockMvc.perform(get("/api/platform/dictionaries/system-enums/DICT_CHANGE_TYPE").with(rhn()))
                 .andExpect(status().isOk())

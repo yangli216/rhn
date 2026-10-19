@@ -1,3 +1,4 @@
+import { createPaymentReconciliationApi } from './paymentReconciliationApi'
 import type { ApiClient } from './httpClient'
 import type { components } from './generated'
 // Explicit business projections inherit primitive wire fields from the generated contract.
@@ -358,6 +359,7 @@ export interface CashierClose {
 
 export function createBillingApi(client: ApiClient) {
   return {
+    ...createPaymentReconciliationApi(client),
     worklist: () => client.request<BillingWorkItem[]>('/api/billing/worklist'),
     statement: (encounterId: string, currencyCode = 'CNY') => client.request<AccountStatement>(
       `/api/billing/encounters/${encounterId}/statement?currencyCode=${encodeURIComponent(currencyCode)}`,

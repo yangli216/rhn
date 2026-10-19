@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@org.springframework.test.context.TestPropertySource(properties="rhn.billing.reconciliation.external-handoff-enabled=true")
 @ResetDatabaseBeforeEachTestMethod
 @Import({RegistrationBillingIntegrationTest.ReceiptAdapterConfiguration.class, RegistrationBillingIntegrationTest.InsuranceCallbackTestController.class})
 @Tag("outpatient-main-flow")
@@ -98,6 +99,11 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String externalTransactionNo = jdbc.queryForObject(
                 "select CD_EXT_TXN_NO as external_transaction_no from RHN_BIL_PAY where ID_PAY_ORDER = ?", String.class,
                 order.get("id").asLong());
+        // This legacy standardized-channel test explicitly provisions trusted import and handling permissions.
+        for(String roleCode:java.util.List.of("PAYMENT_RECON_IMPORT","PAYMENT_RECON_ADMIN")) {
+            Long roleId=jdbc.queryForObject("select ID_ACC_ROLE from RHN_SYS_ACC_ROLE where ID_TNT=? and CD_ACC_ROLE=?",Long.class,Long.valueOf(TENANT),roleCode);
+            jdbc.update("insert into RHN_SYS_USER_ROLE_ASSIGN (ID_USER_ROLE_ASSIGN,ID_TNT,ID_USER,ID_ACC_ROLE,ID_ORG,ID_DEPT,SD_DATA_SCOPE_TYPE,DT_VALID_FROM,DT_CREATED) values (?,?,?,?,?,null,'ORGANIZATION',current_timestamp,current_timestamp)",GlobalIds.next(),Long.valueOf(TENANT),362387869790222L,roleId,Long.valueOf(ORGANIZATION));
+        }
         JsonNode reconciliation = json(mockMvc.perform(post("/api/billing/reconciliation-batches")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"commandCode":"RECON-%s","reconciliationType":"PAYMENT_CHANNEL",

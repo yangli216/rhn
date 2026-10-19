@@ -13,4 +13,5 @@ import org.springframework.context.annotation.Configuration;
 class AlipayPaymentConfiguration {
     @Bean AlipayPaymentClients alipayPaymentClients(AlipayPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) { return new AlipayPaymentClients(properties, settings); }
     @Bean AlipayPaymentChannelAdapter alipayPaymentChannelAdapter(AlipayPaymentClients clients) { return new AlipayPaymentChannelAdapter(clients); }
+    @Bean AlipayReconciliationAdapter alipayReconciliationAdapter(AlipayPaymentClients clients) { return new AlipayReconciliationAdapter(clients); }
 }

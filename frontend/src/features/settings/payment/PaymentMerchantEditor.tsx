@@ -5,6 +5,7 @@ import {
   type PaymentConfigurationField, type PaymentConfigurationOrganization, type PaymentMerchantConfiguration,
   type PaymentMerchantConfigurationUpdate, type RhnApi,
 } from '../../../shared/rhnApi'
+import { ReconciliationPolicyDialog } from '../../../shared/billing/ReconciliationPolicyDialog'
 import { paymentChannelLabel } from './paymentChannelLabel'
 import { formatTime } from '../../../shared/format'
 import { Alert, Button, Dialog, FormField, LoadingState, Select, StatusBadge, Switch } from '../../../shared/ui'
@@ -12,7 +13,7 @@ import { Alert, Button, Dialog, FormField, LoadingState, Select, StatusBadge, Sw
 type EditorState = { dirty: boolean; busy: boolean; ready: boolean }
 type Props = {
   api: RhnApi; contextKey: string; organization: PaymentConfigurationOrganization; channel: PaymentConfigurationDescriptor
-  formId: string; onState: (state: EditorState) => void
+  formId: string; onState: (state: EditorState) => void; reconciliationAuthorities?: string[]; reconciliationSupported?: boolean
 }
 
 export function PaymentMerchantEditor(props: Props) {
@@ -30,7 +31,7 @@ export function PaymentMerchantEditor(props: Props) {
   return <MerchantConfigurationForm key={`${query.data.revision}:${reloadGeneration}`} {...props} initial={query.data} queryKey={queryKey} reload={async () => { const result = await query.refetch(); if (result.isSuccess) setReloadGeneration(value => value + 1) }} />
 }
 
-function MerchantConfigurationForm({ api, organization, channel, formId, onState, initial, queryKey, reload }: Props & {
+function MerchantConfigurationForm({ api, organization, channel, formId, onState, initial, queryKey, reload, contextKey, reconciliationAuthorities = [], reconciliationSupported = false }: Props & {
   initial: PaymentMerchantConfiguration; queryKey: string[]; reload: () => Promise<unknown>
 }) {
   const queryClient = useQueryClient()
@@ -41,6 +42,7 @@ function MerchantConfigurationForm({ api, organization, channel, formId, onState
   const [enabled, setEnabled] = useState(initial.enabled)
   const [working, setWorking] = useState(false)
   const [reading, setReading] = useState(false)
+  const [policyOpen, setPolicyOpen] = useState(false)
   const pendingUpload = useRef(false)
   const [confirmation, setConfirmation] = useState<'save' | 'reload'>()
   const [error, setError] = useState('')
@@ -51,7 +53,7 @@ function MerchantConfigurationForm({ api, organization, channel, formId, onState
   const visible = channel.fields.filter(field => !field.visibleWhenField || values[field.visibleWhenField] === field.visibleWhenValue)
   const dirty = enabled !== initial.enabled || Object.keys(secrets).length > 0 || clearSecrets.length > 0
     || Object.entries(values).some(([key, value]) => value !== (initial.values[key] || ''))
-  useEffect(() => { onState({ dirty, busy: working || reading, ready: true }) }, [onState, dirty, working, reading])
+  useEffect(() => { onState({ dirty, busy: working || reading || policyOpen, ready: true }) }, [onState, dirty, working, reading, policyOpen])
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => {
     if (!dirty) return
@@ -173,6 +175,9 @@ function MerchantConfigurationForm({ api, organization, channel, formId, onState
       {checkResult && <p role="status"><StatusBadge tone={checkResult.success ? 'success' : 'warning'}>{checkResult.success ? '本地检测通过' : '检测未通过'}</StatusBadge> {checkResult.message}</p>}
       <p>检测不发起收退款。它检查必填项、密钥和证书；正式使用前仍需完成商户签约及线上收退款联调。</p>
     </form>
+    {reconciliationSupported && (reconciliationAuthorities.includes('PAYMENT_RECONCILIATION.READ') || reconciliationAuthorities.includes('ROLE_ADMIN')) && <ReconciliationPolicyDialog api={api} contextKey={contextKey} organizationId={organization.id}
+      method={channel.paymentMethodCode} channelName={channelName} canRead canRun={reconciliationAuthorities.includes('PAYMENT_RECONCILIATION.RUN') || reconciliationAuthorities.includes('ROLE_ADMIN')}
+      configured={initial.source !== 'UNCONFIGURED' && channel.fields.filter(field => field.identity).every(field => Boolean(initial.values[field.key]?.trim()))} onOpenChange={setPolicyOpen} />}
     {confirmation && <Dialog title={confirmation === 'save' ? `确认保存${organization.name}的${channelName}配置？` : '重新加载并放弃当前修改？'}
       description={confirmation === 'reload' ? '未保存的凭证输入将被清除。' : enabled ? '保存后此机构可使用该商户发起新收款，凭证更新同时用于原单查询和退款。' : '保存后此机构将停止新收款，保留原单查询和退款。'}
       onClose={() => { if (!working) setConfirmation(undefined) }} footer={<><Button variant="secondary" disabled={working || reading} onClick={() => setConfirmation(undefined)}>继续编辑</Button>

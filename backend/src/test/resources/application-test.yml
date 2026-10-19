@@ -50,6 +50,8 @@ rhn:
   presence:
     store: memory
   billing:
+    reconciliation:
+      worker-enabled: false
     fiscal:
       mock-enabled: true
     payment:

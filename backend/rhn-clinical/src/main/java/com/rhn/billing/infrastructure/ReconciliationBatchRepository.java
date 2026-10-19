@@ -3,6 +3,10 @@ import com.rhn.billing.domain.ReconciliationBatch; import jakarta.persistence.Lo
 import java.util.*;
 import java.time.LocalDate;
 public interface ReconciliationBatchRepository extends JpaRepository<ReconciliationBatch,Long>{
+ List<ReconciliationBatch> findByTenantIdAndStatementFileIdOrderByOrganizationId(Long tenant,Long file);
+ List<ReconciliationBatch> findByTenantIdAndReconciliationTaskIdAndOrganizationIdOrderByExecutionNumberDesc(Long tenant,Long task,Long org);
+ Optional<ReconciliationBatch> findByTenantIdAndStatementFileIdAndOrganizationId(Long tenant,Long file,Long org);
+
  Optional<ReconciliationBatch>findByIdAndTenantId(Long id,Long tenantId); Optional<ReconciliationBatch>findByTenantIdAndCommandCode(Long tenantId,String commandCode);
  Optional<ReconciliationBatch>findByTenantIdAndOrganizationIdAndReconciliationTypeAndSourceCodeAndBusinessDateAndCurrencyCode(
   Long tenantId,Long organizationId,String reconciliationType,String sourceCode,LocalDate businessDate,String currencyCode);

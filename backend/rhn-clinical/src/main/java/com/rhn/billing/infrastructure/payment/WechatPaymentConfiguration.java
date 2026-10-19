@@ -13,4 +13,5 @@ import org.springframework.context.annotation.Configuration;
 class WechatPaymentConfiguration {
     @Bean WechatPaymentClients wechatPaymentClients(WechatPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) { return new WechatPaymentClients(properties, settings); }
     @Bean WechatPaymentChannelAdapter wechatPaymentChannelAdapter(WechatPaymentClients clients) { return new WechatPaymentChannelAdapter(clients); }
+    @Bean WechatReconciliationAdapter wechatReconciliationAdapter(WechatPaymentClients clients) { return new WechatReconciliationAdapter(clients); }
 }

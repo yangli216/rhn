@@ -14,25 +14,26 @@ import java.util.*;
 @Service
 public class ReconciliationApplicationService {
     private final ReconciliationTransactionService tx;
-    private final List<ReconciliationAdapter> adapters;
+    private final ReconciliationAdapterRegistry adapters;
+    private final boolean externalHandoffEnabled;
     private final ExternalMessageService messages;
     private final ExecutionContextProvider contexts;
 
-    public ReconciliationApplicationService(ReconciliationTransactionService tx, List<ReconciliationAdapter> adapters,
-            ExternalMessageService messages, ExecutionContextProvider contexts) {
+    public ReconciliationApplicationService(ReconciliationTransactionService tx, ReconciliationAdapterRegistry adapters,
+            ExternalMessageService messages, ExecutionContextProvider contexts, @org.springframework.beans.factory.annotation.Value("${rhn.billing.reconciliation.external-handoff-enabled:false}") boolean externalHandoffEnabled) {
         this.tx = tx;
-        this.adapters = List.copyOf(adapters);
+        this.adapters = adapters;
+        this.externalHandoffEnabled = externalHandoffEnabled;
         this.messages = messages;
         this.contexts = contexts;
     }
 
     public BatchView reconcile(Command in) {
+        ReconciliationAdapter adapter = adapters.legacy(in.reconciliationType(), in.sourceCode());
+        if(adapter == null && !externalHandoffEnabled) throw com.rhn.shared.api.BusinessErrors.badRequest("RECON_ADAPTER_REQUIRED", "此来源没有已声明对账适配器，且未启用受控外部交接");
         PrepareResult p = tx.prepare(new PrepareCommand(in.commandCode(), in.reconciliationType(), in.sourceCode(),
                 in.paymentMethodCode(), in.businessDate(), in.currencyCode()));
         if (p.duplicate() || p.batch().status() != ReconciliationBatchStatus.IMPORTED) return tx.get(p.batch().id());
-        ReconciliationAdapter adapter = adapters.stream()
-                .filter(a -> a.supports(p.batch().reconciliationType(), p.batch().sourceCode())).findFirst()
-                .orElse(null);
         if (adapter == null) {
             ExecutionContext c = contexts.requireCurrent();
             Map<String, Object> body = new LinkedHashMap<>();

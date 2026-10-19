@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long> {
+ List<PaymentOrder> findByTenantIdAndIdIn(Long tenant,java.util.Collection<Long> ids);
+
     Optional<PaymentOrder> findByIdAndTenantId(Long id, Long tenantId);
     Optional<PaymentOrder> findByTenantIdAndIdempotencyKey(Long tenantId, String idempotencyKey);
     Optional<PaymentOrder> findByTenantIdAndOrderNo(Long tenantId, String orderNo);

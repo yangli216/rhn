@@ -149,19 +149,30 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         PaymentChannelAdapter adapter = channels.resolve(order.paymentMethodCode());
         if (adapter == null) return queueQueryForExternalAdapter(order, instruction, queryCode);
 
-        if (!adapter.capabilities(order.paymentMethodCode()).querySupported()) {
-            throw conflict("PAYMENT_CHANNEL_QUERY_UNSUPPORTED", "当前渠道不支持自动查单，请核对实际收退记录");
-        }
-        markQueryStarted(order, queryCode);
-        QueryResult result;
-        try {
-            result = adapter.query(instruction);
-        } catch (RuntimeException exception) {
-            markQueryUncertain(order, queryCode, message(exception));
-            return transactions.view(order.id(), false);
-        }
-        applyQueryResult(order.id(), queryCode, result);
+        executeQuery(order,queryCode,adapter,true);
         return transactions.view(order.id(), false);
+    }
+
+    /** A terminal order may be verified without rewriting its immutable funds. Pending orders use normal recovery. */
+    public QueryResult verifyForReconciliation(Long orderId) {
+        PaymentOrder order = transactions.require(orderId);
+        PaymentChannelAdapter adapter = channels.resolve(order.paymentMethodCode());
+        if(adapter == null) throw conflict("RECON_QUERY_ROUTE_REQUIRED","对账核查需要可直接查询的渠道适配器");
+        return executeQuery(order,"RECON-QUERY-"+GlobalIds.external(GlobalIds.next()),adapter,!terminal(order.status()));
+    }
+
+    private QueryResult executeQuery(PaymentOrder order,String queryCode,PaymentChannelAdapter adapter,boolean apply) {
+        if (!adapter.capabilities(order.paymentMethodCode()).querySupported())
+            throw conflict("PAYMENT_CHANNEL_QUERY_UNSUPPORTED", "当前渠道不支持自动查单，请核对实际收退记录");
+        if(apply) markQueryStarted(order,queryCode);
+        QueryResult result;
+        try { result=adapter.query(queryInstruction(order)); }
+        catch(RuntimeException exception) {
+            if(apply) markQueryUncertain(order,queryCode,message(exception));
+            return QueryResult.pending(order.externalOrderNo());
+        }
+        if(apply) applyQueryResult(order.id(),queryCode,result);
+        return result;
     }
 
     public PaymentOrderView cancel(Long orderId) {

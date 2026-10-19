@@ -19679,6 +19679,71 @@
         "logical": "completed_at",
         "physical": "DT_CMPLD",
         "comment": "完成时间"
+      },
+      {
+        "logical": "statement_file_id",
+        "physical": "ID_RECON_FILE",
+        "comment": "渠道账单证据版本标识"
+      },
+      {
+        "logical": "reconciliation_task_id",
+        "physical": "ID_RECON_TASK",
+        "comment": "商户账单任务标识"
+      },
+      {
+        "logical": "execution_number",
+        "physical": "NUM_EXEC",
+        "comment": "对账执行版本序号"
+      },
+      {
+        "logical": "merchant_scope",
+        "physical": "CD_MERCH_SCOPE",
+        "comment": "商户账单范围指纹"
+      },
+      {
+        "logical": "closure",
+        "physical": "SD_CLOSURE",
+        "comment": "财务结案状态；与对平结果分开"
+      },
+      {
+        "logical": "reviewer_id",
+        "physical": "ID_RVWR",
+        "comment": "复核人标识"
+      },
+      {
+        "logical": "reviewed_at",
+        "physical": "DT_RVWD",
+        "comment": "复核时间"
+      },
+      {
+        "logical": "snapshot_at",
+        "physical": "DT_SNAP",
+        "comment": "本地快照截止时间"
+      },
+      {
+        "logical": "local_snapshot_hash",
+        "physical": "TXT_LOCAL_HASH",
+        "comment": "本地事实快照摘要"
+      },
+      {
+        "logical": "external_payments",
+        "physical": "AMT_EXT_PAY",
+        "comment": "渠道收款业务总额"
+      },
+      {
+        "logical": "accepted_refunds",
+        "physical": "AMT_REF_ACCEPT",
+        "comment": "渠道退款受理业务总额"
+      },
+      {
+        "logical": "final_refunds",
+        "physical": "AMT_REF_FINAL",
+        "comment": "渠道最终退款业务总额"
+      },
+      {
+        "logical": "fees",
+        "physical": "AMT_FEE",
+        "comment": "渠道手续费合计"
       }
     ]
   },
@@ -19740,6 +19805,11 @@
         "logical": "occurred_at",
         "physical": "DT_OCCRD",
         "comment": "发生时间"
+      },
+      {
+        "logical": "input_hash",
+        "physical": "TXT_INPUT_HASH",
+        "comment": "命令输入指纹"
       }
     ]
   },
@@ -19841,6 +19911,46 @@
         "physical": "DES_RSLN",
         "comment": "处理结果",
         "previousPhysical": "RESOLUTION"
+      },
+      {
+        "logical": "statement_row_id",
+        "physical": "ID_RECON_ROW",
+        "comment": "账单规范明细标识"
+      },
+      {
+        "logical": "payment_order_id",
+        "physical": "ID_PAY_ORDER",
+        "comment": "可信原支付指令标识"
+      },
+      {
+        "logical": "transaction_type",
+        "physical": "SD_TXN_TYPE",
+        "comment": "收款退款或撤销类型"
+      },
+      {
+        "logical": "channel_status",
+        "physical": "SD_CHANNEL_STATUS",
+        "comment": "渠道原始交易或退款状态"
+      },
+      {
+        "logical": "channel_occurred_at",
+        "physical": "DT_CHANNEL",
+        "comment": "渠道事件发生时间"
+      },
+      {
+        "logical": "local_posted_at",
+        "physical": "DT_POSTED",
+        "comment": "本地资金事实记账时间"
+      },
+      {
+        "logical": "reviewer_id",
+        "physical": "ID_RVWR",
+        "comment": "复核人标识"
+      },
+      {
+        "logical": "reviewed_at",
+        "physical": "DT_RVWD",
+        "comment": "复核时间"
       }
     ]
   },
@@ -31182,6 +31292,569 @@
         "logical": "completed_at",
         "physical": "DT_CMPLD",
         "comment": "进入终态时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_attempt",
+    "legacy": "BIL_RECONCILIATION_ATTEMPT",
+    "physical": "RHN_BIL_RECON_ATTEMPT",
+    "domain": "BIL",
+    "comment": "支付对账拉取尝试；一行代表一次有领取令牌的执行及脱敏结果",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RECON_ATTEMPT",
+        "comment": "主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_RECON_TASK",
+        "comment": "商户账单任务标识"
+      },
+      {
+        "logical": "attempt",
+        "physical": "NUM_ATTEMPT",
+        "comment": "执行尝试序号"
+      },
+      {
+        "logical": "claim_token",
+        "physical": "NUM_CLAIM",
+        "comment": "任务领取令牌"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "处理状态"
+      },
+      {
+        "logical": "started_at",
+        "physical": "DT_STARTED",
+        "comment": "尝试开始时间"
+      },
+      {
+        "logical": "finished_at",
+        "physical": "DT_FINSH",
+        "comment": "尝试结束时间"
+      },
+      {
+        "logical": "error_code",
+        "physical": "CD_ERROR",
+        "comment": "安全错误分类"
+      },
+      {
+        "logical": "error_message",
+        "physical": "DES_ERROR",
+        "comment": "脱敏错误说明"
+      },
+      {
+        "logical": "file_id",
+        "physical": "ID_RECON_FILE",
+        "comment": "证据版本标识"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_merchant_account",
+    "legacy": "BIL_RECONCILIATION_MERCHANT_ACCOUNT",
+    "physical": "RHN_BIL_RECON_ACCT",
+    "domain": "BIL",
+    "comment": "支付对账商户范围；一行代表一个租户独占的渠道商户账单覆盖范围",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RECON_ACCT",
+        "comment": "主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "merchant_scope",
+        "physical": "CD_MERCH_SCOPE",
+        "comment": "商户账单范围指纹"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_policy",
+    "legacy": "BIL_RECONCILIATION_POLICY",
+    "physical": "RHN_BIL_RECON_POLICY",
+    "domain": "BIL",
+    "comment": "支付交易对账策略；一行代表一个机构支付方式的自动拉取策略",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RECON_POLICY",
+        "comment": "主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "归属法人机构标识"
+      },
+      {
+        "logical": "payment_method_code",
+        "physical": "CD_PAY_METHOD",
+        "comment": "支付方式编码"
+      },
+      {
+        "logical": "merchant_scope",
+        "physical": "CD_MERCH_SCOPE",
+        "comment": "商户账单范围指纹"
+      },
+      {
+        "logical": "auto_enabled",
+        "physical": "FL_AUTO",
+        "comment": "是否自动拉取核对"
+      },
+      {
+        "logical": "fetch_time",
+        "physical": "TM_FETCH",
+        "comment": "账单时区的每日拉取时刻"
+      },
+      {
+        "logical": "backfill_days",
+        "physical": "QTY_BKFILL",
+        "comment": "历史补拉天数"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "最后配置人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后配置时间"
+      },
+      {
+        "logical": "schedule_error",
+        "physical": "DES_SCHED_ERROR",
+        "comment": "自动调度脱敏错误说明"
+      },
+      {
+        "logical": "schedule_error_at",
+        "physical": "DT_SCHED_ERROR",
+        "comment": "自动调度错误发生时间"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_task",
+    "legacy": "BIL_RECONCILIATION_TASK",
+    "physical": "RHN_BIL_RECON_TASK",
+    "domain": "BIL",
+    "comment": "支付交易账单任务；一行代表一个商户账期的可恢复拉取任务",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RECON_TASK",
+        "comment": "主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "credential_organization_id",
+        "physical": "ID_ORG_CRED",
+        "comment": "凭证所属机构标识"
+      },
+      {
+        "logical": "payment_method_code",
+        "physical": "CD_PAY_METHOD",
+        "comment": "支付方式编码"
+      },
+      {
+        "logical": "adapter_code",
+        "physical": "CD_ADAPTER",
+        "comment": "适配器编码"
+      },
+      {
+        "logical": "merchant_scope",
+        "physical": "CD_MERCH_SCOPE",
+        "comment": "商户账单范围指纹"
+      },
+      {
+        "logical": "merchant_id",
+        "physical": "ID_MERCH",
+        "comment": "渠道商户标识快照"
+      },
+      {
+        "logical": "environment",
+        "physical": "CD_ENV",
+        "comment": "渠道环境快照"
+      },
+      {
+        "logical": "app_id",
+        "physical": "ID_APP",
+        "comment": "凭证应用标识快照"
+      },
+      {
+        "logical": "business_date",
+        "physical": "DA_BIZ",
+        "comment": "渠道账单日期"
+      },
+      {
+        "logical": "currency_code",
+        "physical": "CD_CCY",
+        "comment": "币种编码"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "处理状态"
+      },
+      {
+        "logical": "attempt",
+        "physical": "QTY_ATTEMPT",
+        "comment": "执行尝试序号"
+      },
+      {
+        "logical": "claim_token",
+        "physical": "NUM_CLAIM",
+        "comment": "任务领取令牌"
+      },
+      {
+        "logical": "next_attempt_at",
+        "physical": "DT_NEXT",
+        "comment": "下一次尝试时间"
+      },
+      {
+        "logical": "lease_until",
+        "physical": "DT_LEASE",
+        "comment": "租约失效时间"
+      },
+      {
+        "logical": "completed_at",
+        "physical": "DT_CMPLD",
+        "comment": "最后成功处理时间"
+      },
+      {
+        "logical": "error_message",
+        "physical": "DES_ERROR",
+        "comment": "脱敏错误说明"
+      },
+      {
+        "logical": "error_code",
+        "physical": "CD_ERROR",
+        "comment": "安全错误分类"
+      },
+      {
+        "logical": "latest_file_id",
+        "physical": "ID_RECON_FILE",
+        "comment": "最新已发布证据版本标识"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "任务发起人标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "request_code",
+        "physical": "CD_REQUEST",
+        "comment": "初始幂等命令编码"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_statement_file",
+    "legacy": "BIL_RECONCILIATION_STATEMENT_FILE",
+    "physical": "RHN_BIL_RECON_FILE",
+    "domain": "BIL",
+    "comment": "支付交易账单证据版本；一行代表一次取得的商户账单证据及其发布状态",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RECON_FILE",
+        "comment": "主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "task_id",
+        "physical": "ID_RECON_TASK",
+        "comment": "商户账单任务标识"
+      },
+      {
+        "logical": "attempt",
+        "physical": "NUM_ATTEMPT",
+        "comment": "执行尝试序号"
+      },
+      {
+        "logical": "sha256",
+        "physical": "TXT_SHA",
+        "comment": "原始证据内容摘要"
+      },
+      {
+        "logical": "encrypted_files",
+        "physical": "TXT_CIPHER",
+        "comment": "原始账单集合密文；不保存明文"
+      },
+      {
+        "logical": "parser_version",
+        "physical": "CD_PARSER",
+        "comment": "账单解析器版本"
+      },
+      {
+        "logical": "rule_version",
+        "physical": "CD_RULE",
+        "comment": "匹配规则版本"
+      },
+      {
+        "logical": "local_snapshot_hash",
+        "physical": "TXT_LOCAL_HASH",
+        "comment": "本地事实快照摘要"
+      },
+      {
+        "logical": "proof",
+        "physical": "TXT_PROOF",
+        "comment": "渠道来源校验方式"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "complete",
+        "physical": "FL_CMPL",
+        "comment": "是否完整发布"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_statement_row",
+    "legacy": "BIL_RECONCILIATION_STATEMENT_ROW",
+    "physical": "RHN_BIL_RECON_ROW",
+    "domain": "BIL",
+    "comment": "支付交易账单规范明细；一行代表一个证据版本中的独立收退事件",
+    "columns": [
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "id",
+        "physical": "ID_RECON_ROW",
+        "comment": "主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "file_id",
+        "physical": "ID_RECON_FILE",
+        "comment": "证据版本标识"
+      },
+      {
+        "logical": "line_number",
+        "physical": "NUM_LINE",
+        "comment": "账单规范明细行号"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "归属法人机构标识"
+      },
+      {
+        "logical": "payment_order_id",
+        "physical": "ID_PAY_ORDER",
+        "comment": "可信原支付指令标识"
+      },
+      {
+        "logical": "transaction_type",
+        "physical": "SD_TXN_TYPE",
+        "comment": "收款退款或撤销类型"
+      },
+      {
+        "logical": "merchant_order_no",
+        "physical": "CD_MERCH_ORDER",
+        "comment": "商户支付订单号"
+      },
+      {
+        "logical": "external_transaction_no",
+        "physical": "CD_EXT_TXN",
+        "comment": "渠道原交易号"
+      },
+      {
+        "logical": "refund_request_no",
+        "physical": "CD_REF_REQ",
+        "comment": "商户退款请求号"
+      },
+      {
+        "logical": "external_refund_no",
+        "physical": "CD_EXT_REF",
+        "comment": "渠道退款单号"
+      },
+      {
+        "logical": "original_external_transaction_no",
+        "physical": "CD_ORIG_TXN",
+        "comment": "退款关联渠道原交易号"
+      },
+      {
+        "logical": "amount",
+        "physical": "AMT_GROSS",
+        "comment": "业务收退金额"
+      },
+      {
+        "logical": "settlement_amount",
+        "physical": "AMT_SETTLE",
+        "comment": "渠道应结金额；与业务金额分开保存"
+      },
+      {
+        "logical": "fee",
+        "physical": "AMT_FEE",
+        "comment": "渠道手续费原始符号金额"
+      },
+      {
+        "logical": "currency_code",
+        "physical": "CD_CCY",
+        "comment": "币种编码"
+      },
+      {
+        "logical": "channel_status",
+        "physical": "SD_CHANNEL_STATUS",
+        "comment": "渠道原始交易或退款状态"
+      },
+      {
+        "logical": "outcome",
+        "physical": "SD_OUTCOME",
+        "comment": "规范化交易最终状态"
+      },
+      {
+        "logical": "final_success",
+        "physical": "FL_FINAL",
+        "comment": "账单是否明确最终成功"
+      },
+      {
+        "logical": "occurred_at",
+        "physical": "DT_OCCRD",
+        "comment": "渠道事件发生时间"
+      },
+      {
+        "logical": "disposition",
+        "physical": "SD_DISPOS",
+        "comment": "未归属明细处置状态"
+      },
+      {
+        "logical": "proposer_id",
+        "physical": "ID_PRPSR",
+        "comment": "例外提交人标识"
+      },
+      {
+        "logical": "reviewer_id",
+        "physical": "ID_RVWR",
+        "comment": "复核人标识"
+      },
+      {
+        "logical": "reason",
+        "physical": "DES_REASON",
+        "comment": "处置或复核依据"
+      }
+    ]
+  },
+  {
+    "logical": "bil.reconciliation_action",
+    "legacy": "BIL_RECONCILIATION_ACTION",
+    "physical": "RHN_BIL_RECON_ACTION",
+    "domain": "BIL",
+    "comment": "支付对账操作凭据；一行代表一次幂等命令和审计结果",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RECON_ACTION",
+        "comment": "主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_COMMAND",
+        "comment": "幂等命令编码"
+      },
+      {
+        "logical": "input_hash",
+        "physical": "TXT_INPUT_HASH",
+        "comment": "命令输入指纹"
+      },
+      {
+        "logical": "action",
+        "physical": "SD_ACTION",
+        "comment": "审计动作类型"
+      },
+      {
+        "logical": "target_id",
+        "physical": "ID_TARGET",
+        "comment": "审计目标标识"
+      },
+      {
+        "logical": "actor_id",
+        "physical": "ID_ACTOR",
+        "comment": "实际操作人标识"
+      },
+      {
+        "logical": "reason",
+        "physical": "DES_REASON",
+        "comment": "处置或复核依据"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "处理状态"
+      },
+      {
+        "logical": "result",
+        "physical": "TXT_RESULT",
+        "comment": "脱敏查询结果"
+      },
+      {
+        "logical": "lease_until",
+        "physical": "DT_LEASE",
+        "comment": "租约失效时间"
       }
     ]
   }

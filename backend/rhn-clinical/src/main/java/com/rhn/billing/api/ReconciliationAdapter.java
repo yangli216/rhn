@@ -7,9 +7,15 @@ import java.util.List;
 
 /** Standardizes channel statements without leaking file formats into the billing domain. */
 public interface ReconciliationAdapter {
-    boolean supports(String sourceType, String sourceCode);
+    default boolean supports(String sourceType, String sourceCode) { return false; }
 
-    ReconciliationStatement fetch(ReconciliationRequest request);
+    default ReconciliationStatement fetch(ReconciliationRequest request) { throw new UnsupportedOperationException("Legacy reconciliation is not supported"); }
+
+    default PaymentReconciliation.StatementCapability statementCapability() { return null; }
+    default PaymentReconciliation.MerchantScope merchantScope(Long tenantId, Long organizationId) { throw new UnsupportedOperationException(); }
+    default PaymentReconciliation.StatementDownload download(PaymentReconciliation.StatementRequest request) { throw new UnsupportedOperationException(); }
+    default PaymentReconciliation.ParsedStatement parse(PaymentReconciliation.StatementRequest request,
+            PaymentReconciliation.StatementDownload download) { throw new UnsupportedOperationException(); }
 
     record ReconciliationRequest(
             String sourceType, String sourceCode, Long organizationId, LocalDate businessDate,

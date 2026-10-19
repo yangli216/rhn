@@ -1092,6 +1092,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/reconciliation/policies/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["policy"];
+        put: operations["policy_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/organizations/{organizationId}/policies/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["organizationPolicy"];
+        put: operations["saveOrganizationPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/payment-channel-management/organizations/{organizationId}/channels/{method}": {
         parameters: {
             query?: never;
@@ -7252,6 +7284,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/reconciliation/unallocated/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reviewMerchant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/unallocated/{id}/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["proposeMerchant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_23"];
+        put?: never;
+        post: operations["create_27"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["review_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/batches/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["close_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/reconciliation-items/{id}/resolve": {
         parameters: {
             query?: never;
@@ -7275,9 +7435,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_23"];
+        get: operations["list_24"];
         put?: never;
-        post: operations["create_27"];
+        post: operations["create_28"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7357,7 +7517,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["retry_1"];
+        post: operations["retry_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7373,7 +7533,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["query"];
+        post: operations["query_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7613,7 +7773,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["query_1"];
+        post: operations["query_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7739,9 +7899,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_24"];
+        get: operations["list_25"];
         put?: never;
-        post: operations["create_28"];
+        post: operations["create_29"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7902,7 +8062,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["query_2"];
+        post: operations["query_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8254,7 +8414,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["review_3"];
+        post: operations["review_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9900,7 +10060,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_25"];
+        get: operations["list_26"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11468,7 +11628,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_26"];
+        get: operations["list_27"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11797,6 +11957,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/reconciliation/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}/unallocated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["unallocated"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/tasks/{id}/files/{fileId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/items/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["events_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/reconciliation/daily": {
         parameters: {
             query?: never;
@@ -11805,6 +12029,54 @@ export interface paths {
             cookie?: never;
         };
         get: operations["reconcile_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalog_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/batches/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["items"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation/batches/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["export_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12301,7 +12573,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_27"];
+        get: operations["list_28"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12317,7 +12589,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["detail_6"];
+        get: operations["detail_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12512,6 +12784,12 @@ export interface components {
             sdOccupationType?: string;
             sdBloodType?: string;
             sdRhType?: string;
+            /** @description 字典 PI_EDUCATION_LEVEL 的显示文本 */
+            readonly sdEducationLevelText?: string;
+            /** @description 字典 PI_ETHNICITY 的显示文本 */
+            readonly ethnicityCodeText?: string;
+            /** @description 字典 PI_NATIONALITY 的显示文本 */
+            readonly nationalityCodeText?: string;
             /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
             readonly sdOccupationTypeText?: string;
             /** @description 字典 PI_MARITAL_STATUS 的显示文本 */
@@ -12522,12 +12800,6 @@ export interface components {
             readonly sdResidencyTypeText?: string;
             /** @description 字典 PI_RH_TYPE 的显示文本 */
             readonly sdRhTypeText?: string;
-            /** @description 字典 PI_EDUCATION_LEVEL 的显示文本 */
-            readonly sdEducationLevelText?: string;
-            /** @description 字典 PI_ETHNICITY 的显示文本 */
-            readonly ethnicityCodeText?: string;
-            /** @description 字典 PI_NATIONALITY 的显示文本 */
-            readonly nationalityCodeText?: string;
         };
         EmploymentView: {
             /** @example 824633720832983041 */
@@ -12542,10 +12814,10 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
-            /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
-            readonly sdEmploymentTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
+            readonly sdEmploymentTypeText?: string;
             /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
             readonly sdOccupationTypeText?: string;
         };
@@ -12710,12 +12982,12 @@ export interface components {
             replacementConceptId?: string;
             aliases?: components["schemas"]["ConceptAliasView"][];
             managementPrograms?: components["schemas"]["DiseaseManagementTagView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_CONCEPT_TYPE 的显示文本 */
             readonly sdConceptTypeText?: string;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         DiseaseManagementTagView: {
             /** @example 824633720832983041 */
@@ -12727,10 +12999,10 @@ export interface components {
             reportCardType?: string;
             /** Format: int32 */
             reportDeadlineHours?: number;
-            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
-            readonly sdManagementTypeText?: string;
             /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
             readonly sdTriggerActionText?: string;
+            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
+            readonly sdManagementTypeText?: string;
         };
         UpdateDiseaseManagementProgramRequest: {
             expectedRevision: number;
@@ -12773,12 +13045,12 @@ export interface components {
             exceptionCount?: number;
             rules?: components["schemas"]["RuleView"][];
             members?: components["schemas"]["MemberView"][];
+            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
+            readonly sdManagementTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
             readonly sdTriggerActionText?: string;
-            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
-            readonly sdManagementTypeText?: string;
         };
         MemberView: {
             /** @example 824633720832983041 */
@@ -13053,18 +13325,18 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 ORG_KIND 的显示文本 */
-            readonly sdOrgKindText?: string;
-            /** @description 字典 ORG_STATUS 的显示文本 */
-            readonly sdOrgStatusText?: string;
-            /** @description 字典 ORG_PROPERTY 的显示文本 */
-            readonly sdOrgPropertyText?: string;
             /** @description 字典 DEPT_TYPE 的显示文本 */
             readonly sdDepartmentTypeText?: string;
             /** @description 字典 ORG_TYPE 的显示文本 */
             readonly sdOrgTypeText?: string;
             /** @description 字典 DEPT_PROPERTY 的显示文本 */
             readonly sdDepartmentPropertyText?: string;
+            /** @description 字典 ORG_KIND 的显示文本 */
+            readonly sdOrgKindText?: string;
+            /** @description 字典 ORG_STATUS 的显示文本 */
+            readonly sdOrgStatusText?: string;
+            /** @description 字典 ORG_PROPERTY 的显示文本 */
+            readonly sdOrgPropertyText?: string;
         };
         ProfileItemUpdate: {
             /** Format: int64 */
@@ -13145,12 +13417,12 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
+            readonly sdContactTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CONTACT_USE 的显示文本 */
             readonly sdContactUseText?: string;
-            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
-            readonly sdContactTypeText?: string;
         };
         Identifier: {
             /** @example 824633720832983041 */
@@ -13171,12 +13443,12 @@ export interface components {
             /** @example 824633720832983041 */
             verifiedBy?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
+            readonly sdIdentifierTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
-            readonly sdIdentifierTypeText?: string;
         };
         OrganizationCapability: {
             /** @example 824633720832983041 */
@@ -13214,10 +13486,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_RELATION_TYPE 的显示文本 */
-            readonly sdRelationTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_RELATION_TYPE 的显示文本 */
+            readonly sdRelationTypeText?: string;
         };
         Responsibility: {
             /** @example 824633720832983041 */
@@ -13462,8 +13734,10 @@ export interface components {
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
             defaultExecutionDepartment?: components["schemas"]["DefaultDepartment"];
-            /** @description 字典 BD_ACCOUNTING_CATEGORY 的显示文本 */
-            readonly accountingCategoryText?: string;
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly priceTypeText?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly serviceTypeText?: string;
             /** @description 字典 BD_SERVICE_DUPLICATE_RULE 的显示文本 */
             readonly sdDuplicateRuleText?: string;
             /** @description 字典 BD_EXAM_TYPE 的显示文本 */
@@ -13476,10 +13750,8 @@ export interface components {
             readonly sdStatusText?: string;
             /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
             readonly sdServiceTypeText?: string;
-            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
-            readonly serviceTypeText?: string;
-            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
-            readonly priceTypeText?: string;
+            /** @description 字典 BD_ACCOUNTING_CATEGORY 的显示文本 */
+            readonly accountingCategoryText?: string;
         };
         ItemAliasCommand: {
             aliasType: string;
@@ -13578,12 +13850,12 @@ export interface components {
             status?: string;
             reason?: string;
             explanation?: string;
+            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
+            readonly sdCapabilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
-            readonly sdCapabilityTypeText?: string;
         };
         ConfigurationView: {
             /** @example 824633720832983041 */
@@ -13816,10 +14088,10 @@ export interface components {
             structureDescription?: string;
             scopeDescription?: string;
             instruction?: string;
-            /** @description 字典 BD_DEVICE_CLASS 的显示文本 */
-            readonly deviceClassText?: string;
             /** @description 字典 BD_SUPPLY_MATERIAL 的显示文本 */
             readonly materialTypeText?: string;
+            /** @description 字典 BD_DEVICE_CLASS 的显示文本 */
+            readonly deviceClassText?: string;
         };
         UpdateSpecimenRequest: {
             expectedRevision: number;
@@ -14149,6 +14421,7 @@ export interface components {
             empty?: boolean;
             null?: boolean;
             float?: boolean;
+            number?: boolean;
             valueNode?: boolean;
             container?: boolean;
             missingNode?: boolean;
@@ -14169,7 +14442,6 @@ export interface components {
             textual?: boolean;
             boolean?: boolean;
             binary?: boolean;
-            number?: boolean;
             embeddedValue?: boolean;
         };
         MedicationClassification: {
@@ -14236,14 +14508,14 @@ export interface components {
             packages?: components["schemas"]["PackageView"][];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
-            readonly sdShelfLifeUnitText?: string;
             /** @description 字典 BD_PRODUCT_MARKET_STATUS 的显示文本 */
             readonly sdMarketStatusText?: string;
             /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
             readonly sdProductionPlaceText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
+            readonly sdShelfLifeUnitText?: string;
         };
         MedicationStandardReference: {
             status?: string;
@@ -14314,16 +14586,16 @@ export interface components {
             allergenConceptIds?: string[];
             products?: components["schemas"]["MedicationProductView"][];
             standardReference?: components["schemas"]["MedicationStandardReference"];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
             /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
             readonly sdAntimicrobialLevelText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly sdMedicationTypeText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
         };
@@ -14400,12 +14672,12 @@ export interface components {
             countryCode?: string;
             address?: string;
             sdStatus?: string;
-            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
-            readonly sdProductionPlaceText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_MANUFACTURER_TYPE 的显示文本 */
             readonly sdManufacturerTypeText?: string;
+            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
+            readonly sdProductionPlaceText?: string;
         };
         SaveOverrideRequest: {
             subjectType: string;
@@ -14503,10 +14775,10 @@ export interface components {
             requiredCondition?: components["schemas"]["JsonNode"];
             searchable?: boolean;
             listDisplay?: boolean;
-            /** @description 字典 MASTER_DATA_ATTR_OVERRIDE_POLICY 的显示文本 */
-            readonly overridePolicyText?: string;
             /** @description 字典 MASTER_DATA_ATTR_DATA_TYPE 的显示文本 */
             readonly dataTypeText?: string;
+            /** @description 字典 MASTER_DATA_ATTR_OVERRIDE_POLICY 的显示文本 */
+            readonly overridePolicyText?: string;
         };
         AttributeValueView: {
             /** @example 824633720832983041 */
@@ -14588,10 +14860,10 @@ export interface components {
             sensitivity?: string;
             status?: string;
             editable?: boolean;
-            /** @description 字典 MASTER_DATA_ATTR_OVERRIDE_POLICY 的显示文本 */
-            readonly overridePolicyText?: string;
             /** @description 字典 MASTER_DATA_ATTR_DATA_TYPE 的显示文本 */
             readonly dataTypeText?: string;
+            /** @description 字典 MASTER_DATA_ATTR_OVERRIDE_POLICY 的显示文本 */
+            readonly overridePolicyText?: string;
         };
         UpdateAssignmentRequest: {
             /** @example 824633720832983041 */
@@ -14801,14 +15073,14 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
+            /** @description 字典 PRACT_GENDER 的显示文本 */
+            readonly sdPractGenderText?: string;
             /** @description 字典 POSITION_TYPE 的显示文本 */
             readonly sdPositionTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
             /** @description 字典 ASSIGNMENT_TYPE 的显示文本 */
             readonly sdAssignmentTypeText?: string;
-            /** @description 字典 PRACT_GENDER 的显示文本 */
-            readonly sdPractGenderText?: string;
         };
         StaffDetailView: {
             practitioner?: components["schemas"]["StaffView"];
@@ -14853,10 +15125,10 @@ export interface components {
             /** @example 824633720832983041 */
             updatedBy?: string;
             items?: components["schemas"]["DictionaryItemResponse"][];
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_STATUS 的显示文本 */
             readonly sdDictStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DictionaryItemResponse: {
             /** @example 824633720832983041 */
@@ -14957,14 +15229,14 @@ export interface components {
             /** @example 824633720832983041 */
             updatedBy?: string;
             referenceOptions?: components["schemas"]["ReferenceOptionView"][];
-            /** @description 字典 DICT_ATTR_DATA_TYPE 的显示文本 */
-            readonly dataTypeText?: string;
             /** @description 字典 DICT_ATTR_OVERRIDE_POLICY 的显示文本 */
             readonly overridePolicyText?: string;
             /** @description 字典 DICT_ATTR_SCOPE_TYPE 的显示文本 */
             readonly minimumScopeText?: string;
             /** @description 字典 DICT_ATTR_CARDINALITY 的显示文本 */
             readonly cardinalityText?: string;
+            /** @description 字典 DICT_ATTR_DATA_TYPE 的显示文本 */
+            readonly dataTypeText?: string;
         };
         ItemAttributeConfigurationView: {
             /** @example 824633720832983041 */
@@ -15053,10 +15325,10 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_CATEGORY_STATUS 的显示文本 */
             readonly sdDictCategoryStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DepartmentCapability: {
             /** @example 824633720832983041 */
@@ -15070,12 +15342,12 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
+            readonly sdCapabilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
-            readonly sdCapabilityTypeText?: string;
         };
         DepartmentContact: {
             /** @example 824633720832983041 */
@@ -15091,12 +15363,12 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
+            readonly sdContactTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CONTACT_USE 的显示文本 */
             readonly sdContactUseText?: string;
-            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
-            readonly sdContactTypeText?: string;
         };
         DepartmentProfileView: {
             department?: components["schemas"]["DepartmentView"];
@@ -15119,10 +15391,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 DEPT_RELATION_TYPE 的显示文本 */
-            readonly sdRelationTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 DEPT_RELATION_TYPE 的显示文本 */
+            readonly sdRelationTypeText?: string;
         };
         DepartmentResponsibility: {
             /** @example 824633720832983041 */
@@ -15263,18 +15535,18 @@ export interface components {
             dependencyBehavior?: "DISABLE_AND_SUPPRESS" | "HIDE";
             dependsOnName?: string;
             dependencySatisfied?: boolean;
-            /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
-            readonly sdParamDisplayPolicyText?: string;
-            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
-            readonly sdParamControlTypeText?: string;
-            /** @description 字典 PARAM_SENSITIVITY 的显示文本 */
-            readonly sdParamSensitivityText?: string;
             /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
             readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
             /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
             readonly sdParamConfigTypeText?: string;
+            /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
+            readonly sdParamDisplayPolicyText?: string;
+            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
+            readonly sdParamControlTypeText?: string;
+            /** @description 字典 PARAM_SENSITIVITY 的显示文本 */
+            readonly sdParamSensitivityText?: string;
         };
         ParameterValueResponse: {
             /** @example 824633720832983041 */
@@ -15303,12 +15575,12 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
-            readonly sdParamValueModeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
             /** @description 字典 PARAM_SCOPE_TYPE 的显示文本 */
             readonly sdParamScopeTypeText?: string;
+            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
+            readonly sdParamValueModeText?: string;
         };
         SaveValueRequest: {
             expectedRevision?: number;
@@ -15629,10 +15901,6 @@ export interface components {
             feeCurrencyCode?: string;
             feeConfigured?: boolean;
             feePriceDocumentCode?: string;
-            /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 SC_SLOT_MODE 的显示文本 */
-            readonly sdSlotModeText?: string;
             /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
             readonly sdBookingPolicyText?: string;
             /** @description 字典 SC_REGISTRATION_SCOPE 的显示文本 */
@@ -15641,6 +15909,10 @@ export interface components {
             readonly sdManagementModeText?: string;
             /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
             readonly sdDayPartText?: string;
+            /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 SC_SLOT_MODE 的显示文本 */
+            readonly sdSlotModeText?: string;
         };
         OutpatientPlanTemplateDiagnosisInput: {
             codeSystem?: string;
@@ -16021,12 +16293,12 @@ export interface components {
             documentInfo?: components["schemas"]["OrderDocumentInfo"];
             documentInfoEditable?: boolean;
             cancelBlockedReason?: string;
+            /** @description 字典 BD_EXAM_TYPE 的显示文本 */
+            readonly examinationTypeText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
             /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
             readonly serviceTypeText?: string;
-            /** @description 字典 BD_EXAM_TYPE 的显示文本 */
-            readonly examinationTypeText?: string;
         };
         Evidence: {
             sourceType?: string;
@@ -16054,10 +16326,10 @@ export interface components {
             /** @enum {string} */
             overridePolicy?: "NOT_ALLOWED" | "ACKNOWLEDGE" | "REASON_REQUIRED";
             suggestedAction?: string;
-            /** @description 字典 MED_SAFETY_OVERRIDE_POLICY 的显示文本 */
-            readonly overridePolicyText?: string;
             /** @description 字典 MED_SAFETY_DECISION 的显示文本 */
             readonly decisionText?: string;
+            /** @description 字典 MED_SAFETY_OVERRIDE_POLICY 的显示文本 */
+            readonly overridePolicyText?: string;
         };
         MedicationRequestResponse: {
             /** @example 824633720832983041 */
@@ -16163,14 +16435,14 @@ export interface components {
             cancelledBy?: string;
             cancelReason?: string;
             cancelBlockedReason?: string;
+            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
+            readonly antimicrobialLevelText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly doseFormText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly medicationTypeText?: string;
-            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
-            readonly antimicrobialLevelText?: string;
         };
         MedicationSafetyDecision: {
             /** @example 824633720832983041 */
@@ -16350,10 +16622,10 @@ export interface components {
             reportCardType?: string;
             /** Format: int32 */
             reportDeadlineHours?: number;
-            /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
-            readonly triggerActionText?: string;
             /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
             readonly managementTypeText?: string;
+            /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
+            readonly triggerActionText?: string;
         };
         VersionRequest: {
             /** Format: int32 */
@@ -16439,10 +16711,10 @@ export interface components {
             statusReason?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 BIL_RELIEF_ROSTER_STATUS 的显示文本 */
-            readonly statusText?: string;
             /** @description 字典 BIL_RELIEF_QUALIF_TYPE 的显示文本 */
             readonly qualificationTypeText?: string;
+            /** @description 字典 BIL_RELIEF_ROSTER_STATUS 的显示文本 */
+            readonly statusText?: string;
         };
         ReliefApplicableScope: {
             organizationIds?: string[];
@@ -16550,12 +16822,12 @@ export interface components {
             conditions?: components["schemas"]["ReliefAttributeConditions"];
             providerCode?: string;
             failurePolicy?: string;
-            /** @description 字典 BIL_RELIEF_QUALIF_TYPE 的显示文本 */
-            readonly qualificationTypeText?: string;
             /** @description 字典 BIL_RELIEF_FAILURE_POLICY 的显示文本 */
             readonly failurePolicyText?: string;
             /** @description 字典 BIL_RELIEF_QUALIFICATION_SOURCE 的显示文本 */
             readonly sourceText?: string;
+            /** @description 字典 BIL_RELIEF_QUALIF_TYPE 的显示文本 */
+            readonly qualificationTypeText?: string;
         };
         ReliefRuleView: {
             /** @example 824633720832983041 */
@@ -16574,10 +16846,10 @@ export interface components {
             manualMaxAmount?: number;
             /** Format: int32 */
             periodMaxCount?: number;
-            /** @description 字典 BIL_RELIEF_SCOPE_TYPE 的显示文本 */
-            readonly feeScopeText?: string;
             /** @description 字典 BIL_RELIEF_METHOD 的显示文本 */
             readonly methodText?: string;
+            /** @description 字典 BIL_RELIEF_SCOPE_TYPE 的显示文本 */
+            readonly feeScopeText?: string;
         };
         ReliefVersionSummaryView: {
             /** @example 824633720832983041 */
@@ -16633,6 +16905,8 @@ export interface components {
             /** Format: date-time */
             publishedAt?: string;
             manualApprovalAmount?: number;
+            /** @description 字典 BIL_RELIEF_QUOTA_PERIOD 的显示文本 */
+            readonly quotaPeriodText?: string;
             /** @description 字典 BIL_RELIEF_VERSION_STATUS 的显示文本 */
             readonly statusText?: string;
             /** @description 字典 BIL_RELIEF_QUALIFICATION_MODE 的显示文本 */
@@ -16641,8 +16915,32 @@ export interface components {
             readonly sponsorText?: string;
             /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
             readonly timingText?: string;
-            /** @description 字典 BIL_RELIEF_QUOTA_PERIOD 的显示文本 */
-            readonly quotaPeriodText?: string;
+        };
+        PaymentReconciliationPolicyUpdate: {
+            /** Format: int64 */
+            expectedRevision: number;
+            autoEnabled: boolean;
+            fetchTime: string;
+            /** Format: int32 */
+            backfillDays?: number;
+        };
+        PaymentReconciliationPolicyView: {
+            /** Format: int64 */
+            revision?: number;
+            paymentMethodCode?: string;
+            autoEnabled?: boolean;
+            fetchTime?: string;
+            /** Format: int32 */
+            backfillDays?: number;
+            zoneId?: string;
+            availableAfter?: string;
+            /** Format: int32 */
+            maximumBackfillDays?: number;
+            scheduleError?: string;
+            /** Format: date-time */
+            scheduleErrorAt?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
         };
         PaymentMerchantConfigurationUpdate: {
             /** Format: int64 */
@@ -17782,14 +18080,14 @@ export interface components {
             chronicDiseaseDrug?: boolean;
             singleOrder?: boolean;
             status?: string;
-            /** @description 字典 BD_DOSE_FORM 的显示文本 */
-            readonly doseFormText?: string;
-            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
-            readonly medicationTypeText?: string;
             /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
             readonly antimicrobialLevelText?: string;
             /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
             readonly storageTypeText?: string;
+            /** @description 字典 BD_DOSE_FORM 的显示文本 */
+            readonly doseFormText?: string;
+            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
+            readonly medicationTypeText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
         };
@@ -18466,6 +18764,8 @@ export interface components {
             items?: components["schemas"]["BatchItemView"][];
             /** @description 字典 PAY_METHOD 的显示文本 */
             readonly paymentMethodCodeText?: string;
+            /** @description 字典 BIL_RECON_RESULT 的显示文本 */
+            readonly statusText?: string;
         };
         DeliveryView: {
             /** @example 824633720832983041 */
@@ -20094,10 +20394,10 @@ export interface components {
             dispenseTaskStatus?: string;
             exceptionMessage?: string;
             occurrences?: components["schemas"]["SupplyOccurrenceView"][];
-            /** @description 字典 SUP_WARD_SUPPLY_LINE_STATUS 的显示文本 */
-            readonly statusText?: string;
             /** @description 字典 SUP_DISPENSE_TASK_STATUS 的显示文本 */
             readonly dispenseTaskStatusText?: string;
+            /** @description 字典 SUP_WARD_SUPPLY_LINE_STATUS 的显示文本 */
+            readonly statusText?: string;
         };
         SupplyOccurrenceView: {
             /** @example 824633720832983041 */
@@ -20696,10 +20996,10 @@ export interface components {
             /** Format: int32 */
             sortOrder?: number;
             active?: boolean;
-            /** @description 字典 SUP_STOCK_STATUS 的显示文本 */
-            readonly stockDefaultText?: string;
             /** @description 字典 SUP_BIN_TYPE 的显示文本 */
             readonly binTypeText?: string;
+            /** @description 字典 SUP_STOCK_STATUS 的显示文本 */
+            readonly stockDefaultText?: string;
         };
         RequisitionAllocationView: {
             /** @example 824633720832983041 */
@@ -21066,14 +21366,14 @@ export interface components {
             differenceAmount?: number;
             severity?: string;
             description?: string;
-            /** @description 字典 BIL_RECONCILIATION_LINE_STATUS 的显示文本 */
-            readonly statusText?: string;
             /** @description 字典 BIL_CHARGE_SOURCE_TYPE 的显示文本 */
             readonly sourceTypeText?: string;
-            /** @description 字典 SUP_RECONCILIATION_ISSUE_TYPE 的显示文本 */
-            readonly issueTypeText?: string;
+            /** @description 字典 BIL_RECONCILIATION_LINE_STATUS 的显示文本 */
+            readonly statusText?: string;
             /** @description 字典 SUP_STOCK_STATUS 的显示文本 */
             readonly stockStatusText?: string;
+            /** @description 字典 SUP_RECONCILIATION_ISSUE_TYPE 的显示文本 */
+            readonly issueTypeText?: string;
         };
         ReconciliationRunView: {
             /** @example 824633720832983041 */
@@ -21304,10 +21604,10 @@ export interface components {
             /** @example 824633720832983041 */
             postedBy?: string;
             lines?: components["schemas"]["PriceAdjustmentLineView"][];
-            /** @description 字典 SUP_PRICE_ADJUSTMENT_TYPE 的显示文本 */
-            readonly adjustmentTypeText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
+            /** @description 字典 SUP_PRICE_ADJUSTMENT_TYPE 的显示文本 */
+            readonly adjustmentTypeText?: string;
         };
         CreatePeriodRequest: {
             /** @example 824633720832983041 */
@@ -22257,14 +22557,14 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
+            readonly sdDayPartText?: string;
             /** @description 字典 SC_APPOINTMENT_SOURCE 的显示文本 */
             readonly sdBookingSourceText?: string;
             /** @description 字典 SC_APPOINTMENT_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
-            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
-            readonly sdDayPartText?: string;
         };
         RescheduleAppointmentRequest: {
             /** @example 824633720832983041 */
@@ -22842,10 +23142,10 @@ export interface components {
             dischargedAt?: string;
             dischargeDispositionCode?: string;
             dischargeNote?: string;
-            /** @description 字典 PI_RELATED_PERSON_RELATIONSHIP 的显示文本 */
-            readonly emergencyContactRelationshipText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
+            /** @description 字典 PI_RELATED_PERSON_RELATIONSHIP 的显示文本 */
+            readonly emergencyContactRelationshipText?: string;
         };
         NursingAssessment: {
             assessmentType?: string;
@@ -23060,10 +23360,10 @@ export interface components {
             currencyCode?: string;
             /** Format: date-time */
             finalizedAt?: string;
-            /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
-            readonly settlementStatusText?: string;
             /** @description 字典 BIL_INPATIENT_FINANCIAL_STATUS 的显示文本 */
             readonly financialStatusText?: string;
+            /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
+            readonly settlementStatusText?: string;
         };
         SurplusRefundRequest: {
             /** @example 824633720832983041 */
@@ -23454,10 +23754,10 @@ export interface components {
             gender?: string;
             /** Format: date */
             birthDate?: string;
-            /** @description 字典 BD_EXAM_TYPE 的显示文本 */
-            readonly examinationTypeText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
+            /** @description 字典 BD_EXAM_TYPE 的显示文本 */
+            readonly examinationTypeText?: string;
         };
         LocalObservationRequest: {
             observationCode?: string;
@@ -23699,12 +23999,12 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
             lines?: components["schemas"]["ReliefApplicationLineView"][];
+            /** @description 字典 BIL_RELIEF_APPLICATION_STATUS 的显示文本 */
+            readonly statusText?: string;
             /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
             readonly sponsorText?: string;
             /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
             readonly timingText?: string;
-            /** @description 字典 BIL_RELIEF_APPLICATION_STATUS 的显示文本 */
-            readonly statusText?: string;
         };
         ReliefOutcomeView: {
             /** @example 824633720832983041 */
@@ -23756,12 +24056,12 @@ export interface components {
             errorMessage?: string;
             /** Format: date-time */
             occurredAt?: string;
+            /** @description 字典 BIL_RECEIPT_EVENT_TYPE 的显示文本 */
+            readonly eventTypeText?: string;
             /** @description 字典 BIL_RECEIPT_STATUS 的显示文本 */
             readonly statusFromText?: string;
             /** @description 字典 BIL_RECEIPT_STATUS 的显示文本 */
             readonly statusToText?: string;
-            /** @description 字典 BIL_RECEIPT_EVENT_TYPE 的显示文本 */
-            readonly eventTypeText?: string;
         };
         ReceiptView: {
             /** @example 824633720832983041 */
@@ -23799,12 +24099,12 @@ export interface components {
             errorMessage?: string;
             duplicate?: boolean;
             events?: components["schemas"]["ReceiptEventView"][];
-            /** @description 字典 BIL_RECEIPT_STATUS 的显示文本 */
-            readonly statusText?: string;
             /** @description 字典 PAY_USE_SCENE 的显示文本 */
             readonly issueChannelText?: string;
             /** @description 字典 BIL_RECEIPT_TYPE 的显示文本 */
             readonly receiptTypeText?: string;
+            /** @description 字典 BIL_RECEIPT_STATUS 的显示文本 */
+            readonly statusText?: string;
         };
         PaymentOrderRequest: {
             idempotencyKey: string;
@@ -23835,12 +24135,12 @@ export interface components {
             errorMessage?: string;
             /** Format: date-time */
             occurredAt?: string;
+            /** @description 字典 BIL_PAYMENT_EVENT_TYPE 的显示文本 */
+            readonly eventTypeText?: string;
             /** @description 字典 BIL_PAYMENT_ORDER_STATUS 的显示文本 */
             readonly statusFromText?: string;
             /** @description 字典 BIL_PAYMENT_ORDER_STATUS 的显示文本 */
             readonly statusToText?: string;
-            /** @description 字典 BIL_PAYMENT_EVENT_TYPE 的显示文本 */
-            readonly eventTypeText?: string;
         };
         PaymentOrderView: {
             /** @example 824633720832983041 */
@@ -23878,12 +24178,12 @@ export interface components {
             errorMessage?: string;
             duplicate?: boolean;
             events?: components["schemas"]["PaymentEventView"][];
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
             /** @description 字典 BIL_PAYMENT_ORDER_STATUS 的显示文本 */
             readonly statusText?: string;
             /** @description 字典 PAY_USE_SCENE 的显示文本 */
             readonly paymentSceneCodeText?: string;
-            /** @description 字典 PAY_METHOD 的显示文本 */
-            readonly paymentMethodCodeText?: string;
         };
         QuickPreSettleRequest: {
             /** @example 824633720832983041 */
@@ -24135,6 +24435,98 @@ export interface components {
             /** @description 字典 SC_REGISTRATION_SOURCE 的显示文本 */
             readonly registrationSourceText?: string;
         };
+        PaymentReconciliationReviewCommand: {
+            /** Format: int64 */
+            expectedRevision: number;
+            commandCode: string;
+            reason: string;
+            approve: boolean;
+        };
+        PaymentReconciliationReasonCommand: {
+            /** Format: int64 */
+            expectedRevision: number;
+            commandCode: string;
+            reason: string;
+        };
+        PaymentReconciliationCreate: {
+            paymentMethodCode: string;
+            /** Format: date */
+            businessDate: string;
+            commandCode: string;
+        };
+        PaymentReconciliationBatchView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            batchNo?: string;
+            /** Format: int32 */
+            executionNumber?: number;
+            status?: string;
+            closure?: string;
+            /** Format: int32 */
+            localCount?: number;
+            /** Format: int32 */
+            externalCount?: number;
+            /** Format: int32 */
+            differenceCount?: number;
+            localAmount?: number;
+            externalAmount?: number;
+            differenceAmount?: number;
+            externalPayments?: number;
+            acceptedRefunds?: number;
+            finalRefunds?: number;
+            fees?: number;
+            currencyCode?: string;
+            /** Format: date-time */
+            snapshotAt?: string;
+            localSnapshotHash?: string;
+            /** @example 824633720832983041 */
+            statementFileId?: string;
+            /** @description 字典 BIL_RECON_CLOSURE 的显示文本 */
+            readonly closureText?: string;
+            /** @description 字典 BIL_RECON_RESULT 的显示文本 */
+            readonly statusText?: string;
+        };
+        PaymentReconciliationTaskView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            paymentMethodCode?: string;
+            /** Format: date */
+            businessDate?: string;
+            currencyCode?: string;
+            status?: string;
+            /** Format: int32 */
+            attempt?: number;
+            /** Format: date-time */
+            nextAttemptAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            /** @example 824633720832983041 */
+            latestFileId?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            merchantAllocationComplete?: boolean;
+            latestBatch?: components["schemas"]["PaymentReconciliationBatchView"];
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+            /** @description 字典 BIL_RECON_TASK_STATUS 的显示文本 */
+            readonly statusText?: string;
+        };
+        PaymentReconciliationVersionCommand: {
+            /** Format: int64 */
+            expectedRevision: number;
+            commandCode: string;
+        };
+        PaymentReconciliationVerificationView: {
+            outcome?: string;
+            completedAmount?: number;
+            message?: string;
+            /** @description 字典 BIL_RECON_QUERY_OUTCOME 的显示文本 */
+            readonly outcomeText?: string;
+        };
         StatementRequest: {
             externalBatchNo?: string;
             /** Format: date-time */
@@ -24214,12 +24606,12 @@ export interface components {
             /** @example 824633720832983041 */
             enteredBy?: string;
             description?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
             /** @description 字典 BIL_PAYMENT_TYPE 的显示文本 */
             readonly paymentTypeText?: string;
             /** @description 字典 PAY_USE_SCENE 的显示文本 */
             readonly paymentSceneCodeText?: string;
-            /** @description 字典 PAY_METHOD 的显示文本 */
-            readonly paymentMethodCodeText?: string;
         };
         RefundOrderRequest: {
             idempotencyKey: string;
@@ -24423,12 +24815,12 @@ export interface components {
             unitName?: string;
             accountingCategory?: string;
             ordering?: components["schemas"]["ChargeOrderingView"];
+            /** @description 字典 BD_ACCOUNTING_CATEGORY 的显示文本 */
+            readonly accountingCategoryText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
             /** @description 字典 BIL_CHARGE_SOURCE_TYPE 的显示文本 */
             readonly sourceTypeText?: string;
-            /** @description 字典 BD_ACCOUNTING_CATEGORY 的显示文本 */
-            readonly accountingCategoryText?: string;
         };
         ChargeOrderingView: {
             /** @example 824633720832983041 */
@@ -24517,12 +24909,12 @@ export interface components {
             errorMessage?: string;
             /** Format: date-time */
             occurredAt?: string;
+            /** @description 字典 BIL_SETTLEMENT_EVENT_TYPE 的显示文本 */
+            readonly eventTypeText?: string;
             /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
             readonly statusFromText?: string;
             /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
             readonly statusToText?: string;
-            /** @description 字典 BIL_SETTLEMENT_EVENT_TYPE 的显示文本 */
-            readonly eventTypeText?: string;
         };
         SettlementLineView: {
             /** @example 824633720832983041 */
@@ -24598,14 +24990,14 @@ export interface components {
             lines?: components["schemas"]["SettlementLineView"][];
             tenders?: components["schemas"]["SettlementTenderView"][];
             events?: components["schemas"]["SettlementEventView"][];
+            /** @description 字典 PAY_USE_SCENE 的显示文本 */
+            readonly terminalSceneText?: string;
             /** @description 字典 BIL_SETTLEMENT_SCENE 的显示文本 */
             readonly settlementSceneText?: string;
             /** @description 字典 BIL_SETTLEMENT_TYPE 的显示文本 */
             readonly settlementTypeText?: string;
             /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
             readonly statusText?: string;
-            /** @description 字典 PAY_USE_SCENE 的显示文本 */
-            readonly terminalSceneText?: string;
         };
         ActualAmountRequest: {
             paymentMethodCode: string;
@@ -26028,10 +26420,10 @@ export interface components {
             /** Format: date */
             effectiveTo?: string;
             publisher?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         PrintTemplateView: {
             /** @example 824633720832983041 */
@@ -26727,10 +27119,10 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_STATUS 的显示文本 */
             readonly sdDictStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DictionaryChangeResponse: {
             /** @example 824633720832983041 */
@@ -26755,10 +27147,10 @@ export interface components {
             changedAt?: string;
             /** @example 824633720832983041 */
             changedBy?: string;
-            /** @description 字典 DICT_CHANGE_TARGET_TYPE 的显示文本 */
-            readonly sdDictChangeTargetTypeText?: string;
             /** @description 字典 DICT_CHANGE_TYPE 的显示文本 */
             readonly sdDictChangeTypeText?: string;
+            /** @description 字典 DICT_CHANGE_TARGET_TYPE 的显示文本 */
+            readonly sdDictChangeTargetTypeText?: string;
         };
         SystemEnumDefinition: {
             code?: string;
@@ -26859,14 +27251,14 @@ export interface components {
             dependsOnValue?: string;
             /** @enum {string} */
             dependencyBehavior?: "DISABLE_AND_SUPPRESS" | "HIDE";
-            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
-            readonly sdParamControlTypeText?: string;
             /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
             readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
             readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
+            readonly sdParamControlTypeText?: string;
         };
         ParameterChangeResponse: {
             /** @example 824633720832983041 */
@@ -27245,10 +27637,10 @@ export interface components {
             manufacturerName?: string;
             packageUnitName?: string;
             prescriptionNo?: string;
-            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
-            readonly priceTypeText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly medicationTypeText?: string;
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly priceTypeText?: string;
         };
         PharmacyClinicalContextView: {
             /** @example 824633720832983041 */
@@ -27287,10 +27679,10 @@ export interface components {
             dispenseUnitCode?: string;
             clinicalContext?: components["schemas"]["PharmacyClinicalContextView"];
             prescriptionRequests?: components["schemas"]["MedicationRequestSnapshot"][];
-            /** @description 字典 SUP_DISPENSE_TASK_STATUS 的显示文本 */
-            readonly taskStatusText?: string;
             /** @description 字典 SUP_PHARMACIST_REVIEW_RESULT 的显示文本 */
             readonly latestReviewResultText?: string;
+            /** @description 字典 SUP_DISPENSE_TASK_STATUS 的显示文本 */
+            readonly taskStatusText?: string;
         };
         DispenseTraceView: {
             /** @example 824633720832983041 */
@@ -27329,17 +27721,17 @@ export interface components {
             /** Format: int64 */
             offset?: number;
             sort?: components["schemas"]["SortObject"];
+            unpaged?: boolean;
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
-            unpaged?: boolean;
         };
         SortObject: {
             empty?: boolean;
-            sorted?: boolean;
             unsorted?: boolean;
+            sorted?: boolean;
         };
         TriageStatisticsResponse: {
             /** Format: int64 */
@@ -27488,14 +27880,14 @@ export interface components {
             /** @example 824633720832983041 */
             departmentId?: string;
             phone?: string;
+            /** @description 字典 SC_VISIT_TYPE 的显示文本 */
+            readonly visitTypeText?: string;
             /** @description 字典 SC_REGISTRATION_SOURCE 的显示文本 */
             readonly registrationSourceText?: string;
             /** @description 字典 SC_RECEPTION_STATUS 的显示文本 */
             readonly statusText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
-            /** @description 字典 SC_VISIT_TYPE 的显示文本 */
-            readonly visitTypeText?: string;
         };
         RegistrationPageView: {
             content?: components["schemas"]["ReceptionQueueItem"][];
@@ -27826,16 +28218,16 @@ export interface components {
             packageUnitName?: string;
             packageFactor?: number;
             products?: components["schemas"]["MedicationProductView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
             /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
             readonly sdAntimicrobialLevelText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly sdMedicationTypeText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
         };
         Requirement: {
             required?: boolean;
@@ -27900,12 +28292,12 @@ export interface components {
             startedAt?: string;
             /** Format: date-time */
             completedAt?: string;
+            /** @description 字典 SC_VISIT_TYPE 的显示文本 */
+            readonly visitTypeText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
             /** @description 字典 SC_REGISTRATION_SOURCE 的显示文本 */
             readonly registrationSourceText?: string;
-            /** @description 字典 SC_VISIT_TYPE 的显示文本 */
-            readonly visitTypeText?: string;
         };
         Settings: {
             enabled?: boolean;
@@ -28005,10 +28397,10 @@ export interface components {
             departmentName?: string;
             /** Format: date-time */
             registeredAt?: string;
-            /** @description 字典 BIL_WORK_STATUS 的显示文本 */
-            readonly statusText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
+            /** @description 字典 BIL_WORK_STATUS 的显示文本 */
+            readonly statusText?: string;
         };
         SettlementRecordView: {
             /** @example 824633720832983041 */
@@ -28050,16 +28442,16 @@ export interface components {
             finalizedBy?: string;
             cashierName?: string;
             cashierUsername?: string;
-            /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
-            readonly statusText?: string;
-            /** @description 字典 BIL_SETTLEMENT_SCENE 的显示文本 */
-            readonly settlementSceneText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
             /** @description 字典 PAY_USE_SCENE 的显示文本 */
             readonly terminalSceneText?: string;
             /** @description 字典 BIL_SETTLEMENT_TYPE 的显示文本 */
             readonly settlementTypeText?: string;
+            /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
+            readonly statusText?: string;
+            /** @description 字典 BIL_SETTLEMENT_SCENE 的显示文本 */
+            readonly settlementSceneText?: string;
         };
         ReliefRecordPage: {
             items?: components["schemas"]["ReliefRecordView"][];
@@ -28136,18 +28528,18 @@ export interface components {
             approvedByName?: string;
             operatorName?: string;
             qualificationText?: string;
-            /** @description 字典 BIL_RELIEF_APPLICATION_STATUS 的显示文本 */
-            readonly statusText?: string;
-            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
-            readonly sponsorText?: string;
-            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
-            readonly timingText?: string;
             /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
             readonly settlementStatusText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
             /** @description 字典 BIL_SETTLEMENT_SCENE 的显示文本 */
             readonly settlementSceneText?: string;
+            /** @description 字典 BIL_RELIEF_APPLICATION_STATUS 的显示文本 */
+            readonly statusText?: string;
+            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
+            readonly sponsorText?: string;
+            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
+            readonly timingText?: string;
         };
         ReliefPolicySummaryView: {
             /** @example 824633720832983041 */
@@ -28168,12 +28560,106 @@ export interface components {
             hasDraft?: boolean;
             /** Format: date-time */
             updatedAt?: string;
+            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
+            readonly sponsorText?: string;
             /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
             readonly timingText?: string;
             /** @description 字典 BIL_RELIEF_POLICY_STATUS 的显示文本 */
             readonly statusText?: string;
-            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
-            readonly sponsorText?: string;
+        };
+        PageResultPaymentReconciliationTaskView: {
+            content?: components["schemas"]["PaymentReconciliationTaskView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PaymentReconciliationAttemptView: {
+            /** Format: int32 */
+            attempt?: number;
+            status?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            /** @example 824633720832983041 */
+            fileId?: string;
+            /** @description 字典 BIL_RECON_TASK_STATUS 的显示文本 */
+            readonly statusText?: string;
+        };
+        PaymentReconciliationFileView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int32 */
+            attempt?: number;
+            sha256?: string;
+            parserVersion?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            proof?: string;
+            latest?: boolean;
+            validated?: boolean;
+        };
+        PaymentReconciliationTaskDetail: {
+            task?: components["schemas"]["PaymentReconciliationTaskView"];
+            files?: components["schemas"]["PaymentReconciliationFileView"][];
+            versions?: components["schemas"]["PaymentReconciliationBatchView"][];
+            attempts?: components["schemas"]["PaymentReconciliationAttemptView"][];
+        };
+        PageResultPaymentReconciliationUnallocatedView: {
+            content?: components["schemas"]["PaymentReconciliationUnallocatedView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PaymentReconciliationUnallocatedView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** Format: int32 */
+            lineNumber?: number;
+            transactionType?: string;
+            merchantOrderNo?: string;
+            refundRequestNo?: string;
+            externalTransactionNo?: string;
+            amount?: number;
+            currencyCode?: string;
+            channelStatus?: string;
+            status?: string;
+            reason?: string;
+            /** @example 824633720832983041 */
+            proposedBy?: string;
+            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
+            readonly statusText?: string;
+            /** @description 字典 BIL_RECON_TXN_TYPE 的显示文本 */
+            readonly transactionTypeText?: string;
+            /** @description 字典 BIL_RECON_CHANNEL_STATUS 的显示文本 */
+            readonly channelStatusText?: string;
+        };
+        PaymentReconciliationEventView: {
+            eventType?: string;
+            statusTo?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            reason?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
+            readonly statusToText?: string;
+            /** @description 字典 BIL_RECON_EVENT_TYPE 的显示文本 */
+            readonly eventTypeText?: string;
         };
         DailyReconciliationView: {
             /** Format: date */
@@ -28194,6 +28680,77 @@ export interface components {
             ledgerCredit?: number;
             ledgerBalance?: number;
             lines?: components["schemas"]["ReconciliationLineView"][];
+        };
+        PaymentReconciliationChannelView: {
+            capability?: components["schemas"]["StatementCapability"];
+            configured?: boolean;
+            merchantLabel?: string;
+            unavailableReason?: string;
+        };
+        StatementCapability: {
+            paymentMethodCode?: string;
+            adapterCode?: string;
+            name?: string;
+            billType?: string;
+            zoneId?: string;
+            availableAfter?: string;
+            /** Format: int32 */
+            historyDays?: number;
+            parserVersion?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+        };
+        PageResultPaymentReconciliationItemView: {
+            content?: components["schemas"]["PaymentReconciliationItemView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        PaymentReconciliationItemView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            paymentOrderId?: string;
+            /** @example 824633720832983041 */
+            paymentId?: string;
+            /** @example 824633720832983041 */
+            statementRowId?: string;
+            transactionType?: string;
+            externalTransactionNo?: string;
+            channelStatus?: string;
+            comparisonResult?: string;
+            status?: string;
+            localAmount?: number;
+            externalAmount?: number;
+            differenceAmount?: number;
+            currencyCode?: string;
+            /** Format: date-time */
+            channelOccurredAt?: string;
+            /** Format: date-time */
+            localPostedAt?: string;
+            /** @example 824633720832983041 */
+            proposedBy?: string;
+            resolution?: string;
+            /** @example 824633720832983041 */
+            reviewedBy?: string;
+            merchantOrderNo?: string;
+            refundRequestNo?: string;
+            externalRefundNo?: string;
+            /** @description 字典 BIL_RECON_TXN_TYPE 的显示文本 */
+            readonly transactionTypeText?: string;
+            /** @description 字典 BIL_RECON_MATCH_TYPE 的显示文本 */
+            readonly comparisonResultText?: string;
+            /** @description 字典 BIL_RECON_CHANNEL_STATUS 的显示文本 */
+            readonly channelStatusText?: string;
+            /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
+            readonly statusText?: string;
         };
         PaymentAuthorizationCodeRule: {
             pattern?: string;
@@ -28549,10 +29106,10 @@ export interface components {
             pricingRequired?: boolean;
             reason?: string;
             clinicalDescription?: string;
-            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
-            readonly serviceTypeText?: string;
             /** @description 字典 BD_PRICE_TYPE 的显示文本 */
             readonly priceTypeText?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly serviceTypeText?: string;
         };
         Capabilities: {
             mode?: string;
@@ -31492,6 +32049,140 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ReliefPolicyView"];
+                };
+            };
+        };
+    };
+    policy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    policy_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    organizationPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
+                };
+            };
+        };
+    };
+    saveOrganizationPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationPolicyView"];
                 };
             };
         };
@@ -47596,6 +48287,310 @@ export interface operations {
             };
         };
     };
+    reviewMerchant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReviewCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    proposeMerchant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_23: {
+        parameters: {
+            query: {
+                paymentMethodCode: string;
+                from: string;
+                to: string;
+                status?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultPaymentReconciliationTaskView"];
+                };
+            };
+        };
+    };
+    create_27: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationTaskView"];
+                };
+            };
+        };
+    };
+    retry_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationVersionCommand"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationTaskView"];
+                };
+            };
+        };
+    };
+    review_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReviewCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    query: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationVersionCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationVerificationView"];
+                };
+            };
+        };
+    };
+    propose: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    close_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentReconciliationReasonCommand"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     resolve_2: {
         parameters: {
             query?: never;
@@ -47631,7 +48626,7 @@ export interface operations {
             };
         };
     };
-    list_23: {
+    list_24: {
         parameters: {
             query?: never;
             header: {
@@ -47660,7 +48655,7 @@ export interface operations {
             };
         };
     };
-    create_27: {
+    create_28: {
         parameters: {
             query?: never;
             header: {
@@ -47833,7 +48828,7 @@ export interface operations {
             };
         };
     };
-    retry_1: {
+    retry_2: {
         parameters: {
             query?: never;
             header: {
@@ -47868,7 +48863,7 @@ export interface operations {
             };
         };
     };
-    query: {
+    query_1: {
         parameters: {
             query?: never;
             header: {
@@ -48376,7 +49371,7 @@ export interface operations {
             };
         };
     };
-    query_1: {
+    query_2: {
         parameters: {
             query?: never;
             header: {
@@ -48677,7 +49672,7 @@ export interface operations {
             };
         };
     };
-    list_24: {
+    list_25: {
         parameters: {
             query?: {
                 status?: string;
@@ -48708,7 +49703,7 @@ export interface operations {
             };
         };
     };
-    create_28: {
+    create_29: {
         parameters: {
             query?: never;
             header: {
@@ -49071,7 +50066,7 @@ export interface operations {
             };
         };
     };
-    query_2: {
+    query_3: {
         parameters: {
             query?: never;
             header: {
@@ -49908,7 +50903,7 @@ export interface operations {
             };
         };
     };
-    review_3: {
+    review_4: {
         parameters: {
             query?: never;
             header: {
@@ -53217,7 +54212,7 @@ export interface operations {
             };
         };
     };
-    list_25: {
+    list_26: {
         parameters: {
             query?: never;
             header: {
@@ -56346,7 +57341,7 @@ export interface operations {
             };
         };
     };
-    list_26: {
+    list_27: {
         parameters: {
             query?: never;
             header: {
@@ -57002,6 +57997,134 @@ export interface operations {
             };
         };
     };
+    detail_6: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationTaskDetail"];
+                };
+            };
+        };
+    };
+    unallocated: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultPaymentReconciliationUnallocatedView"];
+                };
+            };
+        };
+    };
+    evidence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+                fileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    events_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationEventView"][];
+                };
+            };
+        };
+    };
     reconcile_1: {
         parameters: {
             query: {
@@ -57029,6 +58152,101 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DailyReconciliationView"];
+                };
+            };
+        };
+    };
+    catalog_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentReconciliationChannelView"][];
+                };
+            };
+        };
+    };
+    items: {
+        parameters: {
+            query?: {
+                differencesOnly?: boolean;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultPaymentReconciliationItemView"];
+                };
+            };
+        };
+    };
+    export_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
                 };
             };
         };
@@ -57948,7 +59166,7 @@ export interface operations {
             };
         };
     };
-    list_27: {
+    list_28: {
         parameters: {
             query?: {
                 scene?: string;
@@ -57985,7 +59203,7 @@ export interface operations {
             };
         };
     };
-    detail_6: {
+    detail_7: {
         parameters: {
             query?: never;
             header: {

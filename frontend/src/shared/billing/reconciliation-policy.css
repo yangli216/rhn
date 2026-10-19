@@ -1,0 +1,9 @@
+.reconciliation-policy-form {
+  display: grid;
+  gap: var(--layout-section-gap);
+}
+.reconciliation-policy-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-section-gap);
+}

@@ -77,6 +77,7 @@ const BillingQueryWorkspace = lazy(() => import('../features/billing/BillingQuer
   .then((module) => ({ default: module.BillingQueryWorkspace })))
 const RefundManagementWorkspace = lazy(() => import('../features/billing/RefundManagementWorkspace')
   .then((module) => ({ default: module.RefundManagementWorkspace })))
+const PaymentReconciliationWorkspace = lazy(() => import('../features/billing/PaymentReconciliationWorkspace').then(module => ({ default: module.PaymentReconciliationWorkspace })))
 const CashierCloseWorkspace = lazy(() => import('../features/billing/CashierCloseWorkspace')
   .then((module) => ({ default: module.CashierCloseWorkspace })))
 const ReliefPolicyManagement = lazy(() => import('../features/billing/relief/ReliefPolicyManagement')
@@ -277,6 +278,7 @@ export const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'billing-settlement', label: '收费结算', icon: 'billing', to: '/billing/settlement', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-query', label: '收费查询', icon: 'search', to: '/billing/query', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-refunds', label: '退费管理', icon: 'billing', to: '/billing/refunds', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'payment-reconciliation', label: '支付对账', icon: 'billing', to: '/billing/payment-reconciliation', requiredAuthority: 'PAYMENT_RECONCILIATION.READ' },
       { id: 'billing-close', label: '日终结账', icon: 'billing', to: '/billing/daily-close', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'inpatient-deposits', label: '住院预交金', icon: 'card', to: '/inpatient/deposits', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'inpatient-billing', label: '住院费用结算', icon: 'billing', to: '/inpatient/billing', requiredAuthority: 'INPATIENT.ACCESS' },
@@ -447,6 +449,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/billing/settlement') return { id: pathname, path: pathname, title: '收费结算', icon: 'billing', closeable: true }
   if (pathname === '/billing/query') return { id: pathname, path: pathname, title: '收费查询', icon: 'search', closeable: true }
   if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
+  if (pathname === '/billing/payment-reconciliation') return { id: pathname, path: pathname, title: '支付对账', icon: 'billing', closeable: true }
   if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
   if (pathname === '/billing/relief-policies') return { id: pathname, path: pathname, title: '惠民政策', icon: 'settings', closeable: true }
   if (pathname === '/billing/relief-roster') return { id: pathname, path: pathname, title: '惠民资格名单', icon: 'residents', closeable: true }
@@ -1097,6 +1100,10 @@ export function AppShell() {
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/refunds" element={<RefundManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/billing/payment-reconciliation" element={<PaymentReconciliationWorkspace api={tabSlot.api}
+                    contextKey={JSON.stringify([session.tenantId, session.userId, tabSlot.clinicalContext, [...tabAuthorities].sort()])}
+                    organizationId={tabSlot.clinicalContext.organization.id} organizationName={tabSlot.clinicalContext.organization.name}
+                    authorities={[...tabAuthorities]} />} />
                   <Route path="/billing/daily-close" element={<CashierCloseWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/relief-policies" element={<ReliefPolicyManagement api={tabSlot.api}
@@ -1204,7 +1211,7 @@ export function AppShell() {
                   <Route path="/settings/payment-channels" element={<PaymentChannelManagement api={tabSlot.api}
                     contextKey={JSON.stringify([session.tenantId, session.userId, tabSlot.clinicalContext, [...tabAuthorities].sort()])}
                     preferredOrganizationId={tabSlot.clinicalContext.organization.id}
-                    canManage={tabAuthorities.has('PAYMENT_CONFIGURATION.MANAGE') || tabAuthorities.has('ROLE_ADMIN')} />} />
+                    canManage={tabAuthorities.has('PAYMENT_CONFIGURATION.MANAGE') || tabAuthorities.has('ROLE_ADMIN')} reconciliationAuthorities={[...tabAuthorities]} />} />
                   <Route path="/settings/ai-assistant" element={<AiConfigurationManagement api={tabSlot.api} />} />
                   <Route path="/settings/dictionaries" element={<DictionaryManagement api={tabSlot.api}
                     onOpenAttributeConfiguration={(dictionaryId) => navigate(`/settings/dictionary-attributes?dictionaryId=${dictionaryId}`)} />} />

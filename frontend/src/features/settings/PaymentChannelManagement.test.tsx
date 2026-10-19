@@ -20,16 +20,19 @@ const catalog: PaymentConfigurationCatalog = {
   encryptionAvailable: true, organizations: [{ id: 'org1', name: '第一医院' }, { id: 'org2', name: '第二医院' }],
   channels: [channel, { ...channel, paymentMethodCode: 'ANOTHER_PROVIDER', adapterCode: 'ANOTHER', name: '其他渠道' }],
 }
-function setup(options: { initial?: PaymentMerchantConfiguration; catalog?: PaymentConfigurationCatalog; canManage?: boolean } = {}) {
+function setup(options: { initial?: PaymentMerchantConfiguration; catalog?: PaymentConfigurationCatalog; canManage?: boolean; reconciliationAuthorities?: string[]; reconciliationMethods?: string[]; reconciliationError?: boolean } = {}) {
   const billing = {
+    reconciliationChannels: vi.fn().mockResolvedValue((options.reconciliationMethods || []).map(paymentMethodCode => ({ capability: { paymentMethodCode } }))),
+    reconciliationPolicy: vi.fn().mockResolvedValue({ revision: -1, autoEnabled: false, fetchTime: '11:00', backfillDays: 7, zoneId: 'Asia/Shanghai', availableAfter: '10:00', maximumBackfillDays: 90 }),
     paymentConfigurationCatalog: vi.fn().mockResolvedValue(options.catalog || catalog),
     paymentMerchantConfiguration: vi.fn().mockImplementation((organizationId: string, method: string) => Promise.resolve({ ...(options.initial || config), organizationId, paymentMethodCode: method })),
     savePaymentMerchantConfiguration: vi.fn().mockResolvedValue({ ...config, revision: 0, enabled: true, identityLocked: true,
       source: 'MANAGED', values: { appId: 'APP', merchantId: 'MERCHANT' }, configuredSecrets: { apiSecret: true } }),
     checkPaymentMerchantConfiguration: vi.fn().mockResolvedValue({ success: true, message: '仅本地检测通过，需线上联调', checkedAt: '' }),
   }
+  if (options.reconciliationError) billing.reconciliationChannels.mockRejectedValueOnce(new Error('渠道能力暂不可用'))
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  const props = { api: { billing } as unknown as RhnApi, contextKey: 'tenant1:context1', canManage: options.canManage ?? true }
+  const props = { api: { billing } as unknown as RhnApi, contextKey: 'tenant1:context1', canManage: options.canManage ?? true, reconciliationAuthorities: options.reconciliationAuthorities || [] }
   const view = render(<QueryClientProvider client={queryClient}><PaymentChannelManagement {...props} /></QueryClientProvider>)
   const user = userEvent.setup()
   const fill = async () => {
@@ -41,6 +44,22 @@ function setup(options: { initial?: PaymentMerchantConfiguration; catalog?: Paym
 }
 
 describe('PaymentChannelManagement', () => {
+  it('shows a retriable error when reconciliation capabilities fail to load', async () => {
+    const { user, billing } = setup({ reconciliationAuthorities: ['PAYMENT_RECONCILIATION.READ'], reconciliationMethods: [channel.paymentMethodCode], reconciliationError: true })
+    expect(await screen.findByText(/对账能力加载失败/)).toHaveTextContent('渠道能力暂不可用')
+    await user.click(screen.getByRole('button', { name: '重试加载对账能力' }))
+    await screen.findByRole('button', { name: '对账策略' })
+    expect(billing.reconciliationChannels).toHaveBeenCalledTimes(2)
+  })
+  it('shows reconciliation policy only when the selected provider declares statement capabilities', async () => {
+    const { user, billing } = setup({ reconciliationAuthorities: ['PAYMENT_RECONCILIATION.READ'], reconciliationMethods: [channel.paymentMethodCode] })
+    await user.click(await screen.findByRole('button', { name: '对账策略' }))
+    await screen.findByRole('switch', { name: '自动拉取并核对历史交易账单' })
+    expect(billing.reconciliationPolicy).toHaveBeenCalledWith(channel.paymentMethodCode, 'org1')
+    await user.click(screen.getByRole('button', { name: '关闭' }))
+    await user.click(screen.getByRole('button', { name: '其他渠道' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: '对账策略' })).not.toBeInTheDocument())
+  })
   it('renders provider-owned fields, confirms institution and saves secrets without query or mutation caching', async () => {
     const { billing, queryClient, user, fill } = setup()
     await fill()

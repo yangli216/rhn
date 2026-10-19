@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.Collection;
 
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
+ List<LedgerEntry> findByTenantIdAndPaymentIdIn(Long tenant,java.util.Collection<Long> payments);
+
     Optional<LedgerEntry> findByTenantIdAndChargeItemId(Long tenantId, Long chargeItemId);
     Optional<LedgerEntry> findByTenantIdAndPaymentId(Long tenantId, Long paymentId);
     Optional<LedgerEntry> findByTenantIdAndClaimResponseIdAndEntryType(

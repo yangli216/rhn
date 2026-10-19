@@ -1,0 +1,37 @@
+.payment-reconciliation-toolbar {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: var(--layout-panel-gap);
+}
+.payment-reconciliation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--layout-panel-gap);
+}
+.payment-reconciliation-list {
+  display: grid;
+  align-content: start;
+  gap: var(--layout-panel-gap);
+}
+.payment-reconciliation-list > button {
+  display: grid;
+  justify-items: start;
+}
+.payment-reconciliation-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-section-gap);
+}
+.payment-reconciliation-summary dd {
+  margin: 0;
+}
+.payment-reconciliation-evidence {
+  display: grid;
+  gap: var(--layout-section-gap);
+}
+.payment-reconciliation-digest {
+  max-width: 24rem;
+  overflow-wrap: anywhere;
+}

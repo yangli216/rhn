@@ -70,9 +70,11 @@ public class ReconciliationTransactionService {
                 ReconciliationBatchStatus.RESOLVED).contains(batch.status())) return view(batch, true);
         if (!items.findByTenantIdAndReconciliationBatchIdOrderById(c.tenantId(), batch.id()).isEmpty())
             throw conflict("RECON_ALREADY_APPLIED", "对账批次已有明细，不能重复覆盖");
+        if(batch.statementFileId()!=null) throw conflict("RECON_VERSIONED_BATCH_PROTECTED", "正式账单版本不能由标准化JSON回执覆盖");
+        if(statement==null || statement.transactions()==null) throw badRequest("RECON_STATEMENT_REQUIRED", "不能将缺失的账单解释为空账");
         List<ExternalTransaction> external =
                 statement == null || statement.transactions() == null ? List.of() : statement.transactions();
-        ZoneId zone = ZoneId.systemDefault();
+        ZoneId zone = ZoneId.of("Asia/Shanghai");
         Instant from = batch.businessDate().atStartOfDay(zone).toInstant();
         Instant to = batch.businessDate().plusDays(1).atStartOfDay(zone).toInstant();
         List<Payment> local = payments.findForChannelReconciliation(c.tenantId(), c.organizationId(),
@@ -133,6 +135,7 @@ public class ReconciliationTransactionService {
         ReconciliationItem item = items.lock(itemId, c.tenantId())
                 .orElseThrow(() -> notFound("RECON_ITEM_NOT_FOUND", "未找到对账差异"));
         ReconciliationBatch b = lock(item.reconciliationBatchId(), c);
+        if(b.statementFileId()!=null) throw conflict("RECON_VERSIONED_BATCH_PROTECTED", "正式账单差异需要版本化核查与复核");
         if (!"OPEN".equals(item.status())) return view(b, true);
         String reason = required(in.reason(), "RECON_RESOLUTION_REQUIRED", "差异处置原因不能为空");
         String command = required(in.commandCode(), "RECON_RESOLUTION_COMMAND_REQUIRED", "差异处置命令不能为空");
@@ -262,11 +265,11 @@ public class ReconciliationTransactionService {
     record ResolveCommand(String commandCode, String reason, boolean ignore) {}
 
     public record ItemView(Long id, long revision, Long paymentId, String externalTransactionNo, String matchType,
-            String status, BigDecimal localAmount, BigDecimal externalAmount, BigDecimal differenceAmount,
+            @DictionaryBinding("BIL_RECON_DISPOSITION") String status, BigDecimal localAmount, BigDecimal externalAmount, BigDecimal differenceAmount,
             String currencyCode, Instant resolvedAt, String resolution) {}
 
     public record BatchView(Long id, long revision, String batchNo, String commandCode, String reconciliationType,
-            String status, String sourceCode, @DictionaryBinding("PAY_METHOD") String paymentMethodCode, String externalBatchNo, LocalDate businessDate,
+            @DictionaryBinding("BIL_RECON_RESULT") String status, String sourceCode, @DictionaryBinding("PAY_METHOD") String paymentMethodCode, String externalBatchNo, LocalDate businessDate,
             int localCount, int externalCount, int differenceCount, BigDecimal localAmount, BigDecimal externalAmount,
             BigDecimal differenceAmount, String currencyCode, Instant createdAt, Instant completedAt, boolean duplicate,
             List<ItemView> items) {}
