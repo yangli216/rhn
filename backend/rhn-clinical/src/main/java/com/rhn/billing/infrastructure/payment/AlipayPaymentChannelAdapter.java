@@ -27,6 +27,7 @@ public final class AlipayPaymentChannelAdapter implements PaymentChannelAdapter 
     }
     @Override public boolean configured(Long tenantId, Long organizationId) { return clients.configured(tenantId, organizationId); }
     @Override public void validate(PaymentInstruction in) {
+        clients.requireCollectionEnabled(in.tenantId(), in.organizationId());
         money(in.amount(), in.currencyCode()); PaymentChannelAdapter.super.validate(in);
         clients.client(clients.merchant(in.tenantId(), in.organizationId()));
     }
@@ -85,7 +86,7 @@ public final class AlipayPaymentChannelAdapter implements PaymentChannelAdapter 
     }
     private <T extends AlipayResponse> T execute(AlipayMerchant merchant, AlipayRequest<T> request) {
         var client = clients.client(merchant);
-        try { return merchant.appCertPath() == null ? client.execute(request) : client.certificateExecute(request); }
+        try { return clients.certificateMode(merchant) ? client.certificateExecute(request) : client.execute(request); }
         catch (AlipayApiException | RuntimeException exception) { throw uncertain(); }
     }
 }

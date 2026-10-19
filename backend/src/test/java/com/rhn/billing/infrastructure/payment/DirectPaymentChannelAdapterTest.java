@@ -157,7 +157,7 @@ class DirectPaymentChannelAdapterTest {
         assertFalse(wechatMerchant().toString().contains("secret"));
     }
     @Test void configurationNeverFallsBackToAnotherInstitutionOrDuplicateMerchant() {
-        var real=new WechatPaymentClients(new WechatPaymentProperties(true, List.of(wechatMerchant())));
+        var real=new WechatPaymentClients(new WechatPaymentProperties(true, List.of(wechatMerchant())), mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class));
         assertThrows(BusinessException.class,()->real.merchant(1L,3L));
         assertThrows(BusinessException.class,()->real.merchant(2L,2L));
         assertThrows(IllegalArgumentException.class,()->new WechatPaymentProperties(true, List.of(wechatMerchant(),wechatMerchant())));
@@ -176,28 +176,29 @@ class DirectPaymentChannelAdapterTest {
         verifyNoInteractions(wx);
     }
     @Test void directAdaptersAreExclusiveWithTheExplicitSimulationSwitch() {
-        new ApplicationContextRunner().withUserConfiguration(AlipayPaymentConfiguration.class, WechatPaymentConfiguration.class).run(c->assertEquals(2,c.getBeansOfType(PaymentChannelAdapter.class).size()));
-        new ApplicationContextRunner().withUserConfiguration(AlipayPaymentConfiguration.class, WechatPaymentConfiguration.class)
+        new ApplicationContextRunner().withBean(com.rhn.billing.application.PaymentMerchantConfigurationStore.class, () -> mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class)).withUserConfiguration(AlipayPaymentConfiguration.class, WechatPaymentConfiguration.class).run(c->assertEquals(2,c.getBeansOfType(PaymentChannelAdapter.class).size()));
+        new ApplicationContextRunner().withBean(com.rhn.billing.application.PaymentMerchantConfigurationStore.class, () -> mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class)).withUserConfiguration(AlipayPaymentConfiguration.class, WechatPaymentConfiguration.class)
                 .withPropertyValues("rhn.billing.payment.aggregated-adapter.enabled=true").run(c->assertTrue(c.getBeansOfType(PaymentChannelAdapter.class).isEmpty()));
     }
     @Test void providerConfigurationRejectsAnotherProvidersCredentialFields() {
-        new ApplicationContextRunner().withUserConfiguration(AlipayPaymentConfiguration.class)
+        new ApplicationContextRunner().withBean(com.rhn.billing.application.PaymentMerchantConfigurationStore.class, () -> mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class)).withUserConfiguration(AlipayPaymentConfiguration.class)
                 .withPropertyValues("rhn.billing.payment.alipay.merchants[0].tenant-id=1",
                         "rhn.billing.payment.alipay.merchants[0].organization-id=2",
                         "rhn.billing.payment.alipay.merchants[0].api-key=not-an-alipay-field")
                 .run(context->assertNotNull(context.getStartupFailure()));
     }
     @Test void providerCanBeDisabledWithoutDisablingAnotherProvider() {
-        new ApplicationContextRunner().withUserConfiguration(AlipayPaymentConfiguration.class,WechatPaymentConfiguration.class)
+        new ApplicationContextRunner().withBean(com.rhn.billing.application.PaymentMerchantConfigurationStore.class, () -> mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class)).withUserConfiguration(AlipayPaymentConfiguration.class,WechatPaymentConfiguration.class)
                 .withPropertyValues("rhn.billing.payment.alipay.enabled=false")
                 .run(context->{assertTrue(context.getBeansOfType(AlipayPaymentChannelAdapter.class).isEmpty());
                     assertEquals(1,context.getBeansOfType(WechatPaymentChannelAdapter.class).size());});
     }
     @Test void providersCanBeExplicitlyEnabledWithStrictConfigurationBinding() {
-        new ApplicationContextRunner().withUserConfiguration(AlipayPaymentConfiguration.class,WechatPaymentConfiguration.class)
+        new ApplicationContextRunner().withBean(com.rhn.billing.application.PaymentMerchantConfigurationStore.class, () -> mock(com.rhn.billing.application.PaymentMerchantConfigurationStore.class)).withUserConfiguration(AlipayPaymentConfiguration.class,WechatPaymentConfiguration.class)
                 .withPropertyValues("rhn.billing.payment.alipay.enabled=true", "rhn.billing.payment.wechat.enabled=true")
                 .run(context->{assertNull(context.getStartupFailure());
-                    assertEquals(2,context.getBeansOfType(PaymentChannelAdapter.class).size());});
+                    assertEquals(2,context.getBeansOfType(PaymentChannelAdapter.class).size());
+                    assertEquals(2,context.getBeansOfType(com.rhn.billing.api.PaymentChannelConfigurationAdapter.class).size());});
     }
 
 }

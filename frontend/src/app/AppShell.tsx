@@ -44,6 +44,8 @@ const BusinessNumberManagement = lazy(() => import('../features/settings/Busines
   .then((module) => ({ default: module.BusinessNumberManagement })))
 const ParameterManagement = lazy(() => import('../features/settings/ParameterManagement')
   .then((module) => ({ default: module.ParameterManagement })))
+const PaymentChannelManagement = lazy(() => import('../features/settings/PaymentChannelManagement')
+  .then((module) => ({ default: module.PaymentChannelManagement })))
 const AiConfigurationManagement = lazy(() => import('../features/settings/AiConfigurationManagement')
   .then((module) => ({ default: module.AiConfigurationManagement })))
 const PrintTemplateManagement = lazy(() => import('../features/settings/PrintTemplateManagement')
@@ -316,6 +318,11 @@ export const NAVIGATION_NODES: NavigationNode[] = [
     ],
   },
   {
+    id: 'system-settings', label: '系统设置', icon: 'settings', children: [
+      { id: 'payment-channels', label: '支付渠道', icon: 'settings', to: '/settings/payment-channels', requiredAuthority: 'PAYMENT_CONFIGURATION.MANAGE' },
+    ],
+  },
+  {
     id: 'business-config', label: '业务规则管理', icon: 'settings', children: [
       { id: 'business-parameters', label: '业务参数配置', icon: 'settings', to: '/settings/business-parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'print-templates', label: '打印模板', icon: 'print', to: '/settings/print-templates', requiredAuthority: 'CONFIGURATION.ACCESS' },
@@ -464,6 +471,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/system-parameters') return { id: pathname, path: pathname, title: '系统运行参数', icon: 'settings', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/print-templates') return { id: pathname, path: pathname, title: '打印模板', icon: 'print', closeable: true }
+  if (pathname === '/settings/payment-channels') return { id: pathname, path: pathname, title: '支付渠道', icon: 'settings', closeable: true }
   if (pathname === '/settings/ai-assistant') return { id: pathname, path: pathname, title: 'AI助理配置', icon: 'sparkles', closeable: true }
   if (pathname === '/settings/dictionaries') return { id: pathname, path: pathname, title: '字典管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/dictionary-attributes') return { id: pathname, path: pathname, title: '字典扩展配置', icon: 'settings', closeable: true }
@@ -1128,6 +1136,10 @@ export function AppShell() {
                     userId: session.userId,
                   }} />} />
                   <Route path="/settings/print-templates" element={<PrintTemplateManagement api={tabSlot.api} />} />
+                  <Route path="/settings/payment-channels" element={<PaymentChannelManagement api={tabSlot.api}
+                    contextKey={JSON.stringify([session.tenantId, session.userId, tabSlot.clinicalContext, [...tabAuthorities].sort()])}
+                    preferredOrganizationId={tabSlot.clinicalContext.organization.id}
+                    canManage={tabAuthorities.has('PAYMENT_CONFIGURATION.MANAGE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/ai-assistant" element={<AiConfigurationManagement api={tabSlot.api} />} />
                   <Route path="/settings/dictionaries" element={<DictionaryManagement api={tabSlot.api}
                     onOpenAttributeConfiguration={(dictionaryId) => navigate(`/settings/dictionary-attributes?dictionaryId=${dictionaryId}`)} />} />

@@ -11,6 +11,6 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "rhn.billing.payment.direct.enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(name = "rhn.billing.payment.alipay.enabled", havingValue = "true", matchIfMissing = true)
 class AlipayPaymentConfiguration {
-    @Bean AlipayPaymentClients alipayPaymentClients(AlipayPaymentProperties properties) { return new AlipayPaymentClients(properties); }
+    @Bean AlipayPaymentClients alipayPaymentClients(AlipayPaymentProperties properties, com.rhn.billing.application.PaymentMerchantConfigurationStore settings) { return new AlipayPaymentClients(properties, settings); }
     @Bean AlipayPaymentChannelAdapter alipayPaymentChannelAdapter(AlipayPaymentClients clients) { return new AlipayPaymentChannelAdapter(clients); }
 }

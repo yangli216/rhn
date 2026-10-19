@@ -3,6 +3,13 @@ import type { WorkContextOption } from '../shared/rhnApi'
 import { canAccessDiagnosticWorkspace, NAVIGATION_NODES, selectableWarehouseContexts, selectableWorkContexts, tabForPath, workContextTypeForPath } from './AppShell'
 
 describe('AppShell work context routing', () => {
+  it('places institution payment configuration under system settings with its dedicated permission', () => {
+    const settings = NAVIGATION_NODES.find(node => node.label === '系统设置')
+    expect(settings?.children?.find(node => node.id === 'payment-channels')).toMatchObject({
+      label: '支付渠道', to: '/settings/payment-channels', requiredAuthority: 'PAYMENT_CONFIGURATION.MANAGE',
+    })
+    expect(tabForPath('/settings/payment-channels')).toMatchObject({ title: '支付渠道', icon: 'settings' })
+  })
   it('groups laboratory, examination, skin tests, treatments and clinical printing under medtech-services', () => {
     const medtech = NAVIGATION_NODES.find((node) => node.id === 'medtech-services')
     expect(medtech).toBeDefined()

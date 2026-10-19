@@ -19,6 +19,7 @@ final class BillingMaintenanceTables {
                 new TableDefinition("RHN_BIL_INVOICE_LINE", "ID_INVOICE_LINE", "BILLING", "发票明细", false),
                 new TableDefinition("RHN_BIL_LEDGER_ENTRY", "ID_LEDGER_ENTRY", "BILLING", "台账分录", false),
                 new TableDefinition("RHN_BIL_PAT_ACCT", "ID_PAT_ACCT", "BILLING", "患者账户", false),
+                new TableDefinition("RHN_BIL_PAY_CFG", "ID_PAY_CFG", "BILLING", "机构支付渠道配置", true),
                 new TableDefinition("RHN_BIL_PAY", "ID_PAY", "BILLING", "支付", false),
                 new TableDefinition("RHN_BIL_PAY_EVT", "ID_PAY_EVT", "BILLING", "支付事件", false),
                 new TableDefinition("RHN_BIL_PAY_ORDER", "ID_PAY_ORDER", "BILLING", "支付医嘱", false),

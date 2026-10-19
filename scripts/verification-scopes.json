@@ -268,13 +268,14 @@
     },
     "billing": {
       "coverage": [
-        "收费展示、结算、退款、支付精度与门诊费用来源"
+        "收费展示、结算、退款、支付渠道配置与直连支付、支付精度与门诊费用来源"
       ],
       "limitations": [
         "维护映射覆盖对应业务回归；公开契约、迁移、权限及跨领域联动需扩大检查，完整 CI 保留。"
       ],
       "frontend_only": false,
       "frontend": [
+        "src/app/AppShellContext.test.ts",
         "src/features/billing/BillingQueryWorkspace.test.tsx",
         "src/features/billing/BillingWorkspace.results.test.tsx",
         "src/features/billing/BillingWorkspace.test.tsx",
@@ -283,12 +284,16 @@
         "src/features/billing/RefundManagementWorkspace.truth.test.tsx",
         "src/shared/billing/SettlementPaymentPanel.test.tsx",
         "src/shared/billing/AggregatedPaymentModal.test.tsx",
+        "src/features/settings/PaymentChannelManagement.test.tsx",
         "src/shared/billing/useCashierPaymentMethods.test.tsx",
         "src/shared/billing/roundAmount.test.ts"
       ],
       "backend": [
         "ArchitectureTest",
         "BillingSettlementTest",
+        "PaymentChannelManagementTest",
+        "PaymentChannelConfigurationAuthorizationTest",
+        "RhnPhysicalSchemaGovernanceTest",
         "BillingDisplayDictionaryTest",
         "ChargeCategoryAccountingTest",
         "PaymentRoundingIntegrationTest",
@@ -299,7 +304,8 @@
         "com.rhn.billing.application.MedicationReturnChargeTruthTest",
         "com.rhn.billing.application.DirectPaymentOrchestrationTest",
         "com.rhn.billing.application.PaymentChannelRegistryTest",
-        "com.rhn.billing.infrastructure.payment.DirectPaymentChannelAdapterTest"
+        "com.rhn.billing.infrastructure.payment.DirectPaymentChannelAdapterTest",
+        "com.rhn.billing.infrastructure.payment.PaymentManagedClientsTest"
       ]
     },
     "master-data": {

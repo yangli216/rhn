@@ -51,7 +51,7 @@ public class PaymentChannelRegistry {
         if (adapter == null) return new PaymentChannelCapabilityView(method, false, null, "支付方式未配置可交互的渠道适配器");
         boolean available = adapter.configured(tenantId, organizationId);
         return new PaymentChannelCapabilityView(method, available, adapter.capabilities(method),
-                available ? null : "当前机构未配置唯一的渠道商户，请联系管理员");
+                available ? null : "当前机构的渠道未启用或商户配置不可用，请联系管理员");
     }
 
     private static String normalize(String value) {

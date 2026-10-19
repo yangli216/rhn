@@ -12006,6 +12006,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/payment-channel-management/organizations/{organizationId}/channels/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentMerchantConfiguration"];
+        put: operations["savePaymentMerchantConfiguration"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-channel-management/organizations/{organizationId}/channels/{method}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["checkPaymentMerchantConfiguration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-channel-management": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentConfigurationCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -27802,6 +27850,77 @@ export interface components {
             unavailableReason?: string;
             /** @description 字典 PAY_METHOD 的显示文本 */
             readonly paymentMethodCodeText?: string;
+        };
+        PaymentMerchantConfigurationUpdate: {
+            /** Format: int64 */
+            expectedRevision: number;
+            enabled: boolean;
+            values?: {
+                [key: string]: string;
+            };
+            clearSecrets?: string[];
+        };
+        PaymentMerchantConfigurationView: {
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            paymentMethodCode?: string;
+            /** Format: int64 */
+            revision?: number;
+            enabled?: boolean;
+            identityLocked?: boolean;
+            source?: string;
+            encryptionAvailable?: boolean;
+            values?: {
+                [key: string]: string;
+            };
+            configuredSecrets?: {
+                [key: string]: boolean;
+            };
+            /** Format: date-time */
+            updatedAt?: string;
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+        };
+        PaymentConfigurationCheckResult: {
+            success?: boolean;
+            message?: string;
+            /** Format: date-time */
+            checkedAt?: string;
+        };
+        PaymentConfigurationCatalog: {
+            encryptionAvailable?: boolean;
+            organizations?: components["schemas"]["PaymentConfigurationOrganization"][];
+            channels?: components["schemas"]["PaymentConfigurationDescriptor"][];
+        };
+        PaymentConfigurationDescriptor: {
+            paymentMethodCode?: string;
+            adapterCode?: string;
+            name?: string;
+            fields?: components["schemas"]["PaymentConfigurationField"][];
+            /** @description 字典 PAY_METHOD 的显示文本 */
+            readonly paymentMethodCodeText?: string;
+        };
+        PaymentConfigurationField: {
+            key?: string;
+            label?: string;
+            control?: string;
+            required?: boolean;
+            secret?: boolean;
+            identity?: boolean;
+            accept?: string;
+            encoding?: string;
+            options?: components["schemas"]["PaymentConfigurationOption"][];
+            visibleWhenField?: string;
+            visibleWhenValue?: string;
+        };
+        PaymentConfigurationOption: {
+            value?: string;
+            label?: string;
+        };
+        PaymentConfigurationOrganization: {
+            /** @example 824633720832983041 */
+            id?: string;
+            name?: string;
         };
     };
     responses: never;
@@ -56404,6 +56523,139 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PaymentChannelCapabilityView"];
+                };
+            };
+        };
+    };
+    paymentMerchantConfiguration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentMerchantConfigurationView"];
+                };
+            };
+        };
+    };
+    savePaymentMerchantConfiguration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentMerchantConfigurationUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentMerchantConfigurationView"];
+                };
+            };
+        };
+    };
+    checkPaymentMerchantConfiguration: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                organizationId: string;
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentMerchantConfigurationUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentConfigurationCheckResult"];
+                };
+            };
+        };
+    };
+    paymentConfigurationCatalog: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentConfigurationCatalog"];
                 };
             };
         };

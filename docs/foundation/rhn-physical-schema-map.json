@@ -30753,5 +30753,64 @@
         "comment": "操作账号名称快照"
       }
     ]
+  },
+  {
+    "logical": "bil.payment_merchant_configuration",
+    "legacy": "BIL_PAYMENT_MERCHANT_CONFIG",
+    "physical": "RHN_BIL_PAY_CFG",
+    "domain": "BIL",
+    "comment": "支付渠道机构商户配置；一行代表一个租户法人机构的一种支付方式的加密商户配置",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PAY_CFG",
+        "comment": "支付渠道配置主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "法人机构标识"
+      },
+      {
+        "logical": "payment_method_code",
+        "physical": "CD_PAY_METHOD",
+        "comment": "支付方式编码"
+      },
+      {
+        "logical": "enabled",
+        "physical": "FL_ENABLED",
+        "comment": "是否允许新收款；停用保留原单查询退款"
+      },
+      {
+        "logical": "identity_locked",
+        "physical": "FL_ID_LOCK",
+        "comment": "商户身份是否已锁定"
+      },
+      {
+        "logical": "encrypted_values",
+        "physical": "TXT_CIPHER",
+        "comment": "机构渠道凭证配置密文；不保存明文"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "最后修改人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最后修改时间"
+      }
+    ]
   }
 ]

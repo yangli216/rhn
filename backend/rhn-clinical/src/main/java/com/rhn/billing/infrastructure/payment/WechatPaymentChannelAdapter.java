@@ -20,6 +20,7 @@ public final class WechatPaymentChannelAdapter implements PaymentChannelAdapter 
     }
     @Override public boolean configured(Long tenantId, Long organizationId) { return clients.configured(tenantId, organizationId); }
     @Override public void validate(PaymentInstruction in) {
+        clients.requireCollectionEnabled(in.tenantId(), in.organizationId());
         cents(in.amount(), in.currencyCode()); PaymentChannelAdapter.super.validate(in);
         clients.client(clients.merchant(in.tenantId(), in.organizationId()));
     }

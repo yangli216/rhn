@@ -13,6 +13,23 @@ export type PaymentChannelCapabilities = ContractProjection<RequiredWireView<com
 export type PaymentChannelCapability = ContractProjection<RequiredWireView<components['schemas']['PaymentChannelCapabilityView'],
   'paymentMethodCode' | 'available'>, { capabilities?: PaymentChannelCapabilities }>
 
+export type PaymentConfigurationOption = RequiredWireView<components['schemas']['PaymentConfigurationOption'], 'value' | 'label'>
+export type PaymentConfigurationField = ContractProjection<RequiredWireView<components['schemas']['PaymentConfigurationField'],
+  'key' | 'label' | 'control' | 'required' | 'secret' | 'identity'>, { options: PaymentConfigurationOption[] }>
+export type PaymentConfigurationDescriptor = ContractProjection<RequiredWireView<components['schemas']['PaymentConfigurationDescriptor'],
+  'paymentMethodCode' | 'adapterCode' | 'name'>, { fields: PaymentConfigurationField[] }>
+export type PaymentConfigurationOrganization = RequiredWireView<components['schemas']['PaymentConfigurationOrganization'], 'id' | 'name'>
+export type PaymentConfigurationCatalog = ContractProjection<RequiredWireView<components['schemas']['PaymentConfigurationCatalog'], 'encryptionAvailable'>, {
+  channels: PaymentConfigurationDescriptor[]; organizations: PaymentConfigurationOrganization[]
+}>
+export type PaymentMerchantConfiguration = ContractProjection<RequiredWireView<components['schemas']['PaymentMerchantConfigurationView'],
+  'organizationId' | 'paymentMethodCode' | 'revision' | 'enabled' | 'identityLocked' | 'source' | 'encryptionAvailable'>, {
+  values: Record<string, string>; configuredSecrets: Record<string, boolean>
+}>
+export type PaymentMerchantConfigurationUpdate = ContractProjection<RequiredWireView<components['schemas']['PaymentMerchantConfigurationUpdate'],
+  'expectedRevision' | 'enabled'>, { values: Record<string, string>; clearSecrets: string[] }>
+export type PaymentConfigurationCheckResult = RequiredWireView<components['schemas']['PaymentConfigurationCheckResult'], 'success' | 'message' | 'checkedAt'>
+
 export interface BillingWorkItem {
   encounterId: string
   residentId: string
@@ -337,6 +354,18 @@ export function createBillingApi(client: ApiClient) {
     }) => client.request<Payment>(`/api/billing/invoices/${invoiceId}/payments`, {
       method: 'POST', body: JSON.stringify(input),
     }),
+    paymentConfigurationCatalog: () => client.request<PaymentConfigurationCatalog>('/api/billing/payment-channel-management'),
+    paymentMerchantConfiguration: (organizationId: string, method: string) => client.request<PaymentMerchantConfiguration>(
+      `/api/billing/payment-channel-management/organizations/${encodeURIComponent(organizationId)}/channels/${encodeURIComponent(method)}`,
+    ),
+    savePaymentMerchantConfiguration: (organizationId: string, method: string, input: PaymentMerchantConfigurationUpdate) => client.request<PaymentMerchantConfiguration>(
+      `/api/billing/payment-channel-management/organizations/${encodeURIComponent(organizationId)}/channels/${encodeURIComponent(method)}`,
+      { method: 'PUT', body: JSON.stringify(input) },
+    ),
+    checkPaymentMerchantConfiguration: (organizationId: string, method: string, input: PaymentMerchantConfigurationUpdate) => client.request<PaymentConfigurationCheckResult>(
+      `/api/billing/payment-channel-management/organizations/${encodeURIComponent(organizationId)}/channels/${encodeURIComponent(method)}/check`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
     paymentChannelCapabilities: (paymentMethodCode: string) => client.request<PaymentChannelCapability>(
       `/api/billing/payment-methods/${encodeURIComponent(paymentMethodCode)}/capabilities`,
     ),
