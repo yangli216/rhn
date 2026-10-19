@@ -33,7 +33,7 @@ const LIMITS: Record<string, { min: number; max: number; step?: number }> = {
   'decision-timeout-seconds': { min: 1, max: 30, step: 1 },
   'decision-min-confidence-percent': { min: 50, max: 100, step: 1 },
   'request-timeout-seconds': { min: 5, max: 120, step: 1 },
-  'max-output-tokens': { min: 512, max: 8000, step: 128 },
+  'max-output-tokens': { min: 512, max: 8000 },
   'suggestion-ttl-minutes': { min: 5, max: 240, step: 5 },
   'rollout-percentage': { min: 0, max: 100, step: 5 },
   'voice-max-audio-mb': { min: 1, max: 20, step: 1 },
@@ -116,7 +116,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       endpoint: typeof draft['decision-endpoint'] === 'string' ? draft['decision-endpoint'] : undefined,
       model: typeof draft['decision-model'] === 'string' ? draft['decision-model'] : undefined,
       secretValue: secrets['decision-api-key'] || undefined,
-      timeoutSeconds: typeof draft['decision-timeout-seconds'] === 'number' ? draft['decision-timeout-seconds'] : 8,
+      timeoutSeconds: typeof draft['decision-timeout-seconds'] === 'number' ? draft['decision-timeout-seconds'] : undefined,
     }),
     onSuccess: (result) => setTestResult((current) => ({ ...current, DECISION: result })),
     onError: (error) => setTestResult((current) => ({ ...current, DECISION: {
@@ -132,7 +132,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       endpoint: typeof draft['endpoint'] === 'string' ? draft['endpoint'] : undefined,
       model: typeof draft['model'] === 'string' ? draft['model'] : undefined,
       secretValue: secrets['api-key'] || undefined,
-      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : 15,
+      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : undefined,
     }),
     onSuccess: (res) => {
       setTestResult((prev) => ({ ...prev, MODEL: res }))
@@ -163,7 +163,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       endpoint: typeof draft['speech-endpoint'] === 'string' ? draft['speech-endpoint'] : undefined,
       model: typeof draft['speech-model'] === 'string' ? draft['speech-model'] : undefined,
       secretValue: secrets['api-key'] || undefined,
-      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : 15,
+      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : undefined,
     }),
     onSuccess: (res) => {
       setTestResult((prev) => ({ ...prev, SPEECH: res }))
@@ -193,7 +193,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       target: 'KNOWLEDGE',
       endpoint: typeof draft['knowledge-endpoint'] === 'string' ? draft['knowledge-endpoint'] : undefined,
       secretValue: secrets['knowledge-api-key'] || secrets['api-key'] || undefined,
-      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : 15,
+      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : undefined,
     }),
     onSuccess: (res) => {
       setTestResult((prev) => ({ ...prev, KNOWLEDGE: res }))

@@ -80,6 +80,8 @@ const ReliefPolicyManagement = lazy(() => import('../features/billing/relief/Rel
   .then((module) => ({ default: module.ReliefPolicyManagement })))
 const ReliefRosterManagement = lazy(() => import('../features/billing/relief/ReliefRosterManagement')
   .then((module) => ({ default: module.ReliefRosterManagement })))
+const ReliefRecordQuery = lazy(() => import('../features/billing/relief/ReliefRecordQuery')
+  .then((module) => ({ default: module.ReliefRecordQuery })))
 const LaboratoryWorkspace = lazy(() => import('../features/diagnostics/laboratory/LaboratoryWorkspace')
   .then((module) => ({ default: module.LaboratoryWorkspace })))
 const ExaminationWorkspace = lazy(() => import('../features/diagnostics/examination/ExaminationWorkspace')
@@ -273,6 +275,7 @@ export const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'billing-close', label: '日终结账', icon: 'billing', to: '/billing/daily-close', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-relief-policies', label: '惠民政策', icon: 'settings', to: '/billing/relief-policies', requiredAuthority: 'BILLING_RELIEF.MANAGE' },
       { id: 'billing-relief-roster', label: '惠民资格名单', icon: 'residents', to: '/billing/relief-roster', requiredAuthority: 'BILLING_RELIEF.ROSTER' },
+      { id: 'billing-relief-records', label: '惠民减免查询', icon: 'search', to: '/billing/relief-records', requiredAuthority: 'BILLING_RELIEF.QUERY' },
     ],
   },
   {
@@ -431,6 +434,9 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/billing/query') return { id: pathname, path: pathname, title: '收费查询', icon: 'search', closeable: true }
   if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
   if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
+  if (pathname === '/billing/relief-policies') return { id: pathname, path: pathname, title: '惠民政策', icon: 'settings', closeable: true }
+  if (pathname === '/billing/relief-roster') return { id: pathname, path: pathname, title: '惠民资格名单', icon: 'residents', closeable: true }
+  if (pathname === '/billing/relief-records') return { id: pathname, path: pathname, title: '惠民减免查询', icon: 'search', closeable: true }
   if (pathname === '/diagnostics/laboratory') return { id: pathname, path: pathname, title: '检验工作台', icon: 'flask', closeable: true }
   if (pathname === '/diagnostics/examination') return { id: pathname, path: pathname, title: '检查工作台', icon: 'clinical', closeable: true }
   if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'syringe', closeable: true }
@@ -1042,6 +1048,7 @@ export function AppShell() {
                     canManage={tabAuthorities.has('BILLING_RELIEF.MANAGE')} />} />
                   <Route path="/billing/relief-roster" element={<ReliefRosterManagement api={tabSlot.api}
                     canEdit={tabAuthorities.has('BILLING_RELIEF.ROSTER')} />} />
+                  <Route path="/billing/relief-records" element={<ReliefRecordQuery api={tabSlot.api} />} />
                   <Route path="/diagnostics/laboratory" element={<LaboratoryWorkspace api={tabSlot.api}
                     authorities={[...tabAuthorities]}
                     clinicalContext={tabSlot.clinicalContext} onDirtyChange={(value) => markDirty(tab.id, value)}

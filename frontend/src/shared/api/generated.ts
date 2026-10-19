@@ -11429,6 +11429,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/relief/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchReliefRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/relief/policies/{policyId}": {
         parameters: {
             query?: never;
@@ -16151,6 +16167,7 @@ export interface components {
             versionNote?: string;
             rules?: components["schemas"]["ReliefRuleInput"][];
             qualifications?: components["schemas"]["ReliefQualificationInput"][];
+            manualApprovalAmount?: number;
         };
         ReliefQualificationInput: {
             /** @enum {string} */
@@ -16295,16 +16312,17 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             publishedAt?: string;
-            /** @description 字典 BIL_RELIEF_QUOTA_PERIOD 的显示文本 */
-            readonly quotaPeriodText?: string;
-            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
-            readonly timingText?: string;
-            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
-            readonly sponsorText?: string;
-            /** @description 字典 BIL_RELIEF_QUALIFICATION_MODE 的显示文本 */
-            readonly qualificationModeText?: string;
+            manualApprovalAmount?: number;
             /** @description 字典 BIL_RELIEF_VERSION_STATUS 的显示文本 */
             readonly statusText?: string;
+            /** @description 字典 BIL_RELIEF_QUALIFICATION_MODE 的显示文本 */
+            readonly qualificationModeText?: string;
+            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
+            readonly sponsorText?: string;
+            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
+            readonly timingText?: string;
+            /** @description 字典 BIL_RELIEF_QUOTA_PERIOD 的显示文本 */
+            readonly quotaPeriodText?: string;
         };
         UpdateRequest: {
             /** @example 824633720832983041 */
@@ -23218,10 +23236,12 @@ export interface components {
             message?: string;
             baseAmount?: number;
             reliefAmount?: number;
-            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
-            readonly timingText?: string;
+            manualMaxAmount?: number;
+            manualApprovalAmount?: number;
             /** @description 字典 BIL_RELIEF_OUTCOME_STATUS 的显示文本 */
             readonly statusText?: string;
+            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
+            readonly timingText?: string;
         };
         SettlementReliefView: {
             /** @example 824633720832983041 */
@@ -27409,6 +27429,94 @@ export interface components {
             readonly settlementTypeText?: string;
             /** @description 字典 PAY_USE_SCENE 的显示文本 */
             readonly terminalSceneText?: string;
+            /** @description 字典 RESIDENT_GENDER 的显示文本 */
+            readonly genderText?: string;
+        };
+        ReliefRecordPage: {
+            items?: components["schemas"]["ReliefRecordView"][];
+            /** Format: int64 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            summary?: components["schemas"]["ReliefRecordSummaryView"][];
+            reliefAmount?: number;
+            reversalAmount?: number;
+            netAmount?: number;
+            /** Format: int64 */
+            patientCount?: number;
+        };
+        ReliefRecordSummaryView: {
+            /** @example 824633720832983041 */
+            policyId?: string;
+            policyCode?: string;
+            policyName?: string;
+            sponsor?: string;
+            payerCode?: string;
+            payerName?: string;
+            /** Format: int64 */
+            reliefCount?: number;
+            /** Format: int64 */
+            reversalCount?: number;
+            /** Format: int64 */
+            patientCount?: number;
+            reliefAmount?: number;
+            reversalAmount?: number;
+            netAmount?: number;
+            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
+            readonly sponsorText?: string;
+        };
+        ReliefRecordView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            /** @example 824633720832983041 */
+            settlementId?: string;
+            settlementNo?: string;
+            settlementStatus?: string;
+            settlementScene?: string;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            residentName?: string;
+            healthRecordNo?: string;
+            gender?: string;
+            /** Format: date */
+            birthDate?: string;
+            /** @example 824633720832983041 */
+            policyId?: string;
+            policyCode?: string;
+            policyName?: string;
+            /** Format: int32 */
+            versionNo?: number;
+            timing?: string;
+            sponsor?: string;
+            payerCode?: string;
+            payerName?: string;
+            baseAmount?: number;
+            reliefAmount?: number;
+            status?: string;
+            reversal?: boolean;
+            /** @example 824633720832983041 */
+            reversesApplicationId?: string;
+            originalSettlementNo?: string;
+            manual?: boolean;
+            manualReason?: string;
+            manualEvidence?: string;
+            approvedByName?: string;
+            operatorName?: string;
+            qualificationText?: string;
+            /** @description 字典 BIL_SETTLEMENT_SCENE 的显示文本 */
+            readonly settlementSceneText?: string;
+            /** @description 字典 BIL_RELIEF_APPLICATION_STATUS 的显示文本 */
+            readonly statusText?: string;
+            /** @description 字典 BIL_RELIEF_SPONSOR 的显示文本 */
+            readonly sponsorText?: string;
+            /** @description 字典 BIL_RELIEF_TIMING 的显示文本 */
+            readonly timingText?: string;
+            /** @description 字典 BIL_SETTLEMENT_STATUS 的显示文本 */
+            readonly settlementStatusText?: string;
             /** @description 字典 RESIDENT_GENDER 的显示文本 */
             readonly genderText?: string;
         };
@@ -55412,6 +55520,46 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SettlementRecordView"][];
+                };
+            };
+        };
+    };
+    searchReliefRecords: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                policyId?: string;
+                sponsor?: "HOSPITAL" | "GOVERNMENT" | "CHARITY" | "OTHER";
+                timing?: "PRE_INSURANCE" | "POST_INSURANCE";
+                manualOnly?: boolean;
+                settledOnly?: boolean;
+                keyword?: string;
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReliefRecordPage"];
                 };
             };
         };

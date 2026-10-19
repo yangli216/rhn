@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type {
   ProfessionalSlotMode, ScheduleDayPart, ScheduleExceptionType,
-  ScheduleRegistrationScope, ServiceSchedule, UpdateScheduleInput,
+  ScheduleRegistrationScope, SchedulingBootstrap, ServiceSchedule, UpdateScheduleInput,
 } from '../../shared/api/schedulingApi'
 import type { CatalogPrice, ServiceCatalogItem } from '../../shared/api/masterDataApi'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -163,18 +163,14 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
   // 批量排班弹窗开关及表单状态（遵循规范：页面默认纯净，大表单按需弹窗呈现）
   const [showBatchModal, setShowBatchModal] = useState(false)
   const [dateFrom, setDateFrom] = useState(today)
-  const [dateTo, setDateTo] = useState(plusDays(today, 27))
+  const [dateTo, setDateTo] = useState('')
   const [practitionerId, setPractitionerId] = useState('')
   const [registrationScope, setRegistrationScope] = useState<ScheduleRegistrationScope>('DEPARTMENT')
   const [catalogItemId, setCatalogItemId] = useState('')
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5])
   const [dayParts, setDayParts] = useState<ScheduleDayPart[]>(['MORNING', 'AFTERNOON'])
-  const [capacity, setCapacity] = useState('50')
-  const [locationName, setLocationName] = useState(clinicalContext.department.name || '门诊')
-  const [morningStart, setMorningStart] = useState('08:00')
-  const [morningEnd, setMorningEnd] = useState('12:00')
-  const [afternoonStart, setAfternoonStart] = useState('14:00')
-  const [afternoonEnd, setAfternoonEnd] = useState('17:00')
+  const [capacityDraft, setCapacityDraft] = useState<{ departmentKey: string; value: string } | null>(null)
+  const [locationName, setLocationName] = useState('')
   const [success, setSuccess] = useState('')
   const [workspaceMode, setWorkspaceMode] = useState<'SIMPLE' | 'PROFESSIONAL'>('SIMPLE')
 
@@ -232,6 +228,14 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     queryFn: () => batchApi.scheduling.bootstrap(),
     enabled: showBatchModal,
   })
+  const activeBatchDepartmentKey = `${activeBatchDepartment.organizationId}:${activeBatchDepartment.departmentId}`
+  const capacity = capacityDraft?.departmentKey === activeBatchDepartmentKey
+    ? capacityDraft.value : String(batchBootstrap.data?.defaultCapacity ?? '')
+  const periodConfiguration = showBatchModal ? batchBootstrap.data : bootstrap.data
+  const morningStart = periodConfiguration?.morning.start.slice(0, 5) ?? ''
+  const morningEnd = periodConfiguration?.morning.end.slice(0, 5) ?? ''
+  const afternoonStart = periodConfiguration?.afternoon.start.slice(0, 5) ?? ''
+  const afternoonEnd = periodConfiguration?.afternoon.end.slice(0, 5) ?? ''
   const services = useQuery({
     queryKey: ['scheduling-services', clinicalContext.organization.id],
     queryFn: async () => (await api.masterData.services(
@@ -254,20 +258,15 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     initialized.current = false
     setPractitionerId('')
     setCatalogItemId('')
-    setLocationName(clinicalContext.department.name || '门诊')
+    setLocationName('')
     setWorkspaceMode('SIMPLE')
   }, [clinicalContext.department.id, clinicalContext.department.name])
 
   useEffect(() => {
     if (!bootstrap.data || initialized.current) return
     initialized.current = true
-    setCapacity(String(bootstrap.data.defaultCapacity))
     const computedDateTo = plusDays(today, bootstrap.data.defaultGenerateDays - 1)
     setDateTo(computedDateTo > maxDateTo ? maxDateTo : computedDateTo)
-    setMorningStart(bootstrap.data.morning.start.slice(0, 5))
-    setMorningEnd(bootstrap.data.morning.end.slice(0, 5))
-    setAfternoonStart(bootstrap.data.afternoon.start.slice(0, 5))
-    setAfternoonEnd(bootstrap.data.afternoon.end.slice(0, 5))
     setPractitionerId(bootstrap.data.practitioners[0]?.id ?? '')
     setWorkspaceMode(bootstrap.data.sdManagementMode)
   }, [bootstrap.data, today, maxDateTo])
@@ -281,7 +280,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   useEffect(() => {
     if (!showBatchModal) return
-    setLocationName(activeBatchDepartment.departmentName || '门诊')
+    setLocationName('')
     setPractitionerId('')
   }, [activeBatchDepartment.departmentId, activeBatchDepartment.departmentName, showBatchModal])
 
@@ -293,12 +292,15 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
   }, [batchBootstrap.data, practitionerId, showBatchModal])
 
   const createSchedules = useMutation({
-    mutationFn: () => batchApi.scheduling.quickCreate({
-      registrationScope, practitionerId: registrationScope === 'PRACTITIONER' ? practitionerId : undefined,
-      catalogItemId, dateFrom, dateTo, weekdays, dayParts,
-      morningStart, morningEnd, afternoonStart, afternoonEnd, capacity: Number(capacity),
-      locationName: locationName.trim() || undefined, idempotencyCode: crypto.randomUUID(),
-    }),
+    mutationFn: () => {
+      if (!bootstrap.isSuccess || !batchBootstrap.isSuccess) throw new Error('排班配置尚未加载成功，请重试后再生成排班')
+      return batchApi.scheduling.quickCreate({
+        registrationScope, practitionerId: registrationScope === 'PRACTITIONER' ? practitionerId : undefined,
+        catalogItemId, dateFrom, dateTo, weekdays, dayParts,
+        morningStart, morningEnd, afternoonStart, afternoonEnd, capacity: Number(capacity),
+        locationName: locationName.trim() || undefined, idempotencyCode: crypto.randomUUID(),
+      })
+    },
     onSuccess: async (result) => {
       setSuccess(`已为【${activeBatchDepartment.departmentName}】生成 ${result.generatedCount} 个排班${result.skippedCount ? `，跳过 ${result.skippedCount} 个重复或冲突时段` : ''}`)
       setShowBatchModal(false)
@@ -440,7 +442,8 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     const estimatedDays = useMemo(() => countMatchingDays(dateFrom, dateTo, weekdays), [dateFrom, dateTo, weekdays])
   const estimatedSchedules = estimatedDays * dayParts.length
   const estimatedTotalSlots = estimatedSchedules * (Number(capacity) || 0)
-  const canSubmit = (registrationScope === 'DEPARTMENT' || practitionerId) && catalogItemId && dateFrom && dateTo && weekdays.length > 0
+  const canSubmit = bootstrap.isSuccess && batchBootstrap.isSuccess
+    && (registrationScope === 'DEPARTMENT' || practitionerId) && catalogItemId && dateFrom && dateTo && weekdays.length > 0
     && dateFrom >= today && dateTo >= dateFrom && dateTo <= maxDateTo
     && estimatedDays > 0 && dayParts.length > 0 && Number(capacity) > 0
 
@@ -481,7 +484,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
             专业模式{bootstrap.data?.sdManagementMode !== 'PROFESSIONAL' ? '（未启用）' : ''}
           </button>
         </div>
-        <Button onClick={() => {
+        <Button disabled={!bootstrap.isSuccess || !services.isSuccess} onClick={() => {
           setBatchDepartmentKey(currentDepartmentKey)
           setShowBatchModal(true)
         }}><Icon name="add" />批量排班</Button>
@@ -489,7 +492,8 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
       </>}
     />
 
-    {error && <Alert>{errorMessage(error)}</Alert>}
+    {error && <Alert>{errorMessage(error)}{bootstrap.isError && <Button variant="secondary"
+      onClick={() => void bootstrap.refetch()}>重新加载排班配置</Button>}</Alert>}
     {success && <Alert tone="success">{success}</Alert>}
 
     {/* 2. 严格符合系统标准规范的 4 格指标摘要 (registration-metrics) */}
@@ -521,13 +525,14 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     {(bootstrap.isPending || services.isPending) && <Panel><LoadingState label="正在准备排班工作台…" /></Panel>}
 
     {/* 专业模式面板 */}
-    {!bootstrap.isPending && !services.isPending && workspaceMode === 'PROFESSIONAL' &&
+    {bootstrap.isSuccess && services.isSuccess && workspaceMode === 'PROFESSIONAL' &&
       bootstrap.data?.sdManagementMode === 'PROFESSIONAL' && (
         <ProfessionalSchedulingPanel
           api={api}
           clinicalContext={clinicalContext}
           today={today}
           defaultGenerateDays={bootstrap.data.defaultGenerateDays}
+          defaultPeriod={bootstrap.data.morning}
           departmentOptions={selectableDepartments}
           onDepartmentChange={onDepartmentChange}
           practitioners={bootstrap.data.practitioners}
@@ -538,7 +543,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
       )}
 
     {/* 3. 核心：标准 Panel + PanelHead 承载高密度紧凑矩阵 */}
-    {!bootstrap.isPending && !services.isPending && workspaceMode === 'SIMPLE' && (
+    {bootstrap.isSuccess && services.isSuccess && workspaceMode === 'SIMPLE' && (
       <Panel className="schedule-matrix-panel">
         <PanelHead
           title="周排班矩阵"
@@ -639,9 +644,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                               onClick={() => setSelectedSchedule(item)}
                               title={`${item.serviceName} · ${item.sdDayPartText}${item.locationName ? ` · ${item.locationName}` : ''} · 可用 ${item.availableCount} / 总 ${item.totalCount}`}
                             >
-                              <span className={`chip-part-tag chip-part-tag--${item.sdDayPart.toLowerCase()}`}>
-                                {item.sdDayPart === 'MORNING' ? '上' : '下'}
-                              </span>
+                              <StatusBadge>{item.sdDayPartText?.trim() || item.sdDayPart}</StatusBadge>
                               <span className="chip-service-text">
                                 {showAllDepartments && item.practitionerName && (
                                   <span className="chip-doc-tag">{item.practitionerName}</span>
@@ -705,6 +708,9 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
         </>}
       >
         <div className="batch-dialog-body">
+          {batchBootstrap.isPending && <LoadingState label="正在加载所选科室排班配置…" />}
+          {batchBootstrap.isError && <Alert>{errorMessage(batchBootstrap.error)}<Button variant="secondary"
+            onClick={() => void batchBootstrap.refetch()}>重新加载所选科室配置</Button></Alert>}
           {/* 板块一：出诊服务与基本规则 */}
           <div className="batch-dialog-section">
             <h3 className="batch-section-title">出诊信息</h3>
@@ -774,7 +780,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
               </FormField>
               <FormField label="每时段放号数" required hint={Number(capacity) > 200 ? '号源数较大，请确认' : undefined}>
                 <input type="number" min="1" max="500" value={capacity}
-                  onChange={(event) => setCapacity(event.target.value)} />
+                  onChange={(event) => setCapacityDraft({ departmentKey: activeBatchDepartmentKey, value: event.target.value })} />
               </FormField>
             </div>
 
@@ -877,11 +883,11 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     )}
 
     {/* 5. 点位情境化快速排班弹窗 (QuickCellScheduleDialog) */}
-    {cellScheduleTarget && <QuickCellScheduleDialog
+    {cellScheduleTarget && bootstrap.isSuccess && services.isSuccess && <QuickCellScheduleDialog
       target={cellScheduleTarget}
       services={services.data ?? []}
-      defaultCapacity={capacity}
-      defaultLocation={locationName}
+      defaultCapacity={String(bootstrap.data.defaultCapacity)}
+      defaultLocation={activeBatchDepartmentKey === currentDepartmentKey ? locationName : ''}
       organizationId={clinicalContext.organization.id}
       today={today}
       morningStart={morningStart}
@@ -1092,7 +1098,9 @@ function ScheduleDetailDrawer({
         </div>
         <div className="schedule-detail-item">
           <span>挂号费用</span>
-          <strong>{schedule.feeConfigured ? `¥${schedule.registrationFee ?? 0}` : '免收'}</strong>
+          <strong>{schedule.feeConfigured && typeof schedule.registrationFee === 'number' && Number.isFinite(schedule.registrationFee)
+            ? new Intl.NumberFormat('zh-CN', { style: 'currency', currency: schedule.feeCurrencyCode }).format(schedule.registrationFee)
+            : '未定价'}</strong>
         </div>
       </div>
 
@@ -1143,7 +1151,7 @@ function ScheduleEditDialog({ schedule, busy, onClose, onSave }: {
   const [endTime, setEndTime] = useState(shortTime(schedule.endAt))
   const [capacity, setCapacity] = useState(String(schedule.totalCount))
   const [locationName, setLocationName] = useState(schedule.locationName ?? '')
-  const [reason, setReason] = useState('调整基层门诊班次')
+  const [reason, setReason] = useState('')
   const used = schedule.heldCount + schedule.occupiedCount + schedule.frozenCount
   const valid = startTime && endTime && endTime > startTime && Number(capacity) >= Math.max(1, used) && reason.trim()
   const timeLocked = schedule.heldCount + schedule.occupiedCount > 0
@@ -1179,8 +1187,7 @@ function ScheduleStatusDialog({ value, busy, onClose, onConfirm }: {
   onClose: () => void
   onConfirm: (reason: string) => void
 }) {
-  const [reason, setReason] = useState(value.action === 'SUSPEND' ? '临时停诊'
-    : value.action === 'RESUME' ? '恢复正常出诊' : '取消本次排班')
+  const [reason, setReason] = useState('')
   const label = value.action === 'SUSPEND' ? '暂停班次' : value.action === 'RESUME' ? '恢复班次' : '取消班次'
   const hasUsage = value.schedule.heldCount + value.schedule.occupiedCount + value.schedule.frozenCount > 0
   const registrationOwner = value.schedule.sdRegistrationScope === 'DEPARTMENT'
@@ -1215,12 +1222,13 @@ function timeMinutes(value: string) {
   return hour * 60 + minute
 }
 
-function ProfessionalSchedulingPanel({ api, clinicalContext, today, defaultGenerateDays, departmentOptions,
+function ProfessionalSchedulingPanel({ api, clinicalContext, today, defaultGenerateDays, defaultPeriod, departmentOptions,
   onDepartmentChange, practitioners, services, maxDateTo, onCreated }: {
   api: RhnApi
   clinicalContext: ClinicalContext
   today: string
   defaultGenerateDays: number
+  defaultPeriod: SchedulingBootstrap['morning']
   departmentOptions: SchedulingDepartmentOption[]
   onDepartmentChange?: (organizationId: string, departmentId: string) => void
   practitioners: Array<{ id: string; code: string; name: string; assignmentId: string }>
@@ -1237,12 +1245,12 @@ function ProfessionalSchedulingPanel({ api, clinicalContext, today, defaultGener
   const [dateFrom, setDateFrom] = useState(today)
   const [dateTo, setDateTo] = useState(plusDays(today, defaultGenerateDays - 1))
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5])
-  const [startTime, setStartTime] = useState('08:00')
-  const [endTime, setEndTime] = useState('12:00')
+  const [startTime, setStartTime] = useState(defaultPeriod.start.slice(0, 5))
+  const [endTime, setEndTime] = useState(defaultPeriod.end.slice(0, 5))
   const [slotMode, setSlotMode] = useState<ProfessionalSlotMode>('TIMED')
   const [slotMinutes, setSlotMinutes] = useState('30')
   const [capacity, setCapacity] = useState('1')
-  const [locationName, setLocationName] = useState('全科门诊')
+  const [locationName, setLocationName] = useState('')
   const [exceptions, setExceptions] = useState<ProfessionalExceptionDraft[]>([])
 
   useEffect(() => {
@@ -1291,7 +1299,7 @@ function ProfessionalSchedulingPanel({ api, clinicalContext, today, defaultGener
   function addException() {
     setExceptions((current) => [...current, {
       key: crypto.randomUUID(), exceptionDate: dateFrom, exceptionType: 'CLOSED',
-      startTime, endTime, capacity, slotMinutes, reason: '临时停诊',
+      startTime, endTime, capacity, slotMinutes, reason: '',
     }])
   }
 
@@ -1362,7 +1370,7 @@ function ProfessionalSchedulingPanel({ api, clinicalContext, today, defaultGener
               value={item.exceptionDate} onChange={(event) => updateException(item.key, { exceptionDate: event.target.value })} /></FormField>
             <FormField label="处理方式" required><Select value={item.exceptionType} onChange={(value) => {
               const type = value as ScheduleExceptionType
-              updateException(item.key, { exceptionType: type, reason: type === 'CLOSED' ? '临时停诊' : '临时调整' })
+              updateException(item.key, { exceptionType: type })
             }} options={[{ value: 'CLOSED', label: '停诊' }, { value: 'OVERRIDE', label: '调整班次' }]} /></FormField>
             {item.exceptionType === 'OVERRIDE' && <>
               <FormField label="开始时间" required><input type="time" value={item.startTime}

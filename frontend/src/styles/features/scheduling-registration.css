@@ -370,12 +370,6 @@
 .thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3); font-size: 0.8125rem; margin: 0; padding: 0; }
 .thermal-receipt-dl dt { color: var(--color-text-secondary); }
 .thermal-receipt-dl dd { margin: 0; font-weight: 600; text-align: right; }
-.thermal-receipt-barcode-box { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--space-2) 0; border-top: 1px dashed var(--color-border-strong); border-bottom: 1px dashed var(--color-border-strong); }
-.thermal-receipt-barcode-bars { height: 2.25rem; width: 85%; display: flex; align-items: stretch; justify-content: space-between; }
-.thermal-receipt-barcode-bars span { background: var(--color-text-primary); width: 2px; }
-.thermal-receipt-barcode-bars span:nth-child(2n) { width: 3px; }
-.thermal-receipt-barcode-bars span:nth-child(3n) { width: 1px; }
-.thermal-receipt-barcode-bars span:nth-child(5n) { width: 4px; }
 .thermal-receipt-guidance { text-align: center; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
 .registration-shortcuts-hint { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .registration-shortcuts-hint kbd { padding: 1px 5px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--font-size-small); color: var(--color-text-primary); }
@@ -476,21 +470,6 @@
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   white-space: nowrap;
-}
-.registration-patient-identity__senior-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-warning);
-  background: color-mix(in srgb, var(--color-warning-soft) 85%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
-  padding: 0.125rem 0.5rem;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-.registration-patient-identity__senior-badge .ui-icon {
 }
 .registration-patient-identity__meta {
   display: flex;
@@ -2444,25 +2423,6 @@
   opacity: 0.6;
   border-style: dashed;
   background: var(--color-surface-subtle);
-}
-.chip-part-tag {
-  width: 1.125rem;
-  height: 1.125rem;
-  border-radius: var(--radius-xs);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-tiny);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-none);
-  color: var(--color-text-inverse);
-  flex-shrink: 0;
-}
-.chip-part-tag--morning {
-  background: var(--color-brand-primary);
-}
-.chip-part-tag--afternoon {
-  background: var(--color-warning);
 }
 .chip-service-text {
   flex: 1;

@@ -23003,6 +23003,11 @@
         "logical": "published_at",
         "physical": "DT_PUBLISD",
         "comment": "发布时间"
+      },
+      {
+        "logical": "manual_approval_amount",
+        "physical": "AMT_MANUAL_APRV",
+        "comment": "人工核定审批阈值"
       }
     ]
   },

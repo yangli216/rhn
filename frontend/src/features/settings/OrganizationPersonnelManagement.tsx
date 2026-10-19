@@ -1335,7 +1335,7 @@ const employmentSchema = z.object({ organizationId: z.string().min(1, '请选择
 type EmploymentForm = z.infer<typeof employmentSchema>
 
 function EmploymentDialog({ practitioner, organizations, enums, busy, available, saveError, onRefresh, onClose, onSave }: { practitioner: Practitioner; organizations: OrganizationUnit[]; enums?: SystemEnumDefinition[]; busy: boolean; available: boolean; saveError?: string; onRefresh: () => Promise<void>; onClose: () => void; onSave: (input: EmploymentInput) => void }) {
-  const { control, register, handleSubmit, formState: { errors } } = useForm<EmploymentForm>({ resolver: zodResolver(employmentSchema), defaultValues: { organizationId: organizations[0]?.id ?? '', code: `EMP_${practitioner.code}`, sdEmploymentType: 'PERMANENT', primaryEmployment: true, hireDate: today(), leaveDate: '' } })
+  const { control, register, handleSubmit, formState: { errors } } = useForm<EmploymentForm>({ resolver: zodResolver(employmentSchema), defaultValues: { organizationId: organizations[0]?.id ?? '', code: '', sdEmploymentType: 'PERMANENT', primaryEmployment: true, hireDate: today(), leaveDate: '' } })
   return <Dialog eyebrow="人员聘用" title={`为 ${practitioner.fullName} 建立聘用关系`} onClose={onClose} closeOnBackdrop={false}
     footer={<><Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button><Button type="submit" form="employment-form" busy={busy} disabled={!available}>保存聘用</Button></>}>
     {!available && <DirectoryState title="聘用类型与依赖目录" loading={false} onRetry={onRefresh} />}
@@ -1345,7 +1345,7 @@ function EmploymentDialog({ practitioner, organizations, enums, busy, available,
       <FormField label="聘用机构" required error={errors.organizationId?.message}><FormSelect control={control} name="organizationId"
         showValue clearable={false} options={organizations.map((item) => ({ value: item.id, label: item.name,
           secondaryText: item.code }))} /></FormField>
-      <div className="ui-form-row"><FormField label="聘用代码" required hint="字母开头，可使用字母、数字、下划线和短横线" error={errors.code?.message}>
+      <div className="ui-form-row"><FormField label="聘用代码" required hint="每次聘用使用独立代码；字母开头，最多 64 位，可使用字母、数字、下划线和短横线" error={errors.code?.message}>
         <input {...register('code')} autoFocus /></FormField>
         <FormField label="聘用类型" required><FormSelect control={control} name="sdEmploymentType" showValue clearable={false}
           options={systemEnumItems(enums, ORGANIZATION_SYSTEM_ENUM.employmentType).map(codeNameOption)} /></FormField></div>

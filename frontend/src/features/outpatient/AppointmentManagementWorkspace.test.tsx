@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { Appointment } from '../../shared/api/appointmentsApi'
 import type { SystemEnumDefinition } from '../../shared/api/dictionaryApi'
@@ -23,6 +23,7 @@ const appointment: Appointment = {
 
 const schedule: ServiceSchedule = {
   id: 'schedule-1', scheduleCode: 'SCH1001', serviceDate: '2099-08-31', sdDayPart: 'MORNING',
+  departmentId: 'dept-1', departmentName: '全科医疗科',
   sdDayPartText: '上午', startAt: '2099-08-31T00:00:00Z', endAt: '2099-08-31T04:00:00Z',
   practitionerId: 'doctor-1', practitionerName: '李医生', catalogItemId: 'service-1', serviceCode: 'GENERAL',
   serviceName: '全科门诊', locationName: '一诊室', totalCount: 20, heldCount: 0, occupiedCount: 1,
@@ -46,6 +47,11 @@ const definitions: Record<string, SystemEnumDefinition> = {
 }
 
 describe('AppointmentManagementWorkspace', () => {
+  beforeEach(() => {
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2099-08-30T16:00:00Z').getTime())
+  })
+  afterEach(() => vi.restoreAllMocks())
+
   it('cancels a booked appointment from the independent appointment ledger', async () => {
     const cancelled = { ...appointment, sdStatus: 'CANCELLED', sdStatusText: '已取消',
       cancelledAt: '2026-08-30T03:00:00Z', cancellationReason: '居民行程变化' } as Appointment
@@ -188,6 +194,7 @@ describe('AppointmentManagementWorkspace', () => {
       serviceDate: '2099-09-01',
       practitionerName: '张建国',
       serviceName: '心血管内科专家门诊',
+      departmentId: 'dept-2',
       departmentName: '心血管内科',
       availableCount: 5,
     }
@@ -274,6 +281,214 @@ describe('AppointmentManagementWorkspace', () => {
     await user.click(resetBtn)
     expect(await inDialog.findByText('李医生')).toBeInTheDocument()
     expect(await inDialog.findByText('张建国')).toBeInTheDocument()
+  })
+
+  it('filters every available daypart using schedule labels and clears a removed daypart after refresh', async () => {
+    const user = userEvent.setup()
+    const periods = [
+      ['MORNING', '早间门诊', '早班医生'],
+      ['MORNING', '早间门诊', '另一早班医生'],
+      ['AFTERNOON', '下午', '午班医生'],
+      ['EVENING', '夜间门诊', '夜班医生'],
+      ['CUSTOM', ' ', '延时医生'],
+    ] as const
+    const available: ServiceSchedule[] = periods.map(([sdDayPart, sdDayPartText, practitionerName], index) => ({
+      ...schedule, id: `schedule-${index}`, practitionerId: `doctor-${index}`,
+      sdDayPart, sdDayPartText, practitionerName,
+    }))
+    const schedules = vi.fn().mockResolvedValue(available)
+    const api = {
+      appointments: { list: vi.fn().mockResolvedValue([]) },
+      scheduling: { schedules },
+      dictionaries: { systemEnum: vi.fn((code: string) => Promise.resolve(definitions[code])) },
+      residents: { search: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter>
+      <AppointmentManagementWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: /新建预约/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    await dialog.findByRole('button', { name: '夜间门诊', exact: true })
+    const shifts = () => within(dialog.getByRole('radiogroup', { name: '出诊班次列表' })).getAllByRole('radio')
+    expect(shifts()).toHaveLength(5)
+    expect(dialog.getAllByRole('button', { name: '早间门诊', exact: true })).toHaveLength(1)
+    expect(dialog.queryByRole('button', { name: '上午', exact: true })).not.toBeInTheDocument()
+
+    for (const [code, label] of [['MORNING', '早间门诊'], ['AFTERNOON', '下午'], ['EVENING', '夜间门诊'], ['CUSTOM', 'CUSTOM']]) {
+      await user.click(dialog.getByRole('button', { name: label, exact: true }))
+      const expected = available.filter((item) => item.sdDayPart === code)
+      expect(shifts()).toHaveLength(expected.length)
+      for (const item of expected) {
+        expect(dialog.getByRole('radio', { name: new RegExp(`^${item.practitionerName}，`) })).toBeInTheDocument()
+      }
+    }
+    await user.click(dialog.getByRole('button', { name: '全天', exact: true }))
+    expect(shifts()).toHaveLength(5)
+
+    await user.click(dialog.getByRole('button', { name: '夜间门诊', exact: true }))
+    schedules.mockResolvedValue(available.filter((item) => item.sdDayPart !== 'EVENING'))
+    await queryClient.invalidateQueries({ queryKey: ['future-appointment-schedules'] })
+    await waitFor(() => expect(dialog.queryByRole('button', { name: '夜间门诊', exact: true })).not.toBeInTheDocument())
+    expect(shifts()).toHaveLength(4)
+  })
+
+  it.each([
+    [false, undefined, 'CNY', '未定价'],
+    [false, 0, 'CNY', '未定价'],
+    [true, undefined, 'CNY', '未定价'],
+    [true, Number.NaN, 'CNY', '未定价'],
+    [true, Number.POSITIVE_INFINITY, 'CNY', '未定价'],
+    [true, 0, 'CNY', '¥0.00'],
+    [true, 12.5, 'CNY', '¥12.50'],
+    [true, 8, 'USD', 'US$8.00'],
+  ] as const)('shows configured=%s amount=%s currency=%s consistently in the shift and confirmation', async (feeConfigured, registrationFee, feeCurrencyCode, expectedFee) => {
+    const user = userEvent.setup()
+    const api = {
+      appointments: { list: vi.fn().mockResolvedValue([]) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([{ ...schedule, feeConfigured, registrationFee, feeCurrencyCode }]) },
+      dictionaries: { systemEnum: vi.fn((code: string) => Promise.resolve(definitions[code])) },
+      residents: { search: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter>
+      <AppointmentManagementWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: /新建预约/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    const shifts = within(await dialog.findByRole('radiogroup', { name: '出诊班次列表' }))
+    const shift = shifts.getByRole('radio')
+    expect(shift).toHaveAccessibleName(expect.stringContaining(`，${expectedFee}，`))
+    expect(within(shift).getByText(expectedFee, { exact: true })).toBeInTheDocument()
+    await user.click(shift)
+    expect(dialog.getByText('挂号诊查费').parentElement).toHaveTextContent(`挂号诊查费${expectedFee}`)
+    expect(dialog.queryByText(/免诊查费|免收诊查费/)).not.toBeInTheDocument()
+  })
+
+  it('uses department IDs for filtering and shift grouping without treating service names as departments', async () => {
+    const user = userEvent.setup()
+    const available: ServiceSchedule[] = [
+      { ...schedule, id: 'a', departmentId: 'dept-a', departmentName: '全科', availableCount: 11 },
+      { ...schedule, id: 'b', departmentId: 'dept-b', departmentName: '全科', availableCount: 12 },
+      { ...schedule, id: 'c', departmentId: 'dept-c', departmentName: '内科', serviceName: '全科', availableCount: 13 },
+      { ...schedule, id: 'missing', departmentId: undefined, departmentName: '全科', serviceName: '全科', availableCount: 14 },
+      { ...schedule, id: 'unnamed', departmentId: 'dept-unnamed', departmentName: ' ', availableCount: 15 },
+      { ...schedule, id: 'a-other', departmentId: 'dept-a', departmentName: '全科', practitionerId: 'doctor-other', availableCount: 16 },
+    ]
+    const schedules = vi.fn().mockResolvedValue(available)
+    const api = {
+      appointments: { list: vi.fn().mockResolvedValue([]) },
+      scheduling: { schedules },
+      dictionaries: { systemEnum: vi.fn((code: string) => Promise.resolve(definitions[code])) },
+      residents: { search: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter>
+      <AppointmentManagementWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: /新建预约/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    await dialog.findByRole('button', { name: '全部科室 (4)', exact: true })
+    const expectAvailableCounts = (counts: number[]) => {
+      const shifts = within(dialog.getByRole('radiogroup', { name: '出诊班次列表' }))
+      expect(shifts.getAllByRole('radio')).toHaveLength(counts.length)
+      for (const count of counts) expect(shifts.getByRole('radio', { name: new RegExp(`，余${count}号$`) })).toBeInTheDocument()
+    }
+    expectAvailableCounts([11, 12, 13, 14, 15, 16])
+    expect(dialog.queryByRole('button', { name: '全科', exact: true })).not.toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: '全科门诊', exact: true })).not.toBeInTheDocument()
+    for (const [label, counts] of [
+      ['全科（dept-a）', [11, 16]], ['全科（dept-b）', [12]], ['内科', [13]], ['dept-unnamed', [15]],
+    ] as const) {
+      await user.click(dialog.getByRole('button', { name: label, exact: true }))
+      expectAvailableCounts([...counts])
+    }
+    await user.click(dialog.getByRole('button', { name: '全部科室 (4)', exact: true }))
+    expectAvailableCounts([11, 12, 13, 14, 15, 16])
+
+    await user.click(dialog.getByRole('button', { name: '全科（dept-a）', exact: true }))
+    schedules.mockResolvedValue(available.filter((item) => item.id === 'c' || item.id === 'missing'))
+    await queryClient.invalidateQueries({ queryKey: ['future-appointment-schedules'] })
+    await waitFor(() => expect(dialog.queryByRole('button', { name: '全科（dept-a）', exact: true })).not.toBeInTheDocument())
+    expectAvailableCounts([13, 14])
+    await user.click(dialog.getByRole('button', { name: '内科', exact: true }))
+    expectAvailableCounts([13])
+    await user.click(dialog.getByRole('button', { name: '全部科室 (1)', exact: true }))
+    expectAvailableCounts([13, 14])
+  })
+
+  it('queries the displayed business week across year boundaries and retries a failed week without showing old slots', async () => {
+    vi.mocked(Date.now).mockReturnValue(new Date('2026-12-30T15:30:00Z').getTime())
+    const user = userEvent.setup()
+    const dates = ['2026-12-31', '2027-01-05', '2027-01-12', '2027-01-19', '2027-01-26']
+    const available = dates.map((serviceDate, index) => ({
+      ...schedule, id: `week-${index}`, practitionerName: `第${index + 1}周医生`, serviceDate,
+      startAt: `${serviceDate}T00:00:00Z`, endAt: `${serviceDate}T04:00:00Z`,
+    }))
+    let failThirdWeek = true
+    const schedules = vi.fn(async (from: string, to: string) => {
+      if (from === '2027-01-11' && failThirdWeek) {
+        failThirdWeek = false
+        throw new Error('本周号源暂时不可用')
+      }
+      return available.filter((item) => item.serviceDate >= from && item.serviceDate <= to)
+    })
+    const api = {
+      appointments: { list: vi.fn().mockResolvedValue([]) },
+      scheduling: { schedules },
+      dictionaries: { systemEnum: vi.fn((code: string) => Promise.resolve(definitions[code])) },
+      residents: { search: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter>
+      <AppointmentManagementWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: /新建预约/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(await dialog.findByText('第1周医生', { exact: true })).toBeInTheDocument()
+    expect(schedules).toHaveBeenCalledWith('2026-12-30', '2027-01-03')
+    expect(dialog.getByText('本周 (12/28 - 01/03)')).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: /12\/28/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(dialog.getByRole('button', { name: '上一周' })).toBeDisabled()
+
+    const weekRanges = [
+      ['2027-01-04', '2027-01-10'], ['2027-01-11', '2027-01-17'],
+      ['2027-01-18', '2027-01-24'], ['2027-01-25', '2027-01-31'],
+    ]
+    for (const [index, [from, to]] of weekRanges.entries()) {
+      await user.click(dialog.getByRole('button', { name: '下一周' }))
+      if (from === '2027-01-11') {
+        expect(await dialog.findByText('号源加载失败')).toBeInTheDocument()
+        expect(dialog.queryByRole('radiogroup', { name: '出诊班次列表' })).not.toBeInTheDocument()
+        expect(dialog.queryByText('暂无可预约班次')).not.toBeInTheDocument()
+        expect(dialog.getByText('挂号诊查费').parentElement).toHaveTextContent('挂号诊查费--')
+        await user.click(dialog.getByRole('button', { name: '重试' }))
+      }
+      expect(await dialog.findByText(`第${index + 2}周医生`, { exact: true })).toBeInTheDocument()
+      expect(schedules).toHaveBeenCalledWith(from, to)
+      expect(dialog.queryByText(`第${index + 1}周医生`, { exact: true })).not.toBeInTheDocument()
+      if (index === 0) await user.click(dialog.getByRole('button', { name: /01\/05/ }))
+    }
+    expect(dialog.getByRole('button', { name: '下一周' })).toBeEnabled()
+    await user.click(dialog.getByRole('button', { name: '上一周' }))
+    expect(await dialog.findByText('第4周医生', { exact: true })).toBeInTheDocument()
+    expect(dialog.queryByText('第5周医生', { exact: true })).not.toBeInTheDocument()
   })
 
   it('supports professional scheduling with timed slot matrix selection', async () => {

@@ -302,16 +302,17 @@ function RegistrationCancellationDialog({ item, busy, error, onClose, onConfirm 
   onClose: () => void
   onConfirm: (reason: string) => void
 }) {
-  const [reason, setReason] = useState<(typeof cancellationReasons)[number]>(cancellationReasons[0])
+  const [reason, setReason] = useState<(typeof cancellationReasons)[number] | ''>('')
   const [note, setNote] = useState('')
   const value = `${reason}${note.trim() ? `：${note.trim()}` : ''}`
   return <Dialog title="办理退号" eyebrow={`候诊号 ${item.ticketNo} · ${item.residentName}`}
     description="仅限尚未开始接诊的挂号。确认后将关闭候诊资格、返还预约号源；已收挂号费会先原路退款。"
     onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button variant="danger" busy={busy} onClick={() => onConfirm(value)}>确认退号</Button></>}>
+      <Button variant="danger" busy={busy} disabled={!reason} onClick={() => onConfirm(value)}>确认退号</Button></>}>
     <div className="ui-form-grid">
       <FormField label="退号原因" required><select value={reason}
         onChange={(event) => setReason(event.target.value as typeof reason)}>
+        <option value="" disabled>请选择实际退号原因</option>
         {cancellationReasons.map((item) => <option key={item} value={item}>{item}</option>)}
       </select></FormField>
       <FormField label="补充说明"><textarea value={note} maxLength={300}

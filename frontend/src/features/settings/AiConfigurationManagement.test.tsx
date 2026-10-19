@@ -26,7 +26,37 @@ const configuration: ClinicalAiConfigurationView = {
 }
 
 describe('AiConfigurationManagement', () => {
-  it('uses the independent Jev key and decision endpoint for a synthetic connection test', async () => {
+  it.each([
+    ['MODEL', '测试模型连接', undefined], ['MODEL', '测试模型连接', 90],
+    ['SPEECH', '测试语音连接', undefined], ['SPEECH', '测试语音连接', 90],
+    ['KNOWLEDGE', '测试临床知识库连接', undefined], ['KNOWLEDGE', '测试临床知识库连接', 90],
+  ] as const)('passes the configured timeout or defers to the server for %s (%s, %s)', async (target, button, timeout) => {
+    const user = userEvent.setup()
+    const settings: ClinicalAiConfigurationView['settings'] = [...configuration.settings,
+      ...[['voice-enabled', '语音能力'], ['knowledge-enabled', '知识能力']].map(([key, group]) => ({
+        key, group, name: key, description: '', valueType: 'BOOLEAN' as const,
+        secret: false, effectiveValue: true, sourceScope: 'PLATFORM' as const, inherited: true,
+        secretConfigured: false, overridePresent: false, overrideActive: false,
+      })),
+    ]
+    if (timeout !== undefined) settings.push({
+      key: 'request-timeout-seconds', group: '模型服务', name: '请求超时', description: '', valueType: 'NUMBER',
+      secret: false, effectiveValue: timeout, sourceScope: 'TENANT', inherited: false,
+      secretConfigured: false, overridePresent: true, overrideRevision: 1, overrideActive: true,
+    })
+    const test = vi.fn().mockResolvedValue({ target, success: false, statusCode: 504, latencyMs: 0, message: '模拟超时' })
+    const api = { clinicalAi: {
+      administrationConfiguration: vi.fn().mockResolvedValue({ ...configuration, settings }),
+      testAdministrationConfiguration: test,
+    } } as unknown as RhnApi
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AiConfigurationManagement api={api} />
+    </QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: button }))
+    await waitFor(() => expect(test).toHaveBeenCalledWith(expect.objectContaining({ target, timeoutSeconds: timeout })))
+  })
+
+  it.each([undefined, 17])('uses independent Jev settings and preserves timeout %s for a synthetic connection test', async (timeout) => {
     const user = userEvent.setup()
     const pilot = { ...configuration, settings: [...configuration.settings,
       ...[
@@ -40,6 +70,11 @@ describe('AiConfigurationManagement', () => {
         secretConfigured: false, overridePresent: false, overrideActive: false,
       }))],
     } as ClinicalAiConfigurationView
+    if (timeout !== undefined) pilot.settings.push({
+      key: 'decision-timeout-seconds', group: '决策公共配置', name: '决策请求超时', description: '', valueType: 'NUMBER',
+      secret: false, effectiveValue: timeout, sourceScope: 'TENANT', inherited: false,
+      secretConfigured: false, overridePresent: true, overrideRevision: 1, overrideActive: true,
+    })
     const test = vi.fn().mockResolvedValue({ target: 'DECISION', success: true, statusCode: 200,
       latencyMs: 12, message: 'Jev 连接通过，使用虚构目录' })
     const api = { clinicalAi: {
@@ -53,7 +88,7 @@ describe('AiConfigurationManagement', () => {
     await user.click(screen.getByRole('button', { name: '测试 Jev 连接' }))
     await waitFor(() => expect(test).toHaveBeenCalledWith({ scope: 'TENANT', target: 'DECISION',
       endpoint: 'https://api.typesafe.ai/v1/systemone', model: 'jev-1.13.0',
-      secretValue: 'independent-test-key', timeoutSeconds: 8 }))
+      secretValue: 'independent-test-key', timeoutSeconds: timeout }))
     expect(await screen.findByText(/Jev 连接通过，使用虚构目录/)).toBeInTheDocument()
   })
   it('saves a business scene independently while retaining the shared master configuration', async () => {

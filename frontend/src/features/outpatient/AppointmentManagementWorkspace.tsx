@@ -18,6 +18,7 @@ import {
   StatusBadge, type DateRange,
 } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
+import { formatDate, offsetDays, parseDate } from '../../shared/utils/dateRange'
 import '../../styles/features/scheduling-registration.css'
 
 function businessDate(days = 0) {
@@ -33,19 +34,13 @@ function dateTime(value: string) {
   }).format(new Date(value))
 }
 
-function isExpertSchedule(item?: ServiceSchedule) {
-  if (!item) return false
-  const text = (item.serviceName + ' ' + (item.practitionerName ?? '') + ' ' + (item.serviceCode ?? '')).toLowerCase()
-  return text.includes('专家') || text.includes('名医') || text.includes('名老中医')
-    || text.includes('主任医师') || text.includes('副主任医师')
-}
-
-function getClinicTypeBadge(item: ServiceSchedule) {
-  const text = (item.serviceName + ' ' + (item.practitionerName ?? '') + ' ' + (item.serviceCode ?? '')).toLowerCase()
-  if (text.includes('名老中医') || text.includes('名医')) return { label: '名老中医', tone: 'gold' as const }
-  if (text.includes('主任医师') || text.includes('专家')) return { label: '专家门诊', tone: 'expert' as const }
-  if (text.includes('副主任医师')) return { label: '副高专家', tone: 'expert' as const }
-  return { label: '普通门诊', tone: 'regular' as const }
+function scheduleFeeText(schedule: ServiceSchedule) {
+  if (!schedule.feeConfigured || typeof schedule.registrationFee !== 'number' || !Number.isFinite(schedule.registrationFee)) {
+    return '未定价'
+  }
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency', currency: schedule.feeCurrencyCode,
+  }).format(schedule.registrationFee)
 }
 
 function statusTone(status: AppointmentStatus) {
@@ -228,7 +223,7 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
 
     </div>
 
-    {createOpen && <CreateAppointmentDialog api={api} schedules={bookableSchedules}
+    {createOpen && <CreateAppointmentDialog api={api}
       sourceOptions={sourceOptions} busy={createAppointment.isPending}
       error={createAppointment.error ? errorMessage(createAppointment.error) : ''}
       onClose={() => setCreateOpen(false)} onSubmit={(input) => createAppointment.mutate(input)} />}
@@ -287,9 +282,6 @@ interface ShiftGroup {
   departmentName?: string
   serviceName: string
   locationName?: string
-  feeConfigured: boolean
-  registrationFee?: number
-  isExpert: boolean
   isTimedMode: boolean
   totalAvailable: number
   startAt: string
@@ -299,7 +291,7 @@ interface ShiftGroup {
 function groupSchedulesIntoShifts(schedules: ServiceSchedule[]): ShiftGroup[] {
   const map = new Map<string, ShiftGroup>()
   for (const s of schedules) {
-    const key = `${s.serviceDate}_${s.departmentName || s.serviceName}_${s.practitionerId || s.practitionerName || s.serviceCode}_${s.sdDayPart}`
+    const key = `${s.serviceDate}_${s.departmentId || s.id}_${s.catalogItemId}_${s.practitionerId || s.practitionerName || s.serviceCode}_${s.sdDayPart}`
     if (!map.has(key)) {
       map.set(key, {
         key,
@@ -312,9 +304,6 @@ function groupSchedulesIntoShifts(schedules: ServiceSchedule[]): ShiftGroup[] {
         departmentName: s.departmentName,
         serviceName: s.serviceName,
         locationName: s.locationName,
-        feeConfigured: s.feeConfigured,
-        registrationFee: s.registrationFee,
-        isExpert: isExpertSchedule(s),
         isTimedMode: s.sdSlotMode === 'TIMED',
         totalAvailable: s.availableCount,
         startAt: s.startAt,
@@ -363,9 +352,8 @@ function scheduleOptions(values: Array<{ id: string; startAt: string; practition
     label: `${dateTime(value.startAt)} · ${value.practitionerName || '普通门诊'} · ${value.serviceName}（余 ${value.availableCount}）` }))
 }
 
-function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptions, busy, error, onClose, onSubmit }: {
+function CreateAppointmentDialog({ api, sourceOptions, busy, error, onClose, onSubmit }: {
   api: RhnApi
-  schedules: ServiceSchedule[]
   sourceOptions: Array<{ value: string; label: string }>
   busy: boolean
   error: string
@@ -382,53 +370,54 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
   const slotGroupRef = useRef<HTMLDivElement>(null)
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
 
-  // 自主拉取未来 14 天全部可用排班，避免受限于外层列表的过滤日期
-  const futureFrom = useMemo(() => businessDate(0), [])
-  const futureTo = useMemo(() => businessDate(14), [])
+  const [calendarToday] = useState(() => businessDate())
+  const [weekOffset, setWeekOffset] = useState(0)
+  const weekRange = useMemo(() => {
+    const today = parseDate(calendarToday)
+    const dayOfWeek = today.getDay()
+    const monday = offsetDays(today, (dayOfWeek === 0 ? -6 : 1 - dayOfWeek) + weekOffset * 7)
+    return { from: formatDate(monday), to: formatDate(offsetDays(monday, 6)) }
+  }, [calendarToday, weekOffset])
+  const futureFrom = weekRange.from < calendarToday ? calendarToday : weekRange.from
+  const futureTo = weekRange.to
   const futureSchedules = useQuery({
     queryKey: ['future-appointment-schedules', futureFrom, futureTo],
     queryFn: () => api.scheduling.schedules(futureFrom, futureTo),
   })
 
-  // 合并可用号源
+  // 仅使用当前显示周内的可用号源，避免切周时沿用旧日期的排班。
   const allAvailableSchedules = useMemo(() => {
-    const raw = futureSchedules.data ?? initialSchedules ?? []
+    const raw = futureSchedules.data ?? []
     return raw.filter((value) =>
-      value.sdStatus === 'PUBLISHED' && value.availableCount > 0 && new Date(value.startAt).getTime() > Date.now(),
+      value.serviceDate >= futureFrom && value.serviceDate <= futureTo
+      && value.sdStatus === 'PUBLISHED' && value.availableCount > 0 && new Date(value.startAt).getTime() > Date.now(),
     )
-  }, [futureSchedules.data, initialSchedules])
+  }, [futureSchedules.data, futureFrom, futureTo])
 
   // 筛选状态
-  const [weekOffset, setWeekOffset] = useState<number>(0)
   const [selectedDate, setSelectedDate] = useState<string>('ALL')
   const [selectedDept, setSelectedDept] = useState<string>('ALL')
-  const [selectedClinicType, setSelectedClinicType] = useState<'ALL' | 'EXPERT' | 'REGULAR'>('ALL')
+  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState('')
   const [selectedDayPart, setSelectedDayPart] = useState<string>('ALL')
   const [keyword, setKeyword] = useState('')
 
-  // 计算锚点日期：若数据中有最早排班且离今天较远（如测试数据的远未来日期），则以最早排班为锚点，否则以业务今天为锚点
-  const anchorDate = useMemo(() => {
-    const earliest = allAvailableSchedules[0]?.serviceDate
-    if (earliest) {
-      const dToday = new Date(businessDate(0)).getTime()
-      const dEarliest = new Date(earliest).getTime()
-      if (Math.abs(dEarliest - dToday) > 30 * 24 * 3600 * 1000) {
-        return new Date(earliest)
-      }
+  const dayPartOptions = useMemo(() => {
+    const names = new Map<string, string>()
+    for (const item of allAvailableSchedules) {
+      names.set(item.sdDayPart, item.sdDayPartText?.trim() || item.sdDayPart)
     }
-    return new Date(businessDate(0))
+    return [{ key: 'ALL', label: '全天' }, ...Array.from(names, ([key, label]) => ({ key, label }))]
   }, [allAvailableSchedules])
+
+  useEffect(() => {
+    if (!dayPartOptions.some((option) => option.key === selectedDayPart)) setSelectedDayPart('ALL')
+  }, [dayPartOptions, selectedDayPart])
 
   // 计算当前周的 7 天（周一至周日）
   const currentWeekDays = useMemo(() => {
-    const d = new Date(anchorDate)
-    const dayOfWeek = d.getDay()
-    const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek
-    const monday = new Date(d)
-    monday.setDate(d.getDate() + diffToMonday + weekOffset * 7)
-
-    const todayStr = businessDate(0)
-    const tomorrowStr = businessDate(1)
+    const monday = parseDate(weekRange.from)
+    const todayStr = calendarToday
+    const tomorrowStr = formatDate(offsetDays(parseDate(calendarToday), 1))
     const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
     const days: Array<{
       date: string
@@ -443,16 +432,14 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
     }> = []
 
     for (let i = 0; i < 7; i++) {
-      const cur = new Date(monday)
-      cur.setDate(monday.getDate() + i)
-      const y = cur.getFullYear()
+      const cur = offsetDays(monday, i)
       const m = String(cur.getMonth() + 1).padStart(2, '0')
       const dt = String(cur.getDate()).padStart(2, '0')
-      const dateStr = `${y}-${m}-${dt}`
+      const dateStr = formatDate(cur)
       const weekdayName = weekdayNames[cur.getDay()]
       const isToday = dateStr === todayStr
       const isTomorrow = dateStr === tomorrowStr
-      const isPast = anchorDate.toISOString().slice(0, 10) === todayStr && dateStr < todayStr
+      const isPast = dateStr < todayStr
 
       let availableSum = 0
       let count = 0
@@ -476,7 +463,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
       })
     }
     return days
-  }, [anchorDate, weekOffset, allAvailableSchedules])
+  }, [weekRange.from, calendarToday, allAvailableSchedules])
 
   const weekLabel = useMemo(() => {
     const first = currentWeekDays[0]
@@ -491,21 +478,41 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
 
   // 动态提取科室列表
   const departmentOptions = useMemo(() => {
-    const set = new Set<string>()
+    const names = new Map<string, string>()
     for (const item of allAvailableSchedules) {
-      const name = item.departmentName || item.serviceName
-      if (name) set.add(name)
+      if (item.departmentId) names.set(item.departmentId, item.departmentName?.trim() || item.departmentId)
     }
-    return Array.from(set)
+    const nameCounts = new Map<string, number>()
+    for (const name of names.values()) nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1)
+    return Array.from(names, ([id, name]) => ({ id, label: (nameCounts.get(name) ?? 0) > 1 ? `${name}（${id}）` : name }))
   }, [allAvailableSchedules])
+
+  useEffect(() => {
+    if (selectedDept !== 'ALL' && !departmentOptions.some((option) => option.id === selectedDept)) setSelectedDept('ALL')
+  }, [departmentOptions, selectedDept])
+
+  const serviceOptions = useMemo(() => {
+    const names = new Map<string, string>()
+    for (const item of allAvailableSchedules) {
+      names.set(item.catalogItemId, item.serviceName.trim() || item.serviceCode || item.catalogItemId)
+    }
+    const nameCounts = new Map<string, number>()
+    for (const name of names.values()) nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1)
+    return [{ value: '', label: '全部挂号服务' }, ...Array.from(names, ([value, name]) => ({
+      value, label: (nameCounts.get(name) ?? 0) > 1 ? `${name}（${value}）` : name,
+    }))]
+  }, [allAvailableSchedules])
+
+  useEffect(() => {
+    if (selectedCatalogItemId && !serviceOptions.some((option) => option.value === selectedCatalogItemId)) setSelectedCatalogItemId('')
+  }, [serviceOptions, selectedCatalogItemId])
 
   // 过滤排班列表
   const filteredSchedules = useMemo(() => {
     return allAvailableSchedules.filter((item) => {
       if (selectedDate !== 'ALL' && item.serviceDate !== selectedDate) return false
-      if (selectedDept !== 'ALL' && item.departmentName !== selectedDept && item.serviceName !== selectedDept) return false
-      if (selectedClinicType === 'EXPERT' && !isExpertSchedule(item)) return false
-      if (selectedClinicType === 'REGULAR' && isExpertSchedule(item)) return false
+      if (selectedDept !== 'ALL' && item.departmentId !== selectedDept) return false
+      if (selectedCatalogItemId && item.catalogItemId !== selectedCatalogItemId) return false
       if (selectedDayPart !== 'ALL' && item.sdDayPart !== selectedDayPart) return false
 
       if (keyword.trim()) {
@@ -522,7 +529,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
       }
       return true
     })
-  }, [allAvailableSchedules, selectedDate, selectedDept, selectedClinicType, selectedDayPart, keyword])
+  }, [allAvailableSchedules, selectedDate, selectedDept, selectedCatalogItemId, selectedDayPart, keyword])
 
   // 聚合出诊班次
   const shiftGroups = useMemo(() => {
@@ -629,14 +636,14 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               <div className="appointment-week-nav">
                 <Button size="sm" variant="text" disabled={weekOffset <= 0}
                   className="appointment-week-nav-btn"
-                  onClick={() => setWeekOffset((prev) => Math.max(0, prev - 1))}
+                  onClick={() => { setWeekOffset((prev) => Math.max(0, prev - 1)); setSelectedDate('ALL'); setSelectedPoolSlice('') }}
                   title="上一周">
                   <Icon name="chevron-left" /> 上一周
                 </Button>
                 <strong className="appointment-week-title">{weekLabel}</strong>
-                <Button size="sm" variant="text" disabled={weekOffset >= 3}
+                <Button size="sm" variant="text"
                   className="appointment-week-nav-btn"
-                  onClick={() => setWeekOffset((prev) => prev + 1)}
+                  onClick={() => { setWeekOffset((prev) => prev + 1); setSelectedDate('ALL'); setSelectedPoolSlice('') }}
                   title="下一周">
                   下一周 <Icon name="chevron-right" />
                 </Button>
@@ -644,7 +651,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               <Button size="sm" variant={selectedDate === 'ALL' ? 'secondary' : 'text'}
                 className={`appointment-date-pill ${selectedDate === 'ALL' ? 'is-active' : ''}`}
                 onClick={() => setSelectedDate('ALL')}>
-                <strong>全部日期</strong>
+                <strong>本周全部日期</strong>
                 <small>共 {allAvailableSchedules.length} 班次</small>
               </Button>
             </div>
@@ -692,27 +699,16 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
           <div className="appointment-filter-toolbar">
             <div className="appointment-filter-row">
               <div className="appointment-segmented-group">
-                <Button size="sm" variant={selectedClinicType === 'ALL' ? 'secondary' : 'text'}
-                  className={`appointment-segmented-btn ${selectedClinicType === 'ALL' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedClinicType('ALL')}>全部号别</Button>
-                <Button size="sm" variant={selectedClinicType === 'EXPERT' ? 'secondary' : 'text'}
-                  className={`appointment-segmented-btn ${selectedClinicType === 'EXPERT' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedClinicType('EXPERT')}>专家门诊</Button>
-                <Button size="sm" variant={selectedClinicType === 'REGULAR' ? 'secondary' : 'text'}
-                  className={`appointment-segmented-btn ${selectedClinicType === 'REGULAR' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedClinicType('REGULAR')}>普通门诊</Button>
+                <Select aria-label="挂号服务" value={selectedCatalogItemId} options={serviceOptions}
+                  onChange={setSelectedCatalogItemId} searchable clearable={false} />
               </div>
 
               <div className="appointment-segmented-group">
-                <Button size="sm" variant={selectedDayPart === 'ALL' ? 'secondary' : 'text'}
-                  className={`appointment-segmented-btn ${selectedDayPart === 'ALL' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedDayPart('ALL')}>全天</Button>
-                <Button size="sm" variant={selectedDayPart === 'MORNING' ? 'secondary' : 'text'}
-                  className={`appointment-segmented-btn ${selectedDayPart === 'MORNING' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedDayPart('MORNING')}>上午</Button>
-                <Button size="sm" variant={selectedDayPart === 'AFTERNOON' ? 'secondary' : 'text'}
-                  className={`appointment-segmented-btn ${selectedDayPart === 'AFTERNOON' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedDayPart('AFTERNOON')}>下午</Button>
+                {dayPartOptions.map((option) => (
+                  <Button key={option.key} size="sm" variant={selectedDayPart === option.key ? 'secondary' : 'text'}
+                    className={`appointment-segmented-btn ${selectedDayPart === option.key ? 'is-active' : ''}`}
+                    onClick={() => setSelectedDayPart(option.key)}>{option.label}</Button>
+                ))}
               </div>
 
               <div className="appointment-search-box">
@@ -732,7 +728,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               </div>
             </div>
 
-            {departmentOptions.length > 1 && (
+            {departmentOptions.length > 0 && (
               <div className="appointment-dept-chips">
                 <Button size="sm" variant={selectedDept === 'ALL' ? 'secondary' : 'text'}
                   className={`appointment-dept-chip ${selectedDept === 'ALL' ? 'is-active' : ''}`}
@@ -740,10 +736,10 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                   全部科室 ({departmentOptions.length})
                 </Button>
                 {departmentOptions.map((dept) => (
-                  <Button key={dept} size="sm" variant={selectedDept === dept ? 'secondary' : 'text'}
-                    className={`appointment-dept-chip ${selectedDept === dept ? 'is-active' : ''}`}
-                    onClick={() => setSelectedDept(dept)}>
-                    {dept}
+                  <Button key={dept.id} size="sm" variant={selectedDept === dept.id ? 'secondary' : 'text'}
+                    className={`appointment-dept-chip ${selectedDept === dept.id ? 'is-active' : ''}`}
+                    onClick={() => setSelectedDept(dept.id)}>
+                    {dept.label}
                   </Button>
                 ))}
               </div>
@@ -761,12 +757,15 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
               </div>
 
               {futureSchedules.isPending ? (
-                <LoadingState label="正在加载未来出诊排班与号源…" />
+                <LoadingState label="正在加载本周出诊排班与号源…" />
+              ) : futureSchedules.isError ? (
+                <EmptyState icon="tasks" title="号源加载失败" copy={errorMessage(futureSchedules.error)}
+                  action={<Button size="sm" variant="secondary" onClick={() => void futureSchedules.refetch()}>重试</Button>} />
               ) : shiftGroups.length === 0 ? (
                 <EmptyState icon="tasks" title="暂无可预约班次"
                   copy="所选日期或科室条件下暂无开放号源，可切换其他日期或重置筛选条件。"
                   action={<Button size="sm" variant="secondary" onClick={() => {
-                    setSelectedDate('ALL'); setSelectedDept('ALL'); setSelectedClinicType('ALL'); setSelectedDayPart('ALL'); setKeyword('')
+                    setSelectedDate('ALL'); setSelectedDept('ALL'); setSelectedCatalogItemId(''); setSelectedDayPart('ALL'); setKeyword('')
                   }}>重置所有筛选</Button>} />
               ) : (
                 <div ref={shiftGroupRef} className="appointment-schedule-compact-list" role="radiogroup" aria-label="出诊班次列表">
@@ -774,11 +773,10 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                   const isGroupSelected = activeGroup?.key === group.key
                   const isLow = group.totalAvailable <= 5
                   const practitioner = group.practitionerName || (group.departmentName ? `${group.departmentName}医师` : '普通医师')
-                  const feeLabel = group.feeConfigured && group.registrationFee != null
-                    ? `¥${group.registrationFee.toFixed(2)}` : '免诊查费'
+                  const feeLabel = scheduleFeeText(group.representative)
                   return (
                     <div key={group.key} role="radio" aria-checked={isGroupSelected} tabIndex={isGroupSelected ? 0 : -1}
-                      aria-label={`${practitioner}，${dateTime(group.startAt)}至${clock(group.endAt)}，${feeLabel}，余${group.totalAvailable}号`}
+                      aria-label={`${practitioner}，${group.serviceName}，${dateTime(group.startAt)}至${clock(group.endAt)}，${feeLabel}，余${group.totalAvailable}号`}
                       className={`appointment-shift-row ${isGroupSelected ? 'is-selected' : ''}`}
                       onClick={() => {
                         const target = group.schedules.find((s) => s.availableCount > 0) || group.schedules[0]
@@ -808,6 +806,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                         <strong className="appointment-shift-row__doctor-name">
                           {practitioner}
                         </strong>
+                        <span className="appointment-shift-row__location" title={group.serviceName}>{group.serviceName}</span>
                         {group.locationName && group.locationName !== group.departmentName && (
                           <span className="appointment-shift-row__location" title={group.locationName}>
                             {group.locationName}
@@ -948,11 +947,7 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
             <div className="appointment-confirmation-amount">
               <span className="appointment-confirmation-amount-label">挂号诊查费</span>
               <strong className="appointment-confirmation-amount-value">
-                {selectedSchedule
-                  ? (selectedSchedule.feeConfigured && selectedSchedule.registrationFee != null
-                    ? `¥${selectedSchedule.registrationFee.toFixed(2)}`
-                    : '免收诊查费')
-                  : '--'}
+                {selectedSchedule ? scheduleFeeText(selectedSchedule) : '--'}
               </strong>
             </div>
           </div>
@@ -971,11 +966,11 @@ function CreateAppointmentDialog({ api, schedules: initialSchedules, sourceOptio
                 </div>
                 <div className="appointment-ticket-row">
                   <span>出诊医生</span>
-                  <strong>
-                    {selectedSchedule.practitionerName
-                      ? `${selectedSchedule.practitionerName}（${getClinicTypeBadge(selectedSchedule).label}）`
-                      : `${selectedSchedule.departmentName || selectedSchedule.serviceName || '普通门诊'} · 轮值接诊`}
-                  </strong>
+                  <strong>{selectedSchedule.practitionerName || '未指定医生'}</strong>
+                </div>
+                <div className="appointment-ticket-row">
+                  <span>挂号服务</span>
+                  <strong>{selectedSchedule.serviceName}</strong>
                 </div>
                 <div className="appointment-ticket-row appointment-ticket-row--highlight">
                   <span>就诊时段</span>

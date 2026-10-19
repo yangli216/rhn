@@ -150,6 +150,17 @@ describe('AppShell work context routing', () => {
     ])
   })
 
+  it('opens every in-app navigation entry in a workspace tab', () => {
+    type Node = (typeof NAVIGATION_NODES)[number] & { children?: Node[]; fullPageNavigation?: boolean }
+    const leaves = (nodes: Node[]): Node[] => nodes.flatMap((node) => node.children ? leaves(node.children) : [node])
+    const missing = leaves(NAVIGATION_NODES as Node[])
+      .filter((node) => node.to && !node.fullPageNavigation && tabForPath(node.to)?.path !== node.to)
+      .map((node) => node.to)
+    expect(missing).toEqual([])
+    expect(tabForPath('/billing/relief-policies')).toMatchObject({ title: '惠民政策', closeable: true })
+    expect(tabForPath('/billing/relief-roster')).toMatchObject({ title: '惠民资格名单', closeable: true })
+  })
+
   it('opens print template management in a workspace tab', () => {
     expect(tabForPath('/settings/print-templates')).toMatchObject({
       path: '/settings/print-templates',

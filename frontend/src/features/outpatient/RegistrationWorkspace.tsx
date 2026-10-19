@@ -5,8 +5,9 @@ import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
 import { systemEnumItemName, systemEnumItems, type SystemEnumDefinition } from '../../shared/api/dictionaryApi'
 import type { Appointment } from '../../shared/api/appointmentsApi'
+import type { CancelEncounterResult } from '../../shared/api/encountersApi'
 import type { ResidentCoverageInput } from '../../shared/api/residentsApi'
-import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem, type ServiceSchedule } from '../../shared/api/schedulingApi'
+import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem, type ScheduleDayPart, type ServiceSchedule } from '../../shared/api/schedulingApi'
 import { age } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
@@ -15,10 +16,11 @@ import { useCashierPaymentMethods } from '../../shared/billing/useCashierPayment
 import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
 import { PaymentMethodSelector } from '../../shared/billing/PaymentMethodSelector'
-import { Alert, Button, DataTable, Dialog, SearchField, tableCellClass, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
+import { Alert, Button, DataTable, DatePicker, Dialog, DictionarySelect, SearchField, tableCellClass, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
+import { requireCoverageFacts } from '../residents/residentFacts'
 import '../../styles/features/scheduling-registration.css'
 
 export { getCashPresets }
@@ -28,8 +30,9 @@ const businessDate = (value = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(value)
 
-function clock(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false })
+function clock(value: string, includeSeconds = false) {
+  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit',
+    second: includeSeconds ? '2-digit' : undefined, hour12: false })
     .format(new Date(value))
 }
 
@@ -70,32 +73,17 @@ const PINYIN_LOOKUP: Record<string, string[]> = {
   '康复': ['kfk', 'kangfu', 'rehab'],
 }
 
-const DEPT_CATEGORIES = [
-  { key: 'ALL', label: '全部科室' },
-  { key: 'GENERAL', label: '全科' },
-  { key: 'INTERNAL', label: '内科' },
-  { key: 'SURGERY', label: '外科' },
-  { key: 'PEDIATRICS', label: '儿科' },
-  { key: 'TCM', label: '中医' },
-  { key: 'GYN', label: '妇产科' },
-  { key: 'EMERGENCY', label: '急诊' },
-]
-
 const CLINIC_TYPE_OPTIONS: Array<{ key: string; label: string; icon?: IconName }> = [
   { key: 'ALL', label: '全部号源' },
   { key: 'REGULAR', label: '普通门诊', icon: 'clinical' },
   { key: 'EXPERT', label: '专家/名医号', icon: 'sparkles' },
 ]
 
-const DAYPART_OPTIONS = [
-  { key: 'ALL', label: '全天' },
-  { key: 'MORNING', label: '上午' },
-  { key: 'AFTERNOON', label: '下午' },
-]
-
-export function getSmartDayPart(): 'MORNING' | 'AFTERNOON' {
-  const hour = new Date().getHours()
-  return hour < 12 ? 'MORNING' : 'AFTERNOON'
+export function getSmartDayPart(schedules: ServiceSchedule[], now = Date.now()): 'ALL' | ScheduleDayPart {
+  const currentDayParts = new Set(availableSchedules(schedules)
+    .filter((item) => Date.parse(item.startAt) <= now && now < Date.parse(item.endAt))
+    .map((item) => item.sdDayPart))
+  return currentDayParts.size === 1 ? [...currentDayParts][0] : 'ALL'
 }
 
 function isExpertSchedule(item?: ServiceSchedule) {
@@ -169,10 +157,10 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
 }) {
   const [fullName, setFullName] = useState('')
   const [nationalId, setNationalId] = useState('')
-  const [gender, setGender] = useState<'1' | '2' | '0' | '9'>('1')
-  const [birthDate, setBirthDate] = useState('1990-01-01')
+  const [gender, setGender] = useState<Resident['gender']>('0')
+  const [birthDate, setBirthDate] = useState('')
   const [phone, setPhone] = useState('')
-  const [coverageType, setCoverageType] = useState('SELF_PAY')
+  const [coverage, setCoverage] = useState<ResidentCoverageInput | null>(null)
   const [error, setError] = useState<unknown>(null)
   const fullNameRef = useRef<HTMLInputElement>(null)
 
@@ -188,6 +176,8 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   const createMutation = useMutation({
     mutationFn: () => {
       const cleanNationalId = nationalId.trim().toUpperCase()
+      const coverages = coverage ? [{ ...coverage, payerName: coverage.payerName.trim(), memberNo: coverage.memberNo?.trim() || undefined }] : []
+      requireCoverageFacts(coverages)
       return api.residents.create({
         fullName: fullName.trim(),
         nationalId: cleanNationalId || undefined,
@@ -195,12 +185,7 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
         birthDate,
         phone: phone.trim() || undefined,
         identifiers: cleanNationalId ? [{ system: '1', value: cleanNationalId, useType: 'OFFICIAL' }] : [],
-        coverages: (coverageType !== '07' && coverageType !== 'SELF_PAY') ? [{
-          sdCoverageType: coverageType,
-          payerName: (coverageType === '01' || coverageType === 'EMPLOYEE_BASIC') ? '城镇职工基本医疗保险' : '城乡居民基本医疗保险',
-          primary: true,
-          validFrom: businessDate(),
-        }] : [],
+        coverages,
       })
     },
     onSuccess: (created) => {
@@ -228,13 +213,25 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
         <FormField label="出生日期" required><input type="date" value={birthDate} max={businessDate()} onChange={(e) => setBirthDate(e.target.value)} required /></FormField>
         <FormField label="联系电话"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号码" maxLength={20} /></FormField>
       </div>
-      <div className="ui-form-row">
-        <FormField label="医保保障类别"><Select value={coverageType} onChange={(v) => setCoverageType(v)} options={[
-          { value: '07', label: '自费患者' },
-          { value: '01', label: '城镇职工基本医疗保险' },
-          { value: '02', label: '城乡居民基本医疗保险' },
-        ]} /></FormField>
-      </div>
+      {coverage ? <>
+        <div className="ui-form-row">
+          <FormField label="保障类型" required><DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE"
+            value={coverage.sdCoverageType} onChange={(value) => setCoverage({ ...coverage, sdCoverageType: value })} /></FormField>
+          <FormField label="支付方名称" required><input value={coverage.payerName} placeholder="按实际保障资料填写" required
+            onChange={(e) => setCoverage({ ...coverage, payerName: e.target.value })} /></FormField>
+          <FormField label="个人编号/卡号"><input value={coverage.memberNo ?? ''}
+            onChange={(e) => setCoverage({ ...coverage, memberNo: e.target.value })} /></FormField>
+        </div>
+        <div className="ui-form-row">
+          <FormField label="保障生效日期" required><DatePicker value={coverage.validFrom} required showShortcuts={false}
+            onChange={(value) => setCoverage({ ...coverage, validFrom: value })} /></FormField>
+          <FormField label="保障失效日期"><DatePicker value={coverage.validTo ?? ''} showShortcuts={false}
+            onChange={(value) => setCoverage({ ...coverage, validTo: value || undefined })} /></FormField>
+        </div>
+        <Button variant="text" onClick={() => { setCoverage(null); setError(null) }}>移除保障信息</Button>
+      </> : <Button variant="text" onClick={() => setCoverage({ sdCoverageType: '', payerName: '', primary: true, validFrom: '' })}>
+        补充保障信息
+      </Button>}
     </form>
   </Dialog>
 }
@@ -264,6 +261,9 @@ function ThermalReceiptModal({
   onClose: () => void
 }) {
   const breakdown = feeBreakdown ?? { baseFee: 0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 0 }
+  const validUntilText = receipt.validUntil && Number.isFinite(Date.parse(receipt.validUntil))
+    ? `${businessDate(new Date(receipt.validUntil))} ${clock(receipt.validUntil, true)}前`
+    : '未提供'
   const [isPrinting, setIsPrinting] = useState(false)
   const [printFeedback, setPrintFeedback] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
@@ -347,7 +347,7 @@ function ThermalReceiptModal({
           <dt>患者姓名</dt><dd>{receipt.residentName}</dd>
           <dt>健康档案</dt><dd>{receipt.healthRecordNo}</dd>
           <dt>就诊科室</dt><dd>{departmentName}</dd>
-          <dt>诊室地址</dt><dd><strong>{locationName || `${departmentName} 诊室`}</strong></dd>
+          <dt>诊室地址</dt><dd><strong>{locationName?.trim() || '未记录'}</strong></dd>
           <dt>接诊医生</dt><dd>{receipt.practitionerName || '普通门诊'}</dd>
           <dt>诊疗项目</dt><dd>{receipt.serviceName}</dd>
           <dt>就诊时段</dt><dd>{receipt.sdDayPartText || '当日出诊'}</dd>
@@ -362,19 +362,13 @@ function ThermalReceiptModal({
             </>
           )}
           <dt>挂号时间</dt><dd>{clock(receipt.registeredAt)}</dd>
-          <dt>效期截止</dt><dd><strong>当日当班有效</strong></dd>
+          <dt>效期截止</dt><dd><strong>{validUntilText}</strong></dd>
         </dl>
 
-        <div className="thermal-receipt-barcode-box">
-          <div className="thermal-receipt-barcode-bars" aria-hidden="true" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
-            {Array.from({ length: 48 }).map((_, i) => <span key={i} />)}
-          </div>
-          <small>{receipt.registrationNo}</small>
-        </div>
-
         <footer className="thermal-receipt-guidance">
+          <p>请使用打印凭条上的条码办理业务</p>
           <p>请凭本凭条前往候诊区，关注大屏幕叫号</p>
-          <p>当日当班有效 · 祝您早日康复</p>
+          <p>祝您早日康复</p>
         </footer>
       </article>
     </div>
@@ -387,16 +381,16 @@ function CancelRegistrationModal({ item, onClose, onConfirm, isPending }: {
   onConfirm: (reason: string) => void
   isPending: boolean
 }) {
-  const [reason, setReason] = useState('患者主动要求退号')
+  const [reason, setReason] = useState('')
   return <Dialog title="办理退号与退款" eyebrow="门诊挂号撤销" size="wide" onClose={onClose}
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button variant="danger" busy={isPending} onClick={() => onConfirm(reason)}>确认退号并退费</Button></>}>
+      <Button variant="danger" busy={isPending} disabled={!reason} onClick={() => onConfirm(reason)}>确认退号并退费</Button></>}>
     <p style={{ margin: '0 0 var(--space-3)' }}>
       即将为患者 <strong>{item.residentName}</strong>（候诊号 <strong>{item.ticketNo}</strong> / 单号 {item.registrationNo}）办理退号。
       退号后号源将自动释放回号源池，挂号费用将原路退回。
     </p>
     <FormField label="退号原因" required>
-      <Select value={reason} onChange={(v) => setReason(v)} options={[
+      <Select value={reason} placeholder="请选择实际退号原因" onChange={(v) => setReason(v)} options={[
         { value: '患者主动要求退号', label: '患者主动要求退号' },
         { value: '挂错科室或医生', label: '挂错科室或医生' },
         { value: '等待时间过长', label: '等待时间过长' },
@@ -435,11 +429,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [activeReceiptItem, setActiveReceiptItem] = useState<ReceptionQueueItem | null>(null)
   const [cancellingItem, setCancellingItem] = useState<ReceptionQueueItem | null>(null)
-  const [cancellationResult, setCancellationResult] = useState<string | null>(null)
+  const [cancellationResult, setCancellationResult] = useState<CancelEncounterResult | null>(null)
   const [deptSearch, setDeptSearch] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('ALL')
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('')
   const [selectedClinicType, setSelectedClinicType] = useState('ALL')
-  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>(getSmartDayPart)
+  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | ScheduleDayPart>('ALL')
   const [dayPartManuallyChanged, setDayPartManuallyChanged] = useState(false)
   const [manualAppointmentId, setManualAppointmentId] = useState<string | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
@@ -559,6 +553,26 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   })
 
   const allAvailable = useMemo(() => availableSchedules(schedules.data ?? []), [schedules.data])
+  const dayPartOptions = useMemo(() => {
+    const names = new Map<ScheduleDayPart, string>()
+    for (const item of [...(schedules.data ?? []), ...(linkedAppointment.data ? [linkedAppointment.data] : [])]) {
+      names.set(item.sdDayPart, item.sdDayPartText?.trim() || item.sdDayPart)
+    }
+    return [{ key: 'ALL' as const, label: '全天' }, ...Array.from(names, ([key, label]) => ({ key, label }))]
+  }, [schedules.data, linkedAppointment.data])
+  const departmentOptions = useMemo(() => {
+    const names = new Map<string, string>()
+    for (const item of allAvailable) {
+      if (item.departmentId) names.set(item.departmentId, item.departmentName?.trim() || item.departmentId)
+    }
+    return [{ value: '', label: '全部科室' }, ...Array.from(names, ([value, label]) => ({ value, label }))]
+  }, [allAvailable])
+
+  useEffect(() => {
+    if (selectedDepartmentId && !departmentOptions.some((option) => option.value === selectedDepartmentId)) {
+      setSelectedDepartmentId('')
+    }
+  }, [departmentOptions, selectedDepartmentId])
 
   useEffect(() => {
     if (linkedDeptId && allAvailable.length > 0 && !scheduleId) {
@@ -569,7 +583,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     }
   }, [linkedDeptId, allAvailable, scheduleId])
   
-  // Filter schedules by selected department, category, clinic type (regular vs expert), daypart, and search text
+  // Filter schedules by department, clinic type, daypart, and search text.
   const filteredSchedules = useMemo(() => {
     let result = allAvailable
     const q = deptSearch.trim().toLowerCase()
@@ -595,18 +609,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         return false
       })
     }
-    if (selectedCategory !== 'ALL') {
-      const matchMap: Record<string, string[]> = {
-        GENERAL: ['全科', '社区'],
-        INTERNAL: ['内科', '心血管', '消化', '呼吸', '内分泌'],
-        SURGERY: ['外科', '普外', '骨科'],
-        PEDIATRICS: ['儿科'],
-        TCM: ['中医', '针灸', '推拿'],
-        GYN: ['妇产', '妇科', '产科'],
-        EMERGENCY: ['急诊', '发热'],
-      }
-      const keywords = matchMap[selectedCategory] ?? []
-      result = result.filter((item) => keywords.some((k) => item.serviceName.includes(k) || item.locationName?.includes(k)))
+    if (selectedDepartmentId) {
+      result = result.filter((item) => item.departmentId === selectedDepartmentId)
     }
     if (selectedClinicType !== 'ALL') {
       if (selectedClinicType === 'EXPERT') {
@@ -619,40 +623,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       result = result.filter((item) => item.sdDayPart === selectedDayPart)
     }
     return result
-  }, [allAvailable, deptSearch, selectedCategory, selectedClinicType, selectedDayPart])
+  }, [allAvailable, deptSearch, selectedDepartmentId, selectedClinicType, selectedDayPart])
 
   const linkedSchedule = linkedAppointment.data
     ? (schedules.data ?? []).find((item) => item.id === linkedAppointment.data?.scheduleId) : undefined
   const canUseDirect = !effectiveAppointmentId && (allAvailable.length === 0 || visitType === 'EMERGENCY')
   const selectedSchedule = linkedSchedule ?? allAvailable.find((item) => item.id === scheduleId)
-  const targetDepartmentName = useMemo(() => {
-    if (!selectedSchedule) return clinicalContext.department.name
-    const sName = selectedSchedule.serviceName || ''
-    const dName = selectedSchedule.departmentName || ''
-
-    if (sName.includes('内科') && !dName.includes('内科')) return '内科门诊'
-    if (sName.includes('全科') && !dName.includes('全科')) return '全科门诊'
-    if (sName.includes('儿科') && !dName.includes('儿科')) return '儿科门诊'
-    if (sName.includes('外科') && !dName.includes('外科')) return '外科门诊'
-    if (sName.includes('中医') && !dName.includes('中医')) return '中医科'
-    if (sName.includes('妇产') && !dName.includes('妇产')) return '妇产科门诊'
-    if (sName.includes('眼科') && !dName.includes('眼科')) return '眼科'
-    if (sName.includes('口腔') && !dName.includes('口腔')) return '口腔科'
-    if (sName.includes('耳鼻喉') && !dName.includes('耳鼻喉')) return '耳鼻喉科'
-    if (sName.includes('皮肤') && !dName.includes('皮肤')) return '皮肤科'
-    if (sName.includes('急诊') && !dName.includes('急诊')) return '急诊科'
-    if (sName.includes('发热') && !dName.includes('发热')) return '发热门诊'
-    if (sName.includes('康复') && !dName.includes('康复')) return '康复科'
-
-    if (dName) return dName
-    if (sName.includes('内科')) return '内科门诊'
-    if (sName.includes('全科')) return '全科门诊'
-    if (sName.includes('儿科')) return '儿科门诊'
-    if (sName.includes('外科')) return '外科门诊'
-    if (sName.includes('中医')) return '中医科'
-    if (sName.includes('妇产')) return '妇产科门诊'
-    return clinicalContext.department.name
-  }, [clinicalContext.department.name, selectedSchedule])
+  const targetDepartmentName = selectedSchedule
+    ? selectedSchedule.departmentName?.trim() || '未提供接诊科室'
+    : clinicalContext.department.name
   const visitTypeOptions = systemEnumItems(visitTypes.data ? [visitTypes.data] : undefined,
     SCHEDULING_SYSTEM_ENUM.visitType).map((item) => ({ value: item.code, label: item.name }))
   const activeMedicalCoverages = useMemo(() => (residentProfile.data?.coverages ?? [])
@@ -674,11 +653,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       seniorDiscount: 0,
       insuranceDeduction: 0,
       payableAmount: baseFee,
-      isElderly: selected ? age(selected.birthDate) >= 65 : false,
       isExpert,
       feeConfigured: !selectedSchedule || selectedSchedule.feeConfigured,
     }
-  }, [selected, selectedSchedule, visitType])
+  }, [selectedSchedule, visitType])
 
   const showPaymentShortcuts = Boolean(selected) && Boolean(scheduleId) && feeBreakdown.feeConfigured && feeBreakdown.payableAmount > 0
 
@@ -713,21 +691,14 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   useEffect(() => {
     if (linkedAppointment.data) {
       setScheduleId(linkedAppointment.data.scheduleId)
-      if (linkedAppointment.data.sdDayPart === 'MORNING' || linkedAppointment.data.sdDayPart === 'AFTERNOON') {
-        setSelectedDayPart(linkedAppointment.data.sdDayPart)
-      }
+      setSelectedDayPart(linkedAppointment.data.sdDayPart)
     }
   }, [linkedAppointment.data])
 
   useEffect(() => {
-    if (dayPartManuallyChanged || !schedules.data || schedules.data.length === 0) return
-    if (selectedDayPart !== 'ALL') {
-      const hasCurrentDayPart = schedules.data.some((item) => item.sdDayPart === selectedDayPart)
-      if (!hasCurrentDayPart) {
-        setSelectedDayPart('ALL')
-      }
-    }
-  }, [dayPartManuallyChanged, schedules.data, selectedDayPart])
+    if (dayPartManuallyChanged || effectiveAppointmentId || !schedules.data) return
+    setSelectedDayPart(getSmartDayPart(schedules.data))
+  }, [dayPartManuallyChanged, effectiveAppointmentId, schedules.data])
 
   useEffect(() => {
     setCoverageTouched(false)
@@ -832,7 +803,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         reason, terminalCode: 'REGISTRATION-WINDOW-WEB',
       }),
     onSuccess: async (result) => {
-      setCancellationResult(`已成功办理退号：${result.message || '号源已释放'}`)
+      setCancellationResult(result)
       setCancellingItem(null)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['outpatient-reception-queue'] }),
@@ -1000,7 +971,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       已成功关联门诊预检分诊记录（{linkedTriageLevel ? `分诊级别 P${linkedTriageLevel}` : ''}），已智能建议挂号科室与就诊类型。
     </Alert>}
     {pageError && <Alert className="ui-page-feedback">{errorMessage(pageError)}</Alert>}
-    {cancellationResult && <Alert className="ui-page-feedback" tone="success">{cancellationResult}</Alert>}
+    {cancellationResult && <Alert className="ui-page-feedback"
+      tone={cancellationResult.completed ? 'success' : 'info'}>{cancellationResult.message}
+      {cancellationResult.refundStatus ? `（退款状态：${cancellationResult.refundStatus}）` : ''}</Alert>}
     {success && <Alert className="ui-page-feedback" tone="success">
       挂号成功：{success.receipt ? `挂号单 ${success.receipt.registrationNo}，候诊号 ${success.receipt.ticketNo}`
         : `就诊号 ${success.encounter.encounterNo}`}
@@ -1010,9 +983,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       onSuccess={selectPatient} />}
 
     {showReceiptModal && activeReceiptItem && (() => {
-      const activeSchedule = (schedules.data ?? []).find((s) => s.id === activeReceiptItem.scheduleId) ?? selectedSchedule
+      const activeSchedule = (schedules.data ?? []).find((s) => s.id === activeReceiptItem.scheduleId)
       const activeDept = activeReceiptItem.departmentName || targetDepartmentName || clinicalContext.department.name
-      const activeLocation = activeReceiptItem.locationName || activeSchedule?.locationName || (activeDept ? `${activeDept} 诊室` : `${clinicalContext.department.name} 诊室`)
+      const activeLocation = activeReceiptItem.locationName?.trim() || activeSchedule?.locationName?.trim()
       return <ThermalReceiptModal
         api={api}
         receipt={activeReceiptItem}
@@ -1050,11 +1023,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   <span className="registration-patient-identity__tag">
                     {selected.genderText ?? '未知'} · {age(selected.birthDate)} 岁
                   </span>
-                  {age(selected.birthDate) >= 65 && (
-                    <span className="registration-patient-identity__senior-badge">
-                      <Icon name="check" /> 65岁以上老年优待
-                    </span>
-                  )}
                 </div>
                 <div className="registration-patient-identity__meta">
                   <span><small>身份证：</small><code>{selected.maskedNationalId || '未登记'}</code></span>
@@ -1172,9 +1140,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <Button size="sm" variant="primary" onClick={() => {
               setManualAppointmentId(pendingTodayAppointment.id)
               setScheduleId(pendingTodayAppointment.scheduleId)
-              if (pendingTodayAppointment.sdDayPart === 'MORNING' || pendingTodayAppointment.sdDayPart === 'AFTERNOON') {
-                setSelectedDayPart(pendingTodayAppointment.sdDayPart)
-              }
+              setSelectedDayPart(pendingTodayAppointment.sdDayPart)
             }}>
               一键带入预约取号
             </Button>
@@ -1209,7 +1175,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.insuranceDeduction.toFixed(2)}</strong>
               </div>}
               {feeBreakdown.seniorDiscount > 0 && <div className="registration-fee-row">
-                <span>老年人就医优待减免 (≥65岁)</span>
+                <span>优待政策减免</span>
                 <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.seniorDiscount.toFixed(2)}</strong>
               </div>}
             </div>}
@@ -1405,16 +1371,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </div>
             </div>
             <div className="registration-dept-tabs">
-              {DEPT_CATEGORIES.map((cat) => <Button size="sm" key={cat.key} type="button"
-                variant={selectedCategory === cat.key ? 'secondary' : 'text'} aria-pressed={selectedCategory === cat.key}
-                onClick={() => setSelectedCategory(cat.key)}>{cat.label}</Button>)}
+              <FormField label="接诊科室" className="ui-field--grow"><Select value={selectedDepartmentId}
+                options={departmentOptions} searchable pinyinSearch showValue
+                onChange={setSelectedDepartmentId} /></FormField>
               <div className="registration-daypart-pills">
-                {DAYPART_OPTIONS.map((dp) => (
+                {dayPartOptions.map((dp) => (
                   <Button size="sm" key={dp.key} type="button"
                     variant={selectedDayPart === dp.key ? 'secondary' : 'text'} aria-pressed={selectedDayPart === dp.key}
                     onClick={() => {
                       setDayPartManuallyChanged(true)
-                      setSelectedDayPart(dp.key as 'ALL' | 'MORNING' | 'AFTERNOON')
+                      setSelectedDayPart(dp.key)
                     }}>{dp.label}</Button>
                 ))}
               </div>

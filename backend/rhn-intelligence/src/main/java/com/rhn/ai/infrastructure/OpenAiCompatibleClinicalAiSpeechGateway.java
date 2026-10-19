@@ -1,6 +1,7 @@
 package com.rhn.ai.infrastructure;
 
 import com.rhn.ai.application.ClinicalAiModelException;
+import com.rhn.ai.application.ClinicalAiRequestOptions;
 import com.rhn.ai.application.ClinicalAiSpeechGateway;
 import com.rhn.ai.application.ClinicalAssistantSettings;
 import com.rhn.shared.id.GlobalIds;
@@ -14,13 +15,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
+import java.util.function.LongSupplier;
 
 @Component
 final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechGateway {
     private final ClinicalAssistantSettings settings;
     private final JsonCodec jsonCodec;
     private final HttpClient httpClient;
+    private final LongSupplier nanoTime;
 
     @Autowired
     OpenAiCompatibleClinicalAiSpeechGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec) {
@@ -29,9 +33,15 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
 
     OpenAiCompatibleClinicalAiSpeechGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
                                              HttpClient httpClient) {
+        this(settings, jsonCodec, httpClient, System::nanoTime);
+    }
+
+    OpenAiCompatibleClinicalAiSpeechGateway(ClinicalAssistantSettings settings, JsonCodec jsonCodec,
+                                             HttpClient httpClient, LongSupplier nanoTime) {
         this.settings = settings;
         this.jsonCodec = jsonCodec;
         this.httpClient = httpClient;
+        this.nanoTime = nanoTime;
     }
 
     @Override
@@ -39,32 +49,15 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
         ClinicalAssistantSettings active = runtimeSettings == null ? settings : runtimeSettings;
         if (!active.speechAvailable()) throw new ClinicalAiModelException("语音转写服务配置不完整");
 
-        if (isDashScope(active.speechEndpoint(), active.speechModel())) {
+        if (ClinicalAiRequestOptions.usesDashScopeSpeech(active.speechEndpoint(), active.speechModel())) {
             return transcribeDashScope(request, active);
         }
         return transcribeOpenAi(request, active);
     }
 
-    private boolean isDashScope(java.net.URI endpoint, String model) {
-        if (endpoint != null) {
-            String ep = endpoint.toString().toLowerCase(java.util.Locale.ROOT);
-            if (ep.contains("dashscope.aliyuncs.com") || ep.contains("/services/audio/asr/transcription")) {
-                return true;
-            }
-        }
-        if (model != null) {
-            String m = model.toLowerCase(java.util.Locale.ROOT);
-            return m.startsWith("qwen") || m.startsWith("paraformer") || m.startsWith("sensevoice");
-        }
-        return false;
-    }
-
     private String transcribeDashScope(SpeechRequest request, ClinicalAssistantSettings active) {
+        long started = nanoTime.getAsLong();
         java.net.URI endpoint = active.speechEndpoint();
-        String endpointStr = endpoint == null ? "" : endpoint.toString();
-        if (!endpointStr.contains("/services/audio/asr/transcription")) {
-            endpoint = java.net.URI.create("https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription");
-        }
         String model = active.speechModel();
         if ("qwen3-asr-flash".equalsIgnoreCase(model)) {
             model = "qwen3-asr-flash-filetrans";
@@ -82,7 +75,7 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
                 model, dataUrl);
 
         HttpRequest.Builder submitBuilder = HttpRequest.newBuilder(endpoint)
-                .timeout(java.time.Duration.ofSeconds(15))
+                .timeout(remainingTimeout(active, started))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("X-DashScope-Async", "enable")
@@ -93,7 +86,7 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
 
         try {
             String taskId = submitDashScopeTask(submitBuilder);
-            return awaitDashScopeTranscription(endpoint, taskId, active);
+            return awaitDashScopeTranscription(endpoint, taskId, active, started);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new ClinicalAiModelException("DashScope 语音转写请求被中断", exception);
@@ -119,7 +112,7 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
     }
 
     private String awaitDashScopeTranscription(java.net.URI endpoint, String taskId,
-                                               ClinicalAssistantSettings active) throws IOException, InterruptedException {
+                                               ClinicalAssistantSettings active, long started) throws IOException, InterruptedException {
         // 2. 轮询任务状态
         String taskBase = endpoint.getScheme() + "://" + endpoint.getAuthority();
         if (endpoint.getPath() != null && endpoint.getPath().contains("/api/v1")) {
@@ -128,32 +121,41 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
             taskBase += "/tasks/";
         }
         java.net.URI taskUri = java.net.URI.create(taskBase + taskId);
-        long deadline = System.currentTimeMillis() + active.requestTimeout().toMillis();
-        while (System.currentTimeMillis() < deadline) {
-            Thread.sleep(500);
+        while (true) {
+            Duration remaining = remainingTimeout(active, started);
+            Thread.sleep(remaining.compareTo(Duration.ofMillis(500)) < 0 ? remaining : Duration.ofMillis(500));
             HttpRequest.Builder taskBuilder = HttpRequest.newBuilder(taskUri)
-                    .timeout(java.time.Duration.ofSeconds(8))
+                    .timeout(remainingTimeout(active, started))
                     .header("Accept", "application/json");
             if (active.apiKey() != null && !active.apiKey().isBlank()) {
                 taskBuilder.header("Authorization", "Bearer " + active.apiKey().trim());
             }
             HttpResponse<String> taskResponse = httpClient.send(taskBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            remainingTimeout(active, started);
             if (taskResponse.statusCode() >= 200 && taskResponse.statusCode() < 300) {
                 JsonNode taskNode = jsonCodec.readTree(taskResponse.body());
                 JsonNode taskOutput = taskNode == null ? null : taskNode.get("output");
                 String status = taskOutput == null || taskOutput.get("task_status") == null ? "" : taskOutput.get("task_status").asString();
                 if ("SUCCEEDED".equalsIgnoreCase(status)) {
-                    return readDashScopeTranscription(taskOutput);
+                    return readDashScopeTranscription(taskOutput, active, started);
                 } else if ("FAILED".equalsIgnoreCase(status)) {
                     String errMsg = taskOutput.path("message").asString("任务执行失败");
                     throw new ClinicalAiModelException("DashScope 语音识别任务失败: " + errMsg);
                 }
             }
         }
-        throw new ClinicalAiModelException("DashScope 语音转写超时 (" + active.requestTimeout().toSeconds() + " 秒)");
     }
 
-    private String readDashScopeTranscription(JsonNode taskOutput) throws IOException, InterruptedException {
+    private Duration remainingTimeout(ClinicalAssistantSettings active, long started) {
+        long remaining = active.requestTimeout().toNanos() - (nanoTime.getAsLong() - started);
+        if (remaining <= 0) {
+            throw new ClinicalAiModelException("DashScope 语音转写超时 (" + active.requestTimeout().toSeconds() + " 秒)");
+        }
+        return Duration.ofNanos(remaining);
+    }
+
+    private String readDashScopeTranscription(JsonNode taskOutput, ClinicalAssistantSettings active,
+                                              long started) throws IOException, InterruptedException {
         // 提取 transcription_url 并下载结果
         String transUrl = null;
         if (taskOutput.get("results") != null && taskOutput.get("results").isArray() && taskOutput.get("results").size() > 0) {
@@ -163,10 +165,11 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
         }
         if (transUrl != null && !transUrl.isBlank()) {
             HttpRequest fetchReq = HttpRequest.newBuilder(java.net.URI.create(transUrl))
-                    .timeout(java.time.Duration.ofSeconds(10))
+                    .timeout(remainingTimeout(active, started))
                     .GET()
                     .build();
             HttpResponse<String> fileResp = httpClient.send(fetchReq, HttpResponse.BodyHandlers.ofString());
+            remainingTimeout(active, started);
             JsonNode fileNode = jsonCodec.readTree(fileResp.body());
             if (fileNode != null && fileNode.get("transcripts") != null && fileNode.get("transcripts").isArray() && fileNode.get("transcripts").size() > 0) {
                 String text = fileNode.get("transcripts").get(0).path("text").asString("");

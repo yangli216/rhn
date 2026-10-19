@@ -153,7 +153,7 @@ public class ClinicalAiAdministrationService {
             apiKey = resolveSecret("api-key", request.scope(), context);
         }
 
-        int timeout = probeTimeout(request);
+        int timeout = probeTimeout(request, context);
         HttpClient probeClient = probeHttpClient(timeout);
 
         String probeBody = jsonCodec.write(Map.of(
@@ -207,6 +207,7 @@ public class ClinicalAiAdministrationService {
     }
 
     private ConfigurationTestResult testDecision(ConfigurationTestRequest request, ExecutionContext context) {
+        int timeout = probeTimeout(request, context, "decision-timeout-seconds", 1, 30);
         long start = System.nanoTime();
         try {
             String endpoint = Strings.trimToNull(request.endpoint());
@@ -220,8 +221,7 @@ public class ClinicalAiAdministrationService {
             String key = Strings.trimToNull(request.secretValue());
             if (key == null) key = resolveSecret("decision-api-key", request.scope(), context);
             var settings = new DecisionModelSettings(DecisionModelSettings.Mode.SHADOW, uri, model, key,
-                    Duration.ofSeconds(request.timeoutSeconds() != null && request.timeoutSeconds() >= 1
-                            && request.timeoutSeconds() <= 30 ? request.timeoutSeconds() : 8), 0.9);
+                    Duration.ofSeconds(timeout), 0.9);
             var question = new com.rhn.ai.application.DecisionModelGateway.ChoiceQuestion("catalog_probe",
                     "Select the catalog item equivalent to state.intent. If none matches, choose NONE.",
                     Map.of("MATCH", "Complete blood count (CBC)", "NONE", "No equivalent catalog item"));
@@ -237,9 +237,25 @@ public class ClinicalAiAdministrationService {
         }
     }
 
-    private int probeTimeout(ConfigurationTestRequest request) {
-        return request.timeoutSeconds() != null && request.timeoutSeconds() >= 3 && request.timeoutSeconds() <= 60
-                ? request.timeoutSeconds() : 12;
+    private int probeTimeout(ConfigurationTestRequest request, ExecutionContext context) {
+        return probeTimeout(request, context, "request-timeout-seconds", 5, 120);
+    }
+
+    private int probeTimeout(ConfigurationTestRequest request, ExecutionContext context,
+                             String settingKey, int minimum, int maximum) {
+        String error = "请求超时必须为 " + minimum + "–" + maximum + " 秒的整数";
+        int timeout;
+        try {
+            timeout = request.timeoutSeconds() != null ? request.timeoutSeconds()
+                    : Integer.parseInt(resolveText(settingKey, request.scope(), context));
+        } catch (NumberFormatException exception) {
+            throw badRequest("AI_TEST_TIMEOUT_INVALID", error);
+        }
+        // Match the range of the corresponding governed ai.clinical parameter.
+        if (timeout < minimum || timeout > maximum) {
+            throw badRequest("AI_TEST_TIMEOUT_INVALID", error);
+        }
+        return timeout;
     }
 
     private HttpClient probeHttpClient(int timeout) {
@@ -277,7 +293,7 @@ public class ClinicalAiAdministrationService {
             apiKey = resolveSecret("api-key", request.scope(), context);
         }
 
-        int timeout = probeTimeout(request);
+        int timeout = probeTimeout(request, context);
 
         HttpClient probeClient = probeHttpClient(timeout);
 
@@ -396,27 +412,18 @@ public class ClinicalAiAdministrationService {
             apiKey = resolveSecret("api-key", request.scope(), context);
         }
 
-        int timeout = probeTimeout(request);
+        int timeout = probeTimeout(request, context);
 
         HttpClient probeClient = probeHttpClient(timeout);
-        String targetEndpoint = endpoint;
-        boolean isDashScope = endpoint.contains("dashscope.aliyuncs.com")
-                || endpoint.contains("/services/audio/asr/transcription")
-                || model.toLowerCase(Locale.ROOT).startsWith("qwen")
-                || model.toLowerCase(Locale.ROOT).startsWith("paraformer")
-                || model.toLowerCase(Locale.ROOT).startsWith("sensevoice");
-
-        if (isDashScope && !targetEndpoint.contains("/services/audio/asr/transcription")) {
-            targetEndpoint = "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription";
-        }
 
         long start = System.nanoTime();
         try {
+            boolean isDashScope = ClinicalAiRequestOptions.usesDashScopeSpeech(URI.create(endpoint), model);
             HttpRequest httpRequest;
             if (isDashScope) {
-                httpRequest = dashScopeRequest(targetEndpoint, apiKey, model, timeout);
+                httpRequest = dashScopeRequest(endpoint, apiKey, model, timeout);
             } else {
-                httpRequest = openAiRequest(targetEndpoint, apiKey, model, timeout);
+                httpRequest = openAiRequest(endpoint, apiKey, model, timeout);
             }
 
             HttpResponse<String> response = sendProbe(probeClient, httpRequest);

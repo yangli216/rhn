@@ -532,6 +532,32 @@ describe('personnel writes only succeed with confirmed receipts', () => {
       sdEmploymentTypeText: '正式', sdPersonnelStatus: 'ACTIVE', sdPersonnelStatusText: '正常' }
     return { ...mockAssignments[0], ...input, id: 'new-assignment', revision: 0 }
   }
+  it.each(['DOC001', 'P'.repeat(64)])('requires a fresh employment code independently of practitioner code %s', async code => {
+    const user = userEvent.setup()
+    const write = vi.fn().mockImplementation(async input => receipt('employment', input))
+    const practitioners = mockPractitioners.map((item, index) => index === 0 ? { ...item, code } : item)
+    const assignments = mockAssignments.map(item => item.practitionerId === mockPractitioners[0].id
+      ? { ...item, practitionerCode: code } : item)
+    renderComponent(practitioners, assignments, { createEmployment: write })
+    await user.click(screen.getByRole('tab', { name: '人员任职' }))
+
+    for (const [index, employmentCode] of ['EMP_NEW_1', 'EMP_NEW_2'].entries()) {
+      await user.click(await screen.findByRole('button', { name: '新增聘用' }))
+      const dialog = within(screen.getByRole('dialog'))
+      const field = dialog.getByLabelText(/聘用代码/, { selector: 'input' })
+      expect(field).toHaveValue('')
+      await user.click(dialog.getByRole('button', { name: '保存聘用' }))
+      expect(await dialog.findByText('请输入有效聘用代码')).toBeInTheDocument()
+      expect(write).toHaveBeenCalledTimes(index)
+
+      await user.type(field, employmentCode)
+      await user.click(dialog.getByRole('button', { name: '保存聘用' }))
+      await waitFor(() => expect(write).toHaveBeenNthCalledWith(index + 1,
+        expect.objectContaining({ practitionerId: mockPractitioners[0].id, code: employmentCode })))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    }
+  })
+
   it.each(cases.flatMap(item => [false, true].map(complete => ({ ...item, complete }))))('verifies $kind before closing its form; complete=$complete', async item => {
     const user = userEvent.setup()
     const write = vi.fn().mockImplementation(async input => item.complete ? receipt(item.kind, input) : { id: 'partial-result' })
@@ -544,6 +570,7 @@ describe('personnel writes only succeed with confirmed receipts', () => {
       await user.type(dialog.getByLabelText(/岗位名称/, { selector: 'input' }), '新增岗位')
     }
     if (item.kind === 'assignment') await user.type(dialog.getByLabelText(/任职代码/, { selector: 'input' }), 'ASG_NEW')
+    if (item.kind === 'employment') await user.type(dialog.getByLabelText(/聘用代码/, { selector: 'input' }), 'EMP_NEW')
     await user.click(dialog.getByRole('button', { name: item.save }))
     await waitFor(() => expect(write).toHaveBeenCalledTimes(1))
     if (item.complete) {
@@ -643,6 +670,7 @@ describe('personnel writes only succeed with confirmed receipts', () => {
     await user.click(await screen.findByRole('button', { name: item.open }))
     const dialogElement = screen.getByRole('dialog'), dialog = within(dialogElement)
     if (kind === 'assignment') await user.type(dialog.getByLabelText(/任职代码/, { selector: 'input' }), 'ASG_NEW')
+    if (kind === 'employment') await user.type(dialog.getByLabelText(/聘用代码/, { selector: 'input' }), 'EMP_NEW')
     if (kind === 'position') {
       await user.type(dialog.getByLabelText(/岗位代码/, { selector: 'input' }), 'POS_NEW')
       await user.type(dialog.getByLabelText(/岗位名称/, { selector: 'input' }), '新增岗位')

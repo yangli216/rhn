@@ -155,10 +155,18 @@ describe('RegistrationQueryWorkspace', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: '退号' }))
     expect(screen.getByRole('heading', { name: '办理退号' })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '确认退号' }))
+    const confirmCancellation = screen.getByRole('button', { name: '确认退号' })
+    expect(screen.getByLabelText(/^退号原因/)).toHaveValue('')
+    expect(confirmCancellation).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('补充说明'), ' 同一患者重复办理 ')
+    await userEvent.click(confirmCancellation)
+    expect(cancel).not.toHaveBeenCalled()
+    await userEvent.selectOptions(screen.getByLabelText(/^退号原因/), '重复挂号')
+    expect(confirmCancellation).toBeEnabled()
+    await userEvent.click(confirmCancellation)
 
     await waitFor(() => expect(cancel).toHaveBeenCalledWith('encounter-1', expect.objectContaining({
-      reason: '患者主动取消就诊', terminalCode: 'REGISTRATION-WINDOW-WEB',
+      reason: '重复挂号：同一患者重复办理', terminalCode: 'REGISTRATION-WINDOW-WEB',
     })))
     expect(await screen.findByText(/退号完成，候诊资格已关闭/)).toBeInTheDocument()
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['outpatient-registrations'] })
