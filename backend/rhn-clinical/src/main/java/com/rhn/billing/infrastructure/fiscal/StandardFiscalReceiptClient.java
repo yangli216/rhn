@@ -1,12 +1,12 @@
 package com.rhn.billing.infrastructure.fiscal;
 
 import com.rhn.billing.infrastructure.fiscal.FiscalModels.*;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
-/** 正式财政网关尚未接入时明确失败，不生成虚假票据或成功回执。 */
+/** 未启用 gateway（也未启用进程内 Mock）时明确失败，不生成虚假票据或成功回执。 */
 @Component
-@ConditionalOnProperty(name = "rhn.billing.fiscal.mock-enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnExpression("'${rhn.billing.fiscal.mock-enabled:false}' != 'true' and '${rhn.billing.fiscal.gateway.enabled:false}' != 'true'")
 public class StandardFiscalReceiptClient implements NationalFiscalReceiptClient {
     private static final String CODE = "FISCAL_GATEWAY_NOT_IMPLEMENTED";
     private static final String MESSAGE = "财政正式网关尚未接入，无法办理或确认电子票据，请联系管理员";

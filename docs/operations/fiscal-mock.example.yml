@@ -1,0 +1,32 @@
+# 财政电子票据联调（thirdparty-mock-server 的 fiscal Mock）配置示例。值均为测试值，生产环境不得使用。
+# 启用前先启动 Mock（默认 127.0.0.1:18090，所有协议共用端口）。gateway 与进程内 Mock（rhn.billing.fiscal.mock-enabled=true）互斥，
+# 同时开启会因出现两个候选客户端而启动失败；联调时需显式关闭进程内 Mock。
+rhn:
+  billing:
+    fiscal:
+      mock-enabled: false
+      gateway:
+        enabled: true
+        base-url: http://127.0.0.1:18090/fiscal
+        client-id: mock-fiscal-client
+        client-secret: mock-fiscal-secret
+        connect-timeout: 3s
+        read-timeout: 20s            # Mock 的 TEST-TIMEOUT 场景延迟 31s，需小于它才能验证超时
+        callback:
+          enabled: true              # 注册异步结果回调入口（专用安全链，仅放行下面这一个精确路径）
+          path: /integration/fiscal/callback
+          secret: callback-secret    # 与 Mock 的 callbackSecret 一致，用于校验 HMAC-SHA256 签名
+          # 回调没有登录态也不带租户信息，必须固定其落入的租户、机构与科室（取自真实数据）
+          tenant-id: 1
+          organization-id: 2
+          department-id: 3
+          max-clock-skew: 5m
+# Mock 侧需把回调地址指向 RHN（路径必须与上面 path 一致）：
+#   curl -X PUT 'http://127.0.0.1:18090/mock/config?protocol=fiscal' -H 'Content-Type: application/json' \
+#        -d '{"callbackUrl":"http://127.0.0.1:8080/integration/fiscal/callback","callbackSecret":"callback-secret","autoCallback":true}'
+# 以命令行参数启用时：--rhn.billing.fiscal.mock-enabled=false --rhn.billing.fiscal.gateway.enabled=true
+#   --rhn.billing.fiscal.gateway.base-url=... --rhn.billing.fiscal.gateway.client-id=... --rhn.billing.fiscal.gateway.client-secret=...
+#   --rhn.billing.fiscal.gateway.callback.enabled=true --rhn.billing.fiscal.gateway.callback.secret=...
+#   --rhn.billing.fiscal.gateway.callback.tenant-id=... --...organization-id=... --...department-id=...
+# 对真实 Mock 的端到端联调测试（默认跳过）：
+#   mvn -o test -Dtest=FiscalMockLiveIntegrationTest -Drhn.fiscal.mock.jar=<thirdparty-mock-server jar>
