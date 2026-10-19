@@ -397,6 +397,8 @@ sequenceDiagram
 
 厂商连接参数（`baseUrl`、`clientId`、`clientSecret`）属于部署配置，按机构列在 `rhn.crypto.ca.vendors.bjca-ywx.organizations[*]`，示例放 `docs/operations/ca-bjca-ywx.example.yml`，不入库明文。
 
+**厂商连接参数已实现（`CaProperties.vendors`）**：`rhn.crypto.ca.vendors.<vendor>.enabled` 与 `.organizations[*]`（`tenant-id`、可选 `organization-id`、`base-url`、`client-id`、`client-secret`、`connect-timeout`（默认 3s）、`read-timeout`（默认 20s）），机构级优先于租户级；启用厂商但缺连接、`base-url` 非 http(s) 或缺凭据时启动即失败，凭据不进日志与 `toString`。首个 HTTP 适配器是联调用 `mock-ca`（`infrastructure/ca/mock`，对接 `thirdparty-mock-server` 的 CA 协议），仅在 `rhn.crypto.ca.vendors.mock-ca.enabled=true` 时注册，保障级别为 `DEVELOPMENT_ONLY`：合规门禁（`rhn.crypto.enforce-compliance`，默认开启）下注册表拒绝启动，联调环境必须显式关闭该开关，生产门禁不放宽。配置示例见 `docs/operations/ca-mock-ca.example.yml`。适配器的网络超时、HTTP 非 200、非 JSON 回执一律抛可重试的 `CaVendorCallException`（派发与轮询按既有退避重试，不把未知结果当失败）；厂商明确拒绝（`code=-1`）带 `errorCode`，在提交阶段同样按既有重试上限处理（SPI 当前无“确定性提交失败”通道）。
+
 ## 11. 开发与测试
 
 - 依赖 `org.bouncycastle:bcprov-jdk18on`、`bcpkix-jdk18on` 1.82（决策 6），在 `backend/pom.xml` 统一管理版本；同时排除支付宝 SDK 传递的 `bcprov-jdk15on`，避免两套同名包并存。

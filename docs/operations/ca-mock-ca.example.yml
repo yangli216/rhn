@@ -1,0 +1,26 @@
+# CA 联调（thirdparty-mock-server 的 CA Mock）配置示例。值均为测试值，生产环境不得使用。
+# 启用前先启动 Mock（默认 127.0.0.1:18090，所有协议共用端口），并按其 README 备案测试医生。
+rhn:
+  crypto:
+    # 适配器保障级别为 DEVELOPMENT_ONLY，必须显式关闭合规门禁才能注册；生产保持默认 true。
+    enforce-compliance: false
+    ca:
+      enabled: true
+      default-vendor: mock-ca          # 也可用 organizations[*] 按租户/机构覆盖
+      vendors:
+        mock-ca:
+          enabled: true
+          organizations:
+            - tenant-id: 1
+              # organization-id: 2      # 省略表示该租户下所有机构；填写则机构级优先
+              base-url: http://127.0.0.1:18090/ca
+              client-id: mock-ca-client
+              client-secret: mock-ca-secret
+              connect-timeout: 3s
+              read-timeout: 20s         # Mock 的 TIMEOUT 场景延迟 31s，需小于它才能验证超时
+# 免手工确认的联调模式（Mock 侧）：
+#   curl -X PUT 'http://127.0.0.1:18090/mock/config?protocol=ca' -H 'Content-Type: application/json' \
+#        -d '{"autoConfirmOrders":true,"autoConfirmLoginSigner":"mock-<userId>"}'
+# 以命令行参数启用时：--rhn.crypto.enforce-compliance=false --rhn.crypto.ca.enabled=true
+#   --rhn.crypto.ca.default-vendor=mock-ca --rhn.crypto.ca.vendors.mock-ca.enabled=true
+#   --rhn.crypto.ca.vendors.mock-ca.organizations[0].tenant-id=1 ...base-url / client-id / client-secret
