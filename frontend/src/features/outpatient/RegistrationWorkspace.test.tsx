@@ -266,7 +266,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     }
     if (manualGender) {
       await userEvent.click(screen.getByLabelText(/^性别/))
-      await userEvent.click(screen.getByRole('option', { name: manualGender, exact: true }))
+      await userEvent.click(screen.getByRole('option', { name: manualGender }))
     }
     expect(birthDateInput).toHaveValue(birthDate)
     expect(confirmCreate).toBeEnabled()
@@ -419,9 +419,9 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: '夜间门诊', exact: true })).toHaveAttribute('aria-pressed', 'true'))
+    await waitFor(() => expect(screen.getByRole('button', { name: '夜间门诊' })).toHaveAttribute('aria-pressed', 'true'))
     for (const [index, [, label]] of dayParts.entries()) {
-      const button = await screen.findByRole('button', { name: label, exact: true })
+      const button = await screen.findByRole('button', { name: label })
       await userEvent.click(button)
       expect(button).toHaveAttribute('aria-pressed', 'true')
       expect(screen.getByRole('button', { name: new RegExp(`诊疗班次${index}`) })).toBeInTheDocument()
@@ -1082,7 +1082,7 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // Confirm that the linked appointment alert shows up
     expect(await screen.findByText(/正在办理预约/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: sdDayPartText, exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: sdDayPartText })).toHaveAttribute('aria-pressed', 'true')
 
     // Confirm registration
     const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })

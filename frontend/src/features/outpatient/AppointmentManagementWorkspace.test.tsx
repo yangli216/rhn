@@ -313,27 +313,27 @@ describe('AppointmentManagementWorkspace', () => {
     </MemoryRouter></QueryClientProvider>)
     await user.click(await screen.findByRole('button', { name: /新建预约/ }))
     const dialog = within(await screen.findByRole('dialog'))
-    await dialog.findByRole('button', { name: '夜间门诊', exact: true })
+    await dialog.findByRole('button', { name: '夜间门诊' })
     const shifts = () => within(dialog.getByRole('radiogroup', { name: '出诊班次列表' })).getAllByRole('radio')
     expect(shifts()).toHaveLength(5)
-    expect(dialog.getAllByRole('button', { name: '早间门诊', exact: true })).toHaveLength(1)
-    expect(dialog.queryByRole('button', { name: '上午', exact: true })).not.toBeInTheDocument()
+    expect(dialog.getAllByRole('button', { name: '早间门诊' })).toHaveLength(1)
+    expect(dialog.queryByRole('button', { name: '上午' })).not.toBeInTheDocument()
 
     for (const [code, label] of [['MORNING', '早间门诊'], ['AFTERNOON', '下午'], ['EVENING', '夜间门诊'], ['CUSTOM', 'CUSTOM']]) {
-      await user.click(dialog.getByRole('button', { name: label, exact: true }))
+      await user.click(dialog.getByRole('button', { name: label }))
       const expected = available.filter((item) => item.sdDayPart === code)
       expect(shifts()).toHaveLength(expected.length)
       for (const item of expected) {
         expect(dialog.getByRole('radio', { name: new RegExp(`^${item.practitionerName}，`) })).toBeInTheDocument()
       }
     }
-    await user.click(dialog.getByRole('button', { name: '全天', exact: true }))
+    await user.click(dialog.getByRole('button', { name: '全天' }))
     expect(shifts()).toHaveLength(5)
 
-    await user.click(dialog.getByRole('button', { name: '夜间门诊', exact: true }))
+    await user.click(dialog.getByRole('button', { name: '夜间门诊' }))
     schedules.mockResolvedValue(available.filter((item) => item.sdDayPart !== 'EVENING'))
     await queryClient.invalidateQueries({ queryKey: ['future-appointment-schedules'] })
-    await waitFor(() => expect(dialog.queryByRole('button', { name: '夜间门诊', exact: true })).not.toBeInTheDocument())
+    await waitFor(() => expect(dialog.queryByRole('button', { name: '夜间门诊' })).not.toBeInTheDocument())
     expect(shifts()).toHaveLength(4)
   })
 
@@ -400,32 +400,32 @@ describe('AppointmentManagementWorkspace', () => {
     </MemoryRouter></QueryClientProvider>)
     await user.click(await screen.findByRole('button', { name: /新建预约/ }))
     const dialog = within(await screen.findByRole('dialog'))
-    await dialog.findByRole('button', { name: '全部科室 (4)', exact: true })
+    await dialog.findByRole('button', { name: '全部科室 (4)' })
     const expectAvailableCounts = (counts: number[]) => {
       const shifts = within(dialog.getByRole('radiogroup', { name: '出诊班次列表' }))
       expect(shifts.getAllByRole('radio')).toHaveLength(counts.length)
       for (const count of counts) expect(shifts.getByRole('radio', { name: new RegExp(`，余${count}号$`) })).toBeInTheDocument()
     }
     expectAvailableCounts([11, 12, 13, 14, 15, 16])
-    expect(dialog.queryByRole('button', { name: '全科', exact: true })).not.toBeInTheDocument()
-    expect(dialog.queryByRole('button', { name: '全科门诊', exact: true })).not.toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: '全科' })).not.toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: '全科门诊' })).not.toBeInTheDocument()
     for (const [label, counts] of [
       ['全科（dept-a）', [11, 16]], ['全科（dept-b）', [12]], ['内科', [13]], ['dept-unnamed', [15]],
     ] as const) {
-      await user.click(dialog.getByRole('button', { name: label, exact: true }))
+      await user.click(dialog.getByRole('button', { name: label }))
       expectAvailableCounts([...counts])
     }
-    await user.click(dialog.getByRole('button', { name: '全部科室 (4)', exact: true }))
+    await user.click(dialog.getByRole('button', { name: '全部科室 (4)' }))
     expectAvailableCounts([11, 12, 13, 14, 15, 16])
 
-    await user.click(dialog.getByRole('button', { name: '全科（dept-a）', exact: true }))
+    await user.click(dialog.getByRole('button', { name: '全科（dept-a）' }))
     schedules.mockResolvedValue(available.filter((item) => item.id === 'c' || item.id === 'missing'))
     await queryClient.invalidateQueries({ queryKey: ['future-appointment-schedules'] })
-    await waitFor(() => expect(dialog.queryByRole('button', { name: '全科（dept-a）', exact: true })).not.toBeInTheDocument())
+    await waitFor(() => expect(dialog.queryByRole('button', { name: '全科（dept-a）' })).not.toBeInTheDocument())
     expectAvailableCounts([13, 14])
-    await user.click(dialog.getByRole('button', { name: '内科', exact: true }))
+    await user.click(dialog.getByRole('button', { name: '内科' }))
     expectAvailableCounts([13])
-    await user.click(dialog.getByRole('button', { name: '全部科室 (1)', exact: true }))
+    await user.click(dialog.getByRole('button', { name: '全部科室 (1)' }))
     expectAvailableCounts([13, 14])
   })
 

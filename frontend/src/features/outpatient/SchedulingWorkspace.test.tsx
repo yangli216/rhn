@@ -271,7 +271,7 @@ describe('SchedulingWorkspace', () => {
       <SchedulingWorkspace api={api} clinicalContext={clinicalContext} />
     </QueryClientProvider>)
     await userEvent.click(await screen.findByText('测试排班'))
-    await userEvent.click(screen.getByRole('button', { name: openLabel, exact: true }))
+    await userEvent.click(screen.getByRole('button', { name: openLabel }))
     const reason = screen.getByLabelText(new RegExp(`^${reasonLabel}`))
     const confirm = screen.getByRole('button', { name: new RegExp(confirmLabel) })
     expect(reason).toHaveValue('')
@@ -371,7 +371,7 @@ describe('SchedulingWorkspace', () => {
     await userEvent.click(screen.getByText('全科专家门诊'))
     expect(screen.getByText('挂号费用').parentElement).toHaveTextContent(expectedFee)
     expect(screen.getByText('挂号费用').parentElement).not.toHaveTextContent('免收')
-    await userEvent.click(screen.getByRole('button', { name: '关闭', exact: true }))
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }))
 
     // 测试点击周导航切换周
     await userEvent.click(screen.getByRole('button', { name: /下周/ }))
