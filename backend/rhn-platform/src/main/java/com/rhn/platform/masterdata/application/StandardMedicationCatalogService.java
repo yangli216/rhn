@@ -30,10 +30,10 @@ public class StandardMedicationCatalogService {
     private final Map<String, List<JsonNode>> issues = new HashMap<>();
     private final Map<String, java.util.Set<String>> entriesByClue = new HashMap<>();
     private final Map<String, java.util.Set<String>> entriesByLegacyCode = new HashMap<>();
-    private final Map<String, Category> categories = new java.util.LinkedHashMap<>();
+    private final Map<String, StandardMedicationCategory> categories = new java.util.LinkedHashMap<>();
 
     /** A catalog classification such as "（一）青霉素类"; membership is a pure function of this catalog edition. */
-    public record Category(String key, String major, String sub, String label, List<String> entryIds) {}
+    public record StandardMedicationCategory(String key, String major, String sub, String label, List<String> entryIds) {}
 
     public StandardMedicationCatalogService(JsonCodec jsonCodec) throws IOException {
         try (var input = new ClassPathResource("medication-standard-catalog.json").getInputStream()) {
@@ -61,7 +61,7 @@ public class StandardMedicationCatalogService {
                 String major = category.path("major").asString("").strip(), sub = category.path("sub").asString("").strip();
                 if (major.isEmpty() && sub.isEmpty()) continue;
                 String key = sub.isEmpty() ? major : major + "/" + sub;
-                var members = categories.computeIfAbsent(key, ignored -> new Category(key, major, sub,
+                var members = categories.computeIfAbsent(key, ignored -> new StandardMedicationCategory(key, major, sub,
                         sub.isEmpty() ? major : sub + "（" + major + "）", new ArrayList<>())).entryIds();
                 if (!members.contains(id)) members.add(id);
             }
@@ -73,16 +73,16 @@ public class StandardMedicationCatalogService {
         });
     }
 
-    public List<Category> categories(String query) {
+    public List<StandardMedicationCategory> categories(String query) {
         String needle = query == null ? "" : normalized(query);
         return categories.values().stream().filter(c -> needle.isEmpty() || normalized(c.label()).contains(needle)
-                || normalized(stripOrdinal(c.sub())).contains(needle)).map(c -> new Category(c.key(), c.major(), c.sub(), c.label(), List.copyOf(c.entryIds()))).toList();
+                || normalized(stripOrdinal(c.sub())).contains(needle)).map(c -> new StandardMedicationCategory(c.key(), c.major(), c.sub(), c.label(), List.copyOf(c.entryIds()))).toList();
     }
 
-    public Category category(String key) {
+    public StandardMedicationCategory category(String key) {
         var found = categories.get(key == null ? "" : key);
         if (found == null) throw notFound("STANDARD_CATEGORY_NOT_FOUND", "未找到标准目录分类");
-        return new Category(found.key(), found.major(), found.sub(), found.label(), List.copyOf(found.entryIds()));
+        return new StandardMedicationCategory(found.key(), found.major(), found.sub(), found.label(), List.copyOf(found.entryIds()));
     }
 
     /** "（一）青霉素类" -> "青霉素类": ordinals are source numbering, not part of the name a maintainer types. */

@@ -18,7 +18,7 @@ import { planTextStreamPreview, type OutpatientPlanTemplate, type OutpatientPlan
   type PlanTextDraft, type PlanTextReviewItem, type SaveOutpatientPlanTemplateInput,
   type CompiledPlanMedicationItem, type CompiledPlanServiceItem } from '../../../shared/api/outpatientPlanTemplatesApi'
 import { Alert, Button, ClinicalResourceSearch, Dialog, FormField, Icon, IconButton, PanelHead, StatusBadge, Tooltip, UnitNumberInput,
-  type ClinicalResourceOption, type IconName } from '../../../shared/ui'
+  type ClinicalResource, type ClinicalResourceOption, type IconName } from '../../../shared/ui'
 import type { DiseaseConcept, MedicationKnowledge, ServiceCatalogItem } from '../../../shared/api/masterDataApi'
 import { errorMessage } from '../../../shared/api/httpClient'
 import { safeRandomUUID } from '../../../shared/utils/uuid'
@@ -364,7 +364,6 @@ export function AiPlanTemplateDraftModal({
   const pendingServiceValidation = pendingService
     ? serviceContextChanged ? '当前机构、会话或方案已变化，请取消后重新选择项目。' : aiServiceValidation(pendingService.item) : ''
 
-  const searchContext = JSON.stringify([templateApiScope(api), organizationId, editingTemplate?.id, editingTemplate?.revision, scope, compiledDraft?.tasks])
   const canSearch = !saving && !compiling && !converting
   // 其他安排（宣教/随访）微调状态
 
@@ -699,7 +698,7 @@ export function AiPlanTemplateDraftModal({
 
 
   /** Shared-search pick → plan candidate; directory-identity problems surface as the modal error. */
-  const pickCandidate = <R, C>(option: ClinicalResourceOption<R> | undefined, convert: (raw: R) => C): C | undefined => {
+  const pickCandidate = <R extends ClinicalResource, C>(option: ClinicalResourceOption<R> | undefined, convert: (raw: R) => C): C | undefined => {
     if (!option?.raw) return undefined
     try { setError(null); return convert(option.raw) } catch (cause) { setError(errorMessage(cause)); return undefined }
   }

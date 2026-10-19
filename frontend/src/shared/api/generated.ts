@@ -17442,6 +17442,13 @@ export interface components {
             label?: string;
             entryIds?: string[];
         };
+        StandardMedicationCategory: {
+            key?: string;
+            major?: string;
+            sub?: string;
+            label?: string;
+            entryIds?: string[];
+        };
         Conditions: {
             ageMode?: string;
             ageUnit?: string;
@@ -52102,7 +52109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Category"][];
+                    "*/*": components["schemas"]["StandardMedicationCategory"][];
                 };
             };
         };

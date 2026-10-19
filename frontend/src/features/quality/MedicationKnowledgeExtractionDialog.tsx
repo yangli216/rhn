@@ -4,16 +4,17 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { KnowledgeBody, KnowledgeEvidence, KnowledgeExtractionRun, KnowledgeTarget } from '../../shared/api/medicationKnowledgeDraftApi'
 import { Alert, Button, Dialog, FormField, Select, StatusBadge } from '../../shared/ui'
+import { useSystemEnum } from '../../shared/ui/useSystemEnum'
 import './medication-knowledge-extraction.css'
 
 const fieldNames: Record<string, string> = { kind: '知识类型', matchMode: '匹配方式', minimumOrders: '触发医嘱条数', exposureScope: '检查范围', ageMode: '年龄范围', ageUnit: '年龄单位', minimumAgeInclusive: '年龄下限（含）', maximumAgeExclusive: '年龄上限（不含）', groupARouteMode: 'A 组途径范围', groupBRouteMode: 'B 组途径范围', groupARouteNames: 'A 组给药途径', groupBRouteNames: 'B 组给药途径', clinicalMeaning: '临床意义', severity: '建议风险', proposedAction: '建议动作' }
 const valueNames: Record<string, string> = { DUPLICATE_THERAPY: '重复用药', DRUG_INTERACTION: '相互作用', SAME_STANDARD_ENTRY: '同一标准条目', EXPLICIT_GROUP: '明确药品组', GROUP_PAIR: '两组配对', SAME_PRESCRIPTION: '同一处方', OVERLAPPING_COURSES: '疗程重叠（待支持）', CURRENT_MEDICATIONS: '在用药清单（待支持）', ALL: '不限（需核对依据）', RANGE: '限定年龄', LIST: '限定途径', YEAR: '岁', MONTH: '月龄', DAY: '日龄', LOW: '低', MEDIUM: '中', HIGH: '高', CRITICAL: '极高', WARN: '警告', REQUIRE_OVERRIDE: '需理由后继续', BLOCK: '阻断' }
-const sourceTypes: Record<string, string> = { LABEL: '药品说明书', GUIDELINE: '指南 / 共识', LITERATURE: '研究文献', INSTITUTION_POLICY: '机构管理规范', REGULATION: '法规 / 规章' }
 export function KnowledgeExtractionPanel({ api, evidence: initial, runId, onBusy, onStage, intro = true, onAdopt }: {
   api: RhnApi; evidence: KnowledgeEvidence; runId?: string; onBusy?: (busy: boolean) => void; onStage?: (stage: 'input' | 'review') => void; intro?: boolean
   onAdopt: (body: KnowledgeBody, runId: string, labels: Record<string, string>) => void
 }) {
   const cache = useQueryClient()
+  const sourceTypes = useSystemEnum(api.dictionaries, 'MED_KNOWLEDGE_SOURCE_TYPE')
   const [evidence, setEvidence] = useState(initial), [requirement, setRequirement] = useState('')
   const [run, setRun] = useState<KnowledgeExtractionRun>(), [selected, setSelected] = useState<Record<number, string>>({})
   const [reviewed, setReviewed] = useState(false), [busy, setBusyState] = useState(false), [error, setError] = useState(''), [page, setPage] = useState(0)
@@ -60,7 +61,7 @@ export function KnowledgeExtractionPanel({ api, evidence: initial, runId, onBusy
           <FormField label="来源标题"><input aria-label="抽取来源标题" maxLength={500} value={displayedEvidence.title ?? ''} onChange={e => change({ title: e.target.value })} /></FormField>
           <FormField label="原文定位"><input aria-label="抽取原文定位" maxLength={2000} value={displayedEvidence.locator ?? ''} onChange={e => change({ locator: e.target.value })} placeholder="页码、章节或可追溯链接" /></FormField>
           <div className="knowledge-extraction-meta-grid">
-            <FormField label="来源类型"><Select aria-label="抽取来源类型" value={displayedEvidence.sourceType ?? ''} onChange={sourceType => change({ sourceType })} options={Object.entries(sourceTypes).map(([value, label]) => ({ value, label }))} disabled={busy || !!runId} /></FormField>
+            <FormField label="来源类型"><Select aria-label="抽取来源类型" value={displayedEvidence.sourceType ?? ''} onChange={sourceType => change({ sourceType })} options={sourceTypes.options} disabled={busy || !!runId} /></FormField>
             <FormField label="发布机构"><input aria-label="抽取发布机构" maxLength={300} value={displayedEvidence.publisher ?? ''} onChange={e => change({ publisher: e.target.value })} /></FormField>
             <FormField label="版本 / 发布日期"><input aria-label="抽取来源版本" maxLength={200} value={displayedEvidence.edition ?? ''} onChange={e => change({ edition: e.target.value })} /></FormField>
           </div>

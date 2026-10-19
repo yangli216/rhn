@@ -21,7 +21,7 @@ public class StandardMedicationReferenceService implements StandardMedicationRef
         return catalog.categories("").stream().filter(c -> !wanted.isEmpty() && bare(StandardMedicationCatalogService.stripOrdinal(c.sub().isEmpty() ? c.major() : c.sub())).equals(wanted))
                 .map(c -> reference(summary, c)).toList();
     }
-    private static CategoryReference reference(tools.jackson.databind.JsonNode summary, StandardMedicationCatalogService.Category c) {
+    private static CategoryReference reference(tools.jackson.databind.JsonNode summary, StandardMedicationCatalogService.StandardMedicationCategory c) {
         return new CategoryReference(summary.path("catalogId").asString(), summary.path("catalogVersion").asString(),
                 summary.path("contentHash").asString(), summary.path("source").path("sha256").asString(), c.key(), c.label(), c.entryIds());
     }

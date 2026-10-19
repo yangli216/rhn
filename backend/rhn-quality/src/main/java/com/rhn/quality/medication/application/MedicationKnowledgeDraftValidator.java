@@ -57,7 +57,7 @@ public class MedicationKnowledgeDraftValidator {
         var e = body.evidence();
         if (e == null) issue(issues, "evidence", "REQUIRED", "缺少来源证据");
         else {
-            choice(issues, "evidence.sourceType", e.sourceType(), "来源类型", "LABEL", "GUIDELINE", "LITERATURE", "INSTITUTION_POLICY", "REGULATION");
+            choice(issues, "evidence.sourceType", e.sourceType(), "来源类型", MedicationKnowledgeSystemEnums.codes(MedicationKnowledgeSystemEnums.SOURCE_TYPE));
             required(issues, "evidence.title", e.title(), "来源标题", 500);
             required(issues, "evidence.publisher", e.publisher(), "发布机构", 300);
             required(issues, "evidence.edition", e.edition(), "来源版本或发布日期", 200);
@@ -68,7 +68,7 @@ public class MedicationKnowledgeDraftValidator {
         }
         required(issues, "clinicalMeaning", body.clinicalMeaning(), "临床意义与处置说明", 4000);
         choice(issues, "severity", body.severity(), "建议风险等级", "LOW", "MEDIUM", "HIGH", "CRITICAL");
-        choice(issues, "proposedAction", body.proposedAction(), "建议动作", "WARN", "REQUIRE_OVERRIDE", "BLOCK");
+        choice(issues, "proposedAction", body.proposedAction(), "建议动作", MedicationKnowledgeSystemEnums.codes(MedicationKnowledgeSystemEnums.ACTION));
         String description = interaction ? "同一处方中，A 组与 B 组各有一条不同的有效医嘱，且分别满足人群及途径条件时，形成相互作用候选命中。"
                 : universal ? "同一处方中，同一标准条目下的不同有效医嘱达到 " + body.minimumOrders() + " 条，且满足人群及途径条件时，形成重复开立候选命中。标准条目不等同于活性成分。"
                 : "同一处方中，明确列出的 A 组药品合计达到 " + body.minimumOrders() + " 条不同有效医嘱，且满足人群及途径条件时，形成重复治疗候选命中。组内等效性须由证据审核确认。";

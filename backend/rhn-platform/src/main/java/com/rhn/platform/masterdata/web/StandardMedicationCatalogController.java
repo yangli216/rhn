@@ -67,7 +67,7 @@ public class StandardMedicationCatalogController {
     }
 
     @GetMapping("/categories")
-    public List<StandardMedicationCatalogService.Category> categories(@RequestParam(defaultValue = "") String query) {
+    public List<StandardMedicationCatalogService.StandardMedicationCategory> categories(@RequestParam(defaultValue = "") String query) {
         contextProvider.requireCurrent();
         return service.categories(query);
     }

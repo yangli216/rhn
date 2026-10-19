@@ -7,7 +7,7 @@ import type { RhnApi } from '../../../shared/api'
 import type { PlanTextDraft } from '../../../shared/api/outpatientPlanTemplatesApi'
 import { AiPlanTemplateDraftModal } from './AiPlanTemplateDraftModal'
 import { maintainedNoteReceipt } from './maintainedTemplateSave.testFixtures'
-import { catalogPage, catalogProduct, catalogService } from './templateCatalogSearch.testFixtures'
+import { catalogProduct, catalogService } from './templateCatalogSearch.testFixtures'
 
 describe('AiPlanTemplateDraftModal', () => {
   it('streams the clinical rows without exposing a duplicate narrative tail', async () => {

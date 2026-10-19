@@ -18,7 +18,8 @@ function mount(detail = base) {
       body: { ...base.saved.body, title: '验收重复用药示例' }, assessment: complete, medicationLabels: {}, manualCases: [], results: base.cases }]),
     validate: vi.fn().mockResolvedValue(complete), preview: vi.fn().mockResolvedValue(base.cases),
     extractionStatus: vi.fn().mockResolvedValue({ available: true, model: 'synthetic-model', message: '' }), extract: vi.fn(), converse: vi.fn(),
-  }, masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue({ routes: [{ code: 'PO', name: '口服' }] }) } }
+  }, masterData: { clinicalMedicationStandards: vi.fn().mockResolvedValue({ routes: [{ code: 'PO', name: '口服' }] }) },
+  dictionaries: { systemEnum: vi.fn().mockResolvedValue({ code: 'MED_KNOWLEDGE_ACTION', name: '用药知识处置方式', items: [{ code: 'WARN', name: '警告提示', description: '', sortOrder: 10 }, { code: 'REQUIRE_OVERRIDE', name: '需理由后继续', description: '', sortOrder: 20 }, { code: 'BLOCK', name: '阻断', description: '', sortOrder: 30 }] }) } }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   render(<QueryClientProvider client={client}><MedicationKnowledgeDrafts api={api as unknown as RhnApi} /></QueryClientProvider>)
   return api

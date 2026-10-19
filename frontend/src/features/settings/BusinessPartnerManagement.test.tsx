@@ -6,12 +6,11 @@ import type { Organization } from '../../shared/model'
 import type { RhnApi, Supplier } from '../../shared/rhnApi'
 import { BusinessPartnerManagement } from './BusinessPartnerManagement'
 
-const organization: Organization = { id: '362387869790211', code: 'ORG01', name: '青禾镇中心卫生院', tenantId: '362387869790209' }
+const organization = { id: '362387869790211', code: 'ORG01', name: '青禾镇中心卫生院' } as Organization
 
 const demoSupplier: Supplier = {
   id: '362387869980101',
   revision: 0,
-  tenantId: '362387869790209',
   organizationId: '362387869790211',
   code: 'SUP001',
   name: '国药控股分销中心有限公司',

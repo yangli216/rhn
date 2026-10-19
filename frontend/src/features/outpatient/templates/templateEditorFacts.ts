@@ -20,9 +20,9 @@ export function requireEditorMedication(value: MedicationKnowledge): MedicationK
   if (!medication.safeParse(value).success) throw new Error('药品身份、状态或默认用法异常，请核实主数据。')
   return value
 }
-export function requireEditorService(value: ServiceCatalogItem): ServiceCatalogItem {
+export function requireEditorService(value: ServiceCatalogItem): ServiceCatalogItem & { unitCode: string } {
   if (!service.safeParse(value).success) throw new Error('诊疗项目身份、类型或数量单位缺失，请核实主数据。')
-  return value
+  return value as ServiceCatalogItem & { unitCode: string }
 }
 export function requireEditorPage<T>(value: { content: T[]; totalElements: number; totalPages: number; page: number; size: number }, check: (item: T) => T): T[] {
   if (!value || !Array.isArray(value.content) || value.page !== 0 || value.size !== 30

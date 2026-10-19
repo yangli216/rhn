@@ -1,6 +1,5 @@
 import type { KnowledgeBody, KnowledgeEvidence, KnowledgeRoutes, KnowledgeTarget, RuleCard } from '../../shared/api/medicationKnowledgeDraftApi'
 
-export const cardActionNames: Record<string, string> = { WARN: '警告提示', REQUIRE_OVERRIDE: '需理由后继续', BLOCK: '阻断' }
 const ageText = (c: RuleCard) => {
   if (c.ageMode === 'ALL') return '不限年龄'
   if (c.ageMode !== 'RANGE') return ''
@@ -13,15 +12,15 @@ const ageText = (c: RuleCard) => {
 }
 const join = (names: string[]) => names.join('、')
 
-/** The plain-language sentence a maintainer reads and confirms. Built from slots only, never from model prose. */
-export function cardSentence(c: RuleCard): string {
+/** The plain-language sentence a maintainer reads and confirms. Built from slots only, never from model prose; action names come from MED_KNOWLEDGE_ACTION. */
+export function cardSentence(c: RuleCard, actionName: (code: string) => string): string {
   if (c.kind === 'DRUG_INTERACTION') {
     const age = ageText(c), route = c.routesA.length ? `（${join(c.routesA)}）` : ''
-    return `${age ? `${age}患者，` : ''}同一处方中，${c.groupA.length ? join(c.groupA) : '【A 组药品待补充】'}${route} 与 ${c.groupB.length ? join(c.groupB) : '【B 组药品待补充】'} 同时开立时，${c.proposedAction ? cardActionNames[c.proposedAction] : '【处置方式待确认】'}。`
+    return `${age ? `${age}患者，` : ''}同一处方中，${c.groupA.length ? join(c.groupA) : '【A 组药品待补充】'}${route} 与 ${c.groupB.length ? join(c.groupB) : '【B 组药品待补充】'} 同时开立时，${c.proposedAction ? actionName(c.proposedAction) : '【处置方式待确认】'}。`
   }
   if (c.kind === 'DUPLICATE_THERAPY') {
     const age = ageText(c), scope = c.matchMode === 'EXPLICIT_GROUP' ? (c.groupA.length ? join(c.groupA) : '【药品待补充】') : '同一标准药品'
-    return `${age ? `${age}患者，` : ''}同一处方中，${scope}重复开立达 ${c.minimumOrders ?? 2} 条医嘱时，${c.proposedAction ? cardActionNames[c.proposedAction] : '【处置方式待确认】'}。`
+    return `${age ? `${age}患者，` : ''}同一处方中，${scope}重复开立达 ${c.minimumOrders ?? 2} 条医嘱时，${c.proposedAction ? actionName(c.proposedAction) : '【处置方式待确认】'}。`
   }
   return c.quote || c.title
 }

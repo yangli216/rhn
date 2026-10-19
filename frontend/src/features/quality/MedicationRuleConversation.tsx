@@ -5,6 +5,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import type { KnowledgeBody, KnowledgeCategoryReference, KnowledgeEvidence, KnowledgeReference, KnowledgeTarget, RuleCardCandidates, RuleCardView } from '../../shared/api/medicationKnowledgeDraftApi'
 import { Alert, Button, Icon, PanelHead, Select, StatusBadge } from '../../shared/ui'
 import { WorkspacePane } from '../../shared/ui/templates/PageTemplates'
+import { useSystemEnum } from '../../shared/ui/useSystemEnum'
 import { cardSentence, compileCard } from './ruleCards'
 import '../../styles/features/outpatient-doctor.css'
 import './medication-rule-conversation.css'
@@ -14,7 +15,6 @@ interface Turn { role: 'user' | 'assistant'; text: string; error?: boolean }
 const sourceTypes = [{ value: 'LABEL', label: '说明书', title: '药品说明书' }, { value: 'GUIDELINE', label: '指南', title: '指南 / 共识 / 文献' }, { value: 'INSTITUTION_POLICY', label: '制度', title: '机构管理规范' }, { value: 'REGULATION', label: '法规', title: '法规 / 规章' }]
 const reviseChips = ['补充适用年龄', '补充给药途径', '合用时仅提示', '合用时需填理由', '合用时阻断', '删除这条']
 const stateText = { READY: ['success', '可转换'], NEEDS_INFO: ['warning', '需补充'], UNSUPPORTED: ['neutral', '暂不能转换'] } as const
-const actionChoices = [['WARN', '警告提示'], ['REQUIRE_OVERRIDE', '需理由后继续'], ['BLOCK', '阻断']] as const
 interface Entry { entryId: string; name: string; ref: KnowledgeReference; specs: number }
 /** Rules attach to a catalog classification or a standard drug name (all specifications); a specification is never picked automatically. */
 const entriesOf = (item: RuleCardCandidates): Entry[] => {
@@ -40,6 +40,7 @@ export function MedicationRuleConversation({ api, routes, evidence, onEvidence, 
   onConfirm: (body: KnowledgeBody, labels: Record<string, string>) => void
 }) {
   const drafts = api.medicationKnowledgeDrafts
+  const actions = useSystemEnum(api.dictionaries, 'MED_KNOWLEDGE_ACTION')
   const aiStatus = useQuery({ queryKey: ['knowledge-extraction-status'], queryFn: () => drafts.extractionStatus(), retry: false })
   const [turns, setTurns] = useState<Turn[]>([]), [views, setViews] = useState<RuleCardView[]>([]), [started, setStarted] = useState(false)
   const [input, setInput] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
@@ -132,12 +133,12 @@ export function MedicationRuleConversation({ api, routes, evidence, onEvidence, 
           const questions = c.questions.filter(q => !(needAction && /处置|提示|强度|严重|动作/.test(q)))
           return <article key={c.id} className={`rule-chat__card is-${view.state.toLowerCase()}`} aria-label={`规则卡片 ${c.title}`}>
           <header><strong>{c.title || '未命名规则'}</strong><span><StatusBadge tone="neutral">{view.kindName}</StatusBadge><StatusBadge tone={tone}>{text}</StatusBadge></span></header>
-          <p className="rule-chat__sentence">{supported ? cardSentence(c) : c.quote || c.title}</p>
+          <p className="rule-chat__sentence">{supported ? cardSentence(c, actions.name) : c.quote || c.title}</p>
           {!supported && <p className="rule-chat__hint">系统暂无此类规则的转换能力，已保留为需求。</p>}
           {supported && c.clinicalMeaning && <p className="rule-chat__meaning">{c.clinicalMeaning}</p>}
           {c.boundaryNote && <p className="rule-chat__boundary">{c.boundaryNote}</p>}
           {supported && (view.groupACandidates.length > 0 || view.groupBCandidates.length > 0) && <div className="rule-chat__meds">{drugRows(view, 'A', view.groupACandidates)}{drugRows(view, 'B', view.groupBCandidates)}</div>}
-          {needAction && <div className="rule-chat__quick"><span>命中后：</span>{actionChoices.map(([value, name]) => <Button key={value} size="sm" variant="secondary" disabled={busy} onClick={() => ask(`把“${c.title}”的处置方式设为${name}`)}>{name}</Button>)}</div>}
+          {needAction && <div className="rule-chat__quick"><span>命中后：</span>{actions.options.map(({ value, label }) => <Button key={value} size="sm" variant="secondary" disabled={busy} onClick={() => ask(`把“${c.title}”的处置方式设为${label}`)}>{label}</Button>)}</div>}
           {view.kindName.startsWith('配伍') && !supported && <div className="rule-chat__quick"><span>想让系统检查？</span><Button size="sm" variant="secondary" disabled={busy} onClick={() => ask(`把“${c.title}”按两药合用处理：同一处方同时开立时提示`)}>按两药合用处理</Button></div>}
           {!!questions.length && <div className="rule-chat__asks"><span>待确认，点击后在左侧回答：</span>{questions.map((q, i) => <Button key={i} size="sm" variant="text" className="rule-chat__ask" onClick={() => reply(q)}>{q}</Button>)}</div>}
           {!!c.otherConditions && <details className="rule-chat__quote"><summary>系统暂无法表达的条件</summary><blockquote>{c.otherConditions}</blockquote></details>}
