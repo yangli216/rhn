@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { errorMessage, type PersonnelAssignment, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DataTable, Dialog, LoadingState, StatusBadge, tableCellClass } from '../../../shared/ui'
+import { PractitionerAccessSection } from '../access/PractitionerAccessSection'
 import { OrganizationChangeHistory } from '../OrganizationChangeHistory'
 import { requirePractitionerDetail } from '../organizationPersonnelFacts'
 import { PersonnelActionDialog, type PersonnelAction } from './PersonnelActionDialog'
@@ -43,7 +44,6 @@ export function PersonnelDrawer({ api, practitionerId, options, canManage, onCha
               ['状态', <StatusBadge key="status" tone={active ? 'success' : 'neutral'}>{active ? '在职' : '已停用'}</StatusBadge>]] as const)
               .map(([label, value]) => <div key={label} className="personnel-facts__item"><dt>{label}</dt><dd>{value}</dd></div>)}
           </dl>
-          <p className="personnel-hint">登录账号与角色授权在「角色与权限」中维护；停用档案不会自动停用账号。</p>
         </section>
         <section className="personnel-section" aria-label="任职">
           <div className="personnel-section__head"><h3>任职</h3>
@@ -65,6 +65,10 @@ export function PersonnelDrawer({ api, practitionerId, options, canManage, onCha
               </tr>
             })}</tbody>
           </DataTable>}
+        </section>
+        <section className="personnel-section" aria-label="账号与角色">
+          <div className="personnel-section__head"><h3>账号与角色</h3></div>
+          <PractitionerAccessSection api={api} detail={detail.data!} canManage={canManage} onChanged={onChanged} />
         </section>
         <section className="personnel-section" aria-label="执业资质">
           <div className="personnel-section__head"><h3>执业资质</h3></div>

@@ -24,6 +24,12 @@ public interface ResidentDirectory {
      */
     java.util.Optional<ResidentSnapshot> findByIdentifier(String identifierSystem, String identifierValue);
 
+    /**
+     * Full national ID of the canonical resident, for server-side calls to external verification services only
+     * (e.g. medical-insurance authentication). Never return it to browsers; they only receive the masked value.
+     */
+    default java.util.Optional<String> findNationalId(Long residentId) { return java.util.Optional.empty(); }
+
     default void requireResident(Long residentId) {
         resolveCanonicalResidentId(residentId);
     }

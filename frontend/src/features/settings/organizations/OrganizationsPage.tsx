@@ -160,6 +160,7 @@ export function OrganizationsPage({ api, canManage = false }: { api: RhnApi; can
       : <UnitDetail api={api} unit={selected} units={allUnits} profile={profile.data} canManage={canManage} busy={busy || !ready} staff={staff}
         departmentTypes={dictionaries.get(ORGANIZATION_DICTIONARY.departmentType) ?? []}
         onEditSection={section => open({ kind: 'section', section })}
+        onDefaultRolesSaved={async message => setFeedback(message)}
         onViewStaff={() => navigate(`/settings/personnel?${department ? 'departmentId' : 'organizationId'}=${encodeURIComponent(selected.id)}`)} />}
     {dialog?.kind === 'form' && <UnitFormDialog key={dialog.target.mode} target={dialog.target} units={allUnits} enums={enums} dictionaries={dictionaries}
       busy={busy} error={failure(dialog.target.mode === 'create' ? createUnit : updateUnit)} onReload={options.reload} onClose={() => setDialog(undefined)}

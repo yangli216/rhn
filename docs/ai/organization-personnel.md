@@ -9,7 +9,7 @@
 | 具体科室类型 | 哪个专业或具体业务单元 | 每科室一个，引用 DEPT_TYPE | 检验/检查默认执行路由、药库/药房库存场所识别等 |
 | 服务能力 | 声明能够提供哪些服务 | 多条能力档案，分别维护范围、依据、有效期、确认结果 | 当前作为能力登记；不自动授予业务操作权限，不替代业务配置 |
 | 聘用与科室任职 | 人员在哪个机构/科室担任什么岗位 | 人员→聘用→任职，均保留有效期；可跨科室任职 | 人员归属与工作上下文的基础依据 |
-| 账号、角色、业务配置 | 谁能在何范围执行什么操作 | 在账号权限和各业务模块维护 | 权限及具体业务条件由各模块继续校验 |
+| 账号、角色、业务配置 | 谁能在何范围执行什么操作 | 账号与按科室授权在人员档案维护，角色权限在「角色与权限」维护，科室可设默认角色 | 权限及具体业务条件由各模块继续校验 |
 
 业务属性为主要职责，不应被扩展成一串权限开关。一个临床科室可以登记门诊、住院、手术等多个能力；机构登记了某项能力，并不表示所有下属科室自动具备该能力。能力记录状态 ACTIVE 与确认结果 VERIFIED（符合）是两个维度，仍需结合有效期；登记结果符合也不代表业务已经配置或账号已经授权。
 
@@ -33,7 +33,7 @@
 
 负责人有效期须被所引用任职覆盖。任职变更、调岗或离职将使负责人超出任职有效期时，先结束/作废负责人档案，再办理人员流转。岗位可编辑或停用；有引用后不可改类别，停用后不再接收新任职。
 
-停用机构/科室前展示启用下级、仍在继续或待生效的任职，以及机构未结束聘用数量；存在依赖时后端拒绝停用。人员停用阻止新聘用和任职，实际离职仍须办理聘用结束；账号停用和角色回收在权限功能单独处理。
+停用机构/科室前展示启用下级、仍在继续或待生效的任职，以及机构未结束聘用数量；存在依赖时后端拒绝停用。人员停用阻止新聘用和任职，实际离职仍须办理聘用结束；科室默认角色随任职自动失效，手工授予的角色与账号停用须另行处理（账号停用尚无界面）。
 
 维护写接口统一复用 IAM.MANAGE。更新使用 expectedRevision 防止覆盖他人修改；人员流转与档案更新同事务追加前后快照、操作账号、时间和原因。历史数据不物理删除。新日志不补造上线前的历史，也不把旧记录创建时间冒充维护时间。
 
@@ -44,10 +44,19 @@
 - `GET /api/platform/personnel` 服务端分页（页码从 0 开始，每页 1–200），按关键词（工号/姓名）、机构、科室（含下级科室）、岗位类型、职称、处方权和人员状态筛选；“当前任职”指启用且今天在有效期内的任职，主任职优先。
 - `POST /api/platform/practitioners/{id}/assignments` 按机构·科室·岗位新增任职：沿用该人员在目标机构的有效聘用；没有聘用时以任职开始日创建一条（与已有主聘用重叠时为非主聘用）；聘用晚于任职开始日时拒绝。界面不再单独维护聘用。
 
+## 账号、角色与科室默认角色
+
+- 权限模型不变：角色授予登录账号（`RHN_SYS_USER_ROLE_ASSIGN`），按 机构·科室 范围生效，科室范围授权同时决定可选工作上下文。账号通过 `ID_PRACT` 关联人员。
+- 管理范围由操作人自己的 `IAM.MANAGE` 授权决定：租户级授权或 ROLE_ADMIN 可管全院，机构级授权可管本机构，科室级授权只管当前工作科室。人员须在范围内有未结束任职，授权范围须落在管理范围内；授予的角色不能含操作人不具备的权限。
+- 人员档案「账号与角色」：开通账号（账号默认工号，初始密码 bcrypt 存储，8–64 位且含字母和数字），查看/添加/撤销角色。`GET/POST /api/platform/iam/practitioners/{id}/access|account`。
+- 科室默认角色（`RHN_SYS_DEPT_DFLT_ROLE`）：在「机构与科室」科室详情维护，`GET/PUT /api/platform/iam/departments/{id}/default-roles`。已开通账号的人员在该科室有任职时（入职、新增任职、调岗、开通账号、或保存默认角色时选择“同时授予现有人员”）自动授予，授权记录 `SD_GRANT_SRC = DEPT_DEFAULT` 并关联任职 `ID_STAFF_ASSIGN`，有效期从任职开始日（不早于当前时刻）到任职结束日次日零点。任职结束、调岗、离职或作废时同步收短；不会自动延长，被手工撤销后同一任职不再补授；移除默认角色不撤销已授予记录。同步通过 `organization/api/StaffAssignmentSynchronizer` 在人员流转同一事务中执行。
+- 「角色与权限」页按角色反查已授权人员（`GET /api/platform/iam/roles/{id}/members`，可含已失效），并可授予当前工作科室或撤销。
+
 ## 代码与验证入口
 
 - 前端：「机构与科室」`/settings/organizations` 在 features/settings/organizations/（OrganizationsPage 只读详情 + 编辑/分区维护/停用弹窗，样式 styles/features/organizations.css）；「人员管理」`/settings/personnel` 在 features/settings/personnel/（PersonnelPage 服务端分页列表，PersonnelDrawer 档案抽屉含任职与执业资质，入职/调岗/结束任职/离职/岗位设置弹窗，样式 styles/features/personnel.css；支持 `?departmentId=` / `?organizationId=` 预置筛选）。两个页面共用的回执与字典校验、档案表单和变更记录留在 features/settings/ 根目录（organization*Facts/Receipt、organizationProfileForm.ts、OrganizationProfileRecords.tsx、OrganizationChangeHistory.tsx、practitionerOnboarding.ts）。旧路径 `/settings/organization` 重定向到机构与科室；两个菜单共用 ORGANIZATION 模块与 ORGANIZATION.ACCESS。
 - 后端：rhn-platform 的 organization/application、organization/web/OrganizationMaintenanceController、PersonnelController（人员查询、执业资质、任职）；运行解释见 organization/api/DepartmentBusinessPolicy。
+- 账号与授权：前端 features/settings/access/（人员档案分区、科室默认角色分区、授予/撤销/开通弹窗）与 AccessControlManagement.tsx；后端 rhn-platform 的 identityaccess/application（IdentityAccessAdministrationService、DepartmentDefaultRoleService、ManagementScopes、RoleGrantStore）。
 - 运行消费者：ServiceExecutionDepartmentPolicy、PharmacyDepartmentExtensionSynchronizer；变更分类规则时验证其消费者。
 - 验证：`./scripts/verify-scope.sh organization`；契约、权限和迁移变化扩大验证，迁移另执行 `npm --prefix frontend run schema:refresh -- --source expected`、`npm --prefix frontend run schema:check`。
 - 人工验收：1280/1440/1920px 下的树展开搜索、完整详情宽度、弹窗与列表滚动；调岗、结束任职、离职、内部负责人交接、资料作废/结束和过期版本冲突。DOM 测试不证明视觉或已部署版本正确。

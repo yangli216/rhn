@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { AccessPermission, AccessRole } from '../../shared/rhnApi'
 const text = z.string().refine(value => value.trim().length > 0)
-const role = z.object({ id: text, code: text, name: text, roleType: z.enum(['SYSTEM', 'BUSINESS', 'CUSTOM']),
+const role = z.object({ id: text, code: text, name: text, roleType: z.enum(['SYSTEM', 'ADMIN', 'BUSINESS', 'CUSTOM']),
   status: z.enum(['ACTIVE', 'INACTIVE']), version: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   permissionCodes: z.array(text).refine(values => new Set(values).size === values.length),
 }).passthrough()

@@ -1,9 +1,12 @@
 package com.rhn.platform.identityaccess.web;
 
+import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.DepartmentDefaultRolesView;
 import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.PermissionView;
+import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.PractitionerAccessView;
 import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.RoleView;
 import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.UserRoleAssignmentView;
 import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.UserView;
+import com.rhn.platform.identityaccess.application.DepartmentDefaultRoleService;
 import com.rhn.platform.identityaccess.application.IdentityAccessAdministrationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,9 +35,12 @@ import java.util.Set;
 @PreAuthorize("hasAuthority(T(com.rhn.platform.identityaccess.api.IdentityAccessPermissions).MANAGE)")
 public class IdentityAccessAdministrationController {
     private final IdentityAccessAdministrationService service;
+    private final DepartmentDefaultRoleService defaultRoles;
 
-    public IdentityAccessAdministrationController(IdentityAccessAdministrationService service) {
+    public IdentityAccessAdministrationController(IdentityAccessAdministrationService service,
+                                                  DepartmentDefaultRoleService defaultRoles) {
         this.service = service;
+        this.defaultRoles = defaultRoles;
     }
 
     @GetMapping("/roles")
@@ -47,6 +54,35 @@ public class IdentityAccessAdministrationController {
 
     @GetMapping("/users/{userId}/role-assignments")
     List<UserRoleAssignmentView> assignments(@PathVariable Long userId) { return service.assignments(userId); }
+
+    @GetMapping("/roles/{roleId}/members")
+    List<UserRoleAssignmentView> roleMembers(@PathVariable Long roleId,
+                                             @RequestParam(defaultValue = "false") boolean includeExpired) {
+        return service.roleMembers(roleId, includeExpired);
+    }
+
+    @GetMapping("/practitioners/{practitionerId}/access")
+    PractitionerAccessView practitionerAccess(@PathVariable Long practitionerId) {
+        return service.practitionerAccess(practitionerId);
+    }
+
+    @PostMapping("/practitioners/{practitionerId}/account")
+    @ResponseStatus(HttpStatus.CREATED)
+    PractitionerAccessView openAccount(@PathVariable Long practitionerId,
+                                       @Valid @RequestBody OpenAccountRequest request) {
+        return service.openAccount(practitionerId, request.username(), request.initialPassword());
+    }
+
+    @GetMapping("/departments/{departmentId}/default-roles")
+    DepartmentDefaultRolesView departmentDefaultRoles(@PathVariable Long departmentId) {
+        return defaultRoles.defaults(departmentId);
+    }
+
+    @PutMapping("/departments/{departmentId}/default-roles")
+    DepartmentDefaultRolesView replaceDepartmentDefaultRoles(@PathVariable Long departmentId,
+                                                             @Valid @RequestBody ReplaceDefaultRolesRequest request) {
+        return defaultRoles.replace(departmentId, request.roleIds(), request.applyToCurrentStaff());
+    }
 
     @PostMapping("/roles")
     @ResponseStatus(HttpStatus.CREATED)
@@ -89,6 +125,13 @@ public class IdentityAccessAdministrationController {
 
     public record ReplaceRolePermissionsRequest(@PositiveOrZero long expectedVersion,
                                                 @NotNull Set<@NotNull Long> permissionIds) {
+    }
+
+    public record OpenAccountRequest(@NotBlank @Size(max = 64) String username,
+                                     @NotBlank @Size(max = 64) String initialPassword) {
+    }
+
+    public record ReplaceDefaultRolesRequest(@NotNull Set<@NotNull Long> roleIds, boolean applyToCurrentStaff) {
     }
 
     public record AssignRoleRequest(@NotNull Long roleId, Long organizationId, Long departmentId,

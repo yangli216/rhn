@@ -37,6 +37,11 @@ const profileFor = (unit: OrganizationUnit, extra: Record<string, unknown> = {})
 
 function LocationProbe() { return <p data-testid="location">{useLocation().pathname}{useLocation().search}</p> }
 
+const defaultRole = { id: 'd-1', organizationId: 'org-1', departmentId: 'dept-1', roleId: 'r-1', roleCode: 'GP_DOCTOR', roleName: '全科医生',
+  roleStatus: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z' }
+const accessRoles = [{ id: 'r-1', code: 'GP_DOCTOR', name: '全科医生', roleType: 'BUSINESS', status: 'ACTIVE', version: 1, permissionCodes: [] },
+  { id: 'r-2', code: 'TRIAGE_NURSE', name: '分诊护士', roleType: 'BUSINESS', status: 'ACTIVE', version: 1, permissionCodes: [] }]
+
 function setup(overrides: Partial<RhnApi['organization']> = {}, canManage = true) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   const organization = {
@@ -52,8 +57,15 @@ function setup(overrides: Partial<RhnApi['organization']> = {}, canManage = true
     changeUnitStatus: vi.fn(),
     ...overrides,
   }
+  const identityAccess = {
+    departmentDefaultRoles: vi.fn().mockResolvedValue({ organizationId: 'org-1', departmentId: 'dept-1', manageable: true, roles: [defaultRole], grantedCount: 0 }),
+    replaceDepartmentDefaultRoles: vi.fn().mockImplementation(async (_id: string, input: { roleIds: string[] }) => ({ organizationId: 'org-1',
+      departmentId: 'dept-1', manageable: true, grantedCount: 2, roles: input.roleIds.map(roleId => ({ ...defaultRole, id: `d-${roleId}`, roleId,
+        roleCode: accessRoles.find(role => role.id === roleId)!.code, roleName: accessRoles.find(role => role.id === roleId)!.name })) })),
+    roles: vi.fn().mockResolvedValue(accessRoles),
+  }
   const api = {
-    organization,
+    organization, identityAccess,
     dictionaries: { systemEnums: vi.fn().mockResolvedValue(enums), resolve: vi.fn().mockImplementation(async (code: string) => dictionary(code)) },
     gridAddresses: { list: vi.fn().mockResolvedValue([]) },
   } as unknown as RhnApi
@@ -61,7 +73,7 @@ function setup(overrides: Partial<RhnApi['organization']> = {}, canManage = true
     <Route path="/settings/organizations" element={<OrganizationsPage api={api} canManage={canManage} />} />
     <Route path="/settings/personnel" element={<LocationProbe />} />
   </Routes></MemoryRouter></QueryClientProvider>)
-  return { organization }
+  return { organization, identityAccess }
 }
 const detail = () => within(screen.getByRole('region', { name: '组织详情内容' }))
 async function selectDepartment() {
@@ -89,6 +101,21 @@ describe('OrganizationsPage', () => {
     expect(detail().queryByRole('group', { name: '机构标识' })).not.toBeInTheDocument()
     await userEvent.click(detail().getByRole('button', { name: '在人员管理中查看' }))
     expect(screen.getByTestId('location')).toHaveTextContent('/settings/personnel?departmentId=dept-1')
+  })
+
+  it('sets department default roles and optionally grants them to current staff', async () => {
+    const { identityAccess } = setup()
+    await selectDepartment()
+    const section = within(detail().getByRole('region', { name: '默认角色' }))
+    expect(await section.findByText('全科医生')).toBeInTheDocument()
+    await userEvent.click(section.getByRole('button', { name: '设置默认角色' }))
+    const dialog = within(await screen.findByRole('dialog', { name: '设置默认角色' }))
+    await userEvent.click(dialog.getByRole('combobox', { name: /默认角色/ })); await userEvent.click(await screen.findByRole('option', { name: /分诊护士/ }))
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(dialog.getByRole('switch', { name: '同时授予科室现有人员' }))
+    await userEvent.click(dialog.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(identityAccess.replaceDepartmentDefaultRoles).toHaveBeenCalledWith('dept-1', { roleIds: ['r-1', 'r-2'], applyToCurrentStaff: true }))
+    expect(await screen.findByText('已保存全科门诊的默认角色，为现有人员新增 2 项授权')).toBeInTheDocument()
   })
 
   it('edits basic information in a dialog with validity dates under more settings', async () => {

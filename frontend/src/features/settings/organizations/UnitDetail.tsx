@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { errorMessage, type DictionaryValue, type OrganizationProfileResult, type OrganizationProfileSection, type OrganizationUnit,
   type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DataTable, LoadingState, StatusBadge } from '../../../shared/ui'
+import { DepartmentDefaultRolesSection } from '../access/DepartmentDefaultRolesSection'
 import { PROFILE_SECTIONS } from '../OrganizationProfileRecords'
 import { organizationQueryScope } from '../organizationQueryScope'
 import { currentRecord, resolveDepartmentTypeText } from './organizationUnitModel'
@@ -18,10 +19,10 @@ export const DEPARTMENT_PROFILE_SECTIONS: OrganizationProfileSection[] = ['conta
 export type StaffSummary = { current: number; primary: number }
 
 /** 只读详情：基本信息、运行属性（科室）、资质与联系、在岗人员。维护通过页头「编辑」和各分区「维护」进入弹窗。 */
-export function UnitDetail({ api, unit, units, profile, departmentTypes, staff, canManage, busy, onEditSection, onViewStaff }: {
+export function UnitDetail({ api, unit, units, profile, departmentTypes, staff, canManage, busy, onEditSection, onViewStaff, onDefaultRolesSaved }: {
   api: RhnApi; unit: OrganizationUnit; units: OrganizationUnit[]; profile: OrganizationProfileResult; departmentTypes: DictionaryValue[]
   staff?: StaffSummary | 'error'; canManage: boolean; busy: boolean
-  onEditSection: (section: OrganizationProfileSection) => void; onViewStaff: () => void
+  onEditSection: (section: OrganizationProfileSection) => void; onViewStaff: () => void; onDefaultRolesSaved: (message: string) => Promise<void>
 }) {
   const department = unit.sdOrgKind === 'ORG_UNIT'
   const parent = units.find(item => item.id === unit.parentId)
@@ -77,6 +78,10 @@ export function UnitDetail({ api, unit, units, profile, departmentTypes, staff, 
         <Button size="sm" variant="secondary" onClick={onViewStaff}>在人员管理中查看</Button>
       </div>
     </section>
+    {department && canManage && <section className="organization-section" aria-label="默认角色">
+      <h3>默认角色</h3>
+      <DepartmentDefaultRolesSection key={unit.id} api={api} departmentId={unit.id} departmentName={unit.name} onSaved={onDefaultRolesSaved} />
+    </section>}
   </div>
 }
 

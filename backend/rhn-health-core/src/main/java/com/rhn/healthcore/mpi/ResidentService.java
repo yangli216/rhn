@@ -267,6 +267,17 @@ public class ResidentService implements ResidentDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.Optional<String> findNationalId(Long residentId) {
+        Long tenantId = TenantContext.requireTenantId();
+        Long canonicalId = resolveCanonicalResidentId(tenantId, residentId);
+        return activeIdentifiers(tenantId, canonicalId).stream()
+                .filter(identifier -> "1".equals(identifier.identifierSystem()) || "NATIONAL_ID".equals(identifier.identifierSystem()))
+                .map(ResidentIdentifier::identifierValue)
+                .filter(StrUtil::isNotBlank).findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ResidentSnapshot requireSnapshot(Long tenantId, Long residentId) {
         Long canonicalId = resolveCanonicalResidentId(tenantId, residentId);
         Resident resident = requireEntity(tenantId, canonicalId);

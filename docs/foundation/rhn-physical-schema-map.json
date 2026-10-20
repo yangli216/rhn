@@ -17914,6 +17914,50 @@
     ]
   },
   {
+    "logical": "sys.department_default_role",
+    "legacy": "department_default_roles",
+    "physical": "RHN_SYS_DEPT_DFLT_ROLE",
+    "domain": "SYS",
+    "comment": "科室默认角色；一行代表一个科室的一个默认角色，人员在该科室任职且已开通账号时自动授予",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DEPT_DFLT_ROLE",
+        "comment": "科室默认角色主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "role_id",
+        "physical": "ID_ACC_ROLE",
+        "comment": "默认授予的角色标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      }
+    ]
+  },
+  {
     "logical": "anl.presence_metric_sample",
     "legacy": "presence_metric_samples",
     "physical": "RHN_ANL_PRES_METRIC_SAMPLE",
@@ -26453,6 +26497,16 @@
         "logical": "created_at",
         "physical": "DT_CREATED",
         "comment": "创建时间"
+      },
+      {
+        "logical": "grant_source",
+        "physical": "SD_GRANT_SRC",
+        "comment": "授权来源：MANUAL 手工授予，DEPT_DEFAULT 按科室默认角色自动授予"
+      },
+      {
+        "logical": "staff_assignment_id",
+        "physical": "ID_STAFF_ASSIGN",
+        "comment": "自动授权对应的人员任职标识；手工授权为空"
       }
     ]
   },

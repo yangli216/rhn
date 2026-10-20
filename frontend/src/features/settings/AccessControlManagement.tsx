@@ -1,384 +1,267 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import '../../styles/features/billing-settlement.css'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import {
-  errorMessage, type AccessPermission, type AccessRole, type RhnApi, type UserRoleAssignment,
-} from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge } from '../../shared/ui'
-import { permissionIdsFor, requireAccessPermissions, requireAccessRoles, requirePermissionReceipt } from './accessPermissionFacts'
-import { requireAccessRoleStatus, requireCreatedAccessRole, type CreateAccessRoleInput } from './accessRoleReceipt'
-import { requireAccessUsers, requireGrantedAssignment, requireRevokedAssignment, requireUserAssignments } from './accessAssignmentFacts'
+import { useEffect, useMemo, useState } from 'react'
+import { errorMessage, type AccessPermission, type AccessRole, type RhnApi, type UserRoleAssignment } from '../../shared/rhnApi'
+import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, SearchField, Select, StatusBadge, Switch, Tabs } from '../../shared/ui'
+import { MasterDetailPage } from '../../shared/ui/templates/PageTemplates'
+import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
+import { requireAccessUsers, requireGrants } from './access/accessFacts'
+import { GrantRoleDialog } from './access/GrantRoleDialog'
+import { RevokeGrantDialog } from './access/RevokeGrantDialog'
+import { RoleGrantsTable } from './access/RoleGrantsTable'
+import { permissionIdsFor, requireAccessPermissions, requireAccessRoles, requirePermissionReceipt } from './accessPermissionFacts'
+import { requireAccessRoleStatus, requireCreatedAccessRole, requireRenamedAccessRole } from './accessRoleReceipt'
+import { organizationQueryScope } from './organizationQueryScope'
+import '../../styles/features/access-control.css'
 
-const apiScopes = new WeakMap<RhnApi, number>()
-let nextScope = 0
-function scopeFor(api: RhnApi) {
-  if (!apiScopes.has(api)) apiScopes.set(api, ++nextScope)
-  return apiScopes.get(api)!
-}
+const ROLE_TYPES: Record<AccessRole['roleType'], string> = { SYSTEM: '系统角色', ADMIN: '管理角色', BUSINESS: '业务角色', CUSTOM: '自定义角色' }
+type Tab = 'permissions' | 'members'
+type Pending = { kind: 'create' } | { kind: 'rename'; role: AccessRole } | { kind: 'status'; role: AccessRole }
+  | { kind: 'grant'; role: AccessRole } | { kind: 'revoke'; grant: UserRoleAssignment }
 
+/**
+ * 角色与权限：左侧角色目录，右侧为所选角色的功能权限与已授权人员（反查）。
+ * 个人的账号开通与按科室授权在「人员管理」档案中维护；科室默认角色在「机构与科室」中设置。
+ */
 export function AccessControlManagement({ api, context }: { api: RhnApi; context: ClinicalContext }) {
   const queryClient = useQueryClient()
-  const scope = `${scopeFor(api)}:${context.organization.id}:${context.department.id}`
+  const scope = `${organizationQueryScope(api)}:${context.organization.id}:${context.department.id}`
   const roles = useQuery({ queryKey: ['iam-roles', scope], queryFn: async () => requireAccessRoles(await api.identityAccess.roles()) })
   const permissions = useQuery({ queryKey: ['iam-permissions', scope], queryFn: async () => requireAccessPermissions(await api.identityAccess.permissions()) })
-  const users = useQuery({ queryKey: ['iam-users', scope], queryFn: async () => requireAccessUsers(await api.identityAccess.users()) })
-  const [selectedRoleId, setSelectedRoleId] = useState('')
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [permissionDraft, setPermissionDraft] = useState<{ role: AccessRole; codes: Set<string> }>()
-  const selectedPermissions = permissionDraft?.codes ?? new Set<string>()
-  const [roleCreated, setRoleCreated] = useState(0)
-  const [statusCommand, setStatusCommand] = useState<{ role: AccessRole; target: AccessRole['status'] }>()
+  const [selectedId, setSelectedId] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+  const [tab, setTab] = useState<Tab>('permissions')
+  const [pending, setPending] = useState<Pending>()
   const [feedback, setFeedback] = useState('')
-  const [operationError, setOperationError] = useState('')
+  useEffect(() => { setSelectedId(''); setPending(undefined); setFeedback('') }, [scope])
 
-  const rolesReady = roles.isSuccess && !roles.isFetching
-  const usersReady = users.isSuccess && !users.isFetching
-  const selectedUser = usersReady ? users.data.find(user => user.id === selectedUserId) : undefined
-  const assignmentScope = { organizationId: context.organization.id, departmentId: context.department.id }
-  const assignmentSession = useRef(0)
-  const currentAssignment = useRef({ scope, userId: selectedUserId })
-  currentAssignment.current = { scope, userId: selectedUserId }
-  const permissionsReady = permissions.isSuccess && !permissions.isFetching
-  const current = useRef({ scope, roleId: selectedRoleId })
-  current.current = { scope, roleId: selectedRoleId }
-  const permissionSession = useRef(0)
+  const allRoles = useMemo(() => roles.data ?? [], [roles.data])
+  const selected = allRoles.find(role => role.id === selectedId)
   useEffect(() => {
-    assignmentSession.current += 1; permissionSession.current += 1; setStatusCommand(undefined); setRoleCreated(0); setSelectedRoleId(''); setSelectedUserId(''); setPermissionDraft(undefined); setFeedback(''); setOperationError('')
-  }, [scope])
-  const selectedRole = rolesReady ? roles.data.find((role) => role.id === selectedRoleId) : undefined
-  const assignments = useQuery({
-    queryKey: ['iam-assignments', selectedUserId, scope],
-    queryFn: async () => requireUserAssignments(await api.identityAccess.assignments(selectedUserId), selectedUserId, assignmentScope),
-    enabled: Boolean(selectedUser),
-  })
+    if (allRoles.length && !allRoles.some(role => role.id === selectedId)) setSelectedId(allRoles[0].id)
+  }, [allRoles, selectedId])
+  const term = keyword.trim().toLowerCase()
+  const visibleRoles = allRoles.filter(role => (showInactive || role.status === 'ACTIVE' || role.id === selectedId)
+    && (!term || [role.name, role.code, pinyinInitials(role.name)].some(value => value.toLowerCase().includes(term))))
 
-  const assignmentsReady = Boolean(selectedUser) && assignments.isSuccess && !assignments.isFetching
-  async function reloadAssignments() {
-    await Promise.allSettled([users.refetch(), roles.refetch(), selectedUserId ? queryClient.fetchQuery({
-      queryKey: ['iam-assignments', selectedUserId, scope], staleTime: 0,
-      queryFn: async () => requireUserAssignments(await api.identityAccess.assignments(selectedUserId), selectedUserId, assignmentScope),
-    }) : Promise.resolve()])
-  }
-
-  useEffect(() => {
-    if (!selectedRoleId && roles.data?.length) setSelectedRoleId(roles.data[0].id)
-  }, [roles.data, selectedRoleId])
-
-  useEffect(() => {
-    if (usersReady && users.data.length && !users.data.some(user => user.id === selectedUserId)) setSelectedUserId(users.data[0].id)
-  }, [selectedUserId, users.data, usersReady])
-
-  useEffect(() => {
-    if (selectedRole && permissionDraft?.role.id !== selectedRole.id) {
-      setPermissionDraft({ role: selectedRole, codes: new Set(selectedRole.permissionCodes) })
-    }
-  }, [selectedRole, permissionDraft?.role.id])
-
-  const draftMatches = Boolean(selectedRole && permissionDraft?.role.id === selectedRole.id)
-  const draftVersionCurrent = draftMatches && permissionDraft?.role.version === selectedRole?.version
-  const unknownCodes = permissionsReady && draftMatches ? [...selectedPermissions].filter(code => !permissions.data.some(item => item.code === code)) : []
-  const permissionFactsReady = rolesReady && permissionsReady && draftVersionCurrent && !unknownCodes.length
-  async function reloadPermissionFacts() { await Promise.allSettled([roles.refetch(), permissions.refetch()]) }
-
-  const permissionGroups = useMemo(() => {
-    const groups = new Map<string, AccessPermission[]>()
-    for (const permission of permissionsReady ? permissions.data : []) {
-      const label = permission.moduleName || permission.resourceCode
-      groups.set(label, [...(groups.get(label) ?? []), permission])
-    }
-    return [...groups.entries()]
-  }, [permissions.data, permissionsReady])
-
-  function succeed(message: string) {
+  async function changed(message: string, roleId?: string) {
+    setPending(undefined)
     setFeedback(message)
-    setOperationError('')
+    if (roleId) setSelectedId(roleId)
+    await Promise.all(['iam-roles', 'iam-role-members', 'practitioner-access'].map(key => queryClient.invalidateQueries({ queryKey: [key] })))
   }
 
-  function fail(error: unknown) {
-    setOperationError(errorMessage(error))
-    setFeedback('')
-  }
-
-  type RoleCommandContext = { scope: string; roleId: string; session: number }
-  function roleCommandContext(): RoleCommandContext {
-    setFeedback(''); setOperationError('')
-    return { scope, roleId: selectedRoleId, session: permissionSession.current }
-  }
-  function currentRoleCommand(submitted?: RoleCommandContext) {
-    return submitted?.scope === current.current.scope && submitted.roleId === current.current.roleId && submitted.session === permissionSession.current
-  }
-  function roleCommandFailed(_error: unknown, _input: unknown, submitted?: RoleCommandContext) {
-    if (!currentRoleCommand(submitted)) return
-    setFeedback('')
-    void queryClient.invalidateQueries({ queryKey: ['iam-roles', scope] })
-  }
-  function roleCommandError(mutation: { context?: RoleCommandContext; error: unknown }) {
-    return currentRoleCommand(mutation.context) && mutation.error ? `操作结果未确认：${errorMessage(mutation.error)}` : undefined
-  }
-  const createRole = useMutation({
-    mutationFn: async (input: CreateAccessRoleInput) => {
-      if (!rolesReady) throw new Error('角色目录尚未确认，请重新加载')
-      const before = roles.data, command = { ...input }
-      if (before.some(role => role.code === command.code.trim().toUpperCase())) throw new Error('角色编码已存在，请核实上次创建结果，未重复提交')
-      return requireCreatedAccessRole(await api.identityAccess.createRole(command), command, before)
-    },
-    onMutate: roleCommandContext,
-    onSuccess: (role, _input, submitted) => {
-      if (!currentRoleCommand(submitted)) return
-      queryClient.setQueryData<AccessRole[]>(['iam-roles', scope], values => values ? values.some(value => value.id === role.id) ? values : [...values, role] : undefined)
-      setSelectedRoleId(role.id); setRoleCreated(value => value + 1); succeed(`已创建角色“${role.name}”`)
-    },
-    onError: roleCommandFailed,
-  })
-  const savePermissions = useMutation({
-    mutationFn: async (command: { role: AccessRole; codes: Set<string>; permissionIds: string[] }) =>
-      requirePermissionReceipt(await api.identityAccess.replaceRolePermissions(command.role, command.permissionIds), command.role, command.codes),
-    onMutate: () => { setFeedback(''); setOperationError(''); return { scope, roleId: selectedRoleId, session: permissionSession.current } },
-    onSuccess: (role, _input, submitted) => {
-      if (submitted.scope !== current.current.scope || submitted.roleId !== current.current.roleId || submitted.session !== permissionSession.current) return
-      queryClient.setQueryData<AccessRole[]>(['iam-roles', scope], (values) => values?.map(item => item.id === role.id ? role : item))
-      setPermissionDraft({ role, codes: new Set(role.permissionCodes) })
-      succeed(`已更新角色“${role.name}”的功能权限`)
-    },
-    onError: (error, _input, submitted) => {
-      if (submitted?.scope !== current.current.scope || submitted.roleId !== current.current.roleId || submitted.session !== permissionSession.current) return
-      fail(error)
-    },
-  })
-  function submitPermissions() {
-    if (!permissionFactsReady || !permissionDraft || savePermissions.isPending || createRole.isPending || changeRoleStatus.isPending) return
-    try {
-      const codes = new Set(permissionDraft.codes)
-      savePermissions.mutate({ role: permissionDraft.role, codes, permissionIds: permissionIdsFor(codes, permissions.data!) })
-    } catch (error) { fail(error) }
-  }
-  const changeRoleStatus = useMutation({
-    mutationFn: async (command: { role: AccessRole; target: AccessRole['status'] }) => {
-      if (!rolesReady || selectedRoleId !== command.role.id) throw new Error('原角色尚未确认，请重新加载')
-      return requireAccessRoleStatus(await api.identityAccess.updateRole(command.role, { name: command.role.name, status: command.target }), command.role, command.target)
-    },
-    onMutate: roleCommandContext,
-    onSuccess: (role, _input, submitted) => {
-      if (!currentRoleCommand(submitted)) return
-      queryClient.setQueryData<AccessRole[]>(['iam-roles', scope], values => values?.map(item => item.id === role.id ? role : item))
-      setStatusCommand(undefined)
-      succeed(`角色“${role.name}”已${role.status === 'ACTIVE' ? '启用' : '停用'}`)
-    },
-    onError: roleCommandFailed,
-  })
-  type AssignmentContext = { scope: string; userId: string; session: number }
-  function assignmentContext(): AssignmentContext {
-    assignmentSession.current += 1
-    setFeedback(''); setOperationError('')
-    return { scope, userId: selectedUserId, session: assignmentSession.current }
-  }
-  function assignmentCurrent(submitted?: AssignmentContext) {
-    return submitted?.scope === currentAssignment.current.scope && submitted.userId === currentAssignment.current.userId
-      && submitted.session === assignmentSession.current
-  }
-  function assignmentFailed(_error: unknown, _input: unknown, submitted?: AssignmentContext) {
-    if (!assignmentCurrent(submitted)) return
-    setFeedback('')
-    void queryClient.invalidateQueries({ queryKey: ['iam-assignments', submitted!.userId, submitted!.scope] })
-  }
-  const assignRole = useMutation({
-    mutationFn: async (input: { roleId: string; validTo?: string | null }) => {
-      if (!selectedUser || !assignmentsReady || !rolesReady) throw new Error('用户、角色或授权目录尚未确认，请重新加载')
-      const account = selectedUser, before = assignments.data!, range = { ...assignmentScope }
-      const role = roles.data.find(value => value.id === input.roleId && value.status === 'ACTIVE')
-      if (!role) throw new Error('所选角色已不在当前启用目录中，请重新选择')
-      if (before.some(value => value.roleId === role.id && value.effective)) throw new Error('该用户在当前科室已有有效授权，请核实结果，未重复提交')
-      const command = { roleId: role.id, ...range, dataScopeType: 'DEPARTMENT' as const, validTo: input.validTo || null }
-      return requireGrantedAssignment(await api.identityAccess.assignRole(account.id, command), account, role, range, command.validTo, before)
-    },
-    onMutate: assignmentContext,
-    onSuccess: (record, _input, submitted) => {
-      if (!assignmentCurrent(submitted)) return
-      queryClient.setQueryData<UserRoleAssignment[]>(['iam-assignments', submitted.userId, submitted.scope], values => values ? values.some(value => value.id === record.id) ? values : [...values, record] : undefined)
-      succeed('用户角色授权记录已保存')
-    },
-    onError: assignmentFailed,
-  })
-  const revoke = useMutation({
-    mutationFn: async (before: UserRoleAssignment) => {
-      if (!selectedUser || !assignmentsReady || before.userId !== selectedUser.id
-        || !assignments.data!.some(value => value.id === before.id && value.effective)) throw new Error('原用户授权尚未确认，请重新加载')
-      const range = { ...assignmentScope }, accountId = before.userId, assignmentId = before.id
-      await api.identityAccess.revokeAssignment(assignmentId)
-      return requireRevokedAssignment(await api.identityAccess.assignments(accountId), before, range)
-    },
-    onMutate: assignmentContext,
-    onSuccess: (records, _input, submitted) => {
-      if (!assignmentCurrent(submitted)) return
-      queryClient.setQueryData(['iam-assignments', submitted.userId, submitted.scope], records)
-      succeed('用户角色授权已撤销')
-    },
-    onError: assignmentFailed,
-  })
-  const assignmentBusy = assignRole.isPending || revoke.isPending
-  const assignmentError = assignmentCurrent(assignRole.context) && assignRole.error ? errorMessage(assignRole.error)
-    : assignmentCurrent(revoke.context) && revoke.error ? errorMessage(revoke.error) : undefined
-
-  const queryError = roles.error || permissions.error || users.error || assignments.error
-  return <>
-    <PageHeader compact eyebrow="平台管理 · 身份权限" title="角色与功能授权"
-      description="按角色组合原子功能权限，并在当前机构、科室范围内给用户分配有效期授权。所有变更保留审计事件。" />
-    {feedback && <Alert tone="success" className="iam-feedback">{feedback}</Alert>}
-    {(operationError || queryError) && <Alert className="iam-feedback">{operationError || errorMessage(queryError)}</Alert>}
-
-    <section className="iam-overview" aria-label="权限管理工作区">
-      <Panel className="iam-role-panel">
-        <PanelHead title="角色" meta={rolesReady ? `${roles.data.length} 个` : '数量待确认'} />
-        {!rolesReady && <AccessFactsState label="角色目录" loading={roles.isPending || roles.isFetching} onRetry={reloadPermissionFacts} />}
-        <div className="iam-role-list" role="listbox" aria-label="角色列表">
-          {rolesReady && roles.data.map((role) => <Button variant={role.id === selectedRoleId ? 'secondary' : 'text'} role="option" aria-selected={role.id === selectedRoleId}
-            key={role.id} onClick={() => { permissionSession.current += 1; setSelectedRoleId(role.id); setFeedback(''); setOperationError('') }}>
-            <span className="iam-role-list__content"><span className="iam-role-list__text"><strong>{role.name}</strong><code>{role.code}</code></span>
-            <StatusBadge tone={role.status === 'ACTIVE' ? 'success' : 'neutral'}>{role.status === 'ACTIVE' ? '启用' : '停用'}</StatusBadge></span>
-          </Button>)}
-        </div>
-        {roleCommandError(createRole) && <div role="alert"><p>{roleCommandError(createRole)}</p>
-          <Button variant="secondary" disabled={createRole.isPending} onClick={() => void reloadPermissionFacts()}>重新核实角色创建结果</Button></div>}
-        <CreateRoleForm key={scope} busy={createRole.isPending} available={rolesReady && !savePermissions.isPending && !changeRoleStatus.isPending}
-          saved={roleCreated} onSubmit={(input) => createRole.mutate(input)} />
-      </Panel>
-
-      <Panel className="iam-permission-panel">
-        <PanelHead title="功能权限" meta={selectedRole ? selectedRole.name : '请选择角色'} actions={<div className="iam-role-actions">
-          <Button size="sm" variant="text" disabled={!selectedRole || savePermissions.isPending || createRole.isPending} busy={changeRoleStatus.isPending}
-            onClick={() => {
-              if (selectedRole) { changeRoleStatus.reset(); setFeedback(''); setStatusCommand({ role: selectedRole, target: selectedRole.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }) }
-            }}>{selectedRole?.status === 'ACTIVE' ? '停用角色' : '启用角色'}</Button>
-          <Button size="sm" disabled={!permissionFactsReady || changeRoleStatus.isPending || createRole.isPending} busy={savePermissions.isPending} onClick={submitPermissions}>
-            保存权限
-          </Button></div>} />
-        {!permissionsReady && <AccessFactsState label="权限目录" loading={permissions.isPending || permissions.isFetching} onRetry={reloadPermissionFacts} />}
-        {operationError && <div role="alert"><p>{operationError}</p><Button variant="secondary" disabled={savePermissions.isPending} onClick={() => void reloadPermissionFacts()}>重新核实角色权限</Button></div>}
-        {draftMatches && !draftVersionCurrent && <div role="alert"><p>角色版本已变化，勾选草稿已保留。请核实后重新载入。</p>
-          <Button variant="secondary" disabled={savePermissions.isPending} onClick={() => {
-            if (selectedRole) setPermissionDraft({ role: selectedRole, codes: new Set(selectedRole.permissionCodes) })
-          }}>放弃勾选草稿并载入最新权限</Button></div>}
-        {unknownCodes.length > 0 && <div role="alert"><p>角色包含目录中未确认的权限：{unknownCodes.join('、')}。不能自动删除这些权限。</p>
-          <Button variant="secondary" onClick={() => void reloadPermissionFacts()}>重新核实权限目录</Button></div>}
-        {permissionsReady && permissionGroups.length === 0 && <EmptyState icon="settings" title="暂无权限"
-          copy="请先通过版本迁移注册业务模块及原子权限。" />}
-        <div className="iam-permission-groups">
-          {permissionGroups.map(([moduleName, items]) => <fieldset key={moduleName} disabled={!permissionFactsReady || savePermissions.isPending || changeRoleStatus.isPending || createRole.isPending}>
-            <legend>{moduleName}</legend>
-            {items.map((permission) => <label key={permission.id}>
-              <input type="checkbox" disabled={permission.status !== 'ACTIVE' && !selectedPermissions.has(permission.code)} checked={selectedPermissions.has(permission.code)} onChange={(event) => {
-                setPermissionDraft(current => {
-                  if (!current) return current
-                  const codes = new Set(current.codes)
-                  if (event.target.checked) codes.add(permission.code); else codes.delete(permission.code)
-                  return { ...current, codes }
-                })
-              }} />
-              <span><strong>{permission.name}</strong><code>{permission.code}</code>{permission.status !== 'ACTIVE' && <small>已停用</small>}</span>
-            </label>)}
-          </fieldset>)}
-        </div>
-      </Panel>
-
-      <Panel className="iam-assignment-panel">
-        <PanelHead title="用户授权" meta={`${context.organization.name} · ${context.department.name}`} />
-        {!usersReady && <AccessFactsState label="用户目录" loading={users.isPending || users.isFetching} onRetry={reloadAssignments} />}
-        {usersReady && !users.data.length && <EmptyState icon="residents" title="暂无用户账号" copy="当前目录没有可供授权的用户。" />}
-        {assignmentError && <div role="alert"><p>授权操作结果未确认：{assignmentError}</p>
-          <Button variant="secondary" disabled={assignmentBusy} onClick={() => void reloadAssignments()}>重新核实用户授权</Button></div>}
-        <label className="iam-native-field"><span>用户账号</span><Select value={selectedUserId}
-          onChange={id => { assignmentSession.current += 1; setSelectedUserId(id); setFeedback(''); setOperationError('') }}
-          disabled={!usersReady || assignmentBusy} clearable={false} loading={users.isFetching}
-          options={(usersReady ? users.data : []).map((user) => ({ value: user.id, label: user.username }))} /></label>
-        <AssignRoleForm key={`${scope}:${selectedUserId}`} roles={(rolesReady ? roles.data : []).filter((role) => role.status === 'ACTIVE')}
-          busy={assignmentBusy} available={rolesReady && assignmentsReady} onSubmit={(input) => assignRole.mutate(input)} />
-        <div className="iam-assignment-list">
-          {selectedUser && !assignmentsReady && <AccessFactsState label="用户授权" loading={assignments.isPending || assignments.isFetching} onRetry={reloadAssignments} />}
-          {assignmentsReady && assignments.data!.map((assignment) => <article key={assignment.id} className={!assignment.effective ? 'is-expired' : ''}>
-            <div><strong>{assignment.roleName}</strong><code>{assignment.roleCode}</code></div>
-            <p>{assignment.organizationName} · {assignment.departmentName}</p>
-            <small>{formatValidity(assignment.validFrom, assignment.validTo)} · {assignment.effective ? '授权有效期内' : '未处于授权有效期'}</small>
-            {assignment.effective && <Button size="sm" variant="text" busy={revoke.isPending} disabled={assignmentBusy}
-              onClick={() => { if (!assignmentBusy) revoke.mutate(assignment) }}>撤销</Button>}
-          </article>)}
-          {assignmentsReady && assignments.data!.length === 0 &&
-            <EmptyState icon="residents" title="暂无角色授权" copy="可在上方为当前用户分配角色。" />}
-        </div>
-      </Panel>
-    </section>
-    {statusCommand && <Dialog title={`${statusCommand.target === 'INACTIVE' ? '确认停用' : '确认启用'}角色“${statusCommand.role.name}”`}
-      onClose={() => { if (!changeRoleStatus.isPending) setStatusCommand(undefined) }} closeOnBackdrop={false}
-      footer={<><Button variant="secondary" disabled={changeRoleStatus.isPending} onClick={() => setStatusCommand(undefined)}>取消</Button>
-        <Button variant={statusCommand.target === 'INACTIVE' ? 'danger' : 'primary'} busy={changeRoleStatus.isPending}
-          disabled={!rolesReady || selectedRoleId !== statusCommand.role.id || createRole.isPending || savePermissions.isPending}
-          onClick={() => { if (!changeRoleStatus.isPending) changeRoleStatus.mutate(statusCommand) }}>
-          {statusCommand.target === 'INACTIVE' ? '确认停用' : '确认启用'}</Button></>}>
-      <p>本次仅修改该角色状态，已有权限配置保持不变。</p>
-      {roleCommandError(changeRoleStatus) && <div role="alert"><p>{roleCommandError(changeRoleStatus)}</p>
-        <Button variant="secondary" disabled={changeRoleStatus.isPending} onClick={() => void reloadPermissionFacts()}>重新核实角色状态</Button></div>}
-      {(!rolesReady || selectedRoleId !== statusCommand.role.id) && <AccessFactsState label="原角色目录" loading={roles.isFetching} onRetry={reloadPermissionFacts} />}
-    </Dialog>}
-  </>
+  return <MasterDetailPage title="角色与权限"
+    description="按角色组合功能权限，并反查已授权人员。人员的账号与按科室授权在「人员管理」中维护，科室默认角色在「机构与科室」中设置。"
+    feedback={feedback && <Alert tone="success" onDismiss={() => setFeedback('')}>{feedback}</Alert>}
+    navigationLabel="角色目录"
+    navigationHeader={<div className="access-role-toolbar">
+      <SearchField label="搜索角色" placeholder="名称、编码或拼音首字母" value={keyword} onChange={setKeyword} />
+      <div className="access-role-toolbar__row">
+        <Button size="sm" disabled={!roles.isSuccess} onClick={() => setPending({ kind: 'create' })}>新建角色</Button>
+        <Switch size="sm" checked={showInactive} onChange={setShowInactive} label="显示停用" />
+      </div>
+    </div>}
+    navigation={roles.isError ? <Alert placement="inline">{errorMessage(roles.error)}<Button size="sm" variant="secondary" onClick={() => void roles.refetch()}>重新加载</Button></Alert>
+      : roles.isPending ? <LoadingState label="正在加载角色目录…" />
+      : !visibleRoles.length ? <EmptyState icon="settings" title="没有匹配的角色" copy="调整搜索条件或新建角色。" />
+      : <div className="access-role-list" role="listbox" aria-label="角色列表">
+        {visibleRoles.map(role => <Button key={role.id} variant={role.id === selectedId ? 'secondary' : 'text'} role="option" aria-selected={role.id === selectedId}
+          onClick={() => setSelectedId(role.id)}>
+          <span className="access-role-list__item"><span className="access-role-list__text"><strong>{role.name}</strong><code>{role.code}</code></span>
+            {role.status !== 'ACTIVE' && <StatusBadge tone="neutral">停用</StatusBadge>}</span>
+        </Button>)}
+      </div>}
+    detailLabel="角色详情" detailResetScrollKey={`${selectedId}:${tab}`}
+    detailHeader={selected && <header className="access-detail-head">
+      <div className="access-detail-head__title"><span className="ui-eyebrow">{ROLE_TYPES[selected.roleType]}</span>
+        <h2>{selected.name}</h2><code>{selected.code}</code>
+        <StatusBadge tone={selected.status === 'ACTIVE' ? 'success' : 'neutral'}>{selected.status === 'ACTIVE' ? '启用' : '停用'}</StatusBadge></div>
+      <div className="access-detail-head__actions">
+        <Button size="sm" variant="secondary" onClick={() => setPending({ kind: 'rename', role: selected })}>修改名称</Button>
+        <Button size="sm" variant={selected.status === 'ACTIVE' ? 'danger' : 'secondary'} onClick={() => setPending({ kind: 'status', role: selected })}>
+          {selected.status === 'ACTIVE' ? '停用角色' : '启用角色'}</Button>
+      </div>
+      <Tabs label="角色详情" value={tab} onChange={setTab} items={[{ value: 'permissions', label: '功能权限', meta: selected.permissionCodes.length },
+        { value: 'members', label: '已授权人员' }]} />
+    </header>}>
+    {!selected ? (roles.isSuccess ? <EmptyState icon="settings" title="选择角色" copy="在左侧选择角色查看功能权限与已授权人员。" /> : <LoadingState label="正在加载…" />)
+      : tab === 'permissions'
+        ? <RolePermissions key={selected.id} api={api} role={selected} permissions={permissions.data} permissionsError={permissions.error}
+          onReload={async () => { await Promise.allSettled([roles.refetch(), permissions.refetch()]) }}
+          onSaved={role => { queryClient.setQueryData<AccessRole[]>(['iam-roles', scope], values => values?.map(item => item.id === role.id ? role : item)); setFeedback(`已更新“${role.name}”的功能权限`) }} />
+        : <RoleMembers key={selected.id} api={api} role={selected} scope={scope}
+          onGrant={() => setPending({ kind: 'grant', role: selected })} onRevoke={grant => setPending({ kind: 'revoke', grant })} />}
+    {pending?.kind === 'create' && <CreateRoleDialog api={api} roles={allRoles} onClose={() => setPending(undefined)}
+      onDone={role => changed(`已创建角色“${role.name}”`, role.id)} />}
+    {pending?.kind === 'rename' && <RenameRoleDialog api={api} role={pending.role} onClose={() => setPending(undefined)}
+      onDone={role => changed(`角色已更名为“${role.name}”`)} />}
+    {pending?.kind === 'status' && <RoleStatusDialog api={api} role={pending.role} onClose={() => setPending(undefined)}
+      onDone={role => changed(`角色“${role.name}”已${role.status === 'ACTIVE' ? '启用' : '停用'}`)} />}
+    {pending?.kind === 'grant' && <GrantFromRole api={api} role={pending.role} context={context} scope={scope}
+      onClose={() => setPending(undefined)} onDone={message => changed(message)} />}
+    {pending?.kind === 'revoke' && <RevokeGrantDialog api={api} grant={pending.grant} onClose={() => setPending(undefined)} onDone={message => changed(message)} />}
+  </MasterDetailPage>
 }
 
-function AccessFactsState({ label, loading, onRetry }: { label: string; loading: boolean; onRetry: () => Promise<void> }) {
-  return loading ? <LoadingState label={`正在核实${label}…`} /> : <div role="alert"><p>{label}尚未确认，不能据此判断有无记录。</p>
-    <Button variant="secondary" onClick={() => void onRetry()}>重新加载{label}</Button></div>
+function RolePermissions({ api, role, permissions, permissionsError, onReload, onSaved }: {
+  api: RhnApi; role: AccessRole; permissions?: AccessPermission[]; permissionsError: unknown
+  onReload: () => Promise<void>; onSaved: (role: AccessRole) => void
+}) {
+  const [draft, setDraft] = useState(() => ({ version: role.version, codes: new Set(role.permissionCodes) }))
+  const save = useMutation({
+    mutationFn: async (codes: Set<string>) => requirePermissionReceipt(
+      await api.identityAccess.replaceRolePermissions(role, permissionIdsFor(codes, permissions!)), role, codes),
+    onSuccess: next => { setDraft({ version: next.version, codes: new Set(next.permissionCodes) }); onSaved(next) },
+  })
+  const groups = useMemo(() => {
+    const result = new Map<string, AccessPermission[]>()
+    for (const permission of permissions ?? []) {
+      const label = permission.moduleName || permission.resourceCode
+      result.set(label, [...(result.get(label) ?? []), permission])
+    }
+    return [...result.entries()]
+  }, [permissions])
+  if (permissionsError) return <Alert placement="inline">权限目录加载失败：{errorMessage(permissionsError)}<Button size="sm" variant="secondary" onClick={() => void onReload()}>重新加载</Button></Alert>
+  if (!permissions) return <LoadingState label="正在加载权限目录…" />
+  const stale = draft.version !== role.version
+  const unknown = [...draft.codes].filter(code => !permissions.some(item => item.code === code))
+  const dirty = draft.codes.size !== role.permissionCodes.length || role.permissionCodes.some(code => !draft.codes.has(code))
+  const toggle = (code: string, checked: boolean) => setDraft(current => {
+    const codes = new Set(current.codes)
+    if (checked) codes.add(code); else codes.delete(code)
+    return { ...current, codes }
+  })
+  return <div className="access-permissions">
+    <div className="access-permissions__bar">
+      <span className="access-hint">已选 {draft.codes.size} 项。只能授予当前账号自身具备的权限；保存后对持有该角色的人员下次请求起生效。</span>
+      <Button size="sm" variant="secondary" disabled={!dirty || save.isPending} onClick={() => setDraft({ version: role.version, codes: new Set(role.permissionCodes) })}>撤销修改</Button>
+      <Button size="sm" busy={save.isPending} disabled={!dirty || stale || unknown.length > 0} onClick={() => save.mutate(new Set(draft.codes))}>保存权限</Button>
+    </div>
+    {save.error && <Alert placement="inline">保存未完成：{errorMessage(save.error)}<Button size="sm" variant="secondary" onClick={() => void onReload()}>重新核实角色</Button></Alert>}
+    {stale && <Alert placement="inline" tone="warning">角色已被其他人修改，勾选草稿已保留。
+      <Button size="sm" variant="secondary" onClick={() => setDraft({ version: role.version, codes: new Set(role.permissionCodes) })}>放弃草稿并载入最新权限</Button></Alert>}
+    {unknown.length > 0 && <Alert placement="inline" tone="warning">角色包含目录中未登记的权限：{unknown.join('、')}，不能自动删除，请核实权限目录。</Alert>}
+    {!groups.length ? <EmptyState icon="settings" title="暂无权限" copy="请先通过版本迁移注册业务模块及原子权限。" />
+      : <div className="access-permission-groups">{groups.map(([moduleName, items]) => <fieldset key={moduleName} disabled={save.isPending}>
+        <legend>{moduleName}</legend>
+        {items.map(permission => <label key={permission.id}>
+          <input type="checkbox" disabled={permission.status !== 'ACTIVE' && !draft.codes.has(permission.code)} checked={draft.codes.has(permission.code)}
+            onChange={event => toggle(permission.code, event.target.checked)} />
+          <span><strong>{permission.name}</strong><code>{permission.code}</code>{permission.status !== 'ACTIVE' && <small>已停用</small>}</span>
+        </label>)}
+      </fieldset>)}</div>}
+  </div>
 }
 
-function CreateRoleForm({ busy, available, saved, onSubmit }: {
-  busy: boolean; available: boolean; saved: number
-  onSubmit: (input: { code: string; name: string; roleType: AccessRole['roleType'] }) => void
+function RoleMembers({ api, role, scope, onGrant, onRevoke }: {
+  api: RhnApi; role: AccessRole; scope: string; onGrant: () => void; onRevoke: (grant: UserRoleAssignment) => void
+}) {
+  const [includeExpired, setIncludeExpired] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const members = useQuery({ queryKey: ['iam-role-members', scope, role.id, includeExpired],
+    queryFn: async () => requireGrants(await api.identityAccess.roleMembers(role.id, includeExpired)) })
+  const term = keyword.trim().toLowerCase()
+  const rows = (members.data ?? []).filter(row => !term || [row.practitionerName, row.practitionerCode, row.username, row.departmentName]
+    .some(value => value?.toLowerCase().includes(term)))
+  const people = new Set((members.data ?? []).filter(row => row.effective).map(row => row.userId)).size
+  return <div className="access-members">
+    <div className="access-members__bar">
+      <SearchField label="搜索已授权人员" placeholder="姓名、工号、账号或科室" value={keyword} onChange={setKeyword} />
+      <Switch size="sm" checked={includeExpired} onChange={setIncludeExpired} label="含已失效" />
+      <span className="access-hint">{members.isSuccess ? `当前有效 ${people} 人` : ''}</span>
+      <Button size="sm" disabled={role.status !== 'ACTIVE'} onClick={onGrant}>授予人员</Button>
+    </div>
+    {members.isPending ? <LoadingState label="正在反查已授权人员…" />
+      : members.isError ? <Alert placement="inline">{errorMessage(members.error)}<Button size="sm" variant="secondary" onClick={() => void members.refetch()}>重新加载</Button></Alert>
+      : rows.length ? <RoleGrantsTable rows={rows} view="role" canRevoke busy={false} onRevoke={onRevoke} label="已授权人员" />
+      : <EmptyState icon="residents" title={term ? '没有匹配的人员' : '暂无授权人员'} copy="仅列出当前账号可管理范围内的授权；按科室默认或在人员档案中授予后显示在此。" />}
+  </div>
+}
+
+function GrantFromRole({ api, role, context, scope, onClose, onDone }: {
+  api: RhnApi; role: AccessRole; context: ClinicalContext; scope: string; onClose: () => void; onDone: (message: string) => Promise<void>
+}) {
+  const users = useQuery({ queryKey: ['iam-users', scope], queryFn: async () => requireAccessUsers(await api.identityAccess.users()) })
+  if (users.isError) return <Dialog title="授予人员" onClose={onClose} footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
+    <Alert placement="inline">{errorMessage(users.error)}<Button size="sm" variant="secondary" onClick={() => void users.refetch()}>重新加载</Button></Alert></Dialog>
+  if (!users.isSuccess) return <Dialog title="授予人员" onClose={onClose}><LoadingState label="正在加载可管理的账号…" /></Dialog>
+  return <GrantRoleDialog api={api} title="授予人员" eyebrow={role.name} role={role} users={users.data}
+    targets={[{ key: context.department.id, label: `${context.organization.name} · ${context.department.name}`, dataScopeType: 'DEPARTMENT',
+      organizationId: context.organization.id, departmentId: context.department.id }]}
+    onClose={onClose} onDone={onDone} />
+}
+
+function CreateRoleDialog({ api, roles, onClose, onDone }: {
+  api: RhnApi; roles: AccessRole[]; onClose: () => void; onDone: (role: AccessRole) => Promise<void>
 }) {
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
-  useEffect(() => { setCode(''); setName('') }, [saved])
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    if (busy || !available || !code.trim() || !name.trim()) return
-    onSubmit({ code, name, roleType: 'BUSINESS' })
+  const [roleType, setRoleType] = useState<'BUSINESS' | 'CUSTOM'>('BUSINESS')
+  const [validation, setValidation] = useState('')
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const input = { code, name, roleType }
+      return requireCreatedAccessRole(await api.identityAccess.createRole(input), input, roles)
+    },
+    onSuccess: role => onDone(role),
+  })
+  const submit = () => {
+    setValidation('')
+    if (!/^[A-Z][A-Z0-9_]{1,63}$/.test(code.trim())) { setValidation('角色编码只能包含大写字母、数字和下划线，且必须以字母开头'); return }
+    if (!name.trim()) { setValidation('请填写角色名称'); return }
+    if (roles.some(role => role.code === code.trim())) { setValidation('角色编码已存在'); return }
+    mutation.mutate()
   }
-  return <form className="iam-create-role" inert={busy} onSubmit={submit}>
-    <strong>新建业务角色</strong>
-    <FormField label="角色编码" required><input value={code} maxLength={64} placeholder="例如 PHARMACIST"
-      onChange={(event) => setCode(event.target.value.toUpperCase())} /></FormField>
-    <FormField label="角色名称" required><input value={name} maxLength={128} placeholder="例如 门诊药师"
-      onChange={(event) => setName(event.target.value)} /></FormField>
-    <Button size="sm" type="submit" busy={busy} disabled={!available}>创建角色</Button>
-  </form>
+  return <Dialog title="新建角色" onClose={() => { if (!mutation.isPending) onClose() }} closeOnBackdrop={false}
+    footer={<><Button variant="secondary" disabled={mutation.isPending} onClick={onClose}>取消</Button>
+      <Button busy={mutation.isPending} onClick={submit}>创建</Button></>}>
+    {(validation || mutation.error) && <Alert placement="inline">{validation || `创建未完成：${errorMessage(mutation.error)}`}</Alert>}
+    <fieldset disabled={mutation.isPending} className="access-form">
+      <FormField label="角色编码" required hint="创建后不可修改"><input value={code} maxLength={64} placeholder="例如 OUTPATIENT_NURSE"
+        onChange={event => setCode(event.target.value.toUpperCase())} /></FormField>
+      <FormField label="角色名称" required><input value={name} maxLength={128} placeholder="例如 门诊护士" onChange={event => setName(event.target.value)} /></FormField>
+      <FormField label="角色类型"><Select value={roleType} clearable={false} onChange={value => setRoleType(value as 'BUSINESS' | 'CUSTOM')}
+        options={[{ value: 'BUSINESS', label: ROLE_TYPES.BUSINESS }, { value: 'CUSTOM', label: ROLE_TYPES.CUSTOM }]} /></FormField>
+    </fieldset>
+    <p className="access-hint">新角色没有任何权限，创建后在「功能权限」中勾选。</p>
+  </Dialog>
 }
 
-function AssignRoleForm({ roles, busy, available, onSubmit }: {
-  roles: AccessRole[]
-  busy: boolean; available: boolean
-  onSubmit: (input: { roleId: string; validTo?: string | null }) => void
+function RenameRoleDialog({ api, role, onClose, onDone }: {
+  api: RhnApi; role: AccessRole; onClose: () => void; onDone: (role: AccessRole) => Promise<void>
 }) {
-  const [roleId, setRoleId] = useState('')
-  const [validTo, setValidTo] = useState('')
-  const [dateError, setDateError] = useState('')
-  useEffect(() => { if (!roleId && roles.length) setRoleId(roles[0].id) }, [roleId, roles])
-  return <form className="iam-assign-form" inert={busy} onSubmit={(event) => {
-    event.preventDefault()
-    if (busy || !available || !roles.some(role => role.id === roleId)) return
-    if (validTo && (!Number.isFinite(Date.parse(validTo)) || Date.parse(validTo) <= Date.now())) {
-      setDateError('失效时间必须是有效的未来时间'); return
-    }
-    setDateError('')
-    onSubmit({ roleId, validTo: validTo ? new Date(validTo).toISOString() : null })
-  }}>
-    <label className="iam-native-field"><span>分配角色</span><Select value={roleId} onChange={setRoleId}
-      clearable={false} showValue options={roles.map((role) => ({ value: role.id, label: role.name,
-        secondaryText: role.code }))} /></label>
-    <label className="iam-native-field"><span>失效时间（可选）</span><input type="datetime-local" value={validTo}
-      onChange={(event) => setValidTo(event.target.value)} /></label>
-    {dateError && <p role="alert">{dateError}</p>}
-    <Button size="sm" type="submit" busy={busy} disabled={!available || !roles.some(role => role.id === roleId)}>授予当前科室角色</Button>
-  </form>
+  const [name, setName] = useState(role.name)
+  const mutation = useMutation({
+    mutationFn: async () => requireRenamedAccessRole(await api.identityAccess.updateRole(role, { name: name.trim(), status: role.status }), role, name),
+    onSuccess: next => onDone(next),
+  })
+  return <Dialog title="修改角色名称" eyebrow={role.code} onClose={() => { if (!mutation.isPending) onClose() }} closeOnBackdrop={false}
+    footer={<><Button variant="secondary" disabled={mutation.isPending} onClick={onClose}>取消</Button>
+      <Button busy={mutation.isPending} disabled={!name.trim() || name.trim() === role.name} onClick={() => mutation.mutate()}>保存</Button></>}>
+    {mutation.error && <Alert placement="inline">保存未完成：{errorMessage(mutation.error)}</Alert>}
+    <fieldset disabled={mutation.isPending} className="access-form">
+      <FormField label="角色名称" required><input value={name} maxLength={128} onChange={event => setName(event.target.value)} /></FormField>
+    </fieldset>
+  </Dialog>
 }
 
-function formatValidity(from: string, to?: string | null) {
-  const start = new Date(from).toLocaleString('zh-CN', { hour12: false })
-  const end = to ? new Date(to).toLocaleString('zh-CN', { hour12: false }) : '长期有效'
-  return `${start} — ${end}`
+function RoleStatusDialog({ api, role, onClose, onDone }: {
+  api: RhnApi; role: AccessRole; onClose: () => void; onDone: (role: AccessRole) => Promise<void>
+}) {
+  const target = role.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+  const mutation = useMutation({
+    mutationFn: async () => requireAccessRoleStatus(await api.identityAccess.updateRole(role, { name: role.name, status: target }), role, target),
+    onSuccess: next => onDone(next),
+  })
+  return <Dialog title={`${target === 'INACTIVE' ? '停用' : '启用'}角色“${role.name}”`} onClose={() => { if (!mutation.isPending) onClose() }} closeOnBackdrop={false}
+    footer={<><Button variant="secondary" disabled={mutation.isPending} onClick={onClose}>取消</Button>
+      <Button variant={target === 'INACTIVE' ? 'danger' : 'primary'} busy={mutation.isPending} onClick={() => mutation.mutate()}>
+        {target === 'INACTIVE' ? '确认停用' : '确认启用'}</Button></>}>
+    {mutation.error && <Alert placement="inline">操作未完成：{errorMessage(mutation.error)}</Alert>}
+    <p>{target === 'INACTIVE'
+      ? '停用后持有该角色的人员立即失去其权限，也不能再授予或作为科室默认角色自动授予；授权记录和权限配置保留，重新启用后恢复。'
+      : '启用后，现有有效授权立即恢复该角色的权限。'}</p>
+  </Dialog>
 }

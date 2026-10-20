@@ -54,11 +54,11 @@ export function PersonnelPage({ api, canManage = false }: { api: RhnApi; canMana
   const titleOptions = (options.qualificationDictionaries.get(QUALIFICATION_DICTIONARY.professionalTitle) ?? []).map(item => ({ value: item.code, label: item.name }))
   const changed = async (message: string) => {
     setFeedback(message)
-    await Promise.all(['personnel', 'practitioner', 'practitioner-qualification', 'assignments', 'positions', 'organization-changes']
+    await Promise.all(['personnel', 'practitioner', 'practitioner-qualification', 'practitioner-access', 'iam-role-members', 'assignments', 'positions', 'organization-changes']
       .map(key => queryClient.invalidateQueries({ queryKey: [key] })))
   }
 
-  return <ListPage title="人员管理" description="维护人员档案、任职与执业资质；登录账号与授权在「角色与权限」中维护。"
+  return <ListPage title="人员管理" description="维护人员档案、任职、执业资质、登录账号与角色授权。"
     feedback={feedback && <Alert tone="success" onDismiss={() => setFeedback('')}>{feedback}</Alert>}
     actions={canManage && <>
       <Button variant="secondary" onClick={() => { setFeedback(''); setDialog('positions') }}>岗位设置</Button>

@@ -19,3 +19,11 @@ export function requireAccessRoleStatus(source: unknown, before: AccessRole, tar
   }
   return next
 }
+export function requireRenamedAccessRole(source: unknown, before: AccessRole, name: string): AccessRole {
+  const next = requireAccessRoles([source])[0]
+  if (next.id !== before.id || next.code !== before.code || next.name !== name.trim() || next.status !== before.status
+    || next.version <= before.version) {
+    throw new Error('角色名称保存结果未确认：返回身份、版本或名称与本次操作不一致')
+  }
+  return next
+}

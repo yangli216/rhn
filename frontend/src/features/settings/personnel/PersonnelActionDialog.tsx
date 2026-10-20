@@ -98,7 +98,7 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
       <Button variant={action.kind === 'leave' || action.kind === 'status' && person.sdPersonnelStatus === 'ACTIVE' ? 'danger' : 'primary'}
         busy={mutation.isPending} onClick={submit}>{action.kind === 'status' ? (person.sdPersonnelStatus === 'ACTIVE' ? '确认停用' : '确认启用') : `确认${title}`}</Button></>}>
     {(validation || mutation.error) && <Alert placement="inline">{validation || `保存未完成：${errorMessage(mutation.error)}`}</Alert>}
-    {action.kind === 'leave' && <p className="personnel-hint">以最后工作日结束所选机构的聘用，并同时结束其下未结束的任职。登录账号请在「角色与权限」中另行停用。</p>}
+    {action.kind === 'leave' && <p className="personnel-hint">以最后工作日结束所选机构的聘用，并同时结束其下未结束的任职；科室默认角色随任职自动失效，手工授予的角色请在「账号与角色」中撤销。</p>}
     {action.kind === 'transfer' && <p className="personnel-hint">原任职在生效日前一天结束，并在同一机构内新增目标任职。</p>}
     {action.kind === 'status' && <p>{person.sdPersonnelStatus === 'ACTIVE'
       ? '停用后不能再新增任职；实际离职请使用「办理离职」结束聘用。' : '启用后可以再次新增任职。'}</p>}

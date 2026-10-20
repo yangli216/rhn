@@ -85,6 +85,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     private final OrganizationProfileStore profileStore;
     private final DictionaryDirectory dictionaryDirectory;
     private final ExecutionContextProvider contextProvider;
+    private final List<com.rhn.platform.organization.api.StaffAssignmentSynchronizer> assignmentSynchronizers;
 
     public OrganizationApplicationService(TenantRepository tenantRepository,
                                           OrganizationRepository organizationRepository,
@@ -96,8 +97,10 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                                           OrganizationProfileStore profileStore,
                                           DictionaryDirectory dictionaryDirectory,
                                           ExecutionContextProvider contextProvider, OrganizationImpactService impacts, ResponsibilityAssignmentPolicy responsibilityPolicy,
-                                          com.rhn.platform.organization.infrastructure.OrganizationChangeStore changes) {
+                                          com.rhn.platform.organization.infrastructure.OrganizationChangeStore changes,
+                                          List<com.rhn.platform.organization.api.StaffAssignmentSynchronizer> assignmentSynchronizers) {
         this.responsibilityPolicy=responsibilityPolicy; this.impacts=impacts; this.changes=changes;
+        this.assignmentSynchronizers = assignmentSynchronizers;
         this.tenantRepository = tenantRepository;
         this.organizationRepository = organizationRepository;
         this.practitionerRepository = practitionerRepository;
@@ -460,6 +463,7 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                     context.tenantId(), employmentId, organizationId, departmentId, positionId, normalizedCode, type,
                     Strings.trimToNull(specialtyCode), primaryAssignment, workloadPercent,
                     validFrom, validTo, context.subjectId()));
+            synchronizeAssignments(context.tenantId(), practitioner.id());
             return assignmentView(assignment, organization.name(), department.name(),
                     position.name(), position.positionType(),
                     practitioner.id(), practitioner.code(), practitioner.fullName(),
@@ -496,6 +500,11 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                 null, primaryAssignment, null, validFrom, validTo);
         changes.record("PRACTITIONER", practitionerId, "ASSIGN_PRACTITIONER", Map.of(), assignment, "新增任职");
         return assignment;
+    }
+
+    /** Lets other modules follow assignment changes (e.g. department default roles); idempotent per call. */
+    public void synchronizeAssignments(Long tenantId, Long practitionerId) {
+        assignmentSynchronizers.forEach(value -> value.synchronize(tenantId, practitionerId));
     }
 
     @Transactional(readOnly = true)

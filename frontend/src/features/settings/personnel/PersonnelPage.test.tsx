@@ -40,7 +40,17 @@ const detail = {
 }
 const unregistered = { practitionerId: 'p-1', registered: false, revision: null, prescribing: false, narcoticPrescribing: false }
 
-function setup(overrides: Partial<RhnApi['organization']> = {}, { canManage = true, url = '/settings/personnel' } = {}) {
+const scope = { scopeType: 'DEPARTMENT', organizationId: 'org-1', organizationName: '青禾镇中心卫生院', departmentId: 'dept-1', departmentName: '全科门诊' }
+const account = { id: 'u-1', username: 'p001', status: 'ACTIVE', practitionerId: 'p-1', practitionerCode: 'P001', practitionerName: '陈国华' }
+const defaultGrant = { id: 'g-1', userId: 'u-1', username: 'p001', roleId: 'r-1', roleCode: 'GP_DOCTOR', roleName: '全科医生', organizationId: 'org-1',
+  organizationName: '青禾镇中心卫生院', departmentId: 'dept-1', departmentName: '全科门诊', dataScopeType: 'DEPARTMENT', validFrom: '2026-01-01T00:00:00Z',
+  validTo: null, createdAt: '2026-01-01T00:00:00Z', effective: true, grantSource: 'DEPT_DEFAULT', staffAssignmentId: 'a-1', practitionerId: 'p-1',
+  practitionerCode: 'P001', practitionerName: '陈国华' }
+const roles = [{ id: 'r-1', code: 'GP_DOCTOR', name: '全科医生', roleType: 'BUSINESS', status: 'ACTIVE', version: 1, permissionCodes: [] },
+  { id: 'r-2', code: 'TRIAGE_NURSE', name: '分诊护士', roleType: 'BUSINESS', status: 'ACTIVE', version: 1, permissionCodes: [] }]
+
+function setup(overrides: Partial<RhnApi['organization']> = {}, { canManage = true, url = '/settings/personnel' } = {},
+  identityOverrides: Partial<RhnApi['identityAccess']> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   const organization = {
     tree: vi.fn().mockResolvedValue(units),
@@ -57,10 +67,19 @@ function setup(overrides: Partial<RhnApi['organization']> = {}, { canManage = tr
     changes: vi.fn().mockResolvedValue([]),
     ...overrides,
   }
-  const api = { organization, dictionaries: { systemEnums: vi.fn().mockResolvedValue(enums),
+  const identityAccess = {
+    practitionerAccess: vi.fn().mockResolvedValue({ practitionerId: 'p-1', account, assignments: [defaultGrant], scope }),
+    roles: vi.fn().mockResolvedValue(roles),
+    openAccount: vi.fn(),
+    assignRole: vi.fn().mockImplementation(async (_userId, input) => ({ ...defaultGrant, id: 'g-2', roleId: input.roleId, roleCode: 'TRIAGE_NURSE',
+      roleName: '分诊护士', grantSource: 'MANUAL', staffAssignmentId: null })),
+    revokeAssignment: vi.fn(),
+    ...identityOverrides,
+  }
+  const api = { organization, identityAccess, dictionaries: { systemEnums: vi.fn().mockResolvedValue(enums),
     resolve: vi.fn().mockImplementation(async (code: string) => dictionary(code)) } } as unknown as RhnApi
   render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={[url]}><PersonnelPage api={api} canManage={canManage} /></MemoryRouter></QueryClientProvider>)
-  return { organization }
+  return { organization, identityAccess }
 }
 async function openDrawer() {
   await userEvent.click(await screen.findByRole('button', { name: '查看' }))
@@ -138,6 +157,45 @@ describe('PersonnelPage', () => {
     await userEvent.click(dialog.getByRole('button', { name: '确认入职' }))
     expect(dialog.getByText(/工号须以字母开头/)).toBeInTheDocument()
     expect(organization.onboardPractitioner).not.toHaveBeenCalled()
+  })
+
+  it('opens a login account and shows the department default roles it received', async () => {
+    const opened = { practitionerId: 'p-1', account, assignments: [defaultGrant], scope }
+    const { identityAccess } = setup({}, {}, {
+      practitionerAccess: vi.fn().mockResolvedValueOnce({ practitionerId: 'p-1', account: null, assignments: [], scope }).mockResolvedValue(opened),
+      openAccount: vi.fn().mockResolvedValue(opened),
+    })
+    const drawer = await openDrawer()
+    const section = within(drawer.getByRole('region', { name: '账号与角色' }))
+    expect(await section.findByText('未开通登录账号')).toBeInTheDocument()
+    await userEvent.click(section.getByRole('button', { name: '开通账号' }))
+    const dialog = within(screen.getByRole('dialog', { name: '开通登录账号' }))
+    expect(dialog.getByRole('textbox', { name: /^登录账号/ })).toHaveValue('p001')
+    await userEvent.type(dialog.getByLabelText(/^初始密码/), 'short')
+    await userEvent.click(dialog.getByRole('button', { name: '确认开通' }))
+    expect(dialog.getByText(/初始密码须为 8–64 位/)).toBeInTheDocument()
+    await userEvent.clear(dialog.getByLabelText(/^初始密码/))
+    await userEvent.type(dialog.getByLabelText(/^初始密码/), 'Init2026pass')
+    await userEvent.type(dialog.getByLabelText(/确认初始密码/), 'Init2026pass')
+    await userEvent.click(dialog.getByRole('button', { name: '确认开通' }))
+    await waitFor(() => expect(identityAccess.openAccount).toHaveBeenCalledWith('p-1', { username: 'p001', initialPassword: 'Init2026pass' }))
+    expect(await screen.findByText('已为陈国华开通账号 p001，并按科室默认授予 1 个角色')).toBeInTheDocument()
+    const table = within(await section.findByRole('table', { name: '角色授权' }))
+    expect(table.getByText('科室默认')).toBeInTheDocument()
+  })
+
+  it('adds a custom role limited to departments the manager may administer', async () => {
+    const { identityAccess } = setup()
+    const drawer = await openDrawer()
+    const section = within(drawer.getByRole('region', { name: '账号与角色' }))
+    await userEvent.click(await section.findByRole('button', { name: '添加角色' }))
+    const dialog = within(await screen.findByRole('dialog', { name: '添加角色' }))
+    await userEvent.click(dialog.getByRole('combobox', { name: /角色/ })); await userEvent.click(await screen.findByRole('option', { name: /分诊护士/ }))
+    expect(dialog.getByRole('combobox', { name: /授权范围/ })).toHaveTextContent('青禾镇中心卫生院 · 全科门诊')
+    await userEvent.click(dialog.getByRole('button', { name: '确认授予' }))
+    await waitFor(() => expect(identityAccess.assignRole).toHaveBeenCalledWith('u-1', { roleId: 'r-2', dataScopeType: 'DEPARTMENT',
+      organizationId: 'org-1', departmentId: 'dept-1', validTo: null }))
+    expect(await screen.findByText('已授予“分诊护士”：青禾镇中心卫生院 · 全科门诊')).toBeInTheDocument()
   })
 
   it('is read-only without management permission', async () => {

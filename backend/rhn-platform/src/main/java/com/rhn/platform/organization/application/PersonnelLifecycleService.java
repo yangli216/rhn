@@ -158,6 +158,7 @@ public class PersonnelLifecycleService {
                 a.validFrom(),lastDay,a.status(),a.revision(),actor());
     }
     private StaffDetailView receipt(Long person,String action,StaffDetailView before,String reason) {
+        directory.synchronizeAssignments(tenant(),person);
         var after=directory.getStaff(person); changes.record("PRACTITIONER",person,action,before,after,reason); return after;
     }
     private Employment employment(Long id) { return employments.findByIdAndTenantId(id,tenant()).orElseThrow(() -> notFound("EMPLOYMENT_NOT_FOUND","聘用记录不存在")); }

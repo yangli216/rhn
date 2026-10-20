@@ -1,0 +1,38 @@
+/* 角色与权限（features/settings/AccessControlManagement、features/settings/access）。只用语义令牌；控件外观由 shared/ui 提供。 */
+.access-hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.access-form { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: var(--layout-section-gap); }
+.access-form .ui-field { margin: 0; }
+
+.access-role-toolbar { display: grid; gap: var(--layout-panel-gap); }
+.access-role-toolbar__row { display: flex; align-items: center; justify-content: space-between; gap: var(--layout-panel-gap); }
+.access-role-list { display: grid; gap: var(--space-1); }
+.access-role-list > .ui-button { width: 100%; justify-content: flex-start; text-align: left; }
+.access-role-list .ui-button__label { width: 100%; }
+.access-role-list__item { width: 100%; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.access-role-list__text { min-width: 0; display: grid; gap: var(--space-1); }
+.access-role-list__text strong, .access-role-list__text code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.access-role-list__text code { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+
+.access-detail-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--layout-panel-gap) var(--layout-section-gap); }
+.access-detail-head > .ui-tabs { grid-column: 1 / -1; }
+.access-detail-head__title { min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
+.access-detail-head__title h2 { margin: 0; font-size: var(--font-size-h2); }
+.access-detail-head__title code { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.access-detail-head__actions { display: flex; align-items: center; gap: var(--layout-panel-gap); }
+
+.access-permissions, .access-members { min-width: 0; display: grid; gap: var(--layout-panel-gap); }
+.access-permissions__bar, .access-members__bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--layout-panel-gap); }
+.access-permissions__bar > .access-hint { flex: 1 1 20rem; }
+.access-members__bar > .access-hint { flex: 1 1 auto; }
+.access-permission-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.access-permission-groups fieldset { min-width: 0; margin: 0; padding: var(--space-2) var(--space-3); display: grid; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.access-permission-groups legend { padding: 0 var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.access-permission-groups label { min-width: 0; padding: var(--space-1); display: flex; align-items: flex-start; gap: var(--space-2); }
+.access-permission-groups label > span { min-width: 0; display: grid; }
+.access-permission-groups code, .access-permission-groups small { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+
+.access-account { display: flex; align-items: center; flex-wrap: wrap; gap: var(--layout-panel-gap) var(--layout-section-gap); }
+.access-account > .personnel-section__actions { margin-left: auto; }
+.access-role-chips { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.access-role-chips li { padding: var(--space-1) var(--space-2); display: inline-flex; align-items: center; gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.access-role-chips code { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
