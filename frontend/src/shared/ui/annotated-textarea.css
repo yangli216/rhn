@@ -11,13 +11,10 @@
 .ui-annotation-popover__heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
 .ui-annotation-popover__heading strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ui-annotation-popover__heading .ui-icon-button { flex: none; }
-.ui-annotation-popover, .ui-annotation-popover textarea { overscroll-behavior: contain; }
+.ui-annotation-popover { overscroll-behavior: contain; }
 .ui-annotation-popover__body { min-height: 0; overflow-y: auto; }
 .ui-annotation-popover p { margin: var(--space-1) 0; font-size: var(--font-size-small); line-height: var(--line-height-small); white-space: pre-wrap; }
-.ui-annotation-popover .ui-field { min-width: 0; margin: var(--space-1) 0 0; flex: none; }
-.ui-annotation-popover .ui-field__label-row { min-height: 1.125rem; }
-.ui-annotation-popover textarea.ui-field__control { min-height: 3.25rem; max-height: 5.5rem; padding: var(--space-2); }
-.ui-annotation-popover__actions { padding-top: var(--space-2); display: flex; justify-content: flex-end; gap: var(--space-2); border-top: 1px solid var(--color-border); }
+.ui-annotation-popover__actions { padding-top: var(--space-2); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); border-top: 1px solid var(--color-border); }
 .record-annotation-legend {
   min-width: 0;
   margin-top: auto;
@@ -34,3 +31,8 @@
 .record-annotation-legend__hint { color: var(--color-text-primary); }
 .record-annotation-legend__item { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
 .record-annotation-legend__sample { cursor: default; }
+.record-annotation-legend__pending { color: var(--color-text-primary); white-space: nowrap; }
+.ui-annotation-popover__quick { min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+.ui-annotation-popover__actions > .ui-button { flex: none; margin-left: auto; }
+.ui-annotation-popover:focus { outline: none; }
+.ui-annotation-undo { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }

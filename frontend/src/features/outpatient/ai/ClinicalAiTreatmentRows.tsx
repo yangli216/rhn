@@ -4,6 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import type { ClinicalAiTreatmentRecommendation } from '../../../shared/api/clinicalAiApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
+import type { MedicationKnowledge } from '../../../shared/api/masterDataApi'
 import { IconButton, Button, FormField, Icon, Select } from '../../../shared/ui'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { ServiceInsertButton } from './ServiceInsertButton'
@@ -22,6 +23,28 @@ import { defaultServiceExecutionDepartment } from '../orders/orderExecutionDepar
 
 type OrderDetails = NonNullable<ClinicalAiTreatmentRecommendation['orderDraft']>
 type EditableOrderDetails = Omit<OrderDetails, 'quantity'> & { quantity?: number }
+
+type UsageFields = Pick<EditableOrderDetails, 'doseValue' | 'doseUnit' | 'routeCode' | 'frequencyCode' | 'durationValue'>
+
+/** Keep only the AI usage fields that are valid against the loaded dictionaries and catalog units; others fall back per field. */
+function aiUsage(suggestion: ClinicalAiTreatmentRecommendation['usageSuggestion'], medication: MedicationKnowledge,
+  product: { product?: { unitCode?: string } } | undefined, routes?: Array<{ code: string }>, frequencies?: Array<{ code: string }>): UsageFields {
+  if (!suggestion) return {}
+  const result: UsageFields = {}
+  const unit = suggestion.doseUnit?.trim()
+  const units = [medication.defaultDoseUnit, medication.preparationUnit, medication.strengthUnit, product?.product?.unitCode]
+    .map(value => value?.trim()).filter(Boolean)
+  const unitOk = Boolean(unit) && units.includes(unit)
+  if (typeof suggestion.doseValue === 'number' && Number.isFinite(suggestion.doseValue) && suggestion.doseValue > 0
+    && (!unit || unitOk)) {
+    result.doseValue = suggestion.doseValue
+    if (unitOk) result.doseUnit = unit
+  }
+  if (suggestion.routeCode && routes?.some(route => route.code === suggestion.routeCode)) result.routeCode = suggestion.routeCode
+  if (suggestion.frequencyCode && frequencies?.some(frequency => frequency.code === suggestion.frequencyCode)) result.frequencyCode = suggestion.frequencyCode
+  if (typeof suggestion.durationDays === 'number' && Number.isFinite(suggestion.durationDays) && suggestion.durationDays > 0) result.durationValue = suggestion.durationDays
+  return result
+}
 
 /** Resolve catalog details after a requested analysis; this never triggers another model request. */
 export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onReview }: {
@@ -62,7 +85,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           details: { packageId: product.itemPackage?.id, doseValue: medication.defaultDose,
             doseUnit: medication.defaultDoseUnit || medication.preparationUnit, routeCode: medication.defaultRoute,
             frequencyCode: medication.defaultFrequency, quantity: undefined,
-            instruction: product.product.instruction || '' } satisfies EditableOrderDetails }
+            instruction: '' } satisfies EditableOrderDetails }
       }
       const matches = await api.masterData.searchServices(item.code, item.type, 'ACTIVE', encounter.organizationId, 0, 100)
       const service = matches.content.find((value) => String(value.id) === String(item.catalogItemId))
@@ -83,8 +106,19 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
   })) })
   const rows = items.map((item, index) => {
     const key = clinicalAiTreatmentKey(item), result = results[index], resolved = result.data
-    const details: EditableOrderDetails = { ...resolved?.details, ...edits[key] }
     const medication = item.type === 'MEDICATION'
+    const ai = medication && resolved?.medication ? aiUsage(item.usageSuggestion, resolved.medication, resolved.product, routes.data, frequencies.data) : {}
+    const aiFields = Object.keys(ai) as Array<keyof typeof ai>
+    const base: EditableOrderDetails = { ...resolved?.details, ...ai }
+    // Lab/exam: the AI-suggested examination purpose seeds the editable instruction (becomes the document's examination purpose).
+    if (!medication && resolved && base.instruction === undefined) base.instruction = item.purpose?.trim() || ''
+    // Default quantity is only derivable once an AI-supplied draft completes dose/frequency/duration.
+    if (aiFields.length && base.quantity === undefined && resolved?.medication && resolved.product) {
+      base.quantity = calculatePackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product, doseValue: base.doseValue,
+        doseUnit: base.doseUnit, frequencyCode: base.frequencyCode, durationValue: base.durationValue, frequencies: frequencies.data })?.quantity
+    }
+    const details: EditableOrderDetails = { ...base, ...edits[key] }
+    const usageSource = !aiFields.length ? 'default' : (['doseValue', 'doseUnit', 'routeCode', 'frequencyCode'] as const).every(field => field in ai) ? 'ai' : 'mixed'
     const department = departments.data?.find(value => value.id === details.performerDepartmentId)
     const valid = Boolean(resolved) && typeof details.quantity === 'number' && Number.isFinite(details.quantity) && details.quantity > 0
       && (medication || Boolean(department))
@@ -104,16 +138,16 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       }
       setEdits((current) => ({ ...current, [key]: { ...current[key], ...patch } }))
     }
-    return { item, key, result, resolved, details, valid, medication, department, change }
+    return { item, key, result, resolved, details, usageSource, valid, medication, department, change }
   })
   const selected = rows.filter((row) => !excluded.includes(row.key))
   const selectedReady = selected.length > 0 && selected.every((row) => row.valid)
   if (!items.length) return null
   return <div className="doctor-ai-order-suggestions" aria-label="AI 医嘱待确认">
-    {rows.map(({ item, key, result, resolved, details, valid, medication, department, change }) => {
+    {rows.map(({ item, key, result, resolved, details, usageSource, valid, medication, department, change }) => {
       const route = routes.data?.find((value) => value.code === details.routeCode)?.name || details.routeCode
       const frequency = frequencies.data?.find((value) => value.code === details.frequencyCode)?.name || details.frequencyCode
-      const serviceExecution = [resolved?.specification, details.instruction].filter(Boolean).join('；')
+      const serviceExecution = [resolved?.specification, details.instruction?.trim() && `目的：${details.instruction.trim()}`].filter(Boolean).join('；')
       const secondaryText = medication
         ? resolved?.specification || item.specification || (shouldDisplayOrderCode(item.code) ? item.code : undefined)
         : (shouldDisplayOrderCode(item.code) ? item.code : undefined)
@@ -129,7 +163,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             <div className="doctor-order-name-with-action">
               <strong>{item.name}</strong>
               {medication && (
-                <IconButton icon="file-text" label="说明书"
+                <IconButton icon="file-text" size="sm" label="说明书"
                   title={`在临床知识库中查阅《${item.name}》药品资料`}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -146,7 +180,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             ? <span role="alert">{result.error.message}<Button variant="text" size="sm" onClick={() => void result.refetch()}>重试</Button></span>
             : medication ? <span className="doctor-ai-treatment-directions">
               <span>每次 {details.doseValue ?? '待填'} {details.doseUnit} · {route || '途径待填'} · {frequency || '频次待填'}</span>
-              <small>{details.durationValue ? `${details.durationValue} 天` : details.frequencyCode === 'PRN' ? '按需使用，天数可补充' : '疗程未设定，可修改'} · {edits[key] ? '已修改，待核对' : '目录默认，需核对'}</small>
+              <small>{details.durationValue ? `${details.durationValue} 天` : details.frequencyCode === 'PRN' ? '按需使用，天数可补充' : '疗程未设定，可修改'} · {edits[key] ? '已修改，待核对' : usageSource === 'ai' ? 'AI 建议用法，需核对' : usageSource === 'mixed' ? '部分来自 AI 建议，需核对' : '目录默认，需核对'}</small>
             </span> : serviceExecution || '按项目执行流程'}
           </span>
           <span className="doctor-unified-cell-qty">{resolved ? `${details.quantity ?? '待填'} ${resolved.unit}` : '—'}</span>
@@ -185,7 +219,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           </>}
           <FormField label={`总量（${resolved?.unit ?? ''}）`}><input type="number" step="any" min="0" value={details.quantity ?? ''} disabled={disabled}
             onChange={(event) => change({ quantity: event.target.value === '' ? undefined : Number(event.target.value) })} /></FormField>
-          <FormField className="doctor-ai-treatment-editor__instruction" label={medication ? '用药嘱托' : '执行要求'}><input aria-label={medication ? '用药嘱托' : '执行要求'} value={details.instruction ?? ''} disabled={disabled}
+          <FormField className="doctor-ai-treatment-editor__instruction" label={medication ? '用药嘱托' : '检查目的'}><input aria-label={medication ? '用药嘱托' : '检查目的'} value={details.instruction ?? ''} disabled={disabled}
             maxLength={1000} onChange={(event) => change({ instruction: event.target.value })} /></FormField>
           {!valid && <small role="alert">请补全有效的{medication ? '剂量、单位、途径、频次和总量；填写天数时须大于 0' : '执行科室和总量'}。</small>}
         </div>}

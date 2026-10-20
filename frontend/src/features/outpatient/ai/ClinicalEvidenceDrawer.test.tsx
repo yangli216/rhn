@@ -222,7 +222,7 @@ describe('ClinicalEvidenceDrawer', () => {
     await user.click(await screen.findByRole('button', { name: /带入医嘱/ }))
     expect(onApplyGapOrders).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
     await user.click(screen.getByRole('option', { name: '血常规（五分类）' }))
     await user.click(screen.getByRole('button', { name: '确认匹配' }))

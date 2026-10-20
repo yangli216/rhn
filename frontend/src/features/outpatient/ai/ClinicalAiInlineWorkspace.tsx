@@ -83,7 +83,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   chronicRefill?: ChronicRefillController
 }) {
   const session = `${context.encounterId}:${generating ? 'generating' : suggestion?.id ?? ''}`
-  const [viewingGuideline, setViewingGuideline] = useState<string | null>(null)
+  const [viewingGuideline, setViewingGuideline] = useState<{ name: string; icd10?: string } | null>(null)
   const [catalogSelection, setCatalogSelection] = useState<{ session: string; keys: string[]; items: ClinicalAiTreatmentRecommendation[] }>({ session: '', keys: [], items: [] })
   const resolvedCatalog = catalogSelection.session === session ? catalogSelection : { keys: [] as string[], items: [] as ClinicalAiTreatmentRecommendation[] }
   const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
@@ -163,7 +163,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
                 title={`在临床知识库中查阅《${item.display}》相关指南`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setViewingGuideline(item.display)
+                  setViewingGuideline({ name: item.display, icd10: item.code })
                 }}
               />
             </span><small className="doctor-ai-diagnosis-reason">
@@ -202,7 +202,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
     <MedicalInsertViewerModal
       isOpen={Boolean(viewingGuideline)}
       onClose={() => setViewingGuideline(null)}
-      target={viewingGuideline ? { name: viewingGuideline, type: 'guideline' } : null}
+      target={viewingGuideline ? { name: viewingGuideline.name, icd10: viewingGuideline.icd10, type: 'guideline' } : null}
       api={api}
     />
   </>

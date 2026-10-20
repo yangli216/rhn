@@ -38,8 +38,11 @@ public final class ClinicalAssistantContracts {
     /**
      * FULL_ANALYSIS (default) drafts record, diagnoses and orders; RECORD_EXPANSION only expands the record;
      * PLAN_PREVIEW is only valid for plan recommendations: deterministic matching, no model call.
+     * DIAGNOSIS_RECOMMENDATION recommends diagnoses from the existing record only (no record draft, no orders);
+     * TREATMENT_RECOMMENDATION recommends medication/laboratory/examination orders from the existing record and
+     * confirmed diagnoses only (no record draft, no new diagnoses).
      */
-    public enum GenerationIntent { FULL_ANALYSIS, RECORD_EXPANSION, PLAN_PREVIEW }
+    public enum GenerationIntent { FULL_ANALYSIS, RECORD_EXPANSION, PLAN_PREVIEW, DIAGNOSIS_RECOMMENDATION, TREATMENT_RECOMMENDATION }
 
     @io.swagger.v3.oas.annotations.media.Schema(name = "ClinicalAssistantGenerateRequest")
     public record GenerateRequest(
@@ -63,6 +66,10 @@ public final class ClinicalAssistantContracts {
         }
         public boolean recordExpansion() { return intent == GenerationIntent.RECORD_EXPANSION; }
         public boolean planPreview() { return intent == GenerationIntent.PLAN_PREVIEW; }
+        public boolean diagnosisRecommendation() { return intent == GenerationIntent.DIAGNOSIS_RECOMMENDATION; }
+        public boolean treatmentRecommendation() { return intent == GenerationIntent.TREATMENT_RECOMMENDATION; }
+        /** Single-purpose generations: no plan recall, no record rewrite, their own prompt, stage and cache identity. */
+        public boolean scopedRecommendation() { return diagnosisRecommendation() || treatmentRecommendation(); }
     }
 
     public record Transcription(String text, String provider, String model, String contentType,
@@ -255,7 +262,27 @@ public final class ClinicalAssistantContracts {
     /** The initial pass supplies type/name search intents; only catalog-mapped items reach clients. */
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public record TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
-                                          String code, String name, String specification, String rationale) {}
+                                          String code, String name, String specification, String rationale,
+                                          TreatmentUsageSuggestion usageSuggestion,
+                                          /** Brief examination purpose (laboratory/examination only), prefilled for physician review. */
+                                          String purpose) {
+        public TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
+                                       String code, String name, String specification, String rationale,
+                                       TreatmentUsageSuggestion usageSuggestion) {
+            this(type, catalogItemId, medicationId, code, name, specification, rationale, usageSuggestion, null);
+        }
+        public TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
+                                       String code, String name, String specification, String rationale) {
+            this(type, catalogItemId, medicationId, code, name, specification, rationale, null, null);
+        }
+    }
+
+    /** AI-prefilled usage draft. Present only when it maps onto the hospital catalog and currently active
+     * route/frequency; it never replaces physician review. */
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @io.swagger.v3.oas.annotations.media.Schema(name = "TreatmentUsageSuggestion")
+    public record TreatmentUsageSuggestion(java.math.BigDecimal doseValue, String doseUnit, String routeCode,
+                                           String frequencyCode, Integer durationDays) {}
 
     /** suggestedItem is the unique highest-probability actual catalog candidate for physician preview.
      * choice/confidence retain the original Jev judgment, including NONE; neither confirms an order. */

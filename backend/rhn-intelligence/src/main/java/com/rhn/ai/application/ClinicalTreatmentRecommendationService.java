@@ -80,14 +80,24 @@ public class ClinicalTreatmentRecommendationService {
         return top.size() == 1 ? top.getFirst() : null;
     }
 
+    static boolean isAdult(ClinicalAiModelGateway.ModelRequest request, LocalDate date) {
+        var birthDate = request.resident() == null ? null : request.resident().birthDate();
+        return birthDate != null && !birthDate.isAfter(date) && java.time.Period.between(birthDate, date).getYears() >= 18;
+    }
+
     public Result recommend(List<TreatmentRecommendation> intents, ClinicalAiModelGateway.ModelRequest request,
                             ClinicalAssistantSettings runtime) {
         long started = System.nanoTime();
         var context = contexts.requireCurrent();
         LocalDate date = request.temporalContext() == null ? LocalDate.now() : request.temporalContext().currentDate();
         // Model search intents cannot impersonate a physician's explicit catalog selection.
+        // Usage drafts are only kept for adult patients with a known birth date; the resolver then validates them
+        // against each candidate drug and the live route/frequency directories.
+        boolean adult = isAdult(request, date);
         var searchIntents = intents.stream().map(item -> item == null ? null : new TreatmentRecommendation(
-                item.type(), null, null, null, item.name(), item.specification(), item.rationale())).toList();
+                item.type(), null, null, null, item.name(), item.specification(), item.rationale(),
+                adult && "MEDICATION".equalsIgnoreCase(item.type()) ? item.usageSuggestion() : null,
+                "MEDICATION".equalsIgnoreCase(item.type()) ? null : item.purpose())).toList();
         var matches = resolve(searchIntents, date);
         var items = matches.stream().filter(match -> "MATCHED".equals(match.status()))
                 .flatMap(match -> match.candidates().stream())

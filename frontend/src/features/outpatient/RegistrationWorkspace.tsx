@@ -21,7 +21,7 @@ import { Alert, Button, DataTable, DatePicker, Dialog, DictionarySelect, SearchF
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
-import { RegistrationInsuranceAuth, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
+import { InsuranceInfoPopover, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
 import { InsuranceMediaSimulator, type SimulatedInsuranceRead } from './InsuranceMediaSimulator'
 import '../../styles/features/scheduling-registration.css'
 
@@ -77,8 +77,8 @@ const PINYIN_LOOKUP: Record<string, string[]> = {
 
 const CLINIC_TYPE_OPTIONS: Array<{ key: string; label: string; icon?: IconName }> = [
   { key: 'ALL', label: '全部号源' },
-  { key: 'REGULAR', label: '普通门诊', icon: 'clinical' },
-  { key: 'EXPERT', label: '专家/名医号', icon: 'sparkles' },
+  { key: 'REGULAR', label: '普通门诊' },
+  { key: 'EXPERT', label: '专家/名医号' },
 ]
 
 export function getSmartDayPart(schedules: ServiceSchedule[], now = Date.now()): 'ALL' | ScheduleDayPart {
@@ -434,7 +434,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [cancellingItem, setCancellingItem] = useState<ReceptionQueueItem | null>(null)
   const [cancellationResult, setCancellationResult] = useState<CancelEncounterResult | null>(null)
   const [deptSearch, setDeptSearch] = useState('')
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState('')
   const [selectedClinicType, setSelectedClinicType] = useState('ALL')
   const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | ScheduleDayPart>('ALL')
   const [dayPartManuallyChanged, setDayPartManuallyChanged] = useState(false)
@@ -563,20 +562,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     }
     return [{ key: 'ALL' as const, label: '全天' }, ...Array.from(names, ([key, label]) => ({ key, label }))]
   }, [schedules.data, linkedAppointment.data])
-  const departmentOptions = useMemo(() => {
-    const names = new Map<string, string>()
-    for (const item of allAvailable) {
-      if (item.departmentId) names.set(item.departmentId, item.departmentName?.trim() || item.departmentId)
-    }
-    return [{ value: '', label: '全部科室' }, ...Array.from(names, ([value, label]) => ({ value, label }))]
-  }, [allAvailable])
-
-  useEffect(() => {
-    if (selectedDepartmentId && !departmentOptions.some((option) => option.value === selectedDepartmentId)) {
-      setSelectedDepartmentId('')
-    }
-  }, [departmentOptions, selectedDepartmentId])
-
   useEffect(() => {
     if (linkedDeptId && allAvailable.length > 0 && !scheduleId) {
       const match = allAvailable.find((item) => item.departmentId === linkedDeptId)
@@ -612,9 +597,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         return false
       })
     }
-    if (selectedDepartmentId) {
-      result = result.filter((item) => item.departmentId === selectedDepartmentId)
-    }
     if (selectedClinicType !== 'ALL') {
       if (selectedClinicType === 'EXPERT') {
         result = result.filter(isExpertSchedule)
@@ -626,7 +608,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       result = result.filter((item) => item.sdDayPart === selectedDayPart)
     }
     return result
-  }, [allAvailable, deptSearch, selectedDepartmentId, selectedClinicType, selectedDayPart])
+  }, [allAvailable, deptSearch, selectedClinicType, selectedDayPart])
 
   const linkedSchedule = linkedAppointment.data
     ? (schedules.data ?? []).find((item) => item.id === linkedAppointment.data?.scheduleId) : undefined
@@ -652,8 +634,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const insuranceBlock = !selectedCoverage ? null
     : insuranceTiming.isError ? `无法确认本院医保挂号结算方式：${errorMessage(insuranceTiming.error)}`
     : !insuranceTiming.data ? '正在确认本院医保挂号结算方式…'
-    : insuranceTiming.data.timing === 'REGISTRATION' && !insurancePerson ? '请先读取医保凭证完成参保鉴权后再挂号。'
-    : insuranceTiming.data.timing === 'REGISTRATION' && insurancePerson?.status !== 'NORMAL' ? '参保状态异常，不能办理医保挂号结算。'
+    : insuranceTiming.data.timing === 'REGISTRATION' && insurancePerson && insurancePerson.status !== 'NORMAL' ? '参保状态异常，不能办理医保挂号结算。'
     : null
   const needsPaymentAtCreate = !selectedCoverage
   useEffect(() => { setInsurancePerson(null) }, [coverageSelection, selected?.id])
@@ -825,6 +806,29 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     },
   })
 
+  // 挂号时结算的医保身份：点击确认时按患者档案自动鉴权（1101）；读卡/医保码已带回鉴权结果的直接复用。
+  const [insuranceAuthBusy, setInsuranceAuthBusy] = useState(false)
+  const authenticateThenCreate = async () => {
+    if (selectedCoverage && insuranceTiming.data?.timing === 'REGISTRATION' && !insurancePerson && selected) {
+      setInsuranceAuthBusy(true)
+      try {
+        const person = await api.billing.authenticateInsuranceByResident(selected.id)
+        if (person.status !== 'NORMAL') {
+          setInsurancePerson(person)
+          setValidationError('医保鉴权未通过：参保状态异常，不能办理医保挂号结算。')
+          return
+        }
+        setInsurancePerson(person)
+      } catch (error) {
+        setValidationError(`医保鉴权未通过：${errorMessage(error)}`)
+        return
+      } finally {
+        setInsuranceAuthBusy(false)
+      }
+    }
+    createIntent.mutate()
+  }
+
   const cancelRegistration = useMutation({
     mutationFn: ({ item, reason }: { item: ReceptionQueueItem; reason: string }) =>
       api.encounters.cancel(item.encounterId, {
@@ -987,6 +991,12 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       - (Number.isNaN(leftRegisteredAt) ? 0 : leftRegisteredAt)
     return timeDifference || right.registrationId.localeCompare(left.registrationId, 'zh-CN', { numeric: true })
   }).slice(0, 3)
+  const todayEncounterIds = todayList.map((item) => item.encounterId).filter(Boolean)
+  const todaySettlementModes = useQuery({
+    queryKey: ['registration-settlement-modes', todayEncounterIds],
+    queryFn: () => api.billing.registrationSettlementModes(todayEncounterIds),
+    enabled: todayEncounterIds.length > 0,
+  })
   const todayWaitingCount = todayRecords.filter((item) =>
     item.status === 'WAITING' && item.registrationStatus !== 'CANCELLED').length
 
@@ -1128,12 +1138,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <Select aria-label="费用类别" aria-required value={coverageSelection} options={coverageOptions}
               disabled={Boolean(intentId) || residentProfile.isPending}
               onChange={(value) => { setCoverageSelection(value); setCoverageTouched(true) }} />
-            {smartDecisionReason && (
-              <span className={`registration-smart-badge ${coverageSelection !== 'SELF_PAY' ? 'is-insurance' : 'is-self-pay'}`} title={smartDecisionReason}>
-                <Icon name={coverageSelection !== 'SELF_PAY' ? 'credential' : 'info'} />
-                <span>{coverageSelection !== 'SELF_PAY' ? '已智能识别医保' : '智能识别自费'}</span>
-              </span>
-            )}
+            {selectedCoverage
+              ? <InsuranceInfoPopover coverage={selectedCoverage} person={insurancePerson}
+                coverageLabel={selectedCoverage.sdCoverageTypeText ?? medicalCoverageLabel(selectedCoverage.sdCoverageType)} />
+              : smartDecisionReason && (
+                <span className="registration-smart-badge is-self-pay" title={smartDecisionReason}>
+                  <Icon name="info" />
+                  <span>智能识别自费</span>
+                </span>
+              )}
           </div>
         </div>
       </div>
@@ -1230,9 +1243,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 本院医保挂号费并入诊间统一结算：挂号时不做医保交易，挂号成功后挂号费随本次门诊费用一并办理医保结算。
               </Alert>
             )}
-            {selectedCoverage && insuranceTiming.data?.timing === 'REGISTRATION' && !intentId && (
-              <RegistrationInsuranceAuth api={api} person={insurancePerson} onAuthenticated={setInsurancePerson} />
-            )}
             {selectedCoverage && insuranceTiming.isError && (
               <Alert tone="error">{insuranceBlock}</Alert>
             )}
@@ -1267,7 +1277,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
             {!intentId && !currentIntent && <div className="registration-submit-area">
               <Button ref={confirmButtonRef} className="registration-confirm-button"
-                busy={createIntent.isPending} busyLabel="正在核价并出单"
+                busy={createIntent.isPending || insuranceAuthBusy} busyLabel={insuranceAuthBusy ? '正在医保鉴权' : '正在核价并出单'}
                 disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort || (needsPaymentAtCreate && feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)}
                 onClick={() => {
                   if (insuranceBlock) {
@@ -1279,7 +1289,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     return
                   }
                   setValidationError(null)
-                  createIntent.mutate()
+                  void authenticateThenCreate()
                 }}>
                 <Icon name="add" />
                 {isCashShort
@@ -1407,30 +1417,27 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     }
                   }
                 }} />
-              <div className="registration-type-segmented">
-                {CLINIC_TYPE_OPTIONS.map((opt) => (
-                  <Button size="sm" key={opt.key} type="button"
-                    variant={selectedClinicType === opt.key ? 'secondary' : 'text'} aria-pressed={selectedClinicType === opt.key}
-                    onClick={() => setSelectedClinicType(opt.key)}>
-                    {opt.icon && <Icon name={opt.icon} />}
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="registration-dept-tabs">
-              <FormField label="接诊科室" className="ui-field--grow"><Select value={selectedDepartmentId}
-                options={departmentOptions} searchable pinyinSearch showValue
-                onChange={setSelectedDepartmentId} /></FormField>
-              <div className="registration-daypart-pills">
-                {dayPartOptions.map((dp) => (
-                  <Button size="sm" key={dp.key} type="button"
-                    variant={selectedDayPart === dp.key ? 'secondary' : 'text'} aria-pressed={selectedDayPart === dp.key}
-                    onClick={() => {
-                      setDayPartManuallyChanged(true)
-                      setSelectedDayPart(dp.key)
-                    }}>{dp.label}</Button>
-                ))}
+              <div className="registration-filter-track">
+                <div className="registration-filter-seg">
+                  {CLINIC_TYPE_OPTIONS.map((opt) => (
+                    <Button size="sm" key={opt.key} type="button"
+                      variant={selectedClinicType === opt.key ? 'secondary' : 'text'} aria-pressed={selectedClinicType === opt.key}
+                      onClick={() => setSelectedClinicType(opt.key)}>
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+                <span className="registration-filter-divider" aria-hidden="true" />
+                <div className="registration-filter-seg">
+                  {dayPartOptions.map((dp) => (
+                    <Button size="sm" key={dp.key} type="button"
+                      variant={selectedDayPart === dp.key ? 'secondary' : 'text'} aria-pressed={selectedDayPart === dp.key}
+                      onClick={() => {
+                        setDayPartManuallyChanged(true)
+                        setSelectedDayPart(dp.key)
+                      }}>{dp.label}</Button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1581,6 +1588,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     <th>挂号单号</th>
                     <th>患者姓名</th>
                     <th>档案号</th>
+                    <th>费用类别</th>
                     <th>科室 / 医生</th>
                     <th>就诊时段</th>
                     <th>挂号时间</th>
@@ -1595,6 +1603,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                       <td>{item.registrationNo}</td>
                       <td><strong>{item.residentName}</strong></td>
                       <td>{item.healthRecordNo}</td>
+                      <td>{(() => {
+                        const mode = todaySettlementModes.data?.[item.encounterId]
+                        return mode ? <StatusBadge tone={mode === 'MEDICAL_INSURANCE' ? 'info' : 'neutral'}>
+                          {mode === 'MEDICAL_INSURANCE' ? '医保' : '自费'}</StatusBadge> : '—'
+                      })()}</td>
                       <td>{item.serviceName} · {item.practitionerName || '普通门诊'}</td>
                       <td>{item.sdDayPartText || '当日'}</td>
                       <td>{businessDate(new Date(item.registeredAt))} {clock(item.registeredAt)}</td>

@@ -222,7 +222,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
         String encounterId = createStartedEncounter();
         String exam = "体温38.2℃。咽部无充血，双肺呼吸音清，未闻及干湿啰音。";
         var recommended = new com.rhn.outpatient.api.RecordAnnotation("physicalExam", "咽部无充血，双肺呼吸音清，未闻及干湿啰音",
-                null, "AI", "VARIABLE", "exam.respiratory.negative", null, null, "排除下呼吸道感染", null);
+                null, "AI", "IMPORTANT", "exam.respiratory.negative", null, null, null, null);
         when(modelGateway.analyzeStreaming(any(), any(), any())).thenAnswer(invocation -> {
             ClinicalAiModelGateway.ModelRequest request = invocation.getArgument(0);
             org.junit.jupiter.api.Assertions.assertEquals("RECORD_EXPANSION", request.generationStage());
@@ -262,7 +262,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
         org.junit.jupiter.api.Assertions.assertEquals("是否有咳痰及痰色", complete.at("/missingInformation/0").asString());
         boolean marked = false;
         for (JsonNode mark : complete.at("/recordDraft/annotations")) {
-            marked |= "VARIABLE".equals(mark.get("kind").asString()) && "AI".equals(mark.get("source").asString())
+            marked |= "IMPORTANT".equals(mark.get("kind").asString()) && "AI".equals(mark.get("source").asString())
                     && "AI推荐·待核实".equals(mark.get("label").asString());
         }
         org.junit.jupiter.api.Assertions.assertTrue(marked);
@@ -287,6 +287,117 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("AI_RECORD_EXPANSION_FOLLOW_UP_UNSUPPORTED"));
         verify(modelGateway, times(0)).analyze(any(), any());
         verify(modelGateway, times(0)).analyzeStreaming(any(), any(), any());
+    }
+
+    @Test
+    void diagnosisRecommendationReturnsOnlyDiagnosticFieldsWithoutCatalogMatching() throws Exception {
+        String encounterId = createStartedEncounter();
+        when(modelGateway.analyzeStreaming(any(), any(), any())).thenAnswer(invocation -> {
+            ClinicalAiModelGateway.ModelRequest request = invocation.getArgument(0);
+            org.junit.jupiter.api.Assertions.assertEquals("DIAGNOSIS_ONLY", request.generationStage());
+            org.junit.jupiter.api.Assertions.assertEquals("RHN-DIAGNOSIS-RECOMMENDATION-V1", request.promptVersion());
+            org.junit.jupiter.api.Assertions.assertTrue(request.availablePlans().isEmpty());
+            return new SuggestionContent("诊断方向",
+                    new RecordDraft("不应保留的主诉", null, null, null, null),
+                    List.of(new DiagnosisCandidate("I10", "模型改名", "PRIMARY", 0.8, "需核对")),
+                    List.of(), List.of("是否有胸痛"), List.of(),
+                    List.of(new RecommendedPlan(1L, "不应保留", null, null)), "待核对",
+                    List.of(new TreatmentRecommendation("LABORATORY", null, null, null, "血常规", null, "不应保留")));
+        });
+        String stream = mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"DX-CONTEXT","intent":"DIAGNOSIS_RECOMMENDATION",
+                                 "draft":{"chiefComplaint":"头晕2天","diagnoses":[]}}
+                                """))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertFalse(stream.contains("event: stage"));
+        JsonNode complete = json(stream.substring(stream.indexOf("data:", stream.indexOf("event: complete")) + 5).trim());
+        org.junit.jupiter.api.Assertions.assertEquals("RHN-DIAGNOSIS-RECOMMENDATION-V1", complete.get("promptVersion").asString());
+        // Clients read recordDraft as a required object, so scoped intents return an empty draft, never null.
+        org.junit.jupiter.api.Assertions.assertTrue(complete.get("recordDraft").isObject());
+        for (String field : new String[]{"chiefComplaint", "presentIllness", "medicalHistory", "physicalExam", "healthEducation", "followUp"}) {
+            org.junit.jupiter.api.Assertions.assertTrue(complete.at("/recordDraft/" + field).isMissingNode()
+                    || complete.at("/recordDraft/" + field).isNull(), field);
+        }
+        org.junit.jupiter.api.Assertions.assertEquals("原发性高血压", complete.at("/diagnosisCandidates/0/display").asString());
+        org.junit.jupiter.api.Assertions.assertEquals(0, complete.get("recommendedPlans").size());
+        org.junit.jupiter.api.Assertions.assertEquals(0, complete.get("treatmentRecommendations").size());
+        org.junit.jupiter.api.Assertions.assertEquals(0, complete.get("treatmentMatches").size());
+        org.junit.jupiter.api.Assertions.assertEquals("是否有胸痛", complete.at("/missingInformation/0").asString());
+        verify(treatmentService, times(0)).recommend(any(), any(), any());
+    }
+
+    @Test
+    void treatmentRecommendationNeedsConfirmedDiagnosisAndReturnsOnlyOrders() throws Exception {
+        String encounterId = createStartedEncounter();
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"TX-EMPTY","intent":"TREATMENT_RECOMMENDATION",
+                                 "draft":{"chiefComplaint":"头晕2天","diagnoses":[]}}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("AI_TREATMENT_RECOMMENDATION_DIAGNOSIS_REQUIRED"));
+        verify(modelGateway, times(0)).analyze(any(), any());
+        verify(modelGateway, times(0)).analyzeStreaming(any(), any(), any());
+
+        var matched = new TreatmentRecommendation("LABORATORY", 101L, null, "LAB001", "血常规", null, "按病情评估");
+        when(modelGateway.analyzeStreaming(any(), any(), any())).thenAnswer(invocation -> {
+            ClinicalAiModelGateway.ModelRequest request = invocation.getArgument(0);
+            org.junit.jupiter.api.Assertions.assertEquals("TREATMENT_ONLY", request.generationStage());
+            org.junit.jupiter.api.Assertions.assertEquals("RHN-TREATMENT-RECOMMENDATION-V3", request.promptVersion());
+            org.junit.jupiter.api.Assertions.assertEquals(1, request.draft().diagnoses().size());
+            return new SuggestionContent("医嘱思路",
+                    new RecordDraft("不应保留的主诉", null, null, null, null),
+                    List.of(new DiagnosisCandidate("I10", "不应保留", "PRIMARY", 0.8, "不应保留")),
+                    List.of(new DiagnosisCandidate("I10", "不应保留", "PRIMARY", 0.8, "不应保留")),
+                    List.of(), List.of(), List.of(new RecommendedPlan(1L, "不应保留", null, null)), "待核对",
+                    List.of(matched));
+        });
+        org.mockito.Mockito.doReturn(new ClinicalTreatmentRecommendationService.Result(List.of(matched), List.of()))
+                .when(treatmentService).recommend(any(), any(), any());
+        String stream = mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"TX-CONTEXT","intent":"TREATMENT_RECOMMENDATION",
+                                 "draft":{"chiefComplaint":"头晕2天",
+                                  "diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}]}}
+                                """))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        int treatmentAt = stream.indexOf("\"phase\":\"TREATMENTS\"");
+        int completeAt = stream.indexOf("event: complete");
+        org.junit.jupiter.api.Assertions.assertTrue(treatmentAt >= 0 && completeAt > treatmentAt);
+        org.junit.jupiter.api.Assertions.assertFalse(stream.contains("\"phase\":\"DIAGNOSES\""));
+        JsonNode complete = json(stream.substring(stream.indexOf("data:", completeAt) + 5).trim());
+        org.junit.jupiter.api.Assertions.assertEquals("RHN-TREATMENT-RECOMMENDATION-V3", complete.get("promptVersion").asString());
+        // Clients read recordDraft as a required object, so scoped intents return an empty draft, never null.
+        org.junit.jupiter.api.Assertions.assertTrue(complete.get("recordDraft").isObject());
+        for (String field : new String[]{"chiefComplaint", "presentIllness", "medicalHistory", "physicalExam", "healthEducation", "followUp"}) {
+            org.junit.jupiter.api.Assertions.assertTrue(complete.at("/recordDraft/" + field).isMissingNode()
+                    || complete.at("/recordDraft/" + field).isNull(), field);
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(0, complete.get("diagnosisCandidates").size());
+        org.junit.jupiter.api.Assertions.assertEquals(0, complete.get("differentialDiagnoses").size());
+        org.junit.jupiter.api.Assertions.assertEquals(0, complete.get("recommendedPlans").size());
+        org.junit.jupiter.api.Assertions.assertEquals("血常规", complete.at("/treatmentRecommendations/0/name").asString());
+        verify(treatmentService, times(1)).recommend(any(), any(), any());
+    }
+
+    @Test
+    void scopedIntentsGetDistinctContextHashesFromFullAnalysis() throws Exception {
+        String encounterId = createStartedEncounter();
+        when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("摘要", null,
+                List.of(), List.of(), List.of(), List.of(), List.of(), "待核对"));
+        String draft = "\"draft\":{\"chiefComplaint\":\"头晕2天\","
+                + "\"diagnoses\":[{\"code\":\"I10\",\"display\":\"原发性高血压\",\"type\":\"PRIMARY\"}]}";
+        java.util.Set<String> hashes = new java.util.HashSet<>();
+        for (String intent : new String[]{"", ",\"intent\":\"DIAGNOSIS_RECOMMENDATION\"",
+                ",\"intent\":\"TREATMENT_RECOMMENDATION\""}) {
+            hashes.add(json(mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{id}/suggestions", encounterId)
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"clientContextFingerprint\":\"HASH-CONTEXT\"" + intent + "," + draft + "}"))
+                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                    .get("contextHash").asString());
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(3, hashes.size());
     }
 
     @Test
@@ -421,7 +532,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.safetyAlerts[1].level").value("WARNING"))
                 .andExpect(jsonPath("$.recommendedPlans.length()").value(0))
-                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V14"))
+                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V16"))
                 .andExpect(jsonPath("$.disclaimer").value(org.hamcrest.Matchers.containsString("院内术语")))
                 .andReturn().getResponse().getContentAsString());
 

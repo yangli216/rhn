@@ -135,7 +135,8 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
             request: { medicationId: raw.id, catalogItemId: product.product.id, packageId: product.itemPackage?.id,
               doseValue, doseUnit, routeCode, frequencyCode, quantity, quantityUnit: product.unitCode,
               durationValue, durationUnit: durationValue === undefined ? undefined : 'd',
-              medicationInstruction: item.orderDraft ? item.orderDraft.instruction || undefined : product.product.instruction || undefined,
+              // AI orders never prefill the patient instruction from the catalog default; only a physician-entered one is kept.
+              medicationInstruction: item.orderDraft?.instruction?.trim() || undefined,
               substitutionAllowed: true, selfProvided: false,
               allergyReviewConfirmed: allergyReviewRecorded || !hasSafetyAlert,
               priceType: product.priceType, pricingRequired: true, reason: 'AI 治疗建议，待医生核对' },

@@ -39,7 +39,7 @@ function setup(showApply = false) {
     setContent: (value: OutpatientNoteTemplateContent) => { content = value }, read: () => content }
 }
 async function openSave(f: ReturnType<typeof setup>) {
-  await f.user.click(screen.getByRole('button', { name: '存为病历模板' }))
+  await f.user.click(screen.getByRole('button', { name: '存为模板' }))
   const dialog = within(screen.getByRole('dialog', { name: '保存病历模板' }))
   await f.user.type(dialog.getByRole('textbox', { name: /模板名称/ }), '复诊模板')
   return dialog

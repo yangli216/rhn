@@ -110,10 +110,10 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     const onGenerate = vi.fn().mockResolvedValue('s-1')
     const written = { ...context, chiefComplaint: '高血压、糖尿病复诊配药', presentIllness: '长期规律服药' }
     renderHub({ context: written, onGenerate, sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' }, chronicRefill: undefined })
-    expect(screen.getAllByText('下一步 · 待定诊断').length).toBeGreaterThan(0)
-    fireEvent.click(screen.getByRole('button', { name: 'AI 辅诊' }))
+    // The next step is an inline segment on the pill: no popover, no hub needed.
+    expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'AI 推荐诊断' })) })
-    expect(onGenerate).toHaveBeenCalledWith()
+    expect(onGenerate).toHaveBeenCalledWith(undefined, { intent: 'DIAGNOSIS_RECOMMENDATION' })
   })
 
   it('opens the report follow-up guide once, generates from the reports, and stays away from a written record', async () => {
@@ -142,22 +142,21 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
     expect(screen.queryByRole('region', { name: '报告回诊引导' })).not.toBeInTheDocument()
   })
 
-  it('auto-opens the next-step shortcut once per step and runs it without opening the hub', async () => {
+  it('offers the next step inline on the pill, runs it without opening the hub, and advances with the visit', async () => {
     const onGenerate = vi.fn().mockResolvedValue('s-1')
     const written = { ...context, chiefComplaint: '高血压、糖尿病复诊配药', presentIllness: '长期规律服药',
       medicationDraftFingerprint: stableClinicalAiFingerprint('medications', []),
       serviceDraftFingerprint: stableClinicalAiFingerprint('services', []) }
     const props = { context: written, onGenerate, sceneAssessment: { ...chronicScene, scene: 'FIRST_VISIT' as const }, chronicRefill: undefined }
     const { rerender } = renderHub(props)
-    expect(screen.getByRole('region', { name: '下一步建议' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'AI 推荐诊断' })) })
-    expect(onGenerate).toHaveBeenCalled()
+    expect(onGenerate).toHaveBeenCalledWith(undefined, { intent: 'DIAGNOSIS_RECOMMENDATION' })
     expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
-    rerender({ busy: true }); rerender({ busy: false })
-    expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
-    // A later step (diagnosis made, no orders) gets its own offer.
+    // A later step (diagnosis made, no orders) replaces the inline action.
     rerender({ context: { ...written, diagnoses: [{ code: 'I10', display: '高血压', type: 'PRIMARY' } as never] } })
-    expect(screen.getByRole('region', { name: '下一步建议' })).toHaveTextContent('待开医嘱')
+    expect(screen.queryByRole('button', { name: 'AI 推荐诊断' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AI 推荐医嘱' })).toBeInTheDocument()
   })
 
   it('quietly looks up proofread plans once and offers them ahead of AI generation', async () => {
@@ -177,6 +176,9 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(1300) })
       expect(onFindPlans).toHaveBeenCalledTimes(1)
       expect(onFindPlans).toHaveBeenCalledWith({ preview: true })
+      // The plan step shows an inline "核对方案 (N)" action; the list only opens when the doctor asks.
+      expect(screen.queryByRole('region', { name: '下一步建议' })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '核对方案 (1)' }))
       expect(screen.getByRole('region', { name: '下一步建议' })).toHaveTextContent('高血压复诊方案')
       rerender({ busy: true }); rerender({ busy: false })
       await act(async () => { await vi.advanceTimersByTimeAsync(1300) })

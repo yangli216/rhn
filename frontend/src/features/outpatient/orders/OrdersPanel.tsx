@@ -328,7 +328,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
           />
         )}
         {editing && <>
-          <StatusBadge tone={planCount ? 'warning' : 'neutral'}>{planCount} 项待确认</StatusBadge>
+          {planCount > 0 && <StatusBadge tone="warning">{planCount} 项待确认</StatusBadge>}
           <Button size="sm" disabled={planCount === 0 || documentDirty} onClick={() => setReviewOpen(true)}>审核开立</Button>
         </>}
       </div>} />

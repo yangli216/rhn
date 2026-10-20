@@ -119,6 +119,12 @@
   transition: all var(--motion-fast) var(--ease-standard);
 }
 
+.ui-icon-button--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-body);
+}
 .ui-icon-button:hover:not(:disabled) {
   color: var(--color-brand-primary);
   background: var(--color-brand-soft);

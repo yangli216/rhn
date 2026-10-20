@@ -1,16 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { ChsPersonInfoResponse, InsuranceSettlementView, RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
 import { confirmInsuranceResult } from '../../shared/billing/insuranceResult'
 import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
-import { Alert, Button, FormField, Select, StatusBadge } from '../../shared/ui'
-
-const CERT_TYPES = [
-  { value: '01', label: '居民身份证' },
-  { value: '02', label: '医保电子凭证' },
-  { value: '06', label: '社保卡' },
-]
+import { AnchoredPanel, Button, Icon, StatusBadge } from '../../shared/ui'
 
 /** 机构／科室选择的医保挂号结算时机；仅在选择医保身份后查询。 */
 export function useRegistrationInsuranceTiming(api: RhnApi, organizationId: string, departmentId: string, enabled: boolean) {
@@ -22,40 +16,50 @@ export function useRegistrationInsuranceTiming(api: RhnApi, organizationId: stri
   })
 }
 
-/** 医保读证（1101）：鉴权凭证只保存在服务端内存并有时效，挂号结算时机为“挂号时结算”时必须先完成。 */
-export function RegistrationInsuranceAuth({ api, person, onAuthenticated }: {
-  api: RhnApi
+export interface InsuranceCoverageInfo {
+  sdCoverageTypeText?: string
+  payerName: string
+  memberNo?: string | null
+  primary?: boolean
+  validFrom?: string | null
+  validTo?: string | null
+}
+
+/** 费用类别旁的「参保信息」入口：轻量浮窗展示患者档案中的医保保障及本次鉴权结果（尚未鉴权时不展示鉴权项）。 */
+export function InsuranceInfoPopover({ coverage, coverageLabel, person }: {
+  coverage: InsuranceCoverageInfo
+  coverageLabel: string
   person: ChsPersonInfoResponse | null
-  onAuthenticated: (value: ChsPersonInfoResponse | null) => void
 }) {
-  const [certType, setCertType] = useState('01')
-  const [certNo, setCertNo] = useState('')
-  const [name, setName] = useState('')
-  const query = useMutation({
-    mutationFn: () => api.billing.queryInsurancePerson({ psnCertType: certType, certno: certNo.trim(), psnName: name.trim() || undefined }),
-    onSuccess: (value) => { setCertNo(''); onAuthenticated(value) },
-    onError: () => onAuthenticated(null),
-  })
-  return <div className="registration-insurance-auth">
-    {person
-      ? <Alert tone="success">
-        医保鉴权已完成：{person.psnName}，{person.insutypeName}，状态
-        <StatusBadge tone={person.status === 'NORMAL' ? 'success' : 'warning'}>{person.status === 'NORMAL' ? '参保正常' : person.status ?? '未知'}</StatusBadge>
-        {Number.isFinite(person.balc) && person.balc > 0 ? `，个人账户余额 ¥${person.balc.toFixed(2)}` : ''}。
-        凭证仅短时有效，超时后需重新读取。
-      </Alert>
-      : <Alert tone="warning">本院挂号时即办理医保结算，请先读取医保电子凭证、证件或社保卡完成参保鉴权。</Alert>}
-    <div className="ui-form-row">
-      <FormField label="凭证类型"><Select aria-label="医保凭证类型" value={certType} options={CERT_TYPES}
-        onChange={(value) => setCertType(value)} /></FormField>
-      <FormField label={certType === '02' ? '电子凭证码' : certType === '06' ? '社会保障号' : '证件号码'}>
-        <input aria-label="医保凭证号码" autoComplete="off" value={certNo} onChange={(e) => setCertNo(e.target.value)} /></FormField>
-      <FormField label="姓名（身份证鉴权时核对）"><input aria-label="医保鉴权姓名" value={name} onChange={(e) => setName(e.target.value)} /></FormField>
-      <Button variant="secondary" busy={query.isPending} disabled={!certNo.trim()} onClick={() => query.mutate()}>
-        {person ? '重新读取' : '读取参保信息'}</Button>
-    </div>
-    {query.error && <Alert tone="error">{errorMessage(query.error)}</Alert>}
-  </div>
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const [open, setOpen] = useState(false)
+  const row = (label: string, value: ReactNode) => <div className="registration-insurance-info__row">
+    <dt>{label}</dt><dd>{value}</dd></div>
+  return <>
+    <Button variant="secondary" className="registration-insurance-info-trigger" aria-haspopup="dialog" aria-expanded={open}
+      onClick={(event) => { setAnchor(event.currentTarget.getBoundingClientRect()); setOpen((value) => !value) }}>
+      <Icon name="credential" />查看参保信息
+    </Button>
+    {open && <AnchoredPanel label="参保信息" anchorRect={anchor} onClose={() => setOpen(false)}
+      className="registration-insurance-info">
+      <header className="registration-insurance-info__header"><strong>参保信息</strong>
+        <Button size="sm" variant="text" aria-label="关闭参保信息" onClick={() => setOpen(false)}>关闭</Button></header>
+      <dl className="registration-insurance-info__body">
+        {row('险种', coverageLabel)}
+        {row('参保单位 / 医保机构', coverage.payerName)}
+        {coverage.memberNo ? row('医保个人编号', coverage.memberNo) : null}
+        {row('有效期', `${coverage.validFrom ?? '—'} ~ ${coverage.validTo ?? '长期'}`)}
+        {person
+          ? <>
+            {row('参保状态', <StatusBadge tone={person.status === 'NORMAL' ? 'success' : 'warning'}>
+              {person.status === 'NORMAL' ? '参保正常' : person.status ?? '未知'}</StatusBadge>)}
+            {row('统筹区', person.insuOptinsName ?? person.insuOptins)}
+            {Number.isFinite(person.balc) ? row('个人账户余额', `¥${person.balc.toFixed(2)}`) : null}
+          </>
+          : <p className="registration-insurance-info__hint">点击「确认挂号并出单」时将自动完成医保鉴权。</p>}
+      </dl>
+    </AnchoredPanel>}
+  </>
 }
 
 /**

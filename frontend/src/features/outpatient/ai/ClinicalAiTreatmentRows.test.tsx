@@ -6,7 +6,7 @@ import type { Encounter } from '../../../shared/model'
 import { ClinicalAiTreatmentRows } from './ClinicalAiTreatmentRows'
 
 const item = { type: 'MEDICATION' as const, catalogItemId: 'p1', medicationId: 'm1', code: 'TEST', name: '测试药品', rationale: '合成测试' }
-function setup(defaults = true, servicePricePatch: Record<string, unknown> = {}, servicePatch: Record<string, unknown> = {}) {
+function setup(defaults = true, servicePricePatch: Record<string, unknown> = {}, servicePatch: Record<string, unknown> = {}, itemPatch: Record<string, unknown> = {}, labPatch: Record<string, unknown> = {}) {
   const medication = { id: 'm1', code: 'TEST', name: '测试药品', preparationUnit: '片', preparationSpec: '0.5g',
     stockSiteId: 'pharmacy-1', stockSiteName: '门诊药房',
     defaultDose: defaults ? 0.5 : undefined, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: 'QD',
@@ -31,8 +31,8 @@ function setup(defaults = true, servicePricePatch: Record<string, unknown> = {},
   } } as unknown as RhnApi
   const onReview = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}><ClinicalAiTreatmentRows items={[item,
-    { type: 'LABORATORY', catalogItemId: 's1', code: 'LAB', name: '测试检验', aiOriginalName: 'AI 原项目', rationale: '评估病因' }]}
+  render(<QueryClientProvider client={client}><ClinicalAiTreatmentRows items={[{ ...item, ...itemPatch },
+    { type: 'LABORATORY', catalogItemId: 's1', code: 'LAB', name: '测试检验', aiOriginalName: 'AI 原项目', rationale: '评估病因', ...labPatch }]}
     api={api} encounter={{ id: 'e1', organizationId: 'o1', departmentId: 'd1' } as Encounter} disabled={false} onReview={onReview} />
   </QueryClientProvider>)
   return { api, onReview }
@@ -110,11 +110,37 @@ describe('catalog-backed AI order details', () => {
     expect(serviceRow).not.toBeNull()
     fireEvent.click(within(serviceRow as HTMLElement).getByRole('button', { name: '修改' }))
     const serviceEditor = within(screen.getByLabelText('修改 测试检验'))
-    fireEvent.change(serviceEditor.getByLabelText('执行要求'), { target: { value: '医生明确填写的临床说明' } })
+    fireEvent.change(serviceEditor.getByLabelText('检查目的'), { target: { value: '医生明确填写的临床说明' } })
     expect(serviceRow?.querySelector('.doctor-unified-cell-directions')).toHaveTextContent('医生明确填写的临床说明')
     expect(serviceRow?.querySelector('.doctor-unified-cell-instruction')).toHaveTextContent('—')
     fireEvent.click(screen.getByRole('button', { name: '确认所选（2）' }))
     expect(onReview.mock.calls[0][0][1].orderDraft).toMatchObject({ quantity: 1, instruction: '医生明确填写的临床说明' })
+  })
+
+  it('does not prefill the medication instruction from the catalog default and keeps a physician-entered one', async () => {
+    const { onReview } = setup()
+    await screen.findByText('每次 0.5 g · 口服 · 每日一次')
+    const medRow = screen.getByRole('checkbox', { name: '选择 测试药品' }).closest('.doctor-unified-order-row')
+    expect(medRow?.querySelector('.doctor-unified-cell-instruction')).toHaveTextContent('—')
+    expect(medRow).not.toHaveTextContent('测试用药嘱托')
+    fireEvent.click(screen.getAllByRole('button', { name: '修改' })[0])
+    const editor = within(screen.getByLabelText('修改 测试药品'))
+    expect(editor.getByLabelText('用药嘱托')).toHaveValue('')
+    fireEvent.change(editor.getByLabelText('天数'), { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试检验' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
+    expect(onReview.mock.calls[0][0][0].orderDraft.instruction).toBe('')
+  })
+
+  it.each([['排查感染', '排查感染'], [undefined, '']])('seeds the examination purpose from the AI purpose: %s', async (purpose, expected) => {
+    const { onReview } = setup(true, {}, {}, {}, purpose ? { purpose } : {})
+    await screen.findByText('每次 0.5 g · 口服 · 每日一次')
+    const serviceRow = screen.getByRole('checkbox', { name: '选择 测试检验' }).closest('.doctor-unified-order-row') as HTMLElement
+    fireEvent.click(within(serviceRow).getByRole('button', { name: '修改' }))
+    expect(within(screen.getByLabelText('修改 测试检验')).getByLabelText('检查目的')).toHaveValue(expected)
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试药品' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
+    expect(onReview.mock.calls[0][0][0].orderDraft.instruction).toBe(expected)
   })
 
   it('shows the routed pharmacy and lets the physician change the configured service department before review', async () => {
@@ -253,5 +279,27 @@ describe('catalog-backed AI order details', () => {
     expect(screen.queryByText('DEMO-LAB-CRP')).not.toBeInTheDocument()
     expect(screen.queryByText('DEMO-EXAM-CHEST-DR')).not.toBeInTheDocument()
     expect(screen.getByText('AI 原建议：胸部X线摄影(正位)')).toBeInTheDocument()
+  })
+
+  it('prefers a valid AI usage suggestion, falls back per field and labels the source', async () => {
+    const { onReview } = setup(true, {}, {}, { usageSuggestion: { doseValue: 1, doseUnit: 'g', routeCode: 'NOPE', frequencyCode: 'QD', durationDays: 5 } })
+    await screen.findByText('每次 1 g · 口服 · 每日一次')
+    expect(screen.getByText(/5 天 · 部分来自 AI 建议，需核对/)).toBeInTheDocument()
+    expect(screen.getByText('1 盒')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试检验' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
+    expect(onReview).toHaveBeenCalledWith([expect.objectContaining({ orderDraft: expect.objectContaining({
+      doseValue: 1, doseUnit: 'g', routeCode: 'ORAL', frequencyCode: 'QD', durationValue: 5, quantity: 1 }) })])
+  })
+
+  it('labels a fully AI-supplied usage and ignores a dose unit foreign to the catalog', async () => {
+    setup(true, {}, {}, { usageSuggestion: { doseValue: 1, doseUnit: 'g', routeCode: 'ORAL', frequencyCode: 'QD', durationDays: 3 } })
+    expect(await screen.findByText(/3 天 · AI 建议用法，需核对/)).toBeInTheDocument()
+  })
+
+  it('does not adopt a mismatched dose unit and keeps the catalog default', async () => {
+    setup(true, {}, {}, { usageSuggestion: { doseValue: 9, doseUnit: 'ml' } })
+    await screen.findByText('每次 0.5 g · 口服 · 每日一次')
+    expect(screen.getByText(/目录默认，需核对/)).toBeInTheDocument()
   })
 })

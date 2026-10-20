@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anchorAnnotations, applyBoundFacts, rebaseAnnotations, recordEvidence, templateAnnotations } from './recordAnnotations'
+import { anchorAnnotations, applyBoundFacts, highlightedAnnotations, rebaseAnnotations, recordEvidence, templateAnnotations } from './recordAnnotations'
 import type { RecordAnnotation } from '../../../shared/api/recordAnnotations'
 
 const cough: RecordAnnotation = { field: 'presentIllness', text: '3天', start: 2,
@@ -67,5 +67,14 @@ describe('record writing annotations', () => {
     expect(recordEvidence(content, null).presentIllness).toBe('咳嗽3天')
     expect(applyBoundFacts(content, null, null).content).toEqual(content)
   })
+  it('confirmed marks stop highlighting, conflicts included, and keep provenance', () => {
+    const content = { presentIllness: '咳嗽3天，无胸痛' }
+    const chest: RecordAnnotation = { field: 'presentIllness', text: '无胸痛', start: 5, source: 'AI', kind: 'IMPORTANT' }
+    const conflict: RecordAnnotation = { ...cough, kind: 'CONFLICT', source: 'AI' }
+    expect(highlightedAnnotations(content, [cough, chest])).toHaveLength(2)
+    expect(highlightedAnnotations(content, [cough, { ...chest, confirmed: true }]).map((item) => item.text)).toEqual(['3天'])
+    expect(highlightedAnnotations(content, [conflict]).map((item) => item.kind)).toEqual(['CONFLICT'])
+    expect(highlightedAnnotations(content, [{ ...conflict, confirmed: true }])).toEqual([])
+    expect(anchorAnnotations(content, [{ ...chest, confirmed: true }])[0]).toMatchObject({ confirmed: true, source: 'AI' })
+  })
 })
-

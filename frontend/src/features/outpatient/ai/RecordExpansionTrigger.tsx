@@ -30,7 +30,7 @@ export function RecordExpansionTrigger({ surface, disabled, expanding, error, on
   return createPortal(
     <div className="doctor-record-expand" role="group" aria-label="主诉扩写病历">
       <Button size="sm" variant="soft" busy={expanding} disabled={disabled} onClick={onExpand}
-        title={`按主诉补全现病史、既往史、过敏史、查体、健康宣教和随访复诊（${shortcutLabel}）；已填写的段落保持不变，蓝色标记为 AI 推荐内容，需逐项核实`}>
+        title={`按主诉补全现病史、既往史、过敏史、查体、健康宣教和随访复诊（${shortcutLabel}）；已填写的段落保持不变，橙色标记为需重点核实的 AI 推荐内容`}>
         <Icon name="sparkles" />
         <span>{expanding ? '正在扩写…' : <>AI扩写<kbd className="doctor-record-expand__key">({shortcutLabel})</kbd></>}</span>
       </Button>

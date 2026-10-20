@@ -79,7 +79,6 @@ export function ClinicalAiCopilotHub({
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
   const reportAutoShownFor = useRef<string | null>(null)
   const [nextPanelOpen, setNextPanelOpen] = useState(false)
-  const nextShown = useRef(new Set<string>())
   const refillAutoShownFor = useRef<string | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -370,20 +369,15 @@ export function ClinicalAiCopilotHub({
       return
     }
     // Diagnoses and orders arrive as inline suggestions; the hub stays closed so the doctor keeps working.
+    // Each step asks only for its own result: no record rewrite, and orders never re-recommend diagnoses.
     appliedSuggestionId.current = null
-    void onGenerate().catch(() => undefined)
+    const intent = nextStep.kind === 'DIAGNOSIS' ? 'DIAGNOSIS_RECOMMENDATION' : 'TREATMENT_RECOMMENDATION'
+    void onGenerate(undefined, { intent }).catch(() => undefined)
   }
 
-  // Next-step shortcut: each step is offered once per encounter, never over another guide or the open hub.
+  // Next-step shortcut: an inline segment on the pill. Only the plan step opens a list, and only when the doctor asks.
   const nextKey = nextStep ? `${context.encounterId}:${nextStep.kind}` : ''
-  const otherGuideOpen = refillPanelOpen || reportPanelOpen
-    || (nextStep?.kind !== 'PLAN' && (chronicGuideReady || reportGuideReady))
   const nextBlocked = busy || generating || findingPlans || Boolean(sceneLoading)
-  useEffect(() => {
-    if (!nextKey || hubOpen || otherGuideOpen || nextBlocked || nextShown.current.has(nextKey)) return
-    nextShown.current.add(nextKey)
-    setNextPanelOpen(true)
-  }, [nextKey, hubOpen, otherGuideOpen, nextBlocked])
   useEffect(() => { if (!nextKey || hubOpen) setNextPanelOpen(false) }, [nextKey, hubOpen])
   useEffect(() => {
     if (!nextPanelOpen) return
@@ -433,42 +427,67 @@ export function ClinicalAiCopilotHub({
     : isReport ? `报告回诊${sceneAssessment?.selectedReportIds.length ? ` (${sceneAssessment.selectedReportIds.length})` : ''}`
     : ''
 
+  const toggleHub = () => {
+    setHubOpen(!hubOpen)
+    onView()
+  }
+
   return (
     <div className={`doctor-ai-copilot-hub ${hubOpen ? 'is-expanded' : ''}`} ref={hubRef}>
       {surfaces.chiefComplaint && (expansionAvailable || expanding) && (
         <RecordExpansionTrigger surface={surfaces.chiefComplaint} disabled={expansionBlocked} expanding={expanding}
           error={expansionError} onExpand={() => { void expandRecord() }} />
       )}
-      {/* Title Bar Compact Pill Entry */}
-      <button
-        type="button"
-        className={`doctor-ai-copilot-pill is-${sceneAssessment?.badgeTone ?? 'brand'} ${generating ? 'is-generating' : ''} ${hubOpen ? 'is-active' : ''}`}
-        aria-expanded={hubOpen}
-        aria-label="AI 辅诊"
-        title="点击展开 AI 辅诊中心、情境识别与场景快捷操作"
-        onClick={() => {
-          setHubOpen(!hubOpen)
-          onView()
-        }}
-      >
-        <span className="doctor-ai-copilot-pill__icon" aria-hidden="true">
-          <Icon name="sparkles" />
-        </span>
-        <strong className="doctor-ai-copilot-pill__title">AI 辅诊</strong>
-        {generating ? (
-          <span className="doctor-ai-copilot-pill__status">
-            <span className="doctor-ai-copilot-pill__pulse" />
-            正在共写…
+      {/* Title Bar Compact Pill Entry: title / next-step action / caret are sibling buttons of one capsule */}
+      <div className={`doctor-ai-copilot-pill is-${sceneAssessment?.badgeTone ?? 'brand'} ${generating ? 'is-generating' : ''} ${hubOpen ? 'is-active' : ''}`}>
+        <button
+          type="button"
+          className="doctor-ai-copilot-pill__main"
+          aria-expanded={hubOpen}
+          aria-label="AI 辅诊"
+          title="点击展开 AI 辅诊中心、情境识别与场景快捷操作"
+          onClick={toggleHub}
+        >
+          <span className="doctor-ai-copilot-pill__icon" aria-hidden="true">
+            <Icon name="sparkles" />
           </span>
-        ) : nextStep ? (
-          <span className="doctor-ai-copilot-pill__tag is-next" title={nextStep.hint}>下一步 · {nextStep.tag}</span>
-        ) : scenePillText ? (
-          <span className="doctor-ai-copilot-pill__tag">{scenePillText}</span>
-        ) : current ? (
-          <span className="doctor-ai-copilot-pill__dot is-ready" title="建议已准备好" />
-        ) : null}
-        <Icon name={hubOpen ? 'chevron-up' : 'chevron-down'} className="doctor-ai-copilot-pill__caret" />
-      </button>
+          <strong className="doctor-ai-copilot-pill__title">AI 辅诊</strong>
+          {generating ? (
+            <span className="doctor-ai-copilot-pill__status">
+              <span className="doctor-ai-copilot-pill__pulse" />
+              正在共写…
+            </span>
+          ) : !nextStep && scenePillText ? (
+            <span className="doctor-ai-copilot-pill__tag">{scenePillText}</span>
+          ) : !nextStep && current ? (
+            <span className="doctor-ai-copilot-pill__dot is-ready" title="建议已准备好" />
+          ) : null}
+        </button>
+        {!generating && nextStep && (
+          <button
+            type="button"
+            className="doctor-ai-copilot-pill__action"
+            title={nextStep.hint}
+            disabled={nextBlocked}
+            aria-expanded={nextStep.kind === 'PLAN' ? nextPanelOpen : undefined}
+            onClick={() => {
+              if (nextStep.kind === 'PLAN') setNextPanelOpen((open) => !open)
+              else runNextStep()
+            }}
+          >
+            {nextStep.kind === 'PLAN' ? `核对方案 (${availablePlans.length})` : nextStep.action}
+          </button>
+        )}
+        <button
+          type="button"
+          className="doctor-ai-copilot-pill__toggle"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={toggleHub}
+        >
+          <Icon name={hubOpen ? 'chevron-up' : 'chevron-down'} className="doctor-ai-copilot-pill__caret" />
+        </button>
+      </div>
 
       {nextPanelOpen && nextStep && !hubOpen && (
         <NextStepQuickPanel step={nextStep} plans={availablePlans} onReviewPlan={reviewPlan} disabled={nextBlocked}

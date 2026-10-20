@@ -42,6 +42,30 @@ class ClinicalTreatmentRecommendationServiceTest {
         when(services.searchOrderableServices(eq(query), eq("LABORATORY"), eq(3L), any())).thenReturn(List.of(value));
         return value;
     }
+    TreatmentRecommendation withPurpose(String type, String name, String purpose) {
+        return new TreatmentRecommendation(type, null, null, null, name, null, "按病情评估", null, purpose);
+    }
+    @Test void examinationPurposeIsCarriedToMatchedItemsAndEveryAmbiguousCandidate() {
+        lab(101, "血常规", "血常规");
+        var matched = service.recommend(List.of(withPurpose("LABORATORY", "血常规", "排除感染")), request, null);
+        assertEquals("排除感染", matched.items().getFirst().purpose());
+        var first = lab(601, "葡萄糖测定", "葡萄糖测定");
+        var second = lab(604, "葡萄糖测定", "葡萄糖测定");
+        when(services.searchOrderableServices(eq("葡萄糖测定"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(first, second));
+        var ambiguous = service.recommend(List.of(withPurpose("LABORATORY", "血糖", "明确血糖控制水平")), request, null);
+        var match = ambiguous.matches().getFirst();
+        assertEquals("AMBIGUOUS", match.status());
+        assertEquals(2, match.candidates().size());
+        assertTrue(match.candidates().stream().allMatch(item -> "明确血糖控制水平".equals(item.purpose())));
+        assertEquals("明确血糖控制水平", match.intent().purpose());
+    }
+    @Test void medicationNeverCarriesPurposeEvenIfModelSuppliedOne() {
+        var result = service.recommend(List.of(withPurpose("MEDICATION", "不存在的药", "不应出现")), request, null);
+        assertTrue(result.items().isEmpty());
+        assertTrue(result.matches().stream().allMatch(match -> match.intent().purpose() == null
+                && match.candidates().stream().allMatch(item -> item.purpose() == null)));
+    }
     @Test void uniqueExactCatalogMatchUsesActualCatalogFacts() {
         lab(101, "血常规", "血常规");
         var result = service.recommend(List.of(intent("LABORATORY", "血常规")), request, null);
@@ -434,5 +458,129 @@ class ClinicalTreatmentRecommendationServiceTest {
             assertNull(matches.getFirst().decisionReview().suggestedItem());
             assertEquals("NONE", matches.getFirst().decisionReview().choice());
         }
+    }
+
+    // ---- AI usage suggestions on medication candidates ----
+    final MedicationRouteDirectory routes = mock(MedicationRouteDirectory.class);
+    final OrderFrequencyDirectory frequencies = mock(OrderFrequencyDirectory.class);
+
+    void withUsageMapper() {
+        JsonCodec codec = mock(JsonCodec.class);
+        when(codec.read(anyString(), eq(ClinicalTreatmentCatalogResolver.Alias[].class))).thenAnswer(invocation ->
+                new tools.jackson.databind.ObjectMapper().readValue((String) invocation.getArgument(0), ClinicalTreatmentCatalogResolver.Alias[].class));
+        resolver = new ClinicalTreatmentCatalogResolver(inventory, services, medications, contexts, codec,
+                new TreatmentUsageMapper(routes, frequencies));
+        service = new ClinicalTreatmentRecommendationService(resolver, contexts, decisions);
+        when(routes.active(eq(1L), eq("OUTPATIENT"), any())).thenReturn(List.of(
+                new MedicationRouteDirectory.RouteSnapshot(10L, "PO", "口服", "RHN", "1", "NONE")));
+        when(routes.resolveActive(any(), any(), any(), any())).thenReturn(java.util.Optional.empty());
+        when(frequencies.active(eq(1L), eq(3L), eq(4L), eq("OUTPATIENT"), eq("MEDICATION"), any())).thenReturn(List.of(
+                new OrderFrequencyDirectory.FrequencySnapshot(22L, 1, "TID", "每日三次", "TID", null, "TIMES_PER_PERIOD", 3,
+                        BigDecimal.ONE, "D", null, List.of(), null, true)));
+    }
+
+    OutpatientPrescriptionInventoryDirectory.OrderableMedicationView drug(long id, String name, String unit, boolean antimicrobial,
+                                                                          long... productIds) {
+        var view = mock(OutpatientPrescriptionInventoryDirectory.OrderableMedicationView.class);
+        when(view.id()).thenReturn(id); when(view.code()).thenReturn("M" + id); when(view.name()).thenReturn(name);
+        when(view.sdStatus()).thenReturn("ACTIVE"); when(view.sdMedicationType()).thenReturn("WESTERN");
+        when(view.availablePackageQuantity()).thenReturn(BigDecimal.TEN);
+        when(view.preparationSpec()).thenReturn("0.5g"); when(view.preparationUnit()).thenReturn(unit);
+        when(view.antimicrobial()).thenReturn(antimicrobial);
+        var products = new java.util.ArrayList<MasterDataViews.MedicationProductView>();
+        for (long productId : productIds) {
+            var product = mock(MasterDataViews.MedicationProductView.class);
+            var adoption = mock(MasterDataViews.OrganizationAdoptionView.class);
+            when(adoption.orderable()).thenReturn(true); when(adoption.dispensable()).thenReturn(true);
+            when(product.id()).thenReturn(productId); when(product.orderable()).thenReturn(true);
+            when(product.sdStatus()).thenReturn("ACTIVE"); when(product.organizationAdoption()).thenReturn(adoption);
+            when(inventory.inspectMedicationAvailability(any(), any(), any(), eq(productId), any())).thenReturn(
+                    new OutpatientPrescriptionInventoryDirectory.MedicationAvailabilityView(true, 1L, "药房", true, 1L, null, null,
+                            null, BigDecimal.TEN, BigDecimal.TEN));
+            products.add(product);
+        }
+        when(view.products()).thenReturn(products);
+        return view;
+    }
+
+    void stock(String query, OutpatientPrescriptionInventoryDirectory.OrderableMedicationView... views) {
+        when(inventory.findOrderableMedicationCandidates(any(), any(), any(), eq(query))).thenReturn(List.of(views));
+    }
+
+    TreatmentRecommendation medicationIntent(String name, TreatmentUsageSuggestion usage) {
+        return new TreatmentRecommendation("MEDICATION", null, null, null, name, null, "退热", usage);
+    }
+
+    ClinicalAiModelGateway.ModelRequest requestFor(LocalDate birthDate) {
+        var resident = new com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot(9L, "R1", "患者", "M", birthDate, null, false);
+        return new ClinicalAiModelGateway.ModelRequest("V8", "发热", null, null, resident, List.of(), List.of(), List.of(),
+                List.of(), null, null, null, "TREATMENT_ONLY", List.of(),
+                new ClinicalAiModelGateway.TemporalContext(java.time.Instant.parse("2026-10-20T01:00:00Z"), null));
+    }
+
+    final TreatmentUsageSuggestion modelUsage = new TreatmentUsageSuggestion(new BigDecimal("1"), "片", "口服", "每日3次", 5);
+
+    @Test void adultMedicationMatchCarriesValidatedUsageAndIntentIsStripped() {
+        withUsageMapper();
+        stock("对乙酰氨基酚片", drug(1, "对乙酰氨基酚片", "片", false, 11));
+        var result = service.recommend(List.of(medicationIntent("对乙酰氨基酚片", modelUsage)), requestFor(LocalDate.of(1990, 1, 1)), null);
+        assertEquals(new TreatmentUsageSuggestion(BigDecimal.ONE, "片", "PO", "TID", 5), result.items().getFirst().usageSuggestion());
+        // Raw model wording must never leave the service through a match's intent.
+        assertTrue(result.matches().isEmpty());
+        var direct = resolver.resolve(List.of(medicationIntent("对乙酰氨基酚片", modelUsage)), LocalDate.now());
+        assertNull(direct.getFirst().intent().usageSuggestion());
+    }
+
+    @Test void everyAmbiguousCandidateGetsUsageValidatedAgainstItsOwnDrug() {
+        withUsageMapper();
+        stock("氯雷他定", drug(1, "氯雷他定片", "片", false, 11), drug(2, "氯雷他定糖浆", "mL", false, 12));
+        var result = resolver.resolve(List.of(medicationIntent("氯雷他定", modelUsage)), LocalDate.now());
+        assertEquals("AMBIGUOUS", result.getFirst().status());
+        var byId = result.getFirst().candidates().stream().collect(java.util.stream.Collectors.toMap(
+                TreatmentRecommendation::catalogItemId, TreatmentRecommendation::usageSuggestion));
+        assertEquals("片", byId.get(11L).doseUnit());
+        assertNull(byId.get(12L).doseValue());           // the syrup is not dosed in tablets
+        assertEquals("PO", byId.get(12L).routeCode());   // other fields survive independently
+    }
+
+    @Test void antimicrobialsChildrenUnknownAgeAndMissingMapperGetNoUsage() {
+        withUsageMapper();
+        stock("阿莫西林", drug(1, "阿莫西林", "片", true, 11));
+        stock("布洛芬", drug(2, "布洛芬", "片", false, 12));
+        var adult = requestFor(LocalDate.of(1990, 1, 1));
+        assertNull(service.recommend(List.of(medicationIntent("阿莫西林", modelUsage)), adult, null).items().getFirst().usageSuggestion());
+        assertNotNull(service.recommend(List.of(medicationIntent("布洛芬", modelUsage)), adult, null).items().getFirst().usageSuggestion());
+        for (var request : List.of(requestFor(LocalDate.of(2012, 1, 1)), requestFor(LocalDate.of(2008, 10, 21)), requestFor(null))) {
+            assertNull(service.recommend(List.of(medicationIntent("布洛芬", modelUsage)), request, null).items().getFirst().usageSuggestion());
+        }
+        assertNotNull(service.recommend(List.of(medicationIntent("布洛芬", modelUsage)), requestFor(LocalDate.of(2008, 10, 20)), null)
+                .items().getFirst().usageSuggestion());
+        // A resolver built without the mapper ignores the draft entirely.
+        var plain = new ClinicalTreatmentCatalogResolver(inventory, services, medications, contexts, codecForAliases());
+        assertNull(plain.resolve(List.of(medicationIntent("布洛芬", modelUsage)), LocalDate.now()).getFirst().candidates().getFirst().usageSuggestion());
+    }
+
+    @Test void nonMedicationItemsNeverCarryUsage() {
+        withUsageMapper();
+        lab(101, "血常规", "血常规");
+        var forged = new TreatmentRecommendation("LABORATORY", null, null, null, "血常规", null, "评估", modelUsage);
+        var result = service.recommend(List.of(forged), requestFor(LocalDate.of(1990, 1, 1)), null);
+        assertNull(result.items().getFirst().usageSuggestion());
+    }
+
+    @Test void unusableUsageStillReturnsTheMedicationWithoutIt() {
+        withUsageMapper();
+        stock("布洛芬", drug(2, "布洛芬", "片", false, 12));
+        var junk = new TreatmentUsageSuggestion(new BigDecimal("1"), "盒", "鼻饲", "每周两次", 99);
+        var result = service.recommend(List.of(medicationIntent("布洛芬", junk)), requestFor(LocalDate.of(1990, 1, 1)), null);
+        assertEquals(12L, result.items().getFirst().catalogItemId());
+        assertNull(result.items().getFirst().usageSuggestion());
+    }
+
+    JsonCodec codecForAliases() {
+        JsonCodec codec = mock(JsonCodec.class);
+        when(codec.read(anyString(), eq(ClinicalTreatmentCatalogResolver.Alias[].class))).thenAnswer(invocation ->
+                new tools.jackson.databind.ObjectMapper().readValue((String) invocation.getArgument(0), ClinicalTreatmentCatalogResolver.Alias[].class));
+        return codec;
     }
 }

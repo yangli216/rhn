@@ -136,11 +136,58 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(prompt.contains("由系统统一补为“AI推荐·待核实”"));
         assertTrue(prompt.contains("6. healthEducation"));
         assertTrue(prompt.contains("7. followUp"));
+        assertTrue(prompt.contains("kind=\"IMPORTANT\""));
+        assertTrue(prompt.contains("每个字段最多 3 条，全部合计不超过 8 条"));
+        assertFalse(prompt.contains("不要漏标"));
+        assertFalse(prompt.contains("kind=\"VARIABLE\""));
         assertFalse(prompt.contains("disclaimer。"));
         assertTrue(prompt.contains("严禁编造阳性症状、阳性体征"));
         assertTrue(prompt.contains("已登记过敏不得写“否认过敏史”"));
         assertEquals("RECORD_EXPANSION", jsonCodec.readTree(sent.get("messages").get(1).get("content").asString())
                 .get("generationStage").asString());
+    }
+
+    @Test
+    void diagnosisAndTreatmentRecommendationsRouteToTheirOwnPrompts() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", "{\"summary\":\"ok\"}"))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        ModelRequest base = request();
+        var gateway = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec);
+        gateway.analyze(new ModelRequest("RHN-DIAGNOSIS-RECOMMENDATION-V1", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "DIAGNOSIS_ONLY", List.of(),
+                base.temporalContext()), settings("secret-key"));
+        JsonNode diagnosis = jsonCodec.readTree(requestBody.get());
+        String diagnosisPrompt = diagnosis.get("messages").get(0).get("content").asString();
+        assertTrue(diagnosisPrompt.contains("generationStage=DIAGNOSIS_ONLY"));
+        assertTrue(diagnosisPrompt.contains("diagnosisCandidates 最多 3 项，differentialDiagnoses 最多 5 项；编码必须使用 ICD-10"));
+        assertTrue(diagnosisPrompt.contains("没有明确测量值、报告结论或医生已确认的异常事实，不得生成对应的检查异常诊断"));
+        assertTrue(diagnosisPrompt.contains("每条 diagnosisCandidates 必须有独立的本次患者事实依据"));
+        assertTrue(diagnosisPrompt.contains("不输出 recordDraft"));
+        assertTrue(diagnosisPrompt.contains("不输出 treatmentRecommendations 与 recommendedPlans"));
+        assertFalse(diagnosisPrompt.contains("generationStage=RECORD_DIAGNOSIS"));
+        assertFalse(diagnosisPrompt.contains("generationStage=RECORD_EXPANSION"));
+        assertEquals("DIAGNOSIS_ONLY", jsonCodec.readTree(diagnosis.get("messages").get(1).get("content").asString())
+                .get("generationStage").asString());
+
+        gateway.analyze(new ModelRequest("RHN-TREATMENT-RECOMMENDATION-V3", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "TREATMENT_ONLY", List.of(),
+                base.temporalContext()), settings("secret-key"));
+        String treatmentPrompt = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        assertTrue(treatmentPrompt.contains("generationStage=TREATMENT_ONLY"));
+        assertTrue(treatmentPrompt.contains("draft.diagnoses 中医生已确认的诊断"));
+        assertTrue(treatmentPrompt.contains("type 仅 MEDICATION、LABORATORY、EXAMINATION，最多12项"));
+        assertTrue(treatmentPrompt.contains("每项 rationale 用一句简短中文（建议60字以内）"));
+        assertTrue(treatmentPrompt.contains("不输出 diagnosisCandidates 与 differentialDiagnoses"));
+        assertTrue(treatmentPrompt.contains("不输出 recordDraft"));
+        assertFalse(treatmentPrompt.contains("RECORD_DIAGNOSIS 阶段每项输出"));
+        assertFalse(treatmentPrompt.contains("diagnosisCandidates 最多 3 项"));
     }
 
     @Test
@@ -355,10 +402,10 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("普通血糖化验写“葡萄糖测定”"));
         assertTrue(writingPrompt.contains("心电图必须区分普通、动态或运动试验"));
         assertTrue(writingPrompt.contains("每项只输出与目录条目一致的 type、catalogItemId"));
-        assertTrue(writingPrompt.contains("不输出 rationale 或重复目录名称、编码、规格"));
+        assertTrue(writingPrompt.contains("不输出 rationale、usage 或重复目录名称、编码、规格"));
         assertTrue(writingPrompt.contains("diagnosisCandidates[{code,display,type,confidence,rationale}]"));
         assertTrue(writingPrompt.contains("CATALOG_TREATMENT 使用 [{type,catalogItemId}]"));
-        assertTrue(writingPrompt.contains("RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale}]"));
+        assertTrue(writingPrompt.contains("RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale,purpose?,usage?}]"));
         assertTrue(writingPrompt.contains("已有结果能覆盖本次目的时优先复用"));
         assertFalse(writingPrompt.contains("同时必须在 treatmentRecommendations"));
         assertTrue(writingPrompt.contains("没有依据时返回空数组"));
@@ -655,6 +702,143 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                 "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/chat/completions", apiKey,
                 Duration.ofSeconds(5), 1200, "", "gpt-transcribe", 20 * 1024 * 1024,
                 "", "", 5);
+    }
+
+    @Test
+    void medicationUsageDraftIsAllowedWithGuardrailsInSharedBlocksButNotForCatalogStageOrDiagnosisOnly() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", "{\"summary\":\"ok\"}"))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        ModelRequest base = request();
+        var gateway = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec);
+        gateway.analyze(base, settings("secret-key"));
+        String full = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        gateway.analyze(new ModelRequest("RHN-TREATMENT-RECOMMENDATION-V3", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "TREATMENT_ONLY", List.of(),
+                base.temporalContext()), settings("secret-key"));
+        String treatment = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        gateway.analyze(new ModelRequest("RHN-DIAGNOSIS-RECOMMENDATION-V1", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "DIAGNOSIS_ONLY", List.of(),
+                base.temporalContext()), settings("secret-key"));
+        String diagnosis = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        for (String prompt : List.of(full, treatment)) {
+            assertTrue(prompt.contains("待医生核对的预填草稿"));
+            assertTrue(prompt.contains("{doseValue（数值）,doseUnit,route（给药途径中文名或常用写法）,frequency（频次中文名或 QD/BID/TID 等常用写法）,durationDays（整数）}"));
+            assertTrue(prompt.contains("只给成人常规、有把握的 doseValue/doseUnit/route/frequency/durationDays；不确定就整体省略 usage，不要编造"));
+            assertTrue(prompt.contains("儿童（patient 年龄小于18岁）、孕妇/哺乳期、肝肾功能不全或需按体重/体表面积计算的药物，一律不给 usage"));
+            assertTrue(prompt.contains("草药、输液、需皮试或抗菌药的用法不给 usage"));
+            assertTrue(prompt.contains("不输出总量、包装数量、已开立状态；durationDays 仅在适应证疗程明确时给"));
+            assertTrue(prompt.contains("检验、检查项不输出 usage"));
+            assertTrue(prompt.contains("usage?"));
+            assertFalse(prompt.contains("不生成剂量、疗程或已开立状态"));
+            assertFalse(prompt.contains("不得自由生成药品剂量、用法或医嘱。"));
+        }
+        assertTrue(full.contains("只完成目录选择，不输出 rationale、usage 或重复目录名称"));
+        assertFalse(diagnosis.contains("usage"));
+    }
+
+    @Test
+    void purposeRuleIsInSharedBlocksForLabAndExaminationButNotForCatalogStageOrMedication() throws Exception {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        startServer(exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", "{\"summary\":\"ok\"}"))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        ModelRequest base = request();
+        var gateway = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec);
+        gateway.analyze(base, settings("secret-key"));
+        String full = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        gateway.analyze(new ModelRequest("RHN-TREATMENT-RECOMMENDATION-V3", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "TREATMENT_ONLY", List.of(),
+                base.temporalContext()), settings("secret-key"));
+        String treatment = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        gateway.analyze(new ModelRequest("RHN-DIAGNOSIS-RECOMMENDATION-V1", null, null, base.draft(), base.resident(),
+                base.allergies(), List.of(), List.of(), List.of(), null, null, null, "DIAGNOSIS_ONLY", List.of(),
+                base.temporalContext()), settings("secret-key"));
+        String diagnosis = jsonCodec.readTree(requestBody.get()).get("messages").get(0).get("content").asString();
+        for (String prompt : List.of(full, treatment)) {
+            assertTrue(prompt.contains("LABORATORY 与 EXAMINATION 项必须输出 purpose"));
+            assertTrue(prompt.contains("不超过30字"));
+            assertTrue(prompt.contains("排除过敏性鼻炎的致敏原"));
+            assertTrue(prompt.contains("不得重复项目名称，不得复述 rationale，不得写检查结果或编造患者事实"));
+            assertTrue(prompt.contains("MEDICATION 项不输出 purpose"));
+            assertTrue(prompt.contains("rationale,purpose?,usage?"));
+        }
+        assertTrue(full.contains("不输出 rationale、usage 或重复目录名称、编码、规格，也不输出 purpose"));
+        assertTrue(full.contains("CATALOG_TREATMENT 使用 [{type,catalogItemId}]"));
+        assertFalse(diagnosis.contains("purpose"));
+    }
+
+    @Test
+    void modelPurposeIsCleanedForLabAndExaminationOnlyAndNeverFailsTheRecommendation() throws Exception {
+        String content = "{\"summary\":\"ok\",\"treatmentRecommendations\":["
+                + "{\"type\":\"MEDICATION\",\"name\":\"药\",\"purpose\":\"不应保留\"},"
+                + "{\"type\":\"LABORATORY\",\"name\":\"血常规\",\"purpose\":\"  排除感染  \"},"
+                + "{\"type\":\"EXAMINATION\",\"name\":\"胸片\",\"purpose\":\"" + "长".repeat(70) + "\"},"
+                + "{\"type\":\"LABORATORY\",\"name\":\"CRP\",\"purpose\":[1,2]},"
+                + "{\"type\":\"LABORATORY\",\"name\":\"尿常规\",\"purpose\":\"  \"}]}";
+        startServer(exchange -> {
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", content))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        var items = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec)
+                .analyze(request(), settings("secret-key")).treatmentRecommendations();
+        assertEquals(5, items.size());
+        assertNull(items.get(0).purpose());
+        assertEquals("排除感染", items.get(1).purpose());
+        assertEquals(60, items.get(2).purpose().length());
+        assertNull(items.get(3).purpose());
+        assertNull(items.get(4).purpose());
+    }
+
+    @Test
+    void modelUsageIsRewrittenForMedicationOnlyAndMalformedUsageNeverFailsTheRecommendation() throws Exception {
+        String content = """
+                {"summary":"ok","treatmentRecommendations":[
+                 {"type":"MEDICATION","name":"对乙酰氨基酚片","rationale":"退热",
+                  "usage":{"doseValue":"0.5","doseUnit":"g","route":"口服","frequency":"每日3次","durationDays":"3"}},
+                 {"type":"MEDICATION","name":"布洛芬","usage":{"doseValue":"abc","doseUnit":5,"route":{"a":1},"frequency":"","durationDays":2.5}},
+                 {"type":"MEDICATION","name":"氯雷他定","usage":"每日一次"},
+                 {"type":"MEDICATION","name":"孟鲁司特","usage":{"doseValue":-1,"doseUnit":"mg","durationDays":7}},
+                 {"type":"LABORATORY","name":"血常规","usage":{"doseValue":1,"doseUnit":"g","route":"口服"}},
+                 {"type":"MEDICATION","name":"伪造","usageSuggestion":{"routeCode":"PO","doseValue":9}}]}
+                """;
+        startServer(exchange -> {
+            byte[] bytes = jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of(
+                    "content", content))))).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        var items = new OpenAiCompatibleClinicalAiModelGateway(settings("secret-key"), jsonCodec)
+                .analyze(request(), settings("secret-key")).treatmentRecommendations();
+        var first = items.get(0).usageSuggestion();
+        assertEquals(new BigDecimal("0.5"), first.doseValue());
+        assertEquals("g", first.doseUnit());
+        assertEquals("口服", first.routeCode());           // raw wording; resolved or dropped by TreatmentUsageMapper
+        assertEquals("每日3次", first.frequencyCode());
+        assertEquals(3, first.durationDays());
+        assertNull(items.get(1).usageSuggestion());        // every field unusable
+        assertNull(items.get(2).usageSuggestion());        // wrong shape
+        var partial = items.get(3).usageSuggestion();      // negative dose dropped, unit and duration survive
+        assertNull(partial.doseValue());
+        assertEquals(7, partial.durationDays());
+        assertNull(items.get(4).usageSuggestion());        // only MEDICATION can carry usage
+        assertNull(items.get(5).usageSuggestion());        // the model cannot write the server-owned field
+        assertEquals(6, items.size());
     }
 
     private ModelRequest request() {

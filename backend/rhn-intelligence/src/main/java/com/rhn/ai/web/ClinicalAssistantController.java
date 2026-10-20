@@ -138,9 +138,10 @@ class ClinicalAssistantController {
     com.rhn.ai.application.ClinicalKnowledgeGateway.WikiDocResult wikiDoc(
             @RequestParam(name = "name", required = false) String name,
             @RequestParam(name = "id", required = false) String id,
-            @RequestParam(name = "type", required = false) String type) {
+            @RequestParam(name = "type", required = false) String type,
+            @RequestParam(name = "icd10", required = false) String icd10) {
         String query = (name != null && !name.isBlank()) ? name : id;
-        return service.getWikiDoc(query, type);
+        return service.getWikiDoc(query, type, icd10);
     }
 
     @PostMapping("/encounters/{encounterId}/plan-templates/{templateId}/preflight")

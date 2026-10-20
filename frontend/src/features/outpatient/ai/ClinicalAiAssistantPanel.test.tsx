@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { stableClinicalAiFingerprint } from './aiDraftAdapter'
 import type {
   ClinicalAiDraftContext, ClinicalAiSuggestion, GenerateClinicalAiSuggestionInput,
 } from '../../../shared/api/clinicalAiApi'
@@ -248,3 +249,37 @@ function renderPanel(api: RhnApi) {
     currentContext={context} allergies={[]} allergyState="READY" api={api} disabled={false}
     onAdoptionBusyChange={vi.fn()} onApply={vi.fn()} /></QueryClientProvider>)
 }
+
+describe('ClinicalAiAssistantPanel focused next-step results', () => {
+  it('requests diagnoses only and shows just the diagnosis rows when recordDraft is empty', async () => {
+    const generate = vi.fn().mockImplementation((_id: string, input: GenerateClinicalAiSuggestionInput) => Promise.resolve({
+      id: 'sugg-dx', status: 'GENERATED' as const, contextHash: 'sha256:dx',
+      clientContextFingerprint: input.clientContextFingerprint, provider: 'test', promptVersion: 'V1',
+      generatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      summary: '考虑急性上呼吸道感染', recordDraft: {},
+      diagnosisCandidates: [{ code: 'J06.9', display: '急性上呼吸道感染', type: 'PRIMARY' as const, confidence: 0.8, rationale: '咳嗽3天' }],
+      differentialDiagnoses: [], missingInformation: [], safetyAlerts: [], recommendedPlans: [], disclaimer: '仅供医生参考',
+    }))
+    const api = assistantApi({ generate })
+    const onApply = vi.fn()
+    const slots = render(<div><div data-testid="s" /><div data-testid="n" /><div data-testid="d" /><div data-testid="p" /></div>)
+    const surfaces = { summary: slots.getByTestId('s') as HTMLDivElement, note: slots.getByTestId('n') as HTMLDivElement,
+      diagnoses: slots.getByTestId('d') as HTMLDivElement, plans: slots.getByTestId('p') as HTMLDivElement, detail: null }
+    const written = { ...context, chiefComplaint: '咳嗽3天', presentIllness: '咳嗽3天，无发热。',
+      medicationDraftFingerprint: stableClinicalAiFingerprint('medications', []),
+      serviceDraftFingerprint: stableClinicalAiFingerprint('services', []) }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><ClinicalAiAssistantPanel surfaces={surfaces} encounter={encounter}
+      currentContext={written} allergies={[]} allergyState="READY" api={api} disabled={false}
+      onAdoptionBusyChange={vi.fn()} onApply={onApply} /></QueryClientProvider>)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'AI 推荐诊断' }))
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
+    expect(generate.mock.calls[0][1]).toMatchObject({ intent: 'DIAGNOSIS_RECOMMENDATION' })
+    expect(await screen.findByText('急性上呼吸道感染')).toBeInTheDocument()
+    // An empty recordDraft yields only the diagnosis rows: no record diff and no order rows.
+    expect(await screen.findByRole('button', { name: /确认所选诊断/ })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /丢弃本轮推荐/ })).not.toBeInTheDocument()
+    expect(onApply).not.toHaveBeenCalled()
+  })
+})

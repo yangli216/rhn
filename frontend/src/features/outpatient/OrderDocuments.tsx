@@ -46,9 +46,8 @@ export function documentMissing(doc: OrderDocument): string[] {
   if (doc.kind === 'prescription' && doc.value.status !== 'DRAFT') return []
   if (doc.kind === 'service' && (doc.value as ServiceRequest).documentInfoEditable === false) return []
   const info = doc.value.documentInfo
-  return [!info?.diagnoses.length ? '关联诊断' : '',
-    doc.kind === 'service' && requiresExaminationPurpose(doc.value as ServiceRequest)
-      && !info?.examinationPurpose?.trim() ? '检查目的' : ''].filter(Boolean)
+  // 检查目的为选填，不计入待完善。
+  return [!info?.diagnoses.length ? '关联诊断' : ''].filter(Boolean)
 }
 
 export function OrderDocumentSummary({

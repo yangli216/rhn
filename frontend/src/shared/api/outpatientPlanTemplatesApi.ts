@@ -473,8 +473,9 @@ export function createOutpatientPlanTemplatesApi(client: ApiClient) {
       }),
     minedSuggestions: () =>
       client.request<MinedPlanSuggestion[]>('/api/ai/clinical-assistant/plan-templates/mined-suggestions'),
-    getHistoricalStablePlan: (encounterId: string) =>
-      client.request<HistoricalStablePlan | null>(`/api/ai/clinical-assistant/encounters/${encounterId}/historical-stable-plan`),
+    /** 无历史稳定方案时服务端返回空响应；统一为 null，避免 React Query 以 undefined 判为错误。 */
+    getHistoricalStablePlan: async (encounterId: string): Promise<HistoricalStablePlan | null> =>
+      (await client.request<HistoricalStablePlan | null | undefined>(`/api/ai/clinical-assistant/encounters/${encounterId}/historical-stable-plan`)) ?? null,
     compareHistoricalPlan: (encounterId: string, templateId: string) =>
       client.request<HistoricalPlanComparison>(`/api/ai/clinical-assistant/encounters/${encounterId}/historical-plan-comparison?templateId=${encodeURIComponent(templateId)}`),
   }

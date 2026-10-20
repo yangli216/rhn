@@ -48,6 +48,23 @@ export function annotationSegments(text: string, values?: readonly RecordAnnotat
   return result
 }
 
+/** Identity of one mark; matches the anchoring de-duplication key. */
+export function annotationKey(item: RecordAnnotation) {
+  return JSON.stringify([item.field, item.start, item.text, item.source, item.kind, item.binding])
+}
+
+/** Saving marks every annotation confirmed: it stops highlighting (provenance is kept), conflicts included. */
+export function isHighlighted(item: RecordAnnotation) {
+  return !item.confirmed
+}
+
+/** Marks that actually render as dashed text for the current content. */
+export function highlightedAnnotations(content: RecordText, values?: readonly RecordAnnotation[] | null): RecordAnnotation[] {
+  const anchored = anchorAnnotations(content, values ?? [])
+  return recordTextFields.flatMap((field) => annotationSegments(content[field] || '', anchored.filter((item) => item.field === field))
+    .flatMap(({ annotation }) => annotation && isHighlighted(annotation) ? [annotation] : []))
+}
+
 /** Rebase only provably unchanged ranges. Never re-find an edited phrase elsewhere in the document. */
 export function rebaseAnnotations(field: RecordTextField, before: string, after: string, values?: readonly RecordAnnotation[] | null): RecordAnnotation[] {
   const safeValues = values ?? []

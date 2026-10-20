@@ -97,6 +97,11 @@ export function summarizeExecutingDepartments(items: ExecutingDepartmentSource[]
   return [...new Set(items.map(item => resolveExecutingDepartment(item)))].join(' / ')
 }
 
+/** Header badge only when the document spans several departments; a single one is already shown in every row. */
+export function mixedDepartmentsOnly(summary: string): string | undefined {
+  return summary.includes(' / ') ? summary : undefined
+}
+
 export function serviceTypeLabel(value?: string) {
   return ({ LABORATORY: '检验', EXAMINATION: '检查', TREATMENT: '治疗', OTHER: '诊疗' } as Record<string, string>)[value || 'OTHER']
     ?? '诊疗'

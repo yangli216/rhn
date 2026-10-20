@@ -103,9 +103,9 @@ export function Button({
   </button>
 }
 
-export function IconButton({ icon, label, className = '', type = 'button', ...props }:
-  ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string }) {
-  return <button type={type} className={`ui-icon-button ${className}`} aria-label={label} title={label} {...props}>
+export function IconButton({ icon, label, size = 'md', className = '', type = 'button', ...props }:
+  ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string; /** `sm` is for dense table rows, where the default 40px target would stretch the row. */ size?: 'md' | 'sm' }) {
+  return <button type={type} className={`ui-icon-button${size === 'sm' ? ' ui-icon-button--sm' : ''} ${className}`} aria-label={label} title={label} {...props}>
     <Icon name={icon} />
   </button>
 }

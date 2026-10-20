@@ -1027,11 +1027,11 @@
 .doctor-ai-copilot-pill {
   height: var(--control-height-sm);
   min-height: var(--control-height-sm);
-  padding: 0 0.65rem 0 0.5rem;
+  padding: 0;
   border-radius: var(--radius-round);
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0;
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
   background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 85%, var(--color-surface)), var(--color-surface));
   color: var(--color-brand-strong);
@@ -1051,11 +1051,56 @@
   transform: translateY(-0.5px);
 }
 
-.doctor-ai-copilot-pill.is-active,
-.doctor-ai-copilot-pill:focus-visible {
+.doctor-ai-copilot-pill.is-active {
   border-color: var(--color-brand-primary);
   box-shadow: 0 0 0 2px var(--color-focus-ring);
   outline: none;
+}
+
+/* Capsule segments: title / next-step action / caret are sibling buttons sharing one outline. */
+.doctor-ai-copilot-pill__main,
+.doctor-ai-copilot-pill__action,
+.doctor-ai-copilot-pill__toggle {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.doctor-ai-copilot-pill__main {
+  gap: 0.35rem;
+  padding: 0 0.35rem 0 0.5rem;
+  border-radius: var(--radius-round) 0 0 var(--radius-round);
+}
+.doctor-ai-copilot-pill__action {
+  align-self: center;
+  height: calc(100% - 6px);
+  padding: 0 0.55rem;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+.doctor-ai-copilot-pill__action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 26%, transparent);
+}
+.doctor-ai-copilot-pill__action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.doctor-ai-copilot-pill__toggle {
+  padding: 0 0.6rem 0 0.3rem;
+  border-radius: 0 var(--radius-round) var(--radius-round) 0;
+}
+.doctor-ai-copilot-pill__main:focus-visible,
+.doctor-ai-copilot-pill__action:focus-visible,
+.doctor-ai-copilot-pill__toggle:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
 }
 
 .doctor-ai-copilot-pill__icon {
@@ -1639,10 +1684,6 @@
 .doctor-record-expand > .ui-button { height: 1.5rem; padding-inline: var(--space-1); }
 .doctor-record-expand__key { font: inherit; }
 .doctor-record-expand__error { color: var(--color-danger); font-size: var(--font-size-small); }
-
-.doctor-ai-copilot-pill__tag.is-next {
-  background: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
-}
 
 .doctor-ai-next-step {
   display: flex;

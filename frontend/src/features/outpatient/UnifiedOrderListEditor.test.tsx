@@ -344,7 +344,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(within(row).queryByText(/库存|可用|余量/)).not.toBeInTheDocument()
   })
 
-  it('resolves saved laboratory department names in both document headers and item rows', async () => {
+  it('resolves saved laboratory department names in item rows without repeating them in document headers', async () => {
     vi.mocked(mockApi.organization.departments).mockResolvedValue([
       { id: 'lab-dept', organizationId: 'org-1', name: '医学检验科', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null },
     ] as never)
@@ -353,7 +353,8 @@ describe('UnifiedOrderListEditor', () => {
       authoredAt: '2026-10-09T00:00:00Z',
       performerOrganizationId: 'org-1', performerDepartmentId: 'lab-dept', quantity: 1, unitCode: '次',
     } as never)) })
-    await waitFor(() => expect(screen.getAllByText('医学检验科')).toHaveLength(4))
+    // 行内已有执行科室列，单一科室的单据抬头不再重复显示
+    await waitFor(() => expect(screen.getAllByText('医学检验科')).toHaveLength(2))
     for (const itemName of ['血常规（五分类）', 'C反应蛋白测定']) {
       expect(within(screen.getByRole('row', { name: new RegExp(itemName) })).getByText('医学检验科')).toBeInTheDocument()
     }
@@ -382,7 +383,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getByText('血常规五分类')).toBeInTheDocument()
     expect(screen.getByText('C反应蛋白测定')).toBeInTheDocument()
     expect(screen.queryByText('DEMO-LAB-CRP')).not.toBeInTheDocument()
-    expect(screen.getAllByText('科室编号：98648483543646209（名称待确认）')).toHaveLength(2)
+    expect(screen.getAllByText('科室编号：98648483543646209（名称待确认）')).toHaveLength(1)
     expect(screen.queryByText('检验科')).not.toBeInTheDocument()
     expect(screen.queryByText('LAB001')).not.toBeInTheDocument()
     expect(screen.getAllByText('¥25.00').length).toBeGreaterThanOrEqual(1)
@@ -406,8 +407,10 @@ describe('UnifiedOrderListEditor', () => {
 
     const addOrderLauncher = screen.getByRole('button', { name: '新增医嘱' })
     const table = screen.getByRole('table', { name: '本次医嘱连续录入列表' })
-    expect(table.lastElementChild).toContainElement(addOrderLauncher)
-    expect(table.lastElementChild?.previousElementSibling).toBe(screen.getByRole('row', { name: '编辑待确认医嘱 阿莫西林胶囊' }))
+    // 启动器是挂在列表容器底边的倒挂标签（与诊断一致），不在滚动容器内、不另占一行
+    expect(table).not.toContainElement(addOrderLauncher)
+    expect(table.nextElementSibling).toHaveClass('is-launcher')
+    expect(table.nextElementSibling).toContainElement(addOrderLauncher)
     await userEvent.click(addOrderLauncher)
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
 

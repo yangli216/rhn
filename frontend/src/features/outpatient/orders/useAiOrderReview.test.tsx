@@ -93,6 +93,14 @@ describe('AI order review lifecycle', () => {
     }
   })
 
+  it('uses the AI purpose carried as the order instruction for the clinical description', async () => {
+    const { props, complete } = setup({}, { purpose: '排查感染', orderDraft: { quantity: 1, instruction: '排查感染' } })
+    renderHook(useAiOrderReview, { initialProps: props })
+    await complete()
+    const update = vi.mocked(props.setServiceDrafts).mock.calls[0][0]
+    if (typeof update === 'function') expect(update([])[0].clinicalDescription).toBe('排查感染')
+  })
+
   it.each([undefined, 'dept-2'])('revalidates and preserves the default or edited execution department: %s', async id => {
     const { props, complete } = setup({}, id ? { orderDraft: {
       quantity: 1, performerOrganizationId: 'org-1', performerDepartmentId: id,

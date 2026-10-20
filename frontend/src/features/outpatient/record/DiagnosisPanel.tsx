@@ -28,7 +28,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
   const [draggedDiagnosisKey, setDraggedDiagnosisKey] = useState<string>()
   const [diagnosisError, setDiagnosisError] = useState('')
   const [diagnosisHovered, setDiagnosisHovered] = useState(false)
-  const [viewingGuideline, setViewingGuideline] = useState<string | null>(null)
+  const [viewingGuideline, setViewingGuideline] = useState<{ name: string; icd10?: string } | null>(null)
 
   useEffect(() => {
     if (!diagnosisComposerOpen && diagnoses.length > 0) return
@@ -150,7 +150,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
                   <IconButton icon="book-open" label="指南"
                     className="doctor-diag-guide-btn"
                     title={`在临床知识库中查阅《${item.display}》相关指南`}
-                    onClick={() => setViewingGuideline(item.display)}
+                    onClick={() => setViewingGuideline({ name: item.display, icd10: item.code })}
                   />
                 </div>
               </span>
@@ -297,7 +297,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
     <MedicalInsertViewerModal
       isOpen={Boolean(viewingGuideline)}
       onClose={() => setViewingGuideline(null)}
-      target={viewingGuideline ? { name: viewingGuideline, type: 'guideline' } : null}
+      target={viewingGuideline ? { name: viewingGuideline.name, icd10: viewingGuideline.icd10, type: 'guideline' } : null}
       api={api}
     />
   </Panel>

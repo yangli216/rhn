@@ -39,7 +39,7 @@ describe('ManualClinicalTemplateDialog', () => {
           source: 'TEMPLATE', kind: 'VARIABLE', binding: 'symptom.cough.duration' }] },
       }} />)
 
-    expect(screen.getByRole('button', { name: '3天：模板预设' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '3天：模板内容 · 需按本次患者替换' })).toBeInTheDocument()
     const legend = screen.getByRole('complementary', { name: '病历标记说明' })
     expect(legend.parentElement?.lastElementChild).toBe(legend)
     expect(legend).toHaveTextContent('蓝色：需按本次患者替换')

@@ -47,13 +47,15 @@ export function mergeNoteTemplateContent(current: OutpatientNoteTemplateContent,
   return next
 }
 
-export function NoteTemplateBar({ api, disabled, currentContent, onApply, contextKey, showApply = true }: {
+export function NoteTemplateBar({ api, disabled, currentContent, onApply, contextKey, showApply = true, defaultName }: {
   api: Pick<RhnApi, 'outpatientNoteTemplates'>
   disabled: boolean
   contextKey: string
   currentContent: () => OutpatientNoteTemplateContent
   onApply: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => number
   showApply?: boolean
+  /** Suggested template name when saving, e.g. the primary diagnosis. */
+  defaultName?: string
 }) {
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState('')
@@ -141,7 +143,7 @@ export function NoteTemplateBar({ api, disabled, currentContent, onApply, contex
       {showApply && <Button size="sm" type="button" variant="secondary" disabled={disabled}
         onClick={openApply}>调入病历模板</Button>}
       <Button size="sm" type="button" variant="text" disabled={disabled}
-        onClick={() => { setNotice(''); save.reject(''); setSaveOpen(true) }}>存为病历模板</Button>
+        onClick={() => { setNotice(''); save.reject(''); setName((current) => current.trim() ? current : defaultName ?? ''); setSaveOpen(true) }}>存为模板</Button>
     </div>
     {showApply && templates.isPending && <small>正在加载模板…</small>}
     {notice && !applyOpen && <span role="status">{notice}</span>}

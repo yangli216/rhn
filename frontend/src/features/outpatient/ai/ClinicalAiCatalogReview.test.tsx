@@ -20,7 +20,7 @@ describe('unresolved AI catalog intents', () => {
     render(<ClinicalAiCatalogReview matches={[ambiguous]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={onResolved} />)
     expect(screen.getByRole('checkbox', { name: '选择 血常规' })).toBeDisabled()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
     await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
     await user.click(screen.getByRole('option', { name: '血常规（五分类）' }))
@@ -33,7 +33,7 @@ describe('unresolved AI catalog intents', () => {
     const match = { ...ambiguous, key: 'ct', intent: { type: 'EXAMINATION', name: '胸部CT' },
       status: 'NO_ORDERABLE_SERVICE', reason: '本院可开立目录未匹配，仅供医生评估医嘱方向；可调整名称重新检索。', candidates: [] }
     render(<ClinicalAiCatalogReview matches={[match]} api={{} as RhnApi} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    expect(screen.getByText('虚线项目需先核对院内目录才能勾选')).toBeInTheDocument()
+    expect(screen.getByText('有推荐匹配的项目可直接勾选确认；其余请点击绑定图标核对院内目录')).toBeInTheDocument()
     expect(screen.getByRole('row', { name: '胸部CT · 未匹配本院项目' })).toHaveClass('doctor-unified-order-row', 'is-catalog-pending')
     const checkbox = screen.getByRole('checkbox', { name: '选择 胸部CT' })
     expect(checkbox).toBeDisabled()
@@ -41,7 +41,7 @@ describe('unresolved AI catalog intents', () => {
     await userEvent.click(checkbox)
     expect(onResolved).not.toHaveBeenCalled()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '核对目录 胸部CT' }))
+    await userEvent.click(screen.getByRole('button', { name: '绑定院内目录 胸部CT' }))
     expect(screen.getByRole('dialog', { name: '匹配院内项目 · 胸部CT' })).toHaveClass('ui-dialog--panel')
     expect(screen.getByRole('combobox', { name: '检索 胸部CT' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
@@ -55,7 +55,7 @@ describe('unresolved AI catalog intents', () => {
       reason: '已找到相关院内项目，请核对标本、检查方法及本次适用性后选择。', candidates: [item] }
     render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi(item)} encounterId="e1" disabled={false} onResolved={onResolved} />)
     expect(screen.getByText('待选项目')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '核对目录 痰培养' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 痰培养' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
     await user.click(screen.getByRole('combobox', { name: '匹配 痰培养' }))
     await user.click(screen.getByRole('option', { name: item.name }))
@@ -68,7 +68,7 @@ describe('unresolved AI catalog intents', () => {
       candidates: [{ type: 'MEDICATION' as const, catalogItemId: 'p1', medicationId: 'm1', code: 'M', name: '测试药品', specification: '0.5g' }] }
     render(<ClinicalAiCatalogReview matches={[match]} api={{} as RhnApi} encounterId="e1" disabled={false} onResolved={vi.fn()} />)
     expect(screen.getByText(/建议规格：250mg/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '核对目录 测试药品' }))
+    await userEvent.click(screen.getByRole('button', { name: '绑定院内目录 测试药品' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
   })
 
@@ -78,7 +78,7 @@ describe('unresolved AI catalog intents', () => {
     const api = { clinicalAi: { resolveTreatments } } as unknown as RhnApi
     const props = { matches: [{ ...ambiguous, candidates: [], status: 'CATALOG_ERROR' }], api, disabled: false, onResolved: vi.fn() }
     const view = render(<ClinicalAiCatalogReview {...props} encounterId="e1" />)
-    await userEvent.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await userEvent.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     await userEvent.click(screen.getByRole('button', { name: '重新核查' }))
     view.rerender(<ClinicalAiCatalogReview {...props} encounterId="e2" />)
     await act(async () => complete([{ ...ambiguous, status: 'MATCHED', candidates: [candidates[0]] }]))
@@ -89,7 +89,7 @@ describe('unresolved AI catalog intents', () => {
   it('does not expand a locked encounter and supports the evidence drawer layout', async () => {
     const onResolved = vi.fn()
     render(<ClinicalAiCatalogReview layout="compact" matches={[ambiguous]} api={{} as RhnApi} encounterId="e1" disabled onResolved={onResolved} />)
-    const toggle = screen.getByRole('button', { name: '核对目录 血常规' })
+    const toggle = screen.getByRole('button', { name: '绑定院内目录 血常规' })
     expect(toggle).toBeDisabled()
     await userEvent.click(toggle)
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('unresolved AI catalog intents', () => {
     // One meta line: the AI name repeats only when it differs from the preselected item.
     expect(screen.getByText('AI 建议：血常规 · Jev 判断集中度 73%，低于阈值需核对')).toBeInTheDocument()
     const row = screen.getByRole('row')
-    await userEvent.click(within(row).getByRole('button', { name: '核对目录 血常规' }))
+    await userEvent.click(within(row).getByRole('button', { name: '绑定院内目录 血常规' }))
     const panel = screen.getByRole('dialog')
     expect(row).not.toContainElement(panel)
     expect(within(panel).getByText(/当前阈值 90%/)).toBeInTheDocument()
@@ -118,11 +118,11 @@ describe('unresolved AI catalog intents', () => {
     const match = { ...ambiguous, intent: { ...ambiguous.intent, rationale: '结合本次已知异常评估感染线索' }, decisionReview: { status: 'COMPLETED' as const, choice: 'NONE', confidence: .925,
       threshold: .9, suggestedItem: candidates[1], detail: 'Jev 未确认等价项，最高概率备选需人工核对。' } }
     render(<ClinicalAiCatalogReview matches={[match]} api={api} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    expect(screen.getByRole('checkbox', { name: '选择 血常规' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: '选择 血常规' })).toBeEnabled()
     expect(screen.getByText(candidates[1].name)).toBeInTheDocument()
     expect(screen.getByText(/未确认等价项/)).toBeInTheDocument()
     expect(onResolved).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     expect(screen.getByRole('combobox', { name: '匹配 血常规' })).toHaveTextContent(candidates[1].name)
     expect(screen.getByText('推荐依据：结合本次已知异常评估感染线索')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '确认匹配' }))
@@ -135,12 +135,12 @@ describe('unresolved AI catalog intents', () => {
     const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, confidence: .73,
       suggestedItem: candidates[1], detail: '需核对' } }
     render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
     await user.click(screen.getByRole('button', { name: '清空选择' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '取消' }))
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
     expect(onResolved).not.toHaveBeenCalled()
   })
@@ -149,7 +149,7 @@ describe('unresolved AI catalog intents', () => {
     const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, confidence: .99,
       suggestedItem: { ...candidates[0], catalogItemId: 'foreign' }, detail: '核对' } }
     render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={vi.fn()} />)
-    await userEvent.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await userEvent.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     expect(screen.getByRole('button', { name: '确认匹配' })).toBeDisabled()
   })
 
@@ -161,7 +161,7 @@ describe('unresolved AI catalog intents', () => {
     const api = { masterData: { services }, clinicalAi: { resolveTreatments } } as unknown as RhnApi
     const onResolved = vi.fn()
     render(<ClinicalAiCatalogReview matches={[ambiguous]} api={api} organizationId="org1" encounterId="e1" disabled={false} onResolved={onResolved} />)
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     await user.click(screen.getByRole('combobox', { name: '检索 血常规' }))
     await user.type(screen.getByPlaceholderText('输入项目名称、编码或项目类型'), '血细胞')
     await user.click(await screen.findByRole('option', { name: /血细胞分析/ }))
@@ -175,7 +175,7 @@ describe('unresolved AI catalog intents', () => {
     const user = userEvent.setup(), onResolved = vi.fn()
     const api = { clinicalAi: { resolveTreatments: vi.fn().mockResolvedValue([{ ...ambiguous, status: 'NO_ORDERABLE_SERVICE', reason: '所选项目已停用', candidates: [] }]) } } as unknown as RhnApi
     render(<ClinicalAiCatalogReview matches={[ambiguous]} api={api} encounterId="e1" disabled={false} onResolved={onResolved} />)
-    await user.click(screen.getByRole('button', { name: '核对目录 血常规' }))
+    await user.click(screen.getByRole('button', { name: '绑定院内目录 血常规' }))
     await user.click(screen.getByRole('combobox', { name: '匹配 血常规' }))
     await user.click(screen.getByRole('option', { name: candidates[0].name }))
     await user.click(screen.getByRole('button', { name: '确认匹配' }))
@@ -194,5 +194,48 @@ describe('unresolved AI catalog intents', () => {
       expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({ intents: [ambiguous.intent] })
       await expect(api.clinicalAi.resolveTreatments('e1', [ambiguous.intent])).rejects.toThrow('目录不可访问')
     } finally { fetcher.mockRestore() }
+  })
+
+  it('confirms a recommended match by ticking the row and validates through resolveTreatments', async () => {
+    const user = userEvent.setup(), onResolved = vi.fn(), api = checkedApi(candidates[1])
+    const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, confidence: .73, threshold: .9, suggestedItem: candidates[1], detail: '需核对' } }
+    render(<ClinicalAiCatalogReview matches={[match]} api={api} encounterId="e1" disabled={false} onResolved={onResolved} />)
+    await user.click(screen.getByRole('checkbox', { name: '选择 血常规' }))
+    expect(api.clinicalAi.resolveTreatments).toHaveBeenCalledWith('e1', [expect.objectContaining({ catalogItemId: 'three' })])
+    expect(onResolved).toHaveBeenCalledWith(['cbc'], [{ ...candidates[1], aiOriginalName: '血常规' }])
+  })
+
+  it('carries the AI usage mapped onto the chosen candidate through the confirmation re-check', async () => {
+    const user = userEvent.setup(), onResolved = vi.fn()
+    const usageSuggestion = { doseValue: 10, doseUnit: 'mg', routeCode: 'PO', frequencyCode: 'QD', durationDays: 3 }
+    const withUsage = [candidates[0], { ...candidates[1], usageSuggestion }]
+    const api = checkedApi(candidates[1])
+    const match = { ...ambiguous, candidates: withUsage,
+      decisionReview: { status: 'COMPLETED' as const, confidence: .73, threshold: .9, suggestedItem: withUsage[1], detail: '需核对' } }
+    render(<ClinicalAiCatalogReview matches={[match]} api={api} encounterId="e1" disabled={false} onResolved={onResolved} />)
+    await user.click(screen.getByRole('checkbox', { name: '选择 血常规' }))
+    expect(onResolved).toHaveBeenCalledWith(['cbc'], [{ ...candidates[1], aiOriginalName: '血常规', usageSuggestion }])
+  })
+
+  it('reverts the tick and explains the reason when row validation fails', async () => {
+    const user = userEvent.setup(), onResolved = vi.fn()
+    const match = { ...ambiguous, status: 'MATCHED', candidates: [candidates[0]] }
+    const api = { clinicalAi: { resolveTreatments: vi.fn().mockResolvedValue([{ ...match, status: 'NO_ORDERABLE_SERVICE', reason: '所选项目已停用', candidates: [] }]) } } as unknown as RhnApi
+    render(<ClinicalAiCatalogReview matches={[match]} api={api} encounterId="e1" disabled={false} onResolved={onResolved} />)
+    const box = screen.getByRole('checkbox', { name: '选择 血常规' })
+    await user.click(box)
+    expect(await screen.findByRole('alert')).toHaveTextContent('所选项目已停用')
+    expect(box).not.toBeChecked()
+    expect(onResolved).not.toHaveBeenCalled()
+  })
+
+  it('keeps rows without a preselected candidate, split groups with a gap, and locked rows disabled', () => {
+    const matched = { ...ambiguous, key: 'a', status: 'MATCHED', candidates: [candidates[0]] }
+    const { unmount } = render(<ClinicalAiCatalogReview matches={[ambiguous]} api={{} as RhnApi} encounterId="e1" disabled={false} onResolved={vi.fn()} />)
+    expect(screen.getByRole('checkbox', { name: '选择 血常规' })).toBeDisabled()
+    unmount()
+    const locked = render(<ClinicalAiCatalogReview matches={[matched]} api={{} as RhnApi} encounterId="e1" disabled onResolved={vi.fn()} />)
+    expect(screen.getByRole('checkbox', { name: '选择 血常规' })).toBeDisabled()
+    locked.unmount()
   })
 })

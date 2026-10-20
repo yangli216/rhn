@@ -148,6 +148,10 @@ export interface ClinicalAiTreatmentRecommendation {
   rationale?: string | null
   /** Original AI wording retained after a clinician maps to an actual catalog item. */
   aiOriginalName?: string
+  /** Brief examination purpose (LABORATORY/EXAMINATION only, ~30 chars); prefills the editable purpose. */
+  purpose?: string
+  /** AI-prefilled usage draft; every field is independently optional and still needs physician review. */
+  usageSuggestion?: { doseValue?: number; doseUnit?: string; routeCode?: string; frequencyCode?: string; durationDays?: number }
   /** Catalog-backed, physician-editable details; revalidated when accepting into order drafts. */
   orderDraft?: {
     packageId?: string
@@ -357,11 +361,12 @@ export function createClinicalAiApi(client: ApiClient) {
       `/api/ai/clinical-assistant/encounters/${encounterId}/treatment-matches`,
       { method: 'POST', body: JSON.stringify({ intents }) },
     ),
-    getWikiDoc: (query: { name?: string; id?: string; type?: string }) => {
+    getWikiDoc: (query: { name?: string; id?: string; type?: string; icd10?: string }) => {
       const search = new URLSearchParams()
       if (query.name) search.set('name', query.name)
       if (query.id) search.set('id', query.id)
       if (query.type) search.set('type', query.type)
+      if (query.icd10) search.set('icd10', query.icd10)
       return client.request<ClinicalAiWikiDocResult>(
         `/api/ai/clinical-assistant/wiki/doc?${search.toString()}`,
       )

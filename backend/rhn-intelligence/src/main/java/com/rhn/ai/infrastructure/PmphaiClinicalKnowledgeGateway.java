@@ -140,6 +140,11 @@ final class PmphaiClinicalKnowledgeGateway implements ClinicalKnowledgeGateway {
 
     @Override
     public WikiDocResult lookupWikiDoc(String query, String docType, ClinicalAssistantSettings runtimeSettings) {
+        return lookupWikiDoc(query, docType, null, runtimeSettings);
+    }
+
+    @Override
+    public WikiDocResult lookupWikiDoc(String query, String docType, String icd10, ClinicalAssistantSettings runtimeSettings) {
         ClinicalAssistantSettings active = runtimeSettings == null ? settings : runtimeSettings;
         if (!active.knowledgeAvailable()) throw new ClinicalAiModelException("医学知识服务配置不完整");
         StringBuilder queryParams = new StringBuilder();
@@ -149,6 +154,10 @@ final class PmphaiClinicalKnowledgeGateway implements ClinicalKnowledgeGateway {
         if (docType != null && !docType.isBlank()) {
             if (!queryParams.isEmpty()) queryParams.append("&");
             queryParams.append("type=").append(java.net.URLEncoder.encode(docType.trim(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        if (icd10 != null && !icd10.isBlank()) {
+            if (!queryParams.isEmpty()) queryParams.append("&");
+            queryParams.append("icd10=").append(java.net.URLEncoder.encode(icd10.trim(), java.nio.charset.StandardCharsets.UTF_8));
         }
         URI docEndpoint = siblingEndpoint(active.knowledgeEndpoint(), "doc");
         URI targetUri = queryParams.isEmpty() ? docEndpoint : URI.create(docEndpoint + "?" + queryParams);

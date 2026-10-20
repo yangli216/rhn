@@ -111,7 +111,7 @@ export function OrderComposerResource({
             </>
           )}
           {onInspectMedication && (
-            <IconButton icon="file-text" label="说明书"
+            <IconButton icon="file-text" size="sm" label="说明书"
               title={`在临床知识库中查阅《${selectedProduct?.product?.name || medicationOption?.label || ''}》药品资料`}
               onClick={(e) => {
                 e.stopPropagation()

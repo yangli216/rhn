@@ -168,6 +168,19 @@ class PmphaiClinicalKnowledgeGatewayTest {
                 exchange.getResponseHeaders().set("Content-Type", "application/json");
                 exchange.sendResponseHeaders(200, response.length);
                 exchange.getResponseBody().write(response);
+            } else if (query != null && query.contains("icd10=J30.4")) {
+                byte[] response = """
+                        {
+                          "id": "PROT-AR-016",
+                          "title": "变应性鼻炎门诊阶梯抗过敏与鼻喷激素方案",
+                          "type": "protocol",
+                          "icd10": "J30.4",
+                          "html": "<h1>变应性鼻炎方案</h1>"
+                        }
+                        """.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, response.length);
+                exchange.getResponseBody().write(response);
             } else {
                 exchange.sendResponseHeaders(404, -1);
             }
@@ -180,6 +193,10 @@ class PmphaiClinicalKnowledgeGatewayTest {
         org.junit.jupiter.api.Assertions.assertNotNull(doc);
         assertEquals("厄贝沙坦片", doc.genericName());
         assertEquals("300mg qd", doc.maxDailyDose());
+
+        var docIcd = gateway.lookupWikiDoc("未特指的变应性鼻炎", "guideline", "J30.4", settings(null));
+        org.junit.jupiter.api.Assertions.assertNotNull(docIcd);
+        assertEquals("PROT-AR-016", docIcd.id());
 
         var notFound = gateway.lookupWikiDoc("不存在的药物", "drug", settings(null));
         org.junit.jupiter.api.Assertions.assertNull(notFound);

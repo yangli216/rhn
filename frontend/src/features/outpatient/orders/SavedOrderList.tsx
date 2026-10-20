@@ -7,7 +7,7 @@ import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { documentMissing, type OrderDocument } from '../OrderDocuments'
 import { canPrintPrescription } from './dispensableOptions'
-import { resolveExecutingDepartment, summarizeExecutingDepartments } from './orderPresentation'
+import { mixedDepartmentsOnly, summarizeExecutingDepartments } from './orderPresentation'
 import { extractSpecialMethod, parseHerbalInstruction } from './herbalInstructions'
 import { HerbalFormulaHeaderBar } from './HerbalFormulaHeaderBar'
 import { HerbalPrescriptionMatrix } from './HerbalPrescriptionMatrix'
@@ -85,8 +85,6 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   kind={groupKind}
                   itemCount={docItems.length}
                   itemUnit="项"
-                  dept={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: svc.performerDepartmentId,
-                    performerDepartmentName: departmentName(svc) })}
                   subtotal={subtotal}
                   missingFields={missingFields}
                   onEdit={onEdit}
@@ -119,8 +117,12 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   kind={groupKind}
                   itemCount={docItems.length}
                   itemUnit={isHerbal ? '味' : '项'}
-                  dept={summarizeExecutingDepartments(docItems.map(entry => ({ kind: 'medication',
-                    ...(entry.value as MedicationRequest) })))}
+                  // 行内已有“执行科室”列：中药饮片矩阵（无该列）始终显示，其余仅在跨多个科室时汇总。
+                  dept={(() => {
+                    const summary = summarizeExecutingDepartments(docItems.map(entry => ({ kind: 'medication',
+                      ...(entry.value as MedicationRequest) })))
+                    return isHerbal ? summary : mixedDepartmentsOnly(summary)
+                  })()}
                   subtotal={subtotal}
                   missingFields={missingFields}
                   onEdit={onEdit}

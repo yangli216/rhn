@@ -1,5 +1,5 @@
 import type { MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
-import { summarizeExecutingDepartments } from './orderPresentation'
+import { summarizeExecutingDepartments, mixedDepartmentsOnly } from './orderPresentation'
 import { draftOrderSubtotal } from './orderSubtotal'
 import { Fragment, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import type { ActiveOrderFrequency } from '../../../shared/api/masterDataApi'
@@ -176,7 +176,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
-                dept={executingDepartments}
+                dept={mixedDepartmentsOnly(executingDepartments)}
                 subtotal={subtotal}
               />
             )
@@ -190,7 +190,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
-                dept={executingDepartments}
+                dept={mixedDepartmentsOnly(executingDepartments)}
                 subtotal={subtotal}
               />
             )
@@ -204,7 +204,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
-                dept={executingDepartments}
+                dept={mixedDepartmentsOnly(executingDepartments)}
                 subtotal={subtotal}
               />
             )
@@ -215,10 +215,10 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
                 key="draft-group-other"
                 title="诊疗医嘱"
                 kind="treatment"
-                dept={executingDepartments}
                 isDraft
                 itemCount={catDrafts.length}
                 itemUnit="项"
+                dept={mixedDepartmentsOnly(executingDepartments)}
                 subtotal={subtotal}
               />
             )

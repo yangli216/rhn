@@ -670,7 +670,7 @@ describe('DoctorWorkstation reception flow', () => {
     const recordHeading = await screen.findByRole('heading', { name: '门诊病历' })
     expect(recordHeading).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '调入病历模板' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '存为病历模板' }).closest('header')).toContainElement(recordHeading)
+    expect(screen.getByRole('button', { name: '存为模板' }).closest('header')).toContainElement(recordHeading)
     const clinicalTemplates = screen.getByRole('button', { name: '临床模板' })
     expect(clinicalTemplates.closest('nav')).toHaveAccessibleName('医生站扩展工具')
     await user.click(clinicalTemplates)
@@ -2592,7 +2592,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(screen.queryByText('未构建检查方向')).not.toBeInTheDocument()
   })
 
-  it('edits template marks inline and confirms their remaining sources through the existing save action', async () => {
+  it('edits template marks inline and ends highlighting through the existing save action', async () => {
     const api = aiApi()
     api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
     api.encounters.bloodPressureRequirement = vi.fn().mockResolvedValue({ required: false, enforceAt: 'COMPLETION', minAge: 18 })
@@ -2614,24 +2614,25 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
     await user.click(await within(drawer).findByRole('button', { name: '带入病历草稿 (2)' }))
     const legend = screen.getByRole('complementary', { name: '病历标记说明' })
-    expect(legend).toHaveTextContent('虚线文字可点击查看来源并调整')
+    expect(legend).toHaveTextContent('虚线文字可点击核实')
     expect(legend).toHaveTextContent('蓝色：需按本次患者替换')
-    expect(legend).toHaveTextContent('橙色：重点信息')
+    expect(legend).toHaveTextContent('橙色：AI 推荐待核实')
+    expect(legend).not.toHaveTextContent(/待核实 \d/)
+    expect(legend).not.toHaveTextContent('灰色')
     const annotationFooter = document.querySelector('#doctor-record-form')?.lastElementChild
     expect(annotationFooter).toContainElement(legend)
-    expect(annotationFooter).toContainElement(screen.getByRole('button', { name: '隐藏标记' }))
-    await user.click(screen.getByRole('button', { name: '隐藏标记' }))
-    expect(screen.queryByRole('complementary', { name: '病历标记说明' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '显示标记' }))
-    await user.click(await screen.findByRole('button', { name: '3天：模板预设 · 咳嗽病程' }))
-    await user.clear(screen.getByLabelText('调整文字'))
-    await user.type(screen.getByLabelText('调整文字'), '5天')
-    await user.click(screen.getByRole('button', { name: '应用修改' }))
+    expect(screen.queryByRole('button', { name: /隐藏标记|显示标记/ })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '3天：模板内容 · 需按本次患者替换' }))
+    expect(screen.queryByLabelText('调整文字')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '模板内容 · 需按本次患者替换' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('textbox', { name: '现病史' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '现病史' }), { target: { value: '咳嗽5天，用药3天；无胸痛' } })
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
     vi.mocked(api.clinicalDocuments.byEncounter).mockResolvedValueOnce([])
     await user.click(screen.getByRole('button', { name: '保存草稿' }))
     expect((await screen.findAllByText(/病历保存回执未确认.*未找到唯一的本次门诊病历/)).length).toBeGreaterThan(0)
-    expect(screen.queryByRole('button', { name: '无胸痛：模板预设 · 重点阴性 · 已保存确认' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '无胸痛：模板内容 · 待核实' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽5天，用药3天；无胸痛')
     await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
@@ -2639,7 +2640,45 @@ describe('DoctorWorkstation inline AI collaboration', () => {
       annotations: expect.arrayContaining([expect.objectContaining({ source: 'DOCTOR', binding: 'symptom.cough.duration' }),
         expect.objectContaining({ text: '无胸痛', kind: 'IMPORTANT' })]),
     })))
-    expect(await screen.findByRole('button', { name: '无胸痛：模板预设 · 重点阴性 · 已保存确认' })).toBeInTheDocument()
+    // Existing save-as-confirm semantics: the saved receipt marks every mark confirmed, so highlighting ends after save.
+    await waitFor(() => expect(screen.queryByRole('button', { name: /无胸痛：/ })).not.toBeInTheDocument())
+    expect(screen.queryByRole('complementary', { name: '病历标记说明' })).not.toBeInTheDocument()
+  })
+
+  it('applies a quick wording action from the mark popover and saves the changed text', async () => {
+    const api = aiApi()
+    api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
+    api.encounters.bloodPressureRequirement = vi.fn().mockResolvedValue({ required: false, enforceAt: 'COMPLETION', minAge: 18 })
+    api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
+      diagnoses: [{ code: 'R05', display: '咳嗽', type: 'PRIMARY' }] }])
+    const [base] = await api.outpatientNoteTemplates.list()
+    const template = { ...base, content: { chiefComplaint: '咳嗽3天', presentIllness: '咳嗽3天，用药3天；无胸痛',
+      annotations: [
+        { field: 'presentIllness' as const, text: '3天', start: 2, source: 'TEMPLATE' as const,
+          kind: 'VARIABLE' as const, binding: 'symptom.cough.duration', label: '咳嗽病程' },
+        { field: 'presentIllness' as const, text: '无胸痛', source: 'TEMPLATE' as const,
+          kind: 'IMPORTANT' as const, label: '重点阴性' },
+      ] } }
+    vi.mocked(api.outpatientNoteTemplates.list).mockResolvedValue([template])
+    vi.mocked(api.outpatientNoteTemplates.use).mockResolvedValue(template)
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+    await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
+    await user.click(await within(drawer).findByRole('button', { name: '带入病历草稿 (2)' }))
+    await user.click(screen.getByRole('button', { name: '无胸痛：模板内容 · 待核实' }))
+    expect(screen.getByRole('button', { name: '改为：有' })).toHaveFocus()
+    expect(screen.queryByRole('button', { name: '确认无误' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '改为：有' }))
+    expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽3天，用药3天；有胸痛')
+    expect(screen.getByText(/已改为「有」/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '保存草稿' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      presentIllness: '咳嗽3天，用药3天；有胸痛',
+      annotations: expect.arrayContaining([expect.objectContaining({ text: '有', source: 'DOCTOR' })]),
+    })))
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: '病历标记说明' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /^(3天|有)：/ })).not.toBeInTheDocument()
   })
 
   it('saves a six-year-old patient record without blood pressure', async () => {

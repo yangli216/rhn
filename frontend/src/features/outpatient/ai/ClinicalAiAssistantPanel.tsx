@@ -1138,7 +1138,7 @@ function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, 
                 <small>{item.rationale || item.specification || ''}</small>
               </div>
               {item.type === 'MEDICATION' && onOpenInsert && (
-                <IconButton icon="file-text" label="说明书"
+                <IconButton icon="file-text" size="sm" label="说明书"
                   onClick={() => onOpenInsert({ name: item.name, id: item.medicationId, type: 'medication' })}
                   title={`查阅《${item.name}》说明书`}
                 />

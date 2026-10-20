@@ -28,7 +28,7 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
           <div className="doctor-order-name-with-action">
             <strong>{medName}</strong>
             {onInspectMedication && medName && (
-              <IconButton icon="file-text" label="说明书"
+              <IconButton icon="file-text" size="sm" label="说明书"
                 title={`在临床知识库中查阅《${medName}》药品资料`}
                 onClick={(e) => {
                   e.stopPropagation()

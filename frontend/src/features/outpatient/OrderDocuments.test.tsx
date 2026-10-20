@@ -31,7 +31,8 @@ describe('order document metadata', () => {
     expect(docs[0].shortLabel).toBe('方1')
     expect(documentMissing(docs[0])).toEqual(['关联诊断'])
     const services = orderDocuments([], [{ id: 's1', authoredAt: prescription.authoredAt, serviceType: 'EXAMINATION', status: 'ACTIVE', itemName: 'CT', clinicalDescription: '胸部' } as ServiceRequest])
-    expect(documentMissing(services[0])).toEqual(['关联诊断', '检查目的'])
+    // 检查目的为选填，不再计入待完善
+    expect(documentMissing(services[0])).toEqual(['关联诊断'])
     const treatment = orderDocuments([], [{ id: 's2', authoredAt: prescription.authoredAt, serviceType: 'TREATMENT', status: 'ACTIVE', itemName: '清创缝合' } as ServiceRequest])
     expect(treatment[0].label).toBe('治疗单1')
     expect(documentMissing(treatment[0])).toEqual(['关联诊断'])

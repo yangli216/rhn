@@ -72,12 +72,20 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 public class ClinicalAssistantApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ClinicalAssistantApplicationService.class);
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
-    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V14";
+    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V16";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v2";
     /** Record-only expansion of a short chief complaint; never retrieves plans or drafts diagnoses/orders. */
     private static final String RECORD_EXPANSION_PROMPT_VERSION = "RHN-RECORD-EXPANSION-V2";
     private static final String RECORD_EXPANSION_STAGE = "RECORD_EXPANSION";
+    private static final String DIAGNOSIS_RECOMMENDATION_PROMPT_VERSION = "RHN-DIAGNOSIS-RECOMMENDATION-V1";
+    private static final String DIAGNOSIS_RECOMMENDATION_STAGE = "DIAGNOSIS_ONLY";
+    private static final String TREATMENT_RECOMMENDATION_PROMPT_VERSION = "RHN-TREATMENT-RECOMMENDATION-V3";
+    private static final String TREATMENT_RECOMMENDATION_STAGE = "TREATMENT_ONLY";
+    private static final int TREATMENT_RECOMMENDATION_MAX_ITEMS = 12;
     private static final String RECORD_EXPANSION_RECOMMENDATION_LABEL = "AI推荐·待核实";
+    static final int RECORD_EXPANSION_MAX_AI_MARKS_PER_FIELD = 3;
+    static final int RECORD_EXPANSION_MAX_AI_MARKS_TOTAL = 8;
+    private static final java.util.Set<String> RECORD_EXPANSION_UNMARKED_FIELDS = java.util.Set.of("healthEducation", "followUp");
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
     /** 发热提示阈值（℃）。 */
@@ -274,6 +282,10 @@ public class ClinicalAssistantApplicationService {
     }
 
     public ClinicalKnowledgeGateway.WikiDocResult getWikiDoc(String query, String type) {
+        return getWikiDoc(query, type, null);
+    }
+
+    public ClinicalKnowledgeGateway.WikiDocResult getWikiDoc(String query, String type, String icd10) {
         ExecutionContext requestContext = contextProvider.requireCurrent();
         ClinicalAssistantSettings runtime = runtimePolicy.current(requestContext);
         requireAvailable(runtime, requestContext);
@@ -282,7 +294,9 @@ public class ClinicalAssistantApplicationService {
                     "临床知识库服务尚未配置；医生站其他功能不受影响。", HttpStatus.SERVICE_UNAVAILABLE);
         }
         try {
-            ClinicalKnowledgeGateway.WikiDocResult doc = knowledgeGateway.lookupWikiDoc(query, type, runtime);
+            ClinicalKnowledgeGateway.WikiDocResult doc = (icd10 != null && !icd10.isBlank())
+                    ? knowledgeGateway.lookupWikiDoc(query, type, icd10, runtime)
+                    : knowledgeGateway.lookupWikiDoc(query, type, runtime);
             if (doc == null) {
                 throw notFound("AI_WIKI_DOC_NOT_FOUND", "未找到对应的临床说明书或指南文档");
             }
@@ -367,13 +381,14 @@ public class ClinicalAssistantApplicationService {
         requireAvailable(runtime, requestContext);
         Access access = requireAccess(encounterId, true);
         requireRecordExpansionInput(input, runtime);
+        requireScopedRecommendationInput(input, runtime);
         Instant now = Instant.now();
         var temporalContext = new ClinicalAiModelGateway.TemporalContext(now, access.encounter().registeredAt());
         ServerContext serverContext = contextAssembler.load(access.context(), access.encounter(), true);
         timing.contextLoadMs = elapsedMillis(phaseStarted);
 
         phaseStarted = System.nanoTime();
-        List<ClinicalPlanRetrievalService.Match> recalled = input.recordExpansion() ? List.of()
+        List<ClinicalPlanRetrievalService.Match> recalled = input.recordExpansion() || input.scopedRecommendation() ? List.of()
                 : retrievePlans(input, serverContext.plans());
         var candidates = planDirectory.visibleByIds(recalled.stream().map(match -> match.plan().id()).toList())
                 .stream().collect(java.util.stream.Collectors.toMap(OutpatientPlanTemplateDirectory.PlanTemplateSnapshot::id, plan -> plan));
@@ -406,7 +421,7 @@ public class ClinicalAssistantApplicationService {
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("source", runtime.mode().name());
         evidence.put("promptVersion", runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? promptVersion(input) : null);
-        evidence.put("intent", input.recordExpansion() ? GenerationIntent.RECORD_EXPANSION
+        evidence.put("intent", input.recordExpansion() || input.scopedRecommendation() ? input.intent()
                 : GenerationIntent.FULL_ANALYSIS);
         evidence.put("parentSuggestionId", input.parentSuggestionId());
         evidence.put("receptionScene", input.receptionScene());
@@ -577,7 +592,7 @@ public class ClinicalAssistantApplicationService {
                     planMatches.stream().map(ClinicalPlanRetrievalService.Match::plan).toList(),
                     serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion,
                     input.receptionScene(), input.receptionSceneContext(),
-                    input.recordExpansion() ? RECORD_EXPANSION_STAGE : "RECORD_DIAGNOSIS", List.of(), temporalContext);
+                    generationStage(input), List.of(), temporalContext);
             raw = onDelta == null ? modelGateway.analyze(request, runtime)
                     : modelGateway.analyzeStreaming(request, runtime, onDelta);
         } catch (RuntimeException exception) {
@@ -602,6 +617,11 @@ public class ClinicalAssistantApplicationService {
         alerts.addAll(validatedBirthDateAlerts(raw.safetyAlerts(), serverContext.resident(), temporalContext.currentDate()));
         alerts = distinctAlerts(alerts, 10);
         if (input.recordExpansion()) return recordExpansionAnalysis(raw, input, alerts);
+        if (input.diagnosisRecommendation()) return diagnosisRecommendationAnalysis(raw, alerts);
+        if (input.treatmentRecommendation()) {
+            return treatmentRecommendationAnalysis(raw, input, serverContext, runtime, temporalContext, alerts,
+                    onStage, timing);
+        }
         List<String> missing = distinctStrings(merge(missingInformation(input.draft()), raw.missingInformation()), 10, 300);
         List<DiagnosisCandidate> candidates = validatedDiagnosisCandidates(raw.diagnosisCandidates(), 3);
         List<DiagnosisCandidate> differentials = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
@@ -654,8 +674,87 @@ public class ClinicalAssistantApplicationService {
         }
     }
 
+    /** Diagnosis/treatment recommendations are model-only, single-shot and need their own preconditions. */
+    private void requireScopedRecommendationInput(GenerateRequest input, ClinicalAssistantSettings runtime) {
+        if (!input.scopedRecommendation()) return;
+        String code = input.diagnosisRecommendation() ? "AI_DIAGNOSIS_RECOMMENDATION" : "AI_TREATMENT_RECOMMENDATION";
+        String label = input.diagnosisRecommendation() ? "AI 推荐诊断" : "AI 推荐医嘱";
+        if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL) {
+            throw conflict(code + "_MODEL_REQUIRED", label + "仅在模型辅助模式下可用");
+        }
+        if (input.parentSuggestionId() != null) {
+            throw badRequest(code + "_FOLLOW_UP_UNSUPPORTED", label + "不支持连续追问");
+        }
+        if (input.treatmentRecommendation() && input.draft().diagnoses().isEmpty()) {
+            throw badRequest("AI_TREATMENT_RECOMMENDATION_DIAGNOSIS_REQUIRED", "请先确认诊断后再推荐医嘱");
+        }
+    }
+
+    private static String generationStage(GenerateRequest input) {
+        if (input.recordExpansion()) return RECORD_EXPANSION_STAGE;
+        if (input.diagnosisRecommendation()) return DIAGNOSIS_RECOMMENDATION_STAGE;
+        if (input.treatmentRecommendation()) return TREATMENT_RECOMMENDATION_STAGE;
+        return "RECORD_DIAGNOSIS";
+    }
+
     private String promptVersion(GenerateRequest input) {
+        if (input.diagnosisRecommendation()) return DIAGNOSIS_RECOMMENDATION_PROMPT_VERSION;
+        if (input.treatmentRecommendation()) return TREATMENT_RECOMMENDATION_PROMPT_VERSION;
         return input.recordExpansion() ? RECORD_EXPANSION_PROMPT_VERSION : PROMPT_VERSION;
+    }
+
+    /** Diagnoses only: no record draft, orders or plans, whatever the model returned. */
+    private Analysis diagnosisRecommendationAnalysis(SuggestionContent raw, List<SafetyAlert> alerts) {
+        List<DiagnosisCandidate> candidates = validatedDiagnosisCandidates(raw.diagnosisCandidates(), 3);
+        List<DiagnosisCandidate> differentials = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
+        List<String> missing = distinctStrings(raw.missingInformation(), 5, 300);
+        String summary = clipped(raw.summary(), 1000);
+        if (blank(summary)) summary = "已依据当前病历给出诊断方向与鉴别诊断，请医生核对后确认。";
+        SuggestionContent content = new SuggestionContent(summary, emptyRecordDraft(), candidates, differentials, missing,
+                alerts, List.of(), MODEL_DISCLAIMER);
+        return new Analysis(content, riskLevel(alerts));
+    }
+
+    /** Orders only: catalog-matched from the model's search intents; no record draft, diagnoses or plans. */
+    private Analysis treatmentRecommendationAnalysis(SuggestionContent raw, GenerateRequest input,
+                                                     ServerContext serverContext, ClinicalAssistantSettings runtime,
+                                                     ClinicalAiModelGateway.TemporalContext temporalContext,
+                                                     List<SafetyAlert> alerts,
+                                                     java.util.function.Consumer<GenerationStage> onStage,
+                                                     GenerationTiming timing) {
+        List<String> missing = distinctStrings(raw.missingInformation(), 5, 300);
+        String summary = clipped(raw.summary(), 1000);
+        if (blank(summary)) summary = "已依据当前病历和已确认诊断给出医嘱建议，请逐项核对后开立。";
+        var intents = raw.treatmentRecommendations().stream().filter(java.util.Objects::nonNull)
+                .limit(TREATMENT_RECOMMENDATION_MAX_ITEMS).toList();
+        SuggestionContent content = new SuggestionContent(summary, emptyRecordDraft(), List.of(), List.of(), missing,
+                alerts, List.of(), MODEL_DISCLAIMER);
+        timing.treatmentIntents = intents.size();
+        if (!intents.isEmpty()) {
+            var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, Strings.trimToNull(input.question()),
+                    Strings.trimToNull(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
+                    List.of(), serverContext.reports(), serverContext.clinicalHistory(), content,
+                    input.receptionScene(), input.receptionSceneContext()).withTemporalContext(temporalContext);
+            long treatmentStarted = System.nanoTime();
+            ClinicalTreatmentRecommendationService.Result treatment;
+            try {
+                treatment = treatmentService.recommend(intents, request, runtime);
+            } finally {
+                timing.treatmentMs = elapsedMillis(treatmentStarted);
+            }
+            List<SafetyAlert> completeAlerts = new ArrayList<>(alerts);
+            completeAlerts.addAll(treatment.alerts());
+            alerts = distinctAlerts(completeAlerts, 20);
+            content = new SuggestionContent(summary, emptyRecordDraft(), List.of(), List.of(), missing, alerts, List.of(),
+                    MODEL_DISCLAIMER, treatment.items(), treatment.matches());
+        }
+        if (onStage != null) onStage.accept(new GenerationStage("TREATMENTS", input.clientContextFingerprint().trim(), content));
+        return new Analysis(content, riskLevel(alerts));
+    }
+
+    private static String riskLevel(List<SafetyAlert> alerts) {
+        return alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
+                : alerts.isEmpty() ? "INFO" : "MEDIUM";
     }
 
     /** Keeps only the record sections expansion owns; diagnoses, plans and orders stay with the full analysis. */
@@ -670,7 +769,7 @@ public class ClinicalAssistantApplicationService {
         RecordDraft recordDraft = enrichRecordDraftFromInput(scoped, input);
         List<String> missing = distinctStrings(raw.missingInformation() == null ? List.of() : raw.missingInformation(), 8, 300);
         String summary = clipped(raw.summary(), 1000);
-        if (blank(summary)) summary = "已按主诉扩写门诊病历草稿；蓝色标记为 AI 推荐书写内容，请逐项核实后保存。";
+        if (blank(summary)) summary = "已按主诉扩写门诊病历草稿；橙色标记为需重点核实的 AI 推荐内容，请核实后保存。";
         SuggestionContent content = new SuggestionContent(summary, recordDraft, List.of(), List.of(), missing,
                 alerts, List.of(), MODEL_DISCLAIMER);
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
@@ -682,11 +781,37 @@ public class ClinicalAssistantApplicationService {
     private static List<com.rhn.outpatient.api.RecordAnnotation> labeledRecommendations(
             List<com.rhn.outpatient.api.RecordAnnotation> values) {
         if (values == null) return null;
-        return values.stream().map(value -> value == null || !blank(value.label()) || !"AI".equals(value.source())
-                || !"VARIABLE".equals(value.kind()) ? value
+        return capRecommendationMarks(values).stream().map(value -> value == null || !blank(value.label()) || !"AI".equals(value.source())
+                || !("VARIABLE".equals(value.kind()) || "IMPORTANT".equals(value.kind())) ? value
                 : new com.rhn.outpatient.api.RecordAnnotation(value.field(), value.text(), value.start(), value.source(),
                 value.kind(), value.binding(), RECORD_EXPANSION_RECOMMENDATION_LABEL, value.sourceQuote(),
                 value.reason(), value.confirmed())).toList();
+    }
+
+    /**
+     * Deterministic guard behind the prompt: AI marks (except CONFLICT) are dropped on healthEducation/followUp and capped
+     * per field and in total, in order of appearance. Non-AI sources and CONFLICT marks are neither dropped nor counted.
+     */
+    static List<com.rhn.outpatient.api.RecordAnnotation> capRecommendationMarks(
+            List<com.rhn.outpatient.api.RecordAnnotation> values) {
+        if (values == null) return null;
+        var perField = new java.util.HashMap<String, Integer>();
+        int total = 0;
+        var result = new ArrayList<com.rhn.outpatient.api.RecordAnnotation>();
+        for (var value : values) {
+            if (value == null || !"AI".equals(value.source()) || "CONFLICT".equals(value.kind())) {
+                result.add(value);
+                continue;
+            }
+            if (value.field() != null && RECORD_EXPANSION_UNMARKED_FIELDS.contains(value.field())) continue;
+            if (total >= RECORD_EXPANSION_MAX_AI_MARKS_TOTAL) continue;
+            int used = perField.getOrDefault(value.field(), 0);
+            if (used >= RECORD_EXPANSION_MAX_AI_MARKS_PER_FIELD) continue;
+            perField.put(value.field(), used + 1);
+            total++;
+            result.add(value);
+        }
+        return result;
     }
 
     private static long elapsedMillis(long startedNanos) {
@@ -916,6 +1041,11 @@ public class ClinicalAssistantApplicationService {
         return List.copyOf(result.values());
     }
 
+    /** Scoped recommendations carry no record text; clients still read recordDraft as a required object. */
+    private static RecordDraft emptyRecordDraft() {
+        return new RecordDraft(null, null, null, null, null);
+    }
+
     private RecordDraft validatedRecordDraft(RecordDraft value) {
         if (value == null) return new RecordDraft(null, null, null, null, null);
         return new RecordDraft(clipped(value.chiefComplaint(), 1000), clipped(value.presentIllness(), 4000),
@@ -1126,7 +1256,7 @@ public class ClinicalAssistantApplicationService {
         canonical.put("parentSuggestionId", input.parentSuggestionId());
         canonical.put("receptionScene", input.receptionScene());
         canonical.put("receptionSceneContext", input.receptionSceneContext());
-        if (input.recordExpansion()) canonical.put("intent", input.intent());
+        if (input.recordExpansion() || input.scopedRecommendation()) canonical.put("intent", input.intent());
         canonical.put("draft", input.draft());
         return sha256(canonical);
     }

@@ -1,6 +1,6 @@
 import { AnnotatedRecordField } from "./AnnotatedRecordField";
 import { RecordAnnotationLegend } from "./RecordAnnotationLegend";
-import { rebaseAnnotations } from "./recordAnnotations";
+import { highlightedAnnotations, rebaseAnnotations } from "./recordAnnotations";
 import type { RecordTextField } from "../../../shared/api/recordAnnotations";
 import { useClinicalAiDraft, type AiRecordUndo } from "./useClinicalAiDraft";
 import { DiagnosisPanel } from "./DiagnosisPanel";
@@ -85,8 +85,7 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
   const [orderBusy, setOrderBusy] = useState(false)
   const [copyNotice, setCopyNotice] = useState('')
-  const [showRecordAnnotations, setShowRecordAnnotations] = useState(true)
-  const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
+    const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
   const [unsignedPrintModalOpen, setUnsignedPrintModalOpen] = useState(false)
   // True while the signed note is being amended in place in its reading view.
@@ -425,9 +424,10 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
     return { annotations: value.annotations, chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
       medicalHistory: value.medicalHistory, physicalExam: value.physicalExam, allergyHistory: value.allergyHistory, medicationHistory: value.medicationHistory, auxiliaryExaminations: value.auxiliaryExaminations, healthEducation: value.healthEducation, followUp: value.followUp,  }
   }
+  const highlighted = highlightedAnnotations(recordValues, recordValues.annotations)
   const annotatedField = (field: RecordTextField, label: string) => ({
     field, 'aria-label': label, value: watch(field) ?? '', annotations: getValues('annotations') ?? [],
-    showAnnotations: showRecordAnnotations,
+    showAnnotations: true,
     onValueChange: (value: string) => {
       form.setValue('annotations', rebaseAnnotations(field, getValues(field) ?? '', value, getValues('annotations') ?? []), { shouldDirty: true })
       form.setValue(field, value, { shouldDirty: true, shouldTouch: true })
@@ -479,7 +479,8 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
           {formMode && <NoteTemplateBar api={api} disabled={signed || businessBusy || documents.isPending || Boolean(documents.error)}
           contextKey={JSON.stringify([encounter.id, encounter.residentId, encounter.organizationId, encounter.departmentId,
             encounter.clinicianId, document?.currentVersion])} currentContent={currentNoteContent}
-          onApply={applyNoteTemplate} showApply={false} />}
+          onApply={applyNoteTemplate} showApply={false}
+          defaultName={(diagnoses.find((item) => item.type === 'PRIMARY') ?? diagnoses[0])?.display} />}
           {formMode && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
           {!editing && <div className="doctor-clinical-readonly-note"
             title={readOnlyReason || readingHint}>
@@ -617,11 +618,11 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
               onClick={() => sign.mutate()}>签署当前版本</Button>
           </div>
         )}
-        <div className="doctor-record-annotation-footer" aria-label="病历标记设置">
-          {showRecordAnnotations && (recordValues.annotations?.length ?? 0) > 0 && <RecordAnnotationLegend />}
-          <Button size="sm" variant="text" aria-pressed={showRecordAnnotations}
-            onClick={() => setShowRecordAnnotations(value => !value)}>{showRecordAnnotations ? '隐藏标记' : '显示标记'}</Button>
-        </div>
+        {highlighted.length > 0 && <div className="doctor-record-annotation-footer" aria-label="病历标记设置">
+          <RecordAnnotationLegend
+            tones={{ variable: highlighted.some((item) => item.kind === 'VARIABLE'), important: highlighted.some((item) => item.kind === 'IMPORTANT'),
+              conflict: highlighted.some((item) => item.kind === 'CONFLICT') }} />
+        </div>}
       </form> : <ClinicalRecordReadView value={recordValues} bmi={bmi} structuredForm={selectedNoteForm}
         structuredValues={structuredValues} amendment={amendmentEditing}
         changes={tracing && !amendmentOpen ? trace.changes : undefined} />}

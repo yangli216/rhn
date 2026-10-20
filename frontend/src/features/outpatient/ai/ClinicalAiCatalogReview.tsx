@@ -27,10 +27,12 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
   const [busy, setBusy] = useState(false)
   const [editingKey, setEditingKey] = useState<string>()
   const [error, setError] = useState('')
+  const [checkingKey, setCheckingKey] = useState<string>()
+  const [rowError, setRowError] = useState<{ key: string; message: string }>()
   const epoch = useRef(0)
   useEffect(() => {
     epoch.current += 1
-    setRetries({}); setChoices({}); setResource(undefined); setProducts([]); setEditingKey(undefined); setError(''); setBusy(false)
+    setRetries({}); setChoices({}); setResource(undefined); setProducts([]); setEditingKey(undefined); setError(''); setRowError(undefined); setCheckingKey(undefined); setBusy(false)
     return () => { epoch.current += 1 }
   }, [encounterId, organizationId, api])
   useEffect(() => { epoch.current += 1; setBusy(false); if (disabled) setEditingKey(undefined) }, [disabled])
@@ -79,26 +81,44 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
     } catch (err) { if (epoch.current === requestEpoch) setError(err instanceof Error ? err.message : '目录核查失败，请重试。') }
     finally { if (epoch.current === requestEpoch) setBusy(false) }
   }
-  const confirm = async () => {
-    if (!active || !candidate || disabled || busy) return
+  /** Shared by the dialog's "确认匹配" and the row checkbox: validates the chosen identities, resolves only on success. */
+  const submit = async (sourceKey: string): Promise<string | undefined> => {
+    if (disabled || busy) return undefined
     const requestEpoch = epoch.current
-    const group = rows.filter(match => match.sourceKey === active.sourceKey)
+    const group = rows.filter(match => match.sourceKey === sourceKey)
     const selected = group.map(chosenCandidate)
-    if (selected.some(item => !item)) { setError('请为拆分后的每个项目选择院内目录。'); return }
-    setBusy(true); setError('')
+    if (selected.some(item => !item)) return '请为拆分后的每个项目选择院内目录。'
+    setBusy(true)
     try {
       const checked = await api.clinicalAi.resolveTreatments(encounterId, selected.map((item, index) => ({ type: item!.type,
         name: item!.name, specification: item!.specification, catalogItemId: item!.catalogItemId, medicationId: item!.medicationId, rationale: group[index].intent.rationale })))
-      if (epoch.current !== requestEpoch) return
+      if (epoch.current !== requestEpoch) return undefined
       if (checked.length !== selected.length || checked.some(match => match.status !== 'MATCHED' || match.candidates.length !== 1)
         || checked.some((match, index) => match.candidates[0].catalogItemId !== selected[index]?.catalogItemId
           || match.candidates[0].type !== selected[index]?.type)) {
-        setError(checked.find(match => match.status !== 'MATCHED')?.reason || '所选项目已变化，请重新选择院内项目。'); return
+        return checked.find(match => match.status !== 'MATCHED')?.reason || '所选项目已变化，请重新选择院内项目。'
       }
-      onResolved([active.sourceKey], checked.map((match, index) => ({ ...match.candidates[0], aiOriginalName: group[index].intent.name })))
-      close()
-    } catch (err) { if (epoch.current === requestEpoch) setError(err instanceof Error ? err.message : '所选目录核对失败，请重试。') }
+      onResolved([sourceKey], checked.map((match, index) => ({ ...match.candidates[0], aiOriginalName: group[index].intent.name,
+        // Re-checking sends no AI usage, so carry over the usage mapped onto the chosen candidate (same catalog item).
+        usageSuggestion: match.candidates[0].usageSuggestion ?? selected[index]?.usageSuggestion,
+        purpose: match.candidates[0].purpose ?? selected[index]?.purpose })))
+      return undefined
+    } catch (err) { return epoch.current === requestEpoch ? (err instanceof Error ? err.message : '所选目录核对失败，请重试。') : undefined }
     finally { if (epoch.current === requestEpoch) setBusy(false) }
+  }
+  const confirm = async () => {
+    if (!active || !candidate || disabled || busy) return
+    setError('')
+    const failure = await submit(active.sourceKey)
+    if (failure) setError(failure)
+    else if (!disabled) close()
+  }
+  /** Ticking a row with a recommended match is the physician's confirmation of that match. */
+  const confirmByCheckbox = async (match: typeof rows[number]) => {
+    setRowError(undefined); setCheckingKey(match.key)
+    const failure = await submit(match.sourceKey)
+    setCheckingKey(undefined)
+    if (failure) setRowError({ key: match.key, message: failure })
   }
   if (!matches.length) return null
   return <div className={`doctor-ai-catalog-review${layout === 'compact' ? ' is-compact' : ''}`} aria-label="AI 医嘱目录待核对">
@@ -106,15 +126,18 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
     {rows.map(match => {
       const status = clinicalAiTreatmentMatchPresentation(match.status)
       const preview = chosenCandidate(match)
+      const selectable = rows.filter(value => value.sourceKey === match.sourceKey).every(value => chosenCandidate(value))
       return <div key={match.key} className="doctor-ai-treatment-item">
         <div className="doctor-unified-order-row is-ai-suggestion is-catalog-pending" role="row" aria-label={`${match.intent.name} · ${status.label}`}>
           <span className="doctor-unified-cell-type"><label className="doctor-ai-order-select">
-            <input type="checkbox" aria-label={`选择 ${match.intent.name}`} checked={false} disabled />
+            <input type="checkbox" aria-label={`选择 ${match.intent.name}`} checked={checkingKey === match.key}
+              disabled={disabled || busy || !selectable} title={selectable ? '勾选即确认推荐匹配' : '请点击绑定图标核对院内目录'}
+              onChange={() => void confirmByCheckbox(match)} />
             <span className="doctor-ai-pending-badge">{match.intent.type === 'MEDICATION' ? '药品' : match.intent.type === 'LABORATORY' ? '检验' : '检查'}</span>
           </label></span>
           <span className="doctor-unified-cell-name"><span className="doctor-ai-catalog-review__name">
-            <strong>{preview?.name ?? match.intent.name}</strong><IconButton icon="search" className="doctor-ai-catalog-review__match"
-              disabled={disabled} label={`核对目录 ${match.intent.name}`} onClick={() => open(match)} />
+            <strong>{preview?.name ?? match.intent.name}</strong><IconButton icon="link" className="doctor-ai-catalog-review__match"
+              disabled={disabled} label={`绑定院内目录 ${match.intent.name}`} onClick={() => open(match)} />
           </span><CatalogRowMeta match={match} preview={preview} />
           </span>
           <span className="doctor-unified-cell-directions" title={match.reason}><span className="doctor-ai-catalog-review__reason">{match.reason}</span></span>
@@ -123,6 +146,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
           <span className="doctor-unified-cell-status"><StatusBadge tone={status.tone}>{status.shortLabel}</StatusBadge></span>
           <span className="doctor-unified-cell-actions">—</span>
         </div>
+        {rowError?.key === match.key && <small role="alert" className="doctor-ai-catalog-review__meta">{rowError.message}</small>}
       </div>
     })}
     {active && !disabled && <Dialog title={`匹配院内项目 · ${active.intent.name}`} presentation="panel" className="doctor-ai-catalog-panel"
@@ -170,7 +194,7 @@ function defaultCandidate(match: ClinicalAiTreatmentMatch) {
 }
 
 /** Shown in place of the intro when the host header carries it, so the wording stays in one place. */
-export const CATALOG_PENDING_HINT = '虚线项目需先核对院内目录才能勾选'
+export const CATALOG_PENDING_HINT = '有推荐匹配的项目可直接勾选确认；其余请点击绑定图标核对院内目录'
 
 /**
  * One summary line under the name. It omits what the row already shows: the AI name when it equals the

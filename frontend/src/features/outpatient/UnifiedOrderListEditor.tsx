@@ -1060,17 +1060,16 @@ export function UnifiedOrderListEditor({
         allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} onInspectService={setInspectTarget} />}
 
       {!readOnly && isComposerActive && !groupingComposerTarget && !(entryType === 'HERBAL' && draftHerbalCount > 0) && renderComposer()}
+      </div>
       {!readOnly && !isComposerActive && !editingDraft && (
-        <div className="doctor-unified-order-launcher" role="row">
-          <div role="cell">
-            <Button size="sm" variant="secondary" disabled={busy} onClick={openComposer}>
-              <Icon name="add" />
-              新增医嘱
-            </Button>
-          </div>
+        <div className="is-launcher" onClick={() => { if (!busy) openComposer() }}>
+          <button type="button" className="doctor-table-launcher-btn" aria-label="新增医嘱" disabled={busy}
+            title="新增医嘱（Esc 退出录入）" onClick={(e) => { e.stopPropagation(); openComposer() }}>
+            <Icon name="add" />
+            <span><strong>新增医嘱</strong></span>
+          </button>
         </div>
       )}
-      </div>
     </div>
 
     <MedicalInsertViewerModal

@@ -12,6 +12,7 @@ export interface MedicalInsertTarget {
   name?: string
   id?: string
   type?: 'medication' | 'guideline' | 'protocol' | 'laboratory' | 'examination' | string
+  icd10?: string
 }
 
 export interface MedicalInsertViewerModalProps {
@@ -98,12 +99,17 @@ export function MedicalInsertViewerModal({
       return
     }
 
+    const query: { name?: string; id?: string; type?: string; icd10?: string } = {
+      name,
+      id,
+      type,
+    }
+    if (target?.icd10) {
+      query.icd10 = target.icd10
+    }
+
     api.clinicalAi
-      .getWikiDoc({
-        name,
-        id,
-        type,
-      })
+      .getWikiDoc(query)
       .then((data) => {
         if (!active) return
         setDoc(data)

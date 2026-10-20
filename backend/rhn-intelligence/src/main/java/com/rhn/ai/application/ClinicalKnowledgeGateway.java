@@ -11,7 +11,11 @@ public interface ClinicalKnowledgeGateway {
 
     PreflightSafetyResult evaluatePreflightSafety(PreflightSafetyRequest request, ClinicalAssistantSettings runtimeSettings);
 
-    WikiDocResult lookupWikiDoc(String query, String docType, ClinicalAssistantSettings runtimeSettings);
+    default WikiDocResult lookupWikiDoc(String query, String docType, ClinicalAssistantSettings runtimeSettings) {
+        return lookupWikiDoc(query, docType, null, runtimeSettings);
+    }
+
+    WikiDocResult lookupWikiDoc(String query, String docType, String icd10, ClinicalAssistantSettings runtimeSettings);
 
     record KnowledgeResult(String id, String title, String excerpt, Double score,
                            String sourceName, String sourceId, String publishYear,

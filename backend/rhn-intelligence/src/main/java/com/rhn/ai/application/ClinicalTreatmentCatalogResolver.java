@@ -25,15 +25,25 @@ public class ClinicalTreatmentCatalogResolver {
     private final ServiceCatalogDirectory services;
     private final MedicationKnowledgeDirectory medications;
     private final ExecutionContextProvider contexts;
+    private final TreatmentUsageMapper usageMapper;
     private final Map<String, Alias> aliases = new LinkedHashMap<>();
 
     public record Alias(String type, String name, List<String> aliases, List<String> queries, boolean broad,
                         List<String> reviewNames) {}
 
+    /** Without a usage mapper, model usage drafts are simply ignored. */
     public ClinicalTreatmentCatalogResolver(OutpatientPrescriptionInventoryDirectory inventory,
             ServiceCatalogDirectory services, MedicationKnowledgeDirectory medications,
             ExecutionContextProvider contexts, JsonCodec jsonCodec) {
+        this(inventory, services, medications, contexts, jsonCodec, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ClinicalTreatmentCatalogResolver(OutpatientPrescriptionInventoryDirectory inventory,
+            ServiceCatalogDirectory services, MedicationKnowledgeDirectory medications,
+            ExecutionContextProvider contexts, JsonCodec jsonCodec, TreatmentUsageMapper usageMapper) {
         this.inventory = inventory; this.services = services; this.medications = medications; this.contexts = contexts;
+        this.usageMapper = usageMapper;
         try (var input = getClass().getResourceAsStream("/clinical-catalog-aliases.json")) {
             if (input == null) throw new IllegalStateException("缺少临床目录别名配置");
             for (var alias : jsonCodec.read(new String(input.readAllBytes(), StandardCharsets.UTF_8), Alias[].class)) {
@@ -61,7 +71,7 @@ public class ClinicalTreatmentCatalogResolver {
             for (String name : names) {
                 if (result.size() >= 24) throw com.rhn.shared.api.BusinessErrors.badRequest("AI_CATALOG_TOO_MANY_ITEMS", "组合项目拆分后超过24项，请分批核对");
                 var source = new TreatmentRecommendation(intent.type(), intent.catalogItemId(), intent.medicationId(), intent.code(), name.trim(),
-                        intent.specification(), intent.rationale());
+                        intent.specification(), intent.rationale(), intent.usageSuggestion(), intent.purpose());
                 String key = rawType + ":" + normalize(name) + ":" + text(intent.specification())
                         + (intent.catalogItemId() == null ? "" : ":ID:" + intent.catalogItemId());
                 if (!result.containsKey(key)) result.put(key, resolveOne(key, source, context, date));
@@ -82,8 +92,12 @@ public class ClinicalTreatmentCatalogResolver {
         return Optional.of(resolveOne(rawType + ":" + normalize(name), intent, contexts.requireCurrent(), date));
     }
 
-    private TreatmentMatch resolveOne(String key, TreatmentRecommendation intent, ExecutionContext context, LocalDate date) {
+    private TreatmentMatch resolveOne(String key, TreatmentRecommendation source, ExecutionContext context, LocalDate date) {
         long started = System.nanoTime();
+        // A model usage draft (unresolved wording) is consumed here and never echoed back inside the intent.
+        final TreatmentRecommendation intent = source.usageSuggestion() == null ? source : new TreatmentRecommendation(
+                source.type(), source.catalogItemId(), source.medicationId(), source.code(), source.name(),
+                source.specification(), source.rationale(), null, source.purpose());
         var counts = new Counts();
         String type = text(intent.type()).toUpperCase(Locale.ROOT);
         Alias alias = intent.catalogItemId() == null ? aliases.get(normalize(intent.name())) : null;
@@ -97,11 +111,14 @@ public class ClinicalTreatmentCatalogResolver {
                 var selected = services.findOrderableServicesByIds(List.of(intent.catalogItemId()), context.organizationId(), date)
                         .stream().filter(item -> intent.catalogItemId().equals(item.id()) && typeMatches(intent.type(), item.sdServiceType()))
                         .map(item -> new TreatmentRecommendation(item.sdServiceType(), item.id(), null, item.code(), item.name(),
-                                item.specimenType() == null ? item.examinationType() : item.specimenType(), intent.rationale())).toList();
+                                item.specimenType() == null ? item.examinationType() : item.specimenType(), intent.rationale(),
+                                null, intent.purpose())).toList();
                 result = selected.size() == 1 ? new TreatmentMatch(key, intent, "MATCHED", "已核对所选院内项目", selected)
                         : new TreatmentMatch(key, intent, "NO_ORDERABLE_SERVICE", "所选项目在本次机构不可开立，请重新选择。", List.of());
             } else if ("MEDICATION".equals(type)) {
-                result = resolveMedication(key, intent, query, context, counts);
+                result = resolveMedication(key, intent, query, context, counts,
+                        usageMapper == null || source.usageSuggestion() == null ? null
+                                : new Usage(usageMapper.session(context, date), source.usageSuggestion()));
             } else {
                 result = resolveService(key, intent, type, query, alias, context, date, counts);
             }
@@ -213,7 +230,8 @@ public class ClinicalTreatmentCatalogResolver {
                 if (alias != null && !alias.broad() && !exactAlias && !requiresReview) continue;
                 if (requiresReview) reviewIds.add(service.id());
                 var item = new TreatmentRecommendation(type, service.id(), null, service.code(), service.name(),
-                        service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale());
+                        service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale(),
+                        null, intent.purpose());
                 candidates.putIfAbsent(type + ":" + service.id(), item);
             }
         }
@@ -222,7 +240,8 @@ public class ClinicalTreatmentCatalogResolver {
                 counts.catalog++;
                 reviewIds.add(service.id());
                 var item = new TreatmentRecommendation(type, service.id(), null, service.code(), service.name(),
-                        service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale());
+                        service.specimenType() == null ? service.examinationType() : service.specimenType(), intent.rationale(),
+                        null, intent.purpose());
                 candidates.putIfAbsent(type + ":" + service.id(), item);
             }
         }
@@ -249,8 +268,10 @@ public class ClinicalTreatmentCatalogResolver {
 
     private boolean sameAlias(String name, Alias alias) { return name != null && alias.equals(aliases.get(normalize(name))); }
 
+    private record Usage(TreatmentUsageMapper.Session session, com.rhn.ai.api.ClinicalAssistantContracts.TreatmentUsageSuggestion raw) {}
+
     private TreatmentMatch resolveMedication(String key, TreatmentRecommendation intent, String query,
-            ExecutionContext context, Counts counts) {
+            ExecutionContext context, Counts counts, Usage usage) {
         var available = new LinkedHashMap<Long, TreatmentRecommendation>();
         var specificationReview = new LinkedHashMap<Long, TreatmentRecommendation>();
         var definitions = inventory.findOrderableMedicationCandidates(context.tenantId(), context.organizationId(), context.departmentId(), query);
@@ -259,6 +280,8 @@ public class ClinicalTreatmentCatalogResolver {
             if (intent.medicationId() != null && !intent.medicationId().equals(medication.id())) continue;
             if (!"ACTIVE".equals(medication.sdStatus()) || medication.availablePackageQuantity() == null
                     || medication.availablePackageQuantity().signum() <= 0) { counts.stock++; continue; }
+            // Validated against this drug's own units and flags; all candidates share the same wording.
+            var suggestion = usage == null ? null : usage.session().map(usage.raw(), medication);
             boolean mismatch = MedicationSpecificationEvidence.reviewExplicitSpecification(intent.specification(),
                     MedicationSpecificationEvidence.catalogSpecification(medication.preparationSpec(), medication.preparationUnit())) != null;
             for (var product : medication.products()) {
@@ -269,7 +292,7 @@ public class ClinicalTreatmentCatalogResolver {
                 if (stock == null || !stock.routeConfigured() || !stock.stockItemConfigured()
                         || stock.availablePackageQuantity() == null || stock.availablePackageQuantity().signum() <= 0) { counts.stock++; continue; }
                 var item = new TreatmentRecommendation("MEDICATION", product.id(), medication.id(), medication.code(), medication.name(),
-                        medication.preparationSpec(), intent.rationale());
+                        medication.preparationSpec(), intent.rationale(), suggestion);
                 if (mismatch) { counts.specification++; specificationReview.putIfAbsent(product.id(), item); }
                 else available.putIfAbsent(product.id(), item);
             }

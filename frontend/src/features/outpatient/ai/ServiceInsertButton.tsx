@@ -10,7 +10,7 @@ export function ServiceInsertButton({ name, serviceType, onView }: {
 }) {
   const target = serviceInsertTarget(name, serviceType)
   if (!onView || !target) return null
-  return <IconButton icon="file-text" label="说明书"
+  return <IconButton icon="file-text" size="sm" label="说明书"
     title={`在临床知识库中查阅《${target.name}》${serviceInsertLabel[target.type as 'laboratory' | 'examination']}项目说明`}
     onClick={(event) => {
       event.stopPropagation()

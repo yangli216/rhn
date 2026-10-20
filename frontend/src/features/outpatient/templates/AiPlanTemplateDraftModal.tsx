@@ -70,7 +70,7 @@ function InsertButton({ name, kind, onView }: { name: string; kind: 'medication'
   if (!onView) return null
   const target = { name: kind === 'guideline' ? name.replace(icd10Suffix, '').trim() : name, type: kind }
   return kind === 'medication'
-    ? <IconButton icon="file-text" label="说明书" title={`在临床知识库中查阅《${target.name}》药品说明书`} onClick={() => onView(target)} />
+    ? <IconButton icon="file-text" size="sm" label="说明书" title={`在临床知识库中查阅《${target.name}》药品说明书`} onClick={() => onView(target)} />
     : <IconButton icon="book-open" label="指南" title={`在临床知识库中查阅《${target.name}》临床指南`} onClick={() => onView(target)} />
 }
 
