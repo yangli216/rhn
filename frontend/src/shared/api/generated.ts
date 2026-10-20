@@ -12726,6 +12726,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/iam/departments/{departmentId}/default-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["departmentDefaultRoles"];
+        put: operations["replaceDepartmentDefaultRoles"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/practitioners/{practitionerId}/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["openAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/roles/{roleId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["roleMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/practitioners/{practitionerId}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["practitionerAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -20192,6 +20256,13 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
             effective?: boolean;
+            grantSource?: string;
+            /** @example 824633720832983041 */
+            staffAssignmentId?: string;
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            practitionerCode?: string;
+            practitionerName?: string;
         };
         CreateRoleRequest: {
             code: string;
@@ -25523,6 +25594,17 @@ export interface components {
             name?: string;
             specification?: string;
             rationale?: string;
+            usageSuggestion?: components["schemas"]["TreatmentUsageSuggestion"];
+            purpose?: string;
+        };
+        /** @description AI 预填的用法用量草稿，仅在能映射到院内药品目录与当前有效途径/频次时出现；医生开立前必须核对。 */
+        TreatmentUsageSuggestion: {
+            doseValue?: number;
+            doseUnit?: string;
+            routeCode?: string;
+            frequencyCode?: string;
+            /** Format: int32 */
+            durationDays?: number;
         };
         Transcription: {
             text?: string;
@@ -25581,7 +25663,7 @@ export interface components {
             receptionScene?: "FIRST_VISIT" | "CHRONIC_REFILL" | "REPORT_FOLLOW_UP";
             receptionSceneContext?: components["schemas"]["ReceptionSceneContext"];
             /** @enum {string} */
-            intent?: "FULL_ANALYSIS" | "RECORD_EXPANSION" | "PLAN_PREVIEW";
+            intent?: "FULL_ANALYSIS" | "RECORD_EXPANSION" | "PLAN_PREVIEW" | "DIAGNOSIS_RECOMMENDATION" | "TREATMENT_RECOMMENDATION";
         };
         ReceptionSceneContext: {
             selectedConditions?: string[];
@@ -27025,6 +27107,10 @@ export interface components {
             id?: string;
             username?: string;
             status?: string;
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            practitionerCode?: string;
+            practitionerName?: string;
         };
         PermissionView: {
             /** @example 824633720832983041 */
@@ -29394,6 +29480,55 @@ export interface components {
             sdPositionType?: string;
             /** @description 字典 POSITION_TYPE 的显示文本 */
             readonly sdPositionTypeText?: string;
+        };
+        ReplaceDefaultRolesRequest: {
+            roleIds: string[];
+            applyToCurrentStaff?: boolean;
+        };
+        DepartmentDefaultRoleView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** @example 824633720832983041 */
+            roleId?: string;
+            roleCode?: string;
+            roleName?: string;
+            roleStatus?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        DepartmentDefaultRolesView: {
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            manageable?: boolean;
+            roles?: components["schemas"]["DepartmentDefaultRoleView"][];
+            /** Format: int32 */
+            grantedCount?: number;
+        };
+        OpenAccountRequest: {
+            username: string;
+            initialPassword: string;
+        };
+        ManagementScopeView: {
+            scopeType?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            organizationName?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+        };
+        PractitionerAccessView: {
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            account?: components["schemas"]["UserView"];
+            assignments?: components["schemas"]["UserRoleAssignmentView"][];
+            scope?: components["schemas"]["ManagementScopeView"];
         };
     };
     responses: never;
@@ -59698,6 +59833,171 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PersonnelPageView"];
+                };
+            };
+        };
+    };
+    departmentDefaultRoles: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                departmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DepartmentDefaultRolesView"];
+                };
+            };
+        };
+    };
+    replaceDepartmentDefaultRoles: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                departmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceDefaultRolesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DepartmentDefaultRolesView"];
+                };
+            };
+        };
+    };
+    openAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                practitionerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PractitionerAccessView"];
+                };
+            };
+        };
+    };
+    roleMembers: {
+        parameters: {
+            query?: {
+                includeExpired?: boolean;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserRoleAssignmentView"][];
+                };
+            };
+        };
+    };
+    practitionerAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                practitionerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PractitionerAccessView"];
                 };
             };
         };

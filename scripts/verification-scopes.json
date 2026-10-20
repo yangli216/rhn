@@ -621,7 +621,7 @@
     },
     "organization": {
       "coverage": [
-        "组织层级、科室业务属性与服务能力、人员与档案维护闭环、账号权限边界"
+        "组织层级、科室业务属性与服务能力、人员与档案维护闭环、账号开通、角色授权与科室默认角色"
       ],
       "limitations": [
         "覆盖维护的组织领域及运行消费者；Oracle 人工验收、视觉检查和完整 CI 另行执行。"
@@ -638,6 +638,10 @@
         "src/features/settings/organizations/organizationUnitModel.test.ts",
         "src/features/settings/organizations/OrganizationsPage.test.tsx",
         "src/features/settings/personnel/PersonnelPage.test.tsx",
+        "src/features/settings/access/accessFacts.test.ts",
+        "src/features/settings/AccessControlManagement.test.tsx",
+        "src/features/settings/accessPermissionFacts.test.ts",
+        "src/features/settings/accessRoleReceipt.test.ts",
         "src/app/AppShellContext.test.ts"
       ],
       "backend": [
@@ -647,6 +651,9 @@
         "OrganizationPersonnelFoundationTest",
         "PractitionerOnboardingTest",
         "PersonnelManagementTest",
+        "DepartmentDefaultRoleTest",
+        "IdentityAccessAuthorizationTest",
+        "IdentityAccessRoleReceiptTest",
         "DictionaryConformanceTest",
         "com.rhn.platform.organization.api.DepartmentBusinessPolicyTest",
         "MaterialDepartmentGovernanceTest",
