@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
 import { Alert, Button, FormField, Select, StatusBadge } from '../ui'
-import { CashPaymentCalculator } from './CashPaymentCalculator'
-import { isCollectableMethod, PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
+import { CashPaymentCalculator, PaymentAmountReadonlyRow } from './CashPaymentCalculator'
+import { isCollectableMethod, MAX_SHORTCUTS, PaymentMethodSelector, sortPaymentMethods, type PaymentMethodOption } from './PaymentMethodSelector'
 import { roundAmount } from './roundAmount'
 
 export interface SettlementOption {
@@ -47,6 +47,8 @@ export interface SettlementPaymentPanelProps {
   onSettlementModeChange?: (value: SettlementModeCode) => void
   onSubmit: (command: SettlementPaymentCommand) => Promise<unknown>
   onRecoverOrder?: (order: PaymentOrder) => Promise<unknown>
+  /** 现金指令没有外部回执可查，未完成时只能核对实际收款后取消并重新收款。 */
+  onCancelOrder?: (order: PaymentOrder) => Promise<unknown>
   onInitiateChannelPay?: (command: { settlementId: string; paymentMethodCode: string; paymentMethodName: string; amount: number }) => void
   // 医保中台扩展能力
   insuranceIntegrated?: boolean
@@ -57,15 +59,19 @@ export interface SettlementPaymentPanelProps {
   submitShortcut?: boolean
   showAmountInput?: boolean
   defaultCashToPayable?: boolean
+  /** 医保预结算后预估的惠民减免（自动 + 已核定），从个人现金自付中扣减作为默认缴款金额。 */
+  reliefEstimate?: number
+  /** 惠民减免插槽：医保模式下位于医保预结算卡片/指引之后，自费模式下位于结算类型之后，均在支付方式之前。 */
+  reliefSlot?: ReactNode
 }
 
 export function SettlementPaymentPanel({
   settlements, methods, methodsStatus = 'ready', onReloadMethods, orders, busy, recoveringOrderId,
   sceneLabel = '收款', targetLabel = '待支付结算单', actionLabel, busyLabel,
-  showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder,
+  showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder, onCancelOrder,
   onInitiateChannelPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
   onCancelInsurancePreSettle, isPreSettlingInsurance = false, submitShortcut = false,
-  showAmountInput = true, defaultCashToPayable = false,
+  showAmountInput = true, defaultCashToPayable = false, reliefEstimate = 0, reliefSlot,
 }: SettlementPaymentPanelProps) {
   const [settlementId, setSettlementId] = useState('')
   const [internalSettlementMode, setInternalSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
@@ -108,7 +114,11 @@ export function SettlementPaymentPanel({
   const chsOtherAmount = selectedInsuranceClaim ? selectedInsuranceClaim.otherFundAmount : (settlement?.otherFundAmount ?? 0)
 
   // 待支付金额
-  const rawOutstanding = insuranceMode && hasPreSettled ? chsCashAmount : settlement?.outstandingAmount
+  const appliedReliefEstimate = insuranceMode && selectedInsuranceClaim && hasPreSettled
+    && Number.isFinite(reliefEstimate) && reliefEstimate > 0 ? Number(reliefEstimate.toFixed(2)) : 0
+  const rawOutstanding = insuranceMode && hasPreSettled
+    ? (appliedReliefEstimate > 0 ? Math.max(0, Number((chsCashAmount - appliedReliefEstimate).toFixed(2))) : chsCashAmount)
+    : settlement?.outstandingAmount
   const effectiveOutstanding = typeof rawOutstanding === 'number' ? rawOutstanding : NaN
 
   const methodPrecision = selectedMethod?.precision
@@ -220,11 +230,30 @@ export function SettlementPaymentPanel({
     return () => window.removeEventListener('keydown', handleShortcut)
   })
 
+  // 数字键 1…9（焦点不在输入控件时）或 Alt+1…Alt+9（任何位置）选择支付方式，与挂号页一致；
+  // Alt 组合用 event.code，避免 macOS Option 组合改写 key。
+  useEffect(() => {
+    if (!submitShortcut || !paymentRequired || busy || methodsStatus !== 'ready') return
+    const handleMethodShortcut = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return
+      let digit: string | undefined
+      if (event.altKey) digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code)?.[1]
+      else if (/^[1-9]$/.test(event.key) && !isEditableTarget(event.target)) digit = event.key
+      if (!digit) return
+      const method = sortPaymentMethods(monetaryMethods).slice(0, MAX_SHORTCUTS)[Number(digit) - 1]
+      if (!method) return
+      event.preventDefault()
+      setMethodCode(method.code)
+    }
+    window.addEventListener('keydown', handleMethodShortcut)
+    return () => window.removeEventListener('keydown', handleMethodShortcut)
+  }, [submitShortcut, paymentRequired, busy, methodsStatus, monetaryMethods])
+
   return <div className="settlement-payment-panel">
     {settlement && calculation.error && (!Number.isFinite(effectiveOutstanding)
       || (methodsStatus === 'ready' && selectedMethod)) && <Alert>{calculation.error}</Alert>}
     <div className="settlement-payment-panel__grid">
-      {showSettlementMode && <FormField label="结算类型"><Select value={activeSettlementMode}
+      {showSettlementMode && <FormField className="settlement-payment-panel__inline-field" label="结算类型"><Select value={activeSettlementMode}
         searchable={false} clearable={false} onChange={(value) => {
           const next = value as SettlementModeCode
           if (settlementModeCode === undefined) setInternalSettlementMode(next)
@@ -236,20 +265,87 @@ export function SettlementPaymentPanel({
       {settlements.length > 1 && <FormField label={targetLabel}><Select value={settlementId} onChange={setSettlementId} showValue
         placeholder="暂无待支付结算单" options={settlements.map((value) => ({ value: value.id,
           label: value.code, secondaryText: money(value.outstandingAmount, value.currencyCode) }))} /></FormField>}
-      {paymentRequired && <FormField label={insuranceMode ? '个人自付支付方式' : '支付方式'}><PaymentMethodSelector
-        value={methodCode} onChange={setMethodCode} methods={monetaryMethods} status={methodsStatus} onRetry={onReloadMethods} disabled={busy} /></FormField>}
-      {paymentRequired && showAmountInput && (
+    </div>
+
+    {/* 医保预结算指引卡片（尚未试算时呈现） */}
+    {insuranceMode && isInsuranceSupported && !hasPreSettled && (
+      <div className="settlement-payment-panel__chs-guide">
+        <span className="settlement-payment-panel__guide-copy">尚未试算医保，试算后显示医保报销与个人自付</span>
+        {onPreSettleInsurance && settlement && (
+          <Button size="sm" variant="secondary" busy={isPreSettlingInsurance} busyLabel="正在试算医保..."
+            onClick={() => { void onPreSettleInsurance(settlement.id) }}>
+            立即试算医保
+          </Button>
+        )}
+      </div>
+    )}
+
+    {/* 医保费用卡片（试算完成后呈现） */}
+    {insuranceMode && isInsuranceSupported && selectedInsuranceClaim && hasPreSettled && (
+      <div className="settlement-payment-panel__chs-card">
+        <div className="settlement-payment-panel__chs-header">
+          <StatusBadge tone="success">{selectedInsuranceClaim.status === 'SETTLED' ? '医保结算已确认' : '医保预结算成功'}</StatusBadge>
+          {onCancelInsurancePreSettle && (
+            <Button size="sm" variant="text" onClick={onCancelInsurancePreSettle}>
+              取消试算 (改选自费)
+            </Button>
+          )}
+        </div>
+        <div className="settlement-payment-panel__chs-grid">
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">医疗总额</span>
+            <strong className="settlement-payment-panel__chs-item-val">{money(chsGrossAmount, settlement?.currencyCode ?? 'CNY')}</strong>
+          </div>
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">医保报销</span>
+            <strong className="settlement-payment-panel__chs-item-val settlement-payment-panel__chs-item-val--fund">
+              {money(chsFundAmount, settlement?.currencyCode ?? 'CNY')}
+            </strong>
+          </div>
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">个人账户</span>
+            <strong className="settlement-payment-panel__chs-item-val">
+              {money(chsAcctAmount, settlement?.currencyCode ?? 'CNY')}
+            </strong>
+          </div>
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">个人现金自付</span>
+            <strong className={`settlement-payment-panel__chs-item-val ${chsCashAmount <= 0 ? 'settlement-payment-panel__chs-item-val--zero' : 'settlement-payment-panel__chs-item-val--cash'}`}>
+              {money(chsCashAmount, settlement?.currencyCode ?? 'CNY')}
+            </strong>
+          </div>
+        </div>
+        {appliedReliefEstimate > 0 && <div className="settlement-payment-panel__relief-note">
+          含预估减免 -{money(appliedReliefEstimate, settlement?.currencyCode ?? 'CNY')}
+        </div>}
+        {chsCashAmount <= 0 && (
+          <div className="settlement-payment-panel__chs-zero">✓ 本次费用由医保统筹与个账全额抵扣，零现金自付</div>
+        )}
+      </div>
+    )}
+    {reliefSlot}
+    {paymentRequired && <div className="settlement-payment-panel__pay-card settlement-payment-panel__grid">
+      <FormField className="settlement-payment-panel__inline-field" label="支付方式"><PaymentMethodSelector
+        value={methodCode} onChange={setMethodCode} methods={monetaryMethods} status={methodsStatus} onRetry={onReloadMethods} disabled={busy}
+        showShortcuts={submitShortcut} /></FormField>
+      {showAmountInput && (
         <FormField
+          className="settlement-payment-panel__inline-field"
           label={
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span className="settlement-payment-panel__card-title">
               <span>{insuranceMode ? '个人自付金额' : '本次支付金额'}</span>
+              {appliedReliefEstimate > 0 && (
+                <span className="settlement-payment-panel__relief-tag">
+                  含预估减免 -{money(appliedReliefEstimate, settlement?.currencyCode ?? 'CNY')}
+                </span>
+              )}
               {roundingAdjustment !== 0 && (
-                <span style={{ fontSize: '12px', fontWeight: 'normal', color: roundingAdjustment > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
+                <span className={`settlement-payment-panel__rounding-tag ${roundingAdjustment > 0 ? 'is-up' : 'is-down'}`}>
                   {roundingAdjustment > 0 ? `(含货币误差 +¥${roundingAdjustment.toFixed(2)})` : `(按精度抹零 -¥${Math.abs(roundingAdjustment).toFixed(2)})`}
                 </span>
               )}
               {isAmountLocked && (
-                <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', background: 'var(--color-surface-subtle)', padding: '1px 6px', borderRadius: '4px' }}>
+                <span className="settlement-payment-panel__locked-tag">
                   已锁定
                 </span>
               )}
@@ -272,97 +368,24 @@ export function SettlementPaymentPanel({
           />
         </FormField>
       )}
-    </div>
-
-    {/* 医保预结算指引卡片（尚未试算时呈现） */}
-    {insuranceMode && isInsuranceSupported && !hasPreSettled && (
-      <div className="settlement-payment-panel__chs-guide">
-        <div className="settlement-payment-panel__chs-guide-body">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <StatusBadge tone="info">CHS 国家医保中台</StatusBadge>
-              <strong style={{ fontSize: 'var(--font-size-small)' }}>待执行门诊医保预结算</strong>
-            </div>
-            <div style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              遵循国家医保三大目录政策分拆规范（2206 标准接口），将试算统筹基金、大病基金与个账扣除金额。
-            </div>
-          </div>
-          {onPreSettleInsurance && settlement && (
-            <Button size="sm" variant="secondary" busy={isPreSettlingInsurance} busyLabel="正在试算医保..."
-              onClick={() => { void onPreSettleInsurance(settlement.id) }}>
-              立即试算医保
-            </Button>
-          )}
-        </div>
-      </div>
-    )}
-
-    {/* 国家医保费用分解卡片（试算完成后呈现） */}
-    {insuranceMode && isInsuranceSupported && selectedInsuranceClaim && hasPreSettled && (
-      <div className="settlement-payment-panel__chs-card">
-        <div className="settlement-payment-panel__chs-header">
-          <div className="settlement-payment-panel__chs-title">
-            <StatusBadge tone="success">{selectedInsuranceClaim.status === 'SETTLED' ? '医保结算已确认' : '国家医保预结算成功'}</StatusBadge>
-            <span>费用分拆透视</span>
-          </div>
-          <div className="settlement-payment-panel__chs-id">
-            流水号: {selectedInsuranceClaim?.externalPreSettlementNo || '未返回'}
-          </div>
-        </div>
-        <div className="settlement-payment-panel__chs-grid">
-          <div className="settlement-payment-panel__chs-item">
-            <span className="settlement-payment-panel__chs-item-label">医疗总额</span>
-            <strong className="settlement-payment-panel__chs-item-val">{money(chsGrossAmount, settlement?.currencyCode ?? 'CNY')}</strong>
-          </div>
-          <div className="settlement-payment-panel__chs-item">
-            <span className="settlement-payment-panel__chs-item-label">统筹基金支付 (报销)</span>
-            <strong className="settlement-payment-panel__chs-item-val" style={{ color: 'var(--color-success)' }}>
-              {money(chsFundAmount, settlement?.currencyCode ?? 'CNY')}
-            </strong>
-          </div>
-          <div className="settlement-payment-panel__chs-item">
-            <span className="settlement-payment-panel__chs-item-label">个人账户支出 (划扣)</span>
-            <strong className="settlement-payment-panel__chs-item-val">
-              {money(chsAcctAmount, settlement?.currencyCode ?? 'CNY')}
-            </strong>
-          </div>
-          <div className="settlement-payment-panel__chs-item">
-            <span className="settlement-payment-panel__chs-item-label">个人现金自付</span>
-            <strong className={`settlement-payment-panel__chs-item-val ${chsCashAmount <= 0 ? 'settlement-payment-panel__chs-item-val--zero' : 'settlement-payment-panel__chs-item-val--cash'}`}>
-              {money(chsCashAmount, settlement?.currencyCode ?? 'CNY')}
-            </strong>
-          </div>
-        </div>
-        <div className="settlement-payment-panel__chs-footer">
-          <div>
-            {chsCashAmount <= 0 ? (
-              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>✓ 本次费用由医保统筹与个账全额抵扣，零现金自付</span>
-            ) : (
-              <span>包含其他基金 {money(chsOtherAmount, settlement?.currencyCode ?? 'CNY')}，剩余自付请通过下方收银</span>
-            )}
-          </div>
-          {onCancelInsurancePreSettle && (
-            <Button size="sm" variant="text" onClick={onCancelInsurancePreSettle}>
-              取消试算 (改选自费)
-            </Button>
-          )}
-        </div>
-      </div>
-    )}
-
-    {paymentRequired && isCashMethod && numericAmount > 0 && (
-      <CashPaymentCalculator
-        payableAmount={numericAmount}
-        tendered={cashTendered}
-        onTenderedChange={setCashTendered}
-        inputRef={cashInputRef}
-        precision={selectedMethod?.precision}
-        onEnter={() => {
-          if (!disabled && !busy) void handleCheckoutSubmit()
-        }}
-        disabled={busy}
-      />
-    )}
+      {isCashMethod && numericAmount > 0 && (
+        <CashPaymentCalculator
+          className="cash-payment-calc--embedded"
+          payableAmount={numericAmount}
+          tendered={cashTendered}
+          onTenderedChange={setCashTendered}
+          inputRef={cashInputRef}
+          precision={selectedMethod?.precision}
+          onEnter={() => {
+            if (!disabled && !busy) void handleCheckoutSubmit()
+          }}
+          disabled={busy}
+        />
+      )}
+      {!isCashMethod && Number.isFinite(numericAmount) && numericAmount > 0 && (
+        <PaymentAmountReadonlyRow className="cash-payment-calc--embedded" amount={numericAmount} />
+      )}
+    </div>}
 
     {insurancePending && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="danger">医保接口未对接</StatusBadge>
@@ -385,17 +408,23 @@ export function SettlementPaymentPanel({
       <strong>本次无需收款</strong><span>{insuranceMode ? '医保结算后无个人自付金额。' : '费用已冲抵，结算后直接完成记账。'}</span>
     </div>}
 
-    {activeOrder && <div className="settlement-payment-panel__notice">
-      <div className="settlement-payment-panel__notice-copy">
-        <StatusBadge tone="warning">{activeOrder.statusText ?? activeOrder.status}</StatusBadge>
-        <span>支付指令 {activeOrder.orderNo} 已预占 {money(activeOrder.requestedAmount, activeOrder.currencyCode)}，
-          请先查询并恢复，不要重复收款。</span>
+    {activeOrder && (() => {
+      const cashOrder = methods.find((value) => value.code === activeOrder.paymentMethodCode)?.tenderType === 'CASH'
+      return <div className="settlement-payment-panel__notice">
+        <div className="settlement-payment-panel__notice-copy">
+          <StatusBadge tone="warning">{activeOrder.statusText ?? activeOrder.status}</StatusBadge>
+          <span>支付指令 {activeOrder.orderNo} 已预占 {money(activeOrder.requestedAmount, activeOrder.currencyCode)}，
+            {cashOrder && onCancelOrder ? '现金无外部回执可查，请核对实际收款：未收款请取消指令后重新收款。' : '请先查询并恢复，不要重复收款。'}</span>
+        </div>
+        {cashOrder && onCancelOrder
+          ? <Button size="sm" variant="secondary" busy={recoveringOrderId === activeOrder.id}
+            busyLabel="正在取消" onClick={() => { void onCancelOrder(activeOrder).catch(() => undefined) }}>取消指令</Button>
+          : onRecoverOrder && <Button size="sm" variant="secondary" busy={recoveringOrderId === activeOrder.id}
+            busyLabel="正在查询" onClick={() => { void onRecoverOrder(activeOrder).catch(() => undefined) }}>
+            {cashOrder ? '查询并恢复' : '查询支付结果'}
+          </Button>}
       </div>
-      {onRecoverOrder && <Button size="sm" variant="secondary" busy={recoveringOrderId === activeOrder.id}
-        busyLabel="正在查询" onClick={() => { void onRecoverOrder(activeOrder).catch(() => undefined) }}>
-        {methods.find((value) => value.code === activeOrder.paymentMethodCode)?.tenderType === 'CASH' ? '查询并恢复' : '查询支付结果'}
-      </Button>}
-    </div>}
+    })()}
 
     {!activeOrder && latestOrder && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy">
@@ -428,4 +457,9 @@ export function SettlementPaymentPanel({
 
 function money(value: number, currency: string) {
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: 2 }).format(value)
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  return target.isContentEditable || Boolean(target.closest('input, textarea, select, [role="textbox"], [role="combobox"], [role="searchbox"]'))
 }

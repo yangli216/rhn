@@ -72,6 +72,16 @@ public class InsuranceClaim {
         this.patientCashAmount = grossAmount; this.otherFundAmount = zero();
     }
 
+    /** 预结算在请求发出前即被拒（上下文/凭证未确认，医保端未收到交易）时，允许补齐条件后重新发起预结算。 */
+    public void prepareRetryPreSettle() {
+        if (!"FAILED".equals(status) || !"PRE_SETTLE".equals(currentOperation)
+                || !"CHS_REQUEST_CONTEXT_UNCONFIRMED".equals(errorCode) || externalPreSettlementNo != null) {
+            throw new IllegalStateException("当前医保申请不能重新发起预结算");
+        }
+        status = "PRE_SETTLEMENT_PENDING"; errorCode = null; errorMessage = null;
+        updatedAt = Instant.now();
+    }
+
     public void prepareSettlement() {
         if (!"PRE_SETTLED".equals(status) && !("FAILED".equals(status) && "SETTLE".equals(currentOperation))) {
             throw new IllegalStateException("医保申请尚未完成预结算");

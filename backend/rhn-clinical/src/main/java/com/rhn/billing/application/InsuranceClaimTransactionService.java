@@ -196,6 +196,15 @@ class InsuranceClaimTransactionService {
     }
 
     @Transactional
+    InsuranceClaim prepareRetryPreSettle(Long claimId) {
+        ExecutionContext context = requireContext();
+        InsuranceClaim value = lock(claimId, context);
+        try { value.prepareRetryPreSettle(); }
+        catch (IllegalStateException exception) { throw conflict("INSURANCE_CLAIM_STATE_INVALID", exception.getMessage()); }
+        return value;
+    }
+
+    @Transactional
     InsuranceClaim prepareSettlement(Long claimId) {
         ExecutionContext context = requireContext();
         InsuranceClaim value = lock(claimId, context);
@@ -386,6 +395,16 @@ class InsuranceClaimTransactionService {
                         List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING"),
                         PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
                 .stream().map(value -> view(value.id(), false)).toList();
+    }
+
+    /** 结算单已有医保申请时返回其标识；调用方据此幂等复用，而不是再创建第二份申请。 */
+    @Transactional(readOnly = true)
+    java.util.Optional<Long> existingClaimId(Long settlementId) {
+        ExecutionContext context = requireContext();
+        Settlement settlement = settlements.findByIdAndTenantId(settlementId, context.tenantId())
+                .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
+        requireAccount(context, settlement.patientAccountId());
+        return claims.findByTenantIdAndSettlementId(context.tenantId(), settlementId).map(InsuranceClaim::id);
     }
 
     @Transactional(readOnly = true)

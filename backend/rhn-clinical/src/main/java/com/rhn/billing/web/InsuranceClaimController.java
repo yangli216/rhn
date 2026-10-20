@@ -2,6 +2,7 @@ package com.rhn.billing.web;
 
 import com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView;
 import com.rhn.billing.api.InsuranceResultDirectory.PersonInfoQuery;
+import com.rhn.billing.api.InsuranceResultDirectory.ResidentPersonInfoQuery;
 import com.rhn.billing.api.InsuranceResultDirectory.PersonInfoView;
 import com.rhn.billing.application.InsuranceClaimApplicationService;
 import com.rhn.billing.application.InsuranceClaimApplicationService.LineMapping;
@@ -38,6 +39,12 @@ public class InsuranceClaimController {
     @PostMapping("/insurance/person-info")
     PersonInfoView queryPersonInfo(@RequestBody PersonInfoQuery input) {
         return service.queryPersonInfo(input);
+    }
+
+    /** 1101 按患者档案鉴权：证件号与姓名取自服务端档案。 */
+    @PostMapping("/insurance/person-info/by-resident")
+    PersonInfoView queryPersonInfoByResident(@RequestBody ResidentPersonInfoQuery input) {
+        return service.queryPersonInfoByResident(input.residentId());
     }
 
     /** 快捷门诊医保预结算（自动组装目录映射与患者保障上下文） */

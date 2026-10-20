@@ -57,20 +57,17 @@ button.relief-policy-item,
 .relief-import-summary { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: var(--space-2) 0; }
 .relief-import-table { max-height: 18rem; overflow: auto; }
 
-.relief-cashier { display: flex; flex-direction: column; gap: var(--space-2); }
-.relief-cashier__settlement { padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-.relief-cashier__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
-.relief-cashier__totals { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.relief-cashier__list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.relief-cashier__item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2); }
-.relief-cashier__item-name { min-width: 0; overflow-wrap: anywhere; }
-.relief-cashier__item-reason { grid-column: 1 / -1; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.relief-cashier__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
-
-.relief-manual { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
-.relief-manual__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
-.relief-manual__limits { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.relief-manual__form { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.5fr) minmax(14rem, 1.5fr); align-items: start; gap: var(--space-3); }
-.relief-manual__form .ui-field { margin: 0; }
-.relief-manual__amount { display: flex; align-items: flex-end; gap: var(--space-1); min-width: 0; }
-.relief-manual__amount > .ui-field { flex: 1; min-width: 0; }
+/* 收费结算内的惠民减免：与医保卡片同一套分组外观；行样式对齐“结算类型”（名称在左、控件在右）。 */
+.relief-cashier { display: grid; gap: var(--space-3); }
+.relief-cashier:empty { display: none; }
+.relief-cashier__settlement { padding: var(--space-3); display: grid; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.relief-cashier__no { font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.relief-cashier__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+/* 与“缴款金额”同一字段行规范：标签列 + 金额列（+ 快捷 chip 列），行内元素垂直居中。 */
+.relief-cashier__row { min-height: var(--payment-control-height, var(--control-height-sm)); display: grid; grid-template-columns: var(--payment-label-col, 6.5rem) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); font-size: var(--font-size-body); }
+.relief-cashier__name { min-width: 0; overflow-wrap: anywhere; color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.relief-cashier__amount { color: var(--color-success); font-weight: var(--font-weight-semibold); }
+.relief-cashier__tag { color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.relief-cashier__note { grid-column: 2 / -1; justify-self: end; display: inline-flex; align-items: center; }
+.relief-cashier__error { grid-column: 2 / -1; color: var(--color-danger); font-size: var(--font-size-small); }
+.relief-cashier__actions { display: flex; justify-content: flex-end; }

@@ -48,6 +48,9 @@ public interface InsuranceResultDirectory {
     /** 1101 医保人员信息查询请求（对外契约，屏蔽 CHS 专网报文模型）。 */
     record PersonInfoQuery(String certType, String certNo, String personName) {}
 
+    /** 按患者档案发起 1101 鉴权：证件号与姓名取自服务端档案，不经浏览器。 */
+    record ResidentPersonInfoQuery(Long residentId) {}
+
     /** 1101 医保人员信息查询结果（对外契约，字段语义对标国家医保平台标准）。 */
     record PersonInfoView(String personNo, String certType, String certNo, String personName, String gender,
                           java.time.LocalDate birthday, String insuranceType, String insuranceTypeName,

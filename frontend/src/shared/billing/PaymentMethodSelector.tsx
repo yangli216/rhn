@@ -12,6 +12,9 @@ export interface PaymentMethodOption {
   tenderType?: string
 }
 
+/** 支付方式快捷键最多覆盖前 9 项（Alt+1…Alt+9），顺序与按钮展示顺序一致。 */
+export const MAX_SHORTCUTS = 9
+
 /** Personal-account methods are paid through insurance settlement, never collected at a payment panel. */
 export const isCollectableMethod = (method: { tenderType?: string }) => method.tenderType !== 'PERSONAL_ACCOUNT'
 
@@ -22,11 +25,18 @@ export interface PaymentMethodSelectorProps {
   methods: PaymentMethodOption[]
   maxDirectVisible?: number
   showShortcuts?: boolean
+  /** 快捷键提示前缀（如 'Alt+'），仅用于悬停提示；角标始终显示序号。 */
+  shortcutPrefix?: string
   disabled?: boolean
   className?: string
   status?: 'ready' | 'loading' | 'error'
   onRetry?: () => void
   otherLabel?: string
+}
+
+/** 按字典排序字段升序排列，选择器展示顺序与快捷键序号均以此为准。 */
+export function sortPaymentMethods<T extends { sortOrder?: number }>(methods: T[]): T[] {
+  return [...methods].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 }
 
 export function PaymentMethodSelector({
@@ -36,6 +46,7 @@ export function PaymentMethodSelector({
   methods,
   maxDirectVisible = 4,
   showShortcuts = false,
+  shortcutPrefix = '',
   disabled = false,
   className = '',
   otherLabel = '其它方式',
@@ -52,7 +63,7 @@ export function PaymentMethodSelector({
 
   // 2. 严格按字典排序字段 sortOrder 升序排列
   const sortedMethods = useMemo(() => {
-    return [...monetaryMethods].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    return sortPaymentMethods(monetaryMethods)
   }, [monetaryMethods])
 
   // 3. 根据默认展示数量拆分：前 maxDirectVisible 项直接平铺，其余放入“其它”下拉框
@@ -114,10 +125,10 @@ export function PaymentMethodSelector({
               setIsOpen(false)
             }}
             disabled={disabled}
-            title={method.name}
+            title={showShortcuts && index < MAX_SHORTCUTS ? `${method.name}（${shortcutPrefix}${index + 1}）` : method.name}
           >
             <span className="payment-method-chip__name">{method.name}</span>
-            {showShortcuts && index < 4 && (
+            {showShortcuts && index < MAX_SHORTCUTS && (
               <kbd className="payment-method-chip__shortcut">{index + 1}</kbd>
             )}
           </button>
@@ -153,7 +164,8 @@ export function PaymentMethodSelector({
               role="listbox"
               aria-label="其它支付方式列表"
             >
-              {otherMethods.map((method) => {
+              {otherMethods.map((method, otherIndex) => {
+                const shortcutIndex = directMethods.length + otherIndex
                 const isSelected = method.code === value
                 return (
                   <button
@@ -169,6 +181,7 @@ export function PaymentMethodSelector({
                     }}
                   >
                     <span>{method.name}</span>
+                    {showShortcuts && shortcutIndex < MAX_SHORTCUTS && <kbd className="payment-method-chip__shortcut">{shortcutIndex + 1}</kbd>}
                     {isSelected && <span className="payment-method-dropdown-check">✓</span>}
                   </button>
                 )

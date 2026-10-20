@@ -1,36 +1,3 @@
-/* Identity and access management */
-.iam-feedback { margin-bottom: var(--space-4); }
-.iam-overview { display: grid; grid-template-columns: minmax(15rem, .75fr) minmax(24rem, 1.35fr) minmax(20rem, 1fr); align-items: start; gap: var(--space-4); }
-.iam-overview > .ui-panel { min-width: 0; overflow: hidden; }
-.iam-role-list { max-height: 24rem; overflow-y: auto; border-bottom: 1px solid var(--color-border); }
-.iam-role-list > .ui-button { width: 100%; min-height: 4.25rem; text-align: left; }
-.iam-role-list .ui-button__label { width: 100%; }
-.iam-role-list__content { width: 100%; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.iam-role-list__text, .iam-assignment-list article > div { min-width: 0; display: grid; gap: var(--space-1); }
-.iam-role-list code, .iam-permission-groups code, .iam-assignment-list code { color: var(--color-text-secondary); font-size: var(--font-size-caption); overflow-wrap: anywhere; }
-.iam-create-role, .iam-assign-form { padding: var(--space-4); display: grid; gap: var(--space-3); background: var(--color-surface-subtle); }
-.iam-create-role .ui-field { margin: 0; }
-.iam-create-role > .ui-button, .iam-assign-form > .ui-button { justify-self: end; }
-.iam-permission-groups { max-height: 42rem; padding: var(--space-4); display: grid; gap: var(--space-3); overflow-y: auto; }
-.iam-role-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
-.iam-permission-groups fieldset { min-width: 0; margin: 0; padding: var(--space-3); display: grid; gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-.iam-permission-groups legend { padding: 0 var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
-.iam-permission-groups label { min-height: 2.75rem; padding: var(--space-2); display: flex; align-items: center; gap: var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
-.iam-permission-groups label:hover { background: var(--color-surface-subtle); }
-.iam-permission-groups label > span { display: grid; gap: 2px; }
-.iam-native-field { padding: 0 var(--space-4); display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.iam-native-field select, .iam-native-field input { width: 100%; min-height: 2.75rem; padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); }
-.iam-assignment-panel > .iam-native-field { margin-top: var(--space-4); }
-.iam-assign-form { margin-top: var(--space-4); border-block: 1px solid var(--color-border); }
-.iam-assign-form .iam-native-field { padding: 0; }
-.iam-assignment-list { max-height: 28rem; overflow-y: auto; }
-.iam-assignment-list article { position: relative; padding: var(--space-4); display: grid; gap: var(--space-2); border-top: 1px solid var(--color-border); }
-.iam-assignment-list article:first-child { border-top: 0; }
-.iam-assignment-list article.is-expired { opacity: .58; }
-.iam-assignment-list article p, .iam-assignment-list article small { margin: 0; color: var(--color-text-secondary); }
-.iam-assignment-list article > .ui-button { position: absolute; top: var(--space-3); right: var(--space-3); }
-@media (max-width: 75rem) { .iam-overview { grid-template-columns: minmax(15rem, .75fr) minmax(24rem, 1.25fr); } .iam-assignment-panel { grid-column: 1 / -1; } }
-@media (max-width: 47.5rem) { .iam-overview { grid-template-columns: 1fr; } .iam-assignment-panel { grid-column: auto; } }
 .parameter-category-editor { min-width: 0; padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-subtle); }
 .parameter-category-editor__head { min-height: 3.5rem; margin: calc(-1 * var(--space-1)) 0 var(--space-4); padding-bottom: var(--space-3); display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--color-border); }
 .parameter-category-editor__head span, .parameter-category-editor__head small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -450,7 +417,7 @@
   gap: var(--space-1);
   height: var(--control-height-sm);
 }
-.billing-workbench { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 22rem; align-items: stretch; gap: var(--layout-panel-gap); }
+.billing-workbench { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 28rem; align-items: stretch; gap: var(--layout-panel-gap); }
 .billing-workspace-scroll .billing-statement { position: static; min-height: 0; overflow: auto; border-radius: var(--radius-lg); }
 .billing-payment-panel { position: static; min-height: 0; }
 .billing-payment-panel .cashier-panel__amount { padding: var(--space-2-5, 0.625rem) var(--space-3); }
@@ -517,6 +484,20 @@
 .settlement-payment-panel { display: grid; gap: var(--space-3); }
 .settlement-payment-panel__grid { display: grid; gap: var(--space-3); }
 .settlement-payment-panel__grid .ui-field { min-width: 0; margin: 0; }
+/* 统一规范：字段行 = 固定标签列 + 控件列；分组卡片同一外观；控件同一高度与字号。 */
+.settlement-payment-panel { --payment-label-col: 6.5rem; --payment-control-height: var(--control-height-sm); }
+.settlement-payment-panel__grid .settlement-payment-panel__inline-field { display: grid; grid-template-columns: var(--payment-label-col) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.settlement-payment-panel__inline-field .ui-field__label-row { width: auto; min-width: 0; white-space: normal; }
+.settlement-payment-panel__inline-field .ui-field__control, .settlement-payment-panel__inline-field .ui-select__trigger { min-height: var(--payment-control-height); height: var(--payment-control-height); }
+.settlement-payment-panel__card-title { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.settlement-payment-panel__relief-note { color: var(--color-success); font-size: var(--font-size-small); }
+.settlement-payment-panel__relief-tag { color: var(--color-success); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
+.settlement-payment-panel__rounding-tag { font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
+.settlement-payment-panel__rounding-tag.is-up { color: var(--color-warning); }
+.settlement-payment-panel__rounding-tag.is-down { color: var(--color-success); }
+.settlement-payment-panel__locked-tag { padding: 0 var(--space-2); border-radius: var(--radius-sm); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
+.settlement-payment-panel__guide-copy { min-width: 0; color: var(--color-text-secondary); font-size: var(--font-size-body); }
+.settlement-payment-panel__chs-zero { color: var(--color-success); font-weight: var(--font-weight-semibold); }
 .settlement-payment-panel__grid .payment-method-selector.ui-field__control {
   border: 0;
   background: transparent;
@@ -534,33 +515,20 @@
 .settlement-payment-panel__notice-copy > span:last-child { color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }
 .settlement-payment-panel__notice > .ui-button { justify-self: end; }
 .settlement-payment-panel > .ui-button { justify-self: end; }
-.settlement-payment-panel__chs-card {
+.settlement-payment-panel__chs-card,
+.settlement-payment-panel__pay-card {
   padding: var(--space-3);
   display: grid;
   gap: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-brand-soft) 25%, var(--color-surface));
+  background: var(--color-surface-subtle);
 }
 .settlement-payment-panel__chs-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  flex-wrap: wrap;
-}
-.settlement-payment-panel__chs-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-small);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-.settlement-payment-panel__chs-id {
-  font-family: var(--font-mono, monospace);
-  font-size: var(--font-size-caption);
-  color: var(--color-text-secondary);
 }
 .settlement-payment-panel__chs-grid {
   display: grid;
@@ -581,39 +549,27 @@
 }
 .settlement-payment-panel__chs-item-val {
   font-size: var(--font-size-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 .settlement-payment-panel__chs-item-val--cash {
-  color: var(--color-brand);
-  font-size: var(--font-size-subtitle);
+  color: var(--color-brand-primary);
+}
+.settlement-payment-panel__chs-item-val--fund {
+  color: var(--color-success);
 }
 .settlement-payment-panel__chs-item-val--zero {
   color: var(--color-success);
 }
-.settlement-payment-panel__chs-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  font-size: var(--font-size-caption);
-  color: var(--color-text-secondary);
-  flex-wrap: wrap;
-}
 .settlement-payment-panel__chs-guide {
   padding: var(--space-3);
-  display: grid;
-  gap: var(--space-2);
-  border: 1px dashed var(--color-brand);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-brand-soft) 18%, var(--color-surface));
-}
-.settlement-payment-panel__chs-guide-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: var(--space-3);
+  border: 1px dashed var(--color-brand-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
 }
 
 .billing-action-form--refund { background: color-mix(in srgb, var(--color-warning-soft) 42%, var(--color-surface)); }
@@ -865,7 +821,7 @@
 .billing-statement > .ui-panel__head { flex-wrap: wrap; }
 @container billing (min-width: 70.01rem) and (max-width: 90rem) {
   .billing-workspace { grid-template-columns: 13rem minmax(0, 1fr); gap: var(--layout-panel-gap); }
-  .billing-workbench { grid-template-columns: minmax(0, 1fr) 18rem; gap: var(--layout-panel-gap); }
+  .billing-workbench { grid-template-columns: minmax(0, 1fr) 22rem; gap: var(--layout-panel-gap); }
 }
 
 .billing-doc-group-row__selection-spacer { display: inline-block; width: 1rem; flex-shrink: 0; }

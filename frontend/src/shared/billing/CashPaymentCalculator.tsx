@@ -48,6 +48,111 @@ export function getCashPresets(amount: number, maxCount = 3): number[] {
   return Array.from(candidates).sort((a, b) => a - b).slice(0, maxCount)
 }
 
+/** 金额输入：¥ 前缀 + 右对齐，缴款与减免核定等收银场景共用同一外观。 */
+export function CashAmountInput({
+  value, onChange, onEnter, disabled = false, inputRef, precision = '0.01', currencySymbol = '¥',
+  placeholder, id, ariaLabel, invalid = false, describedBy,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onEnter?: () => void
+  disabled?: boolean
+  inputRef?: RefObject<HTMLInputElement | null>
+  precision?: string
+  currencySymbol?: string
+  placeholder?: string
+  id?: string
+  ariaLabel?: string
+  invalid?: boolean
+  describedBy?: string
+}) {
+  return (
+    <div className={`cash-payment-input-wrap ${invalid ? 'is-invalid' : ''}`}>
+      <span className="cash-payment-symbol">{currencySymbol}</span>
+      <input
+        ref={inputRef}
+        id={id}
+        data-barcode-scan="ignore"
+        type="number"
+        step={precision === '0.1' ? '0.1' : '0.01'}
+        min={0}
+        className="cash-payment-input"
+        value={value}
+        aria-label={ariaLabel}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && onEnter && !disabled) {
+            e.preventDefault()
+            onEnter()
+          }
+        }}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+    </div>
+  )
+}
+
+/** 与金额输入同外观的只读展示（非输入控件）。 */
+export function CashReadonlyAmount({ text, currencySymbol = '¥', valueClassName = '' }: {
+  text: string
+  currencySymbol?: string
+  valueClassName?: string
+}) {
+  return (
+    <div className="cash-payment-input-wrap is-readonly">
+      {currencySymbol && <span className="cash-payment-symbol">{currencySymbol}</span>}
+      <span className={`cash-payment-value ${valueClassName}`}>{text}</span>
+    </div>
+  )
+}
+
+export interface CashPresetChip {
+  key: string
+  label: string
+  active?: boolean
+  onClick: () => void
+}
+
+/** 快捷金额 chip 组（缴款快捷面额、减免“上限/减半”共用）。 */
+export function CashPresetChips({ chips, disabled = false }: { chips: CashPresetChip[]; disabled?: boolean }) {
+  if (chips.length === 0) return null
+  return (
+    <div className="cash-payment-presets">
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          className={`cash-payment-preset-link ${chip.active ? 'is-active' : ''}`}
+          onClick={chip.onClick}
+          disabled={disabled}
+        >
+          {chip.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** 非现金支付方式的只读“付款金额”行：标签 + 只读金额，与缴款金额行同一网格。 */
+export function PaymentAmountReadonlyRow({ label = '付款金额：', amount, currencySymbol = '¥', className = '' }: {
+  label?: string
+  amount: number
+  currencySymbol?: string
+  className?: string
+}) {
+  return (
+    <div className={`cash-payment-calc ${className}`}>
+      <div className="cash-payment-row">
+        <span className="cash-payment-label">{label}</span>
+        <CashReadonlyAmount text={amount.toFixed(2)} currencySymbol={currencySymbol} />
+      </div>
+    </div>
+  )
+}
+
 export function CashPaymentCalculator({
   payableAmount,
   tendered,
@@ -73,42 +178,25 @@ export function CashPaymentCalculator({
     <div className={`cash-payment-calc ${className}`}>
       <div className="cash-payment-row">
         <span className="cash-payment-label">{label}</span>
-        <div className="cash-payment-input-wrap">
-          <span className="cash-payment-symbol">{currencySymbol}</span>
-          <input
-            ref={inputRef}
-            data-barcode-scan="ignore"
-            type="number"
-            step={precision === '0.1' ? '0.1' : '0.01'}
-            min={0}
-            className="cash-payment-input"
-            value={tendered}
-            onChange={(e) => onTenderedChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && onEnter && !disabled) {
-                e.preventDefault()
-                onEnter()
-              }
-            }}
-            placeholder={String(payableAmount)}
-            disabled={disabled}
-          />
-        </div>
-        {presets.length > 0 && (
-          <div className="cash-payment-presets">
-            {presets.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                className={`cash-payment-preset-link ${numericTendered === preset ? 'is-active' : ''}`}
-                onClick={() => onTenderedChange(String(preset))}
-                disabled={disabled}
-              >
-                {currencySymbol}{preset}
-              </button>
-            ))}
-          </div>
-        )}
+        <CashAmountInput
+          value={tendered}
+          onChange={onTenderedChange}
+          onEnter={onEnter}
+          inputRef={inputRef}
+          precision={precision}
+          currencySymbol={currencySymbol}
+          placeholder={String(payableAmount)}
+          disabled={disabled}
+        />
+        <CashPresetChips
+          disabled={disabled}
+          chips={presets.map((preset) => ({
+            key: String(preset),
+            label: `${currencySymbol}${preset}`,
+            active: numericTendered === preset,
+            onClick: () => onTenderedChange(String(preset)),
+          }))}
+        />
       </div>
 
       <div className={`cash-payment-change ${isCashShort ? 'is-short' : 'is-sufficient'}`}>

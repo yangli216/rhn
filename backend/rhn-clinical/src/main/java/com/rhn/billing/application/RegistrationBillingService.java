@@ -32,6 +32,10 @@ public class RegistrationBillingService implements BillingSceneCompletionHandler
 
     public RegistrationIntentView get(Long intentId) { return transactions.get(intentId); }
 
+    public java.util.Map<Long, String> settlementModesByEncounter(java.util.Collection<Long> encounterIds) {
+        return transactions.settlementModesByEncounter(encounterIds);
+    }
+
     /** 当前机构／科室选择医保身份挂号时的结算时机：REGISTRATION（挂号时结算）或 VISIT_UNIFIED（诊间统一结算）。 */
     public String insuranceTiming(Long organizationId, Long departmentId) {
         return transactions.insuranceTiming(organizationId, departmentId);

@@ -361,6 +361,16 @@ export interface CashierClose {
   lines: CashierCloseLine[]
 }
 
+function toChsPersonInfo(view: InsurancePersonInfoView): ChsPersonInfoResponse {
+  return {
+    psnNo: view.personNo, psnCertType: view.certType, certno: view.certNo, psnName: view.personName,
+    gender: view.gender ?? undefined, birthday: view.birthday ?? undefined,
+    insutype: view.insuranceType, insutypeName: view.insuranceTypeName, balc: view.accountBalance ?? 0,
+    insuOptins: view.regionCode, insuOptinsName: view.regionName ?? undefined,
+    psnType: view.personCategory ?? undefined, status: view.status ?? undefined,
+  }
+}
+
 export function createBillingApi(client: ApiClient) {
   return {
     ...createPaymentReconciliationApi(client),
@@ -437,6 +447,9 @@ export function createBillingApi(client: ApiClient) {
       `/api/billing/registration-intents/${intentId}`,
     ),
     /** 机构／科室选择医保身份挂号时的结算时机：挂号时结算，或并入诊间统一结算。 */
+    /** 挂号流水按就诊批量取费用类别：{ 就诊ID: SELF_PAY | MEDICAL_INSURANCE }。 */
+    registrationSettlementModes: (encounterIds: string[]) => client.request<Record<string, 'SELF_PAY' | 'MEDICAL_INSURANCE'>>(
+      `/api/billing/registration-intents/settlement-modes?encounterIds=${encodeURIComponent(encounterIds.join(','))}`),
     registrationInsuranceTiming: (organizationId: string, departmentId: string) =>
       client.request<{ timing: RegistrationInsuranceTiming }>(
         `/api/billing/registration-intents/insurance-timing?organizationId=${encodeURIComponent(organizationId)}`
@@ -516,19 +529,16 @@ export function createBillingApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       }),
     /** 1101 读证：后端契约为 certType/certNo/personName，此处与界面使用的医保字段名互转。 */
-    queryInsurancePerson: async (input: ChsPersonInfoRequest): Promise<ChsPersonInfoResponse> => {
-      const view = await client.request<InsurancePersonInfoView>('/api/billing/insurance/person-info', {
+    queryInsurancePerson: async (input: ChsPersonInfoRequest): Promise<ChsPersonInfoResponse> =>
+      toChsPersonInfo(await client.request<InsurancePersonInfoView>('/api/billing/insurance/person-info', {
         method: 'POST',
         body: JSON.stringify({ certType: input.psnCertType, certNo: input.certno, personName: input.psnName }),
-      })
-      return {
-        psnNo: view.personNo, psnCertType: view.certType, certno: view.certNo, psnName: view.personName,
-        gender: view.gender ?? undefined, birthday: view.birthday ?? undefined,
-        insutype: view.insuranceType, insutypeName: view.insuranceTypeName, balc: view.accountBalance ?? 0,
-        insuOptins: view.regionCode, insuOptinsName: view.regionName ?? undefined,
-        psnType: view.personCategory ?? undefined, status: view.status ?? undefined,
-      }
-    },
+      })),
+    /** 1101 按患者档案鉴权：证件号与姓名由服务端取自档案并与医保端返回核对，浏览器不接触完整证件号。 */
+    authenticateInsuranceByResident: async (residentId: string): Promise<ChsPersonInfoResponse> =>
+      toChsPersonInfo(await client.request<InsurancePersonInfoView>('/api/billing/insurance/person-info/by-resident', {
+        method: 'POST', body: JSON.stringify({ residentId }),
+      })),
     /** 医保联调模拟场景：未开启时 enabled=false，界面不显示任何模拟入口。 */
     insuranceSimulator: () => client.request<InsuranceSimulator>('/api/billing/insurance/simulator'),
     quickPreSettleInsurance: (settlementId: string, input: {

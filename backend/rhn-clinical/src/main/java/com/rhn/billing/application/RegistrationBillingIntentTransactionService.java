@@ -433,6 +433,20 @@ class RegistrationBillingIntentTransactionService {
         return view(value, false);
     }
 
+    /** 就诊 → 挂号结算方式（SELF_PAY / MEDICAL_INSURANCE），仅返回当前机构上下文内的记录。 */
+    @Transactional(readOnly = true)
+    java.util.Map<Long, String> settlementModesByEncounter(java.util.Collection<Long> encounterIds) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (encounterIds.isEmpty()) return java.util.Map.of();
+        var result = new java.util.LinkedHashMap<Long, String>();
+        for (RegistrationBillingIntent value : intents.findByTenantIdAndEncounterIdIn(context.tenantId(), encounterIds)) {
+            if (value.encounterId() != null && value.organizationId().equals(context.organizationId())) {
+                result.put(value.encounterId(), value.settlementMode());
+            }
+        }
+        return result;
+    }
+
     @Transactional(readOnly = true)
     RegistrationIntentView get(Long intentId) {
         return get(intentId, false);

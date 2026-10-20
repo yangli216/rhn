@@ -40,6 +40,11 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         this.nationalInsuranceClient = nationalInsuranceClient;
     }
 
+    private com.rhn.healthcore.api.ResidentDirectory residents;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setResidents(com.rhn.healthcore.api.ResidentDirectory residents) { this.residents = residents; }
+
     private RegistrationBillingService registrations;
 
     /** 挂号结算单被医保资金结清时没有支付指令触发建就诊，由本服务在医保结算成功后补触发；缺省（如单测）不触发。 */
@@ -66,6 +71,23 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
                 response.insuOptins(), response.insuOptinsName(), response.psnType(), response.status());
     }
 
+    /** 1101 按患者档案鉴权：以档案身份证号与姓名发起，并核对医保端返回的姓名、证件号与档案一致。 */
+    public PersonInfoView queryPersonInfoByResident(Long residentId) {
+        if (residents == null) throw badRequest("RESIDENT_DIRECTORY_UNAVAILABLE", "患者档案服务不可用，无法自动鉴权");
+        var snapshot = residents.requireSnapshot(residentId);
+        String nationalId = residents.findNationalId(residentId).orElseThrow(() -> badRequest("RESIDENT_NATIONAL_ID_MISSING",
+                "患者档案缺少身份证号，请补录证件或改用医保电子凭证/社保卡读取"));
+        var view = queryPersonInfo(new PersonInfoQuery("01", nationalId, snapshot.fullName()));
+        if (view.personName() != null && !view.personName().trim().equals(snapshot.fullName().trim())) {
+            throw badRequest("INSURANCE_PERSON_NAME_MISMATCH",
+                    "医保登记姓名与患者档案姓名不一致（医保：" + view.personName() + "，档案：" + snapshot.fullName() + "），请核对身份");
+        }
+        if (view.certNo() != null && !view.certNo().isBlank() && !view.certNo().trim().equalsIgnoreCase(nationalId.trim())) {
+            throw badRequest("INSURANCE_PERSON_CERT_MISMATCH", "医保登记证件号与患者档案不一致，请核对身份");
+        }
+        return view;
+    }
+
     /** 快捷门诊医保预结算：自动组装患者保障上下文、执行范围与目录映射后转入标准预结算流程。 */
     public InsuranceSettlementView quickPreSettle(Long settlementId, Long coverageId, String insuranceTypeCode,
                                                  String regionCode, String idempotencyKey) {
@@ -73,6 +95,9 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.trim().length() > 128) {
             throw badRequest("INSURANCE_COMMAND_REQUIRED", "医保预结算必须提供有效的幂等编码，请沿用原请求编号重试");
         }
+        // 已有医保申请（如页面刷新后幂等编码丢失）时直接返回现有申请，由调用方按其状态/失败原因继续。
+        var existing = transactions.existingClaimId(settlementId);
+        if (existing.isPresent()) return retryUncertainPreSettle(existing.get());
         var quick = transactions.quickPreSettleContext(settlementId, coverageId, insuranceTypeCode, regionCode);
         var submission = quick.submission();
         return preSettle(new PreSettleCommand(settlementId, quick.coverage().id(), idempotencyKey.trim(), submission.regionCode(),
@@ -80,6 +105,29 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
                 submission.practitionerCode(), submission.diagnosisDigest(), quick.visit().startedAt(), quick.visit().completedAt(),
                 context.correlationId(), quick.lines().stream().map(line -> new LineMapping(line.settlementLineId(),
                         line.insuranceItemCode(), line.traceAttributes())).toList()));
+    }
+
+    /**
+     * 已有申请尚未取得医保预结算流水，且处于“通道不确定的处理中”，或“请求发出前上下文未确认（如参保人鉴权凭证失效）的失败”时，
+     * 用新的结果命令编码重试一次预结算；其他状态原样返回，由调用方按状态与原因继续。
+     */
+    private InsuranceSettlementView retryUncertainPreSettle(Long claimId) {
+        var view = transactions.view(claimId, true);
+        if (!"PRE_SETTLE".equals(view.currentOperation()) || view.externalPreSettlementNo() != null) return view;
+        boolean uncertain = "PRE_SETTLEMENT_PENDING".equals(view.status()) && "INSURANCE_CHANNEL_UNCERTAIN".equals(view.errorCode());
+        boolean notSent = "FAILED".equals(view.status()) && "CHS_REQUEST_CONTEXT_UNCONFIRMED".equals(view.errorCode());
+        if (!uncertain && !notSent) return view;
+        if (notSent) transactions.prepareRetryPreSettle(claimId);
+        InsuranceInstruction instruction = transactions.instruction(claimId);
+        InsuranceSettlementAdapter adapter = adapter(instruction);
+        if (adapter == null) return view;
+        String command = CommandCodes.prefixed("PRE-R" + (view.responses().size() + 1) + "-", view.claimNo());
+        if (transactions.responseApplied(claimId, command)) return view;
+        InsuranceResult result;
+        try { result = adapter.preSettle(instruction); }
+        catch (RuntimeException exception) { result = uncertain(exception); }
+        var applied = transactions.apply(claimId, "PRE_SETTLE", result, command, null, false);
+        return transactions.view(claimId, applied.duplicate());
     }
 
     public InsuranceSettlementView preSettle(PreSettleCommand input) {

@@ -209,9 +209,13 @@ class SettlementReliefService {
     List<ReliefOutcomeView> previewPostInsurance(ExecutionContext context, PatientAccount account, Settlement settlement) {
         if (!supported(settlement)) return List.of();
         InsuranceClaim claim = claims.findByTenantIdAndSettlementId(context.tenantId(), settlement.id()).orElse(null);
-        if (claim != null && !"SETTLED".equals(claim.status())) return List.of();
+        if (claim != null && !"SETTLED".equals(claim.status()) && !"PRE_SETTLED".equals(claim.status())) {
+            return List.of();
+        }
+        // 预结算后个人自付已知：按预结算分摊预估，正式结算前即可展示并核定（确认仍需医保正式结算）。
+        InsuranceClaim estimate = claim != null && "PRE_SETTLED".equals(claim.status()) ? claim : null;
         Stage stage = prepare(context, account, settlement, ReliefTiming.POST_INSURANCE,
-                claim == null ? null : claim.insuranceTypeCode(), false);
+                claim == null ? null : claim.insuranceTypeCode(), false, estimate);
         if (stage.policies().isEmpty()) return List.of();
         ReliefCalculator.Result result = calculator.calculate(new ReliefCalculator.Request(ReliefTiming.POST_INSURANCE,
                 claim != null, PRECISION, stage.lines(), stage.policyInputs(), stage.prior(), Map.of()));
@@ -483,6 +487,11 @@ class SettlementReliefService {
 
     private Stage prepare(ExecutionContext context, PatientAccount account, Settlement settlement, ReliefTiming timing,
                           String coverageType, boolean lock) {
+        return prepare(context, account, settlement, timing, coverageType, lock, null);
+    }
+
+    private Stage prepare(ExecutionContext context, PatientAccount account, Settlement settlement, ReliefTiming timing,
+                          String coverageType, boolean lock, InsuranceClaim estimateClaim) {
         LocalDate businessDate = LocalDate.ofInstant(settlement.createdAt(), BUSINESS_ZONE);
         List<ReliefPolicy> active = policies.findByTenantIdAndStatus(context.tenantId(), ReliefPolicyStatus.ACTIVE);
         List<ReliefPolicyVersion> candidates = versions.findByTenantIdAndIdIn(context.tenantId(),
@@ -545,11 +554,11 @@ class SettlementReliefService {
                     calculatorRules);
             prepared.add(new PreparedPolicy(version, input, result));
         }
-        return new Stage(prepared, chargeLines(context, settlement, timing, existing), prior, businessDate);
+        return new Stage(prepared, chargeLines(context, settlement, timing, existing, estimateClaim), prior, businessDate);
     }
 
     private List<ChargeLine> chargeLines(ExecutionContext context, Settlement settlement, ReliefTiming timing,
-                                         List<ReliefApplication> existing) {
+                                         List<ReliefApplication> existing, InsuranceClaim estimateClaim) {
         List<SettlementLine> values = settlementLines.findByTenantIdAndSettlementIdOrderByLineNoAsc(
                 context.tenantId(), settlement.id());
         Map<Long, ChargeItem> charges = chargeItems.findAllById(values.stream().map(SettlementLine::chargeItemId).toList())
@@ -562,6 +571,24 @@ class SettlementReliefService {
             }).toList();
         }
         // 医保后：行个人自付 = 行净额 - 统筹 - 其他基金；个人账户按行自付比例分摊，剩余为现金自付。
+        if (estimateClaim != null) {
+            // 预结算预估：医保分摊尚未写入结算行，按整单预结算分摊拆到各行。
+            List<LineEstimate> estimates = estimate(values.stream().map(SettlementLine::netAmount).toList(),
+                    estimateClaim.insuranceFundAmount(), estimateClaim.otherFundAmount(),
+                    estimateClaim.personalAccountAmount());
+            Map<Long, BigDecimal> prior = priorPostRelief(context, existing);
+            List<ChargeLine> estimated = new ArrayList<>();
+            for (int index = 0; index < values.size(); index++) {
+                SettlementLine line = values.get(index);
+                ChargeItem charge = charges.get(line.chargeItemId());
+                LineEstimate value = estimates.get(index);
+                estimated.add(new ChargeLine(line.id(), charge.catalogItemId(), charge.accountingCategory(),
+                        charge.sourceType(), line.settledQuantity(), line.netAmount(), null,
+                        value.personal().subtract(value.account()), value.account(),
+                        prior.getOrDefault(line.id(), BigDecimal.ZERO)));
+            }
+            return estimated;
+        }
         BigDecimal personalAccount = tenders.findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id())
                 .stream().filter(tender -> tender.claimResponseId() != null && "PERSONAL_ACCOUNT".equals(tender.tenderType()))
                 .map(SettlementTender::tenderAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -585,6 +612,43 @@ class SettlementReliefService {
         }
         return result;
     }
+
+    private Map<Long, BigDecimal> priorPostRelief(ExecutionContext context, List<ReliefApplication> existing) {
+        Set<Long> postApplications = existing.stream().filter(value -> value.timing() == ReliefTiming.POST_INSURANCE)
+                .map(ReliefApplication::id).collect(Collectors.toSet());
+        Map<Long, BigDecimal> priorRelief = new HashMap<>();
+        if (!postApplications.isEmpty()) {
+            applicationLines.findByTenantIdAndApplicationIdIn(context.tenantId(), postApplications)
+                    .forEach(line -> priorRelief.merge(line.settlementLineId(), line.reliefAmount(), BigDecimal::add));
+        }
+        return priorRelief;
+    }
+
+    /** 预结算预估的单行拆分：个人自付、其中个人账户份额、现金自付。 */
+    record LineEstimate(BigDecimal personal, BigDecimal account, BigDecimal cash) {}
+
+    /**
+     * 按行净额比例把整单预结算分摊拆到各行（末行吸收尾差）：行个人自付 = 行净额 - 统筹 - 其他基金，
+     * 个人账户按行个人自付比例拆分，行现金自付 = 行个人自付 - 个人账户份额。金额为空按零处理。
+     */
+    static List<LineEstimate> estimate(List<BigDecimal> netAmounts, BigDecimal insuranceFund, BigDecimal otherFund,
+                                       BigDecimal personalAccount) {
+        List<BigDecimal> fund = ReliefCalculator.split(zero(insuranceFund), netAmounts, 6);
+        List<BigDecimal> other = ReliefCalculator.split(zero(otherFund), netAmounts, 6);
+        List<BigDecimal> personal = new ArrayList<>();
+        for (int index = 0; index < netAmounts.size(); index++) {
+            personal.add(netAmounts.get(index).subtract(fund.get(index)).subtract(other.get(index)).max(BigDecimal.ZERO));
+        }
+        List<BigDecimal> account = ReliefCalculator.split(zero(personalAccount), personal, 6);
+        List<LineEstimate> result = new ArrayList<>();
+        for (int index = 0; index < netAmounts.size(); index++) {
+            BigDecimal share = account.get(index).min(personal.get(index)).max(BigDecimal.ZERO);
+            result.add(new LineEstimate(personal.get(index), share, personal.get(index).subtract(share)));
+        }
+        return result;
+    }
+
+    private static BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
 
     private boolean inScope(ReliefPolicyVersion version, Settlement settlement) {
         ReliefApplicableScope scope = json.read(version.applicableScopeJson(), ReliefApplicableScope.class);

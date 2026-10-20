@@ -142,6 +142,40 @@ describe('BillingWorkspace deep link', () => {
     })))
   })
 
+  it('defaults to medical-insurance settlement for encounters registered with insurance', async () => {
+    const registrationSettlementModes = vi.fn().mockResolvedValue({ 'encounter-1': 'MEDICAL_INSURANCE' })
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([{ encounterId: 'encounter-1', residentId: 'resident-1',
+          residentName: '王建国', healthRecordNo: 'JMD-0001', gender: '1', birthDate: '1976-03-12',
+          encounterNo: 'MZ20260831001', accountId: 'account-1', status: 'PENDING_INVOICE', sourceEventCount: 1,
+          chargedEventCount: 1, latestSourceNo: 'REQ-1', latestOccurredAt: '2026-08-31T01:00:00Z',
+          chargeAmount: 28.6, accountBalance: 28.6, currencyCode: 'CNY' }]),
+        statement: vi.fn().mockResolvedValue({
+          accountId: 'account-1', revision: 1, residentId: 'resident-1', encounterId: 'encounter-1',
+          organizationId: 'org-1', departmentId: 'dept-1', accountType: 'OUTPATIENT', currencyCode: 'CNY',
+          status: 'OPEN', chargeAmount: 0, invoicedAmount: 0, uninvoicedAmount: 0, paymentAmount: 0,
+          refundAmount: 0, accountBalance: 0, charges: [], invoices: [], settlements: [], payments: [], ledgerEntries: [] }),
+        paymentOrders: vi.fn().mockResolvedValue([]),
+        registrationSettlementModes,
+      },
+      relief: { settlementRelief: vi.fn().mockResolvedValue({ applications: [], pending: [] }) },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([
+        { code: 'CASH', name: '现金', attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } },
+      ]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    expect((await screen.findAllByText('医保结算')).length).toBeGreaterThan(0)
+    expect(registrationSettlementModes).toHaveBeenCalledWith(['encounter-1'])
+  })
+
   it.each([
     { name: 'pre-insurance relief lowered the amount due', discount: 8.6, pending: [],
       message: '已执行惠民减免，应收由 ¥28.60 调整为 ¥20.00，请核对后再收款。' },

@@ -343,11 +343,9 @@
 .registration-dept-filter-bar { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); background: var(--color-surface-subtle); }
 .registration-filter-search-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 
-.registration-type-segmented { display: inline-flex; align-items: center; background: transparent; border: 0; border-radius: var(--radius-md); padding: 0; gap: var(--space-1); flex-shrink: 0; flex-wrap: wrap; }
-
-.registration-dept-tabs { display: flex; align-items: center; gap: var(--space-1); overflow-x: visible; padding-bottom: 0; flex-wrap: wrap; }
-
-.registration-daypart-pills { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: auto; border-left: 1px solid var(--color-border); padding-left: var(--space-2); flex-shrink: 0; flex-wrap: wrap; }
+.registration-filter-track { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1); flex-shrink: 0; background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.registration-filter-seg { display: inline-flex; align-items: center; gap: var(--space-1); }
+.registration-filter-divider { align-self: stretch; width: 1px; margin: var(--space-1) var(--space-1); background: var(--color-border); }
 
 .registration-patient-search .ui-patient-search__results > div { grid-template-columns: 1fr; max-height: 14rem; }
 
@@ -501,9 +499,10 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: var(--control-height-sm);
+  height: var(--control-height-md);
   padding: 0 var(--space-3);
 }
+.registration-intake-strip .registration-insurance-info-trigger { height: var(--control-height-md); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
 .registration-intake-strip .registration-params-section { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(10rem, 1fr)); align-items: center; gap: var(--space-2); }
 .registration-intake-strip .registration-params-section .ui-select__trigger { height: var(--control-height-md); }
 
@@ -579,6 +578,14 @@
   border: 1px solid var(--color-border);
 }
 
+.registration-insurance-info { width: 22rem; max-width: calc(100vw - 1.5rem); z-index: var(--z-popover, 1000); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-hover); }
+.registration-insurance-info__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.registration-insurance-info__body { margin: 0; display: grid; gap: var(--space-1); font-size: var(--font-size-small); }
+.registration-insurance-info__row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: var(--space-2); }
+.registration-insurance-info__row dt { color: var(--color-text-secondary); }
+.registration-insurance-info__row dd { margin: 0; overflow-wrap: anywhere; }
+.registration-insurance-info__hint { margin: var(--space-1) 0 0; color: var(--color-text-secondary); }
+
 .registration-insurance-recommend-alert {
   margin: 0;
   padding: var(--space-2) var(--space-3);
@@ -609,7 +616,7 @@
 .registration-schedule-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg); }
 .registration-schedule-panel .registration-schedule-grid-pro { min-height: 0; flex: 1 1 auto; align-content: start; overflow: auto; overscroll-behavior: contain; }
 .registration-cashier { min-height: 0; grid-column: 2; grid-row: 1; }
-.registration-cashier .cashier-panel__body { padding: 0; }
+.registration-cashier .cashier-panel__body { padding: 0; overflow-x: hidden; }
 .registration-settlement-section { min-width: 0; min-height: 100%; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); border: 0; }
 .registration-settlement-section .registration-fee-card { padding: 0 0 var(--space-2); border: 0; background: transparent; }
 .registration-submit-area { margin-top: auto; padding-top: var(--space-3); }

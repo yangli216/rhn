@@ -18,6 +18,7 @@ public interface RegistrationBillingIntentRepository extends JpaRepository<Regis
     Optional<RegistrationBillingIntent> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
     Optional<RegistrationBillingIntent> findByTenantIdAndSettlementId(Long tenantId, Long settlementId);
     Optional<RegistrationBillingIntent> findByTenantIdAndEncounterId(Long tenantId, Long encounterId);
+    java.util.List<RegistrationBillingIntent> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
     Optional<RegistrationBillingIntent> findFirstByTenantIdAndAppointmentIdAndStatusIn(
             Long tenantId, Long appointmentId, Collection<RegistrationBillingIntentStatus> statuses);
 

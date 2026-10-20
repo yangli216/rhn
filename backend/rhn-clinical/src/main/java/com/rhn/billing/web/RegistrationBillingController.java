@@ -43,6 +43,12 @@ public class RegistrationBillingController {
 
     record InsuranceTimingView(String timing) {}
 
+    /** 挂号流水按就诊批量查询费用类别（自费 / 医保），返回 {就诊ID: 结算方式}。 */
+    @GetMapping("/settlement-modes")
+    java.util.Map<Long, String> settlementModes(@RequestParam java.util.List<Long> encounterIds) {
+        return service.settlementModesByEncounter(encounterIds.stream().limit(200).toList());
+    }
+
     @GetMapping("/{intentId}")
     RegistrationIntentView get(@PathVariable Long intentId) { return service.get(intentId); }
 

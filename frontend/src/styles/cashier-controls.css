@@ -16,13 +16,13 @@
   gap: var(--space-1);
   box-sizing: border-box;
   min-width: 4.5rem;
-  height: 2.125rem;
+  height: var(--payment-control-height, var(--control-height-md));
   padding: 0 var(--space-1);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-body);
   white-space: nowrap;
   cursor: pointer;
   transition: all var(--motion-fast) var(--ease-standard);
@@ -34,7 +34,7 @@
 .payment-method-chip.is-active kbd { border-color: var(--color-brand-primary); background: var(--color-surface); color: var(--color-brand-primary); font-weight: var(--font-weight-bold); }
 
 .payment-method-other-container { position: relative; flex: 1 1 0; min-width: 4.75rem; }
-.payment-method-other-trigger { width: 100%; height: 2.125rem; justify-content: center; user-select: none; }
+.payment-method-other-trigger { width: 100%; height: var(--payment-control-height, var(--control-height-md)); justify-content: center; user-select: none; }
 .payment-method-other-arrow { margin-left: 2px; color: var(--color-text-secondary); font-size: var(--font-size-small); pointer-events: none; transition: transform var(--motion-fast) var(--ease-standard); }
 .payment-method-other-arrow.is-open { transform: rotate(180deg); }
 .payment-method-chip.is-active .payment-method-other-arrow { color: var(--color-brand-strong); }
@@ -44,24 +44,32 @@
 .payment-method-dropdown-item.is-selected { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-semibold); }
 .payment-method-dropdown-check { margin-left: 0.5rem; color: var(--color-brand-primary); font-size: var(--font-size-small); font-weight: var(--font-weight-bold); }
 
-.cash-payment-calc { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
-.cash-payment-row { display: flex; align-items: center; flex-wrap: nowrap; gap: var(--space-1); width: 100%; }
-.cash-payment-label { flex-shrink: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); white-space: nowrap; }
-.cash-payment-input-wrap { display: inline-flex; flex-shrink: 0; align-items: center; box-sizing: border-box; width: 5.25rem; height: 2rem; padding: 0 0.375rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.cash-payment-calc { --cash-label-col: var(--payment-label-col, 6.5rem); --cash-control-height: var(--payment-control-height, var(--control-height-md)); display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.cash-payment-calc--embedded { padding: 0; border: 0; background: transparent; }
+.cash-payment-row { display: grid; grid-template-columns: var(--cash-label-col) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); width: 100%; }
+.cash-payment-label { color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-medium); white-space: nowrap; }
+.cash-payment-input-wrap { display: flex; align-items: center; box-sizing: border-box; min-width: 0; width: 100%; height: var(--cash-control-height, var(--payment-control-height, var(--control-height-md))); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+.cash-payment-input-wrap.is-invalid { border-color: var(--color-danger); }
+.cash-payment-input-wrap.is-readonly { border-color: var(--color-border); background: var(--color-surface-subtle); }
 .cash-payment-input-wrap:focus-within { border-color: var(--color-brand-primary); box-shadow: 0 0 0 2px var(--color-focus-ring); }
-.cash-payment-symbol { display: inline-flex; flex-shrink: 0; align-items: center; margin-right: 0.25rem; color: var(--color-text-secondary); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); line-height: 1; pointer-events: none; user-select: none; }
-.cash-payment-input { flex: 1; width: 100%; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--color-text-primary); font-family: inherit; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); line-height: 1; }
+.cash-payment-symbol { display: inline-flex; flex-shrink: 0; align-items: center; margin-right: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-body); font-weight: var(--font-weight-regular); line-height: 1; pointer-events: none; user-select: none; }
+.cash-payment-input { flex: 1; width: 100%; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--color-text-primary); font-family: inherit; font-size: var(--font-size-body); font-weight: var(--font-weight-regular); font-variant-numeric: tabular-nums; text-align: right; line-height: 1; }
+.cash-payment-value { flex: 1; min-width: 0; color: var(--color-text-primary); font-size: var(--font-size-body); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .cash-payment-input::-webkit-outer-spin-button, .cash-payment-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .cash-payment-input[type=number] { -moz-appearance: textfield; }
-.cash-payment-presets { display: inline-flex; flex-shrink: 0; align-items: center; flex-wrap: nowrap; gap: var(--space-2); margin-left: 2px; }
-.cash-payment-preset-btn, .cash-payment-preset-link { display: inline-flex; align-items: center; justify-content: center; height: 1.75rem; padding: 0 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-brand-primary); font-family: inherit; font-size: var(--font-size-small); font-weight: var(--font-weight-medium); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none; transition: color var(--motion-fast) var(--ease-standard), text-decoration var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard); }
-.cash-payment-preset-btn:hover, .cash-payment-preset-link:hover { color: var(--color-brand-strong); text-decoration: underline; text-underline-offset: 3px; }
+.cash-payment-presets { display: inline-flex; flex-shrink: 0; align-items: center; flex-wrap: nowrap; gap: var(--space-1); }
+.cash-payment-preset-btn, .cash-payment-preset-link { display: inline-flex; align-items: center; justify-content: center; height: var(--control-height-sm); padding: 0 var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-brand-primary); font-family: inherit; font-size: var(--font-size-small); font-weight: var(--font-weight-medium); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none; transition: color var(--motion-fast) var(--ease-standard), text-decoration var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard); }
+.cash-payment-preset-btn:hover, .cash-payment-preset-link:hover { border-color: var(--color-brand-primary); color: var(--color-brand-strong); }
 .cash-payment-preset-btn:focus-visible, .cash-payment-preset-link:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.cash-payment-preset-btn.is-active, .cash-payment-preset-link.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-bold); text-decoration: underline; text-underline-offset: 3px; }
-.cash-payment-change { display: flex; align-items: baseline; gap: var(--space-2); min-height: 2.25rem; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--font-size-small); }
+.cash-payment-preset-btn.is-active, .cash-payment-preset-link.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-semibold); }
+.cash-payment-change { display: grid; grid-template-columns: var(--cash-label-col) minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: var(--cash-control-height); padding: var(--space-1) var(--space-3); border-radius: var(--radius-md); font-size: var(--font-size-body); }
+.cash-payment-change > span:first-child { font-weight: var(--font-weight-medium); }
+.cash-payment-change > strong { font-variant-numeric: tabular-nums; text-align: right; }
+.cash-payment-change > small { grid-column: 2; text-align: right; }
 .cash-payment-change.is-sufficient { border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent); background: var(--color-success-soft); color: var(--color-success); }
-.cash-payment-change.is-sufficient strong { color: var(--color-success); font-size: var(--font-size-h2); }
+.cash-payment-change.is-sufficient strong { color: var(--color-success); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
 .cash-payment-change.is-short { border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent); background: var(--color-danger-soft); color: var(--color-danger); }
-.cash-payment-change.is-short strong { color: var(--color-danger); font-size: var(--font-size-h2); }
+.cash-payment-change.is-short strong { color: var(--color-danger); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
 .cash-payment-short-tip { color: var(--color-danger); font-size: var(--font-size-small); }
 .cash-payment-change-tip { color: var(--color-success); font-size: var(--font-size-small); }
+.payment-method-dropdown-item kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 1.125rem; height: 1.125rem; margin-left: var(--space-2); padding: 0 0.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); color: var(--color-text-secondary); font: var(--font-size-small) var(--font-mono, monospace); }

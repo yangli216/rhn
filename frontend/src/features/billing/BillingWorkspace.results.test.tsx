@@ -15,9 +15,11 @@ vi.mock('../../shared/billing/SettlementPaymentPanel', () => ({
   SettlementPaymentPanel: (props: ComponentProps<typeof SettlementPaymentPanel>) => <div>
     <button onClick={() => props.onSettlementModeChange?.('MEDICAL_INSURANCE')}>选择医保</button>
     <button onClick={() => void props.onPreSettleInsurance?.('settlement-1')}>试算</button>
+    {props.reliefSlot}
+    <output aria-label="relief-estimate">{props.reliefEstimate ?? 0}</output>
     <output aria-label="trial-status">{props.insuranceClaimView?.status}</output>
     <button onClick={() => void props.onSubmit({ settlementId: 'settlement-1', paymentMethodCode: 'CASH',
-      amount: 10, roundingAdjustment: 0, idempotencyKey: 'PAY-stable' }).catch(() => {})}>现金收款</button>
+      amount: 10 - (props.reliefEstimate ?? 0), roundingAdjustment: 0, idempotencyKey: 'PAY-stable' }).catch(() => {})}>现金收款</button>
     <button onClick={() => props.onInitiateChannelPay?.({ settlementId: 'settlement-1', paymentMethodCode: 'WECHAT', paymentMethodName: '微信', amount: 10 })}>扫码收款</button>
   </div>,
 }))
@@ -29,8 +31,10 @@ const claim: InsuranceSettlementView = { revision: 1, patientAccountId: 'account
   grossAmount: 30, otherFundAmount: 0, currencyCode: 'CNY', claimId: 'claim-1', settlementId: 'settlement-1', status: 'PRE_SETTLED',
   insuranceFundAmount: 20, personalAccountAmount: 0, patientCashAmount: 10 }
 
-function mount(preStatus: InsuranceSettlementView['status'], finalStatus: InsuranceSettlementView['status'] = 'SETTLED', finalAmount = 10, receiptError?: Error) {
+function mount(preStatus: InsuranceSettlementView['status'], finalStatus: InsuranceSettlementView['status'] = 'SETTLED', finalAmount = 10, receiptError?: Error,
+  opts: { pending?: unknown[]; reliefApplied?: number; confirmError?: Error } = {}) {
   let persisted = claim
+  let reliefApplied = 0
   const billing = {
     worklist: vi.fn().mockResolvedValue([{ encounterId: 'enc-1', residentId: 'res-1', residentName: '患者甲',
       accountId: 'account-1', status: 'PENDING_PAYMENT', accountBalance: 30, currencyCode: 'CNY' }]),
@@ -40,6 +44,9 @@ function mount(preStatus: InsuranceSettlementView['status'], finalStatus: Insura
         insuranceAmount: 0, patientAmount: 30, currencyCode: 'CNY', lines: [], tenders: [], events: [] }] }),
     paymentOrders: vi.fn().mockResolvedValue([]),
     settlementReceipts: receiptError ? vi.fn().mockRejectedValue(receiptError) : vi.fn().mockResolvedValue([]),
+    authenticateInsuranceByResident: vi.fn().mockResolvedValue({ status: 'NORMAL', psnName: '患者甲', insutypeName: '职工医保' }),
+    queryInsurancePerson: vi.fn().mockResolvedValue({ status: 'NORMAL', psnName: '患者甲', insutypeName: '职工医保' }),
+    insuranceSimulator: vi.fn().mockResolvedValue({ enabled: false, mode: 'GATEWAY', personas: [] }),
     quickPreSettleInsurance: vi.fn().mockImplementation(async () => {
       persisted = { ...claim, status: preStatus }
       return persisted
@@ -51,17 +58,24 @@ function mount(preStatus: InsuranceSettlementView['status'], finalStatus: Insura
     insuranceClaim: vi.fn().mockImplementation(async () => persisted),
     createPaymentOrder: vi.fn().mockResolvedValue({ id: 'pay-1', status: 'SUCCEEDED' }),
     // After the formal insurance settlement the cashier collects the settlement's outstanding patient share.
-    settlement: vi.fn().mockImplementation(async () => ({ id: 'settlement-1', outstandingAmount: persisted.patientCashAmount })),
+    settlement: vi.fn().mockImplementation(async () => ({ id: 'settlement-1', outstandingAmount: persisted.patientCashAmount - reliefApplied })),
     issueSettlementReceipt: vi.fn().mockResolvedValue({ id: 'receipt-1', settlementId: 'settlement-1',
       status: 'FAILED', receiptNo: 'REQUEST-1', amount: 30, currencyCode: 'CNY', errorMessage: '财政平台拒绝开票' }),
   }
-  const relief = { settlementRelief: vi.fn().mockResolvedValue({ settlementId: 'settlement-1', applications: [], pending: [] }) }
+  const relief = {
+    settlementRelief: vi.fn().mockResolvedValue({ settlementId: 'settlement-1', applications: [], pending: opts.pending ?? [] }),
+    confirmSettlementRelief: vi.fn().mockImplementation(async () => {
+      if (opts.confirmError) throw opts.confirmError
+      reliefApplied = opts.reliefApplied ?? 0
+      return {}
+    }),
+  }
   const api = { billing, relief, dictionaries: { applicable: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
   const view = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-    <MemoryRouter><BillingWorkspace api={api} clinicalContext={{ organization: { id: 'org-1', name: '机构' },
+    <MemoryRouter><BillingWorkspace api={api} authorities={['BILLING_RELIEF.DECIDE']} clinicalContext={{ organization: { id: 'org-1', name: '机构' },
       department: { id: 'dept-1', name: '科室' } } as ClinicalContext} /></MemoryRouter>
   </QueryClientProvider>)
-  return { ...billing, view }
+  return { ...billing, relief, view }
 }
 
 async function trial() {
@@ -223,4 +237,101 @@ it('keeps the confirmed claim amount when payment rounding has changed the settl
   await user.click(screen.getByRole('button', { name: '现金收款' }))
   await waitFor(() => expect(billing.createPaymentOrder).toHaveBeenCalledTimes(2))
   expect(billing.settleInsurance.mock.calls[1]).toEqual(billing.settleInsurance.mock.calls[0])
+})
+
+describe('insurance credential expiry', () => {
+  const expired = { code: 'CHS_REQUEST_CONTEXT_UNCONFIRMED', message: '参保人鉴权凭证已失效，请重新读取电子凭证或证件后再办理医保结算' }
+
+  it.each([
+    ['接口错误', () => Promise.reject(expired)],
+    ['已有申请结果', () => Promise.reject(new Error(expired.message))],
+  ])('opens the credential dialog on %s, then retries the trial after manual read', async (_label, fail) => {
+    const billing = mount('PRE_SETTLED')
+    billing.quickPreSettleInsurance.mockImplementationOnce(fail)
+    const user = await trial()
+    expect(await screen.findByText('读取医保凭证')).toBeInTheDocument()
+    expect(screen.queryByText(/参保人鉴权凭证已失效，请重新读取电子凭证/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /医保电子凭证/ }))
+    await user.type(screen.getByLabelText('凭证号 / 卡号'), 'CERT-1')
+    await user.click(screen.getByRole('button', { name: '读取' }))
+    await waitFor(() => expect(billing.queryInsurancePerson).toHaveBeenCalledWith({ psnCertType: '02', certno: 'CERT-1', psnName: undefined }))
+    await waitFor(() => expect(billing.quickPreSettleInsurance).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByLabelText('trial-status')).toHaveTextContent('PRE_SETTLED'))
+    expect(screen.queryByText('读取医保凭证')).not.toBeInTheDocument()
+    expect(billing.quickPreSettleInsurance.mock.calls[1]).toEqual(billing.quickPreSettleInsurance.mock.calls[0])
+  })
+
+  it('does not retry when the dialog is cancelled', async () => {
+    const billing = mount('PRE_SETTLED')
+    billing.quickPreSettleInsurance.mockRejectedValueOnce(expired)
+    const user = await trial()
+    await screen.findByText('读取医保凭证')
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(await screen.findByText('未读取医保凭证，未执行试算')).toBeInTheDocument()
+    expect(screen.queryByText('读取医保凭证')).not.toBeInTheDocument()
+    expect(billing.quickPreSettleInsurance).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps non-credential failures on the warning banner without the dialog', async () => {
+    const billing = mount('PRE_SETTLED')
+    billing.quickPreSettleInsurance.mockRejectedValueOnce(new Error('医保网关超时'))
+    await trial()
+    expect(await screen.findByText('医保网关超时')).toBeInTheDocument()
+    expect(screen.queryByText('读取医保凭证')).not.toBeInTheDocument()
+  })
+
+  it('keeps the dialog open with the error when the credential is still invalid', async () => {
+    const billing = mount('PRE_SETTLED')
+    billing.quickPreSettleInsurance.mockRejectedValue(expired)
+    const user = await trial()
+    await screen.findByText('读取医保凭证')
+    await user.click(screen.getByRole('button', { name: '按档案身份证鉴权' }))
+    await waitFor(() => expect(billing.quickPreSettleInsurance).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText(expired.message)).toBeInTheDocument()
+    expect(screen.getByText('读取医保凭证')).toBeInTheDocument()
+  })
+})
+
+describe('insurance relief settled together with checkout', () => {
+  const pending = [
+    { policyId: 'p-auto', policyName: '民政救助', timing: 'POST_INSURANCE', status: 'APPLIED', baseAmount: 10, reliefAmount: 2 },
+    { policyId: 'p-manual', policyName: '困难患者核定', timing: 'POST_INSURANCE', status: 'AWAITING_MANUAL', baseAmount: 8, manualMaxAmount: 4 },
+  ]
+  async function planManual(user: ReturnType<typeof userEvent.setup>) {
+    expect(await screen.findByText('预估')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '确认减免' })).not.toBeInTheDocument()
+    await user.type(await screen.findByLabelText('困难患者核定'), '3')
+    await waitFor(() => expect(screen.getByLabelText('relief-estimate')).toHaveTextContent('5'))
+  }
+
+  it('settles insurance, submits planned manual relief, then collects the adjusted amount without interruption', async () => {
+    const billing = mount('PRE_SETTLED', 'SETTLED', 10, undefined, { pending, reliefApplied: 5 })
+    const user = await trial()
+    await planManual(user)
+    expect(billing.relief.confirmSettlementRelief).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '现金收款' }))
+    await waitFor(() => expect(billing.createPaymentOrder).toHaveBeenCalledWith('settlement-1', expect.objectContaining({ amount: 5 })))
+    expect(billing.relief.confirmSettlementRelief).toHaveBeenCalledWith('settlement-1',
+      [expect.objectContaining({ policyId: 'p-manual', amount: 3, reason: '收费窗口人工核定' })])
+    expect(screen.queryByText(/请核对后再收款/)).not.toBeInTheDocument()
+  })
+
+  it('still interrupts collection when the adjusted receivable differs from the expectation', async () => {
+    const billing = mount('PRE_SETTLED', 'SETTLED', 10, undefined, { pending, reliefApplied: 3 })
+    const user = await trial()
+    await planManual(user)
+    await user.click(screen.getByRole('button', { name: '现金收款' }))
+    await waitFor(() => expect(billing.relief.confirmSettlementRelief).toHaveBeenCalled())
+    await waitFor(() => expect(billing.settlement).toHaveBeenCalled())
+    expect(billing.createPaymentOrder).not.toHaveBeenCalled()
+  })
+
+  it('stops with a retry hint when relief submission fails after insurance settlement', async () => {
+    const billing = mount('PRE_SETTLED', 'SETTLED', 10, undefined, { pending, confirmError: new Error('超出上限') })
+    const user = await trial()
+    await planManual(user)
+    await user.click(screen.getByRole('button', { name: '现金收款' }))
+    await waitFor(() => expect(billing.relief.confirmSettlementRelief).toHaveBeenCalled())
+    expect(billing.createPaymentOrder).not.toHaveBeenCalled()
+  })
 })

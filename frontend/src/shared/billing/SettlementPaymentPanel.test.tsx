@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PaymentOrder } from '../api/billingApi'
@@ -29,6 +29,26 @@ const processingCashOrder: PaymentOrder = {
 }
 
 describe('SettlementPaymentPanel payment recovery', () => {
+  it('selects payment methods with plain digits (outside inputs) or Alt+digit and shows key badges', async () => {
+    const methods = [
+      { code: 'CASH', name: '现金', tenderType: 'CASH', sortOrder: 1, precision: '0.01', roundingMode: 'HALF_UP' },
+      { code: 'BANK_CARD', name: '银行卡', tenderType: 'BANK_CARD', sortOrder: 2, precision: '0.01', roundingMode: 'HALF_UP' },
+      { code: 'WECHAT', name: '微信', tenderType: 'DIGITAL', sortOrder: 3, precision: '0.01', roundingMode: 'HALF_UP' },
+    ]
+    render(<div><input aria-label="备注" /><SettlementPaymentPanel settlements={[{ id: 's1', code: 'S1', outstandingAmount: 20, currencyCode: 'CNY' }]}
+      methods={methods} orders={[]} submitShortcut onSubmit={vi.fn()} /></div>)
+    expect(screen.getByTitle('银行卡（2）')).toHaveTextContent('2')
+    expect(screen.getByTitle('现金（1）')).toHaveClass('is-active')
+    fireEvent.keyDown(window, { key: '3' })
+    expect(screen.getByTitle('微信（3）')).toHaveClass('is-active')
+    fireEvent.keyDown(screen.getByLabelText('备注'), { key: '1', bubbles: true })
+    expect(screen.getByTitle('微信（3）')).toHaveClass('is-active')
+    fireEvent.keyDown(screen.getByLabelText('备注'), { key: '™', code: 'Digit1', altKey: true, bubbles: true })
+    expect(screen.getByTitle('现金（1）')).toHaveClass('is-active')
+    fireEvent.keyDown(window, { key: '2', code: 'Digit2', altKey: true })
+    expect(screen.getByTitle('银行卡（2）')).toHaveClass('is-active')
+  })
+
   it.each([undefined, null, NaN, Infinity])('does not treat missing or invalid outstanding amount %s as a free settlement', async (outstandingAmount) => {
     const onSubmit = vi.fn()
     render(<SettlementPaymentPanel settlements={[{ id: 's1', code: 'S1', outstandingAmount: outstandingAmount as number, currencyCode: 'CNY' }]}
@@ -133,6 +153,18 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it('offers cancelling an unfinished cash order because cash has no external receipt to query', async () => {
+    const user = userEvent.setup()
+    const onCancelOrder = vi.fn().mockResolvedValue(undefined)
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'ORA-OPD-INV-133204', outstandingAmount: 28.6, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      orders={[processingCashOrder]} onRecoverOrder={vi.fn()} onCancelOrder={onCancelOrder} onSubmit={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: '查询并恢复' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '取消指令' }))
+    expect(onCancelOrder).toHaveBeenCalledWith(processingCashOrder)
+  })
+
   it('keeps duplicate collection blocked and lets the cashier recover an interrupted cash order', async () => {
     const user = userEvent.setup()
     const onRecoverOrder = vi.fn().mockResolvedValue(undefined)
@@ -194,7 +226,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     await user.click(screen.getByLabelText('结算类型'))
     await user.click(await screen.findByRole('option', { name: '医保结算' }))
 
-    expect(screen.getByLabelText('个人自付支付方式')).toBeInTheDocument()
+    expect(screen.getByLabelText('支付方式')).toBeInTheDocument()
     expect(screen.getByLabelText('个人自付金额')).toHaveValue(6)
     expect(screen.getByText(/医保基金.*¥10.00.*个人账户.*¥2.00.*个人自付待收.*¥6.00/)).toBeInTheDocument()
     await user.type(screen.getByPlaceholderText('6'), '6')
@@ -359,8 +391,8 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={vi.fn()}
     />)
 
-    expect(screen.getByText('CHS 国家医保中台')).toBeInTheDocument()
-    expect(screen.getByText('待执行门诊医保预结算')).toBeInTheDocument()
+    expect(screen.getByText('尚未试算医保，试算后显示医保报销与个人自付')).toBeInTheDocument()
+    expect(screen.queryByText(/CHS|2206|待执行门诊医保预结算/)).not.toBeInTheDocument()
     const preSettleBtn = screen.getByRole('button', { name: '立即试算医保' })
     expect(preSettleBtn).toBeEnabled()
 
@@ -404,8 +436,9 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={onSubmit}
     />)
 
-    expect(screen.getByText('国家医保预结算成功')).toBeInTheDocument()
-    expect(screen.getByText(/流水号: CHS-PRE-20260904001/)).toBeInTheDocument()
+    expect(screen.getByText('医保预结算成功')).toBeInTheDocument()
+    expect(screen.queryByText(/流水号|CHS-PRE-20260904001|费用分拆透视|国家医保/)).not.toBeInTheDocument()
+    for (const label of ['医疗总额', '医保报销', '个人账户', '个人现金自付']) expect(screen.getByText(label)).toBeInTheDocument()
     expect(screen.getByText('¥96.00')).toBeInTheDocument() // 统筹
     expect(screen.getByText('¥24.00')).toBeInTheDocument() // 个账
     expect(screen.getByText(/本次费用由医保统筹与个账全额抵扣，零现金自付/)).toBeInTheDocument()
@@ -460,7 +493,8 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={onSubmit}
     />)
 
-    expect(screen.getByText('国家医保预结算成功')).toBeInTheDocument()
+    expect(screen.getByText('医保预结算成功')).toBeInTheDocument()
+    expect(screen.queryByText(/包含其他基金/)).not.toBeInTheDocument()
     expect(screen.getByText('¥80.00')).toBeInTheDocument() // 统筹
     expect(screen.getByText('¥50.00')).toBeInTheDocument() // 自付现金
 
@@ -578,7 +612,7 @@ it('requires a new trial for another settlement instead of applying the previous
       patientAccountId: 'account-1', claimNo: 'CLM-OLD', settlementNo: 'INV-OLD', status: 'PRE_SETTLED',
       regionCode: '360100', insuranceTypeCode: '01', externalPreSettlementNo: 'PRE-OLD', grossAmount: 120,
       insuranceFundAmount: 120, personalAccountAmount: 0, patientCashAmount: 0, otherFundAmount: 0, currencyCode: 'CNY' }} />)
-  expect(screen.queryByText('国家医保预结算成功')).not.toBeInTheDocument()
+  expect(screen.queryByText('医保预结算成功')).not.toBeInTheDocument()
   expect(screen.queryByText(/本次费用由医保统筹与个账全额抵扣/)).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '立即试算医保' }))
   expect(onPreSettleInsurance).toHaveBeenCalledWith('settlement-new')
@@ -592,7 +626,88 @@ it('does not infer a successful insurance trial from funded settlement totals al
       insuranceReady: true, insuranceAmount: 20, personalAccountAmount: 0, otherFundAmount: 0 }]}
     methods={[]} orders={[]} showSettlementMode settlementModeCode="MEDICAL_INSURANCE"
     insuranceIntegrated onSubmit={vi.fn()} />)
-  expect(screen.queryByText('国家医保预结算成功')).not.toBeInTheDocument()
-  expect(screen.queryByText(/流水号: 未返回/)).not.toBeInTheDocument()
+  expect(screen.queryByText('医保预结算成功')).not.toBeInTheDocument()
   expect(screen.getByText(/医保基金.*¥20.00/)).toBeInTheDocument()
+})
+
+it('deducts the estimated relief from the default insurance cash amount', () => {
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 120, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      orders={[]} showSettlementMode settlementModeCode="MEDICAL_INSURANCE" insuranceIntegrated reliefEstimate={7.5}
+      insuranceClaimView={{ claimId: 'c', revision: 1, settlementId: 'settlement-1', patientAccountId: 'acc-1', claimNo: 'C', settlementNo: 'S',
+        status: 'PRE_SETTLED', regionCode: '1', insuranceTypeCode: '310', externalPreSettlementNo: 'P', grossAmount: 120,
+        insuranceFundAmount: 80, personalAccountAmount: 10, patientCashAmount: 30, otherFundAmount: 0, currencyCode: 'CNY' }}
+      onSubmit={vi.fn().mockResolvedValue(undefined)} />)
+    expect(screen.getAllByText(/含预估减免 -¥7\.50/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(22.5)
+    expect(screen.queryByText(/个人自付金额 ¥/)).not.toBeInTheDocument()
+})
+
+describe('payment info card', () => {
+  const claim = { claimId: 'c', revision: 1, settlementId: 'settlement-1', patientAccountId: 'acc-1', claimNo: 'C', settlementNo: 'S',
+    status: 'PRE_SETTLED' as const, regionCode: '1', insuranceTypeCode: '310', externalPreSettlementNo: 'P', grossAmount: 120,
+    insuranceFundAmount: 80, personalAccountAmount: 10, patientCashAmount: 30, otherFundAmount: 0, currencyCode: 'CNY' }
+  const methods = [{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' },
+    { code: 'WECHAT', name: '微信支付', tenderType: 'DIGITAL', precision: '0.01', roundingMode: 'HALF_UP' }]
+
+  it('keeps method, tendered amount and change in one card, with the simplified 支付方式 label in insurance mode', () => {
+    render(<SettlementPaymentPanel settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 120, currencyCode: 'CNY' }]}
+      methods={methods} orders={[]} showSettlementMode settlementModeCode="MEDICAL_INSURANCE" insuranceIntegrated
+      insuranceClaimView={claim} onSubmit={vi.fn()} />)
+    const card = screen.getByText('缴款金额：').closest('.settlement-payment-panel__pay-card') as HTMLElement
+    expect(card).not.toBeNull()
+    expect(within(card).getByLabelText('支付方式')).toBeInTheDocument()
+    expect(within(card).getByText('找零金额：')).toBeInTheDocument()
+    expect(screen.queryByText('个人自付支付方式')).not.toBeInTheDocument()
+    expect(screen.queryByText(/包含其他基金/)).not.toBeInTheDocument()
+  })
+
+  it('shows a read-only payable amount without change for non-cash methods', async () => {
+    const user = userEvent.setup()
+    render(<SettlementPaymentPanel settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 38.5, currencyCode: 'CNY' }]}
+      methods={methods} orders={[]} showAmountInput={false} onSubmit={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /微信支付/ }))
+    expect(screen.getByText('付款金额：')).toBeInTheDocument()
+    expect(screen.getByText('38.50')).toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+    expect(screen.queryByText('找零金额：')).not.toBeInTheDocument()
+    expect(screen.queryByText('缴款金额：')).not.toBeInTheDocument()
+  })
+
+  it('hides the amount rows when nothing is payable', () => {
+    render(<SettlementPaymentPanel settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 0, currencyCode: 'CNY' }]}
+      methods={methods} orders={[]} onSubmit={vi.fn()} />)
+    expect(screen.queryByText('付款金额：')).not.toBeInTheDocument()
+    expect(screen.queryByText('缴款金额：')).not.toBeInTheDocument()
+  })
+})
+
+describe('relief slot placement', () => {
+  const cash = [{ code: 'CASH', name: '现金', tenderType: 'CASH', precision: '0.01', roundingMode: 'HALF_UP' }]
+  const after = (a: HTMLElement, b: HTMLElement) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  it('renders the slot after the insurance card and before the payment method in insurance mode', () => {
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 120, currencyCode: 'CNY' }]}
+      methods={cash} orders={[]} showSettlementMode settlementModeCode="MEDICAL_INSURANCE" insuranceIntegrated
+      reliefSlot={<div>减免插槽</div>}
+      insuranceClaimView={{ claimId: 'c', revision: 1, settlementId: 'settlement-1', patientAccountId: 'acc-1', claimNo: 'C', settlementNo: 'S',
+        status: 'PRE_SETTLED', regionCode: '1', insuranceTypeCode: '310', externalPreSettlementNo: 'P', grossAmount: 120,
+        insuranceFundAmount: 80, personalAccountAmount: 10, patientCashAmount: 30, otherFundAmount: 0, currencyCode: 'CNY' }}
+      onSubmit={vi.fn()} />)
+    const slot = screen.getByText('减免插槽')
+    expect(after(screen.getByText('医保预结算成功'), slot)).toBe(true)
+    expect(after(slot, screen.getByText('支付方式'))).toBe(true)
+  })
+
+  it('renders the slot after the settlement type and before the payment method in self-pay mode', () => {
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 30, currencyCode: 'CNY' }]}
+      methods={cash} orders={[]} showSettlementMode settlementModeCode="SELF_PAY" reliefSlot={<div>减免插槽</div>}
+      onSubmit={vi.fn()} />)
+    const slot = screen.getByText('减免插槽')
+    expect(after(screen.getByText('结算类型'), slot)).toBe(true)
+    expect(after(slot, screen.getByText('支付方式'))).toBe(true)
+  })
 })
