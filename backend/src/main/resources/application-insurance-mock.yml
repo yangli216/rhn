@@ -1,0 +1,224 @@
+# 医保 Mock 联调环境（仅限本地开发）。
+#
+# 用法：先启动 thirdparty-mock-server（默认 127.0.0.1:18090），再以
+#   --spring.profiles.active=oracle-local,insurance-mock
+# 启动后端。本文件让医保走“正式网关客户端 -> 本机 mock 服务”的真实 HTTP 链路，并打开前端的模拟读卡/电子医保码入口。
+#
+# 安全边界：simulator.enabled=true 时，网关地址必须是本机回环地址，否则应用启动失败；
+# 正式环境不得激活本 profile。机构/科室/医师编码均为联调占位值，不代表任何真实医保资料。
+rhn:
+  billing:
+    insurance:
+      chs:
+        # 与正式网关互斥：同时开启会出现两个医保客户端
+        mock-enabled: false
+        simulator:
+          enabled: true
+        gateway:
+          enabled: true
+          base-url: ${RHN_INSURANCE_MOCK_URL:http://127.0.0.1:18090/hsa/api}
+          fixmedins-code: MOCK0001
+          fixmedins-name: 联调测试医院
+          mdtrtarea-admvs: "360100"
+          recer-sys-code: MOCKSYS
+          default-operator: MOCKOP
+          sign-in-mac: "00-00-00-00-00-01"
+          sign-in-ip: 127.0.0.1
+          headers:
+            X-Token: mock-token
+          # 联通探测可执行 2207 结算（随即 2208 自动撤销）
+          probe-settlement-enabled: true
+      quick-submission:
+        registrations:
+          # 全科门诊 · 险种 310
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869790212
+            insurance-type-code: "310"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-GENERAL
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 内科门诊 · 险种 310
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899001
+            insurance-type-code: "310"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-INTERNAL_MEDICINE
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 儿科门诊 · 险种 310
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899004
+            insurance-type-code: "310"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-PEDIATRICS
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 外科门诊 · 险种 310
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899005
+            insurance-type-code: "310"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-SURGERY
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 中医科 · 险种 310
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899006
+            insurance-type-code: "310"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-TCM
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 妇产科门诊 · 险种 310
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899007
+            insurance-type-code: "310"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-OBGYN
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 全科门诊 · 险种 390
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869790212
+            insurance-type-code: "390"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-GENERAL
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 内科门诊 · 险种 390
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899001
+            insurance-type-code: "390"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-INTERNAL_MEDICINE
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 儿科门诊 · 险种 390
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899004
+            insurance-type-code: "390"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-PEDIATRICS
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 外科门诊 · 险种 390
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899005
+            insurance-type-code: "390"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-SURGERY
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 中医科 · 险种 390
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899006
+            insurance-type-code: "390"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-TCM
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR
+          # 妇产科门诊 · 险种 390
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            department-id: 362387869899007
+            insurance-type-code: "390"
+            region-code: "360100"
+            organization-code: MOCK0001
+            department-code: MOCK-OBGYN
+            insurance-system-code: MOCK-CATALOG
+            practitioner-codes:
+              "doctor": MOCKDR-DOCTOR
+              "admin": MOCKDR-ADMIN
+              "registrar": MOCKDR-REGISTRAR
+              "cashier": MOCKDR-CASHIER
+              "nurse": MOCKDR-NURSE
+              "362387869790222": MOCKDR-DOCTOR

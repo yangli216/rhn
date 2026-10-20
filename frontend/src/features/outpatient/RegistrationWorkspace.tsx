@@ -22,6 +22,7 @@ import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
 import { RegistrationInsuranceAuth, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
+import { InsuranceMediaSimulator, type SimulatedInsuranceRead } from './InsuranceMediaSimulator'
 import '../../styles/features/scheduling-registration.css'
 
 export { getCashPresets }
@@ -657,6 +658,19 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const needsPaymentAtCreate = !selectedCoverage
   useEffect(() => { setInsurancePerson(null) }, [coverageSelection, selected?.id])
 
+  // 联调模拟：模拟读卡/医保码已完成 1101，待患者与费用类别稳定后再回填鉴权结果（上面的清理会随费用类别变化触发）。
+  const [simulatedRead, setSimulatedRead] = useState<SimulatedInsuranceRead | null>(null)
+  const handleSimulatedRead = useCallback((value: SimulatedInsuranceRead) => {
+    selectPatient(value.resident, { channel: value.media === 'CARD' ? 'INSURANCE_CARD' : 'INSURANCE_CODE', identifier: value.persona.certNo })
+    setSimulatedRead(value)
+  }, [selectPatient])
+  useEffect(() => {
+    if (!simulatedRead) return
+    if (selected?.id !== simulatedRead.resident.id) { setSimulatedRead(null); return }
+    setInsurancePerson(simulatedRead.person)
+    if (coverageSelection.startsWith('COVERAGE:')) setSimulatedRead(null)
+  }, [coverageSelection, selected?.id, simulatedRead])
+
   // 选号阶段只展示目录有效价；医保支付与减免以正式结算结果为准。
   const feeBreakdown = useMemo(() => {
     const baseFee = getScheduleBaseFee(selectedSchedule, visitType)
@@ -1030,6 +1044,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       onConfirm={(reason) => cancelRegistration.mutate({ item: cancellingItem, reason })} />}
 
     <section className="registration-workspace-layout">
+      <InsuranceMediaSimulator api={api} disabled={Boolean(intentId)} onRead={handleSimulatedRead} />
       <div className={`registration-intake-strip ${selected ? 'has-patient' : ''}`}>
         {selected ? (
           <div className="registration-intake-strip__identity">

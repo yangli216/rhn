@@ -515,11 +515,22 @@ export function createBillingApi(client: ApiClient) {
       client.request<CashierClose>(`/api/billing/cashier-closes/${closeId}/reverse`, {
         method: 'POST', body: JSON.stringify(input),
       }),
-    queryInsurancePerson: (input: ChsPersonInfoRequest) => client.request<ChsPersonInfoResponse>(
-      '/api/billing/insurance/person-info', {
-        method: 'POST', body: JSON.stringify(input),
-      },
-    ),
+    /** 1101 读证：后端契约为 certType/certNo/personName，此处与界面使用的医保字段名互转。 */
+    queryInsurancePerson: async (input: ChsPersonInfoRequest): Promise<ChsPersonInfoResponse> => {
+      const view = await client.request<InsurancePersonInfoView>('/api/billing/insurance/person-info', {
+        method: 'POST',
+        body: JSON.stringify({ certType: input.psnCertType, certNo: input.certno, personName: input.psnName }),
+      })
+      return {
+        psnNo: view.personNo, psnCertType: view.certType, certno: view.certNo, psnName: view.personName,
+        gender: view.gender ?? undefined, birthday: view.birthday ?? undefined,
+        insutype: view.insuranceType, insutypeName: view.insuranceTypeName, balc: view.accountBalance ?? 0,
+        insuOptins: view.regionCode, insuOptinsName: view.regionName ?? undefined,
+        psnType: view.personCategory ?? undefined, status: view.status ?? undefined,
+      }
+    },
+    /** 医保联调模拟场景：未开启时 enabled=false，界面不显示任何模拟入口。 */
+    insuranceSimulator: () => client.request<InsuranceSimulator>('/api/billing/insurance/simulator'),
     quickPreSettleInsurance: (settlementId: string, input: {
       insuranceTypeCode?: string
       regionCode?: string
@@ -589,6 +600,30 @@ export function createBillingApi(client: ApiClient) {
       },
     ),
   }
+}
+
+type InsurancePersonInfoView = {
+  personNo: string; certType: string; certNo: string; personName: string
+  gender?: string | null; birthday?: string | null
+  insuranceType: string; insuranceTypeName: string; accountBalance?: number | null
+  regionCode: string; regionName?: string | null; personCategory?: string | null; status?: string | null
+}
+
+export interface InsuranceSimulatorPersona {
+  id: string
+  label: string
+  insuranceType?: string | null
+  certNo: string
+  residentKeyword: string
+  expectation: string
+}
+
+export interface InsuranceSimulator {
+  enabled: boolean
+  mode: 'GATEWAY' | 'MOCK' | 'UNAVAILABLE'
+  consoleUrl?: string | null
+  personas: InsuranceSimulatorPersona[]
+  reason?: string | null
 }
 
 export interface ChsPersonInfoRequest {
