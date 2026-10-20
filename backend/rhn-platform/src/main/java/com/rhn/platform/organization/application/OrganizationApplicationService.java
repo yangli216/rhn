@@ -469,6 +469,35 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         }
     }
 
+    /**
+     * Assigns a practitioner to a department without exposing employment to the user: the active employment
+     * in the target organization is reused, and created on the assignment start date when there is none.
+     */
+    @Transactional
+    public StaffAssignmentView assignPractitioner(Long practitionerId, Long organizationId, Long departmentId, Long positionId,
+                                                  boolean primaryAssignment, LocalDate validFrom, LocalDate validTo) {
+        ExecutionContext context = current();
+        List<Employment> held = employmentRepository.findByTenantIdAndPractitionerIdOrderByHireDateDesc(context.tenantId(), practitionerId);
+        List<Employment> inOrganization = held.stream()
+                .filter(value -> value.status() == PersonnelStatus.ACTIVE && value.organizationId().equals(organizationId)).toList();
+        Long employmentId;
+        if (inOrganization.isEmpty()) {
+            boolean primaryEmployment = held.stream().noneMatch(value -> value.primaryEmployment()
+                    && value.status() == PersonnelStatus.ACTIVE && periodsOverlap(validFrom, null, value.hireDate(), value.leaveDate()));
+            employmentId = createEmployment(practitionerId, organizationId, "EMP_" + com.rhn.shared.id.GlobalIds.next(),
+                    EmploymentType.PERMANENT, primaryEmployment, validFrom, null).id();
+        } else {
+            employmentId = inOrganization.stream().filter(value -> !value.hireDate().isAfter(validFrom)).findFirst()
+                    .orElseThrow(() -> badRequest("ASSIGNMENT_PERIOD_OUTSIDE_EMPLOYMENT", "任职开始日期早于该人员在本机构的入职日期"))
+                    .id();
+        }
+        StaffAssignmentView assignment = createAssignment(employmentId, organizationId, departmentId, positionId,
+                "ASN_" + com.rhn.shared.id.GlobalIds.next(), primaryAssignment ? AssignmentType.PRIMARY : AssignmentType.PART_TIME,
+                null, primaryAssignment, null, validFrom, validTo);
+        changes.record("PRACTITIONER", practitionerId, "ASSIGN_PRACTITIONER", Map.of(), assignment, "新增任职");
+        return assignment;
+    }
+
     @Transactional(readOnly = true)
     public List<StaffView> listStaff(Long tenantId) {
         requireTenant(tenantId);

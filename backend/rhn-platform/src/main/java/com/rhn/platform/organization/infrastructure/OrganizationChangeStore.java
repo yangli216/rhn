@@ -54,6 +54,8 @@ public class OrganizationChangeStore {
             case "UPDATE_DEPARTMENT" -> "编辑科室";
             case "CHANGE_STATUS" -> "变更启停状态";
             case "UPDATE_PRACTITIONER" -> "维护人员";
+            case "UPDATE_QUALIFICATION" -> "维护执业资质";
+            case "ASSIGN_PRACTITIONER" -> "新增任职";
             case "UPDATE_CONTACT" -> "变更联系方式";
             case "UPDATE_ADDRESS" -> "变更地址";
             case "UPDATE_IDENTIFIER" -> "变更标识";

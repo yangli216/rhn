@@ -10,6 +10,13 @@ export type ProfileItemUpdateInput = components['schemas']['ProfileItemUpdate']
 export type OrganizationChange = components['schemas']['ChangeView']
 export type DepartmentBusinessConfiguration = components['schemas']['DepartmentBusinessConfiguration']
 export type OrganizationMaintenanceInput = components['schemas']['OrganizationMaintenanceCommand']
+export type PractitionerQualificationInput = components['schemas']['QualificationCommand']
+export type AssignPractitionerInput = components['schemas']['AssignPractitionerRequest']
+export type PrescribingFilter = 'PRESCRIBING' | 'NARCOTIC' | 'ANTIMICROBIAL' | 'NONE' | 'UNREGISTERED'
+export interface PersonnelQuery {
+  keyword?: string; organizationId?: string; departmentId?: string; positionType?: string; professionalTitle?: string
+  prescribing?: PrescribingFilter; status?: PersonnelStatus; page: number; size: number
+}
 
 
 export type OrganizationKind = 'LEGAL_ORGANIZATION' | 'ORG_UNIT'
@@ -403,6 +410,16 @@ export function createOrganizationApi(client: ApiClient) {
     businessConfiguration: (id: string) => client.request<DepartmentBusinessConfiguration>(`/api/platform/departments/${id}/business-configuration`),
     deactivationImpact: (unit: Pick<OrganizationUnit, 'id' | 'sdOrgKind'>) => client.request<{ activeChildren: number; continuingAssignments: number; continuingEmployments: number }>(
       `/api/platform/${unit.sdOrgKind === 'ORG_UNIT' ? 'departments' : 'organization-units'}/${unit.id}/deactivation-impact`),
+    personnel: (query: PersonnelQuery) => {
+      const search = new URLSearchParams()
+      Object.entries(query).forEach(([key, value]) => { if (value !== undefined && value !== '') search.set(key, String(value)) })
+      return client.request<unknown>(`/api/platform/personnel?${search.toString()}`)
+    },
+    qualification: (practitionerId: string) => client.request<unknown>(`/api/platform/practitioners/${encodeURIComponent(practitionerId)}/qualification`),
+    saveQualification: (practitionerId: string, input: PractitionerQualificationInput) => client.request<unknown>(
+      `/api/platform/practitioners/${encodeURIComponent(practitionerId)}/qualification`, { method: 'PUT', body: JSON.stringify(input) }),
+    assignPractitioner: (practitionerId: string, input: AssignPractitionerInput) => client.request<PersonnelAssignment>(
+      `/api/platform/practitioners/${encodeURIComponent(practitionerId)}/assignments`, { method: 'POST', body: JSON.stringify(input) }),
     assignments: (params?: { organizationId?: string; departmentId?: string }) => {
       const search = new URLSearchParams()
       if (params?.organizationId) search.set('organizationId', params.organizationId)

@@ -142,7 +142,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
     {sites.isError ? <EmptyState icon="pharmacy" title="库存站点读取失败" copy={errorMessage(sites.error)}
       action={<Button variant="secondary" onClick={() => void sites.refetch()}>重新读取站点</Button>} /> : sites.isPending ? <LoadingState label="正在加载库存站点与配置…" /> : !allSites.length
       ? <EmptyState icon="pharmacy" title="机构未配置任何库存站点"
-          copy="库房不在此单独新建。请在组织与人员中维护科室类型，库存配置将随科室建立。" />
+          copy="库房不在此单独新建。请在「机构与科室」中维护科室类型，库存配置将随科室建立。" />
       : !selectedSite
         ? <EmptyState icon="pharmacy" title="当前工作上下文未配置库存站点"
             copy="请使用顶部栏切换到已配置药库、药房或科室库的工作上下文。" />

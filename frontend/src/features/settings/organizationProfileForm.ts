@@ -15,7 +15,7 @@ export const profileSchema = z.object({
   const required = (field: 'firstCode' | 'secondCode' | 'dictionaryType' | 'dictionaryUse' | 'targetOrganizationId' | 'verifyStatus', message: string) => {
     if (!value[field].trim()) context.addIssue({ code: 'custom', path: [field], message })
   }
-  if (value.section === 'identifier') { required('firstCode', '请输入标识体系'); required('secondCode', '请输入标识编码'); required('dictionaryType', '请选择标识类型'); required('verifyStatus', '请选择确认结果') }
+  if (value.section === 'identifier') { required('secondCode', '请输入标识编码'); required('dictionaryType', '请选择标识类型'); required('verifyStatus', '请选择确认结果') }
   if (value.section === 'contact') { required('firstCode', '请输入联系方式'); required('dictionaryType', '请选择联系方式类型'); required('dictionaryUse', '请选择用途') }
   if (value.section === 'address') { required('firstCode', '请输入国家代码'); required('secondCode', '请输入详细地址'); required('dictionaryType', '请选择地址类型') }
   if (value.section === 'relation') { required('targetOrganizationId', '请选择目标组织'); required('dictionaryType', '请选择关系类型') }
@@ -45,7 +45,7 @@ export function draftFromProfile(edit: ProfileRecordEdit, blank: ProfileForm): P
 export function profileInput(value: ProfileForm): OrganizationProfileInput {
   const validTo = value.validTo || undefined
   switch (value.section) {
-    case 'identifier': return { section: value.section, identifierSystem: value.firstCode, identifierCode: value.secondCode,
+    case 'identifier': return { section: value.section, identifierSystem: value.firstCode.trim() || identifierSystemFor(value.dictionaryType), identifierCode: value.secondCode,
       issuerOrganizationId: value.targetOrganizationId || undefined, sdIdentifierType: value.dictionaryType, primaryIdentifier: value.primary, validFrom: value.validFrom, validTo,
       sdVerifyStatus: value.verifyStatus }
     case 'contact': return { section: value.section, sdContactType: value.dictionaryType, contactValue: value.firstCode,
@@ -69,6 +69,11 @@ export function profileInput(value: ProfileForm): OrganizationProfileInput {
   }
 }
 
-export function blankProfile(section: OrganizationProfileSection): ProfileForm {
-  return { section, firstCode: section === 'address' ? 'CN' : '', secondCode: '', thirdCode: '', fourthCode: '', fifthCode: '', sixthCode: '', dictionaryType: '', dictionaryUse: '', targetOrganizationId: '', description: '', primary: false, sortOrder: 0, validFrom: new Date().toLocaleDateString('sv-SE'), validTo: '', verifyStatus: 'UNVERIFIED', assignmentId: '', responsibilitySubject: 'internal', status: 'ACTIVE', reason: '' }
+/** 新增机构标识不再要求填写体系 URI，由标识类型推导；已保存记录保持原值。后端仍要求非空。 */
+export const identifierSystemFor = (typeCode: string) => `urn:rhn:organization-identifier:${typeCode}`
+
+/** 新增行隐藏的字典字段默认取字典首项，用户只改需要改的内容。 */
+export type ProfileDefaults = { dictionaryType?: string; dictionaryUse?: string }
+export function blankProfile(section: OrganizationProfileSection, defaults: ProfileDefaults = {}): ProfileForm {
+  return { section, firstCode: section === 'address' ? 'CN' : '', secondCode: '', thirdCode: '', fourthCode: '', fifthCode: '', sixthCode: '', dictionaryType: defaults.dictionaryType ?? '', dictionaryUse: defaults.dictionaryUse ?? '', targetOrganizationId: '', description: '', primary: false, sortOrder: 0, validFrom: new Date().toLocaleDateString('sv-SE'), validTo: '', verifyStatus: 'UNVERIFIED', assignmentId: '', responsibilitySubject: 'internal', status: 'ACTIVE', reason: '' }
 }

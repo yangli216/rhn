@@ -26,7 +26,7 @@
 以下是按源码选出的**局部参考候选**，未宣称已经由用户确认视觉验收：
 
 - `features/settings/ParameterManagement.tsx`：参考分类—列表—详情的业务组织、TreePanel 调用；分类已接入共享树的搜索、选择和键盘操作，仍不作为整页视觉合规证明。
-- `features/settings/OrganizationPersonnelManagement.tsx`：组织架构与人员任职已采用 `MasterDetailPage` 的 `WorkspacePane` 滚动边界；目录筛选和详情操作固定，正文独立滚动，关系表使用 `DataTable`。
+- `features/settings/organizations/OrganizationsPage.tsx`：机构与科室采用 `MasterDetailPage` + `TreePanel`，详情只读、维护走弹窗；`features/settings/personnel/PersonnelPage.tsx`：服务端分页 `ListPage` + 右侧宽抽屉（`Dialog presentation="drawer"`）。
 - `features/settings/OperationalMasterDataPanel.tsx`：参考 TableShell/DataTable 的组合，不能复制其业务私有表格封装作为新的通用组件。
 - `features/inpatient/InpatientDoctorStation.tsx`：参考工作区 Tabs 与业务分区组合，临床细节仍读领域入口。
 
@@ -90,7 +90,7 @@ npm run build
 | 候选 | 本轮可复用范围 | 当前认可状态 |
 | --- | --- | --- |
 | /ui-templates.html | ListPage/MasterDetailPage/WorkbenchPage/FormPage 的结构与滚动基础 | DOM/构建覆盖；待人工视觉确认 |
-| OrganizationPersonnelManagement | 主从页固定工具区、共享关系表 | 待人工确认 |
+| OrganizationsPage / PersonnelPage | 主从页只读详情 + 弹窗维护；列表 + 抽屉档案 | 待人工确认 |
 | BasicDataManagement / operations | 疾病/项目/药品维护、共享表格及表单、轻量产品详情 | 业务回归通过仍需人工确认 |
 | DoctorWorkstation | 患者工作区、病历/医嘱标题与动作、诊毕/转诊/打印 | 业务回归通过仍需人工确认 |
 | PharmacyWorkspace | 查询、配药/发药、打印菜单的共享交互 | 业务回归通过仍需人工确认 |
