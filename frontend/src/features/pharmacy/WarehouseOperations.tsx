@@ -1842,7 +1842,7 @@ function TransferDialog({ api, site, sites, items, onClose, onDone }: { api: Rhn
   const destinations = sites.filter(v => v.id !== site.id && v.active); const [destinationId, setDestinationId] = useState(destinations[0]?.id ?? '')
   const destinationItems = useQuery({ queryKey: ['pharmacy-stock-items', destinationId], queryFn: () => api.pharmacy.stockItems(destinationId), enabled: Boolean(destinationId) })
   if (!destinations.length) return <Dialog title="新建库间调拨" eyebrow="调拨作业" onClose={onClose}>
-    <EmptyState icon="pharmacy" title="暂无可调入库房" copy="请先在组织与人员中将目标科室启用为库存站点，再为其配置经营项目。" />
+    <EmptyState icon="pharmacy" title="暂无可调入库房" copy="请先在「机构与科室」中将目标科室启用为库存站点，再为其配置经营项目。" />
   </Dialog>
   return <MultiItemDialog title="新建库间调拨" submitText="创建调拨单" items={items.filter(item => destinationItems.data?.some(d => d.catalogItemId === item.catalogItemId && d.packageId === item.packageId))} quantityLabel="调拨数量（包装单位）" showBaseConversion emptyCopy="调入站点尚未配置与本库匹配的经营项目，请先在目标科室完成批量调入。"
     lead={<FormField label="调入站点" required><Select value={destinationId} onChange={setDestinationId} clearable={false} showValue options={destinations.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>}

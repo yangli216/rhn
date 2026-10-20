@@ -603,7 +603,7 @@ export function DispenseRouteSettings({
           <EmptyState
             icon="pharmacy"
             title="暂无可用发药药房"
-            copy="请先在组织与人员中建立门诊药房、住院药房或中药房科室，系统会自动同步生成库存站点。"
+            copy="请先在「机构与科室」中建立门诊药房、住院药房或中药房科室，系统会自动同步生成库存站点。"
           />
         )}
         {!loading && pharmacySites.length > 0 && !routes.data?.length && (

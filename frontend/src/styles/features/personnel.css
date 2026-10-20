@@ -1,0 +1,28 @@
+/* 人员管理（features/settings/personnel）。只用语义令牌；控件外观由 shared/ui 提供。 */
+.personnel-muted { color: var(--color-text-secondary); }
+.personnel-hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-label); }
+
+.personnel-drawer { display: grid; gap: var(--layout-section-gap); }
+.personnel-section { min-width: 0; display: grid; gap: var(--layout-panel-gap); }
+.personnel-section + .personnel-section { padding-top: var(--layout-section-gap); border-top: 1px solid var(--color-border); }
+.personnel-section__head { display: flex; align-items: center; justify-content: space-between; gap: var(--layout-panel-gap); }
+.personnel-section__head h3 { margin: 0; font-size: var(--font-size-h3); }
+.personnel-section__actions { display: flex; align-items: center; gap: var(--layout-panel-gap); }
+
+.personnel-facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--layout-panel-gap) var(--layout-section-gap); }
+.personnel-facts__item { min-width: 0; display: grid; gap: var(--space-1); }
+.personnel-facts__item dt { color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.personnel-facts__item dd { margin: 0; overflow-wrap: anywhere; }
+
+.personnel-qualification { display: grid; gap: var(--layout-panel-gap); }
+.personnel-qualification__grid { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.personnel-qualification__grid .ui-field { margin: 0; }
+.personnel-qualification__footer { display: flex; justify-content: flex-end; }
+
+.personnel-action-form { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.personnel-action-form .ui-field { margin: 0; }
+.personnel-action-form__wide { grid-column: 1 / -1; }
+
+.personnel-position-form { min-width: 0; margin: 0 0 var(--layout-section-gap); padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--layout-section-gap); align-items: end; }
+.personnel-position-form .ui-field { margin: 0; }
+.personnel-position-form__actions { display: flex; gap: var(--layout-panel-gap); }

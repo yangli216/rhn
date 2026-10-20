@@ -12678,6 +12678,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/practitioners/{id}/qualification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["qualification"];
+        put: operations["saveQualification"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/practitioners/{id}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/personnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personnel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -29240,6 +29288,112 @@ export interface components {
             readonly channelStatusText?: string;
             /** @description 字典 BIL_RECON_DISPOSITION 的显示文本 */
             readonly statusText?: string;
+        };
+        QualificationCommand: {
+            /** @example 824633720832983041 */
+            expectedRevision?: string;
+            sdProfessionalTitle?: string;
+            sdPracticeCategory?: string;
+            practiceCertificateCode?: string;
+            qualificationCertificateCode?: string;
+            insurancePractitionerCode?: string;
+            prescribing?: boolean;
+            narcoticPrescribing?: boolean;
+            sdAntimicrobialLevel?: string;
+        };
+        PractitionerQualificationView: {
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            registered?: boolean;
+            /** @example 824633720832983041 */
+            revision?: string;
+            sdProfessionalTitle?: string;
+            sdPracticeCategory?: string;
+            practiceCertificateCode?: string;
+            qualificationCertificateCode?: string;
+            insurancePractitionerCode?: string;
+            prescribing?: boolean;
+            narcoticPrescribing?: boolean;
+            sdAntimicrobialLevel?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
+            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 PRACT_PROF_TITLE 的显示文本 */
+            readonly sdProfessionalTitleText?: string;
+            /** @description 字典 PRACT_CATEGORY 的显示文本 */
+            readonly sdPracticeCategoryText?: string;
+        };
+        AssignPractitionerRequest: {
+            /** @example 824633720832983041 */
+            organizationId: string;
+            /** @example 824633720832983041 */
+            departmentId: string;
+            /** @example 824633720832983041 */
+            positionId: string;
+            primaryAssignment?: boolean;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string;
+        };
+        PersonnelPageView: {
+            content?: components["schemas"]["PersonnelRowView"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            first?: boolean;
+            last?: boolean;
+        };
+        PersonnelRowView: {
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            /** Format: int64 */
+            revision?: number;
+            code?: string;
+            fullName?: string;
+            sdPractGender?: string;
+            sdPersonnelStatus?: string;
+            primaryAssignment?: components["schemas"]["PrimaryAssignment"];
+            /** Format: int32 */
+            currentAssignmentCount?: number;
+            qualificationRegistered?: boolean;
+            sdProfessionalTitle?: string;
+            sdPracticeCategory?: string;
+            prescribing?: boolean;
+            narcoticPrescribing?: boolean;
+            sdAntimicrobialLevel?: string;
+            /** @description 字典 PRACT_CATEGORY 的显示文本 */
+            readonly sdPracticeCategoryText?: string;
+            /** @description 字典 PRACT_PROF_TITLE 的显示文本 */
+            readonly sdProfessionalTitleText?: string;
+            /** @description 字典 PRACT_GENDER 的显示文本 */
+            readonly sdPractGenderText?: string;
+            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
+            readonly sdPersonnelStatusText?: string;
+            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
+            readonly sdAntimicrobialLevelText?: string;
+        };
+        PrimaryAssignment: {
+            /** @example 824633720832983041 */
+            assignmentId?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            organizationName?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+            /** @example 824633720832983041 */
+            positionId?: string;
+            positionName?: string;
+            sdPositionType?: string;
+            /** @description 字典 POSITION_TYPE 的显示文本 */
+            readonly sdPositionTypeText?: string;
         };
     };
     responses: never;
@@ -59404,6 +59558,146 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    qualification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PractitionerQualificationView"];
+                };
+            };
+        };
+    };
+    saveQualification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualificationCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PractitionerQualificationView"];
+                };
+            };
+        };
+    };
+    assign: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignPractitionerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StaffAssignmentView"];
+                };
+            };
+        };
+    };
+    personnel: {
+        parameters: {
+            query?: {
+                keyword?: string;
+                organizationId?: string;
+                departmentId?: string;
+                positionType?: string;
+                professionalTitle?: string;
+                prescribing?: "PRESCRIBING" | "NARCOTIC" | "ANTIMICROBIAL" | "NONE" | "UNREGISTERED";
+                status?: "ACTIVE" | "INACTIVE";
+                page?: number;
+                size?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PersonnelPageView"];
                 };
             };
         };

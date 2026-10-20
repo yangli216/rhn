@@ -53,8 +53,10 @@ const AiConfigurationManagement = lazy(() => import('../features/settings/AiConf
   .then((module) => ({ default: module.AiConfigurationManagement })))
 const PrintTemplateManagement = lazy(() => import('../features/settings/PrintTemplateManagement')
   .then((module) => ({ default: module.PrintTemplateManagement })))
-const OrganizationPersonnelManagement = lazy(() => import('../features/settings/OrganizationPersonnelManagement')
-  .then((module) => ({ default: module.OrganizationPersonnelManagement })))
+const OrganizationsPage = lazy(() => import('../features/settings/organizations/OrganizationsPage')
+  .then((module) => ({ default: module.OrganizationsPage })))
+const PersonnelPage = lazy(() => import('../features/settings/personnel/PersonnelPage')
+  .then((module) => ({ default: module.PersonnelPage })))
 const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
   .then((module) => ({ default: module.BasicDataManagement })))
 const StandardMappingWorkspace = lazy(() => import('../features/settings/StandardMappingWorkspace'))
@@ -325,7 +327,8 @@ export const NAVIGATION_NODES: NavigationNode[] = [
   {
     id: 'organization-operations', label: '机构运营维护', icon: 'roadmap', children: [
       { id: 'organization-catalog', label: '机构项目管理', icon: 'card', to: '/settings/organization-catalog', requiredAuthority: 'ORG_CATALOG.ACCESS' },
-      { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
+      { id: 'organizations', label: '机构与科室', icon: 'organization', to: '/settings/organizations', requiredAuthority: 'ORGANIZATION.ACCESS' },
+      { id: 'personnel', label: '人员管理', icon: 'residents', to: '/settings/personnel', requiredAuthority: 'ORGANIZATION.ACCESS' },
       { id: 'dispense-routes', label: '发药药房设置', icon: 'pharmacy', to: '/settings/dispense-routes', requiredAuthority: 'PHARMACY_ROUTE.READ' },
       { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
     ],
@@ -486,7 +489,8 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/operations') return { id: pathname, path: pathname, title: '耗材与运营主数据', icon: 'card', closeable: true }
   if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'card', closeable: true }
   if (pathname === '/settings/partners') return { id: pathname, path: pathname, title: '厂商与供应商', icon: 'pharmacy', closeable: true }
-  if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
+  if (pathname === '/settings/organizations') return { id: pathname, path: pathname, title: '机构与科室', icon: 'organization', closeable: true }
+  if (pathname === '/settings/personnel') return { id: pathname, path: pathname, title: '人员管理', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/dispense-routes') return { id: pathname, path: pathname, title: '发药药房设置', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/business-maintenance') return { id: pathname, path: pathname, title: '业务初始化与清理', icon: 'settings', closeable: true }
@@ -1164,7 +1168,9 @@ export function AppShell() {
                   <Route path="/inpatient/billing" element={<InpatientBillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/settings" element={<Navigate to="/settings/parameters" replace />} />
-                  <Route path="/settings/organization" element={<OrganizationPersonnelManagement api={tabSlot.api} canManage={tabAuthorities.has('IAM.MANAGE')} />} />
+                  <Route path="/settings/organizations" element={<OrganizationsPage api={tabSlot.api} canManage={tabAuthorities.has('IAM.MANAGE')} />} />
+                  <Route path="/settings/personnel" element={<PersonnelPage api={tabSlot.api} canManage={tabAuthorities.has('IAM.MANAGE')} />} />
+                  <Route path="/settings/organization" element={<Navigate to="/settings/organizations" replace />} />
                   <Route path="/settings/grid-addresses" element={<GridAddressManagement api={tabSlot.api} />} />
                   <Route path="/settings/dispense-routes" element={<DispenseRouteSettings api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
@@ -1524,8 +1530,8 @@ function UserAccountMenu({ api, session, activeContexts, activeContextType, them
       </div>
 
       <div className="account-panel__links">
-        <button type="button" onClick={() => navigateFromMenu('/settings/organization')}>
-          <Icon name="user" /><span>组织与人员</span><Icon name="chevron-right" />
+        <button type="button" onClick={() => navigateFromMenu('/settings/personnel')}>
+          <Icon name="user" /><span>人员管理</span><Icon name="chevron-right" />
         </button>
         <button type="button" onClick={() => navigateFromMenu('/settings/parameters')}>
           <Icon name="settings" /><span>常用参数设置</span><Icon name="chevron-right" />

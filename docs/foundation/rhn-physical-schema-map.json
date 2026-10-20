@@ -17825,6 +17825,95 @@
     ]
   },
   {
+    "logical": "sys.practitioner_qualification",
+    "legacy": "practitioner_qualifications",
+    "physical": "RHN_SYS_PRACT_QUALIF",
+    "domain": "SYS",
+    "comment": "人员执业资质；一行代表一名医务人员当前的职称、执业注册与处方权",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PRACT_QUALIF",
+        "comment": "人员执业资质主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "practitioner_id",
+        "physical": "ID_PRACT",
+        "comment": "医务人员标识"
+      },
+      {
+        "logical": "professional_title",
+        "physical": "SD_PROF_TITLE",
+        "comment": "职称，字典 PRACT_PROF_TITLE"
+      },
+      {
+        "logical": "practice_category",
+        "physical": "SD_PRACT_CAT",
+        "comment": "执业类别，字典 PRACT_CATEGORY"
+      },
+      {
+        "logical": "practice_certificate_code",
+        "physical": "CD_PRACT_CERT",
+        "comment": "执业证书编码"
+      },
+      {
+        "logical": "qualification_certificate_code",
+        "physical": "CD_QUALIF_CERT",
+        "comment": "资格证书编码"
+      },
+      {
+        "logical": "insurance_practitioner_code",
+        "physical": "CD_INSUR_PRACT",
+        "comment": "医保医师（护士、药师）编码"
+      },
+      {
+        "logical": "prescribing",
+        "physical": "FG_RX",
+        "comment": "是否具有普通处方权"
+      },
+      {
+        "logical": "narcotic_prescribing",
+        "physical": "FG_NARC_RX",
+        "comment": "是否具有麻醉药品和第一类精神药品处方权"
+      },
+      {
+        "logical": "antimicrobial_level",
+        "physical": "SD_ANTIMIC_RX_LEVEL",
+        "comment": "抗菌药物处方权级别，字典 BD_ANTIMICROBIAL_LEVEL，空表示无权限"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      }
+    ]
+  },
+  {
     "logical": "anl.presence_metric_sample",
     "legacy": "presence_metric_samples",
     "physical": "RHN_ANL_PRES_METRIC_SAMPLE",

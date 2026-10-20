@@ -37,10 +37,17 @@
 
 维护写接口统一复用 IAM.MANAGE。更新使用 expectedRevision 防止覆盖他人修改；人员流转与档案更新同事务追加前后快照、操作账号、时间和原因。历史数据不物理删除。新日志不补造上线前的历史，也不把旧记录创建时间冒充维护时间。
 
+## 执业资质、人员查询与任职
+
+- 执业资质（`RHN_SYS_PRACT_QUALIF`，每人一行）：职称 `PRACT_PROF_TITLE`、执业类别 `PRACT_CATEGORY`、执业/资格证书编码、医保医师编码、普通处方权、麻醉与第一类精神药品处方权、抗菌药物处方级别（复用 `BD_ANTIMICROBIAL_LEVEL`）。麻精处方权和抗菌药物级别须先有普通处方权，数据库检查约束同样保证。没有记录表示“未登记”，不能当作“无处方权”。首次保存 `expectedRevision` 为空，之后必须带当前修订号；变更写入人员变更记录。
+- 读契约 `PractitionerQualificationDirectory` 供后续开单/审方校验使用；目前没有模块据此拦截业务，接入前须先补齐存量医生资质并提供开关。
+- `GET /api/platform/personnel` 服务端分页（页码从 0 开始，每页 1–200），按关键词（工号/姓名）、机构、科室（含下级科室）、岗位类型、职称、处方权和人员状态筛选；“当前任职”指启用且今天在有效期内的任职，主任职优先。
+- `POST /api/platform/practitioners/{id}/assignments` 按机构·科室·岗位新增任职：沿用该人员在目标机构的有效聘用；没有聘用时以任职开始日创建一条（与已有主聘用重叠时为非主聘用）；聘用晚于任职开始日时拒绝。界面不再单独维护聘用。
+
 ## 代码与验证入口
 
-- 前端：features/settings/OrganizationPersonnelManagement.tsx、PersonnelLifecycleDialog.tsx、OrganizationProfileEditor.tsx、organizationProfileForm.ts、DepartmentBusinessConfigurationPanel.tsx。
-- 后端：rhn-platform 的 organization/application、organization/web/OrganizationMaintenanceController；运行解释见 organization/api/DepartmentBusinessPolicy。
+- 前端：「机构与科室」`/settings/organizations` 在 features/settings/organizations/（OrganizationsPage 只读详情 + 编辑/分区维护/停用弹窗，样式 styles/features/organizations.css）；「人员管理」`/settings/personnel` 在 features/settings/personnel/（PersonnelPage 服务端分页列表，PersonnelDrawer 档案抽屉含任职与执业资质，入职/调岗/结束任职/离职/岗位设置弹窗，样式 styles/features/personnel.css；支持 `?departmentId=` / `?organizationId=` 预置筛选）。两个页面共用的回执与字典校验、档案表单和变更记录留在 features/settings/ 根目录（organization*Facts/Receipt、organizationProfileForm.ts、OrganizationProfileRecords.tsx、OrganizationChangeHistory.tsx、practitionerOnboarding.ts）。旧路径 `/settings/organization` 重定向到机构与科室；两个菜单共用 ORGANIZATION 模块与 ORGANIZATION.ACCESS。
+- 后端：rhn-platform 的 organization/application、organization/web/OrganizationMaintenanceController、PersonnelController（人员查询、执业资质、任职）；运行解释见 organization/api/DepartmentBusinessPolicy。
 - 运行消费者：ServiceExecutionDepartmentPolicy、PharmacyDepartmentExtensionSynchronizer；变更分类规则时验证其消费者。
 - 验证：`./scripts/verify-scope.sh organization`；契约、权限和迁移变化扩大验证，迁移另执行 `npm --prefix frontend run schema:refresh -- --source expected`、`npm --prefix frontend run schema:check`。
 - 人工验收：1280/1440/1920px 下的树展开搜索、完整详情宽度、弹窗与列表滚动；调岗、结束任职、离职、内部负责人交接、资料作废/结束和过期版本冲突。DOM 测试不证明视觉或已部署版本正确。

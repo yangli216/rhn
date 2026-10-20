@@ -628,14 +628,16 @@
       ],
       "frontend_only": false,
       "frontend": [
-        "src/features/settings/OrganizationPersonnelManagement.test.tsx",
         "src/features/settings/organizationPersonnelFacts.test.ts",
         "src/features/settings/organizationProfileReceipt.test.ts",
         "src/features/settings/organizationProfileFacts.test.ts",
         "src/features/settings/organizationUnitReceipt.test.ts",
         "src/features/settings/organizationFormOptions.test.ts",
         "src/features/settings/organizationDictionaryFacts.test.ts",
-        "src/features/settings/PersonnelLifecycleDialog.test.tsx",
+        "src/features/settings/practitionerOnboarding.test.ts",
+        "src/features/settings/organizations/organizationUnitModel.test.ts",
+        "src/features/settings/organizations/OrganizationsPage.test.tsx",
+        "src/features/settings/personnel/PersonnelPage.test.tsx",
         "src/app/AppShellContext.test.ts"
       ],
       "backend": [
@@ -644,6 +646,8 @@
         "RhnPhysicalSchemaGovernanceTest",
         "OrganizationPersonnelFoundationTest",
         "PractitionerOnboardingTest",
+        "PersonnelManagementTest",
+        "DictionaryConformanceTest",
         "com.rhn.platform.organization.api.DepartmentBusinessPolicyTest",
         "MaterialDepartmentGovernanceTest",
         "PharmacyOrganizationFoundationTest",

@@ -1,0 +1,38 @@
+/* 机构与科室（features/settings/organizations）。只用语义令牌；控件外观由 shared/ui 提供。 */
+.organization-tree-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--layout-panel-gap); }
+
+.organization-detail-head { display: flex; align-items: center; justify-content: space-between; gap: var(--layout-section-gap); }
+.organization-detail-head__title { min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
+.organization-detail-head__title h2 { margin: 0; font-size: var(--font-size-h2); }
+.organization-detail-head__title code { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.organization-detail-head__actions { flex: none; display: flex; align-items: center; gap: var(--layout-panel-gap); }
+
+.organization-detail { display: grid; gap: var(--layout-section-gap); }
+.organization-section { min-width: 0; display: grid; gap: var(--layout-panel-gap); }
+.organization-section + .organization-section { padding-top: var(--layout-section-gap); border-top: 1px solid var(--color-border); }
+.organization-section h3 { margin: 0; font-size: var(--font-size-h3); }
+.organization-section__note { margin: 0; color: var(--color-text-primary); }
+.organization-section__hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.organization-section__empty { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-label); }
+
+.organization-facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--layout-panel-gap) var(--layout-section-gap); }
+.organization-facts__item { min-width: 0; display: grid; gap: var(--space-1); }
+.organization-facts__item dt { color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.organization-facts__item dd { margin: 0; overflow-wrap: anywhere; }
+
+.organization-profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: var(--layout-panel-gap); }
+.organization-profile-card { min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: grid; align-content: start; gap: var(--space-2); }
+.organization-profile-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.organization-profile-card__head h4 { margin: 0; font-size: var(--font-size-body); }
+.organization-profile-card__lines { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); }
+
+.organization-staff-summary { display: flex; align-items: center; gap: var(--layout-section-gap); }
+
+.organization-form { display: grid; gap: var(--layout-section-gap); }
+.organization-form__fieldset { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: var(--layout-section-gap); }
+.organization-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.organization-form__grid .ui-field { margin: 0; }
+.organization-form__wide { grid-column: 1 / -1; }
+.organization-address-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--layout-section-gap); align-items: end; }
+.organization-address-row + .organization-address-row { margin-top: var(--layout-section-gap); }
+.organization-address-row .ui-field { margin: 0; }
