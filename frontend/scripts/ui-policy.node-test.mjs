@@ -14,6 +14,14 @@ test('record identifiers and descriptive wrapper names are not colors or legacy 
   assert.deepEqual(rules(findings), ['raw-color', 'raw-color', 'legacy-component', 'raw-color'])
 })
 
+test('direct locale formatting is limited to shared formatters', () => {
+  const source = `const a = new Intl.NumberFormat('zh-CN').format(1); const b = new Date().toLocaleString('zh-CN');
+    const c = n.toLocaleDateString(); const d = s.toLocaleLowerCase(); const e = new Intl.Collator('zh').compare;`
+  assert.deepEqual(rules(inspectUiLiterals(file, source)), ['direct-locale-format', 'direct-locale-format', 'direct-locale-format'])
+  assert.deepEqual(inspectUiLiterals('shared/format.ts', source), [])
+  assert.deepEqual(inspectUiLiterals('features/example/Example.test.tsx', source), [])
+})
+
 test('shared appearance targets exclude business descendants and has conditions', () => {
   assert.deepEqual(rules(scanSource('features/example/example.css', `
     .business:has(.ui-select) { color: var(--color-text-secondary); }

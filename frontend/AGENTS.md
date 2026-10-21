@@ -10,7 +10,7 @@
 - 新的通用需求优先扩展共享组件。不要绕过门禁、更改历史基线或增加整目录白名单来让检查通过；真正例外按开发入口登记。
 - PC 视口为 1280/1440/1920px，充分利用横向空间。默认不做移动端布局。沿用根目录规则：未经明确请求不做真实浏览器验证。
 - 国际化预留：当前不引入 i18n 库，界面文案仍直接写中文，但新代码不要增加日后抽取的成本：
-  - 日期、时间、数量、金额统一走 `src/shared/format.ts`、`src/shared/utils/dateRange.ts`、`src/shared/utils/precision.ts` 的格式化函数，业务代码不直接 `new Intl.*` 或 `toLocale*`；需要新格式时扩展共享函数。
+  - 日期、时间、数量、金额统一走 `src/shared/format.ts`、`src/shared/utils/dateRange.ts`、`src/shared/utils/precision.ts` 的格式化函数，业务代码不直接 `new Intl.*` 或 `toLocale*`；需要新格式时扩展共享函数。`ui:check` 的 `direct-locale-format` 规则强制此约定（测试文件与 `Intl.Collator`/`Segmenter` 除外）。
   - 含变量的句子用模板字符串整体表达（如 `` `共 ${count} 条` ``），不用多段 `+` 拼接，也不依赖中文语序拆句复用片段。
   - 共享组件的可见文案通过 props 传入或集中在组件内一处默认值，不散落在实现细节里。
   - 业务判断只看编码（字典 code、状态枚举、错误 `code`），不比较或 `includes` 展示文本与错误 `message`；存量按文本判断的实现在触及时改为按编码。
