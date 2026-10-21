@@ -186,8 +186,14 @@
 .doctor-btn--save-draft { min-width: 6.5rem; }
 .doctor-btn--terminate { color: var(--color-danger) !important; }
 .doctor-btn--terminate:hover { background: var(--color-danger-soft) !important; color: var(--color-danger) !important; }
-/* 病历列固定为 A4 纸宽（210mm≈794px，空间不足时才收缩），右侧诊断/医嘱自适应 */
-.doctor-clinical-cockpit { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(29.5rem, 210mm) minmax(36.5rem, 1fr); align-items: stretch; gap: var(--layout-panel-gap); }
+/* 病历列默认约占 45%（最宽 A4 纸宽 210mm），医生可拖动分隔条调整（--doctor-record-width）；右侧诊断/医嘱自适应 */
+.doctor-clinical-cockpit { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(26rem, var(--doctor-record-width, min(210mm, 45%))) minmax(36.5rem, 1fr); align-items: stretch; gap: var(--layout-panel-gap); }
+.doctor-record-column { position: relative; }
+.doctor-record-splitter { position: absolute; top: 0; bottom: 0; right: calc(var(--layout-panel-gap) / -2 - 4px); z-index: var(--z-sticky); width: 8px; cursor: col-resize; touch-action: none; }
+.doctor-record-splitter::after { content: ''; position: absolute; top: 50%; left: 3px; width: 2px; height: 2.5rem; transform: translateY(-50%); border-radius: var(--radius-round); background: var(--color-border-strong); opacity: 0; transition: opacity var(--motion-fast), background-color var(--motion-fast), height var(--motion-fast); }
+.doctor-record-splitter:hover::after, .doctor-record-splitter:focus-visible::after, .doctor-record-splitter.is-dragging::after { opacity: 1; height: 100%; background: var(--color-brand-primary); }
+.doctor-record-splitter:focus-visible { outline: none; }
+.doctor-clinical-cockpit:has(.doctor-record-splitter.is-dragging) { cursor: col-resize; user-select: none; }
 .doctor-clinical-cockpit.is-reading { grid-template-rows: minmax(0, 1fr); }
 .doctor-clinical-cockpit.is-editing { flex: 1; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
 .doctor-clinical-readonly-note { order: 2; min-width: 0; flex: 1 1 0; display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
@@ -1627,7 +1633,7 @@
   .doctor-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .doctor-queue-row { grid-template-columns: 3.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) 5rem minmax(9.5rem, auto); }
   .doctor-queue-time { display: none; }
-  .doctor-clinical-cockpit { grid-template-columns: minmax(26rem, 210mm) minmax(0, 1fr); gap: var(--layout-panel-gap); }
+  .doctor-clinical-cockpit { grid-template-columns: minmax(26rem, var(--doctor-record-width, min(210mm, 45%))) minmax(0, 1fr); gap: var(--layout-panel-gap); }
   .doctor-medication-directions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .doctor-allergy-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .doctor-fee-summary__totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }

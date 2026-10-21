@@ -1,4 +1,5 @@
 import { useContextSession } from '../../../shared/clinical/useContextSession'
+import { useFocusLayout } from '../../../shared/hooks/focusLayout'
 import { signClinicalDocument } from "../record/clinicalDocumentWorkflow";
 import { useClinicalDocumentSession } from "../record/useClinicalDocumentSession";
 import { completeEncounter } from "../record/completeEncounter";
@@ -63,6 +64,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   peekDrawerOpen?: boolean
   setPeekDrawerOpen?: (open: boolean) => void
 }) {
+  // The chart needs the record and orders side by side, so the main navigation folds away while it is open.
+  useFocusLayout()
   const navigate = useNavigate()
   const [activeTool, setActiveTool] = useState<WorkTool | null>(null)
   const [completionOpen, setCompletionOpen] = useState(false)

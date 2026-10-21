@@ -1,5 +1,6 @@
 import { AnnotatedRecordField } from "./AnnotatedRecordField";
 import { RecordAnnotationLegend } from "./RecordAnnotationLegend";
+import { RecordColumnSplitter, useRecordColumnWidth } from "./RecordColumnSplitter";
 import { highlightedAnnotations, rebaseAnnotations } from "./recordAnnotations";
 import type { RecordTextField } from "../../../shared/api/recordAnnotations";
 import { useClinicalAiDraft, type AiRecordUndo } from "./useClinicalAiDraft";
@@ -18,7 +19,7 @@ import { ClinicalRecordValidationError, clinicalRecordContent, createRecordSchem
 import type { ClinicalAiFieldStream } from "../../../shared/api/clinicalAiStream";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useForm, type FieldErrors } from "react-hook-form";
 import type { ClinicalDocument } from "../../../shared/api/clinicalDocumentsApi";
@@ -100,6 +101,9 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   const [structuredBaseline, setStructuredBaseline] = useState(structuredFormSignature('', {}))
   const [structuredErrors, setStructuredErrors] = useState<Record<string, string>>({})
   const draftSaver = useRef(createClinicalDraftSaver())
+  const cockpitRef = useRef<HTMLElement>(null)
+  const recordColumnRef = useRef<HTMLDivElement>(null)
+  const recordColumn = useRecordColumnWidth()
   const serverStateInitialized = useRef(false)
   const bloodPressureRequirement = useBloodPressureRequirement(api, encounter.id).data
   const bloodPressureRequired = Boolean(bloodPressureRequirement?.required)
@@ -471,8 +475,11 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
     values: amendmentDraft, disabled: amend.isPending,
     onChange: (field: TraceableRecordField, value: string) => setAmendmentDraft((current) => ({ ...current, [field]: value })),
   } : undefined
-  return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
-    <div className="doctor-record-column"><Panel className="doctor-record-panel">
+  return <section ref={cockpitRef} className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}
+    style={recordColumn.width ? { '--doctor-record-width': `${recordColumn.width}px` } as CSSProperties : undefined}>
+    <div className="doctor-record-column" ref={recordColumnRef}>
+      <RecordColumnSplitter containerRef={cockpitRef} columnRef={recordColumnRef} {...recordColumn} />
+      <Panel className="doctor-record-panel">
       <PanelHead className="doctor-record-heading" title="门诊病历"
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>

@@ -18,6 +18,7 @@ import { formatTime } from '../shared/format'
 import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
 import { CriticalValueCenter } from '../shared/realtime/CriticalValueCenter'
 import { AnnouncementCenter } from '../shared/realtime/AnnouncementCenter'
+import { FocusLayoutContext } from '../shared/hooks/focusLayout'
 
 const analyticsEntryEnabled = import.meta.env.VITE_ANALYTICS_ENABLED === 'true'
 const AnalyticsEntry = lazy(() => import('../features/analytics/AnalyticsEntry')
@@ -593,6 +594,16 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => window.matchMedia('(max-width: 760px)').matches)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('rhn.sidebar.collapsed') === 'true')
+  /** Tabs whose workspace asked for room (e.g. an open patient chart); the doctor's manual toggle wins until they leave. */
+  const [focusTabs, setFocusTabs] = useState<ReadonlySet<string>>(() => new Set())
+  const [focusOverride, setFocusOverride] = useState<boolean | null>(null)
+  const setTabFocus = useCallback((tabId: string, active: boolean) => setFocusTabs((current) => {
+    if (current.has(tabId) === active) return current
+    const next = new Set(current)
+    if (active) next.add(tabId)
+    else next.delete(tabId)
+    return next
+  }), [])
   const [expandedDirectories, setExpandedDirectories] = useState(initialExpandedDirectories)
   const [hoveredNavigation, setHoveredNavigation] = useState<{ node: NavigationNode; top: number } | null>(null)
   const [collapsedDirectory, setCollapsedDirectory] = useState<{ node: NavigationNode; top: number } | null>(null)
@@ -660,6 +671,11 @@ export function AppShell() {
     localStorage.setItem('rhn.sidebar.collapsed', String(sidebarCollapsed))
   }, [sidebarCollapsed])
 
+  const focusLayout = focusTabs.has(activeTabId) && !mobileLayout
+  // Entering or leaving a focus workspace drops the manual override, so the next chart collapses again.
+  useEffect(() => { setFocusOverride(null) }, [focusLayout])
+  const navigationCollapsed = focusLayout ? focusOverride ?? true : sidebarCollapsed
+
   useEffect(() => {
     localStorage.setItem('rhn.navigation.expanded', JSON.stringify([...expandedDirectories]))
   }, [expandedDirectories])
@@ -679,15 +695,15 @@ export function AppShell() {
     if (!authenticated) return
     const timer = window.setTimeout(() => scrollActiveNavigationIntoView(sidebarNavigationRef.current), 320)
     return () => window.clearTimeout(timer)
-  }, [location.pathname, authenticated, sidebarCollapsed, mobileLayout, sidebarOpen])
+  }, [location.pathname, authenticated, navigationCollapsed, mobileLayout, sidebarOpen])
 
   useEffect(() => {
-    if (sidebarCollapsed && !mobileLayout) return
+    if (navigationCollapsed && !mobileLayout) return
     if (navigationHoverOpenTimer.current) window.clearTimeout(navigationHoverOpenTimer.current)
     if (navigationHoverCloseTimer.current) window.clearTimeout(navigationHoverCloseTimer.current)
     setHoveredNavigation(null)
     setCollapsedDirectory(null)
-  }, [mobileLayout, sidebarCollapsed])
+  }, [mobileLayout, navigationCollapsed])
 
   useEffect(() => () => {
     if (navigationHoverOpenTimer.current) window.clearTimeout(navigationHoverOpenTimer.current)
@@ -966,6 +982,7 @@ export function AppShell() {
 
   function toggleNavigation() {
     if (mobileLayout) setSidebarOpen((open) => !open)
+    else if (focusLayout) setFocusOverride(!navigationCollapsed)
     else setSidebarCollapsed((collapsed) => !collapsed)
   }
 
@@ -980,7 +997,7 @@ export function AppShell() {
   const availableForActiveType = activeContextType === 'INVENTORY'
     ? selectableWarehouseContexts(session.workContexts)
     : selectableWorkContexts(session.workContexts, activeSlot.option.workContextType)
-  const collapsedNavigation = sidebarCollapsed && !mobileLayout
+  const collapsedNavigation = navigationCollapsed && !mobileLayout
   const activeAuthorities = new Set([...session.authorities, ...(activeSlot.option.authorities ?? [])])
   const visibleNavigation = filterNavigation(NAVIGATION_NODES, activeAuthorities)
   const activeContextKey = `${activeSlot.option.workContextType}:${workContextKey(activeSlot.option)}`
@@ -998,7 +1015,7 @@ export function AppShell() {
   ).values())
 
   return (
-    <div className={`app-shell ${sidebarCollapsed && !mobileLayout ? 'is-sidebar-collapsed' : ''}`}>
+    <div className={`app-shell ${collapsedNavigation ? 'is-sidebar-collapsed' : ''}`}>
       <RealtimeBridge api={activeSlot.api} contextKey={activeContextKey}
         organizationId={activeSlot.option.organizationId} onSessionTerminated={clearAuthentication} />
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="关闭主导航"
@@ -1034,9 +1051,9 @@ export function AppShell() {
 
       <main className="main-area" inert={mobileLayout && sidebarOpen || undefined}>
         <header className="topbar">
-          <IconButton className="menu-button" icon={mobileLayout ? 'menu' : sidebarCollapsed ? 'chevron-right' : 'chevron-left'}
-            label={mobileLayout ? sidebarOpen ? '关闭主导航' : '打开主导航' : sidebarCollapsed ? '展开菜单栏' : '收缩菜单栏'}
-            aria-controls="primary-navigation" aria-expanded={mobileLayout ? sidebarOpen : !sidebarCollapsed}
+          <IconButton className="menu-button" icon={mobileLayout ? 'menu' : navigationCollapsed ? 'chevron-right' : 'chevron-left'}
+            label={mobileLayout ? sidebarOpen ? '关闭主导航' : '打开主导航' : navigationCollapsed ? '展开菜单栏' : '收缩菜单栏'}
+            aria-controls="primary-navigation" aria-expanded={mobileLayout ? sidebarOpen : !navigationCollapsed}
             onClick={toggleNavigation} />
           <WorkContextSwitcher
             activeOption={activeSlot.option}
@@ -1075,6 +1092,7 @@ export function AppShell() {
             return <div id={`workspace-panel-${encodeURIComponent(tab.id)}`} key={tab.id}
               className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${encodeURIComponent(tab.id)}`}
               hidden={tab.id !== activeTabId}>
+              <FocusLayoutContext.Provider value={{ tabId: tab.id, setFocus: setTabFocus }}>
               <div className="page" key={slotKey}>
                 {!authorized ? <EmptyState icon="error" title="无权访问该功能"
                   copy={`当前工作上下文缺少权限：${requiredAuthority}`} /> :
@@ -1246,6 +1264,7 @@ export function AppShell() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes></Suspense>}
               </div>
+              </FocusLayoutContext.Provider>
             </div>
           })}
           {unsavedPrompt}
