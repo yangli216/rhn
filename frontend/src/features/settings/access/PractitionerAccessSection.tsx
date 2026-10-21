@@ -4,16 +4,18 @@ import { errorMessage, type PractitionerDetail, type RhnApi, type UserRoleAssign
 import { Alert, Button, LoadingState, StatusBadge, Switch } from '../../../shared/ui'
 import { requireAccessRoles } from '../accessPermissionFacts'
 import { organizationQueryScope } from '../organizationQueryScope'
+import { AccountStatusDialog } from './AccountStatusDialog'
 import { grantOpen, requirePractitionerAccess, scopeText } from './accessFacts'
 import { GrantRoleDialog, type GrantTarget } from './GrantRoleDialog'
 import { OpenAccountDialog } from './OpenAccountDialog'
+import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { RevokeGrantDialog } from './RevokeGrantDialog'
 import { RoleGrantsTable } from './RoleGrantsTable'
 import '../../../styles/features/access-control.css'
 
-type Pending = { kind: 'open' } | { kind: 'grant' } | { kind: 'revoke'; grant: UserRoleAssignment }
+type Pending = { kind: 'open' | 'grant' | 'status' | 'password' } | { kind: 'revoke'; grant: UserRoleAssignment }
 
-/** 人员档案中的「账号与角色」：开通账号、查看科室默认与手工授权、自定义添加或撤销角色。 */
+/** 人员档案中的「账号与角色」：开通、停用/启用账号与重置密码，查看科室默认与手工授权、自定义添加或撤销角色。 */
 export function PractitionerAccessSection({ api, detail, canManage, onChanged }: {
   api: RhnApi; detail: PractitionerDetail; canManage: boolean; onChanged: (message: string) => Promise<void>
 }) {
@@ -51,6 +53,9 @@ export function PractitionerAccessSection({ api, detail, canManage, onChanged }:
       <div className="personnel-section__actions">
         {!account && active && <Button size="sm" variant="secondary" onClick={() => setPending({ kind: 'open' })}>开通账号</Button>}
         {account && <Button size="sm" variant="secondary" disabled={account.status !== 'ACTIVE'} onClick={() => setPending({ kind: 'grant' })}>添加角色</Button>}
+        {account && <Button size="sm" variant="text" onClick={() => setPending({ kind: 'password' })}>重置密码</Button>}
+        {account && (account.status === 'ACTIVE' || active) && <Button size="sm" variant="text" onClick={() => setPending({ kind: 'status' })}>
+          {account.status === 'ACTIVE' ? '停用账号' : '启用账号'}</Button>}
         {account && <Switch size="sm" checked={showHistory} onChange={setShowHistory} label="显示已失效" />}
       </div>
     </div>
@@ -65,6 +70,10 @@ export function PractitionerAccessSection({ api, detail, canManage, onChanged }:
         onClose={() => setPending(undefined)} onDone={done} />
       : roles.isError ? <Alert placement="inline">角色目录加载失败：{errorMessage(roles.error)}<Button size="sm" variant="secondary" onClick={() => void roles.refetch()}>重新加载</Button></Alert>
       : <LoadingState label="正在加载角色目录…" />)}
+    {pending?.kind === 'status' && account && <AccountStatusDialog api={api} account={account} practitionerName={person.fullName}
+      onClose={() => setPending(undefined)} onDone={done} />}
+    {pending?.kind === 'password' && account && <ResetPasswordDialog api={api} account={account} practitionerName={person.fullName}
+      onClose={() => setPending(undefined)} onDone={done} />}
     {pending?.kind === 'revoke' && <RevokeGrantDialog api={api} grant={pending.grant} onClose={() => setPending(undefined)} onDone={done} />}
   </>
 }

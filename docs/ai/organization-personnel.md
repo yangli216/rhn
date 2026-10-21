@@ -49,6 +49,9 @@
 - 权限模型不变：角色授予登录账号（`RHN_SYS_USER_ROLE_ASSIGN`），按 机构·科室 范围生效，科室范围授权同时决定可选工作上下文。账号通过 `ID_PRACT` 关联人员。
 - 管理范围由操作人自己的 `IAM.MANAGE` 授权决定：租户级授权或 ROLE_ADMIN 可管全院，机构级授权可管本机构，科室级授权只管当前工作科室。人员须在范围内有未结束任职，授权范围须落在管理范围内；授予的角色不能含操作人不具备的权限。
 - 人员档案「账号与角色」：开通账号（账号默认工号，初始密码 bcrypt 存储，8–64 位且含字母和数字），查看/添加/撤销角色。`GET/POST /api/platform/iam/practitioners/{id}/access|account`。
+- 账号生命周期（同一分区，管理范围同上）：停用/启用账号 `PUT /api/platform/iam/users/{id}/status`、管理员重置密码 `POST /api/platform/iam/users/{id}/password-reset`，均以账号 `revision`（`expectedRevision`）做乐观锁，并写 `RHN_AUD_IAM_AUTH_EVT`（`ACCOUNT_DISABLED`/`ACCOUNT_ENABLED` 记账号与原因，`PASSWORD_RESET` 只记账号）。新密码规则同开通账号；不能停用当前登录账号，人员档案停用时不能启用其账号。停用账号不撤销角色授权，重新启用即按现有授权恢复。
+- 会话失效：HTTP Basic 与续期登录每次请求都只接受 `ACTIVE` 账号（`IdentityAccessDirectory.findActiveAccount`），停用即无法再认证；停用和重置密码在事务提交后经 `PresenceService.terminateAccountSessions` 吊销该账号在线客户端会话（`SessionRevocationStore`，由 `ClientSessionRevocationFilter` 拦截）、删除续期登录并推送下线指令。
+- 办理离职弹窗在账号仍启用时提供「同时停用登录账号」（离开最后一个聘用机构时默认开启），先停用账号再结束聘用，避免补录过去日期的离职后超出科室管理范围而无法停用。
 - 科室默认角色（`RHN_SYS_DEPT_DFLT_ROLE`）：在「机构与科室」科室详情维护，`GET/PUT /api/platform/iam/departments/{id}/default-roles`。已开通账号的人员在该科室有任职时（入职、新增任职、调岗、开通账号、或保存默认角色时选择“同时授予现有人员”）自动授予，授权记录 `SD_GRANT_SRC = DEPT_DEFAULT` 并关联任职 `ID_STAFF_ASSIGN`，有效期从任职开始日（不早于当前时刻）到任职结束日次日零点。任职结束、调岗、离职或作废时同步收短；不会自动延长，被手工撤销后同一任职不再补授；移除默认角色不撤销已授予记录。同步通过 `organization/api/StaffAssignmentSynchronizer` 在人员流转同一事务中执行。
 - 「角色与权限」页按角色反查已授权人员（`GET /api/platform/iam/roles/{id}/members`，可含已失效），并可授予当前工作科室或撤销。
 
@@ -56,7 +59,7 @@
 
 - 前端：「机构与科室」`/settings/organizations` 在 features/settings/organizations/（OrganizationsPage 只读详情 + 编辑/分区维护/停用弹窗，样式 styles/features/organizations.css）；「人员管理」`/settings/personnel` 在 features/settings/personnel/（PersonnelPage 服务端分页列表，PersonnelDrawer 档案抽屉含任职与执业资质，入职/调岗/结束任职/离职/岗位设置弹窗，样式 styles/features/personnel.css；支持 `?departmentId=` / `?organizationId=` 预置筛选）。两个页面共用的回执与字典校验、档案表单和变更记录留在 features/settings/ 根目录（organization*Facts/Receipt、organizationProfileForm.ts、OrganizationProfileRecords.tsx、OrganizationChangeHistory.tsx、practitionerOnboarding.ts）。旧路径 `/settings/organization` 重定向到机构与科室；两个菜单共用 ORGANIZATION 模块与 ORGANIZATION.ACCESS。
 - 后端：rhn-platform 的 organization/application、organization/web/OrganizationMaintenanceController、PersonnelController（人员查询、执业资质、任职）；运行解释见 organization/api/DepartmentBusinessPolicy。
-- 账号与授权：前端 features/settings/access/（人员档案分区、科室默认角色分区、授予/撤销/开通弹窗）与 AccessControlManagement.tsx；后端 rhn-platform 的 identityaccess/application（IdentityAccessAdministrationService、DepartmentDefaultRoleService、ManagementScopes、RoleGrantStore）。
+- 账号与授权：前端 features/settings/access/（人员档案分区、科室默认角色分区、授予/撤销/开通/停用启用/重置密码弹窗）与 AccessControlManagement.tsx；后端 rhn-platform 的 identityaccess/application（IdentityAccessAdministrationService、DepartmentDefaultRoleService、ManagementScopes、RoleGrantStore），账号会话失效复用 realtime/application/PresenceService；集成测试 DepartmentDefaultRoleTest、AccountLifecycleTest。
 - 运行消费者：ServiceExecutionDepartmentPolicy、PharmacyDepartmentExtensionSynchronizer；变更分类规则时验证其消费者。
 - 验证：`./scripts/verify-scope.sh organization`；契约、权限和迁移变化扩大验证，迁移另执行 `npm --prefix frontend run schema:refresh -- --source expected`、`npm --prefix frontend run schema:check`。
 - 人工验收：1280/1440/1920px 下的树展开搜索、完整详情宽度、弹窗与列表滚动；调岗、结束任职、离职、内部负责人交接、资料作废/结束和过期版本冲突。DOM 测试不证明视觉或已部署版本正确。

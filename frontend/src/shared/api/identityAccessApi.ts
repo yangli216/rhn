@@ -23,11 +23,12 @@ export interface AccessPermission {
   routePath?: string | null
 }
 
-/** 登录账号；未关联人员档案的账号无人员字段。 */
+/** 登录账号；未关联人员档案的账号无人员字段。revision 用于停用/启用与重置密码的乐观锁。 */
 export interface AccessUser {
   id: string
   username: string
   status: string
+  revision: number
   practitionerId?: string | null
   practitionerCode?: string | null
   practitionerName?: string | null
@@ -111,6 +112,14 @@ export function createIdentityAccessApi(client: ApiClient) {
     roles: () => client.request<AccessRole[]>(`${base}/roles`),
     permissions: () => client.request<AccessPermission[]>(`${base}/permissions`),
     users: () => client.request<AccessUser[]>(`${base}/users`),
+    changeAccountStatus: (user: AccessUser, status: 'ACTIVE' | 'INACTIVE', reason?: string) =>
+      client.request<AccessUser>(`${base}/users/${user.id}/status`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision: user.revision, status, reason: reason || null }),
+      }),
+    resetPassword: (user: AccessUser, newPassword: string) =>
+      client.request<AccessUser>(`${base}/users/${user.id}/password-reset`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision: user.revision, newPassword }),
+      }),
     assignments: (userId: string) => client.request<UserRoleAssignment[]>(`${base}/users/${userId}/role-assignments`),
     roleMembers: (roleId: string, includeExpired = false) =>
       client.request<UserRoleAssignment[]>(`${base}/roles/${roleId}/members?includeExpired=${includeExpired}`),

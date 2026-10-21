@@ -1,9 +1,11 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ORGANIZATION_SYSTEM_ENUM, errorMessage, systemEnumItems, type PersonnelAssignment, type PractitionerDetail,
   type PractitionerGender, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DatePicker, Dialog, FormField, Select, Switch } from '../../../shared/ui'
+import { requireAccountChange, requirePractitionerAccess } from '../access/accessFacts'
 import { requirePractitionerDetail } from '../organizationPersonnelFacts'
+import { organizationQueryScope } from '../organizationQueryScope'
 import { departmentOwner } from '../organizationUnitReceipt'
 import type { usePersonnelOptions } from './usePersonnelOptions'
 
@@ -15,7 +17,10 @@ const TITLES: Record<PersonnelAction['kind'], string> = {
 }
 const today = () => new Date().toLocaleDateString('sv-SE')
 
-/** 人员流转与档案维护。调岗只能在原机构内；离职结束所选机构的聘用及其下全部任职。 */
+/**
+ * 人员流转与档案维护。调岗只能在原机构内；离职结束所选机构的聘用及其下全部任职，可一并停用登录账号
+ * （先停用账号再结束聘用，避免补录离职后超出管理范围而无法停用）。
+ */
 export function PersonnelActionDialog({ api, action, detail, options, onClose, onDone }: {
   api: RhnApi; action: PersonnelAction; detail: PractitionerDetail; options: ReturnType<typeof usePersonnelOptions>
   onClose: () => void; onDone: (message: string) => Promise<void>
@@ -35,6 +40,12 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
   const [employmentId, setEmploymentId] = useState(activeEmployments.find(item => item.primaryEmployment)?.id ?? activeEmployments[0]?.id ?? '')
   const [reason, setReason] = useState('')
   const [validation, setValidation] = useState('')
+  const access = useQuery({ queryKey: ['practitioner-access', person.id, organizationQueryScope(api)], enabled: action.kind === 'leave',
+    queryFn: async () => requirePractitionerAccess(await api.identityAccess.practitionerAccess(person.id), person.id) })
+  const loginAccount = access.data?.account?.status === 'ACTIVE' ? access.data.account : undefined
+  // 离开最后一个聘用机构时默认一并停用；仍在其他机构聘用时由操作人决定。
+  const [disableAccount, setDisableAccount] = useState(activeEmployments.length <= 1)
+  const [accountDisabled, setAccountDisabled] = useState('')
   const departments = units.filter(unit => unit.sdOrgKind === 'ORG_UNIT' && unit.sdOrgStatus === 'ACTIVE' && departmentOwner(unit.id, units) === organizationId)
     .map(unit => ({ value: unit.id, label: unit.name, secondaryText: unit.code }))
   const organizations = units.filter(unit => unit.sdOrgKind === 'LEGAL_ORGANIZATION' && unit.sdOrgStatus === 'ACTIVE').map(unit => ({ value: unit.id, label: unit.name }))
@@ -74,10 +85,23 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
         }
         case 'leave': {
           const employment = activeEmployments.find(item => item.id === employmentId)!
-          const next = requirePractitionerDetail(await api.organization.endEmployment(employment.id,
-            { expectedRevision: employment.revision, lastDay: date, reason: reason.trim() }), person.id)
-          if (next.employments.find(item => item.id === employment.id)?.leaveDate !== date) throw new Error('离职结果未确认，请重新加载核实')
-          return `${person.fullName}已办理离职，最后工作日 ${date}`
+          let disabled = accountDisabled
+          if (!disabled && disableAccount && loginAccount) {
+            const account = requireAccountChange(await api.identityAccess.changeAccountStatus(loginAccount, 'INACTIVE',
+              `办理离职：${reason.trim()}`.slice(0, 500)), loginAccount)
+            if (account.status !== 'INACTIVE') throw new Error('账号停用结果未确认，请重新加载核实')
+            disabled = account.username
+            setAccountDisabled(disabled)
+          }
+          try {
+            const next = requirePractitionerDetail(await api.organization.endEmployment(employment.id,
+              { expectedRevision: employment.revision, lastDay: date, reason: reason.trim() }), person.id)
+            if (next.employments.find(item => item.id === employment.id)?.leaveDate !== date) throw new Error('离职结果未确认，请重新加载核实')
+          } catch (error) {
+            if (disabled) throw new Error(`登录账号 ${disabled} 已停用，但离职未完成：${errorMessage(error)}`)
+            throw error
+          }
+          return `${person.fullName}已办理离职，最后工作日 ${date}${disabled ? `；登录账号 ${disabled} 已停用` : ''}`
         }
       }
     },
@@ -99,6 +123,9 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
         busy={mutation.isPending} onClick={submit}>{action.kind === 'status' ? (person.sdPersonnelStatus === 'ACTIVE' ? '确认停用' : '确认启用') : `确认${title}`}</Button></>}>
     {(validation || mutation.error) && <Alert placement="inline">{validation || `保存未完成：${errorMessage(mutation.error)}`}</Alert>}
     {action.kind === 'leave' && <p className="personnel-hint">以最后工作日结束所选机构的聘用，并同时结束其下未结束的任职；科室默认角色随任职自动失效，手工授予的角色请在「账号与角色」中撤销。</p>}
+    {action.kind === 'leave' && !accountDisabled && loginAccount && <FormField label="同时停用登录账号"
+      hint={`停用 ${loginAccount.username} 后其已登录的会话立即失效${activeEmployments.length > 1 ? '；该人员仍在其他机构聘用，请确认后再停用' : ''}`}>
+      <Switch aria-label="同时停用登录账号" checked={disableAccount} onChange={setDisableAccount} disabled={mutation.isPending} checkedText="是" uncheckedText="否" /></FormField>}
     {action.kind === 'transfer' && <p className="personnel-hint">原任职在生效日前一天结束，并在同一机构内新增目标任职。</p>}
     {action.kind === 'status' && <p>{person.sdPersonnelStatus === 'ACTIVE'
       ? '停用后不能再新增任职；实际离职请使用「办理离职」结束聘用。' : '启用后可以再次新增任职。'}</p>}

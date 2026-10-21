@@ -18,7 +18,7 @@ const member = { id: 'g-1', userId: 'u-1', username: 'p001', roleId: 'role1', ro
 
 function setup(overrides: Record<string, unknown> = {}) {
   const identityAccess = { roles: vi.fn().mockResolvedValue([role, admin]), permissions: vi.fn().mockResolvedValue(permissions),
-    users: vi.fn().mockResolvedValue([{ id: 'u-2', username: 'n002', status: 'ACTIVE', practitionerId: 'p-2', practitionerCode: 'N002', practitionerName: '李护士' }]),
+    users: vi.fn().mockResolvedValue([{ id: 'u-2', username: 'n002', status: 'ACTIVE', revision: 0, practitionerId: 'p-2', practitionerCode: 'N002', practitionerName: '李护士' }]),
     roleMembers: vi.fn().mockResolvedValue([member]),
     replaceRolePermissions: vi.fn().mockResolvedValue({ ...role, version: 3, permissionCodes: ['TASK.READ', 'TASK.WRITE'] }),
     assignRole: vi.fn().mockImplementation(async (userId, input) => ({ ...member, id: 'g-2', userId, username: 'n002', grantSource: 'MANUAL',

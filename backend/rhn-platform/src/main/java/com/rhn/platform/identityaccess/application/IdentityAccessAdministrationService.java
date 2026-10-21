@@ -6,6 +6,7 @@ import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.RoleView;
 import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.UserRoleAssignmentView;
 import com.rhn.platform.identityaccess.api.IdentityAccessAdminViews.UserView;
 import com.rhn.platform.identityaccess.application.ManagementScopes.Scope;
+import com.rhn.platform.realtime.application.PresenceService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
@@ -13,6 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -34,6 +37,7 @@ public class IdentityAccessAdministrationService {
     private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{2,63}");
     private static final Set<String> CREATABLE_ROLE_TYPES = Set.of("BUSINESS", "CUSTOM");
     private static final Set<String> ROLE_STATUSES = Set.of("ACTIVE", "INACTIVE");
+    private static final Set<String> ACCOUNT_STATUSES = Set.of("ACTIVE", "INACTIVE");
     private static final Set<String> DATA_SCOPES = Set.of("TENANT", "ORGANIZATION", "DEPARTMENT");
     private static final String GRANT_ORDER = "grant_row.DT_VALID_FROM desc, grant_row.ID_USER_ROLE_ASSIGN desc";
 
@@ -43,17 +47,19 @@ public class IdentityAccessAdministrationService {
     private final RoleGrantStore grants;
     private final DepartmentDefaultRoleService defaultRoles;
     private final PasswordEncoder passwordEncoder;
+    private final PresenceService presence;
 
     public IdentityAccessAdministrationService(JdbcTemplate jdbc, ExecutionContextProvider contextProvider,
                                                ManagementScopes scopes, RoleGrantStore grants,
                                                DepartmentDefaultRoleService defaultRoles,
-                                               PasswordEncoder passwordEncoder) {
+                                               PasswordEncoder passwordEncoder, PresenceService presence) {
         this.jdbc = jdbc;
         this.contextProvider = contextProvider;
         this.scopes = scopes;
         this.grants = grants;
         this.defaultRoles = defaultRoles;
         this.passwordEncoder = passwordEncoder;
+        this.presence = presence;
     }
 
     @Transactional(readOnly = true)
@@ -102,8 +108,8 @@ public class IdentityAccessAdministrationService {
         }
         return jdbc.query("""
                 select account.ID_USER as id, account.CD_USRNM as username, account.SD_STATUS as status,
-                       practitioner.ID_PRACT as practitioner_id, practitioner.CD_PRACT as practitioner_code,
-                       practitioner.NA_FULL as practitioner_name
+                       account.REVISION as revision, practitioner.ID_PRACT as practitioner_id,
+                       practitioner.CD_PRACT as practitioner_code, practitioner.NA_FULL as practitioner_name
                   from RHN_SYS_USER_ACCT account
                   left join RHN_SYS_PRACT practitioner
                     on practitioner.ID_TNT = account.ID_TNT and practitioner.ID_PRACT = account.ID_PRACT
@@ -163,11 +169,7 @@ public class IdentityAccessAdministrationService {
                 select count(*) from RHN_SYS_USER_ACCT where ID_TNT = ? and lower(CD_USRNM) = ?
                 """, Integer.class, context.tenantId(), normalizedUsername);
         if (duplicate != null && duplicate > 0) throw conflict("IAM_USERNAME_DUPLICATE", "登录账号已被使用");
-        if (initialPassword == null || initialPassword.length() < 8 || initialPassword.length() > 64
-                || !initialPassword.chars().anyMatch(Character::isLetter)
-                || !initialPassword.chars().anyMatch(Character::isDigit)) {
-            throw badRequest("IAM_PASSWORD_WEAK", "初始密码须为 8–64 位，且同时包含字母和数字");
-        }
+        requireStrongPassword(initialPassword, "初始密码");
         Long userId = GlobalIds.next();
         Instant now = Instant.now();
         jdbc.update("""
@@ -180,6 +182,58 @@ public class IdentityAccessAdministrationService {
         grants.event(context, "ACCOUNT_CREATED", "USER", userId, practitionerId + ":" + normalizedUsername);
         defaultRoles.synchronize(context.tenantId(), practitionerId);
         return access(context.tenantId(), scope, practitionerId);
+    }
+
+    /**
+     * Enables or disables a login account. Disabling ends its sessions after commit; HTTP Basic and refresh logins
+     * re-check the account status on every request, so a disabled account cannot sign in again.
+     */
+    @Transactional
+    public UserView changeAccountStatus(Long userId, long expectedRevision, String status, String reason) {
+        ExecutionContext context = current();
+        Scope scope = scopes.resolve(context);
+        Long practitionerId = scopes.requireUser(context.tenantId(), scope, userId);
+        String target = enumValue(status, ACCOUNT_STATUSES, "账号状态");
+        UserView account = requireRevision(context.tenantId(), userId, expectedRevision);
+        if (target.equals(account.status())) {
+            throw conflict("IAM_ACCOUNT_STATUS_UNCHANGED", "ACTIVE".equals(target) ? "账号已经是启用状态" : "账号已经是停用状态");
+        }
+        if ("INACTIVE".equals(target) && userId.equals(context.subjectId())) {
+            throw conflict("IAM_ACCOUNT_SELF_DISABLE", "不能停用当前登录的账号");
+        }
+        if ("ACTIVE".equals(target) && practitionerId != null && !"ACTIVE".equals(jdbc.queryForObject("""
+                select SD_STATUS from RHN_SYS_PRACT where ID_TNT = ? and ID_PRACT = ?
+                """, String.class, context.tenantId(), practitionerId))) {
+            throw conflict("PRACTITIONER_INACTIVE", "人员档案已停用，不能启用其登录账号");
+        }
+        String normalizedReason = reason == null || reason.isBlank() ? null : reason.trim();
+        int changed = jdbc.update("""
+                update RHN_SYS_USER_ACCT set SD_STATUS = ?, DT_UPDATED = ?, REVISION = REVISION + 1
+                 where ID_TNT = ? and ID_USER = ? and REVISION = ?
+                """, target, timestamp(Instant.now()), context.tenantId(), userId, expectedRevision);
+        if (changed == 0) throw accountVersionConflict();
+        grants.event(context, "ACTIVE".equals(target) ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED", "USER", userId,
+                normalizedReason == null ? account.username() : account.username() + ":" + normalizedReason);
+        if ("INACTIVE".equals(target)) terminateSessionsAfterCommit(context, userId, "账号已被管理员停用");
+        return requireAccount(context.tenantId(), userId);
+    }
+
+    /** Replaces the password with one set by the administrator and ends the account's sessions after commit. */
+    @Transactional
+    public UserView resetPassword(Long userId, long expectedRevision, String newPassword) {
+        ExecutionContext context = current();
+        scopes.requireUser(context.tenantId(), scopes.resolve(context), userId);
+        requireStrongPassword(newPassword, "新密码");
+        UserView account = requireRevision(context.tenantId(), userId, expectedRevision);
+        int changed = jdbc.update("""
+                update RHN_SYS_USER_ACCT set HASH_PWD = ?, DT_PWD_CHANGED = null, DT_UPDATED = ?, REVISION = REVISION + 1
+                 where ID_TNT = ? and ID_USER = ? and REVISION = ?
+                """, passwordEncoder.encode(newPassword), timestamp(Instant.now()), context.tenantId(), userId,
+                expectedRevision);
+        if (changed == 0) throw accountVersionConflict();
+        grants.event(context, "PASSWORD_RESET", "USER", userId, account.username());
+        terminateSessionsAfterCommit(context, userId, "账号密码已被管理员重置");
+        return requireAccount(context.tenantId(), userId);
     }
 
     @Transactional
@@ -317,8 +371,8 @@ public class IdentityAccessAdministrationService {
     private UserView account(Long tenantId, Long practitionerId) {
         return jdbc.query("""
                 select account.ID_USER as id, account.CD_USRNM as username, account.SD_STATUS as status,
-                       practitioner.ID_PRACT as practitioner_id, practitioner.CD_PRACT as practitioner_code,
-                       practitioner.NA_FULL as practitioner_name
+                       account.REVISION as revision, practitioner.ID_PRACT as practitioner_id,
+                       practitioner.CD_PRACT as practitioner_code, practitioner.NA_FULL as practitioner_name
                   from RHN_SYS_USER_ACCT account
                   join RHN_SYS_PRACT practitioner
                     on practitioner.ID_TNT = account.ID_TNT and practitioner.ID_PRACT = account.ID_PRACT
@@ -327,10 +381,55 @@ public class IdentityAccessAdministrationService {
                 """, this::user, tenantId, practitionerId).stream().findFirst().orElse(null);
     }
 
+    private UserView requireRevision(Long tenantId, Long userId, long expectedRevision) {
+        UserView account = requireAccount(tenantId, userId);
+        if (account.revision() != expectedRevision) throw accountVersionConflict();
+        return account;
+    }
+
+    private static RuntimeException accountVersionConflict() {
+        return conflict("IAM_ACCOUNT_VERSION_CONFLICT", "账号已被其他用户修改，请刷新后重试");
+    }
+
+    private UserView requireAccount(Long tenantId, Long userId) {
+        return jdbc.query("""
+                select account.ID_USER as id, account.CD_USRNM as username, account.SD_STATUS as status,
+                       account.REVISION as revision, practitioner.ID_PRACT as practitioner_id,
+                       practitioner.CD_PRACT as practitioner_code, practitioner.NA_FULL as practitioner_name
+                  from RHN_SYS_USER_ACCT account
+                  left join RHN_SYS_PRACT practitioner
+                    on practitioner.ID_TNT = account.ID_TNT and practitioner.ID_PRACT = account.ID_PRACT
+                 where account.ID_TNT = ? and account.ID_USER = ?
+                """, this::user, tenantId, userId).stream().findFirst()
+                .orElseThrow(() -> notFound("IAM_USER_NOT_FOUND", "未找到用户账号"));
+    }
+
+    private void terminateSessionsAfterCommit(ExecutionContext context, Long userId, String reason) {
+        Runnable terminate = () -> presence.terminateAccountSessions(context.tenantId(), userId, reason, context.subjectId());
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            terminate.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                terminate.run();
+            }
+        });
+    }
+
+    private static void requireStrongPassword(String password, String label) {
+        if (password == null || password.length() < 8 || password.length() > 64
+                || password.chars().noneMatch(Character::isLetter)
+                || password.chars().noneMatch(Character::isDigit)) {
+            throw badRequest("IAM_PASSWORD_WEAK", label + "须为 8–64 位，且同时包含字母和数字");
+        }
+    }
+
     private UserView user(java.sql.ResultSet result, int index) throws java.sql.SQLException {
         return new UserView(result.getLong("id"), result.getString("username"), result.getString("status"),
-                result.getObject("practitioner_id", Long.class), result.getString("practitioner_code"),
-                result.getString("practitioner_name"));
+                result.getLong("revision"), result.getObject("practitioner_id", Long.class),
+                result.getString("practitioner_code"), result.getString("practitioner_name"));
     }
 
     private RoleView role(Long id, String code, String name, String roleType, String status,

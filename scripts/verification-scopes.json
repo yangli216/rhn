@@ -652,6 +652,8 @@
         "PractitionerOnboardingTest",
         "PersonnelManagementTest",
         "DepartmentDefaultRoleTest",
+        "AccountLifecycleTest",
+        "PresenceManagementTest",
         "IdentityAccessAuthorizationTest",
         "IdentityAccessRoleReceiptTest",
         "DictionaryConformanceTest",

@@ -19,9 +19,12 @@ public final class IdentityAccessAdminViews {
                                  String routePath) {
     }
 
-    /** Login account; practitioner fields are empty for accounts not linked to a personnel record. */
-    public record UserView(Long id, String username, String status, Long practitionerId, String practitionerCode,
-                           String practitionerName) {
+    /**
+     * Login account; practitioner fields are empty for accounts not linked to a personnel record. revision is the
+     * expectedRevision for status changes and password resets.
+     */
+    public record UserView(Long id, String username, String status, long revision, Long practitionerId,
+                           String practitionerCode, String practitionerName) {
     }
 
     /**

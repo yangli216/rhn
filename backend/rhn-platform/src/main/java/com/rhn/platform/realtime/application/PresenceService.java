@@ -119,6 +119,23 @@ public class PresenceService {
         return new PresenceTerminationResult(userId, sessions.size(), matches.size(), now);
     }
 
+    /**
+     * Ends every session of an account whose access an administrator withdrew (account disabled, password reset):
+     * revokes its online client sessions, deletes its refresh logins and tells its clients to sign out. The caller
+     * has already checked that the actor may manage the account. Returns the number of revoked client sessions.
+     */
+    public int terminateAccountSessions(Long tenantId, Long userId, String reason, Long actorId) {
+        Set<String> sessions = presence.findByTenant(tenantId).stream().filter(value -> userId.equals(value.userId()))
+                .map(PresenceConnectionSnapshot::clientSessionId).filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
+        sessions.forEach(sessionId -> revocations.revoke(tenantId, sessionId, revocationTtl));
+        refreshLogin.invalidateUser(tenantId, userId);
+        if (!sessions.isEmpty()) {
+            controls.publish(new PresenceControlCommand(tenantId, userId, sessions, reason, actorId, Instant.now()));
+        }
+        return sessions.size();
+    }
+
     private List<PresenceConnectionSnapshot> visible(ExecutionContext context) {
         return presence.findByTenant(context.tenantId()).stream().filter(value -> canView(context, value)).toList();
     }

@@ -4,7 +4,7 @@ import { isIsoInstant } from '../../../shared/validation/instant'
 
 const text = z.string().refine(value => value.trim().length > 0)
 const instant = z.string().refine(isIsoInstant)
-const user = z.object({ id: text, username: text, status: text, practitionerId: text.nullish(),
+const user = z.object({ id: text, username: text, status: text, revision: z.number().int().nonnegative(), practitionerId: text.nullish(),
   practitionerCode: z.string().nullish(), practitionerName: z.string().nullish() }).passthrough()
 const grant = z.object({ id: text, userId: text, username: text, roleId: text, roleCode: text, roleName: text,
   organizationId: text.nullish(), organizationName: z.string().nullish(), departmentId: text.nullish(), departmentName: z.string().nullish(),
@@ -26,6 +26,18 @@ export function requireAccessUsers(source: unknown): AccessUser[] {
   if (!parsed.success || !unique(parsed.data)) throw new Error('用户目录返回不完整或账号重复，请重新加载核实')
   return parsed.data
 }
+
+/** 停用/启用或重置密码后的账号：须为同一账号且版本前进。 */
+export function requireAccountChange(source: unknown, before: AccessUser): AccessUser {
+  const parsed = user.safeParse(source)
+  if (!parsed.success || parsed.data.id !== before.id || parsed.data.revision <= before.revision) {
+    throw new Error('账号保存结果未确认，请重新加载核实')
+  }
+  return parsed.data
+}
+
+/** 与开通账号、后端一致：8–64 位，同时包含字母和数字。 */
+export const passwordAcceptable = (value: string) => value.length >= 8 && value.length <= 64 && /[A-Za-z]/.test(value) && /\d/.test(value)
 
 export function requireGrants(source: unknown): UserRoleAssignment[] {
   const parsed = z.array(grant).safeParse(source)

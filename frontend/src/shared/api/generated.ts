@@ -12790,6 +12790,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/iam/users/{userId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["changeAccountStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/users/{userId}/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/insurance/person-info/by-resident": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["queryPersonInfoByResident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/registration-intents/settlement-modes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settlementModes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -25597,15 +25661,6 @@ export interface components {
             usageSuggestion?: components["schemas"]["TreatmentUsageSuggestion"];
             purpose?: string;
         };
-        /** @description AI 预填的用法用量草稿，仅在能映射到院内药品目录与当前有效途径/频次时出现；医生开立前必须核对。 */
-        TreatmentUsageSuggestion: {
-            doseValue?: number;
-            doseUnit?: string;
-            routeCode?: string;
-            frequencyCode?: string;
-            /** Format: int32 */
-            durationDays?: number;
-        };
         Transcription: {
             text?: string;
             provider?: string;
@@ -27111,6 +27166,8 @@ export interface components {
             practitionerId?: string;
             practitionerCode?: string;
             practitionerName?: string;
+            /** Format: int64 */
+            revision?: number;
         };
         PermissionView: {
             /** @example 824633720832983041 */
@@ -29529,6 +29586,29 @@ export interface components {
             account?: components["schemas"]["UserView"];
             assignments?: components["schemas"]["UserRoleAssignmentView"][];
             scope?: components["schemas"]["ManagementScopeView"];
+        };
+        TreatmentUsageSuggestion: {
+            doseValue?: number;
+            doseUnit?: string;
+            routeCode?: string;
+            frequencyCode?: string;
+            /** Format: int32 */
+            durationDays?: number;
+        };
+        ChangeAccountStatusRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            status: string;
+            reason?: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            newPassword: string;
+        };
+        ResidentPersonInfoQuery: {
+            /** @example 824633720832983041 */
+            residentId?: string;
         };
     };
     responses: never;
@@ -58697,6 +58777,7 @@ export interface operations {
                 name?: string;
                 id?: string;
                 type?: string;
+                icd10?: string;
             };
             header: {
                 /** @description 当前县域医共体租户标识 */
@@ -59998,6 +60079,142 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PractitionerAccessView"];
+                };
+            };
+        };
+    };
+    changeAccountStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeAccountStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
+        };
+    };
+    queryPersonInfoByResident: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResidentPersonInfoQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PersonInfoView"];
+                };
+            };
+        };
+    };
+    settlementModes: {
+        parameters: {
+            query: {
+                encounterIds: string[];
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: string;
+                    };
                 };
             };
         };

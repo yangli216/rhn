@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, Dialog, FormField } from '../../../shared/ui'
-import { requirePractitionerAccess } from './accessFacts'
+import { passwordAcceptable, requirePractitionerAccess } from './accessFacts'
 
 /** 为人员开通登录账号；开通后自动授予其任职科室的默认角色。初始密码仅在此处输入，不回显、不保存在页面。 */
 export function OpenAccountDialog({ api, practitionerId, practitionerName, suggestedUsername, onClose, onDone }: {
@@ -25,7 +25,7 @@ export function OpenAccountDialog({ api, practitionerId, practitionerName, sugge
   const submit = () => {
     setValidation('')
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/.test(username.trim())) { setValidation('登录账号为 3–64 位字母、数字、点、下划线或连字符，且以字母或数字开头'); return }
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) { setValidation('初始密码须为 8–64 位，且同时包含字母和数字'); return }
+    if (!passwordAcceptable(password)) { setValidation('初始密码须为 8–64 位，且同时包含字母和数字'); return }
     if (password !== confirm) { setValidation('两次输入的初始密码不一致'); return }
     mutation.mutate()
   }

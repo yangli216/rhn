@@ -52,6 +52,16 @@ public class IdentityAccessAdministrationController {
     @GetMapping("/users")
     List<UserView> users() { return service.users(); }
 
+    @PutMapping("/users/{userId}/status")
+    UserView changeAccountStatus(@PathVariable Long userId, @Valid @RequestBody ChangeAccountStatusRequest request) {
+        return service.changeAccountStatus(userId, request.expectedRevision(), request.status(), request.reason());
+    }
+
+    @PostMapping("/users/{userId}/password-reset")
+    UserView resetPassword(@PathVariable Long userId, @Valid @RequestBody ResetPasswordRequest request) {
+        return service.resetPassword(userId, request.expectedRevision(), request.newPassword());
+    }
+
     @GetMapping("/users/{userId}/role-assignments")
     List<UserRoleAssignmentView> assignments(@PathVariable Long userId) { return service.assignments(userId); }
 
@@ -129,6 +139,14 @@ public class IdentityAccessAdministrationController {
 
     public record OpenAccountRequest(@NotBlank @Size(max = 64) String username,
                                      @NotBlank @Size(max = 64) String initialPassword) {
+    }
+
+    public record ChangeAccountStatusRequest(@PositiveOrZero long expectedRevision, @NotBlank String status,
+                                             @Size(max = 500) String reason) {
+    }
+
+    public record ResetPasswordRequest(@PositiveOrZero long expectedRevision,
+                                       @NotBlank @Size(max = 64) String newPassword) {
     }
 
     public record ReplaceDefaultRolesRequest(@NotNull Set<@NotNull Long> roleIds, boolean applyToCurrentStaff) {

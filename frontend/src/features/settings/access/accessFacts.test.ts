@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { endOfDateInstant, grantScopeText, grantStatus, requireDepartmentDefaults, requirePractitionerAccess } from './accessFacts'
 
 const scope = { scopeType: 'DEPARTMENT', organizationId: 'org', departmentId: 'dept' }
-const account = { id: 'u-1', username: 'p001', status: 'ACTIVE', practitionerId: 'p-1' }
+const account = { id: 'u-1', username: 'p001', status: 'ACTIVE', revision: 0, practitionerId: 'p-1' }
 const grant = { id: 'g-1', userId: 'u-1', username: 'p001', roleId: 'r-1', roleCode: 'R1', roleName: '角色', organizationId: 'org', organizationName: '机构',
   departmentId: 'dept', departmentName: '科室', dataScopeType: 'DEPARTMENT', validFrom: '2026-01-01T00:00:00Z', validTo: null,
   createdAt: '2026-01-01T00:00:00Z', effective: true, grantSource: 'DEPT_DEFAULT' }

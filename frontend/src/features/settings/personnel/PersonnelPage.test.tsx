@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import type { OrganizationUnit, RhnApi } from '../../../shared/rhnApi'
 import { PersonnelPage } from './PersonnelPage'
 
@@ -41,7 +41,7 @@ const detail = {
 const unregistered = { practitionerId: 'p-1', registered: false, revision: null, prescribing: false, narcoticPrescribing: false }
 
 const scope = { scopeType: 'DEPARTMENT', organizationId: 'org-1', organizationName: '青禾镇中心卫生院', departmentId: 'dept-1', departmentName: '全科门诊' }
-const account = { id: 'u-1', username: 'p001', status: 'ACTIVE', practitionerId: 'p-1', practitionerCode: 'P001', practitionerName: '陈国华' }
+const account = { id: 'u-1', username: 'p001', status: 'ACTIVE', revision: 0, practitionerId: 'p-1', practitionerCode: 'P001', practitionerName: '陈国华' }
 const defaultGrant = { id: 'g-1', userId: 'u-1', username: 'p001', roleId: 'r-1', roleCode: 'GP_DOCTOR', roleName: '全科医生', organizationId: 'org-1',
   organizationName: '青禾镇中心卫生院', departmentId: 'dept-1', departmentName: '全科门诊', dataScopeType: 'DEPARTMENT', validFrom: '2026-01-01T00:00:00Z',
   validTo: null, createdAt: '2026-01-01T00:00:00Z', effective: true, grantSource: 'DEPT_DEFAULT', staffAssignmentId: 'a-1', practitionerId: 'p-1',
@@ -62,7 +62,8 @@ function setup(overrides: Partial<RhnApi['organization']> = {}, { canManage = tr
     saveQualification: vi.fn().mockImplementation(async (id, input) => ({ ...input, practitionerId: id, registered: true, revision: '0',
       sdProfessionalTitleText: '主治医师' })),
     assignPractitioner: vi.fn().mockImplementation(async (_id, input) => ({ ...detail.assignments[0], id: 'a-2', ...input, departmentName: '内科门诊' })),
-    endEmployment: vi.fn().mockResolvedValue({ ...detail, employments: [{ ...detail.employments[0], revision: 2, leaveDate: new Date().toLocaleDateString('sv-SE') }] }),
+    endEmployment: vi.fn().mockImplementation(async (_id, input) => ({ ...detail, employments: [{ ...detail.employments[0], revision: 2, leaveDate: input.lastDay }],
+      assignments: [{ ...detail.assignments[0], revision: 2, validTo: input.lastDay }] })),
     onboardPractitioner: vi.fn(),
     changes: vi.fn().mockResolvedValue([]),
     ...overrides,
@@ -74,6 +75,8 @@ function setup(overrides: Partial<RhnApi['organization']> = {}, { canManage = tr
     assignRole: vi.fn().mockImplementation(async (_userId, input) => ({ ...defaultGrant, id: 'g-2', roleId: input.roleId, roleCode: 'TRIAGE_NURSE',
       roleName: '分诊护士', grantSource: 'MANUAL', staffAssignmentId: null })),
     revokeAssignment: vi.fn(),
+    changeAccountStatus: vi.fn().mockImplementation(async (user, status) => ({ ...user, status, revision: user.revision + 1 })),
+    resetPassword: vi.fn().mockImplementation(async user => ({ ...user, revision: user.revision + 1 })),
     ...identityOverrides,
   }
   const api = { organization, identityAccess, dictionaries: { systemEnums: vi.fn().mockResolvedValue(enums),
@@ -147,6 +150,34 @@ describe('PersonnelPage', () => {
     await userEvent.type(dialog.getByLabelText(/原因/), '合同到期')
     await userEvent.click(dialog.getByRole('button', { name: '确认办理离职' }))
     await waitFor(() => expect(organization.endEmployment).toHaveBeenCalledWith('e-1', expect.objectContaining({ expectedRevision: 1, reason: '合同到期' })))
+    expect(await screen.findByText(/陈国华已办理离职，最后工作日/)).toBeInTheDocument()
+  })
+
+  it('disables the login account before ending the last employment when leaving', async () => {
+    const { organization, identityAccess } = setup()
+    const drawer = await openDrawer()
+    await userEvent.click(drawer.getByRole('button', { name: '办理离职' }))
+    const dialog = within(screen.getByRole('dialog', { name: '办理离职' }))
+    expect(await dialog.findByRole('switch', { name: '同时停用登录账号' })).toBeChecked()
+    await userEvent.type(dialog.getByLabelText(/原因/), '合同到期')
+    await userEvent.click(dialog.getByRole('button', { name: '确认办理离职' }))
+    await waitFor(() => expect(organization.endEmployment).toHaveBeenCalled())
+    expect(identityAccess.changeAccountStatus).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-1', revision: 0 }), 'INACTIVE', '办理离职：合同到期')
+    const order = (fn: unknown) => (fn as Mock).mock.invocationCallOrder[0]
+    expect(order(identityAccess.changeAccountStatus)).toBeLessThan(order(organization.endEmployment))
+    expect(await screen.findByText(/已办理离职，最后工作日 .+；登录账号 p001 已停用/)).toBeInTheDocument()
+  })
+
+  it('keeps the login account when the manager turns the leave option off', async () => {
+    const { organization, identityAccess } = setup()
+    const drawer = await openDrawer()
+    await userEvent.click(drawer.getByRole('button', { name: '办理离职' }))
+    const dialog = within(screen.getByRole('dialog', { name: '办理离职' }))
+    await userEvent.click(await dialog.findByRole('switch', { name: '同时停用登录账号' }))
+    await userEvent.type(dialog.getByLabelText(/原因/), '合同到期')
+    await userEvent.click(dialog.getByRole('button', { name: '确认办理离职' }))
+    await waitFor(() => expect(organization.endEmployment).toHaveBeenCalled())
+    expect(identityAccess.changeAccountStatus).not.toHaveBeenCalled()
   })
 
   it('validates onboarding codes before submitting', async () => {
@@ -182,6 +213,49 @@ describe('PersonnelPage', () => {
     expect(await screen.findByText('已为陈国华开通账号 p001，并按科室默认授予 1 个角色')).toBeInTheDocument()
     const table = within(await section.findByRole('table', { name: '角色授权' }))
     expect(table.getByText('科室默认')).toBeInTheDocument()
+  })
+
+  it('disables and re-enables a login account with its revision', async () => {
+    const disabled = { ...account, status: 'INACTIVE', revision: 1 }
+    const { identityAccess } = setup({}, {}, {
+      practitionerAccess: vi.fn().mockResolvedValueOnce({ practitionerId: 'p-1', account, assignments: [defaultGrant], scope })
+        .mockResolvedValue({ practitionerId: 'p-1', account: disabled, assignments: [defaultGrant], scope }),
+    })
+    const drawer = await openDrawer()
+    const section = within(drawer.getByRole('region', { name: '账号与角色' }))
+    await userEvent.click(await section.findByRole('button', { name: '停用账号' }))
+    const dialog = within(screen.getByRole('dialog', { name: '停用登录账号' }))
+    expect(dialog.getByText(/已登录的会话立即失效/)).toBeInTheDocument()
+    await userEvent.type(dialog.getByRole('textbox', { name: '原因' }), '长期病假')
+    await userEvent.click(dialog.getByRole('button', { name: '确认停用' }))
+    await waitFor(() => expect(identityAccess.changeAccountStatus).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-1', revision: 0 }), 'INACTIVE', '长期病假'))
+    expect(await screen.findByText('已停用陈国华的登录账号 p001')).toBeInTheDocument()
+    expect(await section.findByText('停用')).toBeInTheDocument()
+    expect(section.getByRole('button', { name: '添加角色' })).toBeDisabled()
+    await userEvent.click(section.getByRole('button', { name: '启用账号' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: '启用登录账号' })).getByRole('button', { name: '确认启用' }))
+    await waitFor(() => expect(identityAccess.changeAccountStatus).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 1 }), 'ACTIVE', ''))
+  })
+
+  it('resets the password after validating the password rule and confirmation', async () => {
+    const { identityAccess } = setup()
+    const drawer = await openDrawer()
+    const section = within(drawer.getByRole('region', { name: '账号与角色' }))
+    await userEvent.click(await section.findByRole('button', { name: '重置密码' }))
+    const dialog = within(screen.getByRole('dialog', { name: '重置密码' }))
+    await userEvent.type(dialog.getByLabelText(/^新密码/), 'onlyletters')
+    await userEvent.click(dialog.getByRole('button', { name: '确认重置' }))
+    expect(dialog.getByText(/新密码须为 8–64 位/)).toBeInTheDocument()
+    await userEvent.clear(dialog.getByLabelText(/^新密码/))
+    await userEvent.type(dialog.getByLabelText(/^新密码/), 'Reset2026pass')
+    await userEvent.type(dialog.getByLabelText(/确认新密码/), 'Reset2026pas')
+    await userEvent.click(dialog.getByRole('button', { name: '确认重置' }))
+    expect(dialog.getByText('两次输入的新密码不一致')).toBeInTheDocument()
+    expect(identityAccess.resetPassword).not.toHaveBeenCalled()
+    await userEvent.type(dialog.getByLabelText(/确认新密码/), 's')
+    await userEvent.click(dialog.getByRole('button', { name: '确认重置' }))
+    await waitFor(() => expect(identityAccess.resetPassword).toHaveBeenCalledWith(expect.objectContaining({ id: 'u-1', revision: 0 }), 'Reset2026pass'))
+    expect(await screen.findByText('已重置陈国华的登录账号 p001 的密码')).toBeInTheDocument()
   })
 
   it('adds a custom role limited to departments the manager may administer', async () => {
