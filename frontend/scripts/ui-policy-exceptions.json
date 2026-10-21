@@ -2,9 +2,9 @@
   {
     "file": "features/billing/BillingShared.tsx",
     "rule": "shared-button",
-    "fingerprint": "9999ac0dea9d90dbcfb6",
+    "fingerprint": "002c7e51d04082e20b70",
     "count": 1,
-    "reason": "既有患者队列选择行保留专用网格与直接子节点布局，本次仅改用后端翻译状态；共享 Button 会增加 label 包装并改变布局，后续随队列迁移回收。",
+    "reason": "既有患者队列选择行保留专用网格与直接子节点布局，本次新增双击载入、高亮与方向键交互属性（行内容与布局不变）；共享 Button 会增加 label 包装并改变布局，后续随队列迁移回收。",
     "owner": "catalog-standardization",
     "expires": "2026-11-13",
     "removal": "患者队列迁入共享选择列表或实现兼容布局的共享组件后删除此项"

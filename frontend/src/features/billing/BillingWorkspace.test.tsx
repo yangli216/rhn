@@ -5,7 +5,16 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { RhnApi } from '../../shared/rhnApi'
+import { openQueuePatient } from './queueTestUtils'
 import { BillingWorkspace, resolveChargeCategory, resolveChargeIcon } from './BillingWorkspace'
+
+// 收费页不再自动载入第一位患者：渲染后异步双击队列首行（后续 findBy/waitFor 会等待载入）。
+let pendingOpen: Promise<void> = Promise.resolve()
+function renderOpened(ui: Parameters<typeof render>[0]) {
+  const view = render(ui)
+  pendingOpen = openQueuePatient()
+  return view
+}
 
 function LocationProbe() {
   const location = useLocation()
@@ -116,17 +125,19 @@ describe('BillingWorkspace deep link', () => {
     } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
-    render(<QueryClientProvider client={queryClient}>
+    renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
+    await pendingOpen
     expect(await screen.findByText('待支付金额')).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: '结算进度' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('结算类型')).toBeInTheDocument()
+    expect(await screen.findByLabelText('结算类型')).toBeInTheDocument()
     expect(screen.queryByText('医保支付')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '生成结算凭证' })).not.toBeInTheDocument()
     const settleButton = screen.getByRole('button', { name: '结算开票 (Ctrl+Enter)' })
-    expect(await screen.findByPlaceholderText('28.6')).toHaveValue(28.6)
+    const amountInput = await screen.findByPlaceholderText('28.6')
+    await waitFor(() => expect(amountInput).toHaveValue(28.6))
     await waitFor(() => expect(settleButton).toBeEnabled())
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))
 
@@ -168,7 +179,7 @@ describe('BillingWorkspace deep link', () => {
       organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
     } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-    render(<QueryClientProvider client={queryClient}>
+    renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
@@ -226,12 +237,14 @@ describe('BillingWorkspace deep link', () => {
     const clinicalContext = {
       organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
     } as ClinicalContext
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+    renderOpened(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
+    await pendingOpen
     const settleButton = await screen.findByRole('button', { name: '结算开票 (Ctrl+Enter)' })
-    expect(await screen.findByPlaceholderText('28.6')).toHaveValue(28.6)
+    const amountInput = await screen.findByPlaceholderText('28.6')
+    await waitFor(() => expect(amountInput).toHaveValue(28.6))
     await waitFor(() => expect(settleButton).toBeEnabled())
     await userEvent.click(settleButton)
 
@@ -287,7 +300,7 @@ describe('BillingWorkspace deep link', () => {
     const clinicalContext = { organization: { id: 'org-1', name: '机构' },
       department: { id: 'dept-1', name: '全科门诊' } } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-    const { container } = render(<QueryClientProvider client={queryClient}>
+    const { container } = renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
@@ -355,7 +368,7 @@ describe('BillingWorkspace deep link', () => {
     } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-    render(<QueryClientProvider client={queryClient}>
+    renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
@@ -400,7 +413,8 @@ describe('BillingWorkspace deep link', () => {
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
-    // Initially enc-1 is selected (李晓梅)
+    // 收费员先双击载入 enc-1 (李晓梅)
+    await openQueuePatient()
     await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
       .toHaveTextContent('李晓梅'))
 
@@ -448,10 +462,13 @@ describe('BillingWorkspace deep link', () => {
     } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-    const { container } = render(<QueryClientProvider client={queryClient}>
+    const { container } = renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
+    // 未选中时不自动载入，方向键/F2 之外的任何操作前队列无“当前”行
+    expect(container.querySelector('.billing-queue-list button.is-active')).toBeNull()
+    await openQueuePatient()
     await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
       .toHaveTextContent('李晓梅'))
 
@@ -514,7 +531,7 @@ describe('BillingWorkspace deep link', () => {
     } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-    render(<QueryClientProvider client={queryClient}>
+    renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
@@ -542,7 +559,8 @@ describe('BillingWorkspace deep link', () => {
 
     // 5. Settle only the selected medication item
     const settleButton = screen.getByRole('button', { name: '结算开票 (Ctrl+Enter)' })
-    expect(await screen.findByPlaceholderText('28.6')).toHaveValue(28.6)
+    const amountInput = await screen.findByPlaceholderText('28.6')
+    await waitFor(() => expect(amountInput).toHaveValue(28.6))
     await waitFor(() => expect(settleButton).toBeEnabled())
     await user.click(settleButton)
 
@@ -730,7 +748,7 @@ describe('BillingWorkspace deep link', () => {
     } as ClinicalContext
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-    const { container } = render(<QueryClientProvider client={queryClient}>
+    const { container } = renderOpened(<QueryClientProvider client={queryClient}>
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 

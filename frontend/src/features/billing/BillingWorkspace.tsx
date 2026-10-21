@@ -96,7 +96,8 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
   const linkedResidentId = searchParams.get('residentId')
   const [encounterId, setEncounterId] = useState('')
   const [patientLookup, setPatientLookup] = useState('')
-  const [isManualSelecting, setIsManualSelecting] = useState(false)
+  // 读卡/医保码调入患者弹窗；主检索框回车识别出扫码内容时同样打开并预填（需点读取）。
+  const [lookupDialog, setLookupDialog] = useState<{ certType: string; certNo?: string } | null>(null)
   const [settlementMode, setSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
   const [insuranceClaimView, setInsuranceClaimView] = useState<InsuranceSettlementView | null>(null)
   const [isPreSettlingInsurance, setIsPreSettlingInsurance] = useState(false)
@@ -155,7 +156,6 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
   const paymentMethods = useCashierPaymentMethods(api, clinicalContext)
 
   const handleResetPatient = useCallback(() => {
-    setIsManualSelecting(true)
     setEncounterId('')
     setPatientLookup('')
     setTimeout(() => {
@@ -173,13 +173,6 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
     next.delete('encounterId'); next.delete('residentId')
     setSearchParams(next, { replace: true })
   }, [linkedEncounterId, linkedResidentId, searchParams, setSearchParams, worklist.data])
-  useEffect(() => {
-    if (linkedEncounterId || linkedResidentId || isManualSelecting) return
-    if (!encounterId && settlementItems.length) setEncounterId(settlementItems[0].encounterId)
-    if (encounterId && settlementItems.length && !settlementItems.some((item) => item.encounterId === encounterId)) {
-      setEncounterId(settlementItems[0].encounterId)
-    }
-  }, [encounterId, isManualSelecting, linkedEncounterId, linkedResidentId, settlementItems])
   useEffect(() => {
     setSettlementMode('SELF_PAY')
     setInsuranceClaimView(null)
@@ -792,6 +785,9 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
             tone: 'warning',
             text: `已识别就诊 ${settledMatch.encounterNo}（${settledMatch.residentName}），该就诊已完成结算平账。`,
           })
+        } else if (/^[a-z0-9]{16,}$/i.test(scannedText.trim())) {
+          // 扫码枪读到的电子医保码/卡号：打开凭证弹窗预填，由收费员确认读取后调入患者。
+          setLookupDialog({ certType: '02', certNo: scannedText.trim() })
         } else {
           setScanNotice({
             tone: 'warning',
@@ -825,22 +821,20 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
         if (!settlementItems.length) return
         const currentIdx = settlementItems.findIndex((item) => item.encounterId === encounterId)
         const nextIdx = currentIdx < settlementItems.length - 1 ? currentIdx + 1 : 0
-        setIsManualSelecting(false)
         setEncounterId(settlementItems[nextIdx].encounterId)
         return
       }
 
-      if (!isInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      // 未载入患者时方向键只用于队列高亮（由队列自身处理），不自动载入；已被队列处理的按键也不重复切换。
+      if (!isInput && !e.defaultPrevented && encounterId && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         if (!settlementItems.length) return
         e.preventDefault()
         const currentIdx = settlementItems.findIndex((item) => item.encounterId === encounterId)
         if (e.key === 'ArrowDown') {
           const nextIdx = currentIdx < settlementItems.length - 1 ? currentIdx + 1 : 0
-          setIsManualSelecting(false)
           setEncounterId(settlementItems[nextIdx].encounterId)
         } else {
           const prevIdx = currentIdx > 0 ? currentIdx - 1 : settlementItems.length - 1
-          setIsManualSelecting(false)
           setEncounterId(settlementItems[prevIdx].encounterId)
         }
         return
@@ -851,6 +845,22 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [encounterId, handleResetPatient, settlementItems])
+
+  // 凭证调入：按档案定位到患者后，在待收费队列中按 residentId 匹配并载入（多条取最新）。
+  const handleResidentLocated = (resident: { id: string; fullName: string }) => {
+    const matches = settlementItems.filter((item) => item.residentId === resident.id)
+    if (!matches.length) return '该患者当前没有待收费业务'
+    const latest = matches.reduce((best, item) =>
+      ((item.latestOccurredAt ?? '') > (best.latestOccurredAt ?? '') ? item : best))
+    setEncounterId(latest.encounterId)
+    setPatientLookup('')
+    setLookupDialog(null)
+    setScanNotice({
+      tone: 'success',
+      text: `已通过医保凭证调入：${resident.fullName}${matches.length > 1 ? `（共 ${matches.length} 条待收费就诊，已载入最新一条）` : ''}`,
+    })
+    return undefined
+  }
 
   const error = worklist.error || paymentMethods.error || statement.error || paymentOrders.error
     || synchronize.error || checkout.error || recoverPaymentOrder.error || cancelPaymentOrder.error
@@ -868,14 +878,14 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
         setCredentialDialog(null)
         setScanNotice({ tone: 'info', text: '未读取医保凭证，未执行试算' })
       }} />}
+    {lookupDialog && <InsuranceCredentialDialog api={api} lookupMode initialCertType={lookupDialog.certType}
+      initialCertNo={lookupDialog.certNo} onResident={handleResidentLocated}
+      onCancel={() => setLookupDialog(null)} />}
     {scanNotice && <Alert tone={scanNotice.tone} onDismiss={() => setScanNotice(null)}>{scanNotice.text}</Alert>}
     {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
       <div className="billing-workspace">
-      <BillingQueue title="待收费患者" items={settlementItems} selectedId={encounterId}
-        onSelect={(id) => {
-          setIsManualSelecting(false)
-          setEncounterId(id)
-        }}
+      <BillingQueue title="待收费患者" items={settlementItems} selectedId={encounterId} openOnDoubleClick
+        onSelect={setEncounterId}
         action={
           <Button
             variant="text"
@@ -941,14 +951,24 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
                     const match = settlementItems.find((item) => !code || [item.residentName, item.encounterNo,
                       item.healthRecordNo, item.residentId].some((value) => value?.toLowerCase().includes(code)))
                     if (match) {
-                      setIsManualSelecting(false)
                       setEncounterId(match.encounterId)
+                    } else if (/^[a-z0-9]{16,}$/i.test(patientLookup.trim())) {
+                      // 队列无匹配且像扫码得到的电子医保码/卡号：打开凭证弹窗预填，由收费员确认读取。
+                      setLookupDialog({ certType: '02', certNo: patientLookup.trim() })
                     }
                   }} />
               </div>
+              <div className="billing-patient-lookup__actions">
+                <Button variant="secondary" onClick={() => setLookupDialog({ certType: '06' })}>
+                  <Icon name="card" /><span>读社保卡</span>
+                </Button>
+                <Button variant="secondary" onClick={() => setLookupDialog({ certType: '02' })}>
+                  <Icon name="credential" /><span>医保码</span>
+                </Button>
+              </div>
               <div className="billing-patient-placeholder">
                 <Icon name="residents" />
-                <span>可从左侧待收费队列直接点击选择，或输入关键字回车快速定位</span>
+                <span>可双击左侧待收费队列调入患者，输入关键字回车定位，或读取社保卡 / 医保码调入</span>
               </div>
             </div>
           )}

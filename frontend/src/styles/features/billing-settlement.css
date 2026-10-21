@@ -90,6 +90,9 @@
 }
 .billing-queue-list > button:hover { background: var(--color-surface-subtle); }
 .billing-queue-list > button.is-active { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.billing-queue-list > button.is-highlighted { box-shadow: inset var(--space-1) 0 0 var(--color-border-strong); background: var(--color-surface-subtle); }
+.billing-queue-hint { margin: 0; padding: var(--space-1) var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); opacity: 0.8; border-bottom: 1px solid var(--color-border); }
+.billing-patient-lookup__actions { display: flex; align-items: center; gap: var(--space-2); }
 .billing-queue-list > button > div, .billing-queue-item__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .billing-queue-list strong, .billing-queue-list > button > span, .billing-queue-list > button > small, .billing-queue-item__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .billing-queue-list > button > span, .billing-queue-list > button > small, .billing-queue-item__meta { color: var(--color-text-secondary); font-size: var(--font-size-table, 0.8125rem); }
@@ -291,7 +294,7 @@
 }
 .billing-patient-lookup-bar {
   display: grid;
-  grid-template-columns: minmax(22rem, 32rem) 1fr;
+  grid-template-columns: minmax(22rem, 32rem) auto 1fr;
   align-items: center;
   gap: var(--space-4);
   width: 100%;

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode, type RefObject } from 'react'
+import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { BillingWorkItem, Invoice, Payment, ReceiptView } from '../../shared/api/billingApi'
 import { formatTime } from '../../shared/format'
 import { EmptyState, Panel, PanelHead, SearchField, StatusBadge } from '../../shared/ui'
@@ -54,6 +54,7 @@ export function BillingQueue({
   onKeywordChange,
   showSearch = true,
   action,
+  openOnDoubleClick = false,
 }: {
   title: string
   items: BillingWorkItem[]
@@ -66,7 +67,16 @@ export function BillingQueue({
   onKeywordChange?: (value: string) => void
   showSearch?: boolean
   action?: ReactNode
+  /** 单击仅高亮，双击或高亮后按 Enter 才调用 onSelect 载入；方向键只移动高亮。默认保持单击即选。 */
+  openOnDoubleClick?: boolean
 }) {
+  const [highlightedId, setHighlightedId] = useState('')
+  const [previousSelectedId, setPreviousSelectedId] = useState(selectedId)
+  if (previousSelectedId !== selectedId) {
+    setPreviousSelectedId(selectedId)
+    setHighlightedId('')
+  }
+  const listRef = useRef<HTMLDivElement>(null)
   const [internalKeyword, setInternalKeyword] = useState('')
   const keyword = controlledKeyword ?? internalKeyword
   const setKeyword = onKeywordChange ?? setInternalKeyword
@@ -105,6 +115,24 @@ export function BillingQueue({
     }
   }
 
+  const effectiveHighlightId = openOnDoubleClick
+    && filteredItems.some((item) => item.encounterId === highlightedId) ? highlightedId : ''
+
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!openOnDoubleClick) return
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      onSelect(filteredItems[index].encounterId)
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const next = event.key === 'ArrowDown'
+        ? (index < filteredItems.length - 1 ? index + 1 : 0)
+        : (index > 0 ? index - 1 : filteredItems.length - 1)
+      setHighlightedId(filteredItems[next].encounterId)
+      listRef.current?.querySelectorAll('button')[next]?.focus()
+    }
+  }
+
   return <Panel className="billing-queue">
     <PanelHead title={title} actions={action} />
     {showSearch && items.length > 0 && (
@@ -118,10 +146,19 @@ export function BillingQueue({
     ) : !filteredItems.length ? (
       <EmptyState icon="billing" title="无匹配患者" copy="未找到匹配该关键字的待收费记录。" />
     ) : (
-      <div className="billing-queue-list">
-        {filteredItems.map((item) => <button key={item.encounterId} type="button"
+      <>
+      {openOnDoubleClick && <p className="billing-queue-hint">双击患者行调入</p>}
+      <div className="billing-queue-list" ref={listRef}>
+        {filteredItems.map((item, index) => <button key={item.encounterId} type="button"
           aria-label={`${item.residentName || '患者'}，${item.statusText ?? item.status}`}
-          className={item.encounterId === selectedId ? 'is-active' : ''} onClick={() => onSelect(item.encounterId)}>
+          aria-selected={openOnDoubleClick ? item.encounterId === effectiveHighlightId : undefined}
+          aria-current={openOnDoubleClick && item.encounterId === selectedId ? 'true' : undefined}
+          className={[item.encounterId === selectedId ? 'is-active' : '',
+            item.encounterId === effectiveHighlightId && item.encounterId !== selectedId ? 'is-highlighted' : '']
+            .filter(Boolean).join(' ')}
+          onClick={() => (openOnDoubleClick ? setHighlightedId(item.encounterId) : onSelect(item.encounterId))}
+          onDoubleClick={openOnDoubleClick ? () => onSelect(item.encounterId) : undefined}
+          onKeyDown={(event) => handleRowKeyDown(event, index)}>
           <div className="billing-queue-item__row">
             <strong>{item.residentName || '姓名未提供'}</strong>
             <StatusBadge tone={billingTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
@@ -134,6 +171,7 @@ export function BillingQueue({
           )}
         </button>)}
       </div>
+      </>
     )}
   </Panel>
 }

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { InsuranceSettlementView } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
+import { openQueuePatient } from './queueTestUtils'
 import { BillingWorkspace } from './BillingWorkspace'
 import type { ComponentProps } from 'react'
 import type { SettlementPaymentPanel } from '../../shared/billing/SettlementPaymentPanel'
@@ -75,10 +76,14 @@ function mount(preStatus: InsuranceSettlementView['status'], finalStatus: Insura
     <MemoryRouter><BillingWorkspace api={api} authorities={['BILLING_RELIEF.DECIDE']} clinicalContext={{ organization: { id: 'org-1', name: '机构' },
       department: { id: 'dept-1', name: '科室' } } as ClinicalContext} /></MemoryRouter>
   </QueryClientProvider>)
+  pendingOpen = openQueuePatient()
   return { ...billing, relief, view }
 }
 
+let pendingOpen: Promise<void> = Promise.resolve()
+
 async function trial() {
+  await pendingOpen
   const user = userEvent.setup()
   await user.click(await screen.findByRole('button', { name: '选择医保' }))
   await user.click(screen.getByRole('button', { name: '试算' }))
@@ -298,6 +303,7 @@ describe('insurance relief settled together with checkout', () => {
     { policyId: 'p-manual', policyName: '困难患者核定', timing: 'POST_INSURANCE', status: 'AWAITING_MANUAL', baseAmount: 8, manualMaxAmount: 4 },
   ]
   async function planManual(user: ReturnType<typeof userEvent.setup>) {
+    await pendingOpen
     expect(await screen.findByText('预估')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '确认减免' })).not.toBeInTheDocument()
     await user.type(await screen.findByLabelText('困难患者核定'), '3')
