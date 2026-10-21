@@ -63,4 +63,17 @@ describe('registration insurance settlement', () => {
     await expect(act(async () => { await hook.result.current.submit.mutateAsync(command) })).rejects.toThrow('自付金额与试算不一致')
     expect(pay).not.toHaveBeenCalled()
   })
+
+  it('does not reuse the claim of a previous registration for another settlement', async () => {
+    const api = { billing: { quickPreSettleInsurance: vi.fn().mockResolvedValue(claim('PRE_SETTLED', 2)),
+      insuranceClaim: vi.fn().mockResolvedValue(claim('PRE_SETTLED', 2)) } } as unknown as RhnApi
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>{children}</QueryClientProvider>
+    const hook = renderHook(({ current }: { current: RegistrationBillingIntent }) => useRegistrationInsuranceSettlement(
+      api, current, settlement, vi.fn(), vi.fn().mockResolvedValue(undefined)), { wrapper, initialProps: { current: intent } })
+    await act(async () => { await hook.result.current.preSettle.mutateAsync('s1') })
+    expect(hook.result.current.claim?.settlementId).toBe('s1')
+    hook.rerender({ current: { ...intent, id: 'i2', settlementId: 's2' } })
+    expect(hook.result.current.claim).toBeNull()
+  })
 })

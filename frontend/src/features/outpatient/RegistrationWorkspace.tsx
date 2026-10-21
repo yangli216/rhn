@@ -14,7 +14,7 @@ import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { CashierPanel } from '../../shared/billing/CashierPanel'
-import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
+import { CashPaymentCalculator, PaymentAmountReadonlyRow, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
 import { PaymentMethodSelector } from '../../shared/billing/PaymentMethodSelector'
 import { Alert, Button, DataTable, DatePicker, Dialog, DictionarySelect, SearchField, tableCellClass, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
@@ -869,6 +869,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     onSuccess: async () => {
       setIntentId('')
       await queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })
+      setTimeout(() => confirmButtonRef.current?.focus(), 80)
     },
   })
   const finishRegistration = useCallback(async (value: RegistrationBillingIntent) => {
@@ -967,6 +968,19 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     (command) => createPaymentOrder.mutateAsync(command),
     async () => { await Promise.all([intent.refetch(), intentSettlement.refetch(), paymentOrders.refetch(),
       queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })]) })
+  // 医保挂号（挂号时结算）出单后立即自动发起医保试算，收费员无需再点一次。
+  const autoPreSettledIntentRef = useRef<string | null>(null)
+  const autoPreSettleIntentId = currentIntent?.id
+  const autoPreSettleSettlementId = currentIntent?.settlementId
+  const autoPreSettleReady = currentIntent?.settlementMode === 'MEDICAL_INSURANCE'
+    && currentIntent.insuranceTiming === 'REGISTRATION' && currentIntent.status === 'PAYMENT_PENDING'
+    && Boolean(currentSettlement) && !insuranceSettlement.claim && !insuranceSettlement.preSettle.isPending
+  useEffect(() => {
+    if (!autoPreSettleReady || !autoPreSettleIntentId || !autoPreSettleSettlementId) return
+    if (autoPreSettledIntentRef.current === autoPreSettleIntentId) return
+    autoPreSettledIntentRef.current = autoPreSettleIntentId
+    insuranceSettlement.preSettle.mutateAsync(autoPreSettleSettlementId).catch(() => undefined)
+  }, [autoPreSettleReady, autoPreSettleIntentId, autoPreSettleSettlementId, insuranceSettlement.preSettle])
   const pageError = linkedResident.error || linkedAppointment.error || residentProfile.error || schedules.error
     || visitTypes.error || paymentMethods.error || intent.error || paymentOrders.error
     || intentSettlement.error || createIntent.error || createPaymentOrder.error || retryCompletion.error || cancelIntent.error
@@ -1213,6 +1227,14 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         <CashierPanel className="registration-cashier" title="挂号收银"
           amountLabel={feeBreakdown.isExpert ? '专家门诊应收' : '普通门诊应收'}
           amount={feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未配置'}
+          amountAction={currentIntent && currentIntent.status === 'PAYMENT_PENDING' && !currentIntent.paymentOrderId ? <Button
+            size="sm" variant="text" busy={cancelIntent.isPending} onClick={() => cancelIntent.mutate()}>取消挂号并释放号源</Button> : undefined}
+          footer={<div className="registration-settlement-options">
+                <label>
+                  <input type="checkbox" checked={autoPrintTicket} onChange={(e) => setAutoPrintTicket(e.target.checked)} />
+                  <span>自动弹出打印凭条</span>
+                </label>
+              </div>}
           meta={selectedSchedule ? `${targetDepartmentName} · ${selectedSchedule.practitionerName || '普通门诊'}` : '待选择号源'}>
 
           <div className="registration-settlement-section">
@@ -1220,23 +1242,40 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <div className="registration-fee-card">
               {feeBreakdown.insuranceDeduction > 0 && <div className="registration-fee-row">
                 <span>医保统筹基金抵扣</span>
-                <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.insuranceDeduction.toFixed(2)}</strong>
+                <strong className="registration-fee-value">-¥{feeBreakdown.insuranceDeduction.toFixed(2)}</strong>
               </div>}
               {feeBreakdown.seniorDiscount > 0 && <div className="registration-fee-row">
                 <span>优待政策减免</span>
-                <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.seniorDiscount.toFixed(2)}</strong>
+                <strong className="registration-fee-value">-¥{feeBreakdown.seniorDiscount.toFixed(2)}</strong>
               </div>}
             </div>}
             {selectedSchedule && !feeBreakdown.feeConfigured && <Alert tone="warning">该挂号项目尚未配置当前有效价格，请先在“排班与号源”的挂号费维护中定价。</Alert>}
 
-            <PaymentMethodSelector
-              value={selectedPaymentMethod}
-              onChange={setSelectedPaymentMethod}
-              methods={paymentMethods.options}
-              status={paymentMethods.status}
-              onRetry={() => { void paymentMethods.refetch() }}
-              showShortcuts={showPaymentShortcuts}
-            />
+            {/* 建单后由下方 SettlementPaymentPanel 的“缴款信息”接管，避免重复的支付方式卡片。 */}
+            {!intentId && !currentIntent && !(selectedCoverage && insuranceTiming.data?.timing === 'REGISTRATION') && <div className="registration-pay-card settlement-payment-panel__pay-card settlement-payment-panel__grid">
+              <FormField className="settlement-payment-panel__inline-field" label="支付方式">
+                <PaymentMethodSelector
+                  value={selectedPaymentMethod}
+                  onChange={setSelectedPaymentMethod}
+                  methods={paymentMethods.options}
+                  status={paymentMethods.status}
+                  onRetry={() => { void paymentMethods.refetch() }}
+                  showShortcuts={showPaymentShortcuts}
+                />
+              </FormField>
+              {isCashMethod && !selectedCoverage && feeBreakdown.payableAmount > 0 && (
+                <CashPaymentCalculator
+                  className="cash-payment-calc--embedded"
+                  payableAmount={feeBreakdown.payableAmount}
+                  tendered={cashTendered}
+                  onTenderedChange={setCashTendered}
+                  onEnter={() => confirmButtonRef.current?.click()}
+                />
+              )}
+              {!isCashMethod && !selectedCoverage && feeBreakdown.payableAmount > 0 && (
+                <PaymentAmountReadonlyRow className="cash-payment-calc--embedded" amount={feeBreakdown.payableAmount} />
+              )}
+            </div>}
 
             {selectedCoverage && insuranceTiming.data?.timing === 'VISIT_UNIFIED' && (
               <Alert tone="info">
@@ -1253,21 +1292,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </Alert>
             )}
 
-            {isCashMethod && !selectedCoverage && feeBreakdown.payableAmount > 0 && (
-              <CashPaymentCalculator
-                payableAmount={feeBreakdown.payableAmount}
-                tendered={cashTendered}
-                onTenderedChange={setCashTendered}
-                onEnter={() => confirmButtonRef.current?.click()}
-              />
-            )}
-
-            <div className="registration-settlement-options">
-              <label>
-                <input type="checkbox" checked={autoPrintTicket} onChange={(e) => setAutoPrintTicket(e.target.checked)} />
-                <span>自动弹出打印凭条</span>
-              </label>
-            </div>
 
             {validationError && (
               <Alert tone="error">
@@ -1294,7 +1318,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <Icon name="add" />
                 {isCashShort
                   ? `实收缴款不足，还差 ¥${(feeBreakdown.payableAmount - numericTendered).toFixed(2)}`
-                  : '确认挂号并出单 (Ctrl+Enter)'}
+                  : selectedCoverage && insuranceTiming.data?.timing === 'REGISTRATION' ? '确认挂号并医保试算 (Ctrl+Enter)' : '确认挂号并出单 (Ctrl+Enter)'}
               </Button>
               <div className="registration-selection-hint">
                 {!selected ? '请先检索患者 (F1) 或快速建卡 (F2)'
@@ -1304,43 +1328,31 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </div>
             </div>}
 
-            {success && success.receipt && <div className="registration-receipt-card" style={{ margin: 0 }}>
+            {success && success.receipt && <div className="registration-receipt-card">
               <div className="registration-receipt-header">
                 <strong>挂号就诊凭条</strong>
-                <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-brand-strong)' }}>已入队候诊</span>
+                <span>已入队候诊</span>
               </div>
               <div className="registration-receipt-ticket">候诊号 {success.receipt.ticketNo}</div>
-              <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-primary)' }}>
+              <div className="registration-receipt-detail">
                 <div>就诊科室：{targetDepartmentName}</div>
                 <div>接诊医生：{success.receipt.practitionerName}</div>
                 <div>患者姓名：{success.receipt.residentName}</div>
                 <div>单号：{success.receipt.registrationNo}</div>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <div className="registration-receipt-actions">
                 <Button size="sm" variant="secondary" onClick={() => { setActiveReceiptItem(success.receipt!); setShowReceiptModal(true) }}>
                   <Icon name="print" />查看凭条 / 补打</Button>
               </div>
             </div>}
 
             {intentId && intent.isPending && <LoadingState label="正在加载挂号结算信息…" />}
-            {currentIntent && currentIntent.status !== 'COMPLETED' && <div className="registration-payment-step" style={{ padding: 'var(--space-2) 0' }}>
-              {currentIntent.settlementMode === 'MEDICAL_INSURANCE' && currentIntent.insuranceTiming === 'REGISTRATION'
-                && !insuranceSettlement.claim && (!currentSettlement || !insuranceSettlementReady(currentSettlement)) && (
-                <Alert tone="info">
-                  医保挂号：请先在下方执行医保预结算，确认统筹基金与个人账户分摊后再办理结算；医保资金不足以结清的部分由个人自付，收款成功后生成挂号单。
-                </Alert>
-              )}
-              <Alert tone={currentIntent.status === 'COMPLETION_FAILED' ? 'error' : 'info'}>
-                {currentIntent.status === 'COMPLETION_FAILED'
-                  ? `费用已处理，但挂号落地失败：${currentIntent.lastErrorMessage ?? '请重试业务完成'}`
-                  : currentIntent.feeAmount > 0
-                    ? `号源已暂占，应收挂号费 ${new Intl.NumberFormat('zh-CN', { style: 'currency', currency: currentIntent.currencyCode }).format(currentIntent.feeAmount)}`
-                    : '该挂号无需收费，正在生成挂号单与候诊号。'}
-              </Alert>
+            {currentIntent && currentIntent.status !== 'COMPLETED' && <div className="registration-payment-step">
+              {currentIntent.status === 'COMPLETION_FAILED' && <Alert tone="error">
+                {`费用已处理，但挂号落地失败：${currentIntent.lastErrorMessage ?? '请重试业务完成'}`}
+              </Alert>}
               {currentIntent.status === 'COMPLETION_FAILED' && <Button variant="secondary"
                 busy={retryCompletion.isPending} onClick={() => retryCompletion.mutate()}>重试完成挂号</Button>}
-              {currentIntent.status === 'PAYMENT_PENDING' && !currentIntent.paymentOrderId && <Button variant="text"
-                busy={cancelIntent.isPending} onClick={() => cancelIntent.mutate()}>取消本次挂号并释放号源</Button>}
               {currentIntent.feeAmount > 0 && ['PAYMENT_PENDING', 'PAID'].includes(currentIntent.status)
                 && <SettlementPaymentPanel settlements={settlementOptions}
                   methods={paymentMethods.options}
@@ -1354,6 +1366,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     ? (settlementId) => insuranceSettlement.preSettle.mutateAsync(settlementId) : undefined}
                   isPreSettlingInsurance={insuranceSettlement.preSettle.isPending}
                   submitShortcut
+                  defaultCashToPayable
                   onSubmit={(command) => currentIntent.settlementMode === 'MEDICAL_INSURANCE'
                     ? insuranceSettlement.submit.mutateAsync(command) : createPaymentOrder.mutateAsync(command)} />}
             </div>}

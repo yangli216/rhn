@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
 import { Alert, Button, FormField, Select, StatusBadge } from '../ui'
-import { CashPaymentCalculator, PaymentAmountReadonlyRow } from './CashPaymentCalculator'
+import { CashAmountInput, CashPaymentCalculator, PaymentAmountReadonlyRow } from './CashPaymentCalculator'
 import { isCollectableMethod, MAX_SHORTCUTS, PaymentMethodSelector, sortPaymentMethods, type PaymentMethodOption } from './PaymentMethodSelector'
 import { roundAmount } from './roundAmount'
 
@@ -79,6 +79,7 @@ export function SettlementPaymentPanel({
   const [amount, setAmount] = useState('')
   const [cashTendered, setCashTendered] = useState('')
   const cashInputRef = useRef<HTMLInputElement>(null)
+  const submitButtonRef = useRef<HTMLButtonElement>(null)
   const submissionKey = useRef<string | null>(null)
   const activeSettlementMode = settlementModeCode ?? internalSettlementMode
   const monetaryMethods = useMemo(() => methods.filter(isCollectableMethod), [methods])
@@ -111,7 +112,6 @@ export function SettlementPaymentPanel({
   const chsFundAmount = selectedInsuranceClaim ? selectedInsuranceClaim.insuranceFundAmount : (settlement?.insuranceAmount ?? 0)
   const chsAcctAmount = selectedInsuranceClaim ? selectedInsuranceClaim.personalAccountAmount : (settlement?.personalAccountAmount ?? 0)
   const chsCashAmount = selectedInsuranceClaim ? selectedInsuranceClaim.patientCashAmount : (settlement?.outstandingAmount ?? NaN)
-  const chsOtherAmount = selectedInsuranceClaim ? selectedInsuranceClaim.otherFundAmount : (settlement?.otherFundAmount ?? 0)
 
   // 待支付金额
   const appliedReliefEstimate = insuranceMode && selectedInsuranceClaim && hasPreSettled
@@ -144,7 +144,9 @@ export function SettlementPaymentPanel({
     && ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status)), [orders, settlementId])
   const latestOrder = useMemo(() => orders.find((value) => value.settlementId === settlementId), [orders, settlementId])
   const numericAmount = Number(amount)
-  const paymentRequired = !insurancePending && effectiveOutstanding > 0
+  // 医保结算单未试算前不知道个人自付金额，不展示缴款区。
+  const awaitingInsurancePreSettle = Boolean(insuranceMode && isInsuranceSupported && !hasPreSettled)
+  const paymentRequired = !insurancePending && !awaitingInsurancePreSettle && effectiveOutstanding > 0
 
   // Cash change and scan-pay handling follow the method's tender type, not its code.
   const isCashMethod = selectedMethod?.tenderType === 'CASH'
@@ -179,6 +181,19 @@ export function SettlementPaymentPanel({
     || Boolean(activeOrder)
     || isCashShort
     || (paymentRequired && isMethodUnintegrated)
+
+  // 键盘友好：结算对象切换、医保试算完成后，焦点落到下一步该操作的控件（现金缴款框 / 主按钮），收费员不必伸手点鼠标。
+  const awaitingPreSettleFocus = Boolean(settlement && insuranceMode && isInsuranceSupported && !hasPreSettled)
+  const cashFieldReady = Boolean(paymentRequired && isCashMethod && numericAmount > 0)
+  useEffect(() => {
+    if (!settlement || busy || isPreSettlingInsurance || !submitShortcut) return
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== document.body && isEditableTarget(active)
+      && !active.closest('.settlement-payment-panel')) return
+    if (cashFieldReady) cashInputRef.current?.focus()
+    else if (awaitingPreSettleFocus || (paymentRequired && !isCashMethod)) submitButtonRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settlement?.id, awaitingPreSettleFocus, cashFieldReady, hasPreSettled])
 
   const handleCheckoutSubmit = async () => {
     if (!settlement || busy || isPreSettlingInsurance) return
@@ -270,13 +285,7 @@ export function SettlementPaymentPanel({
     {/* 医保预结算指引卡片（尚未试算时呈现） */}
     {insuranceMode && isInsuranceSupported && !hasPreSettled && (
       <div className="settlement-payment-panel__chs-guide">
-        <span className="settlement-payment-panel__guide-copy">尚未试算医保，试算后显示医保报销与个人自付</span>
-        {onPreSettleInsurance && settlement && (
-          <Button size="sm" variant="secondary" busy={isPreSettlingInsurance} busyLabel="正在试算医保..."
-            onClick={() => { void onPreSettleInsurance(settlement.id) }}>
-            立即试算医保
-          </Button>
-        )}
+        <span className="settlement-payment-panel__guide-copy">尚未试算医保，请点击下方“执行医保预结算”，之后显示医保报销与个人自付</span>
       </div>
     )}
 
@@ -333,7 +342,7 @@ export function SettlementPaymentPanel({
           className="settlement-payment-panel__inline-field"
           label={
             <span className="settlement-payment-panel__card-title">
-              <span>{insuranceMode ? '个人自付金额' : '本次支付金额'}</span>
+              <span>{insuranceMode ? '个人自付' : '本次支付金额'}</span>
               {appliedReliefEstimate > 0 && (
                 <span className="settlement-payment-panel__relief-tag">
                   含预估减免 -{money(appliedReliefEstimate, settlement?.currencyCode ?? 'CNY')}
@@ -344,27 +353,14 @@ export function SettlementPaymentPanel({
                   {roundingAdjustment > 0 ? `(含货币误差 +¥${roundingAdjustment.toFixed(2)})` : `(按精度抹零 -¥${Math.abs(roundingAdjustment).toFixed(2)})`}
                 </span>
               )}
-              {isAmountLocked && (
-                <span className="settlement-payment-panel__locked-tag">
-                  已锁定
-                </span>
-              )}
             </span>
           }
         >
-          <input
-            className="ui-field__control"
-            type="number"
-            min="0.01"
-            step={selectedMethod?.precision === '0.1' ? '0.1' : '0.01'}
-            readOnly={isAmountLocked || !calculation.result}
-            style={isAmountLocked ? { backgroundColor: 'var(--color-surface-subtle)', cursor: 'not-allowed' } : undefined}
+          <CashAmountInput
             value={amount}
-            onChange={(event) => {
-              if (!isAmountLocked) {
-                setAmount(event.target.value)
-              }
-            }}
+            onChange={(value) => { if (!isAmountLocked && !insuranceMode) setAmount(value) }}
+            precision={selectedMethod?.precision}
+            readOnly={isAmountLocked || insuranceMode || !calculation.result}
           />
         </FormField>
       )}
@@ -435,6 +431,7 @@ export function SettlementPaymentPanel({
     </div>}
 
     <Button
+      ref={submitButtonRef}
       disabled={insuranceMode && isInsuranceSupported && !hasPreSettled ? !settlement || isPreSettlingInsurance : disabled}
       busy={busy || isPreSettlingInsurance}
       busyLabel={isPreSettlingInsurance ? '正在试算医保...' : busyLabel}

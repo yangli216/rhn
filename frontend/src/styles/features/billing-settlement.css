@@ -267,6 +267,10 @@
 }
 .cashier-panel__amount { padding: var(--space-2) var(--space-3); display: grid; gap: var(--space-1); background: var(--color-surface-subtle); }
 .cashier-panel__amount > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.cashier-panel__amount.has-action { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-3); }
+.cashier-panel__amount.has-action > span, .cashier-panel__amount.has-action > strong { grid-column: 1; }
+.cashier-panel__amount-action { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.cashier-panel__footer .registration-settlement-options { padding: 0; }
 .cashier-panel__amount > strong { color: var(--color-brand-primary); font-size: var(--font-size-display); line-height: 1.08; font-variant-numeric: tabular-nums; }
 .cashier-panel__body { min-height: 0; padding: var(--space-4); display: flex; flex: 1; flex-direction: column; gap: var(--space-3); overflow: auto; }
 .cashier-panel__footer { margin-top: auto; padding: var(--space-3) var(--space-4) var(--space-4); background: var(--color-surface); }
@@ -423,7 +427,7 @@
 .billing-workbench { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 28rem; align-items: stretch; gap: var(--layout-panel-gap); }
 .billing-workspace-scroll .billing-statement { position: static; min-height: 0; overflow: auto; border-radius: var(--radius-lg); }
 .billing-payment-panel { position: static; min-height: 0; }
-.billing-payment-panel .cashier-panel__amount { padding: var(--space-2-5, 0.625rem) var(--space-3); }
+.billing-payment-panel .cashier-panel__amount, .registration-cashier .cashier-panel__amount { padding: var(--space-2-5, 0.625rem) var(--space-3); }
 .billing-payment-panel .cashier-panel__body { padding: 0; }
 .billing-payment-panel .billing-action-form { padding: var(--space-3); gap: var(--space-2-5, 0.625rem); flex: 1; align-content: start; }
 .billing-payment-panel .settlement-payment-panel { min-height: 100%; }
@@ -488,7 +492,7 @@
 .settlement-payment-panel__grid { display: grid; gap: var(--space-3); }
 .settlement-payment-panel__grid .ui-field { min-width: 0; margin: 0; }
 /* 统一规范：字段行 = 固定标签列 + 控件列；分组卡片同一外观；控件同一高度与字号。 */
-.settlement-payment-panel { --payment-label-col: 6.5rem; --payment-control-height: var(--control-height-sm); }
+.settlement-payment-panel, .registration-pay-card { --payment-label-col: 7.5rem; --payment-control-height: var(--control-height-sm); }
 .settlement-payment-panel__grid .settlement-payment-panel__inline-field { display: grid; grid-template-columns: var(--payment-label-col) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
 .settlement-payment-panel__inline-field .ui-field__label-row { width: auto; min-width: 0; white-space: normal; }
 .settlement-payment-panel__inline-field .ui-field__control, .settlement-payment-panel__inline-field .ui-select__trigger { min-height: var(--payment-control-height); height: var(--payment-control-height); }

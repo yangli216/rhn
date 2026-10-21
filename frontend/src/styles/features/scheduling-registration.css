@@ -96,9 +96,9 @@
 .registration-intake-meta-item strong { color: var(--color-text-primary); font-size: var(--font-size-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .registration-settlement-total { display: inline-flex; align-items: baseline; gap: var(--space-1); color: var(--color-text-secondary); }
 .registration-settlement-total b { color: var(--color-brand-primary); font-size: var(--font-size-h2); }
-.registration-settlement-options { min-height: 1.75rem; display: flex; align-items: center; justify-content: flex-start; gap: var(--space-2); }
-.registration-settlement-options label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); cursor: pointer; }
-.registration-confirm-button { width: 100%; min-height: 3rem; font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.registration-settlement-options { min-height: var(--control-height-sm); display: flex; align-items: center; justify-content: flex-start; gap: var(--space-2); }
+.registration-settlement-options label { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-primary); font-size: var(--font-size-body); cursor: pointer; }
+.registration-confirm-button { width: 100%; min-height: 3rem; }
 .registration-selection-hint { margin-top: var(--space-2); overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (min-width: 68.01rem) and (max-height: 50rem) {
@@ -611,14 +611,25 @@
 }
 
 .registration-linked-appointment { margin: 0; }
-.registration-workbench { min-width: 0; min-height: 0; display: grid; flex: 1 1 0; grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem); align-items: stretch; gap: var(--layout-panel-gap); }
+.registration-workbench { min-width: 0; min-height: 0; display: grid; flex: 1 1 0; grid-template-columns: minmax(0, 1fr) 28rem; align-items: stretch; gap: var(--layout-panel-gap); }
 .registration-col-schedules { min-width: 0; min-height: 0; grid-column: 1; grid-row: 1; display: block; }
 .registration-schedule-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg); }
 .registration-schedule-panel .registration-schedule-grid-pro { min-height: 0; flex: 1 1 auto; align-content: start; overflow: auto; overscroll-behavior: contain; }
 .registration-cashier { min-height: 0; grid-column: 2; grid-row: 1; }
 .registration-cashier .cashier-panel__body { padding: 0; overflow-x: hidden; }
-.registration-settlement-section { min-width: 0; min-height: 100%; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); border: 0; }
-.registration-settlement-section .registration-fee-card { padding: 0 0 var(--space-2); border: 0; background: transparent; }
+.registration-settlement-section { min-width: 0; min-height: 100%; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); border: 0; }
+/* 与收费管理收银面板同一分组卡片外观：减免明细、缴款信息、收据同边距同间距。 */
+.registration-settlement-section .registration-fee-card { padding: var(--space-3); gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.registration-settlement-section .registration-fee-row { font-size: var(--font-size-body); }
+.registration-fee-value { color: var(--color-success); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.registration-settlement-section .registration-receipt-card { margin: 0; padding: var(--space-3); }
+.registration-receipt-header > span { color: var(--color-brand-strong); font-size: var(--font-size-small); }
+.registration-receipt-detail { color: var(--color-text-primary); font-size: var(--font-size-small); }
+.registration-receipt-actions { display: flex; gap: var(--space-2); }
+.registration-payment-step { display: grid; gap: var(--space-3); }
+.registration-payment-step > .ui-button { justify-self: end; }
+.registration-settlement-options .registration-cancel-intent { margin-left: auto; }
+.registration-cashier .settlement-payment-panel > .ui-button { width: 100%; min-height: 3rem; }
 .registration-submit-area { margin-top: auto; padding-top: var(--space-3); }
 .registration-history-panel { flex: none; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .registration-history-panel > summary { min-height: var(--panel-header-min-height); padding: var(--space-1) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; list-style: none; flex-wrap: wrap; }

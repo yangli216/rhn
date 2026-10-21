@@ -227,7 +227,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     await user.click(await screen.findByRole('option', { name: '医保结算' }))
 
     expect(screen.getByLabelText('支付方式')).toBeInTheDocument()
-    expect(screen.getByLabelText('个人自付金额')).toHaveValue(6)
+    expect(screen.getByLabelText('个人自付')).toHaveValue(6)
     expect(screen.getByText(/医保基金.*¥10.00.*个人账户.*¥2.00.*个人自付待收.*¥6.00/)).toBeInTheDocument()
     await user.type(screen.getByPlaceholderText('6'), '6')
     await user.click(screen.getByRole('button', { name: '结算' }))
@@ -391,9 +391,9 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={vi.fn()}
     />)
 
-    expect(screen.getByText('尚未试算医保，试算后显示医保报销与个人自付')).toBeInTheDocument()
+    expect(screen.getByText(/尚未试算医保/)).toBeInTheDocument()
     expect(screen.queryByText(/CHS|2206|待执行门诊医保预结算/)).not.toBeInTheDocument()
-    const preSettleBtn = screen.getByRole('button', { name: '立即试算医保' })
+    const preSettleBtn = screen.getByRole('button', { name: /执行医保预结算/ })
     expect(preSettleBtn).toBeEnabled()
 
     await user.click(preSettleBtn)
@@ -499,7 +499,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(screen.getByText('¥50.00')).toBeInTheDocument() // 自付现金
 
     // 自付部分支持现金收银与速算找零
-    expect(screen.getByLabelText('个人自付金额')).toHaveValue(50)
+    expect(screen.getByLabelText('个人自付')).toHaveValue(50)
     expect(screen.getByText('缴款金额：')).toBeInTheDocument()
 
     const preset100 = screen.getByRole('button', { name: '¥100' })
@@ -531,7 +531,6 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(amountInput).toHaveValue(33.60)
     expect(amountInput).toHaveAttribute('readonly')
     expect(screen.getByText(/按精度抹零 -¥0.07/)).toBeInTheDocument()
-    expect(screen.getByText('已锁定')).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('33.6'), '33.6')
     const submitBtn = screen.getByRole('button', { name: '确认收款并记账' })
@@ -559,7 +558,6 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(amountInput).toHaveValue(33.70)
     expect(amountInput).toHaveAttribute('readonly')
     expect(screen.getByText(/含货币误差 \+¥0.03/)).toBeInTheDocument()
-    expect(screen.getByText('已锁定')).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('33.7'), '33.7')
     const submitBtn = screen.getByRole('button', { name: '确认收款并记账' })
@@ -586,7 +584,6 @@ describe('SettlementPaymentPanel payment recovery', () => {
     const amountInput = screen.getByLabelText(/本次支付金额/)
     expect(amountInput).toHaveValue(33.67)
     expect(amountInput).not.toHaveAttribute('readonly')
-    expect(screen.queryByText('已锁定')).not.toBeInTheDocument()
 
     const submitBtn = screen.getByRole('button', { name: '发起收款' })
     await user.click(submitBtn)
@@ -614,7 +611,7 @@ it('requires a new trial for another settlement instead of applying the previous
       insuranceFundAmount: 120, personalAccountAmount: 0, patientCashAmount: 0, otherFundAmount: 0, currencyCode: 'CNY' }} />)
   expect(screen.queryByText('医保预结算成功')).not.toBeInTheDocument()
   expect(screen.queryByText(/本次费用由医保统筹与个账全额抵扣/)).not.toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: '立即试算医保' }))
+  await user.click(screen.getByRole('button', { name: /执行医保预结算/ }))
   expect(onPreSettleInsurance).toHaveBeenCalledWith('settlement-new')
   expect(onSubmit).not.toHaveBeenCalled()
 })
@@ -641,7 +638,7 @@ it('deducts the estimated relief from the default insurance cash amount', () => 
       onSubmit={vi.fn().mockResolvedValue(undefined)} />)
     expect(screen.getAllByText(/含预估减免 -¥7\.50/).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(22.5)
-    expect(screen.queryByText(/个人自付金额 ¥/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/个人自付 ¥/)).not.toBeInTheDocument()
 })
 
 describe('payment info card', () => {

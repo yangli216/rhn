@@ -51,7 +51,7 @@ export function getCashPresets(amount: number, maxCount = 3): number[] {
 /** 金额输入：¥ 前缀 + 右对齐，缴款与减免核定等收银场景共用同一外观。 */
 export function CashAmountInput({
   value, onChange, onEnter, disabled = false, inputRef, precision = '0.01', currencySymbol = '¥',
-  placeholder, id, ariaLabel, invalid = false, describedBy,
+  placeholder, id, ariaLabel, invalid = false, describedBy, readOnly = false,
 }: {
   value: string
   onChange: (value: string) => void
@@ -65,9 +65,10 @@ export function CashAmountInput({
   ariaLabel?: string
   invalid?: boolean
   describedBy?: string
+  readOnly?: boolean
 }) {
   return (
-    <div className={`cash-payment-input-wrap ${invalid ? 'is-invalid' : ''}`}>
+    <div className={`cash-payment-input-wrap ${invalid ? 'is-invalid' : ''} ${readOnly ? 'is-readonly' : ''}`}>
       <span className="cash-payment-symbol">{currencySymbol}</span>
       <input
         ref={inputRef}
@@ -90,6 +91,7 @@ export function CashAmountInput({
         }}
         placeholder={placeholder}
         disabled={disabled}
+        readOnly={readOnly}
       />
     </div>
   )

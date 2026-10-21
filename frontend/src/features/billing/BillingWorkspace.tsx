@@ -206,6 +206,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
     const marker = `${completed.id}:${completed.status}:${completed.updatedAt}`
     if (completedPaymentMarker.current === marker) return
     completedPaymentMarker.current = marker
+    if (completed.status === 'SUCCEEDED') setTimeout(() => { searchInputRef.current?.focus(); searchInputRef.current?.select() }, 80)
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: ['billing-worklist'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),

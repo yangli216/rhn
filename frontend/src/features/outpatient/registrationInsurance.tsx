@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import type { ChsPersonInfoResponse, InsuranceSettlementView, RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
 import { confirmInsuranceResult } from '../../shared/billing/insuranceResult'
 import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
-import { errorMessage, type RhnApi } from '../../shared/rhnApi'
+import { type RhnApi } from '../../shared/rhnApi'
 import { AnchoredPanel, Button, Icon, StatusBadge } from '../../shared/ui'
 
 /** 机构／科室选择的医保挂号结算时机；仅在选择医保身份后查询。 */
@@ -70,8 +70,10 @@ export function useRegistrationInsuranceSettlement(api: RhnApi, intent: Registra
                                                    settlement: Settlement | undefined,
                                                    pay: (command: SettlementPaymentCommand) => Promise<unknown>,
                                                    refresh: () => Promise<unknown>) {
-  const [claim, setClaim] = useState<InsuranceSettlementView | null>(null)
-  const preKey = useRef<string | null>(null)
+  const [claimState, setClaim] = useState<InsuranceSettlementView | null>(null)
+  // 医保申请只属于它所在的结算单：换一张挂号单后，上一张单的申请不能当作当前单的试算结果。
+  const claim = claimState && String(claimState.settlementId) === String(intent?.settlementId) ? claimState : null
+  const preKey = useRef<{ settlementId: string, key: string } | null>(null)
   const target = useMemo(() => intent?.settlementId && intent.patientAccountId && settlement ? {
     settlementId: intent.settlementId, patientAccountId: intent.patientAccountId,
     currencyCode: settlement.currencyCode, grossAmount: settlement.netAmount,
@@ -80,8 +82,9 @@ export function useRegistrationInsuranceSettlement(api: RhnApi, intent: Registra
   const preSettle = useMutation({
     mutationFn: async (settlementId: string) => {
       if (!target || target.settlementId !== settlementId) throw new Error('医保结果未确认：挂号结算资料不完整，请刷新后重试。')
-      preKey.current ??= `PRE-REG-${crypto.randomUUID()}`
-      const receipt = await api.billing.quickPreSettleInsurance(settlementId, { idempotencyKey: preKey.current })
+      // 幂等编码按结算单隔离，换一张挂号单必须换编码，否则会命中上一张单的医保申请。
+      if (preKey.current?.settlementId !== settlementId) preKey.current = { settlementId, key: `PRE-REG-${crypto.randomUUID()}` }
+      const receipt = await api.billing.quickPreSettleInsurance(settlementId, { idempotencyKey: preKey.current.key })
       return confirmInsuranceResult(api.billing, receipt, 'PRE_SETTLED', target, () => undefined)
     },
     onSuccess: async (value) => { setClaim(value); await refresh() },

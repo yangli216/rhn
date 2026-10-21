@@ -99,7 +99,7 @@ class InsuranceClaimTransactionService {
         var visit = quickResolver.visit(account, context.actor());
         CoverageDirectory.CoverageView coverage = coverages.requireExistingActive(coverageId, account.residentId(),
                 visit.serviceDate(), insuranceTypeCode);
-        var submission = quickResolver.resolve(account, visit, coverage.coverageTypeCode(), regionCode);
+        var submission = quickResolver.resolve(account, visit, InsuranceTypeCodes.of(coverage.coverageTypeCode()), regionCode);
         List<com.rhn.billing.domain.SettlementLine> lines = settlementLines
                 .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlementId);
         if (lines.isEmpty()) throw conflict("INSURANCE_LINE_MAPPING_INCOMPLETE", "医保结算没有费用明细，不能生成目录映射");
@@ -165,7 +165,7 @@ class InsuranceClaimTransactionService {
         CoverageDirectory.CoverageView coverage = coverages.requireActive(input.coverageId(), account.residentId(),
                 quickResolver.serviceDate(account, input.serviceStartedAt()));
         String insuranceType = upper(input.insuranceTypeCode(), "INSURANCE_TYPE_REQUIRED", "医保类型不能为空");
-        if (!coverage.coverageTypeCode().equalsIgnoreCase(insuranceType)) {
+        if (!InsuranceTypeCodes.of(coverage.coverageTypeCode()).equalsIgnoreCase(insuranceType)) {
             throw conflict("INSURANCE_COVERAGE_TYPE_MISMATCH", "医保申请类型与患者保障类型不一致");
         }
         List<com.rhn.billing.domain.SettlementLine> values = settlementLines

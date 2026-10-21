@@ -388,7 +388,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, " +
                         "NA_PAYER, CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, " +
                         "DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) " +
-                        "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
+                        "values (?, 0, ?, ?, '01', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
                 coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
         mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -653,7 +653,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, " +
                         "NA_PAYER, CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, " +
                         "DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) " +
-                        "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'PSN-TEST', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
+                        "values (?, 0, ?, ?, '01', '测试医保基金', 'PSN-TEST', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
                 coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
         return coverageId;
     }
@@ -801,7 +801,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, " +
                         "NA_PAYER, CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, " +
                         "DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) " +
-                        "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
+                        "values (?, 0, ?, ?, '01', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
                 coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
         String scheduleId = createTodaySchedule(suffix, 1);
         JsonNode intent = json(mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
@@ -816,7 +816,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.settlementMode").value("MEDICAL_INSURANCE"))
                 .andExpect(jsonPath("$.coverageId").value(coverageId))
-                .andExpect(jsonPath("$.coverageTypeCode").value("BASIC"))
+                .andExpect(jsonPath("$.coverageTypeCode").value("01"))
                 .andExpect(jsonPath("$.coveragePayerName").value("测试医保基金"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode settlement = json(mockMvc.perform(get("/api/billing/settlements/{settlementId}",
@@ -826,7 +826,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String preSettleBody = """
                 {
                   "coverageId":"%s","idempotencyKey":"INS-PRE-%s","regionCode":"TEST_REGION",
-                  "insuranceTypeCode":"BASIC","organizationCode":"HOSP-001",
+                  "insuranceTypeCode":"310","organizationCode":"HOSP-001",
                   "departmentCode":"DEPT-001","practitionerCode":"DOC-001",
                   "diagnosisPayloadDigest":"SHA256-TEST-%s",
                   "serviceStartedAt":"%s",
@@ -1159,7 +1159,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         InsuranceSettlementAdapter testInsuranceSettlementAdapter() {
             return new InsuranceSettlementAdapter() {
                 @Override public boolean supports(String region, String type) {
-                    return "TEST_REGION".equals(region) && "BASIC".equals(type);
+                    return "TEST_REGION".equals(region) && "310".equals(type);
                 }
                 @Override public InsuranceResult preSettle(InsuranceInstruction input) {
                     return new InsuranceResult(InsuranceResult.Outcome.PENDING, "PRE-" + input.settlementNo(),

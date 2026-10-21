@@ -101,7 +101,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         var quick = transactions.quickPreSettleContext(settlementId, coverageId, insuranceTypeCode, regionCode);
         var submission = quick.submission();
         return preSettle(new PreSettleCommand(settlementId, quick.coverage().id(), idempotencyKey.trim(), submission.regionCode(),
-                quick.coverage().coverageTypeCode(), submission.organizationCode(), submission.departmentCode(),
+                InsuranceTypeCodes.of(quick.coverage().coverageTypeCode()), submission.organizationCode(), submission.departmentCode(),
                 submission.practitionerCode(), submission.diagnosisDigest(), quick.visit().startedAt(), quick.visit().completedAt(),
                 context.correlationId(), quick.lines().stream().map(line -> new LineMapping(line.settlementLineId(),
                         line.insuranceItemCode(), line.traceAttributes())).toList()));

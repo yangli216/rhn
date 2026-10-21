@@ -879,7 +879,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     const scheduleCard = screen.getByRole('button', { name: /全科门诊/ })
     await userEvent.click(scheduleCard)
 
-    const cashChip = screen.getByRole('button', { name: /现金收款/ })
+    const cashChip = screen.getByTitle(/现金收款/)
     await userEvent.click(cashChip)
     expect(cashChip).toHaveClass('is-active')
 
@@ -1194,7 +1194,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(screen.queryByLabelText('医保凭证号码')).not.toBeInTheDocument()
     expect(screen.queryByText(/【医保接口未对接】/)).not.toBeInTheDocument()
     // 挂号时结算的机构：确认时按档案自动鉴权，鉴权不通过则提示原因并不出单
-    await userEvent.click(screen.getByRole('button', { name: /确认挂号并出单/ }))
+    await userEvent.click(screen.getByRole('button', { name: /确认挂号并医保试算/ }))
     expect(await screen.findByText(/医保鉴权未通过：医保登记姓名与患者档案姓名不一致/)).toBeInTheDocument()
     expect(api.billing.authenticateInsuranceByResident).toHaveBeenCalledWith('insured-res-2')
     expect(api.billing.createRegistrationIntent).not.toHaveBeenCalled()
@@ -1215,12 +1215,16 @@ describe('OutpatientRegistrationWorkspace', () => {
       settlementMode: 'MEDICAL_INSURANCE', insuranceTiming: 'REGISTRATION', status: 'PAYMENT_PENDING', feeAmount: 10,
       currencyCode: 'CNY', completionAttempts: 0, createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z', duplicate: false,
     })
+    const quickPreSettleInsurance = vi.fn().mockRejectedValue(new Error('probe'))
     const api = {
       residents: { get: vi.fn().mockResolvedValue(insuredResident), search: vi.fn().mockResolvedValue([insuredResident]),
         profile: vi.fn().mockResolvedValue(profile) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
       dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
-      billing: { createRegistrationIntent, registrationIntent: vi.fn().mockResolvedValue({ id: 'intent-ins-1' }),
+      billing: { createRegistrationIntent,
+        registrationIntent: vi.fn().mockImplementation(async () => ({ ...(await createRegistrationIntent.mock.results[0]?.value), settlementId: 'stl-1', patientAccountId: 'acct-1' })),
+        settlement: vi.fn().mockResolvedValue({ id: 'stl-1', currencyCode: 'CNY', netAmount: 10, outstandingAmount: 10, tenders: [], events: [], lines: [], status: 'PRICED' }),
+        paymentOrders: vi.fn().mockResolvedValue([]), quickPreSettleInsurance,
         registrationInsuranceTiming: vi.fn().mockResolvedValue({ timing: 'REGISTRATION' }), authenticateInsuranceByResident },
       encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
       organization: { departments: vi.fn().mockResolvedValue([]) },
@@ -1237,10 +1241,11 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(await screen.findByText('赵医保')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: /一键切换为医保/ }))
 
-    await userEvent.click(screen.getByRole('button', { name: /确认挂号并出单/ }))
+    await userEvent.click(screen.getByRole('button', { name: /确认挂号并医保试算/ }))
     await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
       settlementMode: 'MEDICAL_INSURANCE', coverageId: 'cov-3',
     })))
     expect(authenticateInsuranceByResident).toHaveBeenCalledWith('insured-res-3')
+    await waitFor(() => expect(quickPreSettleInsurance).toHaveBeenCalledWith('stl-1', expect.anything()))
   })
 })
