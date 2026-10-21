@@ -24,5 +24,9 @@ record ServiceRequestResponse(
         String clinicalDescription,
         Instant cancelledAt, Long cancelledBy, String cancelReason, OrderDocumentInfo documentInfo, boolean documentInfoEditable,
         /** Why an ACTIVE request can no longer be cancelled (already collected, executed or reported); null when it can. */
-        String cancelBlockedReason) {
+        String cancelBlockedReason,
+        /** 不能直接修改的原因（已撤销、已执行或已缴费）；为空表示可以作为“修改”替换为新医嘱。 */
+        String editBlockedReason,
+        /** 所属申请单；为空表示历史或单条开立的一项一单。 */
+        Long documentId, String documentNo) {
 }

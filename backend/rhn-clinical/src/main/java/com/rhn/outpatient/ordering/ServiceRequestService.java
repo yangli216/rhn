@@ -45,6 +45,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private final JsonCodec jsonCodec;
     private final com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments;
     private final OrderCancellationPolicy cancellationPolicy;
+    private final ServiceDocumentRepository documentRepository;
+    private final ServiceDocumentGroupingPolicy groupingPolicy;
 
     ServiceRequestService(ServiceRequestRepository repository, EncounterDirectory encounterDirectory,
                           CatalogLifecycleDirectory catalogDirectory,
@@ -54,8 +56,11 @@ class ServiceRequestService implements ServiceRequestDirectory {
                           DomainEventPublisher eventPublisher,
                           ExecutionContextProvider contextProvider, JsonCodec jsonCodec, OrderDocumentInfoSupport documentInfoSupport,
                           com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments,
-                          OrderCancellationPolicy cancellationPolicy, BusinessNumberGenerator numbers) {
+                          OrderCancellationPolicy cancellationPolicy, BusinessNumberGenerator numbers,
+                          ServiceDocumentRepository documentRepository, ServiceDocumentGroupingPolicy groupingPolicy) {
         this.cancellationPolicy = cancellationPolicy;
+        this.documentRepository = documentRepository;
+        this.groupingPolicy = groupingPolicy;
         this.numbers = numbers;
         this.documentInfoSupport = documentInfoSupport;
         this.repository = repository;
@@ -73,6 +78,55 @@ class ServiceRequestService implements ServiceRequestDirectory {
     @Transactional
     ServiceRequestResponse create(Long encounterId, CreateServiceRequest input) {
         var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        return response(persist(encounter, resolve(encounter, input), false));
+    }
+
+    /**
+     * 整批保存草稿：逐项创建草稿并按机构合单规则归入申请单；任一项失败由调用方事务整体回滚。
+     * 草稿不发布开立事件，收费与执行科室在一次开立命令激活后才可见。
+     */
+    @Transactional
+    List<ServiceRequestResponse> createDrafts(Long encounterId, List<CreateServiceRequest> inputs) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        List<Resolved> resolved = inputs.stream().map(input -> resolve(encounter, input)).toList();
+        List<ServiceRequest> created = resolved.stream().map(value -> persist(encounter, value, true)).toList();
+        Long authoredBy = contextProvider.requireCurrent().subjectId();
+        for (ServiceDocumentPlan plan : groupingPlans(encounter, resolved)) {
+            var document = documentRepository.save(new ServiceDocument(encounter.tenantId(), encounter.residentId(),
+                    encounter.id(), numbers.next("service-request", new BusinessNumberContext(encounter.tenantId(),
+                            plan.performerOrganizationId(), plan.performerDepartmentId())),
+                    plan.serviceType(), plan.performerOrganizationId(), plan.performerDepartmentId(),
+                    plan.groupingRule(), plan.groupingValue(), authoredBy));
+            plan.itemIndexes().forEach(index -> created.get(index).assignDocument(document.id()));
+        }
+        repository.flush();
+        return responses(created);
+    }
+
+    /** 与整批开立同一套目录核对和合单规则，不写入任何数据。 */
+    @Transactional(readOnly = true)
+    List<ServiceDocumentPlan> previewDocuments(Long encounterId, List<CreateServiceRequest> inputs) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        return groupingPlans(encounter, inputs.stream().map(input -> resolve(encounter, input)).toList());
+    }
+
+    private List<ServiceDocumentPlan> groupingPlans(EncounterDirectory.EncounterSnapshot encounter, List<Resolved> resolved) {
+        List<ServiceDocumentGroupingEngine.Fact> facts = new java.util.ArrayList<>();
+        for (int index = 0; index < resolved.size(); index++) {
+            var value = resolved.get(index);
+            facts.add(new ServiceDocumentGroupingEngine.Fact(index, value.catalog().item().serviceType(),
+                    value.performerOrganizationId(), value.performerDepartmentId(),
+                    value.catalog().item().specimenType(), value.catalog().item().examinationType()));
+        }
+        return ServiceDocumentGroupingEngine.plan(facts, groupingPolicy.resolve(encounter));
+    }
+
+    private record Resolved(CreateServiceRequest input, LocalDate businessDate, Long performerOrganizationId,
+                            Long performerDepartmentId, String unitCode,
+                            com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot catalog,
+                            BigDecimal totalAmount) {}
+
+    private Resolved resolve(EncounterDirectory.EncounterSnapshot encounter, CreateServiceRequest input) {
         ExecutionContext context = contextProvider.requireCurrent();
         Long tenantId = TenantContext.requireTenantId();
         LocalDate businessDate = input.businessDate() == null ? LocalDate.now() : input.businessDate();
@@ -140,7 +194,21 @@ class ServiceRequestService implements ServiceRequestDirectory {
             }
         }
         BigDecimal totalAmount = price == null ? null : price.price().multiply(input.quantity());
+        return new Resolved(input, businessDate, performerOrganizationId, performerDepartmentId, unitCode, catalog, totalAmount);
+    }
 
+    private ServiceRequest persist(EncounterDirectory.EncounterSnapshot encounter, Resolved resolved, boolean draft) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Long tenantId = TenantContext.requireTenantId();
+        CreateServiceRequest input = resolved.input();
+        LocalDate businessDate = resolved.businessDate();
+        Long performerOrganizationId = resolved.performerOrganizationId();
+        Long performerDepartmentId = resolved.performerDepartmentId();
+        String unitCode = resolved.unitCode();
+        var item = resolved.catalog().item();
+        var adoption = resolved.catalog().adoption();
+        var price = resolved.catalog().price();
+        BigDecimal totalAmount = resolved.totalAmount();
         var contexts = new ItemAttributeSnapshotDirectory.AttributeContexts(
                 new ItemAttributeSnapshotDirectory.AttributeScope(encounter.organizationId(), encounter.departmentId()),
                 new ItemAttributeSnapshotDirectory.AttributeScope(performerOrganizationId, performerDepartmentId),
@@ -159,9 +227,25 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 price == null ? null : price.currencyCode(), jsonCodec.write(attributes.jsonItemAttrSnapshot()),
                 attributes.hashItemAttrSnapshot(), attributes.resolvedAt(), jsonCodec.write(mappings),
                 item.serviceType(), item.specimenType(), item.examinationType(),
-                input.quantity(), Strings.trimToNull(input.clinicalDescription())));
+                input.quantity(), Strings.trimToNull(input.clinicalDescription()), draft));
+        if (!draft) publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
+                financialEventDetails(value, encounter, item.accountingCategory(), false));
+        return value;
+    }
+
+    List<ServiceRequest> submittableDrafts(Long tenantId, Long encounterId) {
+        return repository.findByTenantIdAndEncounterIdAndStatusOrderByAuthoredAtAscIdAsc(tenantId, encounterId,
+                ServiceRequestStatus.DRAFT);
+    }
+
+    /** 开立草稿：发布与直接开立相同的开立事件，记账和执行科室任务只由此产生。 */
+    ServiceRequestResponse activate(EncounterDirectory.EncounterSnapshot encounter, ServiceRequest value, long expectedRevision) {
+        var item = catalogDirectory.resolve(value.tenantId(), value.catalogItemId(), value.performerOrganizationId(),
+                null, value.priceType() == null ? "SALE" : value.priceType(), value.businessDate()).item();
+        value.activate(expectedRevision, contextProvider.requireCurrent().subjectId());
+        repository.flush();
         publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
-                financialEventDetails(value, encounter, item.accountingCategory()));
+                financialEventDetails(value, encounter, item.accountingCategory(), false));
         return response(value);
     }
 
@@ -189,7 +273,39 @@ class ServiceRequestService implements ServiceRequestDirectory {
     List<ServiceRequestResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
         return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId)
-                .stream().map(this::response).toList();
+                .stream().collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toList(), this::responses));
+    }
+
+    ServiceRequest requireOwned(Long tenantId, Long encounterId, Long requestId) {
+        return repository.findByIdAndTenantId(requestId, tenantId)
+                .filter(request -> request.encounterId().equals(encounterId))
+                .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
+    }
+
+    /** 取消签署：须未进结算单、执行科室未开始；撤回事件通知收费作废记账、执行科室删除未开始的任务。 */
+    @Transactional
+    ServiceRequestResponse withdrawSignature(Long encounterId, Long requestId, long expectedRevision) {
+        var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
+        ServiceRequest value = requireOwned(encounter.tenantId(), encounterId, requestId);
+        if (value.status() == ServiceRequestStatus.ACTIVE) {
+            cancellationPolicy.requireWithdrawable(fulfillmentRef(value), "SERVICE_REQUEST_WITHDRAW_BLOCKED");
+        }
+        value.withdrawSignature(expectedRevision);
+        repository.flush();
+        publish(value, "SERVICE_REQUEST_WITHDRAWN", "取消签署诊疗项目", financialEventDetails(value, encounter, null, false));
+        return response(value);
+    }
+
+    /** 未签署申请原地修改数量与临床说明；不能更换项目。 */
+    ServiceRequestResponse reviseDraft(ServiceRequest value, long expectedRevision, CreateServiceRequest input) {
+        if (!value.catalogItemId().equals(input.catalogItemId())) {
+            throw badRequest("SERVICE_REQUEST_REVISION_ITEM_CHANGED", "修改不能更换项目，请删除后重新开立");
+        }
+        value.reviseDraft(expectedRevision, input.quantity(), Strings.trimToNull(input.clinicalDescription()));
+        repository.flush();
+        publish(value, "SERVICE_REQUEST_DRAFT_REVISED", "修改未签署诊疗项目", Map.of("quantity", value.quantity()));
+        return response(value);
     }
 
     @Transactional
@@ -199,19 +315,36 @@ class ServiceRequestService implements ServiceRequestDirectory {
         ServiceRequest value = repository.findByIdAndTenantId(requestId, encounter.tenantId())
                 .filter(request -> request.encounterId().equals(encounterId))
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
+        boolean draft = value.status() == ServiceRequestStatus.DRAFT;
         if (value.status() == ServiceRequestStatus.ACTIVE) {
             cancellationPolicy.requireCancellable(fulfillmentRef(value), "SERVICE_REQUEST_CANCEL_BLOCKED");
         }
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         repository.flush();
-        Map<String, Object> eventDetails = financialEventDetails(value, encounter, null);
+        // 草稿撤销的计费结论为 DRAFT：收费不冲销，执行科室没有任务可取消。
+        Map<String, Object> eventDetails = financialEventDetails(value, encounter, null, draft);
         eventDetails.put("reason", input.reason().trim());
         eventDetails.put("cancelledBy", context.subjectId());
         publish(value, "SERVICE_REQUEST_CANCELLED", "撤销诊疗项目", eventDetails);
         return response(value);
     }
 
+    private List<ServiceRequestResponse> responses(List<ServiceRequest> values) {
+        var documentIds = values.stream().map(ServiceRequest::documentId).filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> documentNos = documentIds.isEmpty() || values.isEmpty() ? Map.of()
+                : documentRepository.findByTenantIdAndIdIn(values.getFirst().tenantId(), documentIds).stream()
+                .collect(java.util.stream.Collectors.toMap(ServiceDocument::id, ServiceDocument::documentNo));
+        return values.stream().map(value -> response(value, documentNos)).toList();
+    }
+
     private ServiceRequestResponse response(ServiceRequest value) {
+        return responses(List.of(value)).getFirst();
+    }
+
+    private ServiceRequestResponse response(ServiceRequest value, Map<Long, String> documentNos) {
+        String cancelBlockedReason = value.status() == ServiceRequestStatus.ACTIVE
+                ? cancellationPolicy.blockedReason(fulfillmentRef(value)) : null;
         return new ServiceRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
                 value.requestNo(), value.status().name(), value.catalogItemId(), value.packageId(),
                 value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
@@ -224,9 +357,18 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.serviceTypeSnapshot(), value.specimenTypeSnapshot(), value.examinationTypeSnapshot(),
                 value.clinicalDescription(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(),
                 documentInfoSupport.read(value.documentInfoJson()),
-                value.status() == ServiceRequestStatus.ACTIVE && List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())
-                        && diagnosticDocuments.isAmendable(value.tenantId(), value.id()),
-                value.status() == ServiceRequestStatus.ACTIVE ? cancellationPolicy.blockedReason(fulfillmentRef(value)) : null);
+                List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())
+                        && (value.status() == ServiceRequestStatus.DRAFT || value.status() == ServiceRequestStatus.ACTIVE
+                        && diagnosticDocuments.isAmendable(value.tenantId(), value.id())),
+                cancelBlockedReason,
+                cancellationPolicy.editBlockedReason(value.status() == ServiceRequestStatus.CANCELLED,
+                        value.status() == ServiceRequestStatus.ACTIVE ? fulfillmentRef(value) : null),
+                value.documentId(), value.documentId() == null ? null : documentNos.get(value.documentId()));
+    }
+
+    /** 草稿只属于开立医生，执行科室与外部接口按不存在处理。 */
+    private static boolean issued(ServiceRequest value) {
+        return value.status() != ServiceRequestStatus.DRAFT;
     }
 
     private static OrderFulfillmentGuard.OrderRef fulfillmentRef(ServiceRequest value) {
@@ -238,6 +380,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     public ServiceRequestSnapshot requireForDiagnosticExchange(Long requestId) {
         ExecutionContext context = contextProvider.requireCurrent();
         ServiceRequest value = repository.findByIdAndTenantId(requestId, context.tenantId())
+                .filter(ServiceRequestService::issued)
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
         if (!context.canAccessOrganization(value.performerOrganizationId())
                 || !context.canAccessDepartment(value.performerDepartmentId())) {
@@ -252,6 +395,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     public ServiceRequestSnapshot requireForDiagnosticExchange(String requestNo) {
         ExecutionContext context = contextProvider.requireCurrent();
         ServiceRequest value = repository.findByTenantIdAndPerformerOrganizationIdAndRequestNo(context.tenantId(), context.organizationId(), requestNo)
+                .filter(ServiceRequestService::issued)
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
         if (!context.canAccessOrganization(value.performerOrganizationId())
                 || !context.canAccessDepartment(value.performerDepartmentId())) {
@@ -302,10 +446,10 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
     private Map<String, Object> financialEventDetails(ServiceRequest value,
                                                        EncounterDirectory.EncounterSnapshot encounter,
-                                                       String explicitCategory) {
+                                                       String explicitCategory, boolean draft) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("billingDisposition", com.rhn.outpatient.api.ClinicalOrderBillingDisposition.fromSnapshot(
-                false, false, value.unitPrice(), value.totalAmount(), value.currencyCode()).name());
+                draft, false, value.unitPrice(), value.totalAmount(), value.currencyCode()).name());
         details.put("encounterId", encounter.id());
         details.put("residentId", encounter.residentId());
         details.put("encounterOrganizationId", encounter.organizationId());

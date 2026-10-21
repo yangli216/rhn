@@ -135,10 +135,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
     private static final String TREATMENT_RULES_USAGE = """
             药品用法用量仅限 MEDICATION 项的可选 usage：{doseValue（数值）,doseUnit,route（给药途径中文名或常用写法）,frequency（频次中文名或 QD/BID/TID 等常用写法）,durationDays（整数）}；
             usage 只是“待医生核对的预填草稿”，不是处方、不代表已开立，也不得写入其他字段或自由文本医嘱。检验、检查项不输出 usage。
-            usage 护栏：只给成人常规、有把握的 doseValue/doseUnit/route/frequency/durationDays；不确定就整体省略 usage，不要编造；
-            儿童（patient 年龄小于18岁）、孕妇/哺乳期、肝肾功能不全或需按体重/体表面积计算的药物，一律不给 usage；
+            目标是让医生只需核对调整：除下方护栏排除的情形外，每个 MEDICATION 项都应尽量输出完整 usage，五个字段 doseValue/doseUnit/route/frequency/durationDays 都给全；
+            按说明书成人常规用法给出单次剂量、途径与频次；doseUnit 使用药品本身的给药单位（片、粒、袋、喷、揿、滴、mg、ml 等）；
+            durationDays 按本次适应证的常用首诊疗程给出（如急性对症用药 3–7 天、过敏性疾病 7–14 天、慢病维持按复诊间隔），最长 30 天；
+            某个字段确实没把握才省略该字段，其余字段照常给出；不要编造说明书外的超常规剂量；
+            usage 护栏：儿童（patient 年龄小于18岁）、孕妇/哺乳期、肝肾功能不全或需按体重/体表面积计算的药物，一律不给 usage；
             草药、输液、需皮试或抗菌药的用法不给 usage，仍需医生手工核对；
-            不输出总量、包装数量、已开立状态；durationDays 仅在适应证疗程明确时给，否则省略。
+            不输出总量、包装数量、已开立状态。
             """;
     private static final String TREATMENT_RULES_PURPOSE = """
             LABORATORY 与 EXAMINATION 项必须输出 purpose：一句简短中文（不超过30字），写明本项需要明确或排除的临床问题，例如“排除过敏性鼻炎的致敏原”；

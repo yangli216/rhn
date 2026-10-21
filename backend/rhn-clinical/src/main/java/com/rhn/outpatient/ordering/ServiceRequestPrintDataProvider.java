@@ -25,10 +25,13 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
     private final EncounterDirectory encounters;
     private final ResidentDirectory residents;
     private final OrganizationDirectory organizations;
+    private final ServiceDocumentRepository documents;
 
     ServiceRequestPrintDataProvider(ServiceRequestRepository repository, EncounterDirectory encounters,
-                                    ResidentDirectory residents, OrganizationDirectory organizations, OrderDocumentInfoSupport documentInfoSupport) {
+                                    ResidentDirectory residents, OrganizationDirectory organizations, OrderDocumentInfoSupport documentInfoSupport,
+                                    ServiceDocumentRepository documents) {
         this.documentInfoSupport = documentInfoSupport;
+        this.documents = documents;
         this.repository = repository; this.encounters = encounters;
         this.residents = residents; this.organizations = organizations;
     }
@@ -77,12 +80,20 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
         payload.put("clinicalSummary", valueOrDash(request.clinicalDescription()));
         payload.put("reason", valueOrDash(request.reasonText())); payload.put("authoredAt", request.authoredAt());
         payload.put("authoredBy", request.authoredBy()); payload.put("businessDate", request.businessDate());
-        payload.put("items", List.of(Map.of("itemCode", request.itemCodeSnapshot(),
-                "itemName", request.itemNameSnapshot(), "quantityText", quantityText,
-                "clinicalDescription", valueOrDash(request.clinicalDescription()))));
+        // 归入申请单的项目打印整张申请单：列出单内全部生效项目，单号取申请单号。
+        List<ServiceRequest> members = request.documentId() == null ? List.of(request)
+                : repository.findByTenantIdAndDocumentId(request.tenantId(), request.documentId()).stream()
+                .filter(value -> value.status() == ServiceRequestStatus.ACTIVE).toList();
+        String printedNo = request.documentId() == null ? request.requestNo()
+                : documents.findById(request.documentId()).map(ServiceDocument::documentNo).orElse(request.requestNo());
+        payload.put("requestNo", printedNo);
+        payload.put("items", members.stream().map(value -> Map.<String, Object>of("itemCode", value.itemCodeSnapshot(),
+                "itemName", value.itemNameSnapshot(),
+                "quantityText", value.quantity().stripTrailingZeros().toPlainString() + " " + value.unitCodeSnapshot(),
+                "clinicalDescription", valueOrDash(value.clinicalDescription()))).toList());
         return new PrintDataSnapshot("ServiceRequest", request.id(), request.revision(), request.residentId(),
                 request.encounterId(), encounter.organizationId(), encounter.departmentId(),
-                documentName + "-" + request.requestNo() + ".pdf", payload);
+                documentName + "-" + printedNo + ".pdf", payload);
     }
 
     private ServiceRequest require(Long sourceId, EncounterDirectory.EncounterSnapshot encounter) {

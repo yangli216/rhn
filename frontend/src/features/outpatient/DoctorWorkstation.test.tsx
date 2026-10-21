@@ -8,7 +8,7 @@ import type { GenerateClinicalAiSuggestionInput, ClinicalAiSuggestion } from '..
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { Encounter, Resident } from '../../shared/model'
 import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
-import type { ClinicalRecordInput } from '../../shared/api/encountersApi'
+import type { ClinicalRecordInput, ServiceRequest } from '../../shared/api/encountersApi'
 import { billingWriteFixture } from './record/completionBillingWrites.testFixtures'
 import { completionStatementFixture, completionSettlementFixture } from './record/completionFacts.testFixtures'
 import { clinicalRecordSaveFixture } from './record/clinicalRecordSave.testFixtures'
@@ -17,7 +17,7 @@ import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
 import type { HistoricalStablePlan, OutpatientPlanTemplate } from '../../shared/api/outpatientPlanTemplatesApi'
 import type { PrintRecord } from '../../shared/api/printingApi'
 import { DoctorWorkstation } from './DoctorWorkstation'
-import { orderDraftReceipt } from './orders/orderDraftSave.testFixtures'
+import { orderDraftReceipt, orderSubmissionFake } from './orders/orderDraftSave.testFixtures'
 import { persistOrderDrafts } from './orders/persistOrderDrafts'
 import { historicalImportFixture } from './ai/historicalPrescriptionImport.testFixtures'
 import { installTemplateCatalog } from './templates/resolveTemplateOrders.testFixtures'
@@ -72,6 +72,11 @@ const mockSuspendedEncounter: Encounter = {
 const mockCompletedEncounter: Encounter = {
   ...mockRegisteredEncounter,
   status: 'COMPLETED',
+} as unknown as Encounter
+
+const completableEncounter = {
+  ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+  diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
 } as unknown as Encounter
 
 const outpatientNote = (status: 'DRAFT' | 'SIGNED' | 'AMENDMENT_IN_PROGRESS' = 'DRAFT', version = 1) => ({
@@ -139,7 +144,7 @@ function createMockApi({
     return Promise.resolve(mockInProgressEncounter)
   })
 
-  return {
+  const api = {
     clinicalAi: {
       recommendPlans: vi.fn().mockResolvedValue([]),
       capabilities: vi.fn().mockResolvedValue({ available: false, mode: 'DISABLED', provider: 'test', features: [] }),
@@ -387,6 +392,14 @@ function createMockApi({
       printPdf: vi.fn().mockResolvedValue(undefined),
     },
   } as unknown as RhnApi
+  api.encounters.submitOrders = vi.fn().mockImplementation(orderSubmissionFake(api))
+  // 合单预览替身：一项一单，保持既有单据断言；合单规则由后端引擎测试覆盖。
+  api.encounters.previewServiceDocuments = vi.fn().mockImplementation(async (_id: string, items: unknown[]) =>
+    items.map((_item, index) => ({ serviceType: 'OTHER', title: '申请单', performerOrganizationId: 'org-1',
+      performerDepartmentId: 'dept-1', groupingRule: 'PER_ITEM', ruleReasons: [], itemIndexes: [index] })))
+  api.encounters.orderingPolicy = vi.fn().mockResolvedValue({ reviewMode: 'STANDARD', mergeWesternAndPatent: false,
+    separateInfusion: true, maxItemsPerPrescription: 5 })
+  return api
 }
 
 function renderStation(api: RhnApi) {
@@ -728,11 +741,11 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(screen.getByRole('button', { name: '临床模板' }))
     await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
-    await user.click(screen.getByRole('button', { name: '审核开立' }))
-    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    const review = await screen.findByRole('dialog', { name: '医嘱签署核查' })
     expect(await within(review).findByText(/分方预览失败：未配置发药路由/)).toBeInTheDocument()
     expect(within(review).getByText('单据数量待确认')).toBeInTheDocument()
-    const submit = within(review).getByRole('button', { name: '确认分单并开立' })
+    const submit = within(review).getByRole('button', { name: '确认分单并签署' })
     expect(submit).toBeDisabled()
     await user.click(submit)
     expect(api.encounters.batchOrderPrescriptions).not.toHaveBeenCalled()
@@ -764,24 +777,24 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(screen.getByRole('button', { name: '临床模板' }))
     await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
-    await user.click(screen.getByRole('button', { name: '审核开立' }))
-    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
-    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    const review = await screen.findByRole('dialog', { name: '医嘱签署核查' })
+    await user.click(within(review).getByRole('button', { name: '确认分单并签署' }))
     expect(await within(review).findByRole('alert')).toHaveTextContent('病历尚未通过校验：请输入主诉')
     expect(within(review).getByRole('alert')).toHaveTextContent('收缩压必须大于舒张压')
     expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
     expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
     await user.click(within(review).getByRole('button', { name: '返回病历补充' }))
-    expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '医嘱签署核查' })).not.toBeInTheDocument()
     const chiefComplaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
     await waitFor(() => expect(chiefComplaint).toHaveFocus())
     await user.type(chiefComplaint, '复诊')
     await user.clear(screen.getByLabelText('收缩压'))
     await user.type(screen.getByLabelText('收缩压'), '120')
-    await user.click(screen.getByRole('button', { name: '审核开立' }))
-    const reopened = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    const reopened = await screen.findByRole('dialog', { name: '医嘱签署核查' })
     expect(within(reopened).getByText('血常规')).toBeInTheDocument()
-    await user.click(within(reopened).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(within(reopened).getByRole('button', { name: '确认分单并签署' }))
     await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(1))
   })
 
@@ -803,13 +816,49 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     await user.click(screen.getByRole('button', { name: '临床模板' }))
     await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
-    await user.click(screen.getByRole('button', { name: '审核开立' }))
-    await user.click(within(await screen.findByRole('dialog', { name: '医嘱开立核查' })).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '医嘱签署核查' })).getByRole('button', { name: '确认分单并签署' }))
     await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(1))
     expect(api.encounters.saveOrderDrafts).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
       medicationItems: [], serviceItems: [expect.objectContaining({ catalogItemId: 'lab', quantity: 1 })],
     }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱签署核查' })).not.toBeInTheDocument())
+  })
+
+  it('issues saved service drafts in the same submission without rewriting untouched document info', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.byResident).mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+    }] as Encounter[])
+    let savedServices: ServiceRequest[] = []
+    api.encounters.saveOrderDrafts = vi.fn().mockImplementation(async (id, input) => {
+      const receipt = orderDraftReceipt(id, input)
+      savedServices = receipt.services.map((row) => ({ ...row, itemName: '血常规', serviceType: 'LABORATORY',
+        authoredAt: '2026-10-21T08:00:00Z', residentId: mockInProgressEncounter.residentId, documentInfoEditable: true }))
+      return receipt
+    })
+    vi.mocked(api.encounters.serviceRequests).mockImplementation(async () => savedServices)
+    const template: OutpatientPlanTemplate = { id: 'order-only', revision: 1, scopeType: 'PERSONAL', name: '检查方案',
+      status: 'ACTIVE', sortOrder: 0, useCount: 0, diagnoses: [], medications: [], tasks: [],
+      services: [{ catalogItemId: 'lab', itemCode: 'LAB', itemName: '血常规', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }],
+      createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }
+    installTemplateCatalog(api, template)
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([template])
+    vi.mocked(api.outpatientPlanTemplates.use).mockResolvedValue(template)
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    await user.click(await screen.findByRole('button', { name: '带入当前草稿 (1)' }))
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '医嘱签署核查' })).getByRole('button', { name: '确认分单并签署' }))
+    await waitFor(() => expect(api.encounters.submitOrders).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      prescriptions: [], serviceDocuments: [expect.objectContaining({ id: 'svc-0', expectedRevision: 0 })],
+    })))
+    const entry = vi.mocked(api.encounters.submitOrders).mock.calls.at(-1)![1].serviceDocuments[0]
+    // 核查窗默认关联主诊断，与服务端默认一致；医生未手动修改时仍按显式信息写入同一张单据。
+    expect(entry.documentInfo === undefined || entry.documentInfo.diagnoses?.[0]?.code === 'I10').toBe(true)
   })
 
   it('allows selective checking and applying of plan items to outpatient drafts', async () => {
@@ -1584,9 +1633,9 @@ describe('DoctorWorkstation reception flow', () => {
 
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
-    await user.click(await screen.findByRole('button', { name: '审核开立' }))
+    await user.click(await screen.findByRole('button', { name: '签署' }))
 
-    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    const review = await screen.findByRole('dialog', { name: '医嘱签署核查' })
     expect(within(review).getByText('2 张单据')).toBeInTheDocument()
     expect(within(review).getByText('2 项医嘱')).toBeInTheDocument()
     expect(within(review).getByText('检1')).toBeInTheDocument()
@@ -1639,7 +1688,7 @@ describe('DoctorWorkstation reception flow', () => {
 
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
-    await user.click(await screen.findByRole('button', { name: '审核开立' }))
+    await user.click(await screen.findByRole('button', { name: '签署' }))
 
     expect(await screen.findByRole('region', { name: '合理用药审查' })).toHaveTextContent('儿童及特定年龄禁忌用药核对')
     expect(screen.getByRole('region', { name: '合理用药审查' })).toHaveTextContent('6岁')
@@ -1647,7 +1696,7 @@ describe('DoctorWorkstation reception flow', () => {
     expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
     expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledWith('encounter-101', 'rx-child')
 
-    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续签署' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-child', 0))
   })
 
@@ -1691,9 +1740,48 @@ describe('DoctorWorkstation reception flow', () => {
   async function openSafetyReview(api: RhnApi, user: ReturnType<typeof userEvent.setup>) {
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
-    await user.click(await screen.findByRole('button', { name: '审核开立' }))
+    await user.click(await screen.findByRole('button', { name: '签署' }))
     return screen.findByRole('region', { name: '合理用药审查' })
   }
+
+  it('issues orders on save in simple review mode and opens the review only when safety needs acknowledgement', async () => {
+    const user = userEvent.setup()
+    const { api, evaluation } = prepareFormalSafetyReview('WARN')
+    vi.mocked(api.encounters.orderingPolicy).mockResolvedValue({ reviewMode: 'SIMPLE', mergeWesternAndPatent: false,
+      separateInfusion: true, maxItemsPerPrescription: 5 })
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    // 简单模式没有单独的开立：已保存未生效的医嘱提示后，点“保存”即生效。
+    expect(await screen.findByText('2 项未生效')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '开立' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '签署' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '保存' }))
+    const review = await screen.findByRole('region', { name: '合理用药审查' })
+    expect(review).toHaveTextContent('测试配对命中相互作用条件')
+    expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续生效' }))
+    await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-pair', 0))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱生效核查' })).not.toBeInTheDocument())
+
+    vi.mocked(api.encounters.submitPrescription).mockClear()
+    vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({ ...evaluation, decision: 'PASS', findings: [] })
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog', { name: '医嘱生效核查' })).not.toBeInTheDocument()
+  })
+
+  it('shows a blocked submission in the order panel without opening the split review in simple mode', async () => {
+    const user = userEvent.setup()
+    const { api } = prepareFormalSafetyReview('BLOCK')
+    vi.mocked(api.encounters.orderingPolicy).mockResolvedValue({ reviewMode: 'SIMPLE', mergeWesternAndPatent: false,
+      separateInfusion: true, maxItemsPerPrescription: 5 })
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '保存' }))
+    expect(await screen.findByText(/合理用药审查未通过/)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '医嘱生效核查' })).not.toBeInTheDocument()
+    expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
+  })
 
   it.each(['prescriptions', 'serviceRequests'] as const)(
     'keeps the review open and stops submission when the latest %s query fails', async (method) => {
@@ -1702,14 +1790,14 @@ describe('DoctorWorkstation reception flow', () => {
       vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({ ...evaluation, decision: 'PASS', findings: [] })
       renderStation(api)
       await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
-      await user.click(await screen.findByRole('button', { name: '审核开立' }))
-      const dialog = await screen.findByRole('dialog', { name: '医嘱开立核查' })
-      const submit = within(dialog).getByRole('button', { name: '确认分单并开立' })
+      await user.click(await screen.findByRole('button', { name: '签署' }))
+      const dialog = await screen.findByRole('dialog', { name: '医嘱签署核查' })
+      const submit = within(dialog).getByRole('button', { name: '确认分单并签署' })
       await waitFor(() => expect(submit).toBeEnabled())
       vi.mocked(api.encounters[method]).mockRejectedValueOnce(new Error('最新单据查询失败'))
       await user.click(submit)
       expect(await screen.findByText('最新单据查询失败')).toBeInTheDocument()
-      expect(screen.getByRole('dialog', { name: '医嘱开立核查' })).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: '医嘱签署核查' })).toBeInTheDocument()
       expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
       await user.click(submit)
       await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledTimes(1))
@@ -1722,14 +1810,14 @@ describe('DoctorWorkstation reception flow', () => {
     const review = await openSafetyReview(api, user)
     expect(review).toHaveTextContent('正式审查，按规则要求处理')
     expect(review).not.toHaveTextContent('仅提示不阻断')
-    expect(screen.getByRole('button', { name: '当前处方不可开立' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '当前处方不可签署' })).toBeDisabled()
     expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: '返回修改' }))
     vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({
       ...evaluation, inputHash: 'corrected-prescription', decision: 'PASS', findings: [],
     })
-    await user.click(screen.getByRole('button', { name: '审核开立' }))
-    await user.click(screen.getByRole('button', { name: '确认分单并开立' }))
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    await user.click(screen.getByRole('button', { name: '确认分单并签署' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-pair', 0))
     expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledTimes(3)
   })
@@ -1741,15 +1829,15 @@ describe('DoctorWorkstation reception flow', () => {
     expect(review).toHaveTextContent('涉及药品：测试药品a、测试药品b')
     await user.click(within(review).getByText('查看规则依据'))
     expect(within(review).getByText('合成验收依据 · 1 · 配对 · 测试章节')).toBeVisible()
-    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
-    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '   ')
-    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
-    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '已核对适用条件，记录测试处理理由')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续签署' })).toBeDisabled()
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续签署理由' }), '   ')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续签署' })).toBeDisabled()
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续签署理由' }), '已核对适用条件，记录测试处理理由')
     vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({
       ...evaluation, evaluationId: 'evaluation-new', ruleSetVersion: 'release-new',
       findings: [{ ...evaluation.findings[0], findingId: 'finding-new' }],
     })
-    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续签署' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith(
       'encounter-101', 'rx-pair', 0, '已核对适用条件，记录测试处理理由'))
     expect(api.encounters.evaluatePrescriptionSafety).toHaveBeenCalledTimes(2)
@@ -1767,10 +1855,10 @@ describe('DoctorWorkstation reception flow', () => {
         medicationRequestIds: id === 'rx-second' ? ['med-a-2', 'med-b-2'] : ['med-a', 'med-b'] }],
     }))
     await openSafetyReview(api, user)
-    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '第一张处方理由')
-    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
-    await user.type(screen.getByRole('textbox', { name: 'rx-second 继续开立理由' }), '第二张处方理由')
-    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续签署理由' }), '第一张处方理由')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续签署' })).toBeDisabled()
+    await user.type(screen.getByRole('textbox', { name: 'rx-second 继续签署理由' }), '第二张处方理由')
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续签署' }))
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith(
       'encounter-101', 'rx-second', 0, '第二张处方理由'))
     expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-pair', 0, '第一张处方理由')
@@ -1780,18 +1868,20 @@ describe('DoctorWorkstation reception flow', () => {
     const user = userEvent.setup()
     const { api, evaluation } = prepareFormalSafetyReview()
     await openSafetyReview(api, user)
-    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' }), '原处理理由')
+    await user.type(screen.getByRole('textbox', { name: 'rx-pair 继续签署理由' }), '原处理理由')
     vi.mocked(api.encounters.evaluatePrescriptionSafety).mockResolvedValue({ ...evaluation, inputHash: 'changed' })
-    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续签署' }))
     expect(await screen.findByText('处方或审查结果已变化，请重新核对本次提示并填写处理理由。')).toBeVisible()
-    expect(screen.getByRole('textbox', { name: 'rx-pair 继续开立理由' })).toHaveValue('')
-    expect(screen.getByRole('button', { name: '已知晓风险，继续开立' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: 'rx-pair 继续签署理由' })).toHaveValue('')
+    expect(screen.getByRole('button', { name: '已知晓风险，继续签署' })).toBeDisabled()
     expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
   })
 
   it('renders a compact completion dialog with fee details, disposition selection, and standard checklist icons', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.encounters.byResident = vi.fn().mockResolvedValue([completableEncounter])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
     render(<StrictMode>
@@ -1816,8 +1906,8 @@ describe('DoctorWorkstation reception flow', () => {
     // Verify 4-metric fee totals grid
     expect(screen.getByText('费用合计')).toBeInTheDocument()
     expect(screen.getByText('已支付')).toBeInTheDocument()
-    expect(screen.getByText('未开票')).toBeInTheDocument()
-    expect(screen.getByText('待支付')).toBeInTheDocument()
+    expect(screen.getByText('未结算')).toBeInTheDocument()
+    expect(screen.getByText('已结算待付')).toBeInTheDocument()
 
     const dialog = screen.getByRole('dialog', { name: '诊毕确认' })
     expect(within(dialog).getByRole('combobox', { name: '就诊转归' })).toBeInTheDocument()
@@ -1826,8 +1916,8 @@ describe('DoctorWorkstation reception flow', () => {
 
     // Verify standardized checklist
     const checklist = screen.getByLabelText('诊毕准入核对')
-    expect(checklist).toHaveTextContent('主诉未保存')
-    expect(checklist).toHaveTextContent('未录入主要诊断')
+    expect(checklist).toHaveTextContent('主诉已保存')
+    expect(checklist).toHaveTextContent('血压已填写')
     expect(checklist).toHaveTextContent('确认时自动签署')
 
     // Ensure raw Unicode check/circle characters are completely absent
@@ -2038,6 +2128,112 @@ describe('DoctorWorkstation reception flow', () => {
     expect(await screen.findByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
   })
 
+  it('saves pending work automatically when completing in simple ordering mode', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.orderingPolicy).mockResolvedValue({ reviewMode: 'SIMPLE', mergeWesternAndPatent: false,
+      separateInfusion: true, maxItemsPerPrescription: 5 })
+    const readyEncounter = { ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY', managementPrograms: [] }] } as Encounter
+    api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    api.encounters.recordClinicalData = vi.fn().mockImplementation(async (_id, input: ClinicalRecordInput) => {
+      const saved = clinicalRecordSaveFixture({ ...readyEncounter, chiefComplaint: input.chiefComplaint }, input, 2)
+      api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([saved.document])
+      return saved.encounter
+    })
+    renderStation(api)
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const complaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await waitFor(() => expect(complaint).toHaveValue('头痛复诊'))
+    fireEvent.change(complaint, { target: { value: '头痛复诊，今日加重' } })
+    expect(await screen.findByRole('button', { name: '保存' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    expect(await screen.findByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /完成诊毕前请处理草稿/ })).not.toBeInTheDocument()
+    expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      chiefComplaint: '头痛复诊，今日加重',
+    }))
+  })
+
+  function issuedServicesApi(reviewMode: 'SIMPLE' | 'STANDARD') {
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.orderingPolicy).mockResolvedValue({ reviewMode, mergeWesternAndPatent: false,
+      separateInfusion: true, maxItemsPerPrescription: 5 })
+    vi.mocked(api.encounters.byResident).mockResolvedValue([{ ...mockInProgressEncounter,
+      chiefComplaint: '复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+    }] as Encounter[])
+    const issued = (id: string, itemName: string, editBlockedReason: string | null, status: ServiceRequest['status'] = 'ACTIVE') => ({
+      id, revision: 3, residentId: mockInProgressEncounter.residentId, encounterId: 'encounter-101', requestNo: `REQ-${id}`,
+      status, catalogItemId: `cat-${id}`, businessDate: '2026-10-21', itemCode: id, itemName, unitCode: '次',
+      adoptionId: 'adoption', adoptionRevision: 1, quantity: 1, itemAttributeSnapshot: {}, itemAttributeHash: 'hash',
+      itemAttributeResolvedAt: '2026-10-21T08:00:00Z', standardMappings: [], serviceType: 'TREATMENT',
+      authoredAt: '2026-10-21T08:00:00Z', performerDepartmentId: 'dept-1', editBlockedReason,
+    }) as ServiceRequest
+    vi.mocked(api.encounters.serviceRequests).mockResolvedValue([
+      issued('svc-unpaid', '雾化吸入', null), issued('svc-paid', '针灸', '收费处已划价或已缴费'),
+      issued('svc-draft', '换药', null, 'DRAFT'),
+    ])
+    api.encounters.withdrawServiceSignature = vi.fn().mockResolvedValue(issued('svc-unpaid', '雾化吸入', null, 'DRAFT'))
+    api.encounters.saveOrderDrafts = vi.fn().mockImplementation(async (id, input) => ({
+      ...orderDraftReceipt(id, input), revisedMedications: [],
+      revisedServices: (input.revisedOrders ?? []).map((order: { id: string }) => ({ ...issued(order.id, '雾化吸入', null, 'DRAFT'), revision: 4 })),
+    }))
+    return api
+  }
+  const rowOf = (table: HTMLElement, name: string) => within(table).getByText(name).closest('[role="row"]') as HTMLElement
+
+  it('edits an unpaid issued order in place in simple mode and hides editing once it is in settlement', async () => {
+    const user = userEvent.setup()
+    const api = issuedServicesApi('SIMPLE')
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const orderTable = await screen.findByRole('table', { name: '本次医嘱连续录入列表' })
+    await within(orderTable).findByText('针灸')
+    const paidRow = rowOf(orderTable, '针灸')
+    expect(within(paidRow).queryByRole('button', { name: '修改' })).not.toBeInTheDocument()
+    expect(within(paidRow).getByRole('button', { name: '撤销' })).toBeInTheDocument()
+    expect(within(paidRow).getByText('已生效')).toBeInTheDocument()
+    const unpaidRow = rowOf(orderTable, '雾化吸入')
+    expect(within(unpaidRow).getByRole('button', { name: '删除' })).toBeInTheDocument()
+    await user.click(within(unpaidRow).getByRole('button', { name: '修改' }))
+    // 原医嘱由编辑行代替显示，保存前不做任何服务端变更。
+    await waitFor(() => expect(orderTable.querySelector('#order-svc-unpaid')).toBeNull())
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      serviceItems: [],
+      revisedOrders: [expect.objectContaining({ kind: 'SERVICE', id: 'svc-unpaid', expectedRevision: 3,
+        service: expect.objectContaining({ catalogItemId: 'cat-svc-unpaid', quantity: 1 }) })],
+    })))
+    await waitFor(() => expect(api.encounters.submitOrders).toHaveBeenCalled())
+  })
+
+  it('offers withdrawing the signature in signing mode only for unpaid orders and edits unsigned ones in place', async () => {
+    const user = userEvent.setup()
+    const api = issuedServicesApi('STANDARD')
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const orderTable = await screen.findByRole('table', { name: '本次医嘱连续录入列表' })
+    await within(orderTable).findByText('针灸')
+    expect(screen.getByRole('button', { name: '签署' })).toBeInTheDocument()
+    const paidRow = rowOf(orderTable, '针灸')
+    expect(within(paidRow).queryByRole('button', { name: '取消签署' })).not.toBeInTheDocument()
+    expect(within(paidRow).queryByRole('button', { name: '修改' })).not.toBeInTheDocument()
+    const signedRow = rowOf(orderTable, '雾化吸入')
+    expect(within(signedRow).getByText('已签署')).toBeInTheDocument()
+    expect(within(signedRow).queryByRole('button', { name: '修改' })).not.toBeInTheDocument()
+    const draftRow = rowOf(orderTable, '换药')
+    expect(within(draftRow).getByText('未签署')).toBeInTheDocument()
+    expect(within(draftRow).getByRole('button', { name: '修改' })).toBeInTheDocument()
+    await user.click(within(signedRow).getByRole('button', { name: '取消签署' }))
+    // 确认气泡里的“取消签署”是最后出现的同名按钮。
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '取消签署' }).length).toBeGreaterThan(1))
+    await user.click(screen.getAllByRole('button', { name: '取消签署' }).at(-1)!)
+    await waitFor(() => expect(api.encounters.withdrawServiceSignature).toHaveBeenCalledWith('encounter-101', 'svc-unpaid', 3))
+  })
+
   function completionFactsApi() {
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
     const ready = { ...mockInProgressEncounter, chiefComplaint: '复诊', systolic: 120, diastolic: 80,
@@ -2128,6 +2324,67 @@ describe('DoctorWorkstation reception flow', () => {
       expect(screen.queryByText('已全部通过')).not.toBeInTheDocument()
     })
 
+  describe('doctor-station insurance settlement', () => {
+    const insuranceClaim = (status: 'PRE_SETTLED' | 'SETTLED', cash = 0) => ({
+      claimId: 'claim-1', revision: status === 'SETTLED' ? 1 : 0, settlementId: 'settlement-1', patientAccountId: 'acc-1',
+      claimNo: 'CLM-1', settlementNo: 'SET-1', status, regionCode: '370100', insuranceTypeCode: '310',
+      externalPreSettlementNo: 'PRE-1', externalSettlementNo: status === 'SETTLED' ? 'SETL-1' : undefined,
+      grossAmount: 10, insuranceFundAmount: 10 - cash, personalAccountAmount: 0, patientCashAmount: cash, otherFundAmount: 0,
+      currencyCode: 'CNY',
+    })
+    const insuranceApi = () => {
+      const api = completionFactsApi()
+      api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter),
+        chargeAmount: 10, invoicedAmount: 10, accountBalance: 10, settlements: [completionSettlementFixture()] })
+      api.billing.registrationSettlementModes = vi.fn().mockResolvedValue({ [mockInProgressEncounter.id]: 'MEDICAL_INSURANCE' })
+      api.dictionaries.applicable = vi.fn().mockResolvedValue([
+        { code: 'CASH', name: '现金', sortOrder: 1, attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } },
+        { code: 'BANK_CARD', name: '银行卡', sortOrder: 2, attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } },
+      ])
+      return api
+    }
+
+    it('defaults to the registration insurance mode and asks for the insurance credential when it is missing', async () => {
+      const api = insuranceApi()
+      api.billing.quickPreSettleInsurance = vi.fn().mockRejectedValue({ code: 'CHS_REQUEST_CONTEXT_UNCONFIRMED', message: '参保人鉴权凭证已失效' })
+      const user = await openCompletionFacts(api)
+      const preSettle = await screen.findByRole('button', { name: '执行医保预结算 (试算)' })
+      await waitFor(() => expect(preSettle).toBeEnabled())
+      await user.click(preSettle)
+      expect(api.billing.quickPreSettleInsurance).toHaveBeenCalledWith('settlement-1', { idempotencyKey: expect.stringMatching(/^PRE-CHS-/) })
+      expect(await screen.findByRole('dialog', { name: '读取医保凭证' })).toBeInTheDocument()
+    })
+
+    it('offers only non-cash methods for the self-pay part after pre-settlement', async () => {
+      const api = insuranceApi()
+      api.billing.quickPreSettleInsurance = vi.fn().mockResolvedValue(insuranceClaim('PRE_SETTLED', 3))
+      api.billing.insuranceClaim = vi.fn().mockResolvedValue(insuranceClaim('PRE_SETTLED', 3))
+      const user = await openCompletionFacts(api)
+      await user.click(await screen.findByRole('button', { name: '执行医保预结算 (试算)' }))
+      const payment = await screen.findByRole('region', { name: '诊间收款' })
+      expect(await within(payment).findByText('银行卡')).toBeInTheDocument()
+      expect(within(payment).queryByText('现金')).not.toBeInTheDocument()
+    })
+
+    it('settles a fully covered claim without a self-pay order', async () => {
+      const api = insuranceApi()
+      api.billing.quickPreSettleInsurance = vi.fn().mockResolvedValue(insuranceClaim('PRE_SETTLED'))
+      api.billing.settleInsurance = vi.fn().mockResolvedValue(insuranceClaim('SETTLED'))
+      api.billing.insuranceClaim = vi.fn()
+        .mockResolvedValueOnce(insuranceClaim('PRE_SETTLED')).mockResolvedValue(insuranceClaim('SETTLED'))
+      api.billing.createPaymentOrder = vi.fn()
+      const user = await openCompletionFacts(api)
+      await user.click(await screen.findByRole('button', { name: '执行医保预结算 (试算)' }))
+      const settle = await screen.findByRole('button', { name: '确认医保结算并记账' })
+      api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter),
+        chargeAmount: 10, invoicedAmount: 10, settlements: [completionSettlementFixture({ status: 'SETTLED',
+          insuranceAmount: 10, outstandingAmount: 0 })] })
+      await user.click(settle)
+      await waitFor(() => expect(api.billing.settleInsurance).toHaveBeenCalledWith('claim-1', 'CHS-SETL-claim-1'))
+      expect(api.billing.createPaymentOrder).not.toHaveBeenCalled()
+    })
+  })
+
   it.each(['uninvoiced', 'unpaid', 'partial-payment', 'failed-settlement', 'pending-payment', 'refunding'] as const)(
     'allows signing and completion with %s while preserving the actual billing status', async failure => {
       const api = completionFactsApi()
@@ -2152,8 +2409,8 @@ describe('DoctorWorkstation reception flow', () => {
           requestedAmount: 10, capturedAmount: 0, refundedAmount: 0 },
       ])
       const user = await openCompletionFacts(api)
-      const overview = screen.getByRole('region', { name: '诊毕状态汇总' })
-      expect(await within(overview).findByText(failure === 'uninvoiced' ? '尚有未开票费用'
+      const overview = screen.getByRole('region', { name: '费用结算' })
+      expect(await within(overview).findByText(failure === 'uninvoiced' ? '¥10.00 未结算'
         : pending ? '支付处理中' : unpaid ? '¥10.00' : '结算尚未完成',
       { selector: '.doctor-fee-stat-content > strong' })).toBeInTheDocument()
       const button = screen.getByRole('button', { name: '签署并诊毕' })
@@ -2254,7 +2511,7 @@ describe('DoctorWorkstation reception flow', () => {
     api.billing.statement = vi.fn().mockResolvedValue({ ...completionStatementFixture(mockInProgressEncounter), currencyCode: 'USD' })
     const user = await openCompletionFacts(api)
     await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
-    const overview = screen.getByRole('region', { name: '诊毕状态汇总' })
+    const overview = screen.getByRole('region', { name: '费用结算' })
     expect(within(overview).getByText('已结清')).toBeInTheDocument()
     expect(overview).not.toHaveTextContent('¥')
     expect(overview).toHaveTextContent('US$0.00')
@@ -2279,7 +2536,7 @@ describe('DoctorWorkstation reception flow', () => {
     api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
       attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
     const user = await openCompletionFacts(api)
-    const action = await screen.findByRole('button', { name: kind === 'invoice' ? '生成结算单' : '发起诊间收款' })
+    const action = await screen.findByRole('button', { name: kind === 'invoice' ? '诊间结算' : '发起诊间收款' })
     await waitFor(() => expect(action).toBeEnabled())
     if (failure === 'read-error') fixture.api.statement.mockRejectedValueOnce(new Error('结算回读失败'))
     else if (failure === 'not-persisted') {
@@ -2316,6 +2573,42 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: '确认诊毕' })).toBeEnabled())
   })
 
+  it('cancels the settlement it generated but did not collect when the doctor returns to the visit', async () => {
+    const api = completionFactsApi(), fixture = billingWriteFixture(mockInProgressEncounter, 'invoice')
+    api.billing = { ...api.billing, ...fixture.api, cancelSettlement: vi.fn().mockResolvedValue({
+      settlementId: 'settlement-1', settlementNo: 'SET-1', netAmount: 10, chargeItemIds: ['charge-1'] }) }
+    api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
+      attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+    const user = await openCompletionFacts(api)
+    const invoice = await screen.findByRole('button', { name: '诊间结算' })
+    await waitFor(() => expect(invoice).toBeEnabled())
+    await user.click(invoice)
+    await screen.findByRole('region', { name: '诊间收款' })
+    expect(screen.getByRole('button', { name: '继续诊疗' })).toHaveAttribute('title', expect.stringContaining('取消本次生成'))
+    await user.click(screen.getByRole('button', { name: '继续诊疗' }))
+    await waitFor(() => expect(api.billing.cancelSettlement).toHaveBeenCalledWith('settlement-1', expect.stringContaining('诊毕页未收款')))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '诊毕确认' })).not.toBeInTheDocument())
+  })
+
+  it('stays open with the reason when the generated settlement cannot be cancelled, and closes on the next try', async () => {
+    const api = completionFactsApi(), fixture = billingWriteFixture(mockInProgressEncounter, 'invoice')
+    api.billing = { ...api.billing, ...fixture.api,
+      cancelSettlement: vi.fn().mockRejectedValue({ code: 'INSURANCE_PRESETTLE_CANCEL_FAILED', message: '撤销医保试算失败：平台超时' }) }
+    api.dictionaries.applicable = vi.fn().mockResolvedValue([{ code: 'BANK_CARD', name: '银行卡', sortOrder: 1,
+      attributes: { TENDER_TYPE: 'BANK_CARD', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' } }])
+    const user = await openCompletionFacts(api)
+    const invoice = await screen.findByRole('button', { name: '诊间结算' })
+    await waitFor(() => expect(invoice).toBeEnabled())
+    await user.click(invoice)
+    await screen.findByRole('region', { name: '诊间收款' })
+    await user.click(screen.getByRole('button', { name: '继续诊疗' }))
+    expect(await screen.findByText(/未付款结算单取消失败：撤销医保试算失败/)).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '诊毕确认' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '继续诊疗' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '诊毕确认' })).not.toBeInTheDocument())
+    expect(api.billing.cancelSettlement).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps the completion dialog open while a collection request is unresolved', async () => {
     const api = completionFactsApi(), fixture = billingWriteFixture(mockInProgressEncounter, 'payment')
     api.billing = { ...api.billing, ...fixture.api }
@@ -2342,12 +2635,23 @@ describe('DoctorWorkstation reception flow', () => {
       requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: false,
     }) } as never
     api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    api.encounters.byResident = vi.fn().mockResolvedValue([completableEncounter])
     renderStation(api)
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
     expect(await screen.findByRole('button', { name: '签署当前版本' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '诊毕' }))
     expect(await screen.findByRole('button', { name: '立即签署' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+  })
+
+  it('stays on the record with a notice instead of opening completion when required facts are missing', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '诊毕' }))
+    expect(await screen.findByText('暂不能诊毕，请先完善：主诉、主要诊断、门诊病历、血压')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /诊毕确认/ })).not.toBeInTheDocument()
   })
 
   it('starts an auditable amendment instead of withdrawing a signed note', async () => {
@@ -2559,27 +2863,27 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     if (aiPill.getAttribute('aria-expanded') !== 'true') await user.click(aiPill)
     await user.click(await screen.findByRole('button', { name: '分析当前病历' }))
     expect(await screen.findByText('未构建检查方向')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '审核开立' }))
-    const review = await screen.findByRole('dialog', { name: '医嘱开立核查' })
+    await user.click(screen.getByRole('button', { name: '签署' }))
+    const review = await screen.findByRole('dialog', { name: '医嘱签署核查' })
     expect(within(review).queryByText('病历未录入诊断')).not.toBeInTheDocument()
     expect(within(review).getByRole('button', { name: '全部关联主诊断' })).toBeInTheDocument()
     expect(within(review).getByText('原发性高血压')).toBeInTheDocument()
     vi.mocked(api.encounters.recordClinicalData).mockRejectedValueOnce(new Error('病历保存失败'))
-    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(within(review).getByRole('button', { name: '确认分单并签署' }))
     expect((await screen.findAllByText('病历保存失败')).length).toBeGreaterThan(0)
     expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
     expect(screen.getByText('未构建检查方向')).toBeInTheDocument()
     vi.mocked(api.clinicalDocuments.byEncounter).mockRejectedValueOnce(new Error('文书查询中断'))
-    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(within(review).getByRole('button', { name: '确认分单并签署' }))
     expect((await screen.findAllByText(/病历保存回执未确认.*读取保存后的文书失败/)).length).toBeGreaterThan(0)
     expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
     expect(screen.queryByText('门诊病历、诊断与医嘱草稿已保存')).not.toBeInTheDocument()
     expect(within(review).getByText('原发性高血压')).toBeInTheDocument()
     vi.mocked(api.encounters.saveOrderDrafts).mockResolvedValueOnce(undefined as never)
-    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(within(review).getByRole('button', { name: '确认分单并签署' }))
     expect((await screen.findAllByText(/医嘱保存回执未确认/)).length).toBeGreaterThan(0)
     expect(screen.getByText('未构建检查方向')).toBeInTheDocument()
-    await user.click(within(review).getByRole('button', { name: '确认分单并开立' }))
+    await user.click(within(review).getByRole('button', { name: '确认分单并签署' }))
     await waitFor(() => expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(2))
     const recordCalls = vi.mocked(api.encounters.recordClinicalData).mock.calls
     expect(recordCalls[1][1].commandCode).toBe(recordCalls[2][1].commandCode)
@@ -2588,7 +2892,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     }))
     expect(vi.mocked(api.encounters.recordClinicalData).mock.invocationCallOrder[0])
       .toBeLessThan(vi.mocked(api.encounters.saveOrderDrafts).mock.invocationCallOrder[0])
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱开立核查' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '医嘱签署核查' })).not.toBeInTheDocument())
     expect(screen.queryByText('未构建检查方向')).not.toBeInTheDocument()
   })
 
@@ -2735,8 +3039,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
     await waitFor(() => expect(within(orderTable).queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument())
     expect(orderTable.querySelector('.doctor-unified-order-row.is-draft')).toHaveTextContent('血常规')
-    expect(await screen.findByRole('dialog', { name: '医嘱开立核查' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '确认分单并开立' })).toBeEnabled()
+    expect(await screen.findByRole('dialog', { name: '医嘱签署核查' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认分单并签署' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: '返回修改' }))
     expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.stringMatching(/^ai-/),
       expect.objectContaining({ eventType: 'ADOPTED', sectionCode: 'TREATMENT' }))
@@ -2745,6 +3049,29 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument()
     expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+  })
+
+  it('keeps adopted AI orders as drafts without opening the review dialog in simple mode', async () => {
+    const api = aiApi()
+    vi.mocked(api.encounters.orderingPolicy).mockResolvedValue({ reviewMode: 'SIMPLE', mergeWesternAndPatent: false,
+      separateInfusion: true, maxItemsPerPrescription: 5 })
+    api.masterData.searchServices = vi.fn().mockResolvedValue({ content: [{
+      id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
+      sdStatus: 'ACTIVE', orderable: true, chargeable: true, unitCode: '次', validFrom: '2020-01-01', prices: [{ id: 'service-price', organizationId: 'org-1', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 12.5, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true, chargeable: true, validFrom: '2020-01-01' },
+    }] } as never)
+    const generate = api.clinicalAi.generate
+    api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({ ...await generate(id, input),
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '评估病因' }] }))
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '匹配方案并继续' }))
+    const orderTable = screen.getByRole('table', { name: '本次医嘱连续录入列表' })
+    await waitFor(() => expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规'))
+    await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
+    await waitFor(() => expect(orderTable.querySelector('.doctor-unified-order-row.is-draft')).toHaveTextContent('血常规'))
+    expect(await screen.findByRole('button', { name: '保存' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: '开立' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '医嘱生效核查' })).not.toBeInTheDocument()
   })
 
   it('preserves AI diagnosis and treatment recommendations when clicking save all drafts without blood pressure filled', async () => {

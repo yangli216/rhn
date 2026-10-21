@@ -56,6 +56,12 @@ class PrescriptionController {
         return service.submit(encounterId, prescriptionId, action);
     }
 
+    @PostMapping("/{prescriptionId}/withdraw-signature")
+    PrescriptionResponse withdrawSignature(@PathVariable Long encounterId, @PathVariable Long prescriptionId,
+                                           @Valid @RequestBody WithdrawSignatureRequest request) {
+        return service.withdrawSignature(encounterId, prescriptionId, request.expectedRevision());
+    }
+
     @PostMapping("/{prescriptionId}/cancel")
     PrescriptionResponse cancel(@PathVariable Long encounterId, @PathVariable Long prescriptionId,
                                 @Valid @RequestBody PrescriptionAction action) {

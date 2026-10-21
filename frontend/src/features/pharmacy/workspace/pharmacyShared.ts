@@ -3,7 +3,7 @@ import { displayUnitName } from "../medicationDisplay";
 import type { PersonnelAssignment } from "../../../shared/api/organizationApi";
 import type { PharmacyInboxItem } from "../../../shared/api/pharmacyApi";
 
-export type PharmacyWorkspaceMode = 'dispensing' | 'review' | 'returns' | 'query' | 'ward'
+export type PharmacyWorkspaceMode = 'dispensing' | 'review' | 'returns' | 'query' | 'ward' | 'cancel-dispense'
 
 export type DispensingPatientGroup = {
   residentId: string
@@ -116,9 +116,16 @@ export const workspaceCopy: Record<PharmacyWorkspaceMode, {
     description: '按班次汇总住院用药，完成批量接方、配药发药和病区配送交接。',
     queueTitle: '', emptyTitle: '', emptyCopy: '',
   },
+  'cancel-dispense': {
+    eyebrow: '药事管理 · 异常处理', title: '取消发药',
+    description: '专用于误点击发药或患者未取药等场景，撤销发药事实、原路冲回库存并恢复为待发药状态。',
+    queueTitle: '已发药待取消队列', emptyTitle: '暂无可取消的发药记录', emptyCopy: '已完成发药且未办理退药的处方会显示在这里。',
+  },
 }
 
 export const activeTaskStatuses = new Set(['READY_TO_PICK', 'PICKING', 'READY_TO_DISPENSE', 'PARTIALLY_DISPENSED'])
+
+export const cancelDispenseTaskStatuses = new Set(['COMPLETED', 'PARTIALLY_DISPENSED'])
 
 export const postReviewTaskStatuses = new Set(['COMPLETED', 'PARTIALLY_RETURNED', 'RETURNED'])
 

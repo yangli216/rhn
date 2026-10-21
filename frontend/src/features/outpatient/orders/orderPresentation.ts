@@ -1,6 +1,13 @@
 import { unitPriceText } from './dispensableOptions'
 import { type OrderEntryType } from './orderDraftTypes'
 
+/** Duration units are stored as UCUM codes (d/wk/mo/h); doctors read them in Chinese. */
+export function formatDurationUnit(unit?: string, fallback = '天'): string {
+  const value = unit?.trim()
+  if (!value) return fallback
+  return ({ d: '天', wk: '周', mo: '月', h: '小时', min: '分钟', a: '年' } as Record<string, string>)[value] ?? value
+}
+
 export function formatPackageUnit(unitName?: string, unitCode?: string): string {
   const name = unitName?.trim()
   if (name && !/^[A-Z_]+$/.test(name)) return name
@@ -121,8 +128,11 @@ export function orderTypeLabel(value: OrderEntryType) {
     : serviceTypeLabel(value)
 }
 
-export function orderStatusLabel(status: string) {
-  return ({ DRAFT: '草稿', ACTIVE: '已开立', SUBMITTED: '已提交', CANCELLED: '已撤销' } as Record<string, string>)[status] ?? status
+/** 简单模式“保存即生效”，签署模式“签署后生效”；未传模式时沿用通用口径。 */
+export function orderStatusLabel(status: string, mode?: 'SIMPLE' | 'SIGNING') {
+  const labels: Record<string, string> = mode === 'SIMPLE' ? { DRAFT: '未生效', ACTIVE: '已生效' }
+    : mode === 'SIGNING' ? { DRAFT: '未签署', ACTIVE: '已签署' } : { DRAFT: '草稿', ACTIVE: '已开立' }
+  return ({ ...labels, SUBMITTED: '已提交', CANCELLED: '已撤销' } as Record<string, string>)[status] ?? status
 }
 
 export function formatUnitPrice(value?: number, currencyCode?: string) {

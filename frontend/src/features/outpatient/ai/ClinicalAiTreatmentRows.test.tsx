@@ -127,7 +127,7 @@ describe('catalog-backed AI order details', () => {
     fireEvent.click(within(serviceRow as HTMLElement).getByRole('button', { name: '修改' }))
     const serviceEditor = within(screen.getByLabelText('修改 测试检验'))
     fireEvent.change(serviceEditor.getByLabelText('检查目的'), { target: { value: '医生明确填写的临床说明' } })
-    fireEvent.click(serviceEditor.getByRole('button', { name: '收起' }))
+    fireEvent.click(serviceEditor.getByRole('button', { name: '完成' }))
     const collapsed = screen.getByRole('checkbox', { name: '选择 测试检验' }).closest('.doctor-unified-order-row')
     expect(collapsed?.querySelector('.doctor-unified-cell-directions')).toHaveTextContent('医生明确填写的临床说明')
     expect(collapsed?.querySelector('.doctor-unified-cell-instruction')).toHaveTextContent('—')
@@ -185,7 +185,9 @@ describe('catalog-backed AI order details', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '修改' })[0])
     const editor = within(screen.getByLabelText('修改 测试药品'))
     fireEvent.change(editor.getByLabelText('单次剂量'), { target: { value: '0.5' } })
-    expect(confirm).toBeDisabled()
+    // Without a course the total is prefilled as one package for review.
+    expect(editor.getByLabelText('总量（盒）')).toHaveValue(1)
+    expect(confirm).toBeEnabled()
     fireEvent.change(editor.getByLabelText('天数'), { target: { value: '7' } })
     expect(confirm).toBeEnabled()
     fireEvent.change(editor.getByLabelText('总量（盒）'), { target: { value: '0' } })
@@ -195,7 +197,7 @@ describe('catalog-backed AI order details', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试药品' }))
     expect(screen.getByRole('button', { name: '确认所选（1）' })).toBeEnabled()
   })
-  it('clears the automatic total when the course is removed or the dose unit cannot be converted', async () => {
+  it('prefills one package without a course and clears the total when the dose unit cannot be converted', async () => {
     const { onReview } = setup()
     await screen.findByText('每次 0.5 g · 口服 · 每日一次')
     fireEvent.click(screen.getAllByRole('button', { name: '修改' })[0])
@@ -203,7 +205,7 @@ describe('catalog-backed AI order details', () => {
     fireEvent.change(editor.getByLabelText('天数'), { target: { value: '15' } })
     expect(editor.getByLabelText('总量（盒）')).toHaveValue(2)
     fireEvent.change(editor.getByLabelText('天数'), { target: { value: '' } })
-    expect(editor.getByLabelText('总量（盒）')).toHaveValue(null)
+    expect(editor.getByLabelText('总量（盒）')).toHaveValue(1)
     fireEvent.change(editor.getByLabelText('天数'), { target: { value: '15' } })
     fireEvent.change(editor.getByLabelText('剂量单位'), { target: { value: 'ml' } })
     expect(editor.getByLabelText('总量（盒）')).toHaveValue(null)

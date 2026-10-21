@@ -17,6 +17,8 @@ export interface ServicePlanDraft {
   performerOrganizationId?: string
   performerDepartmentId?: string
   performerDepartmentName?: string
+  /** 医生“修改”的已保存申请；保存时在原申请上更新，不新建。 */
+  revises?: { id: string; revision: number }
 }
 
 export function clinicalAiTreatmentKey(item: Pick<ClinicalAiTreatmentRecommendation, 'type' | 'catalogItemId'>) {

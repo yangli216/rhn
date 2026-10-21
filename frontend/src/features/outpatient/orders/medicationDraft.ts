@@ -28,6 +28,8 @@ export interface MedicationPlanDraft {
   antimicrobial?: boolean
   sdAntimicrobialLevelText?: string
   allergenConceptIds?: string[]
+  /** 医生“修改”的已保存医嘱；保存时在原医嘱上更新，不新建。 */
+  revises?: { id: string; revision: number }
   request: Omit<CreateMedicationRequestInput, 'prescriptionId' | 'parentRequestId'>
 }
 

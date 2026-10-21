@@ -3,6 +3,7 @@ package com.rhn.billing.infrastructure.insurance.chs;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PersonInfoRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PersonInfoResponse;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PreSettleRequest;
+import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PreSettlementCancelRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PreSettleResponse;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.ReversalRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.ReversalResponse;
@@ -16,6 +17,7 @@ import com.rhn.billing.infrastructure.insurance.chs.ChsModels.SettleResponse;
  * - 2206 门诊预结算试算分解 (preSettle)
  * - 2207 门诊正式结算确认 (settle)
  * - 2208 门诊结算撤销 (reverse)
+ * - 2205 费用明细撤销、2202 就诊登记撤销 (cancelPreSettlement)
  */
 public interface NationalInsuranceClient {
 
@@ -33,6 +35,10 @@ public interface NationalInsuranceClient {
     default SettleRequest prepareSettle(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction input, String preSettlementNo) {
         throw com.rhn.shared.api.BusinessErrors.conflict("CHS_REQUEST_CONTEXT_UNCONFIRMED", "医保人员及操作员标识尚未接入");
     }
+    default PreSettlementCancelRequest preparePreSettlementCancel(
+            com.rhn.billing.api.InsuranceSettlementAdapter.InsurancePreSettlementCancellation input) {
+        throw com.rhn.shared.api.BusinessErrors.conflict("CHS_REQUEST_CONTEXT_UNCONFIRMED", "撤销试算的原人员及操作员标识尚未接入");
+    }
     default ReversalRequest prepareReversal(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal input) {
         throw com.rhn.shared.api.BusinessErrors.conflict("CHS_REQUEST_CONTEXT_UNCONFIRMED", "医保冲正的原人员及操作员标识尚未接入");
     }
@@ -48,4 +54,12 @@ public interface NationalInsuranceClient {
 
     /** 2208 门诊结算撤销 */
     ReversalResponse reverse(ReversalRequest request);
+
+    /**
+     * 2205 撤销预结算前上传的费用明细；本申请自行登记的就诊再以 2202 撤销。费用明细撤销被拒时抛出
+     * {@link ChsRejectedException}；返回给操作员的结果说明（登记撤销未成功时提示人工核对）。
+     */
+    default String cancelPreSettlement(PreSettlementCancelRequest request) {
+        throw com.rhn.shared.api.BusinessErrors.conflict("CHS_PRESETTLE_CANCEL_UNSUPPORTED", "医保平台撤销费用明细尚未接入");
+    }
 }

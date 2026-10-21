@@ -125,6 +125,6 @@ describe('verified completion billing writes', () => {
     finish()
     ;(await pending).confirmApplied()
     expect(api.issueInvoice).toHaveBeenCalledTimes(1)
-    expect(api.issueInvoice).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'OUTPATIENT', expect.any(Array), 'DOCTOR_STATION', 'WEB-DOCTOR-WORKSTATION')
+    expect(api.issueInvoice).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'OUTPATIENT', expect.any(Array), 'DOCTOR_STATION', 'WEB-DOCTOR-WORKSTATION', undefined)
   })
 })

@@ -954,6 +954,8 @@
 .doctor-ai-treatments__type { padding: 1px 5px; border-radius: var(--radius-sm); color: var(--color-brand-strong); background: var(--color-brand-soft); font-size: var(--font-size-small); }
 .doctor-ai-treatments > small { color: var(--color-text-secondary); }
 .doctor-ai-diagnosis-suggestions, .doctor-ai-order-suggestions { display: contents; }
+/* Pending catalog rows and confirmed rows interleave by flex order, so confirming a row never moves it. */
+.doctor-ai-treatment-flow:not([hidden]) { display: flex; flex-direction: column; }
 .doctor-diagnosis-row.is-ai-suggestion,
 .doctor-unified-order-row.is-ai-suggestion {
   background: color-mix(in srgb, var(--color-brand-soft) 38%, var(--color-surface));
@@ -994,7 +996,7 @@
 .doctor-ai-treatment-item .doctor-unified-inline-composer { min-height: 3.75rem; }
 .doctor-ai-treatment-item .doctor-inline-order-static-type { grid-column: 1; padding: 0 var(--space-2); }
 .doctor-ai-treatment-item .doctor-inline-order-static-resource { min-width: 0; padding: var(--space-1) var(--space-2); overflow: hidden; }
-.doctor-ai-dose-unit-input { flex: 0 0 2.6rem; width: 2.6rem; min-width: 0 !important; text-align: left !important; border-left: 1px solid var(--color-border) !important; }
+.doctor-ai-order-dept-text { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-ai-treatment-editor-error { display: block; min-width: 54rem; padding: var(--space-1) var(--space-4) var(--space-2); color: var(--color-danger); font-size: var(--font-size-small);
   background: color-mix(in srgb, var(--color-warning-soft) 38%, var(--color-surface)); }
 .doctor-vital-required { color: var(--color-danger); }

@@ -39,4 +39,6 @@ record MedicationRequestResponse(
         Instant itemAttributeResolvedAt, JsonNode standardMappings,
         Instant cancelledAt, Long cancelledBy, String cancelReason,
         /** Why an ACTIVE request can no longer be cancelled (already dispensed or executed); null when it can. */
-        String cancelBlockedReason) {}
+        String cancelBlockedReason,
+        /** 不能直接修改的原因（已撤销、已发药或已缴费）；为空表示可以作为“修改”替换为新医嘱。 */
+        String editBlockedReason) {}

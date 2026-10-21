@@ -1,6 +1,7 @@
 package com.rhn.billing.web;
 
 import com.rhn.billing.api.BillingViews.AccountStatementView;
+import com.rhn.billing.api.BillingViews.CancelledSettlementView;
 import com.rhn.billing.api.BillingViews.ChargeSynchronizationView;
 import com.rhn.billing.api.BillingViews.BillingWorkItemView;
 import com.rhn.billing.api.BillingViews.DailyReconciliationView;
@@ -23,6 +24,7 @@ import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
 import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
 import com.rhn.billing.application.DirectRefundApplicationService;
 import com.rhn.billing.application.RefundPreCheckService;
+import com.rhn.billing.application.SettlementCancellationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -53,14 +55,17 @@ public class BillingController {
     private final SettlementApplicationService settlements;
     private final RefundPreCheckService refundPreCheckService;
     private final DirectRefundApplicationService directRefundService;
+    private final SettlementCancellationService cancellations;
 
     public BillingController(BillingApplicationService service, PaymentOrchestrationService payments,
                              SettlementApplicationService settlements,
                              RefundPreCheckService refundPreCheckService,
-                             DirectRefundApplicationService directRefundService) {
+                             DirectRefundApplicationService directRefundService,
+                             SettlementCancellationService cancellations) {
         this.service = service; this.payments = payments; this.settlements = settlements;
         this.refundPreCheckService = refundPreCheckService;
         this.directRefundService = directRefundService;
+        this.cancellations = cancellations;
     }
 
     @PostMapping("/encounters/{encounterId}/charges/synchronize")
@@ -147,6 +152,19 @@ public class BillingController {
                                 item.reason(), item.evidence())).toList()));
     }
 
+    /** 取消未付款结算单，所含收费回到待结算。 */
+    @PostMapping("/settlements/{settlementId}/cancel")
+    CancelledSettlementView cancelSettlement(@PathVariable Long settlementId, @Valid @RequestBody CancelSettlementRequest input) {
+        return cancellations.cancel(settlementId, input.reason());
+    }
+
+    /** 医生修改已进结算单的医嘱、诊毕放弃收款时，取消本就诊全部未付款结算单。 */
+    @PostMapping("/encounters/{encounterId}/unpaid-settlements/cancel")
+    List<CancelledSettlementView> cancelUnpaidSettlements(@PathVariable Long encounterId,
+                                                          @Valid @RequestBody CancelSettlementRequest input) {
+        return cancellations.cancelUnpaidForEncounter(encounterId, input.reason());
+    }
+
     @GetMapping("/settlements/{settlementId}")
     SettlementView settlement(@PathVariable Long settlementId) {
         return settlements.get(settlementId);
@@ -207,6 +225,7 @@ public class BillingController {
                                @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 2) BigDecimal amount,
                                @NotBlank @Size(max = 1000) String reason, @Size(max = 1000) String evidence) {}
     record ConfirmReliefRequest(List<@Valid ManualReliefRequest> manual) {}
+    record CancelSettlementRequest(@NotBlank @Size(max = 200) String reason) {}
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
     record IssueInvoiceRequest(
             @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,

@@ -21,6 +21,21 @@ public interface InsuranceSettlementAdapter {
 
     InsuranceResult reverse(InsuranceReversal instruction);
 
+    /**
+     * 撤销尚未正式结算的预结算：撤销已上传的费用明细，本次申请自行登记的就诊一并撤销，供取消未付款结算单使用。
+     * 未接入撤销能力的适配器一律拒绝，避免医保平台残留费用明细。
+     */
+    default InsuranceResult cancelPreSettlement(InsurancePreSettlementCancellation instruction) {
+        return new InsuranceResult(InsuranceResult.Outcome.FAILED, null, null, null, null, null, null, null,
+                "INSURANCE_PRESETTLE_CANCEL_UNSUPPORTED", "当前医保接口不支持撤销试算，请在医保平台撤销费用明细后再取消结算单", null);
+    }
+
+    /** visitRegisteredByClaim：就诊登记由本申请发起（未沿用挂号登记），撤销试算时须一并撤销登记。 */
+    record InsurancePreSettlementCancellation(
+            Long claimId, Long settlementId, String settlementNo, String regionCode, String insuranceTypeCode,
+            String externalPreSettlementNo, String practitionerCode, String externalPersonNo,
+            boolean visitRegisteredByClaim) {}
+
     record InsuranceInstruction(
             Long claimId, Long settlementId, String settlementNo, String idempotencyKey, Long patientAccountId,
             Long residentId, Long encounterId, Long coverageId, String regionCode, String insuranceTypeCode,

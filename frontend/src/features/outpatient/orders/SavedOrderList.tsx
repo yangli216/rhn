@@ -12,15 +12,17 @@ import { extractSpecialMethod, parseHerbalInstruction } from './herbalInstructio
 import { HerbalFormulaHeaderBar } from './HerbalFormulaHeaderBar'
 import { HerbalPrescriptionMatrix } from './HerbalPrescriptionMatrix'
 import { OrderDocumentGroupHeader } from './OrderDocumentGroupHeader'
-import { MedicationReadRow, ServiceReadRow } from './OrderReadRows'
-import type { SavedOrderEntry, DraftOrderEntry } from './orderEntries'
+import { MedicationReadRow, ServiceReadRow, type SavedOrderEditAction } from './OrderReadRows'
+import { serviceDocumentKey, type SavedOrderEntry, type DraftOrderEntry } from './orderEntries'
 import type { GroupingComposerTarget } from './orderListTypes'
 import { useSavedOrderDepartmentNames } from './useOrderExecutionDepartments'
 
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
   documentRows, activeDocKey, handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api, readOnly, busy,
   documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication, onInspectService,
-  skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer }: {
+  skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer, editActionFor }: {
+  /** 简单模式下的行内修改；标准模式不提供。 */
+  editActionFor?: (entry: SavedOrderEntry, performerDepartmentName?: string) => SavedOrderEditAction | undefined
   savedEntries: SavedOrderEntry[]
   draftEntries: DraftOrderEntry[]
   allDocuments: OrderDocument[]
@@ -50,7 +52,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
   const departmentName = useSavedOrderDepartmentNames(api, savedEntries.flatMap(entry => entry.kind === 'service' ? [entry.value] : []))
   return <>{savedEntries.map((entry, index) => {
         const getEntryDocKey = (e: typeof entry) =>
-          e.kind === 'service' ? `service:${e.value.id}` : `prescription:${(e.value as MedicationRequest).prescriptionId || e.value.id}`
+          e.kind === 'service' ? serviceDocumentKey(e.value as ServiceRequest) : `prescription:${(e.value as MedicationRequest).prescriptionId || e.value.id}`
         const entryDocKey = getEntryDocKey(entry)
         const prevDocKey = index > 0 ? getEntryDocKey(savedEntries[index - 1]) : null
         const isFirstInDocGroup = entryDocKey !== prevDocKey
@@ -70,7 +72,9 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
         let headerNode: React.ReactNode = null
         if (isFirstInDocGroup) {
           if (entry.kind === 'service') {
-            const svc = entry.value as ServiceRequest
+            const docServices = docItems.map((e) => e.value as ServiceRequest)
+            // 申请单内任一生效项目代表整单打印；撤销逐项进行，已执行的项目保留并说明原因。
+            const svc = docServices.find((value) => value.status === 'ACTIVE') ?? (entry.value as ServiceRequest)
             const groupKind = svc.serviceType === 'LABORATORY' ? 'lab' : svc.serviceType === 'EXAMINATION' ? 'exam' : 'treatment'
             const defaultTitle = groupKind === 'lab' ? '检验申请' : groupKind === 'exam' ? '检查申请' : '治疗单'
             const title = doc?.label || defaultTitle
@@ -89,12 +93,13 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
                   missingFields={missingFields}
                   onEdit={onEdit}
                   editDisabled={busy || documentEditing}
-                  isSelected={activeDocKey === entryDocKey || Boolean(documentRows[svc.id]?.selected)}
+                  isSelected={activeDocKey === entryDocKey || docServices.some((value) => documentRows[value.id]?.selected)}
                   canPrint={svc.status === 'ACTIVE'}
                   onPrint={() => onPrintService(svc)}
-                  canCancel={svc.status !== 'CANCELLED'}
-                  cancelBlockedReason={svc.cancelBlockedReason}
-                  onCancel={() => onCancelService(svc)}
+                  canCancel={docServices.some((value) => value.status !== 'CANCELLED')}
+                  cancelBlockedReason={docServices.map((value) => value.cancelBlockedReason).find(Boolean)}
+                  onCancel={() => docServices.filter((value) => value.status !== 'CANCELLED' && !value.cancelBlockedReason)
+                    .forEach((value) => onCancelService(value))}
                 />
               </Fragment>
             )
@@ -186,7 +191,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
             performerDepartmentName={departmentName(entry.value)}
             busy={busy || Boolean(documentEditing && documentRows[entry.value.id]?.selected)} readOnly={readOnly} currentDept={currentDept}
             documentLink={documentRows[entry.value.id]} onInspectService={onInspectService}
-            onCancel={() => onCancelService(entry.value)} />
+            onCancel={() => onCancelService(entry.value)} editAction={editActionFor?.(entry, departmentName(entry.value))} />
         } else {
           const prev = index > 0 ? savedEntries[index - 1] : undefined
           const next = index < savedEntries.length - 1 ? savedEntries[index + 1] : undefined
@@ -235,7 +240,7 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
             readOnly={readOnly}
             currentDept={currentDept}
             skinTest={skinTestByRequest.get(entry.value.id)}
-            onCancel={() => onCancelMedication(entry.value)}
+            onCancel={() => onCancelMedication(entry.value)} editAction={editActionFor?.(entry)}
             onInspectMedication={onInspectMedication} />
         }
         if (groupingComposerTarget?.type === 'saved' && groupingComposerTarget.index === index) {

@@ -165,6 +165,10 @@ public final class PharmacyViews {
             Long pickerPractitionerId, Long pickerUserId, Long pickerAssignmentId,
             String description) {}
 
+    public record DispenseCancelResultView(
+            Long taskId, String taskNo, @DictionaryBinding("SUP_DISPENSE_TASK_STATUS") String taskStatus,
+            Long cancelDispenseId, String cancelNo) {}
+
     public record WardDeliveryLineView(
             Long id, Long dispenseId, Long residentId, Long encounterId,
             String residentName, String medicationName, BigDecimal expectedQuantity,

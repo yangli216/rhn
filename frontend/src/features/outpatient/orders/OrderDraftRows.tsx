@@ -3,8 +3,9 @@ import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { IconButton, Button, Popconfirm, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { type ServicePlanDraft } from './orderDraftTypes'
-import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, formatUnitPrice } from './orderPresentation'
+import { formatDurationUnit, formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge, AdministrationGroupBracket } from './OrderRowDecorations'
+import { DraftStatusBadge } from './DraftStatusBadge'
 
 export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove, onAppendToGroup, onInspectMedication, currentDept }: {
   value: MedicationPlanDraft; isHead?: boolean; isTail?: boolean; isMid?: boolean; onEdit: () => void; onRemove: () => void
@@ -51,7 +52,7 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
       {value.request.doseValue ? <span className="doctor-direction-chip is-dose">{value.request.doseValue}{value.request.doseUnit || ''}</span> : null}
       {value.routeName || value.request.routeCode ? <span className="doctor-direction-chip">{value.routeName || value.request.routeCode}</span> : null}
       {value.request.frequencyCode ? <span className="doctor-direction-chip">{value.request.frequencyCode}</span> : null}
-      {value.request.durationValue ? <span className="doctor-direction-chip">{value.request.durationValue}{value.request.durationUnit || '天'}</span> : null}
+      {value.request.durationValue ? <span className="doctor-direction-chip">{value.request.durationValue}{formatDurationUnit(value.request.durationUnit)}</span> : null}
       {!value.request.doseValue && !value.routeName && !value.request.frequencyCode && <span className="doctor-direction-empty">—</span>}
     </span>
     <span className="doctor-unified-cell-qty">
@@ -69,7 +70,7 @@ export function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRem
     <span className="doctor-unified-order-detail">{value.request.medicationInstruction || '—'}</span>
     <span className="doctor-unified-price">{value.request.pricingRequired === false ? '不计价' : formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
-      <StatusBadge tone="warning">待确认</StatusBadge>
+      <DraftStatusBadge />
       {value.request.skinTestExempt ? (
         <span title={value.request.skinTestExemptReason || '已免做皮试'}><StatusBadge tone="info">免皮试</StatusBadge></span>
       ) : value.skinTestRequired ? (
@@ -137,7 +138,7 @@ export function ServiceDraftRow({ value, onEdit, onRemove, currentDept, onInspec
     <span className="doctor-unified-order-detail">—</span>
     <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
-      <StatusBadge tone="warning">待确认</StatusBadge>
+      <DraftStatusBadge />
     </span>
     <span className="doctor-unified-order-actions">
       <Popconfirm

@@ -29,6 +29,24 @@ describe('atomic order draft save', () => {
     expect(api.encounters.createServiceRequest).not.toHaveBeenCalled()
     expect(api.encounters.batchOrderPrescriptions).not.toHaveBeenCalled()
   })
+  it('cancels the unpaid settlement and retries once when the order sits in one', async () => {
+    const api = { ...setup(), billing: { cancelUnpaidSettlements: vi.fn(async () => []) } }
+    api.encounters.saveOrderDrafts.mockRejectedValueOnce({ code: 'ORDER_SETTLEMENT_UNPAID', message: '需先取消结算单' })
+    await expect(persistOrderDrafts('e', [med], [service], api, 'command')).resolves.toBeTruthy()
+    expect(api.billing.cancelUnpaidSettlements).toHaveBeenCalledWith('e', expect.stringContaining('医生修改医嘱'))
+    expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(2)
+    expect(api.encounters.saveOrderDrafts.mock.calls[1][1].commandCode).toBe('command')
+  })
+  it('keeps a paid settlement lock and a failed cancellation as the doctor-facing error', async () => {
+    const api = { ...setup(), billing: { cancelUnpaidSettlements: vi.fn(async () => []) } }
+    api.encounters.saveOrderDrafts.mockRejectedValueOnce({ code: 'ORDER_SETTLEMENT_LOCKED', message: '收费处已发起支付或已缴费' })
+    await expect(persistOrderDrafts('e', [med], [service], api, 'command')).rejects.toMatchObject({ code: 'ORDER_SETTLEMENT_LOCKED' })
+    expect(api.billing.cancelUnpaidSettlements).not.toHaveBeenCalled()
+    api.encounters.saveOrderDrafts.mockRejectedValueOnce({ code: 'ORDER_SETTLEMENT_UNPAID', message: '需先取消结算单' })
+    api.billing.cancelUnpaidSettlements.mockRejectedValueOnce({ code: 'INSURANCE_PRESETTLE_CANCEL_FAILED', message: '撤销医保试算失败' })
+    await expect(persistOrderDrafts('e', [med], [service], api, 'command')).rejects.toMatchObject({ message: '撤销医保试算失败' })
+    expect(api.encounters.saveOrderDrafts).toHaveBeenCalledTimes(2)
+  })
   it.each(['empty', 'command', 'encounter', 'missingMed', 'duplicateMed', 'wrongProduct', 'wrongQuantity',
     'missingService', 'wrongDepartment', 'cancelled', 'missingRevision', 'wrongDose', 'wrongInstruction'])('rejects unconfirmed receipts: %s', async defect => {
     const api = setup()

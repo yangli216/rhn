@@ -71,6 +71,13 @@ class Prescription {
         status = PrescriptionStatus.ACTIVE; submittedAt = Instant.now(); submittedBy = actorId;
     }
 
+    /** 取消签署：未缴费、未履约的处方退回未签署，签署人和时间清空，重新签署时再记录。 */
+    void withdrawSignature(long expectedRevision) {
+        requireRevision(expectedRevision);
+        if (status != PrescriptionStatus.ACTIVE) throw state("只有已签署的处方可以取消签署");
+        status = PrescriptionStatus.DRAFT; submittedAt = null; submittedBy = null; safetyReviewJson = null;
+    }
+
     void cancel(long expectedRevision, Long actorId, String reason) {
         requireRevision(expectedRevision);
         if (status == PrescriptionStatus.CANCELLED) throw state("处方已经撤销");

@@ -41,7 +41,7 @@ record ClinicalOrderChargeFacts(Long encounterId, Long residentId, Long organiza
         try { disposition = ClinicalOrderBillingDisposition.valueOf(decision); }
         catch (IllegalArgumentException error) { throw unverified("计费决策不认识"); }
         boolean draft = disposition == ClinicalOrderBillingDisposition.DRAFT;
-        require(!draft || medication && cancellation, "只有未提交药品草稿撤销可以不冲销收费");
+        require(!draft || cancellation, "只有未开立医嘱草稿撤销可以不冲销收费");
         require(!medication || data.get("selfProvided") instanceof Boolean, "自备药事实缺失");
         boolean selfProvided = Boolean.TRUE.equals(data.get("selfProvided"));
         require(medication || !selfProvided, "诊疗项目不能声明为自备药");

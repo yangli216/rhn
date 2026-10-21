@@ -99,7 +99,8 @@ export function Button({
     {...props}
   >
     <span className="ui-button__label">{children}</span>
-    {busy && <span className="ui-button__busy" role="status"><span className="ui-spinner" aria-hidden="true" />{busyLabel}</span>}
+    {/* Spinner only, centred within the label's footprint; the text stays for assistive tech so short buttons never overflow. */}
+    {busy && <span className="ui-button__busy" role="status"><span className="ui-spinner" aria-hidden="true" /><span className="visually-hidden">{busyLabel}</span></span>}
   </button>
 }
 

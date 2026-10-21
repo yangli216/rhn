@@ -15,7 +15,14 @@ const item = (n: number, extra: Record<string, unknown> = {}) => ({
   latestOccurredAt: `2026-08-30T0${n}:00:00Z`, ...extra,
 })
 
-function mount(worklist = [item(1), item(2)], residents: Array<{ id: string; fullName: string }> = [{ id: 'res-2', fullName: '王建国' }]) {
+const mockSimulator = {
+  enabled: true, mode: 'GATEWAY', personas: [
+    { id: 'TEST-310', label: '职工医保 · 正常', insuranceType: '310', certNo: 'TEST-310', residentKeyword: 'JMD-0002', expectation: '完整结算' },
+  ],
+}
+
+function mount(worklist = [item(1), item(2)], residents: Array<{ id: string; fullName: string; healthRecordNo?: string }> = [{ id: 'res-2', fullName: '王建国' }],
+  simulator: unknown = { enabled: false, personas: [] }) {
   const search = vi.fn().mockResolvedValue(residents)
   const queryInsurancePerson = vi.fn().mockResolvedValue({
     psnNo: 'P1', psnCertType: '06', certno: '360102198001010011', psnName: '王建国', insutype: '310', insutypeName: '职工', balc: 0,
@@ -31,7 +38,7 @@ function mount(worklist = [item(1), item(2)], residents: Array<{ id: string; ful
       dailyReconciliation: vi.fn().mockResolvedValue({}),
       paymentOrders: vi.fn().mockResolvedValue([]),
       registrationSettlementModes: vi.fn().mockResolvedValue({}),
-      insuranceSimulator: vi.fn().mockResolvedValue({ enabled: false, personas: [] }),
+      insuranceSimulator: vi.fn().mockResolvedValue(simulator),
       queryInsurancePerson,
     },
     residents: { search },
@@ -41,7 +48,7 @@ function mount(worklist = [item(1), item(2)], residents: Array<{ id: string; ful
   const view = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
   </QueryClientProvider>)
-  return { ...view, search, queryInsurancePerson }
+  return { ...view, api, search, queryInsurancePerson }
 }
 
 const rows = (container: HTMLElement) => Array.from(container.querySelectorAll<HTMLElement>('.billing-queue-list > button'))
@@ -96,6 +103,24 @@ describe('BillingWorkspace patient lookup', () => {
     expect(search).toHaveBeenCalledWith('360102198001010011')
     expect(await screen.findByText('已通过医保凭证调入：王建国')).toBeInTheDocument()
     expect(screen.queryByText('读取凭证调入患者')).not.toBeInTheDocument()
+  })
+
+  it('picks a preset mock persona instead of the credential reader when the mock service is on', async () => {
+    const user = userEvent.setup()
+    const { container, api, search, queryInsurancePerson } = mount(undefined,
+      [{ id: 'res-2', fullName: '王建国', healthRecordNo: 'JMD-0002' }], mockSimulator)
+    await waitFor(() => expect(rows(container)).toHaveLength(2))
+    await waitFor(() => expect(api.billing.insuranceSimulator).toHaveBeenCalled())
+    expect(screen.queryByText(/MOCK/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '读社保卡' }))
+    expect(await screen.findByText('选择 Mock 参保人员读卡')).toBeInTheDocument()
+    expect(screen.queryByText('读取凭证调入患者')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '读卡' }))
+    await waitFor(() => expect(active(container)).toHaveTextContent('王建国'))
+    expect(queryInsurancePerson).toHaveBeenCalledWith(expect.objectContaining({ psnCertType: '06', certno: 'TEST-310' }))
+    expect(search).toHaveBeenCalledWith('JMD-0002')
+    expect(await screen.findByText('已通过医保凭证调入：王建国')).toBeInTheDocument()
+    expect(screen.queryByText('选择 Mock 参保人员读卡')).not.toBeInTheDocument()
   })
 
   it('loads the latest encounter and reports the count when several are pending', async () => {

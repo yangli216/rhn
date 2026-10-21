@@ -271,6 +271,12 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(screen.getByText(/慢性病毒性肝炎/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '关闭弹窗' }))
 
+    // Test "配药" button when task is already READY_TO_DISPENSE: does not call dispense, alerts info
+    await userEvent.click(screen.getByRole('button', { name: '配药' }))
+    expect(await screen.findByText('所选处方均已完成配药，无需重复配药')).toBeInTheDocument()
+    expect(api.pharmacy.dispense).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: '关闭提示' }))
+
     // 8. Test F4 Dispense Button
     await userEvent.click(screen.getByRole('button', { name: '发药(F4)' }))
     await waitFor(() => {
@@ -616,5 +622,313 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(screen.getByRole('table', { name: '历史发药记录' })).toBeInTheDocument()
     fireEvent.keyDown(queryInput, { key: 'Enter' })
     expect(await screen.findByText('未查询到匹配记录')).toBeInTheDocument()
+  })
+
+  it('completes picking without dispensing medication when clicking 配药 button', async () => {
+    const mockInboxItems: PharmacyInboxItem[] = [
+      {
+        request: {
+          id: 'req-pick-1',
+          revision: 1,
+          residentId: 'res-1',
+          encounterId: 'enc-1',
+          requestNo: 'REQ-PICK-001',
+          status: 'ACTIVE',
+          prescriptionId: 'rx-pick-1',
+          catalogItemId: 'cat-1',
+          medicationId: 'med-1',
+          itemCode: 'ITEM001',
+          itemName: '护肝片 200片/盒',
+          medicationCode: 'MED001',
+          medicationName: '护肝片',
+          medicationType: 'CHINESE_PATENT',
+          skinTestRequired: false,
+          antimicrobial: false,
+          doseValue: 1,
+          doseUnit: 'G',
+          routeCode: '口服',
+          frequencyName: 'TID',
+          quantity: 1,
+          quantityUnit: 'BOX',
+          baseQuantity: 200,
+          baseUnit: 'TAB',
+          packageFactor: 200,
+          packageUnitName: '盒',
+          packageSpec: '200片/盒',
+          substitutionAllowed: true,
+          selfProvided: false,
+          unitPrice: 21.5,
+          totalAmount: 21.5,
+          itemAttributeSnapshot: {},
+          itemAttributeHash: 'hash-pick-1',
+          medicationSnapshot: {
+            residentName: '晓康',
+            gender: '1',
+            birthDate: '1945-05-11',
+            nationalId: '230208194505119377',
+            phone: '13367581545',
+            manufacturerName: '云南制药有限公司',
+            organizationName: '三江镇中心卫生院',
+            departmentName: '全科医疗科',
+            doctorName: '范贺欣',
+          },
+          standardMappings: [],
+          authoredAt: '2026-08-30T13:32:00.000Z',
+        },
+        taskId: 'task-pick-1',
+        taskNo: 'TASK-PICK-001',
+        taskStatus: 'PICKING',
+        stockItemId: 'stock-1',
+        clinicalContext: {
+          encounterId: 'enc-1',
+          encounterNo: 'ENC20260828001',
+          clinicianId: '范贺欣',
+          chiefComplaint: '常规配药',
+          diagnoses: [],
+        },
+      },
+    ]
+
+    const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
+      pharmacy: {
+        sites: vi.fn().mockResolvedValue([
+          { id: 'site-1', name: '门诊药房', code: 'W-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
+        ]),
+        inbox: vi.fn().mockResolvedValue(mockInboxItems),
+        stockItems: vi.fn().mockResolvedValue([
+          { id: 'stock-1', productName: '护肝片', productCode: 'P001', packageSpec: '200片/盒', packageUnitName: '盒', status: 'ACTIVE', catalogItemId: 'cat-1', medicationId: 'med-1', traceRequired: false },
+        ]),
+        task: vi.fn().mockResolvedValue({
+          id: 'task-pick-1', taskNo: 'TASK-PICK-001', status: 'PICKING', stockSiteId: 'site-1',
+          lines: [{ id: 'line-1', requestId: 'req-pick-1', stockItemId: 'stock-1', plannedQuantity: 1, dispensedQuantity: 0, returnedQuantity: 0, dispenseUnitCode: 'BOX', status: 'PICKING', productCode: 'P001', productName: '护肝片' }],
+          reviews: [],
+        }),
+        balances: vi.fn().mockResolvedValue([]),
+        reservations: vi.fn().mockResolvedValue({ allocations: [] }),
+        trace: vi.fn().mockResolvedValue({ events: [] }),
+        completePicking: vi.fn().mockResolvedValue({ taskId: 'task-pick-1', taskStatus: 'READY_TO_DISPENSE' }),
+        dispense: vi.fn().mockResolvedValue({ taskId: 'task-pick-1' }),
+      },
+      organization: {
+        practitioners: vi.fn().mockResolvedValue([
+          { id: '201', fullName: '王药师', code: 'P002', sdPersonnelStatus: 'ACTIVE' },
+        ]),
+        assignments: vi.fn().mockResolvedValue([
+          { id: '301', practitionerId: '201', organizationId: 'org-1', departmentId: 'dept-1',
+            positionName: '主管药师', departmentName: '全科医疗科', sdPositionType: 'PHARMACY',
+            primaryAssignment: true, sdPersonnelStatus: 'ACTIVE' },
+        ]),
+        practitioner: vi.fn().mockImplementation((id: string) => Promise.resolve({
+          practitioner: { id, fullName: '王药师', code: 'P002', sdPersonnelStatus: 'ACTIVE' },
+          assignments: [{ id: '301', practitionerId: '201', organizationId: 'org-1', departmentId: 'dept-1',
+            positionName: '主管药师', departmentName: '全科医疗科', sdPositionType: 'PHARMACY',
+            primaryAssignment: true, sdPersonnelStatus: 'ACTIVE' }],
+        })),
+      },
+      residents: {
+        page: vi.fn().mockResolvedValue({
+          items: [{ id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' }],
+          total: 1,
+        }),
+        get: vi.fn().mockResolvedValue({
+          id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545',
+          maskedNationalId: '230208194505119377', nationalId: '230208194505119377',
+        }),
+        profile: vi.fn().mockResolvedValue({
+          resident: { id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' },
+          demographicProfile: { ethnicityCodeText: '汉族' },
+          addresses: [{ addressText: '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑', primary: true }],
+          coverages: [{ sdCoverageType: 'SELF_PAY', sdCoverageTypeText: '自费' }],
+          relatedPersons: [],
+          employments: [],
+        }),
+        allergies: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as RhnApi
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PharmacyWorkspace api={api} clinicalContext={clinicalContext} mode="dispensing" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    expect(await screen.findByRole('button', { name: '配药' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '配药' }))
+
+    await waitFor(() => {
+      expect(api.pharmacy.completePicking).toHaveBeenCalledWith('task-pick-1', expect.objectContaining({
+        pickerPractitionerId: '201',
+        pickerAssignmentId: '301',
+        description: '已完成药品调配与配药复核',
+      }))
+    })
+
+    // CRITICAL: verify that clicking 配药 DOES NOT call dispense!
+    expect(api.pharmacy.dispense).not.toHaveBeenCalled()
+    expect(await screen.findByText(/已成功完成配药：晓康/)).toBeInTheDocument()
+  })
+
+  it('supports cancelling a mistakenly dispensed prescription in cancel-dispense mode', async () => {
+    const mockInboxItems: PharmacyInboxItem[] = [
+      {
+        request: {
+          id: 'req-cancel-1',
+          revision: 1,
+          residentId: 'res-1',
+          encounterId: 'enc-1',
+          requestNo: 'REQ-CANCEL-001',
+          status: 'ACTIVE',
+          prescriptionId: 'rx-cancel-1',
+          catalogItemId: 'cat-1',
+          medicationId: 'med-1',
+          itemCode: 'ITEM001',
+          itemName: '护肝片 200片/盒',
+          medicationCode: 'MED001',
+          medicationName: '护肝片',
+          medicationType: 'CHINESE_PATENT',
+          skinTestRequired: false,
+          antimicrobial: false,
+          doseValue: 1,
+          doseUnit: 'G',
+          routeCode: '口服',
+          frequencyName: 'TID',
+          quantity: 1,
+          quantityUnit: 'BOX',
+          baseQuantity: 200,
+          baseUnit: 'TAB',
+          packageFactor: 200,
+          packageUnitName: '盒',
+          packageSpec: '200片/盒',
+          substitutionAllowed: true,
+          selfProvided: false,
+          unitPrice: 21.5,
+          totalAmount: 21.5,
+          durationValue: 1,
+          durationUnit: 'DAY',
+          itemAttributeSnapshot: {},
+          itemAttributeHash: 'hash-1',
+          medicationSnapshot: {
+            residentName: '晓康',
+            gender: '1',
+            birthDate: '1945-05-11',
+            nationalId: '230208194505119377',
+            phone: '13367581545',
+            manufacturerName: '云南制药有限公司',
+            organizationName: '三江镇中心卫生院',
+            departmentName: '全科医疗科',
+            doctorName: '范贺欣',
+          },
+          standardMappings: [],
+          authoredAt: '2026-08-30T13:32:00.000Z',
+        },
+        taskId: 'task-cancel-1',
+        taskNo: 'TASK-CANCEL-001',
+        taskStatus: 'COMPLETED',
+        dispensedQuantity: 1,
+        dispensedAt: '2026-08-30T13:40:00.000Z',
+        stockItemId: 'stock-1',
+        clinicalContext: {
+          encounterId: 'enc-1',
+          encounterNo: 'ENC20260828001',
+          clinicianId: '范贺欣',
+          chiefComplaint: '常规配药',
+          diagnoses: [],
+        },
+      },
+    ]
+
+    const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
+      pharmacy: {
+        sites: vi.fn().mockResolvedValue([
+          { id: 'site-1', name: '门诊药房', code: 'W-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
+        ]),
+        inbox: vi.fn().mockResolvedValue(mockInboxItems),
+        stockItems: vi.fn().mockResolvedValue([
+          { id: 'stock-1', productName: '护肝片', productCode: 'P001', packageSpec: '200片/盒', packageUnitName: '盒', status: 'ACTIVE', catalogItemId: 'cat-1', medicationId: 'med-1', traceRequired: false },
+        ]),
+        task: vi.fn().mockResolvedValue({
+          id: 'task-cancel-1', taskNo: 'TASK-CANCEL-001', status: 'COMPLETED', stockSiteId: 'site-1',
+          lines: [{ id: 'line-1', requestId: 'req-cancel-1', stockItemId: 'stock-1', plannedQuantity: 1, dispensedQuantity: 1, returnedQuantity: 0, dispenseUnitCode: 'BOX', status: 'DISPENSED', productCode: 'P001', productName: '护肝片' }],
+          reviews: [],
+        }),
+        balances: vi.fn().mockResolvedValue([]),
+        reservations: vi.fn().mockResolvedValue({ allocations: [] }),
+        trace: vi.fn().mockResolvedValue({ events: [] }),
+        cancelDispense: vi.fn().mockResolvedValue({ taskId: 'task-cancel-1', taskNo: 'TASK-CANCEL-001', cancelNo: 'CNC-001', taskStatus: 'READY_TO_DISPENSE' }),
+      },
+      organization: {
+        practitioners: vi.fn().mockResolvedValue([
+          { id: '201', fullName: '王药师', code: 'P002', sdPersonnelStatus: 'ACTIVE' },
+        ]),
+        assignments: vi.fn().mockResolvedValue([
+          { id: '301', practitionerId: '201', organizationId: 'org-1', departmentId: 'dept-1',
+            positionName: '主管药师', departmentName: '全科医疗科', sdPositionType: 'PHARMACY',
+            primaryAssignment: true, sdPersonnelStatus: 'ACTIVE' },
+        ]),
+        practitioner: vi.fn().mockImplementation((id: string) => Promise.resolve({
+          practitioner: { id, fullName: '王药师', code: 'P002', sdPersonnelStatus: 'ACTIVE' },
+          assignments: [{ id: '301', practitionerId: '201', organizationId: 'org-1', departmentId: 'dept-1',
+            positionName: '主管药师', departmentName: '全科医疗科', sdPositionType: 'PHARMACY',
+            primaryAssignment: true, sdPersonnelStatus: 'ACTIVE' }],
+        })),
+      },
+      residents: {
+        page: vi.fn().mockResolvedValue({
+          items: [{ id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' }],
+          total: 1,
+        }),
+        get: vi.fn().mockResolvedValue({
+          id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545',
+          maskedNationalId: '230208194505119377', nationalId: '230208194505119377',
+        }),
+        profile: vi.fn().mockResolvedValue({
+          resident: { id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' },
+          demographicProfile: { ethnicityCodeText: '汉族' },
+          addresses: [{ addressText: '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑', primary: true }],
+          coverages: [{ sdCoverageType: 'SELF_PAY', sdCoverageTypeText: '自费' }],
+          relatedPersons: [],
+          employments: [],
+        }),
+        allergies: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as RhnApi
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PharmacyWorkspace api={api} clinicalContext={clinicalContext} mode="cancel-dispense" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    expect(await screen.findByText('取消发药（撤销发药）')).toBeInTheDocument()
+    expect(await screen.findByText('已发药')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '确认撤销发药' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /撤销发药/ })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /撤销发药/ }))
+
+    expect(await screen.findByRole('heading', { name: '确认撤销发药' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '确定撤销发药' }))
+
+    await waitFor(() => {
+      expect(api.pharmacy.cancelDispense).toHaveBeenCalledWith('task-cancel-1', expect.objectContaining({
+        reasonCode: 'MISTAKEN_CLICK',
+      }))
+    })
+
+    expect(await screen.findByText(/已成功取消 1 张处方的发药记录/)).toBeInTheDocument()
   })
 })

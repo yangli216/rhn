@@ -1,7 +1,8 @@
 import { createRef } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { OrderDocumentEditor, documentMissing, orderDocuments } from './OrderDocuments'
+import { OrderDocumentEditor, documentMissing, orderDocuments, saveOrderDocumentInfo } from './OrderDocuments'
+import { requireServiceDocumentPreview } from './orders/useServiceDocumentPreview'
 import type { Encounter } from '../../shared/model'
 import type { Prescription, ServiceRequest } from '../../shared/api/encountersApi'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -24,6 +25,33 @@ function setup(value = prescription, save = vi.fn().mockImplementation(async (_e
 }
 
 describe('order document metadata', () => {
+  it('groups service requests by document and writes document info to every active member', async () => {
+    const base = { authoredAt: prescription.authoredAt, serviceType: 'LABORATORY', status: 'ACTIVE', revision: 1 }
+    const services = [
+      { ...base, id: 's1', itemName: '血常规', documentId: 'd1', documentNo: 'DOC1' },
+      { ...base, id: 's2', itemName: '肝功能', documentId: 'd1', documentNo: 'DOC1' },
+      { ...base, id: 's3', itemName: '已撤销项目', documentId: 'd1', documentNo: 'DOC1', status: 'CANCELLED' },
+      { ...base, id: 's4', itemName: '尿常规' },
+    ] as ServiceRequest[]
+    const docs = orderDocuments([], services)
+    expect(docs.map(doc => [doc.key, doc.items.map(item => item.name)])).toEqual([
+      ['service-doc:d1', ['血常规', '肝功能']], ['service:s4', ['尿常规']]])
+    const update = vi.fn().mockImplementation(async (_enc, id, revision, documentInfo) => ({ id, revision: revision + 1, documentInfo }))
+    const api = { encounters: { updateServiceDocumentInfo: update } } as unknown as RhnApi
+    const info = { diagnoses: [{ code: 'I10', display: '高血压', primary: true }], externalPrescription: false }
+    await saveOrderDocumentInfo(api, 'enc1', docs[0], 1, info)
+    expect(update.mock.calls.map(call => call[1])).toEqual(['s1', 's2'])
+  })
+
+  it('accepts a service document preview only when every draft appears exactly once', () => {
+    const inputs = [{ catalogItemId: 'a', quantity: 1 }, { catalogItemId: 'b', quantity: 1 }]
+    const plan = (itemIndexes: number[]) => ({ serviceType: 'LABORATORY', title: '检验申请单', performerOrganizationId: 'o',
+      performerDepartmentId: 'd', groupingRule: 'BY_DEPT' as const, ruleReasons: [], itemIndexes })
+    expect(requireServiceDocumentPreview([plan([0, 1])], inputs)).toHaveLength(1)
+    expect(() => requireServiceDocumentPreview([plan([0])], inputs)).toThrow('不一致')
+    expect(() => requireServiceDocumentPreview([plan([0, 1]), plan([1])], inputs)).toThrow('不一致')
+  })
+
   it('keeps document labels stable across response reordering and identifies actual missing fields', () => {
     const second = { ...prescription, id: 'rx2', authoredAt: '2026-09-19T02:00:00Z' }
     const docs = orderDocuments([second, prescription], [])

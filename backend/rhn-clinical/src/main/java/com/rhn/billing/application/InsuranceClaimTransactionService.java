@@ -7,6 +7,7 @@ import com.rhn.billing.api.InsuranceResultDirectory.InsuranceClaimResponseView;
 import com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceLine;
+import com.rhn.billing.api.InsuranceSettlementAdapter.InsurancePreSettlementCancellation;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceQuery;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult;
@@ -344,6 +345,18 @@ class InsuranceClaimTransactionService {
                 value.personalAccountAmount(), value.patientCashAmount(), value.otherFundAmount(),
                 memberNo(value, requireAccount(context, value.patientAccountId())),
                 InsuranceInstruction.REGISTRATION_SCENE_DIGEST.equals(value.diagnosisPayloadDigest()));
+    }
+
+    /** 撤销试算指令：沿用挂号登记的就诊不撤销登记，其余由本申请登记的就诊一并撤销。 */
+    @Transactional(readOnly = true)
+    InsurancePreSettlementCancellation preSettlementCancellation(Long claimId) {
+        ExecutionContext context = requireContext();
+        InsuranceClaim value = require(claimId, context);
+        Settlement settlement = settlements.findByIdAndTenantId(value.settlementId(), context.tenantId()).orElseThrow();
+        PatientAccount account = requireAccount(context, value.patientAccountId());
+        return new InsurancePreSettlementCancellation(value.id(), settlement.id(), settlement.settlementNo(),
+                value.regionCode(), value.insuranceTypeCode(), value.externalPreSettlementNo(), value.practitionerCode(),
+                memberNo(value, account), reusableVisitId(context, value, account) == null);
     }
 
     /**

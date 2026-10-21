@@ -11,9 +11,10 @@ import { SettlementPaymentPanel, type SettlementModeCode,
 import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentModal'
-import { confirmInsuranceResult, type InsuranceResultTarget } from '../../shared/billing/insuranceResult'
-import { InsuranceCredentialDialog } from './InsuranceCredentialDialog'
-import { isInsuranceCredentialError } from './insuranceCredential'
+import type { InsuranceResultTarget } from '../../shared/billing/insuranceResult'
+import { InsuranceCredentialDialog } from '../../shared/billing/InsuranceCredentialDialog'
+import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../shared/billing/insuranceMedia'
+import { insuranceFailureText as failureText, insuranceSettlementReady, isInsuranceCredentialError, preSettleInsurance, requireClaimTarget, requireInsuranceTarget, settleInsuranceClaim } from '../../shared/billing/insuranceCheckout'
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon, type IconName } from '../../shared/ui/Icon'
@@ -21,6 +22,7 @@ import { age } from '../../shared/format'
 import { chargeCategoryTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { actionableRelief, SettlementReliefPanel, type SettlementReliefPlan } from './relief/SettlementReliefPanel'
+import { cancellableSettlements, UnpaidSettlementList } from './UnpaidSettlementList'
 import '../../styles/features/billing-settlement.css'
 
 const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
@@ -96,8 +98,6 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
   const linkedResidentId = searchParams.get('residentId')
   const [encounterId, setEncounterId] = useState('')
   const [patientLookup, setPatientLookup] = useState('')
-  // 读卡/医保码调入患者弹窗；主检索框回车识别出扫码内容时同样打开并预填（需点读取）。
-  const [lookupDialog, setLookupDialog] = useState<{ certType: string; certNo?: string } | null>(null)
   const [settlementMode, setSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
   const [insuranceClaimView, setInsuranceClaimView] = useState<InsuranceSettlementView | null>(null)
   const [isPreSettlingInsurance, setIsPreSettlingInsurance] = useState(false)
@@ -476,26 +476,9 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
     })),
   ], [canInvoice, selectedChargeIds.size, selectedChargesAmount, payableSettlements, statement.data])
 
-  const insuranceTarget = (settlementId: string, current = statement.data): InsuranceResultTarget => {
-    const target = current?.settlements.find(value => value.id === settlementId)
-    if (!current || current.encounterId !== encounterId || current.accountId !== selected?.accountId
-      || current.organizationId !== clinicalContext.organization.id || current.departmentId !== clinicalContext.department.id
-      || !target || target.patientAccountId !== current.accountId || target.settlementType !== 'NORMAL'
-      || target.currencyCode !== current.currencyCode || !Number.isFinite(target.netAmount) || target.netAmount <= 0) {
-      throw new Error('医保结果未确认：当前患者的结算资料不完整或不一致，请重新加载后核实。')
-    }
-    return { settlementId, patientAccountId: current.accountId, currencyCode: current.currencyCode, grossAmount: target.netAmount }
-  }
-  const finalInsuranceTarget = (settlementId: string) => {
-    const target = insuranceTarget(settlementId)
-    if (!insuranceClaimView || insuranceClaimView.settlementId !== target.settlementId
-      || insuranceClaimView.patientAccountId !== target.patientAccountId) {
-      throw new Error('医保结果未确认：试算申请与当前结算单不一致，请重新选择对应结算单。')
-    }
-    // Patient-payment rounding can update the settlement after the claim was finalized.
-    // Retries must verify the original confirmed claim amount.
-    return { ...target, grossAmount: insuranceClaimView.grossAmount, claimId: insuranceClaimView.claimId }
-  }
+  const insuranceTarget = (settlementId: string, current = statement.data): InsuranceResultTarget =>
+    requireInsuranceTarget(current, settlementId, { encounterId, accountId: selected?.accountId ?? '',
+      organizationId: clinicalContext.organization.id, departmentId: clinicalContext.department.id })
 
   // 新结算单开具时已执行医保前减免，或自费患者可享受医保后减免时，暂停收款，由收费员核对或确认减免后再收。
   const reliefInterruption = async (settlementId: string, outstandingAmount: number, expectedAmount: number) => {
@@ -516,11 +499,12 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
     session: ReturnType<typeof captureInsuranceSession>) => {
     if (!insuranceClaimView) throw new Error('医保结果未确认：试算申请已失效，请重新试算。')
     const claim = insuranceClaimView
-    const target = finalInsuranceTarget(settlementId)
+    // Patient-payment rounding can update the settlement after the claim was finalized; retries verify the claim amount.
+    const target = insuranceTarget(settlementId)
+    requireClaimTarget(claim, target)
     const plan = reliefPlanRef.current?.settlementId === settlementId ? reliefPlanRef.current : null
     const estimate = plan ? plan.autoEstimate + plan.manualEstimate : 0
-    const receipt = await api.billing.settleInsurance(claim.claimId, `CHS-SETL-${claim.claimId}`)
-    const settledClaim = await confirmInsuranceResult(api.billing, receipt, 'SETTLED', target, session.check)
+    const settledClaim = await settleInsuranceClaim(api.billing, claim, target, session.check)
     setInsuranceClaimView(settledClaim)
     const expected = Math.max(0, Number((settledClaim.patientCashAmount - estimate).toFixed(2)))
     if (!Number.isFinite(roundingAdjustment) || Math.abs(amount - roundingAdjustment - expected) > 0.005) {
@@ -578,13 +562,8 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       if (!keys) { keys = new Map(); preSettlementKeys.current.set(api, keys) }
       const key = keys.get(finalSettlementId) ?? `PRE-CHS-${crypto.randomUUID()}`
       keys.set(finalSettlementId, key)
-      const receipt = await api.billing.quickPreSettleInsurance(finalSettlementId, { idempotencyKey: key })
-      const preResult = await confirmInsuranceResult(api.billing, receipt, 'PRE_SETTLED', target, session.check)
+      const preResult = await preSettleInsurance(api.billing, target, key, session.check)
       setInsuranceClaimView(preResult)
-      setScanNotice({
-        tone: 'success',
-        text: `国家医保预结算试算成功（流水号 ${preResult.externalPreSettlementNo}）：统筹报销 ${money(preResult.insuranceFundAmount, preResult.currencyCode)}，个账抵扣 ${money(preResult.personalAccountAmount, preResult.currencyCode)}，现金自付 ${money(preResult.patientCashAmount, preResult.currencyCode)}`,
-      })
       setCredentialDialog(null)
       await refresh()
       return preResult
@@ -788,7 +767,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
           })
         } else if (/^[a-z0-9]{16,}$/i.test(scannedText.trim())) {
           // 扫码枪读到的电子医保码/卡号：打开凭证弹窗预填，由收费员确认读取后调入患者。
-          setLookupDialog({ certType: '02', certNo: scannedText.trim() })
+          insuranceReader.open('CODE', scannedText.trim())
         } else {
           setScanNotice({
             tone: 'warning',
@@ -855,13 +834,14 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       ((item.latestOccurredAt ?? '') > (best.latestOccurredAt ?? '') ? item : best))
     setEncounterId(latest.encounterId)
     setPatientLookup('')
-    setLookupDialog(null)
     setScanNotice({
       tone: 'success',
       text: `已通过医保凭证调入：${resident.fullName}${matches.length > 1 ? `（共 ${matches.length} 条待收费就诊，已载入最新一条）` : ''}`,
     })
     return undefined
   }
+  // 读社保卡/医保码调入患者；主检索框或扫码枪读到未匹配的凭证码时同样打开并预填（需点读取）。
+  const insuranceReader = useInsuranceMediaReader(api, ({ resident }) => handleResidentLocated(resident))
 
   const error = worklist.error || paymentMethods.error || statement.error || paymentOrders.error
     || synchronize.error || checkout.error || recoverPaymentOrder.error || cancelPaymentOrder.error
@@ -879,9 +859,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
         setCredentialDialog(null)
         setScanNotice({ tone: 'info', text: '未读取医保凭证，未执行试算' })
       }} />}
-    {lookupDialog && <InsuranceCredentialDialog api={api} lookupMode initialCertType={lookupDialog.certType}
-      initialCertNo={lookupDialog.certNo} onResident={handleResidentLocated}
-      onCancel={() => setLookupDialog(null)} />}
+    {insuranceReader.dialog}
     {scanNotice && <Alert tone={scanNotice.tone} onDismiss={() => setScanNotice(null)}>{scanNotice.text}</Alert>}
     {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
       <div className="billing-workspace">
@@ -955,18 +933,11 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
                       setEncounterId(match.encounterId)
                     } else if (/^[a-z0-9]{16,}$/i.test(patientLookup.trim())) {
                       // 队列无匹配且像扫码得到的电子医保码/卡号：打开凭证弹窗预填，由收费员确认读取。
-                      setLookupDialog({ certType: '02', certNo: patientLookup.trim() })
+                      insuranceReader.open('CODE', patientLookup.trim())
                     }
                   }} />
               </div>
-              <div className="billing-patient-lookup__actions">
-                <Button variant="secondary" onClick={() => setLookupDialog({ certType: '06' })}>
-                  <Icon name="card" /><span>读社保卡</span>
-                </Button>
-                <Button variant="secondary" onClick={() => setLookupDialog({ certType: '02' })}>
-                  <Icon name="credential" /><span>医保码</span>
-                </Button>
-              </div>
+              <InsuranceMediaButtons onRead={insuranceReader.open} />
               <div className="billing-patient-placeholder">
                 <Icon name="residents" />
                 <span>可双击左侧待收费队列调入患者，输入关键字回车定位，或读取社保卡 / 医保码调入</span>
@@ -1206,6 +1177,14 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
           <EmptyState icon="billing" title="等待生成收费事项" copy="请先在费用明细面板中同步计费以生成费用账户。" />
         ) : (
           <>
+            <UnpaidSettlementList api={api} settlements={cancellableSettlements(statement.data)}
+              disabled={checkout.isPending || isPreSettlingInsurance}
+              onCancelled={(result) => {
+                if (insuranceClaimView?.settlementId === result.settlementId) setInsuranceClaimView(null)
+                setScanNotice({ tone: 'success', text: `结算单 ${result.settlementNo} 已取消，费用回到待结算${
+                  result.insuranceNote ? `；${result.insuranceNote}` : ''}` })
+                void refresh()
+              }} />
             <div className="billing-action-form">
               <SettlementPaymentPanel key={`${encounterId}-${selected.accountId}`} settlements={settlementOptions}
                 methods={paymentMethods.options}
@@ -1326,21 +1305,4 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       }}
     />
   </div>
-}
-
-function insuranceSettlementReady(settlement: AccountStatement['settlements'][number]) {
-  const latestInsuranceEvent = [...settlement.events]
-    .filter((value) => value.commandCode.startsWith('INSURANCE-'))
-    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))[0]
-  if (latestInsuranceEvent) return latestInsuranceEvent.eventType !== 'REVERSE_COMPLETE'
-  return settlement.insuranceAmount > 0 || settlement.tenders.some((value) => Boolean(value.claimResponseId))
-}
-
-/** 接口错误是 ApiError 对象而非 Error，直接取 message 才能把后端给出的具体原因展示给收费员。 */
-function failureText(error: unknown, fallback: string) {
-  if (error instanceof Error) return error.message
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message) {
-    return errorMessage(error)
-  }
-  return fallback
 }

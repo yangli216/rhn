@@ -1,6 +1,6 @@
 import type { AccountStatement, Invoice, PaymentOrder } from '../../../shared/api/billingApi'
 import { errorMessage } from '../../../shared/api/httpClient'
-import type { SettlementPaymentCommand } from '../../../shared/billing/SettlementPaymentPanel'
+import type { SettlementModeCode, SettlementPaymentCommand } from '../../../shared/billing/SettlementPaymentPanel'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { requireCompletionPaymentOrders, requireCompletionStatement } from './completionFacts'
@@ -8,7 +8,7 @@ import { requireCompletionPaymentOrders, requireCompletionStatement } from './co
 type BillingApi = Pick<RhnApi['billing'], 'statement' | 'paymentOrders' | 'paymentOrder' | 'issueInvoice' | 'createPaymentOrder'>
 type Target = { api: BillingApi; encounter: Encounter; statement: AccountStatement }
 type Pending = Target & ({ kind: 'payment'; command: SettlementPaymentCommand }
-  | { kind: 'invoice'; invoiceNo: string; charges: { id: string; amount: number }[] })
+  | { kind: 'invoice'; invoiceNo: string; charges: { id: string; amount: number }[]; settlementMode?: SettlementModeCode })
 function requireFact(value: unknown, detail: string): asserts value {
   if (!value) throw new Error(`诊间结算操作未确认：${detail}`)
 }
@@ -98,7 +98,7 @@ export function createCompletionBillingWriter() {
         })), attempt, attempt.statement)
       } else {
         invoice = requireInvoice(await write(() => api.issueInvoice(attempt.statement.accountId, attempt.invoiceNo,
-          'OUTPATIENT', attempt.charges.map(row => row.id), 'DOCTOR_STATION', 'WEB-DOCTOR-WORKSTATION')), attempt)
+          'OUTPATIENT', attempt.charges.map(row => row.id), 'DOCTOR_STATION', 'WEB-DOCTOR-WORKSTATION', attempt.settlementMode)), attempt)
       }
       check()
       const statement = requireCompletionStatement(await api.statement(attempt.encounter.id), attempt.encounter)
@@ -153,12 +153,14 @@ export function createCompletionBillingWriter() {
       pending = { kind: 'payment', api, encounter: structuredClone(encounter), statement: structuredClone(confirmed), command: structuredClone(command) }
       return execute(api, assertCurrent)
     },
-    async issue(api: BillingApi, encounter: Encounter, statement: AccountStatement, assertCurrent: () => void) {
+    /** settlementMode only selects the pre-insurance relief policies; a retry reuses the original mode. */
+    async issue(api: BillingApi, encounter: Encounter, statement: AccountStatement, assertCurrent: () => void,
+      settlementMode?: SettlementModeCode) {
       assertCurrent()
       requireFact(!pending && !busy, '存在尚未核实的结算操作')
       const confirmed = requireCompletionStatement(statement, encounter), charges = invoiceCharges(confirmed)
       pending = { kind: 'invoice', api, encounter: structuredClone(encounter), statement: structuredClone(confirmed), charges,
-        invoiceNo: `INV-${globalThis.crypto.randomUUID()}` }
+        invoiceNo: `INV-${globalThis.crypto.randomUUID()}`, settlementMode }
       return execute(api, assertCurrent)
     },
     retry(api: BillingApi, encounter: Encounter, assertCurrent: () => void) {

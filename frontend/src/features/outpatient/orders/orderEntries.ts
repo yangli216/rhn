@@ -3,6 +3,11 @@ import type { MedicationRequest, ServiceRequest } from '../../../shared/api/enco
 import type { MedicationPlanDraft } from './medicationDraft'
 import type { ServicePlanDraft } from './orderDraftTypes'
 
+/** 同一申请单的项目共用单据键；历史或单条开立的项目一项一单。 */
+export function serviceDocumentKey(value: Pick<ServiceRequest, 'id' | 'documentId'>) {
+  return value.documentId ? `service-doc:${value.documentId}` : `service:${value.id}`
+}
+
 export type SavedOrderEntry = { kind: 'service'; value: ServiceRequest } | { kind: 'medication'; value: MedicationRequest }
 export type DraftOrderEntry = { kind: 'service'; value: ServicePlanDraft } | { kind: 'medication'; value: MedicationPlanDraft }
 
@@ -12,7 +17,7 @@ export function savedOrderEntries(services: ServiceRequest[], medications: Medic
     ...medications.map((value) => ({ kind: 'medication' as const, value })),
   ]
   const docKeyOf = (entry: typeof raw[0]) =>
-    entry.kind === 'service' ? `service:${entry.value.id}` : `prescription:${entry.value.prescriptionId || entry.value.id}`
+    entry.kind === 'service' ? serviceDocumentKey(entry.value) : `prescription:${entry.value.prescriptionId || entry.value.id}`
 
   const docFirstAuthoredAt = new Map<string, string>()
   for (const item of raw) {

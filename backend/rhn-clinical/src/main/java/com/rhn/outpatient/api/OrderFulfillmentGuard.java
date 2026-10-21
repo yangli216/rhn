@@ -27,6 +27,14 @@ public interface OrderFulfillmentGuard {
      */
     String cancelBlockedReason(OrderRef order, boolean forUpdate);
 
+    /**
+     * 取消签署比撤销更严格：只要执行模块已接收（例如药房已接单），医嘱就不能退回未签署，
+     * 否则重新签署后会和已有的执行记录对不上。默认与撤销规则相同。
+     */
+    default String withdrawBlockedReason(OrderRef order, boolean forUpdate) {
+        return cancelBlockedReason(order, forUpdate);
+    }
+
     /** Releases fulfillment work that has not started (for example pending dispense tasks and reserved stock). */
     default void releaseUnstarted(OrderRef order) {
     }

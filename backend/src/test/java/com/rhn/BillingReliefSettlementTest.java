@@ -116,6 +116,79 @@ class BillingReliefSettlementTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void cancelling_an_unpaid_settlement_returns_charges_to_pending_and_restores_pre_insurance_quota() throws Exception {
+        createPolicy("STAFF-ONCE", "PRE_INSURANCE", "HOSPITAL", false,
+                "{\"feeScope\":\"ALL\",\"method\":\"RATIO\",\"ratio\":0.5}", "{\"source\":\"ALL\"}",
+                ",\"quotaPeriod\":\"YEAR\",\"periodMaxCount\":1");
+        Visit visit = visit();
+        JsonNode invoice = issueInvoice(visit, "SELF_PAY", 201);
+        BigDecimal discount = invoice.get("discountAmount").decimalValue();
+        assertThat(discount).isPositive();
+        long invoiceId = invoice.get("id").asLong();
+        assertThat(send(get("/api/billing/encounters/{id}/statement", visit.encounterId()), null, 200)
+                .get("uninvoicedAmount").decimalValue()).isZero();
+
+        JsonNode cancelled = send(post("/api/billing/settlements/{id}/cancel", invoice.get("id").asString()),
+                "{\"reason\":\"收费员发现开错项目\"}", 200);
+        assertThat(cancelled.get("chargeItemIds")).hasSize(1);
+        JsonNode statement = send(get("/api/billing/encounters/{id}/statement", visit.encounterId()), null, 200);
+        assertThat(statement.get("uninvoicedAmount").decimalValue()).isEqualByComparingTo(visit.amount());
+        assertThat(statement.get("settlements")).isEmpty();
+        assertThat(statement.get("invoices")).isEmpty();
+        assertThat(statement.get("accountBalance").decimalValue()).isEqualByComparingTo(visit.amount());
+        assertThat(ledgerRelief(invoiceId)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from RHN_BIL_RELIEF_APPLY where ID_STL = ?", Integer.class, invoiceId)).isZero();
+
+        // 额度原样退回：同一周期仅限一次的政策再次开单仍然减免。
+        JsonNode again = issueInvoice(visit, "SELF_PAY", 201);
+        assertThat(again.get("discountAmount").decimalValue()).isEqualByComparingTo(discount);
+        assertThat(jdbc.queryForObject("select QTY_USED from RHN_BIL_RELIEF_QUOTA where ID_PAT = ? and CD_SCOPE = 'POLICY'",
+                Integer.class, Long.valueOf(visit.residentId()))).isEqualTo(1);
+    }
+
+    @Test
+    void a_settlement_with_payment_activity_or_unrevocable_insurance_cannot_be_cancelled() throws Exception {
+        Visit visit = visit();
+        long coverageId = GlobalIds.next();
+        jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, NA_PAYER, "
+                        + "CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, "
+                        + "ID_USER_UPDATED) values (?, 0, ?, ?, '01', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
+                coverageId, Long.valueOf(TENANT), Long.valueOf(visit.residentId()), LocalDate.now().minusDays(1),
+                Instant.now(), Instant.now());
+        JsonNode invoice = issueInvoice(visit, "MEDICAL_INSURANCE", 201);
+        String settlementId = invoice.get("id").asString();
+        send(post("/api/billing/settlements/{id}/insurance/pre-settlements", settlementId),
+                preSettleBody(visit, invoice, coverageId).replace("\"BASIC\"", "\"310\""), 201);
+        // 医保试算结果尚未回执：结果未知，不能取消。
+        assertThat(send(post("/api/billing/settlements/{id}/cancel", settlementId), "{\"reason\":\"放弃结算\"}", 409)
+                .get("code").asString()).isEqualTo("SETTLEMENT_NOT_CANCELLABLE");
+        String settlementNo = send(get("/api/billing/settlements/{id}", settlementId), null, 200).get("settlementNo").asString();
+        send(post("/api/test/insurance-callback"), """
+                {"regionCode":"TEST_REGION","externalMessageBusinessId":"CB-%1$s","commandCode":"CB-CMD-%1$s",
+                 "settlementNo":"%2$s","operation":"PRE_SETTLE","externalSettlementNo":"EXT-%1$s","status":"SUCCEEDED",
+                 "insuranceFundAmount":%3$s,"personalAccountAmount":0,"patientCashAmount":0,"otherFundAmount":0,
+                 "currencyCode":"CNY","sanitizedPayload":{"verified":true}}
+                """.formatted(UUID.randomUUID(), settlementNo, visit.amount().toPlainString()), 200);
+        // 已试算但该医保接口不支持撤销试算：保持结算单不变，避免医保平台残留费用明细。
+        assertThat(send(post("/api/billing/settlements/{id}/cancel", settlementId), "{\"reason\":\"放弃结算\"}", 409)
+                .get("code").asString()).isEqualTo("INSURANCE_ADAPTER_UNAVAILABLE");
+        assertThat(send(get("/api/billing/settlements/{id}", settlementId), null, 200).get("status").asString())
+                .isEqualTo("PRICED");
+        assertThat(send(post("/api/billing/encounters/{id}/unpaid-settlements/cancel", visit.encounterId()),
+                "{\"reason\":\"医生修改医嘱\"}", 409).get("code").asString()).isEqualTo("INSURANCE_ADAPTER_UNAVAILABLE");
+
+        Visit paid = visit();
+        JsonNode paidInvoice = issueInvoice(paid, "SELF_PAY", 201);
+        send(post("/api/billing/invoices/{id}/payments", paidInvoice.get("id").asString()), """
+                {"paymentNo":"PAY-%s","paymentMethodCode":"CASH","paymentSceneCode":"CASHIER","amount":%s}
+                """.formatted(UUID.randomUUID(), paid.amount().toPlainString()), 201);
+        assertThat(send(post("/api/billing/settlements/{id}/cancel", paidInvoice.get("id").asString()),
+                "{\"reason\":\"放弃结算\"}", 409).get("code").asString()).isEqualTo("SETTLEMENT_NOT_CANCELLABLE");
+        assertThat(send(post("/api/billing/encounters/{id}/unpaid-settlements/cancel", paid.encounterId()),
+                "{\"reason\":\"医生修改医嘱\"}", 200)).isEmpty();
+    }
+
+    @Test
     void period_count_quota_stops_relief_after_it_is_used() throws Exception {
         createPolicy("ANNUAL-ONCE", "POST_INSURANCE", "HOSPITAL", true,
                 "{\"feeScope\":\"ALL\",\"method\":\"FREE\"}", "{\"source\":\"ALL\"}",

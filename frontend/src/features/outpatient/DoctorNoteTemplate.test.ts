@@ -54,7 +54,7 @@ describe('患者切换草稿保护', () => {
   it('归纳病历、诊断和待确认医嘱，供切换患者前统一拦截', () => {
     expect(draftStateLabels({ recordChanged: true, diagnosesChanged: true,
       medicationDraftCount: 2, serviceDraftCount: 1, busy: false })).toEqual([
-      '尚未保存的病历内容', '尚未保存的诊断调整', '2 条待确认药品医嘱', '1 条待确认诊疗项目',
+      '尚未保存的病历内容', '尚未保存的诊断调整', '2 条未保存的药品医嘱', '1 条未保存的诊疗项目',
     ])
   })
 

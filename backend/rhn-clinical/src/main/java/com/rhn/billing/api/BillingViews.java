@@ -47,6 +47,10 @@ public final class BillingViews {
             Long id, @DictionaryBinding("BIL_SETTLEMENT_EVENT_TYPE") String eventType, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String statusFrom, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String statusTo, String commandCode,
             Long actorId, String errorCode, String errorMessage, Instant occurredAt) {}
 
+    /** 已取消的未付款结算单；insuranceNote 为撤销医保试算的结果说明，未试算医保时为空。 */
+    public record CancelledSettlementView(Long settlementId, String settlementNo, BigDecimal netAmount,
+                                          List<Long> chargeItemIds, String insuranceNote) {}
+
     public record SettlementView(
             Long id, long revision, Long patientAccountId, Long reversesSettlementId,
             Long legacyInvoiceId, String settlementNo, String commandCode,

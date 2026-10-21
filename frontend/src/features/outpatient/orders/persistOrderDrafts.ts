@@ -1,9 +1,10 @@
-import type { BatchOrderMedicationItem, OrderDraftSaveReceipt } from '../../../shared/api/encountersApi'
+import type { BatchOrderMedicationItem, CreateServiceRequestInput, OrderDraftSaveReceipt } from '../../../shared/api/encountersApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { MedicationPlanDraft } from './medicationDraft'
 import type { ServicePlanDraft } from './orderDraftTypes'
+import { retryAfterReleasingUnpaidSettlements, type UnpaidSettlementApi } from './releaseUnpaidSettlements'
 
-export type OrderDraftApi = { encounters: Pick<RhnApi['encounters'], 'saveOrderDrafts'> }
+export type OrderDraftApi = { encounters: Pick<RhnApi['encounters'], 'saveOrderDrafts'>; billing?: UnpaidSettlementApi }
 
 export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicationItem {
   return {
@@ -37,6 +38,17 @@ export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicati
   }
 }
 
+/** 合单预览与整批保存提交相同的项目输入，保证预览单据与开立结果一致。 */
+export function draftToServiceItem(draft: ServicePlanDraft): CreateServiceRequestInput {
+  return {
+    catalogItemId: draft.catalogItemId,
+    ...(draft.performerOrganizationId ? { performerOrganizationId: draft.performerOrganizationId } : {}),
+    ...(draft.performerDepartmentId ? { performerDepartmentId: draft.performerDepartmentId } : {}),
+    quantity: draft.quantity, unitCode: draft.unitCode, priceType: 'SALE', pricingRequired: true,
+    reason: '门诊诊疗申请', clinicalDescription: draft.clinicalDescription?.trim() || undefined,
+  }
+}
+
 /** Missing product IDs must never match two unrelated generic medication drafts. */
 export function matchSplitPreviewDraft(drafts: MedicationPlanDraft[], item: BatchOrderMedicationItem) {
   const sameId = (left: unknown, right: unknown) => left != null && right != null && String(left) === String(right)
@@ -67,20 +79,25 @@ export async function persistOrderDrafts(
   }
   if (!commandCode.trim()) throw new Error('医嘱保存信息不完整，草稿未提交')
   const encId = String(encounterId)
-  const input = { commandCode, medicationItems: medDrafts.map(draftToBatchItem), serviceItems: svcDrafts.map(draft => ({
-    catalogItemId: draft.catalogItemId,
-    ...(draft.performerOrganizationId ? { performerOrganizationId: draft.performerOrganizationId } : {}),
-    ...(draft.performerDepartmentId ? { performerDepartmentId: draft.performerDepartmentId } : {}),
-    quantity: draft.quantity, unitCode: draft.unitCode, priceType: 'SALE', pricingRequired: true,
-    reason: '门诊诊疗申请', clinicalDescription: draft.clinicalDescription?.trim() || undefined,
-  })) }
-  const receipt = await api.encounters.saveOrderDrafts(encId, input).catch((error: unknown) => {
+  const newMedications = medDrafts.filter((draft) => !draft.revises)
+  const newServices = svcDrafts.filter((draft) => !draft.revises)
+  const revisedOrders = [
+    ...medDrafts.flatMap((draft) => draft.revises ? [{ kind: 'MEDICATION' as const, id: draft.revises.id,
+      expectedRevision: draft.revises.revision, medication: draftToBatchItem(draft) }] : []),
+    ...svcDrafts.flatMap((draft) => draft.revises ? [{ kind: 'SERVICE' as const, id: draft.revises.id,
+      expectedRevision: draft.revises.revision, service: draftToServiceItem(draft) }] : []),
+  ]
+  const input = { commandCode, medicationItems: newMedications.map(draftToBatchItem), serviceItems: newServices.map(draftToServiceItem),
+    ...(revisedOrders.length ? { revisedOrders } : {}) }
+  const receipt = await retryAfterReleasingUnpaidSettlements(api.billing, encId,
+    () => api.encounters.saveOrderDrafts(encId, input)).catch((error: unknown) => {
     if ((error as { code?: string })?.code === 'IDEMPOTENCY_KEY_REUSED') {
       throw new Error('本次内容与上次已保存的医嘱不一致，请先核对已保存医嘱，避免重复开立', { cause: error })
     }
     throw error
   })
-  requireOrderDraftReceipt(receipt, encId, commandCode, medDrafts, svcDrafts)
+  requireOrderDraftReceipt(receipt, encId, commandCode, newMedications, newServices)
+  requireRevisedReceipt(receipt, revisedOrders)
   return receipt
 }
 
@@ -116,7 +133,7 @@ export function requireOrderDraftReceipt(receipt: OrderDraftSaveReceipt, encount
   const pendingServices = [...services]
   for (const row of receipt.services) {
     if (!row || !id(row.id) || seen.has(row.id) || !revision(row.revision)
-      || row.encounterId !== encounterId || row.status !== 'ACTIVE') fail()
+      || row.encounterId !== encounterId || row.status !== 'DRAFT') fail()
     seen.add(row.id)
     const index = pendingServices.findIndex(draft => row.catalogItemId === draft.catalogItemId && row.quantity === draft.quantity
       && (!draft.performerOrganizationId || draft.performerOrganizationId === row.performerOrganizationId)
@@ -124,5 +141,15 @@ export function requireOrderDraftReceipt(receipt: OrderDraftSaveReceipt, encount
       && (draft.clinicalDescription?.trim() ?? '') === (row.clinicalDescription?.trim() ?? ''))
     if (index < 0) fail()
     pendingServices.splice(index, 1)
+  }
+}
+
+/** 修改的医嘱须原样返回同一条记录且已退回未签署，否则不清空本地草稿。 */
+function requireRevisedReceipt(receipt: OrderDraftSaveReceipt, revised: { kind: 'MEDICATION' | 'SERVICE'; id: string }[]) {
+  const returned = [...(receipt.revisedMedications ?? []).map((row) => `MEDICATION:${row?.id}:${row?.status}`),
+    ...(receipt.revisedServices ?? []).map((row) => `SERVICE:${row?.id}:${row?.status}`)].sort()
+  const expected = revised.map(({ kind, id }) => `${kind}:${id}:DRAFT`).sort()
+  if (JSON.stringify(returned) !== JSON.stringify(expected)) {
+    throw new Error('医嘱修改回执未确认，草稿已保留；请重试保存以核实结果')
   }
 }

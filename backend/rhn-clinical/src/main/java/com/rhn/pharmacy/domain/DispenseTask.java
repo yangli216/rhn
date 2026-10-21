@@ -135,6 +135,14 @@ public class DispenseTask {
         status = completed ? DispenseTaskStatus.COMPLETED : DispenseTaskStatus.PARTIALLY_DISPENSED;
     }
 
+    public void cancelDispense() {
+        if (status != DispenseTaskStatus.COMPLETED && status != DispenseTaskStatus.PARTIALLY_DISPENSED) {
+            throw new BusinessException("DISPENSE_TASK_CANCEL_STATE_INVALID",
+                    "只有已发药或部分发药的任务可以取消发药", HttpStatus.CONFLICT);
+        }
+        status = DispenseTaskStatus.READY_TO_DISPENSE;
+    }
+
     /** Stops all remaining positive fulfillment while retaining prior dispense facts. */
     public void cancelRemainingForOrderStop() {
         if (status == DispenseTaskStatus.CANCELLED || status == DispenseTaskStatus.REJECTED

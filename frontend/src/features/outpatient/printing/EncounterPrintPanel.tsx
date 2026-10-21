@@ -310,7 +310,7 @@ export function BatchPrintDialog({
         id: `svc-${svc.id}`,
         kind: 'serviceRequest',
         title: `${serviceApplicationLabel(svc.serviceType)}申请单 · ${svc.itemName}`,
-        meta: `${svc.requestNo} · ${svc.status === 'ACTIVE' ? '已生效' : svc.status}`,
+        meta: `${svc.requestNo} · ${svc.status === 'ACTIVE' ? '已生效' : svc.status === 'DRAFT' ? '草稿，待开立' : '已撤销'}`,
         isReady: svc.status === 'ACTIVE',
         raw: svc,
       })

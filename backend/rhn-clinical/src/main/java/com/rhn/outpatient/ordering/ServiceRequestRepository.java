@@ -25,4 +25,12 @@ interface ServiceRequestRepository extends JpaRepository<ServiceRequest, Long> {
             + "and request.performerDepartmentId = :departmentId and request.status = com.rhn.outpatient.ordering.ServiceRequestStatus.ACTIVE "
             + "and request.requestKind = 'SERVICE' order by request.authoredAt")
     List<ServiceRequest> findActiveForExecution(Long tenantId, Long organizationId, Long departmentId);
+    @Query("select request from ServiceRequest request where request.tenantId = :tenantId "
+            + "and request.documentId = :documentId and request.requestKind = 'SERVICE' order by request.authoredAt, request.id")
+    List<ServiceRequest> findByTenantIdAndDocumentId(Long tenantId, Long documentId);
+    @Query("select request from ServiceRequest request where request.tenantId = :tenantId "
+            + "and request.encounterId = :encounterId and request.status = :status and request.requestKind = 'SERVICE' "
+            + "order by request.authoredAt, request.id")
+    List<ServiceRequest> findByTenantIdAndEncounterIdAndStatusOrderByAuthoredAtAscIdAsc(Long tenantId, Long encounterId,
+                                                                                       ServiceRequestStatus status);
 }

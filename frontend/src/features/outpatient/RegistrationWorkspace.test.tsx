@@ -1248,4 +1248,56 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(authenticateInsuranceByResident).toHaveBeenCalledWith('insured-res-3')
     await waitFor(() => expect(quickPreSettleInsurance).toHaveBeenCalledWith('stl-1', expect.anything()))
   })
+
+  it('reads a mock insurance card from a popup, then reuses the read for the insurance registration', async () => {
+    const insuredResident: Resident = { ...resident, id: 'mock-res-1', fullName: '模拟职工', healthRecordNo: 'HRMOCK0001' }
+    const profile = {
+      resident: insuredResident, demographicProfile: {}, addresses: [], relatedPersons: [], employments: [],
+      coverages: [{ id: 'cov-m1', sdCoverageType: '01', sdCoverageTypeText: '城镇职工基本医疗保险',
+        payerName: '市社保医保中心', primary: true, validFrom: '2020-01-01' }],
+    }
+    const queryInsurancePerson = vi.fn().mockResolvedValue({ psnNo: 'PSN-TEST-310', psnCertType: '06', certno: 'TEST-310', psnName: '模拟职工',
+      insutype: '310', insutypeName: '职工基本医疗保险', balc: 1850, insuOptins: '360100', status: 'NORMAL' })
+    const authenticateInsuranceByResident = vi.fn()
+    const createRegistrationIntent = vi.fn().mockRejectedValue(new Error('probe'))
+    const search = vi.fn().mockResolvedValue([insuredResident])
+    const api = {
+      residents: { get: vi.fn().mockResolvedValue(insuredResident), search, profile: vi.fn().mockResolvedValue(profile) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent, registrationIntent: vi.fn(), queryInsurancePerson, authenticateInsuranceByResident,
+        registrationInsuranceTiming: vi.fn().mockResolvedValue({ timing: 'REGISTRATION' }),
+        insuranceSimulator: vi.fn().mockResolvedValue({ enabled: true, mode: 'GATEWAY', personas: [
+          { id: 'TEST-310', label: '职工医保 · 正常', insuranceType: '310', certNo: 'TEST-310', residentKeyword: 'HRMOCK0001', expectation: '完整结算' },
+        ] }) },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = { organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/outpatient/registration']}>
+      <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </MemoryRouter></QueryClientProvider>)
+
+    await waitFor(() => expect(api.billing.insuranceSimulator).toHaveBeenCalled())
+    // mock 只在点击读卡时以弹窗出现，挂号页不再常驻模拟面板
+    expect(screen.queryByText(/MOCK/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '读社保卡' }))
+    expect(await screen.findByText('选择 Mock 参保人员读卡')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '读卡' }))
+
+    expect(await screen.findByText('模拟职工')).toBeInTheDocument()
+    expect(queryInsurancePerson).toHaveBeenCalledWith(expect.objectContaining({ psnCertType: '06', certno: 'TEST-310' }))
+    expect(search).toHaveBeenCalledWith('HRMOCK0001')
+    expect(screen.getByText('实体医保卡')).toBeInTheDocument()
+    expect(screen.queryByText('选择 Mock 参保人员读卡')).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /查看参保信息/ }))
+    expect(await screen.findByRole('dialog', { name: '参保信息' })).toHaveTextContent('参保正常')
+
+    await userEvent.click(screen.getByRole('button', { name: /确认挂号并医保试算/ }))
+    await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
+      settlementMode: 'MEDICAL_INSURANCE', coverageId: 'cov-m1',
+    })))
+    expect(authenticateInsuranceByResident).not.toHaveBeenCalled()
+  })
 })

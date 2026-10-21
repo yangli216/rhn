@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import type { ChsPersonInfoResponse } from '../../shared/api/billingApi'
-import type { Resident } from '../../shared/model'
-import { errorMessage, type RhnApi } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, Icon } from '../../shared/ui'
-import { InsuranceMediaSimulator, useInsuranceSimulator } from '../outpatient/InsuranceMediaSimulator'
+import type { ChsPersonInfoResponse } from '../api/billingApi'
+import type { Resident } from '../model'
+import { errorMessage, type RhnApi } from '../rhnApi'
+import { Alert, Button, Dialog, Icon } from '../ui'
+import { InsuranceMockReadDialog, insuranceMediaOfCertType, useInsuranceSimulator, type InsuranceMedia } from './InsuranceMockReadDialog'
 import './insurance-credential-dialog.css'
 
 const CERT_TYPES = [
@@ -15,6 +15,7 @@ const CERT_TYPES = [
 
 /**
  * 医保参保人鉴权凭证（1101 读证结果）仅短时保存在后端；失效后在此重新读取，成功且参保正常后回调 onVerified 继续试算。
+ * 启用医保 mock 服务时，点击社保卡/电子凭证介质改为弹出预置人员选择面板，读取结果与正式读证一致。
  * 证件号只经请求体提交，不写入 URL 或日志。
  */
 export function InsuranceCredentialDialog({ api, residentId = '', patientName, busy = false, error, onVerified, onCancel,
@@ -33,20 +34,23 @@ export function InsuranceCredentialDialog({ api, residentId = '', patientName, b
   initialCertType?: string
   initialCertNo?: string
   /** 调入患者模式：找到档案后回调；返回错误文案时留在弹窗内展示，返回空则由调用方关闭弹窗。 */
-  onResident?: (resident: Resident, person?: ChsPersonInfoResponse) => string | undefined
+  onResident?: (resident: Resident, person: ChsPersonInfoResponse) => string | undefined
 }) {
   const [certType, setCertType] = useState(initialCertType)
   const [certNo, setCertNo] = useState(initialCertNo)
   const [lookupError, setLookupError] = useState('')
   const [person, setPerson] = useState<ChsPersonInfoResponse | null>(null)
+  const [mockMedia, setMockMedia] = useState<InsuranceMedia | null>(null)
   const simulator = useInsuranceSimulator(api)
 
   const accept = (value: ChsPersonInfoResponse) => {
     setPerson(value)
     if (!value.status || value.status === 'NORMAL') onVerified?.()
   }
-  const deliverResident = (resident: Resident, value?: ChsPersonInfoResponse) => {
-    setLookupError(onResident?.(resident, value) ?? '')
+  const deliverResident = (resident: Resident, value: ChsPersonInfoResponse) => {
+    const message = onResident?.(resident, value) ?? ''
+    setLookupError(message)
+    return message || undefined
   }
   const locateResident = async (value: ChsPersonInfoResponse) => {
     const certno = value.certno?.trim()
@@ -84,19 +88,24 @@ export function InsuranceCredentialDialog({ api, residentId = '', patientName, b
 
   const current = CERT_TYPES.find((item) => item.value === certType) ?? CERT_TYPES[0]
   const read = () => { if (!pending && certNo.trim()) (lookupMode ? lookup : manual).mutate() }
+  const chooseMedia = (value: string) => {
+    setCertType(value)
+    const media = insuranceMediaOfCertType(value)
+    if (simulator.data?.enabled && media) setMockMedia(media)
+  }
 
   return <Dialog title={lookupMode ? '读取凭证调入患者' : '读取医保凭证'} size="default" className="insurance-credential-modal"
     onClose={() => { if (!pending) onCancel() }}
     footer={<Button variant="secondary" onClick={onCancel} disabled={pending}>取消</Button>}>
     <div className="insurance-credential-dialog">
       <div className="insurance-credential-dialog__intro">
-        <p>{lookupMode ? '请读取参保人的医保介质以调入待收费患者' : '请读取参保人的医保介质以继续试算'}</p>
+        <p>{lookupMode ? '请读取参保人的医保介质以调入患者' : '请读取参保人的医保介质以继续试算'}</p>
         {patientName && <span className="insurance-credential-dialog__patient"><Icon name="user" aria-hidden="true" />{patientName}</span>}
       </div>
       <div className="insurance-credential-dialog__media" role="group" aria-label="医保介质">
         {CERT_TYPES.map((item) =>
           <Button key={item.value} variant="secondary" className="insurance-credential-card" aria-pressed={item.value === certType}
-            disabled={pending} onClick={() => setCertType(item.value)}>
+            disabled={pending} onClick={() => chooseMedia(item.value)}>
             <span className="insurance-credential-card__icon"><Icon name={item.icon} aria-hidden="true" /></span>
             <strong>{item.label}</strong>
             <small>{item.hint}</small>
@@ -109,9 +118,6 @@ export function InsuranceCredentialDialog({ api, residentId = '', patientName, b
           onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); read() } }} />
         <Button busy={manual.isPending || lookup.isPending} disabled={pending || !certNo.trim()} onClick={read}>读取</Button>
       </div>
-      {simulator.data?.enabled && (lookupMode
-        ? <InsuranceMediaSimulator api={api} variant="card" disabled={pending} onRead={(value) => deliverResident(value.resident, value.person)} />
-        : <InsuranceMediaSimulator api={api} variant="card" disabled={pending} onCredentialRead={accept} />)}
       {!lookupMode && <div className="insurance-credential-dialog__alt">
         <Button variant="text" busy={byResident.isPending} disabled={pending} onClick={() => byResident.mutate()}>按档案身份证鉴权</Button>
         <small>医保个人编号需与患者保障信息一致</small>
@@ -125,5 +131,17 @@ export function InsuranceCredentialDialog({ api, residentId = '', patientName, b
       {lookupError && <Alert tone="error">{lookupError}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
     </div>
+    {mockMedia && <InsuranceMockReadDialog api={api} media={mockMedia} locateResident={lookupMode}
+      onCancel={() => setMockMedia(null)}
+      onRead={(value) => {
+        if (!value.resident) {
+          setMockMedia(null)
+          accept(value.person)
+          return undefined
+        }
+        const message = deliverResident(value.resident, value.person)
+        if (!message) setMockMedia(null)
+        return message
+      }} />}
   </Dialog>
 }

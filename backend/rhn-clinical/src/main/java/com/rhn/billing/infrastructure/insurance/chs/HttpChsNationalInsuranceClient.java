@@ -196,6 +196,15 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
                 requireOperator(input.practitionerCode()), input.reason(), input.registrationScene(), input.settlementNo());
     }
 
+    @Override
+    public PreSettlementCancelRequest preparePreSettlementCancel(
+            com.rhn.billing.api.InsuranceSettlementAdapter.InsurancePreSettlementCancellation input) {
+        return new PreSettlementCancelRequest(required(input.externalPreSettlementNo(), "缺少原预结算流水"),
+                requirePersonNo(input.externalPersonNo()), requireOperator(input.practitionerCode()),
+                required(input.settlementNo(), "缺少收费批次号"), requireInsutype(input.insuranceTypeCode()),
+                input.visitRegisteredByClaim());
+    }
+
     // ==================== 1101 / 2206 / 2207 / 2208 ====================
 
     @Override
@@ -289,6 +298,30 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
                     clock.instant(), true, message);
         } catch (ChsRejectedException rejected) {
             return new ReversalResponse(null, request.setlId(), clock.instant(), false, rejected.getMessage());
+        }
+    }
+
+    /**
+     * 2205 撤销预结算前按收费批次上传的费用明细；本申请登记的就诊再以 2202 撤销。2205 被拒则整体失败，
+     * 2202 失败时费用明细已撤销，只提示人工在医保平台核对就诊登记。
+     */
+    @Override
+    public String cancelPreSettlement(PreSettlementCancelRequest request) {
+        String mdtrtId = mdtrtOf(request.preSetlId());
+        String insuplc = region(request.psnNo(), request.insutype());
+        ObjectNode body = JsonNodeFactory.instance.objectNode();
+        var data = body.putObject("data");
+        data.put("mdtrt_id", mdtrtId); data.put("chrg_bchno", request.settlementNo()); data.put("psn_no", request.psnNo());
+        call("2205", request.operatorId(), insuplc, body);
+        if (!request.registrationCancel()) return "医保费用明细已撤销";
+        ObjectNode registration = JsonNodeFactory.instance.objectNode();
+        var visit = registration.putObject("data");
+        visit.put("mdtrt_id", mdtrtId); visit.put("psn_no", request.psnNo()); visit.put("ipt_otp_no", request.settlementNo());
+        try {
+            call("2202", request.operatorId(), insuplc, registration);
+            return "医保费用明细与就诊登记已撤销";
+        } catch (RuntimeException failure) {
+            return "医保费用明细已撤销，但就诊登记撤销(2202)未成功，请人工核对医保平台：" + failure.getMessage();
         }
     }
 

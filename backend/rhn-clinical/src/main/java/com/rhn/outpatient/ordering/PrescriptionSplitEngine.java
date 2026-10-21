@@ -23,21 +23,23 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
  * 4. 特殊药品单列 (Single Order)
  * 5. 输液同组原子性保护 (Infusion Group Atomicity)
  * 6. 处方容量装箱约束 (Capacity Limit <= 5)
+ * 西药/中成药是否合方、输液是否单列与容量上限由 {@link PrescriptionSplitPolicy} 按机构参数决定。
  */
 @Component
 public class PrescriptionSplitEngine {
-    private static final int MAX_REGULAR_CAPACITY = 5;
-
     private final CatalogLifecycleDirectory catalogDirectory;
     private final MedicationRouteDirectory routeDirectory;
     private final OutpatientPrescriptionInventoryDirectory inventoryDirectory;
+    private final PrescriptionSplitPolicy policy;
 
     public PrescriptionSplitEngine(CatalogLifecycleDirectory catalogDirectory,
                                    MedicationRouteDirectory routeDirectory,
-                                   OutpatientPrescriptionInventoryDirectory inventoryDirectory) {
+                                   OutpatientPrescriptionInventoryDirectory inventoryDirectory,
+                                   PrescriptionSplitPolicy policy) {
         this.catalogDirectory = catalogDirectory;
         this.routeDirectory = routeDirectory;
         this.inventoryDirectory = inventoryDirectory;
+        this.policy = policy;
     }
 
     public List<SplitPrescriptionPlan> plan(EncounterDirectory.EncounterSnapshot encounter,
@@ -46,15 +48,16 @@ public class PrescriptionSplitEngine {
         // 与正式开立默认业务日期保持一致，不使用就诊登记日替代当前目录有效日。
         LocalDate businessDate = LocalDate.now();
         List<ItemMeta> metas = buildItemMetas(encounter, items, businessDate);
+        PrescriptionSplitPolicy.Settings settings = policy.resolve(encounter);
 
         // 2. 多维分流桶划分
-        BucketPartition partition = partitionBuckets(metas);
+        BucketPartition partition = partitionBuckets(metas, settings);
         List<ItemMeta> singleOrderItems = partition.singleOrderItems();
 
         List<SplitPrescriptionPlan> plans = new ArrayList<>();
 
         // 3. 处理普通桶装箱
-        planNormalBuckets(partition.normalBuckets(), plans);
+        planNormalBuckets(partition.normalBuckets(), plans, settings);
 
         // 4. 处理单列医嘱专方 (Single Order)
         planSingleOrderItems(singleOrderItems, plans);
@@ -128,7 +131,7 @@ public class PrescriptionSplitEngine {
         return metas;
     }
 
-    private BucketPartition partitionBuckets(List<ItemMeta> metas) {
+    private BucketPartition partitionBuckets(List<ItemMeta> metas, PrescriptionSplitPolicy.Settings settings) {
         Map<String, List<ItemMeta>> normalBuckets = new LinkedHashMap<>();
         List<ItemMeta> singleOrderItems = new ArrayList<>();
 
@@ -141,18 +144,20 @@ public class PrescriptionSplitEngine {
             String bucketKey;
             if ("HERBAL".equalsIgnoreCase(meta.category())) {
                 bucketKey = "HERBAL|" + meta.stockSiteId();
-            } else if (meta.isInfusion()) {
+            } else if (meta.isInfusion() && settings.separateInfusion()) {
                 // 输液桶：按发药药房与输液途径归集，确保同组输液不被大类拆散
                 bucketKey = meta.stockSiteId() + "|INFUSION";
             } else {
-                bucketKey = meta.stockSiteId() + "|" + meta.category() + "|NON_INFUSION";
+                String categoryKey = settings.mergeWesternAndPatent() ? "WESTERN_PATENT" : meta.category();
+                bucketKey = meta.stockSiteId() + "|" + categoryKey + "|REGULAR";
             }
             normalBuckets.computeIfAbsent(bucketKey, k -> new ArrayList<>()).add(meta);
         }
         return new BucketPartition(normalBuckets, singleOrderItems);
     }
 
-    private void planNormalBuckets(Map<String, List<ItemMeta>> normalBuckets, List<SplitPrescriptionPlan> plans) {
+    private void planNormalBuckets(Map<String, List<ItemMeta>> normalBuckets, List<SplitPrescriptionPlan> plans,
+                                   PrescriptionSplitPolicy.Settings settings) {
         for (Map.Entry<String, List<ItemMeta>> entry : normalBuckets.entrySet()) {
             List<ItemMeta> bucketItems = entry.getValue();
             if (bucketItems.isEmpty()) continue;
@@ -165,13 +170,15 @@ public class PrescriptionSplitEngine {
             }
 
             // 非草药桶：按输液组聚合为原子装箱单元 (AtomicGroup)
-            List<AtomicUnit> units = packageUnits(bucketItems);
+            boolean infusionBucket = first.isInfusion() && settings.separateInfusion();
+            List<AtomicUnit> units = packageUnits(bucketItems, settings.maxItemsPerPrescription());
 
-            // 执行容量装箱 (Capacity Limit <= 5)
-            List<List<AtomicUnit>> prescriptionBins = packUnits(units);
+            // 执行容量装箱 (Capacity Limit <= 机构参数，最多 5)
+            List<List<AtomicUnit>> prescriptionBins = packUnits(units, settings.maxItemsPerPrescription());
 
             for (int pIdx = 0; pIdx < prescriptionBins.size(); pIdx++) {
-                plans.add(buildRegularBinPlan(first, prescriptionBins.get(pIdx), pIdx, prescriptionBins.size()));
+                plans.add(buildRegularBinPlan(first, infusionBucket, prescriptionBins.get(pIdx), pIdx,
+                        prescriptionBins.size(), settings.maxItemsPerPrescription()));
             }
         }
     }
@@ -187,14 +194,21 @@ public class PrescriptionSplitEngine {
                 first.stockSiteName(), "HERBAL", reasons, planned);
     }
 
-    private SplitPrescriptionPlan buildRegularBinPlan(ItemMeta first, List<AtomicUnit> bin, int pIdx, int binCount) {
+    private SplitPrescriptionPlan buildRegularBinPlan(ItemMeta first, boolean infusionBucket, List<AtomicUnit> bin,
+                                                      int pIdx, int binCount, int capacity) {
         List<SplitPrescriptionPlan.PlannedMedicationItem> planned = new ArrayList<>();
         boolean hasInfusionGroup = false;
+        Set<String> categories = new LinkedHashSet<>();
+        boolean anyInfusion = false;
+        boolean allInfusion = true;
 
         for (AtomicUnit unit : bin) {
             if (unit.items().size() > 1) hasInfusionGroup = true;
             for (int uIdx = 0; uIdx < unit.items().size(); uIdx++) {
                 ItemMeta m = unit.items().get(uIdx);
+                categories.add(m.category());
+                anyInfusion |= m.isInfusion();
+                allInfusion &= m.isInfusion();
                 planned.add(new SplitPrescriptionPlan.PlannedMedicationItem(
                         m.item(),
                         uIdx == 0 && unit.items().size() > 1, // 首条为组头
@@ -205,31 +219,41 @@ public class PrescriptionSplitEngine {
 
         List<String> reasons = new ArrayList<>();
         String title;
-        if (first.isInfusion()) {
+        String categoryCode;
+        if (infusionBucket) {
             title = "门诊输液处方";
+            categoryCode = first.category();
             reasons.add("静脉输液途径隔离");
-            if (hasInfusionGroup) reasons.add("同组输液原子性保护");
+        } else if (categories.size() > 1) {
+            // 合方处方按西药处方笺管理，打印与药房仍按明细药品分类展示。
+            title = "门诊西药/中成药处方";
+            categoryCode = "WESTERN";
+            reasons.add("西药与中成药合方（机构参数）");
         } else if ("CHINESE_PATENT".equalsIgnoreCase(first.category())) {
             title = "门诊中成药处方";
+            categoryCode = "CHINESE_PATENT";
             reasons.add("中成药分类专方");
         } else {
             title = "门诊西药处方";
+            categoryCode = first.category();
             reasons.add("西药分类专方");
         }
+        if (!infusionBucket && anyInfusion) reasons.add("输液不单列（机构参数）");
+        if (hasInfusionGroup) reasons.add("同组输液原子性保护");
         if (first.stockSiteId() != null) {
             reasons.add("发药药房隔离（" + first.stockSiteName() + "）");
         }
         if (binCount > 1) {
-            reasons.add("单方5种容量限制分方（第 " + (pIdx + 1) + " 张）");
+            reasons.add("单方" + capacity + "种容量限制分方（第 " + (pIdx + 1) + " 张）");
             title += " " + (pIdx + 1);
         }
 
         return new SplitPrescriptionPlan(
-                first.category(),
+                categoryCode,
                 title,
                 first.stockSiteId(),
                 first.stockSiteName(),
-                first.isInfusion() ? "INFUSION" : "NON_INFUSION",
+                allInfusion ? "INFUSION" : "NON_INFUSION",
                 reasons,
                 planned
         );
@@ -253,7 +277,7 @@ public class PrescriptionSplitEngine {
         }
     }
 
-    private List<AtomicUnit> packageUnits(List<ItemMeta> bucketItems) {
+    private List<AtomicUnit> packageUnits(List<ItemMeta> bucketItems, int capacity) {
         List<AtomicUnit> units = new ArrayList<>();
         Map<String, List<ItemMeta>> groupedInfusions = new LinkedHashMap<>();
         for (ItemMeta item : bucketItems) {
@@ -267,9 +291,9 @@ public class PrescriptionSplitEngine {
             if (processedIndexes.contains(item.index())) continue;
             if (item.adminKey() != null && item.isInfusion() && groupedInfusions.containsKey(item.adminKey())) {
                 List<ItemMeta> group = groupedInfusions.get(item.adminKey());
-                if (group.size() > MAX_REGULAR_CAPACITY) {
+                if (group.size() > capacity) {
                     throw badRequest("INFUSION_GROUP_EXCEEDS_CAPACITY",
-                            "输液同组药品数(" + group.size() + ")超过单张处方5种上限，请调整组内药品");
+                            "输液同组药品数(" + group.size() + ")超过单张处方" + capacity + "种上限，请调整组内药品");
                 }
                 units.add(new AtomicUnit(item.adminKey(), group));
                 group.forEach(g -> processedIndexes.add(g.index()));
@@ -281,14 +305,14 @@ public class PrescriptionSplitEngine {
         return units;
     }
 
-    private List<List<AtomicUnit>> packUnits(List<AtomicUnit> units) {
+    private List<List<AtomicUnit>> packUnits(List<AtomicUnit> units, int capacity) {
         List<List<AtomicUnit>> bins = new ArrayList<>();
         List<AtomicUnit> currentBin = new ArrayList<>();
         int currentCount = 0;
 
         for (AtomicUnit unit : units) {
             int unitSize = unit.items().size();
-            if (!currentBin.isEmpty() && currentCount + unitSize > MAX_REGULAR_CAPACITY) {
+            if (!currentBin.isEmpty() && currentCount + unitSize > capacity) {
                 bins.add(currentBin);
                 currentBin = new ArrayList<>();
                 currentCount = 0;

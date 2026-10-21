@@ -183,7 +183,6 @@
 .doctor-context-actions { display: flex; align-items: center; gap: var(--space-2); flex: none; white-space: nowrap; }
 .doctor-context-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex: none; }
 .doctor-context-actions .ui-button { flex: none; white-space: nowrap; }
-.doctor-btn--save-draft { min-width: 6.5rem; }
 .doctor-btn--terminate { color: var(--color-danger) !important; }
 .doctor-btn--terminate:hover { background: var(--color-danger-soft) !important; color: var(--color-danger) !important; }
 /* 病历列默认约占 45%（最宽 A4 纸宽 210mm），医生可拖动分隔条调整（--doctor-record-width）；右侧诊断/医嘱自适应 */
@@ -1424,7 +1423,19 @@
 .doctor-fee-lines > p { margin: 0; padding: var(--space-4); color: var(--color-text-secondary); text-align: center; }
 /* 诊毕确认：中性摘要、两栏表单和固定底部操作。 */
 .doctor-completion-modal { width: min(60rem, 100%); }
+/* 有待结算费用时加宽，右侧放诊间收款竖栏（与收费页收银面板一致）。 */
+.doctor-completion-modal.has-payment { width: min(84rem, 100%); }
 .doctor-completion-dialog { display: grid; gap: var(--layout-section-gap); }
+.doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem); align-items: start; }
+.doctor-completion-main { min-width: 0; display: grid; gap: var(--layout-section-gap); }
+.doctor-completion-side { min-width: 0; position: sticky; top: 0; }
+.doctor-completion-side .doctor-completion-payment-section { margin: 0; }
+.doctor-completion-fee .doctor-fee-stat-content { padding: var(--space-3); }
+.doctor-completion-fee .doctor-fee-stat-metrics { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+@media (max-width: 1100px) {
+  .doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr); }
+  .doctor-completion-side { position: static; }
+}
 .doctor-completion-banner {
   display: flex;
   align-items: center;
@@ -1448,7 +1459,7 @@
 }
 .doctor-completion-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, .6fr) minmax(20rem, 1.8fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .8fr);
 }
 .doctor-overview-stat {
   min-width: 0;

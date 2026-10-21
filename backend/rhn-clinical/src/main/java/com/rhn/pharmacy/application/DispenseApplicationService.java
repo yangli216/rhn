@@ -3,6 +3,7 @@ package com.rhn.pharmacy.application;
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.pharmacy.api.MedicationFulfillmentDirectory;
+import com.rhn.pharmacy.api.PharmacyViews.DispenseCancelResultView;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTraceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionLineView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionView;
@@ -312,6 +313,97 @@ public class DispenseApplicationService {
                 "operationUnitCode", original.operationUnitCode(), "processedBy", context.subjectId(),
                 "inventoryTransactionId", transaction.id()));
         return returnView(context, stockReturn, postings.returnLines());
+    }
+
+    @Transactional
+    public DispenseCancelResultView cancelDispense(Long taskId, CancelDispenseCommand input) {
+        ExecutionContext context = requireWorkContext();
+        String cancelNo = required(input.cancelNo(), "DISPENSE_CANCEL_NO_REQUIRED", "取消发药请求编码不能为空");
+        DispenseTask task = lockTask(context, taskId);
+        if (task.status() != DispenseTaskStatus.COMPLETED && task.status() != DispenseTaskStatus.PARTIALLY_DISPENSED) {
+            throw conflict("DISPENSE_TASK_NOT_DISPENSED", "当前发药任务未发药，无法取消发药");
+        }
+        StockSite site = requireSite(context, task.stockSiteId());
+        requireOrganizationAccess(context, site.organizationId());
+        validatePractitioner(context, site, input.operatorPractitionerId(), input.operatorAssignmentId(), "取消发药");
+        DispenseTaskLine taskLine = requireTaskLine(context, task.id());
+
+        if (taskLine.returnedQuantity().signum() > 0) {
+            throw conflict("DISPENSE_ALREADY_RETURNED", "当前发药任务已存在退药记录，不能直接撤销发药");
+        }
+
+        List<MedicationDispense> dispenses = dispenseRepository
+                .findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(context.tenantId(), task.id()).stream()
+                .filter(value -> "DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType()))
+                .toList();
+        if (dispenses.isEmpty()) {
+            throw notFound("MEDICATION_DISPENSE_NOT_FOUND", "未找到对应的发药事件");
+        }
+        MedicationDispense original = dispenses.get(dispenses.size() - 1);
+        if (!returnRepository.findByTenantIdAndOriginalDispenseIdOrderByRequestedAt(context.tenantId(), original.id()).isEmpty()) {
+            throw conflict("DISPENSE_ALREADY_RETURNED", "当前发药事件已存在退药记录，不能直接撤销发药");
+        }
+
+        List<MedicationDispenseLine> originalLines = dispenseLineRepository
+                .findByTenantIdAndMedicationDispenseIdOrderBySortOrder(context.tenantId(), original.id());
+
+        Instant occurredAt = (input.occurredAt() == null ? Instant.now() : input.occurredAt())
+                .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        String description = Strings.trimToNull(input.description());
+
+        // 1. Post reverse inventory document
+        var reverseTransaction = inventoryLedger.postDocument(new DocumentPostingCommand(
+                cancelNo, "DISPENSE_CANCEL", "MEDICATION_DISPENSE_CANCEL", cancelNo, site.id(), occurredAt,
+                description,
+                originalLines.stream().map(line -> new DocumentPostingLineCommand(
+                        line.stockBinId(), line.stockItemId(), line.stockLotId(), "AVAILABLE",
+                        line.quantityDispensed().multiply(line.baseQuantityFactor()), null, true
+                )).toList()
+        ));
+
+        // 2. Trace codes restoration
+        if (!taskLine.split()) {
+            List<TraceReturnLine> traceReturns = originalLines.stream()
+                    .map(line -> new TraceReturnLine(line.stockItemId(), line.stockLotId(), line.stockBinId(),
+                            line.quantityDispensed().multiply(line.baseQuantityFactor()), InventoryTraceCodeStatus.AVAILABLE))
+                    .toList();
+            traceService.returnMedication(context, site.id(), original.id(), null, cancelNo, traceReturns);
+        }
+
+        // 3. Unconsume reservations
+        List<InventoryReservation> reservations = reservationRepository.findByTenantIdAndDispenseTaskLineIdOrderByCreatedAt(
+                context.tenantId(), taskLine.id());
+        for (InventoryReservation res : reservations) {
+            if (res.consumedAt() != null) {
+                res.unconsume();
+            }
+        }
+
+        // 4. Update task & task line
+        taskLine.cancelDispense(original.operationQuantity());
+        task.cancelDispense();
+
+        // 5. Save cancel dispense event
+        Long deptId = site.departmentId() != null ? site.departmentId() : original.departmentId();
+        MedicationDispense cancelEvent = dispenseRepository.save(new MedicationDispense(
+                context.tenantId(), site.organizationId(), deptId, task.id(),
+                task.residentId(), task.encounterId(), site.id(), original.id(), cancelNo, "CANCEL", occurredAt,
+                input.operatorPractitionerId(), context.subjectId(), input.operatorAssignmentId(),
+                null, null, null, original.operationQuantity(), original.operationUnitCode(), description
+        ));
+
+        reservationRepository.flush();
+        dispenseLineRepository.flush();
+        taskLineRepository.flush();
+        taskRepository.flush();
+
+        publish(context, site, task, "MEDICATION_DISPENSE_CANCELLED", occurredAt, Map.of(
+                "cancelId", cancelEvent.id(), "cancelNo", cancelNo, "originalDispenseId", original.id(),
+                "taskId", task.id(), "requestId", taskLine.requestId(), "cancelledBy", context.subjectId(),
+                "inventoryTransactionId", reverseTransaction.id()
+        ));
+
+        return new DispenseCancelResultView(task.id(), task.taskNo(), task.status().name(), cancelEvent.id(), cancelNo);
     }
 
     private ReturnPreparation validateReturnLines(ExecutionContext context, DispenseTaskLine taskLine,
@@ -633,6 +725,8 @@ public class DispenseApplicationService {
     public record ReturnCommand(String returnNo, String reasonCode, Instant occurredAt,
                                 Long processorPractitionerId, Long processorAssignmentId,
                                 String description, List<ReturnLineCommand> lines) {}
+    public record CancelDispenseCommand(String cancelNo, Long operatorPractitionerId, Long operatorAssignmentId,
+                                        String reasonCode, String description, Instant occurredAt) {}
     private record DispenseAllocation(InventoryReservation reservation, BigDecimal baseQuantity,
                                       BigDecimal operationQuantity) {}
     private record ReturnAllocation(ReturnLineCommand command, MedicationDispenseLine originalLine,

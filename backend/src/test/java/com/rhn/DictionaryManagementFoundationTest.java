@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(119))
+                .andExpect(jsonPath("$.length()").value(123))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))

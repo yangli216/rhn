@@ -7,7 +7,7 @@ import type { MedicationRequest } from "../../../shared/api/encountersApi";
 import type { DispenseTaskStatus, InventoryTraceCode, PharmacyInboxItem, PharmacyReviewResult } from "../../../shared/api/pharmacyApi";
 import type { RhnApi } from "../../../shared/rhnApi";
 import { errorMessage } from "../../../shared/rhnApi";
-import { type PharmacyWorkspaceMode, type PharmacyQueryFilters, defaultPharmacyQueryFilters, activeTaskStatuses, postReviewTaskStatuses, returnTaskStatuses, closedTaskStatuses, pharmacyQueryItemMatches, pharmacyQueryItemInDateRange, type DispensingPatientGroup, patientMatchesSearch, CHINESE_NUMBER_WORDS, groupTraceCodesByPrefix, TRACE_SCAN_DEBOUNCE_MS, parseTraceCodeBatch, inferDispenseSearchIntent, requestMatchesSearch, dispenseSearchIntentText, workspaceCopy, genderText, ageText } from './pharmacyShared'
+import { type PharmacyWorkspaceMode, type PharmacyQueryFilters, defaultPharmacyQueryFilters, activeTaskStatuses, cancelDispenseTaskStatuses, postReviewTaskStatuses, returnTaskStatuses, closedTaskStatuses, pharmacyQueryItemMatches, pharmacyQueryItemInDateRange, type DispensingPatientGroup, patientMatchesSearch, CHINESE_NUMBER_WORDS, groupTraceCodesByPrefix, TRACE_SCAN_DEBOUNCE_MS, parseTraceCodeBatch, inferDispenseSearchIntent, requestMatchesSearch, dispenseSearchIntentText, workspaceCopy, genderText, ageText } from './pharmacyShared'
 
 export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }: {
   api: RhnApi; clinicalContext: ClinicalContext; mode?: PharmacyWorkspaceMode
@@ -110,6 +110,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
 
   const [batchDispensing, setBatchDispensing] = useState(false)
+  const [batchPicking, setBatchPicking] = useState(false)
 
   const [actionNotice, setActionNotice] = useState<{
     id: number
@@ -193,6 +194,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
     }
     if (mode === 'returns') return Boolean(item.taskStatus && returnTaskStatuses.has(item.taskStatus))
     if (mode === 'query') return Boolean(item.taskStatus && closedTaskStatuses.has(item.taskStatus))
+    if (mode === 'cancel-dispense') return Boolean(item.taskStatus && cancelDispenseTaskStatuses.has(item.taskStatus) && (!item.returnedQuantity || item.returnedQuantity < (item.dispensedQuantity ?? item.request.quantity ?? 0)))
     return false
   }), [inbox.data, mode, prescriptionReviewMode.data?.mode])
 
@@ -273,14 +275,16 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
   const residentsLookup = useQuery({
     queryKey: ['pharmacy-residents-lookup', organizationId],
     queryFn: () => api.residents.page({ size: 200 }),
-    enabled: mode === 'dispensing' || mode === 'query',
+    enabled: mode === 'dispensing' || mode === 'cancel-dispense' || mode === 'query',
   })
-
 
   const residentMap = useMemo(() => {
     const byId = new Map<string, { fullName: string; gender?: string; birthDate?: string; maskedNationalId?: string; phone?: string }>()
     const byNo = new Map<string, { fullName: string; gender?: string; birthDate?: string; maskedNationalId?: string; phone?: string }>()
-    for (const r of residentsLookup.data?.content ?? []) {
+    const list = (residentsLookup.data as unknown as { content?: any[]; items?: any[] })?.content
+      ?? (residentsLookup.data as unknown as { content?: any[]; items?: any[] })?.items
+      ?? []
+    for (const r of list) {
       const info = {
         fullName: r.fullName,
         gender: r.gender,
@@ -300,9 +304,9 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
   }, [residentsLookup.data])
 
 
-  // In dispensing mode, we group inbox items by patient
+  // In dispensing and cancel-dispense modes, we group inbox items by patient
   const patientGroups = useMemo(() => {
-    if (mode !== 'dispensing') return []
+    if (mode !== 'dispensing' && mode !== 'cancel-dispense') return []
     const groupsMap = new Map<string, DispensingPatientGroup>()
 
     for (const item of visibleInbox) {
@@ -349,7 +353,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   // Sync selected resident
   useEffect(() => {
-    if (mode === 'dispensing') {
+    if (mode === 'dispensing' || mode === 'cancel-dispense') {
       if (!selectedResidentId && patientGroups.length > 0) {
         setSelectedResidentId(patientGroups[0].residentId)
       } else if (selectedResidentId && !patientGroups.some((p) => p.residentId === selectedResidentId)) {
@@ -358,11 +362,9 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
     }
   }, [mode, patientGroups, selectedResidentId])
 
-
   const activePatient = patientGroups.find((p) => p.residentId === selectedResidentId) ?? patientGroups[0]
 
-
-  const activeResidentId = mode === 'dispensing' ? activePatient?.residentId : undefined
+  const activeResidentId = (mode === 'dispensing' || mode === 'cancel-dispense') ? activePatient?.residentId : undefined
 
   const showDispenseVerification = Boolean(activeResidentId)
 
@@ -411,9 +413,20 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       const isChinese = items.some((it) => it.request.medicationType === 'CHINESE_PATENT' || it.request.medicationType === 'HERBAL')
 
       const snap = (first.request.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
-      const orgName = (snap.organizationName as string) || '开立机构未记录'
-      const deptName = (snap.departmentName as string) || '开立科室未记录'
-      const doctorName = (snap.doctorName as string) || (snap.clinicianName as string) || (first.clinicalContext?.clinicianId ? `医生标识 ${first.clinicalContext.clinicianId}` : '开立医生未记录')
+      const hasClinicalContext = Boolean(first.clinicalContext)
+      const orgName = (snap.organizationName as string)
+        || (hasClinicalContext ? (clinicalContext.organization?.name || '本院') : '开立机构未记录')
+      const deptName = (snap.departmentName as string)
+        || (hasClinicalContext ? (clinicalContext.department?.name || '门诊') : '开立科室未记录')
+      const matchedPractitioner = practitioners.data?.find(
+        (p) => p.id === first.clinicalContext?.clinicianId || p.code === first.clinicalContext?.clinicianId
+      )
+      const doctorName = (snap.doctorName as string)
+        || (snap.clinicianName as string)
+        || matchedPractitioner?.fullName
+        || (first.clinicalContext?.clinicianId
+          ? (first.clinicalContext.clinicianId === 'doctor' ? '门诊医师' : `医生标识 ${first.clinicalContext.clinicianId}`)
+          : '开立医生未记录')
 
       cards.push({
         key: pKey,
@@ -432,7 +445,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       index++
     }
     return cards
-  }, [activePatient])
+  }, [activePatient, clinicalContext.department?.name, clinicalContext.organization?.name, practitioners.data])
 
 
   // Refreshing the same prescription identities must preserve the pharmacist's selections.
@@ -588,7 +601,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   // Batch Dispense handler for F4 shortcut and main button
   const handleBatchDispenseF4 = async () => {
-    if (!activePatient || batchDispensing) return
+    if (!activePatient || batchDispensing || batchPicking) return
     const checkedCards = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
     if (!checkedCards.length) {
       showActionNotice('info', '请至少勾选一张待发药处方')
@@ -701,6 +714,190 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       showActionNotice('warning', `发药已完成，但列表刷新失败：${errorMessage(err)}`)
     } finally {
       setBatchDispensing(false)
+    }
+  }
+
+
+  // Batch Picking handler for "配药" button
+  const handleBatchPicking = async () => {
+    if (!activePatient || batchPicking || batchDispensing) return
+    const checkedCards = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
+    if (!checkedCards.length) {
+      showActionNotice('info', '请至少勾选一张待配药处方')
+      return
+    }
+
+    const pendingItems = checkedCards.flatMap((card) => card.items)
+      .filter((item) => item.taskStatus !== 'READY_TO_DISPENSE' && item.taskStatus !== 'PARTIALLY_DISPENSED' && item.taskStatus !== 'COMPLETED')
+    if (!pendingItems.length) {
+      showActionNotice('info', '所选处方均已完成配药，无需重复配药')
+      return
+    }
+    const invalidQuantity = pendingItems.find((item) => !Number.isFinite(item.request.quantity) || item.request.quantity <= 0)
+    if (invalidQuantity) {
+      showActionNotice('warning', `药品“${invalidQuantity.request.medicationName}”缺少有效的配药数量，请核实处方`)
+      return
+    }
+    if (!practitionerId || !assignmentId) {
+      showActionNotice('warning', departmentAssignments.isPending
+        ? '正在加载当前药房的药师任职，请稍后重试'
+        : '当前药房未找到有效的药师任职，请先在人员与岗位中配置后重试')
+      return
+    }
+
+    setBatchPicking(true)
+    let pickedCount = 0
+    try {
+      for (const card of checkedCards) {
+        for (const item of card.items) {
+          if (item.taskStatus === 'READY_TO_DISPENSE' || item.taskStatus === 'PARTIALLY_DISPENSED' || item.taskStatus === 'COMPLETED') {
+            continue
+          }
+          // 1. Intake if task doesn't exist
+          let currentTaskId = item.taskId
+          let currentTaskStatus: DispenseTaskStatus | undefined = item.taskStatus
+          let currentTaskStatusText = item.taskStatusText
+          if (!currentTaskId) {
+            const availStockItem = findDispenseStockItem(item)
+            if (availStockItem) {
+              const res = await api.pharmacy.intake(item.request.id, availStockItem.id, '药房配药接方')
+              currentTaskId = res.id
+              currentTaskStatus = res.status
+              currentTaskStatusText = res.statusText
+            }
+          }
+          if (!currentTaskId) {
+            throw new Error(`药品“${item.request.medicationName}”未找到可用库存，无法完成配药`)
+          }
+
+          // 2. Reserve if task is READY_TO_PICK
+          if (currentTaskStatus === 'READY_TO_PICK') {
+            const reservation = await api.pharmacy.reserve(currentTaskId, 30)
+            currentTaskStatus = reservation.taskStatus
+            currentTaskStatusText = reservation.taskStatusText
+          }
+          // 3. Complete picking if task is PICKING
+          if (currentTaskStatus === 'PICKING') {
+            const preparation = await api.pharmacy.completePicking(currentTaskId, {
+              pickerPractitionerId: practitionerId,
+              pickerAssignmentId: assignmentId,
+              description: '已完成药品调配与配药复核',
+            })
+            currentTaskStatus = preparation.taskStatus
+            currentTaskStatusText = preparation.taskStatusText
+          }
+          if (currentTaskStatus !== 'READY_TO_DISPENSE') {
+            throw new Error(`药品“${item.request.medicationName}”配药后状态异常：${currentTaskStatusText ?? currentTaskStatus ?? '未知'}`)
+          }
+          pickedCount++
+        }
+      }
+    } catch (err) {
+      const failureReason = errorMessage(err)
+      if (pickedCount > 0) {
+        showActionNotice(
+          'warning',
+          `部分配药完成：已完成 ${pickedCount}/${pendingItems.length} 项；其余未完成原因：${failureReason}`,
+        )
+      } else {
+        showActionNotice('error', `配药失败：${failureReason}`)
+      }
+      await refresh().catch(() => undefined)
+      setBatchPicking(false)
+      return
+    }
+
+    showActionNotice(
+      'success',
+      `已成功完成配药：${activePatient.residentName}，共完成 ${pickedCount} 项药品调配复核`,
+    )
+    try {
+      await refresh()
+    } catch (err) {
+      showActionNotice('warning', `配药已完成，但列表刷新失败：${errorMessage(err)}`)
+    } finally {
+      setBatchPicking(false)
+    }
+  }
+
+
+  // Cancel Dispense handlers for accidental clicks
+  const [cancellingTaskId, setCancellingTaskId] = useState<string | null>(null)
+  const [cancelReasonCode, setCancelReasonCode] = useState('MISTAKEN_CLICK')
+  const [cancelDescription, setCancelDescription] = useState('')
+
+  const handleCancelDispense = async (targetTaskId?: string) => {
+    const taskIdToCancel = targetTaskId || selected?.taskId
+    if (!taskIdToCancel) {
+      showActionNotice('warning', '请选择需要取消发药的处方任务')
+      return
+    }
+    if (!practitionerId || !assignmentId) {
+      showActionNotice('warning', departmentAssignments.isPending
+        ? '正在加载当前药房的药师任职，请稍后重试'
+        : '当前药房未找到有效的药师任职，请先在人员与岗位中配置后重试')
+      return
+    }
+    setCancellingTaskId(taskIdToCancel)
+    try {
+      const res = await api.pharmacy.cancelDispense(taskIdToCancel, {
+        cancelNo: `CNC-${taskIdToCancel}-${Date.now()}`,
+        operatorPractitionerId: practitionerId,
+        operatorAssignmentId: assignmentId,
+        reasonCode: cancelReasonCode,
+        description: cancelDescription.trim() || '误点击发药取消，库存原路冲回',
+      })
+      const cancelIdentifier = res?.cancelNo || res?.taskNo || taskIdToCancel
+      showActionNotice('success', `取消发药成功：任务已撤销发药并恢复为待发药状态（单号：${cancelIdentifier}）`)
+      setCancelDescription('')
+      await refresh(res.taskId)
+    } catch (err) {
+      showActionNotice('error', `取消发药失败：${errorMessage(err)}`)
+    } finally {
+      setCancellingTaskId(null)
+    }
+  }
+
+  const handleBatchCancelDispense = async () => {
+    if (!activePatient || cancellingTaskId) return
+    const checkedCards = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
+    if (!checkedCards.length) {
+      showActionNotice('info', '请至少勾选一张需要取消发药的处方')
+      return
+    }
+    const itemsToCancel = checkedCards.flatMap((card) => card.items)
+      .filter((item) => Boolean(item.taskId && (item.taskStatus === 'COMPLETED' || item.taskStatus === 'PARTIALLY_DISPENSED')))
+    if (!itemsToCancel.length) {
+      showActionNotice('info', '所选处方中没有可取消的发药记录')
+      return
+    }
+    if (!practitionerId || !assignmentId) {
+      showActionNotice('warning', departmentAssignments.isPending
+        ? '正在加载当前药房的药师任职，请稍后重试'
+        : '当前药房未找到有效的药师任职，请先在人员与岗位中配置后重试')
+      return
+    }
+    setCancellingTaskId('batch')
+    let cancelledCount = 0
+    try {
+      for (const item of itemsToCancel) {
+        await api.pharmacy.cancelDispense(item.taskId!, {
+          cancelNo: `CNC-${item.taskId}-${Date.now()}`,
+          operatorPractitionerId: practitionerId,
+          operatorAssignmentId: assignmentId,
+          reasonCode: cancelReasonCode,
+          description: cancelDescription.trim() || '误点击发药整批取消，库存原路冲回',
+        })
+        cancelledCount++
+      }
+      showActionNotice('success', `已成功取消 ${cancelledCount} 张处方的发药记录，库存已冲回并恢复为待发药状态`)
+      setCancelDescription('')
+      await refresh()
+    } catch (err) {
+      showActionNotice('error', `取消发药失败：${errorMessage(err)}`)
+      await refresh().catch(() => undefined)
+    } finally {
+      setCancellingTaskId(null)
     }
   }
 
@@ -1121,5 +1318,5 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
   const pPhone = pResident?.phone || activePatient?.phone || '未维护'
 
   const pAddress = pProfile?.addresses?.[0]?.addressText || '未维护'
- return { practitioners, queryVisibleInbox, pharmacyQueryPage, pharmacyQueryPageSize, setPharmacyQueryDraft, setPharmacyQueryFilters, setPharmacyQueryPage, copy, refresh, actionNotice, setActionNotice, error, sites, inbox, eligibleSites, pharmacyQueryDraft, applyPharmacyQuery, resetPharmacyQuery, pagedPharmacyQueryInbox, residentMap, querySummary, setPharmacyQueryPageSize, pharmacyQueryPageCount, mode, prescriptionReviewMode, selected, selectedSite, api, organizationId, stockItems, eligibleAssignments, practitionerId, assignmentId, setPractitionerId, setAssignmentId, displayInbox, visibleInbox, requestId, setRequestId, task, configuredReviewMode, canReview, reviewResult, setReviewResult, reasonCode, setReasonCode, description, setDescription, review, returnLineId, setReturnLineId, returnableLines, selectedReturnLine, returnQuantity, setReturnQuantity, returnDisposition, setReturnDisposition, returnReason, setReturnReason, returnMedication, trace, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, completePicking, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal }
+ return { practitioners, queryVisibleInbox, pharmacyQueryPage, pharmacyQueryPageSize, setPharmacyQueryDraft, setPharmacyQueryFilters, setPharmacyQueryPage, copy, refresh, actionNotice, setActionNotice, error, sites, inbox, eligibleSites, pharmacyQueryDraft, applyPharmacyQuery, resetPharmacyQuery, pagedPharmacyQueryInbox, residentMap, querySummary, setPharmacyQueryPageSize, pharmacyQueryPageCount, mode, prescriptionReviewMode, selected, selectedSite, api, organizationId, stockItems, eligibleAssignments, practitionerId, assignmentId, setPractitionerId, setAssignmentId, displayInbox, visibleInbox, requestId, setRequestId, task, configuredReviewMode, canReview, reviewResult, setReviewResult, reasonCode, setReasonCode, description, setDescription, review, returnLineId, setReturnLineId, returnableLines, selectedReturnLine, returnQuantity, setReturnQuantity, returnDisposition, setReturnDisposition, returnReason, setReturnReason, returnMedication, trace, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, batchPicking, handleBatchPicking, completePicking, cancellingTaskId, cancelReasonCode, setCancelReasonCode, cancelDescription, setCancelDescription, handleCancelDispense, handleBatchCancelDispense, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal }
 }

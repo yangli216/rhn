@@ -3,6 +3,9 @@ import type { Encounter } from '../../shared/model'
 import type { OrderDocumentInfo, Prescription, ServiceRequest } from '../../shared/api/encountersApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, Select } from '../../shared/ui'
+import { serviceDocumentKey } from './orders/orderEntries'
+
+export { serviceDocumentKey }
 
 export interface OrderDocument {
   key: string
@@ -11,6 +14,20 @@ export interface OrderDocument {
   shortLabel: string
   value: Prescription | ServiceRequest
   items: Array<{ id: string; name: string }>
+  /** 服务申请单内的全部未撤销项目；单据信息修改作用于每一项。 */
+  members?: ServiceRequest[]
+}
+
+/** 单据信息按单保存：申请单逐项写入，返回首项结果以便编辑器更新基线。 */
+export async function saveOrderDocumentInfo(api: RhnApi, encounterId: string, doc: OrderDocument, revision: number,
+  info: OrderDocumentInfo) {
+  if (doc.kind === 'prescription') return api.encounters.updatePrescriptionDocumentInfo(encounterId, doc.value.id, revision, info)
+  const members = doc.members?.length ? doc.members : [doc.value as ServiceRequest]
+  const results = []
+  for (const member of members) {
+    results.push(await api.encounters.updateServiceDocumentInfo(encounterId, member.id, member.revision, info))
+  }
+  return results[0]
 }
 
 function serviceDocumentType(value: ServiceRequest) {
@@ -33,11 +50,18 @@ export function orderDocuments(prescriptions: Prescription[], services: ServiceR
     items: value.medicationRequests.filter(item => item.status !== 'CANCELLED').map(item => ({ id: item.id, name: item.itemName || item.medicationName })),
   }))
   const counters: Record<string, number> = {}
-  const svc = sort(services).map((value): OrderDocument => {
+  const groups = new Map<string, ServiceRequest[]>()
+  for (const value of sort(services)) {
+    const key = serviceDocumentKey(value)
+    groups.set(key, [...(groups.get(key) ?? []), value])
+  }
+  const svc = [...groups].map(([key, all]): OrderDocument => {
+    const members = all.filter(item => item.status !== 'CANCELLED')
+    const value = members[0] ?? all[0]
     const type = serviceDocumentType(value)
     const index = counters[type] = (counters[type] || 0) + 1
-    return { key: `service:${value.id}`, kind: 'service', value, label: `${type}单${index}`, shortLabel: `${type}${index}`,
-      items: [{ id: value.id, name: value.itemName }] }
+    return { key, kind: 'service', value, members, label: `${type}单${index}`, shortLabel: `${type}${index}`,
+      items: members.map(item => ({ id: item.id, name: item.itemName })) }
   })
   return [...rx, ...svc].filter(doc => doc.value.status !== 'CANCELLED' && doc.items.length > 0)
 }
@@ -99,7 +123,7 @@ export function OrderDocumentInlineEditor({ document: doc, encounter, api, readO
   const dirty = JSON.stringify(info) !== baseline
   const editable = !readOnly && (doc.kind === 'prescription'
     ? doc.value.status === 'DRAFT'
-    : doc.value.status === 'ACTIVE' && (doc.value as ServiceRequest).documentInfoEditable !== false)
+    : doc.value.status !== 'CANCELLED' && (doc.value as ServiceRequest).documentInfoEditable !== false)
 
   useEffect(() => {
     onDirtyChange?.(dirty || saving)
@@ -115,9 +139,7 @@ export function OrderDocumentInlineEditor({ document: doc, encounter, api, readO
     setSaving(true)
     setError('')
     try {
-      const result = doc.kind === 'prescription'
-        ? await api.encounters.updatePrescriptionDocumentInfo(encounter.id, doc.value.id, revision, info)
-        : await api.encounters.updateServiceDocumentInfo(encounter.id, doc.value.id, revision, info)
+      const result = await saveOrderDocumentInfo(api, encounter.id, doc, revision, info)
       const persisted = { ...emptyInfo(), ...result.documentInfo }
       setInfo(persisted)
       setBaseline(JSON.stringify(persisted))
@@ -278,9 +300,7 @@ export function OrderDocumentEditor({ document: doc, documents, encounter, api, 
   const save = async (next?: string | null) => {
     setSaving(true); setError('')
     try {
-      const result = doc.kind === 'prescription'
-        ? await api.encounters.updatePrescriptionDocumentInfo(encounter.id, doc.value.id, revision, info)
-        : await api.encounters.updateServiceDocumentInfo(encounter.id, doc.value.id, revision, info)
+      const result = await saveOrderDocumentInfo(api, encounter.id, doc, revision, info)
       const persisted = { ...emptyInfo(), ...result.documentInfo }
       setInfo(persisted); setBaseline(JSON.stringify(persisted)); setRevision(result.revision); setSaved(true)
       await onSaved()
@@ -292,7 +312,7 @@ export function OrderDocumentEditor({ document: doc, documents, encounter, api, 
     if (event.key === 'Escape') { event.stopPropagation(); if (pending === undefined) navigate(null) }
   }}>
     <header><div><h3 tabIndex={-1} ref={heading}>{doc.label}</h3>
-      <small>{'prescriptionNo' in doc.value ? doc.value.prescriptionNo : doc.value.requestNo} · 共{doc.items.length}项</small></div>
+      <small>{'prescriptionNo' in doc.value ? doc.value.prescriptionNo : doc.value.documentNo || doc.value.requestNo} · 共{doc.items.length}项</small></div>
       <Button size="sm" variant="text" disabled={saving} onClick={() => navigate(null)}>关闭</Button></header>
     <div className="doctor-document-body">
       <label>切换单据<Select value={doc.key} disabled={saving} clearable={false}

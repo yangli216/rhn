@@ -43,10 +43,14 @@ class PrescriptionSplitEngineTest {
 
     private PrescriptionSplitEngine engine;
     private EncounterSnapshot encounter;
+    private PrescriptionSplitPolicy.Settings policySettings = PrescriptionSplitPolicy.DEFAULT_SETTINGS;
 
     @BeforeEach
     void setUp() {
-        engine = new PrescriptionSplitEngine(catalogDirectory, routeDirectory, inventoryDirectory);
+        engine = new PrescriptionSplitEngine(catalogDirectory, routeDirectory, inventoryDirectory,
+                new PrescriptionSplitPolicy(null) {
+                    @Override Settings resolve(EncounterSnapshot ignored) { return policySettings; }
+                });
         when(catalogDirectory.resolve(eq(1L), any(), eq(3001L), any(), any(), any())).thenAnswer(call -> {
             Long productId = call.getArgument(1);
             var medication = catalogDirectory.requireMedication(1L, productId - 10000L);
@@ -357,4 +361,85 @@ class PrescriptionSplitEngineTest {
         assertThat(plan.routeGroupType()).isEqualTo("NON_INFUSION");
     }
 
+
+    @Test
+    @DisplayName("机构参数：同药房西药与中成药合方，按西药处方管理")
+    void mergesWesternAndPatentWhenConfigured() {
+        policySettings = new PrescriptionSplitPolicy.Settings(true, true, 5);
+        when(inventoryDirectory.requireDispensingPharmacy(eq(1L), eq(3001L), eq(4001L), any(), any()))
+                .thenReturn(new OutpatientPrescriptionInventoryDirectory.DispensingPharmacy(10L, "真实药房10"));
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "阿莫西林", "WESTERN", false));
+        when(catalogDirectory.requireMedication(1L, 3L)).thenReturn(mockMedication(3L, "感冒清热颗粒", "CHINESE_PATENT", false));
+
+        var plans = engine.plan(encounter, List.of(
+                createItem(1L, "阿莫西林", "WESTERN", "PO", "NONE", null, 10L, "真实药房10"),
+                createItem(3L, "感冒清热颗粒", "CHINESE_PATENT", "PO", "NONE", null, 10L, "真实药房10")));
+
+        assertThat(plans).hasSize(1);
+        assertThat(plans.getFirst().categoryCode()).isEqualTo("WESTERN");
+        assertThat(plans.getFirst().title()).isEqualTo("门诊西药/中成药处方");
+        assertThat(plans.getFirst().ruleReasons()).contains("西药与中成药合方（机构参数）");
+    }
+
+    @Test
+    @DisplayName("机构参数：合方仍按发药药房隔离")
+    void mergedCategoriesStillSplitByPharmacy() {
+        policySettings = new PrescriptionSplitPolicy.Settings(true, true, 5);
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "阿莫西林", "WESTERN", false));
+        when(catalogDirectory.requireMedication(1L, 3L)).thenReturn(mockMedication(3L, "感冒清热颗粒", "CHINESE_PATENT", false));
+
+        var plans = engine.plan(encounter, List.of(
+                createItem(1L, "阿莫西林", "WESTERN", "PO", "NONE", null, 10L, "真实药房10"),
+                createItem(3L, "感冒清热颗粒", "CHINESE_PATENT", "PO", "NONE", null, 20L, "真实药房20")));
+
+        assertThat(plans).extracting(SplitPrescriptionPlan::categoryCode).containsExactly("WESTERN", "CHINESE_PATENT");
+    }
+
+    @Test
+    @DisplayName("机构参数：输液不单列时与口服同药房合方，同组仍保持完整")
+    void keepsInfusionWithOralWhenNotSeparated() {
+        policySettings = new PrescriptionSplitPolicy.Settings(false, false, 5);
+        when(catalogDirectory.requireMedication(1L, 1L)).thenReturn(mockMedication(1L, "阿莫西林胶囊", "WESTERN", false));
+        when(catalogDirectory.requireMedication(1L, 2L)).thenReturn(mockMedication(2L, "5%葡萄糖注射液", "WESTERN", false));
+        when(catalogDirectory.requireMedication(1L, 3L)).thenReturn(mockMedication(3L, "维生素C注射液", "WESTERN", false));
+        when(routeDirectory.requireActive(eq(1L), eq("IV_DRIP"), eq("OUTPATIENT"), any(LocalDate.class)))
+                .thenReturn(new RouteSnapshot(99L, "IV_DRIP", "静脉滴注", "STD", "1", "INFUSION"));
+
+        var plans = engine.plan(encounter, List.of(
+                createItem(1L, "阿莫西林胶囊", "WESTERN", "PO", "NONE", null, 10L, "西药房"),
+                createItem(2L, "5%葡萄糖注射液", "WESTERN", "IV_DRIP", "INFUSION", "g1", 10L, "西药房"),
+                createItem(3L, "维生素C注射液", "WESTERN", "IV_DRIP", "INFUSION", "g1", 10L, "西药房")));
+
+        assertThat(plans).hasSize(1);
+        assertThat(plans.getFirst().routeGroupType()).isEqualTo("NON_INFUSION");
+        assertThat(plans.getFirst().ruleReasons()).contains("输液不单列（机构参数）", "同组输液原子性保护");
+        assertThat(plans.getFirst().items()).extracting(SplitPrescriptionPlan.PlannedMedicationItem::groupLeader)
+                .containsExactly(false, true, false);
+    }
+
+    @Test
+    @DisplayName("机构参数：容量上限按参数装箱，同组超限拒绝")
+    void packsByConfiguredCapacity() {
+        policySettings = new PrescriptionSplitPolicy.Settings(false, true, 2);
+        List<BatchOrderMedicationItem> items = new ArrayList<>();
+        for (long id = 1; id <= 3; id++) {
+            when(catalogDirectory.requireMedication(1L, id)).thenReturn(mockMedication(id, "西药" + id, "WESTERN", false));
+            items.add(createItem(id, "西药" + id, "WESTERN", "PO", "NONE", null, 10L, "西药房"));
+        }
+        var plans = engine.plan(encounter, items);
+        assertThat(plans).extracting(plan -> plan.items().size()).containsExactly(2, 1);
+        assertThat(plans.getFirst().ruleReasons()).contains("单方2种容量限制分方（第 1 张）");
+    }
+
+    @Test
+    @DisplayName("参数解析：缺失或超出法规上限时回落默认值")
+    void parsesPolicyWithRegulatoryCap() {
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        assertThat(PrescriptionSplitPolicy.parse(null)).isEqualTo(PrescriptionSplitPolicy.DEFAULT_SETTINGS);
+        assertThat(PrescriptionSplitPolicy.parse(mapper.readTree(
+                "{\"mergeWesternAndPatent\":true,\"separateInfusion\":false,\"maxItemsPerPrescription\":9}")))
+                .isEqualTo(new PrescriptionSplitPolicy.Settings(true, false, 5));
+        assertThat(PrescriptionSplitPolicy.parse(mapper.readTree("{\"maxItemsPerPrescription\":3}")))
+                .isEqualTo(new PrescriptionSplitPolicy.Settings(false, true, 3));
+    }
 }

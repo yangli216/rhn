@@ -66,6 +66,19 @@ export function readParameterFields(schemaJson: string | undefined | null): Para
   return fields.length ? fields : undefined
 }
 
+/** 标量参数在 JSON Schema 顶层声明 enum 时的选项；x-enumLabels 提供中文名。未声明 enum 时返回 undefined。 */
+export function readParameterEnumOptions(schemaJson: string | undefined | null): { value: string; label: string }[] | undefined {
+  if (!schemaJson?.trim()) return undefined
+  let schema: unknown
+  try { schema = parseParameterJson(schemaJson) } catch { return undefined }
+  if (!isRecord(schema) || !Array.isArray(schema.enum) || !schema.enum.length) return undefined
+  const labels = isRecord(schema['x-enumLabels']) ? schema['x-enumLabels'] : {}
+  return schema.enum.map((option) => {
+    const value = scalarText(option)
+    return { value, label: typeof labels[value] === 'string' ? labels[value] as string : value }
+  })
+}
+
 function scalarText(value: unknown) {
   if (isParameterJsonNumber(value)) return value.text
   if (typeof value === 'boolean') return value ? 'true' : 'false'

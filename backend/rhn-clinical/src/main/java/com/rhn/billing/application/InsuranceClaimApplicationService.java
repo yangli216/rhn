@@ -3,6 +3,7 @@ package com.rhn.billing.application;
 import com.rhn.billing.api.InsuranceResultDirectory;
 import com.rhn.billing.api.InsuranceSettlementAdapter;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction;
+import com.rhn.billing.api.InsuranceSettlementAdapter.InsurancePreSettlementCancellation;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceQuery;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult;
@@ -229,6 +230,28 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         }
         var applied = transactions.apply(claimId, "REVERSE", result, command, messageId, false);
         return transactions.view(claimId, applied.duplicate());
+    }
+
+    /**
+     * 取消未付款结算单前撤销其医保试算（费用明细及本申请登记的就诊）。医保平台拒绝或结果不明时抛出，结算单保持不变；
+     * 成功时返回给操作员的结果说明（适配器放在 errorMessage 中）。
+     */
+    String cancelPreSettlement(Long claimId) {
+        InsurancePreSettlementCancellation instruction = transactions.preSettlementCancellation(claimId);
+        InsuranceSettlementAdapter adapter = adapters.stream()
+                .filter(value -> value.supports(instruction.regionCode(), instruction.insuranceTypeCode()))
+                .findFirst().orElse(null);
+        if (adapter == null) throw conflict("INSURANCE_ADAPTER_UNAVAILABLE", "医保接口不可用，暂不能撤销医保试算");
+        InsuranceResult result;
+        try { result = adapter.cancelPreSettlement(instruction); }
+        catch (RuntimeException exception) {
+            throw conflict("INSURANCE_PRESETTLE_CANCEL_FAILED", "撤销医保试算失败：" + exception.getMessage());
+        }
+        if (result == null || result.outcome() != InsuranceResult.Outcome.SUCCEEDED) {
+            throw conflict("INSURANCE_PRESETTLE_CANCEL_FAILED", "撤销医保试算失败："
+                    + (result == null || result.errorMessage() == null ? "医保平台未确认撤销结果" : result.errorMessage()));
+        }
+        return result.errorMessage();
     }
 
     public InsuranceSettlementView get(Long claimId) { return transactions.view(claimId, false); }

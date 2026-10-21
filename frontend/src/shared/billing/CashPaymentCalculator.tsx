@@ -92,6 +92,7 @@ export function CashAmountInput({
         placeholder={placeholder}
         disabled={disabled}
         readOnly={readOnly}
+        onFocus={(e) => e.currentTarget.select()}
       />
     </div>
   )

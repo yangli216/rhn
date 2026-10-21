@@ -87,6 +87,14 @@ public class InventoryReservation {
                 ? InventoryReservationStatus.CONSUMED : InventoryReservationStatus.PARTIAL;
     }
 
+    public void unconsume() {
+        quantityConsumed = BigDecimal.ZERO;
+        consumedAt = null;
+        consumedBy = null;
+        status = InventoryReservationStatus.ACTIVE;
+        expiresAt = Instant.now().plus(30, java.time.temporal.ChronoUnit.MINUTES);
+    }
+
     public void expire(Instant now) {
         if (!active()) return;
         if (expiresAt == null || expiresAt.isAfter(now)) {

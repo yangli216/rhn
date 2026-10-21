@@ -15,6 +15,7 @@ import {
   Alert, Button, IconButton, ClinicalResourceSearch, Select, StatusBadge, type ClinicalResourceOption,
 } from '../../shared/ui'
 import { MedicalInsertViewerModal } from './ai/MedicalInsertViewerModal'
+import { formatDurationUnit } from './orders/orderPresentation'
 
 type EditorMode = 'regular' | 'herbal'
 type EditableField = 'doseValue' | 'doseUnit' | 'routeCode' | 'frequencyCode'
@@ -367,7 +368,7 @@ function RegularSavedRow({ value, groupLabel, busy, onCancel, onInspect }: {
     <span className="doctor-prescription-drug"><strong>{value.medicationName}</strong><small>{value.preparationSpec || value.medicationCode}</small></span>
     <span>{value.doseValue ?? '—'}</span><span>{value.doseUnit || '—'}</span>
     <span>{value.routeName || value.routeCode || '—'}</span>
-    <span>{value.frequencyCode || '—'}</span><span>{value.durationValue ? `${value.durationValue}${value.durationUnit || '天'}` : '—'}</span>
+    <span>{value.frequencyCode || '—'}</span><span>{value.durationValue ? `${value.durationValue}${formatDurationUnit(value.durationUnit)}` : '—'}</span>
     <span>{value.quantity} {value.quantityUnit}</span><span title={value.medicationInstruction}>{value.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone={value.status === 'DRAFT' ? 'warning'
       : value.status === 'ACTIVE' ? 'success' : 'neutral'}>{statusLabel(value.status)}</StatusBadge>
@@ -402,7 +403,7 @@ function RegularPlanRow({ value, groupLabel, onRemove, onInspect }: {
       <small>{value.preparationSpec || value.medicationCode}</small></span>
     <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span>
     <span>{value.routeName || request.routeCode || '—'}</span>
-    <span>{request.frequencyCode || '—'}</span><span>{request.durationValue ? `${request.durationValue}${request.durationUnit || '天'}` : '—'}</span>
+    <span>{request.frequencyCode || '—'}</span><span>{request.durationValue ? `${request.durationValue}${formatDurationUnit(request.durationUnit)}` : '—'}</span>
     <span>{request.quantity} {request.quantityUnit}</span><span title={request.medicationInstruction}>{request.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
       <IconButton icon="file-text" size="sm" label="说明书" onClick={onInspect} title="查看药品说明书" />

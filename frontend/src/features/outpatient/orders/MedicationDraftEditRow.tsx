@@ -7,12 +7,13 @@ import type { ActiveOrderFrequency } from '../../../shared/api/masterDataApi'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
-import { Alert, Button, Icon, Popconfirm, Select, StatusBadge } from '../../../shared/ui'
+import { Alert, Button, Icon, Popconfirm, Select } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
-import { formatPackageUnit, resolveExecutingDepartment, formatUnitPrice } from './orderPresentation'
+import { formatDurationUnit, formatPackageUnit, resolveExecutingDepartment, formatUnitPrice } from './orderPresentation'
 import { newAdministrationGroupKey } from './administrationGroups'
 import { OrderTypeBadge } from './OrderRowDecorations'
 import { numberValue, continueDraftOnEnter, focusControlAfterSelection } from './orderEditorControls'
+import { DraftStatusBadge } from './DraftStatusBadge'
 
 export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeExecutionTypes,
   administrationGroupOptions, frequencies, onSave, onCancel, onRemove, onAppendToGroup, currentDept,
@@ -308,7 +309,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
                 }}
                 onKeyDown={(event) => continueDraftOnEnter(event, `draft-quantity-${value.id}`)}
               />
-              <small>{value.request.durationUnit || '天'}</small>
+              <small>{formatDurationUnit(value.request.durationUnit)}</small>
             </div>
           </div>
         </div>
@@ -363,7 +364,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
           {value.request.pricingRequired === false ? '不计价' : formatUnitPrice(value.unitPrice, value.currencyCode)}
         </div>
         <div className="doctor-inline-order-status">
-          <StatusBadge tone="warning">待确认</StatusBadge>
+          <DraftStatusBadge />
         </div>
         <div className="doctor-inline-order-actions">
           {(executionType === 'INFUSION' || Boolean(administrationGroupKey)) && onAppendToGroup && (

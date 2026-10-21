@@ -276,7 +276,7 @@ export function ClinicalVitalsFields({ api, encounterId, historyEncounters, tria
               {isBpAbnormal && <span className="doctor-vital-alert-dot" title="血压异常" />}
             </span>
             <div className="doctor-vital-input-wrap doctor-vital-bp-wrap">
-              <input aria-label="收缩压" aria-invalid={Boolean(formState.errors.systolic)}
+              <input id="doctor-vital-systolic" aria-label="收缩压" aria-invalid={Boolean(formState.errors.systolic)}
                 aria-describedby={formState.errors.systolic ? 'doctor-vital-errors' : undefined} aria-required={bloodPressureRequired} type="number" min={VITAL_HARD_LIMITS.systolicPressure.minimum}
                 max={VITAL_HARD_LIMITS.systolicPressure.maximum}
                 {...register('systolic', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} disabled={signed} />

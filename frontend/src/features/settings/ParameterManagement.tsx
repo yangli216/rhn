@@ -24,8 +24,8 @@ import { requireSavedParameterDefinition, type ParameterDefinitionCommand } from
 import { parameterRollbackIssue, prepareParameterRollback, requireParameterChanges, requireParameterValueActionResult, type ParameterValueAction } from './parameterValueAction'
 import { mergeConfirmedCategories, requireCreatedCategory, requireParameterCategories, requireReorderedCategories, requireUpdatedCategory } from './parameterCategoryFacts'
 import { ConfigurationScopeTarget, useConfigurationScopeTarget } from './ConfigurationScopeTarget'
-import { describeParameterFieldValue, diffParameterFieldValues, parameterFieldErrors, parameterFieldVisible, readParameterFieldDraft,
-  readParameterFields, writeParameterFieldDraft, type ParameterField, type ParameterFieldDraft } from './parameterFieldSchema'
+import { describeParameterFieldValue, diffParameterFieldValues, parameterFieldErrors, parameterFieldVisible, readParameterEnumOptions,
+  readParameterFieldDraft, readParameterFields, writeParameterFieldDraft, type ParameterField, type ParameterFieldDraft } from './parameterFieldSchema'
 
 type DefinitionDialogMode = 'create' | 'edit' | undefined
 type CategoryDialogState = { mode: 'create'; parentId?: string; category?: undefined } | { mode: 'edit'; category: ParameterCategory }
@@ -475,6 +475,7 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             <div><dt>值类型 / 控件</dt><dd>{selected.sdParamValueTypeText} · {selected.sdParamControlTypeText}</dd></div>
             <div><dt>配置属性</dt><dd>{selected.sdParamConfigTypeText}</dd></div>
             <div><dt>安全策略</dt><dd>{selected.sdParamSensitivityText} · {selected.sdParamDisplayPolicyText}</dd></div>
+            <div><dt>默认值</dt><dd>{describeDefaultValue(selected)}</dd></div>
             <div><dt>前置依赖</dt><dd>{selected.dependsOnKey ? `${selected.dependsOnName || selected.dependsOnKey}（期望: ${selected.dependsOnValue || '非空'}）` : '无（独立生效）'}</dd></div>
           </dl>
           {selected.dependsOnKey && (
@@ -534,7 +535,7 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作">操作</th></tr></thead>
             <tbody>{selected.values.map((value) => <tr key={value.id}>
               <td><strong>{value.sdParamScopeTypeText}</strong><code>{scopeDisplay(value)}</code></td>
-              <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value, readParameterFields(selected.jsonSchema))}</td>
+              <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value, selected)}</td>
               <td><StatusBadge tone={value.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                 {value.sdParamStatusText}</StatusBadge></td><td>{formatDate(value.updatedAt)}</td>
               <td><div className="parameter-row-actions"><Button size="sm" variant="text" disabled={valueAction.isPending}
@@ -1258,6 +1259,11 @@ function ValueControl({ definition, rawValue, onChange, systemEnums, api, error,
       : <DictionarySelect api={api.dictionaries} dictionaryCode={definition.dictionaryCode}
         value={rawValue} placeholder="请选择" onChange={onChange} />}</FormField>
   }
+  const schemaOptions = definition.sdParamValueType === 'JSON' ? undefined : readParameterEnumOptions(definition.jsonSchema)
+  if (schemaOptions) {
+    return <FormField label="参数值" required={required} error={error}><Select value={rawValue} placeholder="请选择" showValue
+      onChange={onChange} options={schemaOptions} /></FormField>
+  }
   if (definition.sdParamControlType === 'SWITCH' || definition.sdParamValueType === 'BOOLEAN') {
     return <FormField label="参数值" required={required} error={error}><Select value={rawValue} placeholder="请选择" showValue
       onChange={onChange} options={[{ value: 'true', label: '是' }, { value: 'false', label: '否' }]} /></FormField>
@@ -1786,11 +1792,29 @@ function fieldChanges(definition: ParameterDefinition, change: ParameterChange) 
   return fields && diffParameterFieldValues(fields, snapshotValue(change.before), snapshotValue(change.after))
 }
 
-function displayValue(value: ParameterValue, fields?: ParameterField[]) {
+function displayValue(value: ParameterValue, definition: ParameterDefinition) {
   if (value.sdParamValueMode !== 'OVERRIDE') return '—'
   if (value.secretReference) return '密钥引用（已隐藏）'
   if (!value.hasValue) return '已隐藏'
-  return (fields && describeParameterFieldValue(fields, value.valueJson)) || (value.displayValue ?? value.valueJson ?? '—')
+  return describeValueJson(definition, value.valueJson) || (value.displayValue ?? value.valueJson ?? '—')
+}
+
+/** 未维护任何作用域值时解析使用的默认值；受保护的默认值只说明已设置。 */
+function describeDefaultValue(definition: ParameterDefinition) {
+  if (!definition.hasDefaultValue) return '未设置'
+  const json = definition.defaultValueJson
+  if (json == null) return '已设置（受保护，不显示）'
+  if (json.trim() === 'null') return '空值'
+  if (definition.sdParamValueType === 'STRING' && json.trim() === '""') return '空字符串'
+  return describeValueJson(definition, json) || readRawValue(json, definition.sdParamValueType)
+}
+
+function describeValueJson(definition: ParameterDefinition, valueJson: string | undefined) {
+  const fields = definition.sdParamValueType === 'JSON' ? readParameterFields(definition.jsonSchema) : undefined
+  if (fields) return describeParameterFieldValue(fields, valueJson)
+  const raw = readRawValue(valueJson, definition.sdParamValueType)
+  const option = readParameterEnumOptions(definition.jsonSchema)?.find((item) => item.value === raw)
+  return option && option.label !== raw ? `${option.label}（${raw}）` : undefined
 }
 
 function readRawValue(valueJson: string | undefined, type: ParameterValueType) {

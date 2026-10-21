@@ -36,7 +36,7 @@ public class DiagnosticExecutionService {
     private final BusinessNumberGenerator numbers;
     private static final String CONSUMER = "diagnostic-execution-projection-v1";
     private static final Set<String> PROJECTED_EVENTS = Set.of(
-            "SERVICE_REQUEST_AUTHORED", "SERVICE_REQUEST_CANCELLED",
+            "SERVICE_REQUEST_AUTHORED", "SERVICE_REQUEST_CANCELLED", "SERVICE_REQUEST_WITHDRAWN",
             "INPATIENT_SERVICE_REQUEST_ACTIVATED", "INPATIENT_SERVICE_REQUEST_CANCELLED",
             "BILLING_SETTLEMENT_FINALIZED", "BILLING_SETTLEMENT_REVERSED",
             "DIAGNOSTIC_REPORT_RECEIVED");
@@ -192,12 +192,24 @@ public class DiagnosticExecutionService {
             case "SERVICE_REQUEST_CANCELLED", "INPATIENT_SERVICE_REQUEST_CANCELLED" ->
                     tasks.lockByTenantIdAndRequestId(event.tenantId(), event.aggregateId())
                     .ifPresent(value -> value.cancel(event.occurredAt()));
+            // 取消签署：执行科室尚未开始的任务删除，重新签署时按新内容重建，不留作废任务。
+            case "SERVICE_REQUEST_WITHDRAWN" -> tasks.lockByTenantIdAndRequestId(event.tenantId(), event.aggregateId())
+                    .ifPresent(this::removeUnstarted);
             case "BILLING_SETTLEMENT_FINALIZED" -> updateSettlement(event, true);
             case "BILLING_SETTLEMENT_REVERSED" -> updateSettlement(event, false);
             case "DIAGNOSTIC_REPORT_RECEIVED" -> tasks.lockByTenantIdAndRequestId(event.tenantId(), event.aggregateId())
                     .ifPresent(value -> projectReport(value, event));
             default -> { }
         }
+    }
+
+    private void removeUnstarted(DiagnosticExecutionTask task) {
+        if (task.status() != DiagnosticExecutionTaskStatus.WAITING_SETTLEMENT
+                && task.status() != DiagnosticExecutionTaskStatus.READY) {
+            throw conflict("DIAGNOSTIC_TASK_STARTED", "检查检验已开始执行，不能取消签署");
+        }
+        tasks.delete(task);
+        tasks.flush();
     }
 
     private void projectReport(DiagnosticExecutionTask task, DomainEventEnvelope event) {

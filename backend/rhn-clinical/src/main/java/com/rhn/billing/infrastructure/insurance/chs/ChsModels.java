@@ -114,6 +114,16 @@ public final class ChsModels {
             String message
     ) {}
 
+    // ==================== 2205 费用明细撤销 / 2202 就诊登记撤销 ====================
+    public record PreSettlementCancelRequest(
+            String preSetlId,             // 原预结算流水（就诊ID:结算ID）
+            String psnNo,
+            String operatorId,
+            String settlementNo,          // 费用明细上传时的收费批次号（chrg_bchno），登记时的 ipt_otp_no
+            String insutype,
+            boolean registrationCancel    // 就诊登记由本申请发起，需一并撤销(2202)
+    ) {}
+
     // ==================== 2208 门诊结算撤销 ====================
     public record ReversalRequest(
             String setlId,                // 原医保结算流水号

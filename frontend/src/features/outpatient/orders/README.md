@@ -21,6 +21,9 @@
 | 频次和数量预览 | `medicationQuantity.ts`、共享 `frequencySemantics.ts` | `medicationQuantity.test.ts`、共享契约测试 |
 | 分方预览事实、失败拦截与重试 | `usePrescriptionSplitPreview.ts`、`../DoctorWorkstation.tsx` | `usePrescriptionSplitPreview.test.tsx`、`../DoctorWorkstation.test.tsx` |
 | 整批保存与回执核实 | `persistOrderDrafts.ts` | `persistOrderDrafts.test.ts`、`../DoctorWorkstation.test.tsx`、`../record/saveClinicalDraft.test.ts` |
+| 一次开立提交、简易／标准核查模式 | `OrdersPanel.tsx`（`submitOrders`、`orderingPolicy`） | `../DoctorWorkstation.test.tsx`、`orderDraftSave.testFixtures.ts` 的提交替身 |
+| 已保存医嘱原地修改、签署模式取消签署 | `editSavedOrder.ts`、`OrderReadRows.tsx`、`persistOrderDrafts.ts`（`revisedOrders`）、`OrdersPanel.tsx`（`withdrawSignature`） | `../DoctorWorkstation.test.tsx` |
+| 申请单合单预览与按单展示 | `useServiceDocumentPreview.ts`、`orderEntries.ts` 的 `serviceDocumentKey`、`../OrderDocuments.tsx` | `../OrderDocuments.test.tsx`、`../DoctorWorkstation.test.tsx` |
 | 历史处方续方与当前目录核对 | `../ai/historicalPrescriptionImport.ts`、`../ai/HistoryPrescriptionReference.tsx` | 同名测试、`../DoctorWorkstation.test.tsx` |
 | 临床模板回执、选择与异步带入 | `../templates/templateApplicationReceipt.ts`、`useTemplateApplication.ts`、`historicalPlanSelection.ts` | 同名测试、`../DoctorWorkstation.test.tsx` |
 | 临床模板的当前产品、价格、库存与执行科室 | `../templates/resolveTemplateOrders.ts`、`orderExecutionDepartment.ts` | `resolveTemplateOrders.test.ts`、`resolveTemplateOrders.api.test.ts`、`../DoctorWorkstation.test.tsx` |
@@ -37,7 +40,7 @@
 - `persistOrderDrafts.ts`：医嘱整批保存与回执核实；唯一调用 `saveOrderDrafts`，不再按客户端分类分方或逐条兼容提交。
 - `../UnifiedOrderListEditor.tsx`：保留连续录入状态、组方会话、目录选择／当前条目校验与加入草稿。跨区联动仍在这里协调；已保存和待确认列表的呈现进入对应 List 组件。
 - `OrderComposer*` 是受控字段组件，只接收各自的输入字段、字典选项和回调，不拥有草稿副本，不接收完整工作站控制器。原 DOM 层级、ID 和回车流保持一致，草药确认阻止键盘事件向外重复提交。
-- 待确认列表按类别连续展示，每类表头只出现一次；类别分组不是最终单据。药品审核预览与批量保存共用 `draftToBatchItem`（包括已选药房 ID）和后端分方引擎；检验检查当前逐项创建申请，不套用药品分方规则。
+- 待确认列表按类别连续展示，每类表头只出现一次；类别分组不是最终单据。药品审核预览与批量保存共用 `draftToBatchItem`（包括已选药房 ID）和后端分方引擎；检验检查共用 `draftToServiceItem` 和后端合单引擎，不套用药品分方规则。
 - `SavedOrderList` 与 `DraftOrderList` 用同一个 composer 插槽在指定组尾呈现录入区；位置由 `findGroupingComposerTarget` 决定。草稿药品保存后的输液会话同步仍回调父组件；整方修改仅回传整方字段，不传入整个录入状态 setter。
 - `useDraftRowInteractions` 只管理交互和计时器。每个行编辑器负责自己的验证和单次保存保护，不能把失焦保存误当作向后端提交医嘱。
 - `useAiOrderReview` 仍以命令 ID 驱动一次目录核对；完成时检查最新的就诊、忙碌和只读状态，卸载／换诊取消旧结果。只加入待确认草稿，正式开立仍由已有上层流程处理。
@@ -54,7 +57,10 @@
 - **外部来源整体带入**：历史续方、临床模板、组套、AI 建议须全部核对成功才带入，与当前草稿重复时整批拒绝；患者、就诊、上下文或 API 变化作废迟到结果（历史处方续方；临床模板回执与带入边界；模板抽屉的当前目录核对；组套导入与执行科室）。
 - **库存路由不兜底**：按已配置路由解析药房，不遍历其他药房；冻结使用保存时的 `baseQuantity`；已开立去向读取库存预留记录（门诊库存路由事实；库存换算与释放回执）。
 - **分方以后端为准**：预览与开立共用后端分方引擎，不用本地估算补单据数；预览不是开立成功凭据（分方预览与开立事实）。
-- **服务申请逐项创建**：每个检验检查项目一个申请与执行任务，不自动合单；检查目的选填（频次、数量预览与开立核查）。
+- **简单模式保存即生效**：工作区“保存”成功后由 `OrdersPanel` 注册的处理器立即开立（不再调用一次保存，避免过期草稿重复提交）；旁路合理用药提示自动确认，正式确认才弹核查窗；被拦下的医嘱显示“N 项未生效”，再次保存或诊毕时重试。“修改”只隐藏原行并打开编辑行，保存时在原医嘱上更新（`revisedOrders`），不新建也不撤销；已进结算单的不显示修改。签署模式（标准模式）按“未签署 / 已签署”称呼，已签署未进结算单的可取消签署。
+- **服务申请先草稿后开立**：整批保存写成 `DRAFT` 申请，计入“N 项草稿”和核查窗；一次开立命令必须带上全部申请草稿，生效后才记账、下发执行科室。草稿可删除（撤销），不能打印。
+- **服务申请按单归集、逐项执行**：每个项目仍是一条申请与执行任务，整批开立按机构合单参数归入申请单，合单依据缺失时单独成单；检查目的选填（频次、数量预览与开立核查）。
+- **开立一次提交**：处方集合、合理用药确认、单据信息与提交在 `order-submissions` 单事务完成；核查模式与分方参数由后端下发，不在前端另设规则（一次开立命令与核查模式）。
 - **AI 目录匹配**：只采用唯一可靠匹配，多候选由医生选择，不取搜索首项；未构建的推荐在医嘱保存回执核实后丢弃（AI 目录匹配与知识库调入）。
 - **模块边界**：新模块不得运行时导入 `UnifiedOrderListEditor` 或 `PrescriptionListEditor`；`OrderComposer*` 不持有草稿副本（见上方状态与依赖方向）。
 

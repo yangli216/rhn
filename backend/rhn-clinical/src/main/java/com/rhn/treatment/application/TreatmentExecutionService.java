@@ -47,6 +47,7 @@ public class TreatmentExecutionService {
     private static final String CONSUMER = "treatment-execution-projection-v1";
     private static final Set<String> PROJECTED_EVENTS = Set.of(
             "SERVICE_REQUEST_AUTHORED", "SERVICE_REQUEST_CANCELLED",
+            "SERVICE_REQUEST_WITHDRAWN", "MEDICATION_REQUEST_WITHDRAWN",
             "INPATIENT_SERVICE_REQUEST_ACTIVATED", "INPATIENT_SERVICE_REQUEST_CANCELLED",
             "MEDICATION_REQUEST_AUTHORED", "MEDICATION_REQUEST_ACTIVATED", "MEDICATION_REQUEST_CANCELLED",
             "BILLING_SETTLEMENT_FINALIZED", "BILLING_SETTLEMENT_REVERSED",
@@ -144,6 +145,8 @@ public class TreatmentExecutionService {
             case "SERVICE_REQUEST_CANCELLED", "INPATIENT_SERVICE_REQUEST_CANCELLED" ->
                     cancel(event, "SERVICE_REQUEST");
             case "MEDICATION_REQUEST_CANCELLED" -> cancel(event, "MEDICATION_REQUEST");
+            case "SERVICE_REQUEST_WITHDRAWN" -> withdraw(event, "SERVICE_REQUEST");
+            case "MEDICATION_REQUEST_WITHDRAWN" -> withdraw(event, "MEDICATION_REQUEST");
             case "BILLING_SETTLEMENT_FINALIZED" -> settlementChanged(event, true);
             case "BILLING_SETTLEMENT_REVERSED" -> settlementChanged(event, false);
             case "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED" -> fulfillmentChanged(event);
@@ -211,6 +214,21 @@ public class TreatmentExecutionService {
         items.lockBySource(event.tenantId(), sourceType, event.aggregateId()).ifPresent(item -> {
             item.cancel(event.occurredAt() == null ? Instant.now() : event.occurredAt());
             tasks.findById(item.taskId()).ifPresent(this::reconcile);
+        });
+    }
+
+    /** 取消签署：未开始的执行项删除，任务没有剩余项目时一并删除；重新签署时按新内容重建。 */
+    private void withdraw(DomainEventEnvelope event, String sourceType) {
+        items.lockBySource(event.tenantId(), sourceType, event.aggregateId()).ifPresent(item -> {
+            TreatmentExecutionTask task = tasks.findById(item.taskId()).orElse(null);
+            if (task != null && task.startedAt() != null) {
+                throw conflict("TREATMENT_TASK_STARTED", "治疗已开始执行，不能取消签署");
+            }
+            items.delete(item);
+            items.flush();
+            if (task == null) return;
+            if (items.findByTenantIdAndTaskIdOrderByCreatedAtAscIdAsc(task.tenantId(), task.id()).isEmpty()) tasks.delete(task);
+            else reconcile(task);
         });
     }
 

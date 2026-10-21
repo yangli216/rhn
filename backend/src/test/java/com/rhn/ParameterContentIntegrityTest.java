@@ -2,6 +2,7 @@ package com.rhn;
 
 import com.rhn.platform.configuration.api.ConfigurationDirectory;
 import com.rhn.platform.configuration.infrastructure.ConfigurationValueCache;
+import com.rhn.platform.dictionary.api.SystemEnumDirectory;
 import com.rhn.shared.api.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,34 @@ class ParameterContentIntegrityTest extends RhnIntegrationTestSupport {
     @Autowired ConfigurationDirectory directory;
     @Autowired ConfigurationValueCache cache;
     @Autowired JdbcTemplate jdbc;
+    @Autowired SystemEnumDirectory systemEnums;
+
+    @Test
+    void every_baseline_select_parameter_binds_a_dictionary_covering_its_default() {
+        // 下拉选择参数按绑定字典校验写入值；未绑定时维护当前值会失败。
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "select CD_PARAM_KEY, CD_DICT, JSON_DEFAULT_VAL from RHN_SYS_PARAM_DEF where SD_CONTROL_TYPE = 'SELECT'");
+        assertThat(rows).isNotEmpty();
+        for (Map<String, Object> row : rows) {
+            Object key = row.get("CD_PARAM_KEY");
+            assertThat(row.get("CD_DICT")).as("%s 绑定字典", key).isNotNull();
+            var dictionary = systemEnums.findSystemEnum(row.get("CD_DICT").toString());
+            if (dictionary.isEmpty() || row.get("JSON_DEFAULT_VAL") == null) continue;
+            String defaultCode = json(row.get("JSON_DEFAULT_VAL").toString()).asString();
+            assertThat(dictionary.get().items()).as("%s 默认值在字典中", key)
+                    .anyMatch(item -> item.code().equals(defaultCode));
+        }
+    }
+
+    @Test
+    void saves_the_order_review_mode_through_its_dictionary() throws Exception {
+        String id = jdbc.queryForObject("select ID_PARAM_DEF from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = ?", String.class,
+                "outpatient.doctor-workstation.order-review-mode");
+        Definition definition = new Definition(id, "outpatient.doctor-workstation.order-review-mode");
+        save(definition, "\"SIMPLE\"", null).andExpect(status().isOk());
+        save(definition, "\"FAST\"", 0L).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PARAMETER_SCHEMA_VIOLATION"));
+    }
 
     @Test
     void preserves_decimal_defaults_overrides_and_cached_runtime_values() throws Exception {

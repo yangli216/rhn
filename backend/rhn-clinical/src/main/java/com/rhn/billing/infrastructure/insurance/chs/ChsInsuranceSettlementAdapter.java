@@ -119,6 +119,23 @@ public class ChsInsuranceSettlementAdapter implements InsuranceSettlementAdapter
                 input.otherFundAmount(), input.amount(), input.currencyCode(), response);
     }
 
+    @Override public InsuranceResult cancelPreSettlement(InsurancePreSettlementCancellation input) {
+        if (!client.isAvailable()) return unavailable(InsuranceResult.Outcome.FAILED);
+        ChsModels.PreSettlementCancelRequest request;
+        try {
+            require(input != null && text(input.externalPreSettlementNo()) && text(input.settlementNo()), "撤销试算缺少原预结算流水或收费批次");
+            request = client.preparePreSettlementCancel(input);
+            require(request != null && text(request.psnNo()) && text(request.operatorId()), "撤销试算人员或操作员标识未确认");
+            require(input.externalPreSettlementNo().equals(request.preSetlId()) && input.settlementNo().equals(request.settlementNo()),
+                    "撤销试算请求与原预结算不一致");
+        } catch (RuntimeException exception) { return unconfirmedRequest(exception); }
+        String message;
+        try { message = client.cancelPreSettlement(request); }
+        catch (ChsRejectedException rejected) { return rejected(rejected); }
+        return new InsuranceResult(InsuranceResult.Outcome.SUCCEEDED, input.externalPreSettlementNo(), null,
+                null, null, null, null, null, null, message, null);
+    }
+
     private static void requireInstruction(InsuranceInstruction input) {
         require(input != null && input.claimId() != null && input.settlementId() != null && input.residentId() != null
                 && input.coverageId() != null && text(input.settlementNo()) && text(input.insuranceTypeCode())

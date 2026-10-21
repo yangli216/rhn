@@ -126,6 +126,14 @@ public class DispenseTaskLine {
                 ? DispenseTaskLineStatus.COMPLETED : DispenseTaskLineStatus.PARTIAL;
     }
 
+    public void cancelDispense(BigDecimal quantity) {
+        if (quantity == null || quantity.signum() <= 0 || dispensedQuantity.compareTo(quantity) < 0) {
+            throw new IllegalArgumentException("Cancelled quantity exceeds dispensed quantity");
+        }
+        dispensedQuantity = dispensedQuantity.subtract(quantity);
+        status = DispenseTaskLineStatus.READY_TO_DISPENSE;
+    }
+
     /** Cancels only the unissued remainder; cumulative issue and return quantities remain immutable facts. */
     public void cancelRemainingForOrderStop() {
         if (remainingQuantity().signum() > 0) status = DispenseTaskLineStatus.CANCELLED;

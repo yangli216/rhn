@@ -299,6 +299,7 @@ export const NAVIGATION_NODES: NavigationNode[] = [
   {
     id: 'pharmacy-management', label: '药事管理', icon: 'pharmacy', children: [
       { id: 'pharmacy', label: '门诊发药', icon: 'pharmacy', to: '/pharmacy', end: true, requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy-cancel-dispense', label: '取消发药', icon: 'pharmacy', to: '/pharmacy/cancel-dispense', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-review', label: '处方审方', icon: 'pharmacy', to: '/pharmacy/review', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-returns', label: '退药管理', icon: 'pharmacy', to: '/pharmacy/returns', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-query', label: '发药查询', icon: 'search', to: '/pharmacy/query', requiredAuthority: 'PHARMACY.ACCESS' },
@@ -444,6 +445,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/analytics' && analyticsEntryEnabled) return { id: pathname, path: pathname, title: '智能统计分析', icon: 'roadmap', closeable: true }
   if (pathname === '/tasks') return { id: pathname, path: pathname, title: '任务中心', icon: 'tasks', closeable: true }
   if (pathname === '/pharmacy') return { id: pathname, path: pathname, title: '门诊发药', icon: 'pharmacy', closeable: true }
+  if (pathname === '/pharmacy/cancel-dispense') return { id: pathname, path: pathname, title: '取消发药', icon: 'pharmacy', closeable: true }
   if (pathname === '/pharmacy/review') return { id: pathname, path: pathname, title: '处方审方', icon: 'pharmacy', closeable: true }
   if (pathname === '/pharmacy/returns') return { id: pathname, path: pathname, title: '退药管理', icon: 'pharmacy', closeable: true }
   if (pathname === '/pharmacy/query') return { id: pathname, path: pathname, title: '发药查询', icon: 'search', closeable: true }
@@ -1104,6 +1106,8 @@ export function AppShell() {
                   <Route path="/tasks" element={<TasksWorkspace api={tabSlot.api} contextKey={`${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/pharmacy" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/pharmacy/cancel-dispense" element={<PharmacyWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} mode="cancel-dispense" />} />
                   <Route path="/pharmacy/review" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} mode="review" />} />
                   <Route path="/pharmacy/returns" element={<PharmacyWorkspace api={tabSlot.api}

@@ -7,6 +7,7 @@ import { isCollectableMethod } from "../../../shared/billing/PaymentMethodSelect
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useState } from "react";
 import type { CompleteEncounterInput } from "../../../shared/api/encountersApi";
+import type { AccountStatement } from "../../../shared/api/billingApi";
 import type { Encounter } from "../../../shared/model";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
 import type { SettlementPaymentCommand } from "../../../shared/billing/SettlementPaymentPanel";
@@ -14,19 +15,24 @@ import { Alert, Button, Dialog, FormField, Icon, IconButton, LoadingState, Panel
 import { commandCode } from '../workstation/workstationShared'
 import { money } from '../printing/EncounterPrintPanel'
 import { bloodPressureMissing, useBloodPressureRequirement } from '../bloodPressurePolicy'
+import { InsuranceCredentialDialog } from '../../../shared/billing/InsuranceCredentialDialog'
+import { insuranceSettlementReady } from '../../../shared/billing/insuranceCheckout'
+import { useCompletionInsurance } from './useCompletionInsurance'
 
 export const SettlementPaymentPanel = lazy(() => import('../../../shared/billing/SettlementPaymentPanel')
   .then((module) => ({ default: module.SettlementPaymentPanel })))
 
 export function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, completionMode, canEdit, billingWriter,
   configurationError, configurationLoading, onReloadConfiguration,
-  onClose, onComplete, onSignNote, signing }: {
+  onClose, onComplete, onSignNote, signing, simpleOrdering = false }: {
   encounter: Encounter; api: RhnApi; signed: boolean; ready: boolean; busy: boolean; error: unknown
   completionMode: OutpatientCompletionMode | undefined
   configurationError: unknown; configurationLoading: boolean; onReloadConfiguration: () => Promise<unknown>
   canEdit: boolean; billingWriter: ReturnType<typeof createCompletionBillingWriter>
   onClose: () => void; onComplete: (input: CompleteEncounterInput, batchPrint?: boolean) => void
   onSignNote?: () => void; signing?: boolean
+  /** Simple ordering issues orders on save; the note is still signed on completion, but the action reads as completion. */
+  simpleOrdering?: boolean
 }) {
   const [batchPrintOnComplete, setBatchPrintOnComplete] = useState(false)
   const [dispositionCode, setDispositionCode] = useState<CompleteEncounterInput['dispositionCode']>('HOME')
@@ -77,28 +83,86 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
   }
   const captureBillingSession = useClinicalDocumentSession(api, JSON.stringify([encounter.id, encounter.residentId,
     encounter.organizationId, encounter.departmentId]), canEdit)
+  const insurance = useCompletionInsurance({ api, encounter, sessionKey, captureSession: captureBillingSession })
+  /** Settle the pre-settled claim, then collect only the self-pay remainder the settlement actually shows. */
+  const settleInsuranceAndCollect = async (statementBefore: AccountStatement, command: SettlementPaymentCommand,
+    assertCurrent: () => void) => {
+    const settled = await insurance.settle(statementBefore, command.settlementId, assertCurrent)
+    const current = requireCompletionStatement(await api.billing.statement(encounter.id), encounter)
+    assertCurrent()
+    const row = current.settlements.find(value => value.id === command.settlementId)
+    const expected = settled.patientCashAmount
+    if (!row || Math.abs(row.outstandingAmount - expected) > 0.01) {
+      throw new Error(`医保已结算，待收 ${money(row?.outstandingAmount ?? 0, current.currencyCode)} 与试算自付 ${
+        money(expected, current.currencyCode)} 不一致，请到收费处核对后收款。`)
+    }
+    if (row.outstandingAmount > 0 && command.amount > 0 && command.paymentMethodCode) {
+      const amount = Math.abs(row.outstandingAmount - expected) <= 0.005 ? command.amount
+        : Number((row.outstandingAmount + (command.roundingAdjustment ?? 0)).toFixed(2))
+      return billingWriter.pay(api.billing, encounter, current, { ...command, amount }, assertCurrent)
+    }
+    const orders = requireCompletionPaymentOrders(await api.billing.paymentOrders(current.accountId), current)
+    assertCurrent()
+    return { statement: current, orders, assertCurrent, confirmApplied: () => undefined }
+  }
+  // 本次弹窗里生成、尚未收款的结算单：继续诊疗或关闭时取消，费用回到未结算，避免挡住医生继续修改医嘱。
+  const [createdSettlementIds, setCreatedSettlementIds] = useState<string[]>([])
+  const releaseCreated = useMutation({
+    mutationFn: async () => {
+      const current = requireCompletionStatement(await api.billing.statement(encounter.id), encounter)
+      const unpaid = current.settlements.filter(row => createdSettlementIds.includes(row.id)
+        && row.status === 'PRICED' && row.tenderedAmount === 0)
+      for (const row of unpaid) await api.billing.cancelSettlement(row.id, '诊毕页未收款，取消诊间结算单')
+    },
+    onSettled: () => {
+      setCreatedSettlementIds([])
+      void queryClient.invalidateQueries({ queryKey: ['billing-statement', encounter.id] })
+      void queryClient.invalidateQueries({ queryKey: ['doctor-billing-statement', encounter.id] })
+      void queryClient.invalidateQueries({ queryKey: ['doctor-completion-statement', sessionKey, encounter.id] })
+    },
+  })
+  const close = () => {
+    if (busy || signing || billingOperation.isPending || releaseCreated.isPending) return
+    if (!createdSettlementIds.length) return onClose()
+    // 取消失败（如医保撤销未成功）时留在弹窗提示原因，再次关闭不再重试，交由收费处处理。
+    releaseCreated.mutate(undefined, { onSuccess: onClose })
+  }
   const billingOperation = useMutation({
     mutationFn: async (input: { kind: 'payment'; command: SettlementPaymentCommand } | { kind: 'invoice' | 'retry' }) => {
       const assertCurrent = captureBillingSession()
       if (input.kind === 'retry') return billingWriter.retry(api.billing, encounter, assertCurrent)
       if (!confirmedStatement || !ordersReady || !canEdit) throw new Error('诊间结算资料尚未确认，请重新加载')
-      return input.kind === 'payment'
-        ? billingWriter.pay(api.billing, encounter, confirmedStatement, input.command, assertCurrent)
-        : billingWriter.issue(api.billing, encounter, confirmedStatement, assertCurrent)
+      if (input.kind !== 'payment') return billingWriter.issue(api.billing, encounter, confirmedStatement, assertCurrent, insurance.mode)
+      return insurance.mode === 'MEDICAL_INSURANCE' && insurance.claim
+        ? settleInsuranceAndCollect(confirmedStatement, input.command, assertCurrent)
+        : billingWriter.pay(api.billing, encounter, confirmedStatement, input.command, assertCurrent)
     },
-    onSuccess: result => {
+    onSuccess: (result, input) => {
       result.assertCurrent()
       queryClient.setQueryData(['doctor-completion-statement', sessionKey, encounter.id], result.statement)
       queryClient.setQueryData(['doctor-completion-payment-orders', sessionKey, encounter.id, result.statement.accountId], result.orders)
       result.confirmApplied()
       void queryClient.invalidateQueries({ queryKey: ['billing-statement', encounter.id] })
       void queryClient.invalidateQueries({ queryKey: ['doctor-billing-statement', encounter.id] })
+      if (input.kind === 'invoice') {
+        const before = new Set((confirmedStatement?.settlements ?? []).map(row => row.id))
+        const created = result.statement.settlements.filter(row => !before.has(row.id)).map(row => row.id)
+        if (created.length) setCreatedSettlementIds(ids => [...ids, ...created])
+      }
+      // 医保患者生成结算单后直接试算，缺凭证时再提示读卡或扫码。
+      if (input.kind === 'invoice' && insurance.mode === 'MEDICAL_INSURANCE') {
+        const fresh = completionBillingSummary(result.statement).payable.filter(row => !insuranceSettlementReady(row))
+        if (fresh.length === 1) void insurance.preSettle(result.statement, fresh[0].id)
+      }
     },
   })
   const billingPending = billingWriter.hasPending()
-  const dialogBusy = busy || signing || billingOperation.isPending
+  const dialogBusy = busy || signing || billingOperation.isPending || releaseCreated.isPending
   const payable = billing?.payable ?? []
   const outstanding = billing?.outstanding
+  // 诊间结算不收现金；医保自付部分走扫码、刷卡等非现金方式。
+  const nonCashMethods = (methods.data ?? []).filter(value => value.attributes?.TENDER_TYPE !== 'CASH')
+  const showPayment = payable.length > 0
 
   const primaryDiag = encounter.diagnoses.find((value) => value.type === 'PRIMARY')?.display || '未录入'
   const hasChiefComplaint = Boolean(encounter.chiefComplaint?.trim())
@@ -106,8 +170,8 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
   const bloodPressureRequirement = useBloodPressureRequirement(api, encounter.id).data
   const missingBloodPressure = bloodPressureMissing(bloodPressureRequirement, encounter)
   const signatureReady = signed || completionMode === 'COMBINED_CONFIRMATION'
-  return <Dialog title="诊毕确认" size="xwide" className="doctor-completion-modal"
-    closeOnBackdrop={false} onClose={() => !dialogBusy && onClose()}
+  return <Dialog title="诊毕确认" size="xwide" className={`doctor-completion-modal${showPayment ? ' has-payment' : ''}`}
+    closeOnBackdrop={false} onClose={close}
     footer={
       <div className="doctor-completion-footer">
         <label className="doctor-completion-print-option ui-field__checkbox">
@@ -119,18 +183,39 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
           <span>诊毕后批量打印</span>
         </label>
         <div className="doctor-completion-footer__actions">
-          <Button variant="secondary" disabled={dialogBusy} onClick={onClose}>继续诊疗</Button>
+          {billingPending ? (
+            <Button variant="secondary" disabled={!canEdit} busy={billingOperation.isPending}
+              onClick={() => billingOperation.mutate({ kind: 'retry' })}>
+              核实上次结算
+            </Button>
+          ) : confirmedStatement && confirmedStatement.uninvoicedAmount > 0 && (
+            <Button variant="secondary" title="为未结算费用生成结算单，随后可在诊间收款"
+              disabled={!canEdit || billingOperation.isPending || !ordersReady || pendingPayment}
+              busy={billingOperation.isPending}
+              onClick={() => billingOperation.mutate({ kind: 'invoice' })}>
+              诊间结算
+            </Button>
+          )}
+          <Button variant="secondary" disabled={dialogBusy} busy={releaseCreated.isPending}
+            title={createdSettlementIds.length ? '关闭并取消本次生成、尚未收款的结算单' : undefined} onClick={close}>继续诊疗</Button>
           <Button busy={dialogBusy} disabled={!canComplete || !dispositionCode || billingOperation.isPending}
             title={!factsReady ? '诊毕资料尚未确认' : !ready ? '病历、主要诊断或血压尚未完成' : signed ? '确认诊毕' : '签署病历并完成诊毕'}
             onClick={() => canComplete && onComplete({ commandCode: requestCommand, dispositionCode },
-              batchPrintOnComplete)}>{signed ? '确认诊毕' : completionMode === 'COMBINED_CONFIRMATION'
+              batchPrintOnComplete)}>{signed || simpleOrdering ? '确认诊毕' : completionMode === 'COMBINED_CONFIRMATION'
                 ? '签署并诊毕' : '确认诊毕'}</Button>
         </div>
       </div>
     }>
-    <div className="doctor-completion-dialog" inert={dialogBusy}>
+    {insurance.credential && <InsuranceCredentialDialog api={api} residentId={encounter.residentId}
+      busy={insurance.preSettling} error={insurance.credential.error}
+      onVerified={() => { void insurance.preSettle(confirmedStatement, insurance.credential!.settlementId, true) }}
+      onCancel={insurance.cancelCredential} />}
+    <div className={`doctor-completion-dialog${showPayment ? ' has-payment' : ''}`} inert={dialogBusy}>
+    <div className="doctor-completion-main">
       {(error || billingOperation.error)
         && <Alert duration={null}>{errorMessage(error || billingOperation.error)}</Alert>}
+      {releaseCreated.error && <Alert placement="inline" tone="warning" duration={null}>
+        未付款结算单取消失败：{errorMessage(releaseCreated.error)}。可再次关闭，结算单保留，由收费处收款或取消</Alert>}
       {factsError && <Alert duration={null}>诊毕资料加载失败：{errorMessage(factsError)}</Alert>}
       {billingError && <Alert placement="inline" tone="warning" duration={null}>费用信息加载失败：{errorMessage(billingError)}。不影响签署和诊毕</Alert>}
 
@@ -146,22 +231,6 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
           </span>
         </div>
         <div className="doctor-completion-banner__actions">
-          {confirmedStatement && confirmedStatement.uninvoicedAmount > 0 && (
-            <Button
-              variant="secondary"
-              disabled={!canEdit || billingOperation.isPending || billingPending || !ordersReady || pendingPayment}
-              busy={billingOperation.isPending}
-              onClick={() => billingOperation.mutate({ kind: 'invoice' })}
-            >
-              <Icon name="billing" />生成结算单
-            </Button>
-          )}
-          {billingPending && (
-            <Button variant="secondary" disabled={!canEdit} busy={billingOperation.isPending}
-              onClick={() => billingOperation.mutate({ kind: 'retry' })}>
-              核实上次结算
-            </Button>
-          )}
           <IconButton icon="refresh" label="重新加载诊毕资料" disabled={factsLoading || billingLoading}
             aria-busy={factsLoading || billingLoading || undefined} onClick={() => void reloadFacts()} />
         </div>
@@ -187,55 +256,32 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
           </div>
           <strong>{orderCount === undefined ? '医嘱待核对' : `${orderCount} 项`}</strong>
         </div>
-        <div className="doctor-overview-stat doctor-overview-stat--fee">
-          <div className="doctor-overview-stat__header">
-            <span>费用结算</span>
-          </div>
-          <div className="doctor-fee-stat-content">
-            <strong>
-              {!confirmedStatement ? '费用待核对' : !ordersReady ? '支付状态待核对' : pendingPayment ? '支付处理中'
-                : billing?.settled ? '已结清'
-                  : outstanding! > 0 ? money(outstanding!, confirmedStatement.currencyCode)
-                    : confirmedStatement.uninvoicedAmount !== 0 ? '尚有未开票费用'
-                      : confirmedStatement.accountBalance !== 0 ? '账户余额待核对' : '结算尚未完成'}
-            </strong>
-            {confirmedStatement ? (
-              <div className="doctor-fee-stat-metrics">
-                <span>费用合计 <strong>{money(confirmedStatement.chargeAmount, confirmedStatement.currencyCode)}</strong></span>
-                <span>已支付 <strong>{money(confirmedStatement.paymentAmount, confirmedStatement.currencyCode)}</strong></span>
-                <span>未开票 <strong>{money(confirmedStatement.uninvoicedAmount, confirmedStatement.currencyCode)}</strong></span>
-                <span>待支付 <strong>{money(outstanding!, confirmedStatement.currencyCode)}</strong></span>
-                <span>账户余额 <strong>{money(confirmedStatement.accountBalance, confirmedStatement.currencyCode)}</strong></span>
-              </div>
-            ) : statement.isPending ? (
-              <small className="doctor-fee-stat__hint">读取中…</small>
-            ) : null}
-          </div>
+      </Panel>
+      <Panel className="doctor-completion-fee" aria-label="费用结算">
+        <PanelHead title="费用结算" />
+        <div className="doctor-fee-stat-content">
+          <strong>
+            {!confirmedStatement ? '费用待核对' : !ordersReady ? '支付状态待核对' : pendingPayment ? '支付处理中'
+              : billing?.settled ? '已结清'
+                : outstanding! > 0 ? money(outstanding!, confirmedStatement.currencyCode)
+                  : confirmedStatement.uninvoicedAmount !== 0 ? `${money(confirmedStatement.uninvoicedAmount, confirmedStatement.currencyCode)} 未结算`
+                    : confirmedStatement.accountBalance !== 0 ? '账户余额待核对' : '结算尚未完成'}
+          </strong>
+          {confirmedStatement ? (
+            <div className="doctor-fee-stat-metrics">
+              {/* 费用合计 − 已支付 = 尚需支付；尚需支付再按是否已生成结算单拆成“未结算”和“已结算待付”。 */}
+              <span>费用合计 <strong>{money(confirmedStatement.chargeAmount, confirmedStatement.currencyCode)}</strong></span>
+              <span>已支付 <strong>{money(confirmedStatement.paymentAmount, confirmedStatement.currencyCode)}</strong></span>
+              <span title="已开立但尚未生成结算单的费用，需诊间结算或到收费处结算">未结算 <strong>{money(confirmedStatement.uninvoicedAmount, confirmedStatement.currencyCode)}</strong></span>
+              <span title="已生成结算单、等待患者支付的金额">已结算待付 <strong>{money(outstanding!, confirmedStatement.currencyCode)}</strong></span>
+              <span title={confirmedStatement.accountBalance < 0 ? '患者账户预交款结余' : '费用合计减去已支付，即患者还需支付的金额'}>
+                {confirmedStatement.accountBalance < 0 ? '账户结余' : '尚需支付'} <strong>{money(Math.abs(confirmedStatement.accountBalance), confirmedStatement.currencyCode)}</strong></span>
+            </div>
+          ) : statement.isPending ? (
+            <small className="doctor-fee-stat__hint">读取中…</small>
+          ) : null}
         </div>
       </Panel>
-      {payable.length > 0 && (
-        <Panel className="doctor-completion-payment-section">
-          <PanelHead title="诊间收款" meta={`待结算 ${payable.length} 笔`} />
-          <div className="doctor-completion-payment">
-            <Suspense fallback={<LoadingState label="正在加载收款组件…" />}>
-              {billingPending || !canEdit || !ordersReady || !methods.isSuccess || methods.isFetching || !methods.data.length
-                ? <p>支付资料尚未确认或没有可用支付方式，请重新加载或联系管理员。</p>
-                : <SettlementPaymentPanel settlements={payable.map((value) => ({
-                id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
-              }))} methods={methods.data.map((value) => ({
-                code: value.code,
-                name: value.name,
-                sortOrder: value.sortOrder,
-                precision: value.attributes?.PAYMENT_PRECISION,
-                roundingMode: value.attributes?.ROUNDING_MODE,
-                tenderType: value.attributes?.TENDER_TYPE,
-              }))}
-              orders={orders.data!} busy={billingOperation.isPending} sceneLabel="诊间收款"
-              onSubmit={(command) => billingOperation.mutateAsync({ kind: 'payment', command })} />}
-            </Suspense>
-          </div>
-        </Panel>
-      )}
       <Panel className="doctor-completion-workflow">
         <PanelHead title="诊毕核对" />
         <div className="doctor-completion-confirmation">
@@ -284,6 +330,41 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
           </div>
         </div>
       </Panel>
+    </div>
+      {showPayment && (
+        <aside className="doctor-completion-side"><Panel className="doctor-completion-payment-section" aria-label="诊间收款">
+          <PanelHead title="诊间收款" meta={`待结算 ${payable.length} 笔`} />
+          <div className="doctor-completion-payment">
+            <Suspense fallback={<LoadingState label="正在加载收款组件…" />}>
+              {insurance.error && <Alert placement="inline" tone="warning" duration={null}>{insurance.error}</Alert>}
+              {billingPending || !canEdit || !ordersReady || !methods.isSuccess || methods.isFetching
+                ? <p>支付资料尚未确认，请重新加载或联系管理员。</p>
+                : <SettlementPaymentPanel settlements={payable.map((value) => ({
+                id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
+                insuranceReady: insuranceSettlementReady(value), insurancePreparationAllowed: false,
+                insuranceAmount: value.insuranceAmount, otherFundAmount: value.otherAmount,
+                personalAccountAmount: value.tenders.filter(tender => tender.tenderType === 'PERSONAL_ACCOUNT')
+                  .reduce((sum, tender) => sum + tender.amount, 0),
+              }))} methods={nonCashMethods.map((value) => ({
+                code: value.code,
+                name: value.name,
+                sortOrder: value.sortOrder,
+                precision: value.attributes?.PAYMENT_PRECISION,
+                roundingMode: value.attributes?.ROUNDING_MODE,
+                tenderType: value.attributes?.TENDER_TYPE,
+              }))}
+              orders={orders.data!} busy={billingOperation.isPending || insurance.preSettling} sceneLabel="诊间收款"
+              showSettlementMode settlementModeCode={insurance.mode} onSettlementModeChange={insurance.setMode}
+              insuranceIntegrated insuranceClaimView={insurance.claim} isPreSettlingInsurance={insurance.preSettling}
+              onPreSettleInsurance={(settlementId) => insurance.preSettle(confirmedStatement, settlementId)}
+              onCancelInsurancePreSettle={insurance.clearClaim}
+              onSubmit={(command) => billingOperation.mutateAsync({ kind: 'payment', command })} />}
+              {methods.isSuccess && !nonCashMethods.length && <small className="doctor-fee-stat__hint">
+                诊间未配置非现金支付方式，需个人自付时请到收费处缴费。</small>}
+            </Suspense>
+          </div>
+        </Panel></aside>
+      )}
     </div>
   </Dialog>
 }

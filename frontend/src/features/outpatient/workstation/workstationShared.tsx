@@ -29,6 +29,8 @@ export interface EncounterDraftState {
   diagnosesChanged: boolean
   medicationDraftCount: number
   serviceDraftCount: number
+  /** 简单模式下已保存但未生效的医嘱（开立被合理用药或校验拦下）；保存时会再次尝试生效，不计入未保存内容。 */
+  unissuedOrderCount?: number
   busy: boolean
 }
 
@@ -40,8 +42,8 @@ export function draftStateLabels(value: EncounterDraftState) {
   const labels: string[] = []
   if (value.recordChanged) labels.push('尚未保存的病历内容')
   if (value.diagnosesChanged) labels.push('尚未保存的诊断调整')
-  if (value.medicationDraftCount) labels.push(`${value.medicationDraftCount} 条待确认药品医嘱`)
-  if (value.serviceDraftCount) labels.push(`${value.serviceDraftCount} 条待确认诊疗项目`)
+  if (value.medicationDraftCount) labels.push(`${value.medicationDraftCount} 条未保存的药品医嘱`)
+  if (value.serviceDraftCount) labels.push(`${value.serviceDraftCount} 条未保存的诊疗项目`)
   return labels
 }
 

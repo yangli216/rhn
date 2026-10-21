@@ -448,6 +448,70 @@ class MedicationRequestService implements MedicationRequestDirectory {
         return response(value);
     }
 
+    MedicationRequest requireOwned(Long tenantId, Long encounterId, Long requestId) {
+        return repository.findByIdAndTenantId(requestId, tenantId)
+                .filter(request -> request.encounterId().equals(encounterId))
+                .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
+    }
+
+    /** 未签署药品原地修改：药品、产品与包装不变，按开立规则重新解析用法、单位、价格与语义快照。 */
+    MedicationRequestResponse reviseDraft(EncounterDirectory.EncounterSnapshot encounter, MedicationRequest value,
+                                          long expectedRevision, BatchOrderMedicationItem input) {
+        if ((input.medicationId() != null && !input.medicationId().equals(value.medicationId()))
+                || !java.util.Objects.equals(input.catalogItemId(), value.catalogItemId())
+                || !java.util.Objects.equals(input.packageId(), value.packageId())) {
+            throw badRequest("MEDICATION_REQUEST_REVISION_ITEM_CHANGED", "修改不能更换药品或包装，请删除后重新开立");
+        }
+        ExecutionContext context = contextProvider.requireCurrent();
+        Prescription prescription = value.requestGroupId() == null ? null
+                : prescriptionRepository.findByIdAndTenantId(value.requestGroupId(), encounter.tenantId()).orElse(null);
+        if (prescription == null || prescription.status() != PrescriptionStatus.DRAFT) {
+            throw conflict("PRESCRIPTION_NOT_EDITABLE", "只有未签署处方中的药品可以直接修改");
+        }
+        var create = new CreateMedicationRequest(prescription.id(), value.medicationId(), value.catalogItemId(),
+                value.packageId(), input.doseValue(), input.doseUnit(), input.routeCode(), input.frequencyCode(),
+                value.parentRequestId(), input.durationValue(), input.durationUnit(), input.quantity(), input.quantityUnit(),
+                input.substitutionAllowed(), value.selfProvided(), input.medicationInstruction(),
+                input.allergyReviewConfirmed(), input.allergyOverrideReason(), value.priceType(), value.priceId() != null,
+                value.businessDate(), null, null, input.skinTestExempt(), input.skinTestExemptReason(),
+                input.exemptEvidenceEventId(), value.reasonText());
+        CreateContext ctx = new CreateContext(encounter, context, encounter.tenantId(), value.businessDate(), prescription,
+                new ExecutionScope(value.performerOrganizationId(), value.performerDepartmentId()));
+        CatalogSelection selection = resolveCatalogSelection(ctx, create);
+        UnitSelection units = resolveUnits(create, selection);
+        DirectionSelection directions = resolveDirections(ctx, create, selection);
+        AllergyAssessment allergies = assessAllergies(ctx, create, selection.medication());
+        MasterDataViews.PriceView price = selection.resolvedPrice();
+        BigDecimal priceQuantity = price == null ? null : price.packageId() == null ? units.baseQuantity() : create.quantity();
+        var route = directions.routeSnapshot();
+        var frequency = directions.frequencySnapshot();
+        value.reviseDraft(expectedRevision, directions.doseValue(), directions.doseUnit(),
+                route == null ? null : route.id(), directions.route(), route == null ? null : route.name(),
+                route == null ? null : route.executionType(), directions.frequency(),
+                frequency == null ? null : frequency.id(), frequency == null ? null : frequency.name(),
+                frequency == null ? null : jsonCodec.write(frequency), create.durationValue(),
+                Strings.trimToNull(create.durationUnit()), create.quantity(), units.quantityUnit(), units.baseQuantity(),
+                priceQuantity, price == null ? null : price.id(), price == null ? null : price.revision(),
+                price == null ? null : price.price(), price == null ? null : price.price().multiply(priceQuantity),
+                create.substitutionAllowed(), Strings.trimToNull(create.medicationInstruction()),
+                Boolean.TRUE.equals(create.skinTestExempt()), create.skinTestExemptReason(), create.exemptEvidenceEventId(),
+                jsonCodec.write(semantics.freeze(encounter.tenantId(), selection.medication(), value.catalogItemId(), route,
+                        frequency, directions.doseValue(), directions.doseUnit(), create.durationValue(),
+                        Strings.trimToNull(create.durationUnit()), value.businessDate())));
+        repository.flush();
+        publish(value, "MEDICATION_REQUEST_DRAFT_REVISED", "修改未签署药品", authoredEventDetails(value, encounter, allergies, create));
+        return response(value);
+    }
+
+    /** 随处方取消签署：须未进结算单、药房未接收；撤回事件通知收费作废记账、治疗删除未开始的执行项。 */
+    void withdrawFromPrescription(MedicationRequest value, EncounterDirectory.EncounterSnapshot encounter) {
+        var fulfillment = OrderFulfillmentGuard.OrderRef.medication(value.tenantId(), value.id());
+        cancellationPolicy.requireWithdrawable(fulfillment, "MEDICATION_REQUEST_WITHDRAW_BLOCKED");
+        value.withdrawFromPrescription();
+        cancellationPolicy.releaseUnstarted(fulfillment);
+        publish(value, "MEDICATION_REQUEST_WITHDRAWN", "取消签署药品", financialEventDetails(value, encounter));
+    }
+
     List<MedicationRequest> prescriptionRequests(Long tenantId, Long prescriptionId) {
         return repository.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(tenantId, prescriptionId);
     }
@@ -598,6 +662,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     private MedicationRequestResponse response(MedicationRequest value,
             com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.DispensingPharmacy pharmacy, String pharmacySource, String prescriptionNo) {
+        var fulfillment = OrderFulfillmentGuard.OrderRef.medication(value.tenantId(), value.id());
+        String cancelBlockedReason = value.status() == MedicationRequestStatus.ACTIVE
+                ? cancellationPolicy.blockedReason(fulfillment) : null;
         return new MedicationRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
                 value.requestNo(), prescriptionNo, value.status().name(), value.requestGroupId(), value.parentRequestId(),
                 value.catalogItemId(), value.medicationId(),
@@ -621,10 +688,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 pharmacy == null ? null : pharmacy.id(), pharmacy == null ? null : pharmacy.name(), pharmacySource,
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
                 value.itemAttributeHash(), value.itemAttributeResolvedAt(), jsonCodec.readTree(value.standardMappingSnapshot()),
-                value.cancelledAt(), value.cancelledBy(), value.cancelReason(),
-                value.status() == MedicationRequestStatus.ACTIVE
-                        ? cancellationPolicy.blockedReason(OrderFulfillmentGuard.OrderRef.medication(value.tenantId(), value.id()))
-                        : null);
+                value.cancelledAt(), value.cancelledBy(), value.cancelReason(), cancelBlockedReason,
+                cancellationPolicy.editBlockedReason(value.status() == MedicationRequestStatus.CANCELLED,
+                        value.status() == MedicationRequestStatus.ACTIVE ? fulfillment : null));
     }
 
     private void requireEffective(String status, LocalDate from, LocalDate to, LocalDate date, String code, String message) {

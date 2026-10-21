@@ -8,5 +8,15 @@
     "owner": "catalog-standardization",
     "expires": "2026-11-13",
     "removal": "患者队列迁入共享选择列表或实现兼容布局的共享组件后删除此项"
+  },
+  {
+    "file": "features/outpatient/ai/ClinicalAiTreatmentRows.tsx",
+    "rule": "shared-select",
+    "fingerprint": "6d19a507c232ac415a0b",
+    "count": 1,
+    "reason": "AI 推荐编辑行的剂量单位与手工录入（OrderComposerDirections，已在基线中）保持同一原生紧凑单位下拉和样式，放在剂量输入框内；共享 Select 的弹层与宽度不适合该内嵌位置。",
+    "owner": "outpatient-ordering",
+    "expires": "2026-12-31",
+    "removal": "手工录入与 AI 编辑行的剂量单位一起迁移到共享紧凑选择组件后删除此项"
   }
 ]

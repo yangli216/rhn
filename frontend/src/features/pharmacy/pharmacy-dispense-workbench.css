@@ -884,8 +884,8 @@
 }
 
 .pharmacy-prescription-card__header {
-  padding: var(--space-2) var(--space-3);
-  min-height: 3.5rem;
+  padding: var(--space-1) var(--space-3);
+  min-height: 2.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -905,8 +905,8 @@
 
 .pharmacy-prescription-card__checkbox {
   cursor: pointer;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.125rem;
+  height: 1.125rem;
   accent-color: var(--color-brand-primary);
   margin: 0;
 }
@@ -915,8 +915,8 @@
   margin: 0;
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-h2);
-  line-height: var(--line-height-h2);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
   white-space: nowrap;
 }
 
@@ -977,7 +977,7 @@
 }
 
 .pharmacy-prescription-card__amount {
-  font-size: var(--font-size-h3);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-bold);
   color: var(--color-brand-primary);
   font-variant-numeric: tabular-nums;
@@ -1015,7 +1015,7 @@
 
 .pharmacy-prescription-table th,
 .pharmacy-prescription-table td {
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
   box-sizing: border-box;
@@ -1029,6 +1029,8 @@
   white-space: nowrap;
   border-bottom: 1px solid var(--color-border);
   letter-spacing: 0;
+  height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
 }
 
 .pharmacy-prescription-table tbody tr:last-child td {
@@ -1221,6 +1223,10 @@
   font-weight: var(--font-weight-medium);
 }
 
+.pharmacy-modal-grid__full {
+  grid-column: 1 / -1;
+}
+
 .pharmacy-queue-screen-board {
   padding: var(--space-6);
   text-align: center;
@@ -1307,3 +1313,101 @@
 .pharmacy-safety-findings p {
   margin: var(--space-2) 0;
 }
+
+/* --------------------------------------------------------------------------
+   Cancel Dispense Workbench Extensions
+   -------------------------------------------------------------------------- */
+.pharmacy-cancel-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pharmacy-cancel-title-eyebrow {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-secondary);
+}
+
+.pharmacy-cancel-title-heading {
+  font-size: var(--font-size-md, 1rem);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.pharmacy-cancel-search-wrap {
+  margin-left: var(--space-3);
+}
+
+.pharmacy-cancel-count-badge {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-secondary);
+}
+
+.pharmacy-cancel-item-amount {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pharmacy-cancel-item-time {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.pharmacy-cancel-banner-alert {
+  margin-block: calc(var(--space-1) * -1);
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.pharmacy-cancel-banner-alert .ui-alert {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+}
+
+.pharmacy-cancel-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pharmacy-cancel-queue-badge {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pharmacy-cancel-queue-amount {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pharmacy-allergy-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pharmacy-cancel-dialog-copy {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.pharmacy-cancel-dialog-footer {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+

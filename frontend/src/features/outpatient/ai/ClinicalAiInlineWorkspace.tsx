@@ -85,8 +85,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
 }) {
   const session = `${context.encounterId}:${generating ? 'generating' : suggestion?.id ?? ''}`
   const [viewingGuideline, setViewingGuideline] = useState<{ name: string; icd10?: string } | null>(null)
-  const [catalogSelection, setCatalogSelection] = useState<{ session: string; keys: string[]; items: ClinicalAiTreatmentRecommendation[] }>({ session: '', keys: [], items: [] })
-  const resolvedCatalog = catalogSelection.session === session ? catalogSelection : { keys: [] as string[], items: [] as ClinicalAiTreatmentRecommendation[] }
+  const [catalogSelection, setCatalogSelection] = useState<{ session: string; keys: string[]; items: ClinicalAiTreatmentRecommendation[]; origins: Record<string, string> }>({ session: '', keys: [], items: [], origins: {} })
+  const resolvedCatalog = catalogSelection.session === session ? catalogSelection
+    : { keys: [] as string[], items: [] as ClinicalAiTreatmentRecommendation[], origins: {} as Record<string, string> }
   const [diagnosisSelection, setDiagnosisSelection] = useState<{ session: string; excluded: string[] }>({ session: '', excluded: [] })
   const excludedDiagnoses = diagnosisSelection.session === session ? diagnosisSelection.excluded : []
   const alreadyEntered = (code: string) => context.diagnoses.some(diagnosis =>
@@ -106,6 +107,15 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       .filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
   const pendingMatches = planFeature && !generating && !treatmentBatchDismissed ? (suggestion?.treatmentMatches ?? [])
     .filter(match => !resolvedCatalog.keys.includes(match.key)) : []
+  // A confirmed catalog row takes its pending row's slot, so ticking never moves it within the list.
+  const allMatches = suggestion?.treatmentMatches ?? []
+  const matchedItems = suggestion?.treatmentRecommendations ?? []
+  const treatmentOrder = (key: string) => {
+    const pending = allMatches.findIndex(match => match.key === (resolvedCatalog.origins[key] ?? key))
+    if (pending >= 0) return pending + 1
+    const matched = matchedItems.findIndex(item => treatmentKey(item) === key)
+    return allMatches.length + 1 + (matched >= 0 ? matched : matchedItems.length)
+  }
   const portal = (node: ReactNode, target: HTMLDivElement | null, key: string) => target ? createPortal(node, target, key) : null
 
   return <>
@@ -194,17 +204,18 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       </div>, surfaces.diagnoses, 'diagnoses')}
 
     {(suggestion || generating) && planFeature && portal(
-      <div hidden={!(current || generating) || (!availableTreatmentItems.length && !pendingMatches.length)}>
+      <div className="doctor-ai-treatment-flow" hidden={!(current || generating) || (!availableTreatmentItems.length && !pendingMatches.length)}>
         {!generating && onDiscardTreatments && <div className="doctor-ai-order-batch">
-          <span>本轮医嘱推荐，保存医嘱后未构建项将自动丢弃{pendingMatches.length ? `；${CATALOG_PENDING_HINT}` : ''}。</span>
+          <span>本轮医嘱推荐，确认所选后其余未勾选项将自动丢弃{pendingMatches.length ? `；${CATALOG_PENDING_HINT}` : ''}。</span>
           <Button size="sm" variant="text" disabled={disabled || busy} onClick={onDiscardTreatments}>丢弃本轮推荐</Button>
         </div>}
         <ClinicalAiCatalogReview key={`catalog:${session}`} matches={pendingMatches} showIntro={generating || !onDiscardTreatments} api={api} encounterId={encounter.id} organizationId={encounter.organizationId}
-          disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
+          disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment} orderOf={treatmentOrder}
           onResolved={(keys, items) => setCatalogSelection({ session, keys: [...resolvedCatalog.keys, ...keys],
-            items: [...new Map([...resolvedCatalog.items, ...items].map(item => [treatmentKey(item), item])).values()] })} />
+            items: [...new Map([...resolvedCatalog.items, ...items].map(item => [treatmentKey(item), item])).values()],
+            origins: { ...resolvedCatalog.origins, ...Object.fromEntries(items.map(item => [treatmentKey(item), keys[0]])) } })} />
         <ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
-        api={api} encounter={encounter} disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment}
+        api={api} encounter={encounter} disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment} orderOf={treatmentOrder}
         onReview={(items) => onReviewTreatment?.(items)} /></div>, surfaces.plans, 'treatments')}
 
     <MedicalInsertViewerModal

@@ -272,6 +272,35 @@ class HttpChsNationalInsuranceClientTest {
     }
 
     @Test
+    void cancellingAPreSettlementRevokesUploadedFeesAndOnlyTheVisitThisClaimRegistered() {
+        ok("2205", "{}");
+        var own = new InsurancePreSettlementCancellation(1L, 2L, "SET", "360100", "310", "MDT001:SETL-PRE", "DOC1", "PSN001", true);
+        var done = adapter.cancelPreSettlement(own);
+        assertThat(done.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString()).filter(n -> n.startsWith("22")).toList())
+                .containsExactly("2205", "2202");
+        JsonNode revoke = call("2205").path("input").path("data");
+        assertThat(revoke.path("mdtrt_id").asString()).isEqualTo("MDT001");
+        assertThat(revoke.path("chrg_bchno").asString()).isEqualTo("SET");
+        assertThat(revoke.path("psn_no").asString()).isEqualTo("PSN001");
+        assertThat(call("2202").path("input").path("data").path("ipt_otp_no").asString()).isEqualTo("SET");
+
+        // 沿用挂号登记的就诊只撤销费用明细；登记撤销失败只提示人工核对，费用明细撤销被拒则整体失败。
+        sent.clear();
+        var reused = new InsurancePreSettlementCancellation(1L, 2L, "SET", "360100", "310", "MDT-REG:SETL-PRE", "DOC1", "PSN001", false);
+        assertThat(adapter.cancelPreSettlement(reused).outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString())).contains("2205").doesNotContain("2202");
+        rejected("2202", "就诊已撤销");
+        var partial = adapter.cancelPreSettlement(own);
+        assertThat(partial.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(partial.errorMessage()).contains("2202");
+        rejected("2205", "费用明细已结算");
+        var refused = adapter.cancelPreSettlement(own);
+        assertThat(refused.outcome()).isEqualTo(InsuranceResult.Outcome.FAILED);
+        assertThat(refused.errorMessage()).contains("费用明细已结算");
+    }
+
+    @Test
     void registrationReversalCancelsInsuranceThenTheRegistrationAndStaysSuccessfulIfOnlyTheCancelFails() {
         var reversal = new InsuranceReversal(1L, 2L, "SET", "REV", "360100", "310", "MDT001:SETL-FINAL",
                 new BigDecimal("100"), "退号", "CORR", 4L, 6L, "DOC1", "CNY", new BigDecimal("60"), new BigDecimal("20"),

@@ -193,7 +193,7 @@ export function SettlementPaymentPanel({
     if (cashFieldReady) cashInputRef.current?.focus()
     else if (awaitingPreSettleFocus || (paymentRequired && !isCashMethod)) submitButtonRef.current?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settlement?.id, awaitingPreSettleFocus, cashFieldReady, hasPreSettled])
+  }, [settlement?.id, awaitingPreSettleFocus, cashFieldReady, hasPreSettled, busy, isPreSettlingInsurance])
 
   const handleCheckoutSubmit = async () => {
     if (!settlement || busy || isPreSettlingInsurance) return

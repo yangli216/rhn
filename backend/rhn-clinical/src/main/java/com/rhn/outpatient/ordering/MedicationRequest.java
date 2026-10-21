@@ -178,6 +178,38 @@ class MedicationRequest {
         status = MedicationRequestStatus.CANCELLED; cancelledAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); cancelledBy = actorId; cancelReason = reason;
     }
 
+    /** 随处方取消签署退回未签署；记账与发药等下游由撤回事件清理。 */
+    void withdrawFromPrescription() {
+        if (status != MedicationRequestStatus.ACTIVE) throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
+                "只有已签署的药品请求可以取消签署", HttpStatus.CONFLICT);
+        status = MedicationRequestStatus.DRAFT;
+    }
+
+    /** 未签署药品原地修改用法用量与数量；药品、产品和包装不变，价格与快照由服务按开立规则重新解析。 */
+    void reviseDraft(long expectedRevision, BigDecimal doseValue, String doseUnit, Long routeId, String routeCode,
+                     String routeName, String routeExecutionType, String frequencyCode, Long frequencyId,
+                     String frequencyName, String frequencyRuleSnapshot, BigDecimal durationValue, String durationUnit,
+                     BigDecimal quantity, String quantityUnit, BigDecimal baseQuantity, BigDecimal priceQuantity,
+                     Long priceId, Long priceRevision, BigDecimal unitPrice, BigDecimal totalAmount,
+                     boolean substitutionAllowed, String medicationInstruction, boolean skinTestExempt,
+                     String skinTestExemptReason, Long exemptEvidenceEventId, String medicationSnapshot) {
+        if (revision != expectedRevision) throw new BusinessException("MEDICATION_REQUEST_REVISION_CONFLICT",
+                "药品请求已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
+        if (status != MedicationRequestStatus.DRAFT) throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
+                "只有未签署的药品请求可以直接修改", HttpStatus.CONFLICT);
+        this.doseValue = doseValue; this.doseUnit = doseUnit; this.routeId = routeId; this.routeCode = routeCode;
+        this.routeNameSnapshot = routeName; this.routeExecutionTypeSnapshot = routeExecutionType;
+        this.routeResolutionStatus = routeId == null ? "UNMAPPED" : "RESOLVED";
+        this.frequencyCode = frequencyCode; this.frequencyId = frequencyId; this.frequencyNameSnapshot = frequencyName;
+        this.frequencyRuleSnapshot = frequencyRuleSnapshot; this.durationValue = durationValue; this.durationUnit = durationUnit;
+        this.quantity = quantity; this.quantityUnit = quantityUnit; this.unitCodeSnapshot = quantityUnit;
+        this.baseQuantity = baseQuantity; this.priceQuantitySnapshot = priceQuantity;
+        this.priceId = priceId; this.priceRevision = priceRevision; this.unitPrice = unitPrice; this.totalAmount = totalAmount;
+        this.substitutionAllowed = substitutionAllowed; this.medicationInstruction = medicationInstruction;
+        this.skinTestExempt = skinTestExempt; this.skinTestExemptReason = Strings.trimToNull(skinTestExemptReason);
+        this.exemptEvidenceEventId = exemptEvidenceEventId; this.medicationSnapshot = medicationSnapshot;
+    }
+
     void activateFromPrescription() {
         if (status != MedicationRequestStatus.DRAFT) throw new BusinessException("MEDICATION_REQUEST_STATE_INVALID",
                 "处方提交时只能激活草稿药品请求", HttpStatus.CONFLICT);

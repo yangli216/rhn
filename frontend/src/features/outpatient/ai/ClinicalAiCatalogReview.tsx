@@ -8,8 +8,10 @@ import { resolveDispensableOptions } from '../orders/dispensableOptions'
 import { formatSpecimenType, formatExaminationType } from '../orders/orderPresentation'
 
 /** Pending identities never become selectable orders before explicit physician confirmation. */
-export function ClinicalAiCatalogReview({ matches, api, encounterId, organizationId, disabled, onResolved, layout = 'order-row', showIntro = true }: {
+export function ClinicalAiCatalogReview({ matches, api, encounterId, organizationId, disabled, onResolved, orderOf, layout = 'order-row', showIntro = true }: {
   layout?: 'order-row' | 'compact'
+  /** Flex order of each row by source match key, shared with the confirmed rows so a resolved row keeps its slot. */
+  orderOf?: (key: string) => number
   /** False when the host already explains the dashed pending rows (e.g. in its recommendation header). */
   showIntro?: boolean
   matches: ClinicalAiTreatmentMatch[]
@@ -127,7 +129,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
       const status = clinicalAiTreatmentMatchPresentation(match.status)
       const preview = chosenCandidate(match)
       const selectable = rows.filter(value => value.sourceKey === match.sourceKey).every(value => chosenCandidate(value))
-      return <div key={match.key} className="doctor-ai-treatment-item">
+      return <div key={match.key} className="doctor-ai-treatment-item" style={orderOf ? { order: orderOf(match.sourceKey) } : undefined}>
         <div className="doctor-unified-order-row is-ai-suggestion is-catalog-pending" role="row" aria-label={`${match.intent.name} · ${status.label}`}>
           <span className="doctor-unified-cell-type"><label className="doctor-ai-order-select">
             <input type="checkbox" aria-label={`选择 ${match.intent.name}`} checked={checkingKey === match.key}
@@ -204,8 +206,8 @@ function CatalogRowMeta({ match, preview }: { match: ClinicalAiTreatmentMatch; p
   const review = match.decisionReview
   const percent = (value: number) => `${Math.round(value * 100)}%`
   const completed = review?.status === 'COMPLETED' && typeof review.confidence === 'number'
-  const decision = !review ? '院内目录待核查'
-    : !completed ? review.detail
+  // Without a completed Jev judgment the reason column and status already explain the row; don't repeat it here.
+  const decision = !completed ? ''
       : review.choice === 'NONE' ? '未确认等价项，需人工核对'
         // Provider confidence is the concentration of Jev's whole answer (incl. NONE), not the preselected item's probability.
         : preview && review.suggestedItem ? `Jev 判断集中度 ${percent(review.confidence!)}${typeof review.threshold === 'number'
@@ -219,6 +221,7 @@ function CatalogRowMeta({ match, preview }: { match: ClinicalAiTreatmentMatch; p
   const title = completed ? ['集中度表示 Jev 在各候选及“无等价项”之间判断的集中程度，不是名称相似度或临床正确率',
     typeof review!.threshold === 'number' ? `自动采用阈值 ${percent(review!.threshold)}` : '', review!.detail]
     .filter(Boolean).join('；') : undefined
+  if (!parts.length) return null
   return <small className="doctor-ai-catalog-review__meta" title={title}>{parts.join(' · ')}</small>
 }
 

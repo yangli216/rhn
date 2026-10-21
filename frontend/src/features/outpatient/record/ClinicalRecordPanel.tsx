@@ -40,7 +40,7 @@ import type { ClinicalAiSurfaceRefs } from "../ai/ClinicalAiInlineWorkspace";
 import { clinicalAiContextFingerprint, type ClinicalAiDraftRequest } from "../ai/aiDraftAdapter";
 import type { AiPreConsultation, VitalsSummary } from "../waiting/queueTypes";
 import { type HistoryCopyDraft, type EncounterDraftState, medicationDraftKey } from '../workstation/workstationShared'
-import { OrdersPanel } from '../orders/OrdersPanel'
+import { OrdersPanel, type OrderIssueOutcome } from '../orders/OrdersPanel'
 import { PlanTemplatePanel } from '../templates/PlanTemplatePanel'
 import { ControlledPrintDialog } from '../printing/EncounterPrintPanel'
 
@@ -85,6 +85,11 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   const [medicationDrafts, setMedicationDrafts] = useState<MedicationPlanDraft[]>([])
   const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
   const [orderBusy, setOrderBusy] = useState(false)
+  const [unissuedOrderCount, setUnissuedOrderCount] = useState(0)
+  const issueOrdersRef = useRef<(() => Promise<OrderIssueOutcome>) | null>(null)
+  const registerIssueOrders = useCallback((handler: (() => Promise<OrderIssueOutcome>) | null) => {
+    issueOrdersRef.current = handler
+  }, [])
   const [copyNotice, setCopyNotice] = useState('')
     const [aiRecordUndo, setAiRecordUndo] = useState<AiRecordUndo | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
@@ -370,10 +375,10 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   }, [onRegisterAiPlan, preparePlan])
   useEffect(() => {
     onDraftStateChange({ recordChanged: recordContentChanged || structuredChanged, diagnosesChanged,
-      medicationDraftCount: medicationDrafts.length, serviceDraftCount: serviceDrafts.length,
+      medicationDraftCount: medicationDrafts.length, serviceDraftCount: serviceDrafts.length, unissuedOrderCount,
       busy: businessBusy })
   }, [businessBusy, diagnosesChanged, medicationDrafts.length, onDraftStateChange, recordContentChanged,
-    serviceDrafts.length, structuredChanged])
+    serviceDrafts.length, structuredChanged, unissuedOrderCount])
   const persistRecordDraft = save.mutateAsync
   const submitRecordDraft = useCallback(async (value: RecordForm) => {
       if (aiFieldStream?.encounterId === encounter.id) {
@@ -403,8 +408,14 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   const saveDraftAndWait = useCallback(async () => {
     let saved = false
     await handleSubmit(async (value) => { saved = await submitRecordDraft(value) }, reportRecordErrors)()
-    return saved
-  }, [handleSubmit, submitRecordDraft, reportRecordErrors])
+    if (!saved) return false
+    // 简单模式“保存即生效”：病历与医嘱草稿落库后立即开立；未生效的原因留在医嘱面板，诊毕不继续。
+    const outcome = await issueOrdersRef.current?.() ?? 'SKIPPED'
+    if (outcome === 'ISSUED') onSaveDraftNotice?.({ message: '门诊病历、诊断已保存，医嘱已生效', tone: 'success' })
+    if (outcome === 'REVIEW') onSaveDraftNotice?.({ message: '病历已保存；合理用药提示需确认后医嘱才能生效', tone: 'warning' })
+    if (outcome === 'FAILED') onSaveDraftNotice?.({ message: '病历已保存，医嘱未生效，请按医嘱区提示处理后重新保存', tone: 'warning' })
+    return outcome === 'SKIPPED' || outcome === 'ISSUED'
+  }, [handleSubmit, submitRecordDraft, reportRecordErrors, onSaveDraftNotice])
   useEffect(() => {
     onRegisterSaveDraft?.(saveDraftAndWait)
     return () => onRegisterSaveDraft?.(null)
@@ -660,7 +671,8 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
         aiSuggestionSurfaceRef={editing && !signed ? aiSurfaceRefs.plans : undefined}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy}
-        currentDepartmentName={currentDepartmentName} onOpenPrintCenter={onOpenPrintCenter} />
+        currentDepartmentName={currentDepartmentName} onOpenPrintCenter={onOpenPrintCenter}
+        onRegisterIssueOrders={registerIssueOrders} onUnissuedCountChange={setUnissuedOrderCount} />
     </aside>
     {editing && !signed && planTemplateDrawerHost && createPortal(
       <PlanTemplatePanel initialPlanId={recommendedPlanId} encounter={encounter} busy={aiContextBusy}

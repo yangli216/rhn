@@ -1,9 +1,11 @@
-import { formatPackageUnit, resolveExecutingDepartment, summarizeExecutingDepartments } from "./orderPresentation";
+import { formatDurationUnit, formatPackageUnit, resolveExecutingDepartment, summarizeExecutingDepartments } from "./orderPresentation";
 import { useSavedOrderDepartmentNames } from "./useOrderExecutionDepartments";
 import { ClinicalRecordValidationError } from "../record/clinicalRecordDraft";
 import { usePrescriptionSplitPreview } from "./usePrescriptionSplitPreview";
-import { matchSplitPreviewDraft, draftToBatchItem } from "./persistOrderDrafts";
-import { orderDocuments } from "../OrderDocuments";
+import { matchSplitPreviewDraft, draftToBatchItem, draftToServiceItem } from "./persistOrderDrafts";
+import { useServiceDocumentPreview } from "./useServiceDocumentPreview";
+import type { OrderWorkflowMode } from "./editSavedOrder";
+import { orderDocuments, saveOrderDocumentInfo, serviceDocumentKey } from "../OrderDocuments";
 import { canPrintPrescription } from "./dispensableOptions";
 import { buildDefaultDocumentInfo, getPrimaryDiagnosis } from "./orderDocumentDefaults";
 import { OrderDocumentReviewCard, OrderDocumentReviewList } from "./OrderDocumentReviewCard";
@@ -17,12 +19,19 @@ import { IconPrinter } from "@tabler/icons-react";
 import { Alert, Button, Dialog, FormField, IconActionButton, LoadingState, Panel, PanelHead, StatusBadge } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "./medicationDraft";
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from "../UnifiedOrderListEditor";
-import { needsMedicationSafetyAcknowledgement, medicationSafetyReviewKey, medicationSafetyBlocksSubmission, medicationSafetyNeedsReason, medicationSafetySeverityLabel, medicationSafetyDecisionLabel, medicationSafetyRuleNames, prescriptionReviewTitle, serviceReviewTitle } from '../workstation/workstationShared'
+import { medicationSafetyBlocksSubmission, medicationSafetyNeedsReason, medicationSafetySeverityLabel, medicationSafetyDecisionLabel, medicationSafetyRuleNames, prescriptionReviewTitle, serviceReviewTitle } from '../workstation/workstationShared'
 import { ControlledPrintDialog, prescriptionCategoryLabel, serviceApplicationLabel, BatchPrintDialog } from '../printing/EncounterPrintPanel'
+import { retryAfterReleasingUnpaidSettlements } from './releaseUnpaidSettlements'
+
+/** ISSUED：已全部生效（或无可生效医嘱）；REVIEW：需医生在核查窗确认合理用药；FAILED：未生效，原因已在面板提示。 */
+export type OrderIssueOutcome = 'SKIPPED' | 'ISSUED' | 'REVIEW' | 'FAILED'
 
 export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinicalDraft, onEditInvalidRecord, allergies, api, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
-  aiSuggestionSurfaceRef, currentDepartmentName, onOpenPrintCenter: _onOpenPrintCenter }: {
+  aiSuggestionSurfaceRef, currentDepartmentName, onOpenPrintCenter: _onOpenPrintCenter, onRegisterIssueOrders, onUnissuedCountChange }: {
+  /** 简单模式“保存即生效”：病历保存成功后由工作区调用，标准模式返回 SKIPPED。 */
+  onRegisterIssueOrders?: (handler: (() => Promise<OrderIssueOutcome>) | null) => void
+  onUnissuedCountChange?: (count: number) => void
   aiOrderReview?: AiOrderReviewCommand | null
   onAiOrderReviewConsumed?: () => void
   onTreatmentKeysChange?: (keys: string[]) => void
@@ -53,11 +62,15 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
   }
 
   const [safetyReviews, setSafetyReviews] = useState<MedicationSafetyDecision[]>([])
+  const [safetyReviewKey, setSafetyReviewKey] = useState<string | null>(null)
   const [safetyReasons, setSafetyReasons] = useState<Record<string, string>>({})
   const [safetyReviewNotice, setSafetyReviewNotice] = useState('')
+  // 简单模式下旁路监控结果只提示不阻断，随保存自动确认，提示保留在面板上供医生知晓。
+  const [shadowNotice, setShadowNotice] = useState('')
   const safetyPreviewKey = useRef('')
   useEffect(() => {
     if (!reviewOpen) {
+      setSafetyReviewKey(null)
       setSafetyReasons({})
       setSafetyReviewNotice('')
       setReviewDocumentInfos({})
@@ -74,6 +87,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     setDocumentKey(null)
     setDocumentDirty(false)
     setReviewDocumentInfos({})
+    setShadowNotice('')
   }, [encounter.id])
   const prescriptions = useQuery({ queryKey: ['doctor-prescriptions', encounter.id], queryFn: () => api.encounters.prescriptions(encounter.id) })
   const services = useQuery({ queryKey: ['doctor-services', encounter.id], queryFn: () => api.encounters.serviceRequests(encounter.id) })
@@ -113,91 +127,125 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     mutationFn: (value: MedicationRequest) =>
       api.encounters.cancelMedicationRequest(encounter.id, value.id, value.revision, '医生站撤销'), onSuccess: refresh,
   })
+  // 签署模式的取消签署：药品以整张处方为单位退回未签署，诊疗项目逐项退回；未进结算单的记账同时作废，
+  // 只进了未付款结算单的先取消该结算单。
+  const withdrawSignature = useMutation({
+    mutationFn: async (value: { kind: 'medication'; order: MedicationRequest } | { kind: 'service'; order: ServiceRequest }) => {
+      if (value.kind === 'service') return retryAfterReleasingUnpaidSettlements(api.billing, encounter.id,
+        () => api.encounters.withdrawServiceSignature(encounter.id, value.order.id, value.order.revision))
+      const prescription = (prescriptions.data ?? []).find((rx) => rx.id === value.order.prescriptionId)
+      if (!prescription) throw new Error('未找到药品所在处方，请刷新后重试')
+      return retryAfterReleasingUnpaidSettlements(api.billing, encounter.id,
+        () => api.encounters.withdrawPrescriptionSignature(encounter.id, prescription.id, prescription.revision))
+    },
+    onSuccess: refresh,
+  })
   const splitPreview = usePrescriptionSplitPreview({ api: api.encounters, encounter,
     items: medicationDrafts.map(draftToBatchItem), enabled: reviewOpen })
+  const orderingPolicy = useQuery({
+    queryKey: ['outpatient-ordering-policy', encounter.id],
+    queryFn: () => api.encounters.orderingPolicy(encounter.id),
+    staleTime: 5 * 60 * 1000,
+  })
+  // 参数读取失败时按标准模式处理：多一次核查，不少一道确认。
+  const simpleReview = orderingPolicy.data?.reviewMode === 'SIMPLE'
+  // 简单模式保存即生效；标准模式即签署模式：保存为未签署，经核查窗签署后生效。
+  const orderMode: OrderWorkflowMode | undefined = orderingPolicy.data ? (simpleReview ? 'SIMPLE' : 'SIGNING') : undefined
+  const signVerb = simpleReview ? '生效' : '签署'
+  const serviceDocumentPreview = useServiceDocumentPreview({ api: api.encounters, encounter,
+    items: serviceDrafts.map(draftToServiceItem), enabled: reviewOpen })
   const confirmPlan = useMutation({
-    mutationFn: async ({ acknowledged }: { acknowledged: boolean }) => {
-      splitPreview.requireReady()
-      const defaultPrescriptionInfo = buildDefaultDocumentInfo(encounter, 'prescription')
+    mutationFn: async ({ acknowledged, afterRecordSaved = false }: { acknowledged: boolean; afterRecordSaved?: boolean }) => {
+      if (reviewOpen) { splitPreview.requireReady(); serviceDocumentPreview.requireReady() }
+      setShadowNotice('')
       const defaultServiceInfo = buildDefaultDocumentInfo(encounter, 'service')
       const existingPrescriptionIds = new Set((prescriptions.data ?? []).map((value) => value.id))
       const existingServiceIds = new Set((services.data ?? []).map((value) => value.id))
 
-      const clinicalDraftSaved = await onSaveClinicalDraft()
-      if (!clinicalDraftSaved) throw new Error('本次草稿保存未完成，请处理保存提示后重新开立')
+      // 工作区保存后接着生效时病历与草稿已落库；此时本组件的草稿状态可能尚未刷新，不能再触发一次保存。
+      if (!afterRecordSaved) {
+        const clinicalDraftSaved = await onSaveClinicalDraft()
+        if (!clinicalDraftSaved) throw new Error(`本次草稿保存未完成，请处理保存提示后重新${signVerb}`)
+      }
 
       const [latestPrescriptions, latestServices] = await Promise.all([
         api.encounters.prescriptions(encounter.id),
         api.encounters.serviceRequests(encounter.id),
       ])
 
-      const draftPrescriptions = latestPrescriptions.filter((p) => p.status === 'DRAFT')
-      const newPrescriptionIndexes = new Map(draftPrescriptions
+      const draftPrescriptions = latestPrescriptions.filter((value) => value.status === 'DRAFT'
+        && value.medicationRequests.some((request) => request.status === 'DRAFT'))
+      const newPrescriptionIndexes = new Map(latestPrescriptions.filter((p) => p.status === 'DRAFT')
         .filter((prescription) => !existingPrescriptionIds.has(prescription.id))
         .map((prescription, index) => [prescription.id, index]))
-      for (const rx of draftPrescriptions) {
+      const prescriptionEntries = draftPrescriptions.map((rx) => {
         const previewIndex = newPrescriptionIndexes.get(rx.id)
         const customInfo = reviewDocumentInfos[`prescription:${rx.id}`]
           || (previewIndex === undefined ? undefined : reviewDocumentInfos[`preview-plan-${previewIndex}`])
           || reviewDocumentInfos[rx.categoryCode]
-        const targetInfo = customInfo || (rx.documentInfo?.diagnoses?.length ? rx.documentInfo : defaultPrescriptionInfo)
-        if (targetInfo && JSON.stringify(targetInfo) !== JSON.stringify(rx.documentInfo)) {
-          await api.encounters.updatePrescriptionDocumentInfo(encounter.id, rx.id, rx.revision, targetInfo)
-        }
+        const safetyReason = safetyReasons[rx.id]?.trim()
+        // 未改动的单据交给服务端：已有诊断保留，没有诊断默认关联主诊断。
+        return { id: rx.id, expectedRevision: rx.revision,
+          ...(customInfo ? { documentInfo: customInfo } : {}), ...(safetyReason ? { safetyReason } : {}) }
+      })
+
+      const serviceDocuments = latestServices.filter((s) => s.status === 'DRAFT'
+        || (s.status === 'ACTIVE' && s.documentInfoEditable !== false))
+        .flatMap((svc) => {
+          const customInfo = reviewDocumentInfos[serviceDocumentKey(svc)] || reviewDocumentInfos[`service:${svc.id}`]
+            || (!existingServiceIds.has(svc.id) ? reviewDocumentInfos[`draft-service:${svc.catalogItemId}`] : undefined)
+          // 申请草稿全部随本次开立生效；未改动的单据交给服务端默认关联主诊断。
+          if (svc.status === 'DRAFT') return [{ id: svc.id, expectedRevision: svc.revision,
+            ...(customInfo && svc.documentInfoEditable !== false ? { documentInfo: customInfo } : {}) }]
+          const targetInfo = customInfo || (svc.documentInfo?.diagnoses?.length ? svc.documentInfo : defaultServiceInfo)
+          return targetInfo && JSON.stringify(targetInfo) !== JSON.stringify(svc.documentInfo)
+            ? [{ id: svc.id, expectedRevision: svc.revision, documentInfo: targetInfo }] : []
+        })
+      if (!prescriptionEntries.length && !serviceDocuments.length) return { requiresAcknowledgement: false, reviews: [], empty: true }
+
+      const sentKey = acknowledged ? safetyReviewKey ?? undefined : undefined
+      let result = await api.encounters.submitOrders(encounter.id, {
+        prescriptions: prescriptionEntries, serviceDocuments,
+        ...(sentKey ? { acknowledgedReviewKey: sentKey } : {}),
+      })
+      if (result.status === 'REVIEW_REQUIRED' && simpleReview && !reviewOpen && result.reviewKey
+        && result.reviews.length > 0 && result.reviews.every((review) => review.mode === 'SHADOW')) {
+        const messages = [...new Set(result.reviews.flatMap((review) => review.findings.map((finding) => finding.message)))]
+        result = await api.encounters.submitOrders(encounter.id, {
+          prescriptions: prescriptionEntries, serviceDocuments, acknowledgedReviewKey: result.reviewKey,
+        })
+        if (result.status === 'SUBMITTED') setShadowNotice(`合理用药提示（不阻断）：${messages.join('；') || '部分规则未能完成评价，请人工核对'}`)
       }
-
-      const activeServices = latestServices.filter((s) => s.status === 'ACTIVE' && s.documentInfoEditable !== false)
-      for (let sIdx = 0; sIdx < activeServices.length; sIdx++) {
-        const svc = activeServices[sIdx]
-        const customInfo = reviewDocumentInfos[`service:${svc.id}`]
-          || (!existingServiceIds.has(svc.id) ? reviewDocumentInfos[`draft-service:${svc.catalogItemId}`] : undefined)
-        const targetInfo = customInfo || (svc.documentInfo?.diagnoses?.length ? svc.documentInfo : defaultServiceInfo)
-        if (targetInfo && JSON.stringify(targetInfo) !== JSON.stringify(svc.documentInfo)) {
-          await api.encounters.updateServiceDocumentInfo(encounter.id, svc.id, svc.revision, targetInfo)
+      if (result.status === 'REVIEW_REQUIRED') {
+        // 核查窗未打开时，阻断结论没有可确认的内容：直接在面板提示原因，不弹出分单核查。
+        const blocked = reviewOpen ? [] : result.reviews.filter(medicationSafetyBlocksSubmission)
+        if (blocked.length) {
+          const reasons = [...new Set(blocked.flatMap((review) => review.findings
+            .filter((finding) => finding.decision === review.decision).map((finding) => finding.message)))]
+          throw new Error(`合理用药审查未通过，当前处方不能提交${reasons.length ? `：${reasons.join('；')}` : ''}`)
         }
-      }
-
-      const latest = await api.encounters.prescriptions(encounter.id)
-      const draftsToSubmit = latest.filter((value) => value.status === 'DRAFT'
-        && value.medicationRequests.some((request) => request.status === 'DRAFT'))
-
-      if (draftsToSubmit.length > 0) {
-        const evaluations = await Promise.all(draftsToSubmit.map((value) =>
-          api.encounters.evaluatePrescriptionSafety(encounter.id, value.id)))
-        const reviews = evaluations.filter(needsMedicationSafetyAcknowledgement)
-        if (reviews.length > 0 && (!acknowledged
-          || medicationSafetyReviewKey(reviews) !== medicationSafetyReviewKey(safetyReviews))) {
-          return { requiresAcknowledgement: true, reviews, changed: acknowledged }
-        }
-        if (reviews.some(medicationSafetyBlocksSubmission)) throw new Error('当前处方不能开立，请返回修改或补齐评价所需信息。')
-        if (reviews.some((review) => medicationSafetyNeedsReason(review) && !safetyReasons[review.prescriptionId]?.trim())) {
-          throw new Error('请填写每张处方的继续开立理由。')
-        }
-      }
-
-      if (draftsToSubmit.length > 0) {
-        const submitted = await Promise.all(draftsToSubmit.map((value) =>
-          safetyReasons[value.id]?.trim()
-            ? api.encounters.submitPrescription(encounter.id, value.id, value.revision, safetyReasons[value.id].trim())
-            : api.encounters.submitPrescription(encounter.id, value.id, value.revision)))
-        return { requiresAcknowledgement: false,
-          reviews: submitted.flatMap((value) => value.safetyEvaluation ? [value.safetyEvaluation] : []) }
+        return { requiresAcknowledgement: true, reviews: result.reviews, reviewKey: result.reviewKey ?? null,
+          changed: Boolean(sentKey) }
       }
       return { requiresAcknowledgement: false, reviews: [] }
     },
     onSuccess: async (result) => {
       if (result.requiresAcknowledgement) {
         setSafetyReviews(result.reviews)
+        setSafetyReviewKey(result.reviewKey ?? null)
         setSafetyReasons({})
         setSafetyReviewNotice(result.changed ? '处方或审查结果已变化，请重新核对本次提示并填写处理理由。' : '')
+        setReviewOpen(true)
         await refresh()
         return
       }
       setSafetyReviews([])
+      setSafetyReviewKey(null)
       setReviewOpen(false)
       setReviewDocumentInfos({})
       await refresh()
     },
+    // 失败只在当前位置提示原因（面板或已打开的核查窗），不为展示错误而弹出分单核查。
   })
 
   const saveOnlyDocumentInfos = useMutation({
@@ -206,11 +254,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
       for (const doc of allDocs) {
         const customInfo = reviewDocumentInfos[doc.key]
         if (customInfo && JSON.stringify(customInfo) !== JSON.stringify(doc.value.documentInfo)) {
-          if (doc.kind === 'prescription') {
-            await api.encounters.updatePrescriptionDocumentInfo(encounter.id, doc.value.id, doc.value.revision, customInfo)
-          } else {
-            await api.encounters.updateServiceDocumentInfo(encounter.id, doc.value.id, doc.value.revision, customInfo)
-          }
+          await saveOrderDocumentInfo(api, encounter.id, doc, doc.value.revision, customInfo)
         }
       }
     },
@@ -221,11 +265,15 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     },
   })
 
+  // 预检与正式开立共用后端审查键，医生确认一次即可提交，结果变化时后端要求重新确认。
   const previewSafetyReview = useMutation({
-    mutationFn: async (drafts: Prescription[]) => Promise.all(drafts.map((prescription) =>
-      api.encounters.evaluatePrescriptionSafety(encounter.id, prescription.id))),
-    onSuccess: (evaluations) => {
-      setSafetyReviews(evaluations.filter(needsMedicationSafetyAcknowledgement))
+    mutationFn: async (drafts: Prescription[]) => api.encounters.submitOrders(encounter.id, {
+      prescriptions: drafts.map((prescription) => ({ id: prescription.id, expectedRevision: prescription.revision })),
+      serviceDocuments: [], dryRun: true,
+    }),
+    onSuccess: (result) => {
+      setSafetyReviews(result.reviews)
+      setSafetyReviewKey(result.reviewKey ?? null)
       setSafetyReasons({})
       setSafetyReviewNotice('')
     },
@@ -253,13 +301,38 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     })
   }
   useEffect(() => onBusyChange(confirmPlan.isPending || documentDirty), [confirmPlan.isPending, documentDirty, onBusyChange])
+  const issueAfterSave = confirmPlan.mutateAsync
+  useEffect(() => {
+    onRegisterIssueOrders?.(async () => {
+      if (!simpleReview) return 'SKIPPED'
+      try {
+        const result = await issueAfterSave({ acknowledged: false, afterRecordSaved: true })
+        return result.requiresAcknowledgement ? 'REVIEW' : 'empty' in result ? 'SKIPPED' : 'ISSUED'
+      } catch {
+        return 'FAILED'
+      }
+    })
+    return () => onRegisterIssueOrders?.(null)
+  }, [issueAfterSave, onRegisterIssueOrders, simpleReview])
   const persistedDraftCount = (prescriptions.data ?? []).reduce((sum, value) => sum
     + (value.status === 'DRAFT' ? value.medicationRequests.filter((request) => request.status === 'DRAFT').length : 0), 0)
-  const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount
+  const persistedServiceDraftCount = (services.data ?? []).filter((value) => value.status === 'DRAFT').length
+  const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount + persistedServiceDraftCount
+  const unissuedCount = simpleReview ? persistedDraftCount + persistedServiceDraftCount : 0
+  useEffect(() => onUnissuedCountChange?.(unissuedCount), [onUnissuedCountChange, unissuedCount])
   const orderCount = (services.data?.length ?? 0) + (medications.data?.length ?? 0)
   const hasUnverifiedAllergyDraft = medicationDrafts.some((value) => value.request.allergyReviewConfirmed !== true)
+  const submitError = confirmPlan.error instanceof ClinicalRecordValidationError
+    ? <div role="alert" className="doctor-order-record-validation">
+      <span>{confirmPlan.error.message}</span>
+      <Button variant="secondary" size="sm" onClick={() => {
+        setReviewOpen(false)
+        confirmPlan.reset()
+        onEditInvalidRecord()
+      }}>返回病历补充</Button>
+    </div> : confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>
   const error = prescriptions.error || services.error || medications.error
-    || cancelService.error || cancelMedication.error
+    || cancelService.error || cancelMedication.error || withdrawSignature.error
   const hasAnyOrders = orderCount + planCount > 0
   const safetyBlocked = safetyReviews.some(medicationSafetyBlocksSubmission)
   const safetyReasonMissing = safetyReviews.some((review) => medicationSafetyNeedsReason(review)
@@ -279,7 +352,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
   const previewPrescriptionDocumentCount = splitPreview.plans.length
   const pendingPrescriptionDocumentCount = previewPrescriptionDocumentCount + persistedDraftPrescriptions.length
   const reviewDocumentCount = planCount === 0 ? documents.length
-    : pendingPrescriptionDocumentCount + serviceDrafts.length + persistedServiceDocuments.length
+    : pendingPrescriptionDocumentCount + serviceDocumentPreview.plans.length + persistedServiceDocuments.length
   const reviewItemCount = planCount === 0
     ? documents.reduce((sum, document) => sum + document.items.length, 0)
     : medicationDrafts.length + persistedDraftCount + serviceDrafts.length
@@ -295,7 +368,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
   }
   ;splitPreview.plans.forEach(plan => countPrescription(plan.categoryCode))
   persistedDraftPrescriptions.forEach(rx => countPrescription(rx.categoryCode))
-  serviceDrafts.forEach(service => countService(service.serviceType))
+  serviceDocumentPreview.plans.forEach(plan => countService(plan.serviceType))
   documents.filter(doc => doc.kind === 'service' || (planCount === 0 && doc.value.status !== 'DRAFT'))
     .forEach(doc => doc.kind === 'service' ? countService((doc.value as ServiceRequest).serviceType)
       : countPrescription((doc.value as Prescription).categoryCode))
@@ -327,16 +400,24 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
             onClick={() => setBatchPrintOpen(true)}
           />
         )}
-        {editing && <>
-          {planCount > 0 && <StatusBadge tone="warning">{planCount} 项待确认</StatusBadge>}
-          <Button size="sm" disabled={planCount === 0 || documentDirty} onClick={() => setReviewOpen(true)}>审核开立</Button>
-        </>}
+        {/* 简单模式没有单独的开立：保存即生效；只有被拦下的医嘱显示为“未生效”，再次保存会重新尝试。 */}
+        {editing && (simpleReview
+          ? unissuedCount > 0 && <span title="已保存但未生效，处理提示后点“保存”会再次生效">
+            <StatusBadge tone="warning">{unissuedCount} 项未生效</StatusBadge></span>
+          : <>
+            {planCount > 0 && <StatusBadge tone="warning">{planCount} 项未签署</StatusBadge>}
+            <Button size="sm" disabled={planCount === 0 || documentDirty || orderingPolicy.isPending}
+              title="核对分单、诊断和合理用药后签署，签署后医嘱生效并计费" onClick={() => setReviewOpen(true)}>签署</Button>
+          </>)}
       </div>} />
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
+    {!reviewOpen && submitError}
+    {shadowNotice && <Alert tone="warning" duration={null}>{shadowNotice}</Alert>}
     <div className="doctor-orders-content">
       {prescriptions.isPending || services.isPending || medications.isPending ? <LoadingState />
+        // 简易模式：AI 推荐医嘱只落入草稿，随医生点“保存”生效，不自动弹出核查窗。
         : <UnifiedOrderListEditor aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
-          onAiOrdersPrepared={() => { if (!documentDirty) setReviewOpen(true) }}
+          onAiOrdersPrepared={() => { if (!documentDirty && !simpleReview) setReviewOpen(true) }}
           documentRows={documentRows} onOpenDocument={openDocument} documentEditing={documentDirty}
           documents={documents} selectedDocumentKey={documentKey} onSelectDocument={setDocumentKey}
           onSavedDocument={refresh}
@@ -344,14 +425,16 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
           prescriptions={prescriptions.data ?? []} medications={medications.data ?? []} services={services.data ?? []}
           medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
           serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} api={api}
-          readOnly={!editing}
+          readOnly={!editing} orderMode={orderMode}
+          onWithdrawMedication={(order) => withdrawSignature.mutate({ kind: 'medication', order })}
+          onWithdrawService={(order) => withdrawSignature.mutate({ kind: 'service', order })}
           currentDepartmentName={currentDepartmentName}
-          busy={cancelService.isPending || cancelMedication.isPending || confirmPlan.isPending}
+          busy={cancelService.isPending || cancelMedication.isPending || confirmPlan.isPending || withdrawSignature.isPending}
           onCancelMedication={(item) => cancelMedication.mutate(item)}
           onCancelService={(item) => cancelService.mutate(item)}
           onPrint={setPrintPrescription} onPrintService={setPrintServiceRequest} />}
     </div>
-    {reviewOpen && <Dialog title="医嘱开立核查" size="xwide" closeOnBackdrop={false}
+    {reviewOpen && <Dialog title={`医嘱${signVerb}核查`} size="xwide" closeOnBackdrop={false}
       onClose={() => { if (!confirmPlan.isPending && !saveOnlyDocumentInfos.isPending) { setReviewOpen(false); setSafetyReviews([]); setReviewDocumentInfos({}) } }}
       footer={<>
         <Button variant="secondary" disabled={confirmPlan.isPending || saveOnlyDocumentInfos.isPending}
@@ -360,10 +443,10 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
         </Button>
         {planCount > 0 ? (
           <Button busy={confirmPlan.isPending} disabled={previewSafetyReview.isPending
-            || !splitPreview.ready || safetyBlocked || safetyReasonMissing
+            || !splitPreview.ready || !serviceDocumentPreview.ready || safetyBlocked || safetyReasonMissing
             || (planCount === 0 && safetyReviews.length === 0)}
             onClick={() => confirmPlan.mutate({ acknowledged: safetyReviews.length > 0 })}>
-            {safetyBlocked ? '当前处方不可开立' : safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认分单并开立'}
+            {safetyBlocked ? `当前处方不可${signVerb}` : safetyReviews.length > 0 ? `已知晓风险，继续${signVerb}` : `确认分单并${signVerb}`}
           </Button>
         ) : (
           <Button busy={saveOnlyDocumentInfos.isPending} disabled={saveOnlyDocumentInfos.isPending || Object.keys(reviewDocumentInfos).length === 0}
@@ -376,14 +459,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
         {hasUnverifiedAllergyDraft && <Alert tone="warning">
           患者药物过敏信息尚未核验；本次提交是否允许继续由机构的过敏核验参数控制，请尽快补充核验记录。
         </Alert>}
-        {confirmPlan.error instanceof ClinicalRecordValidationError ? <div role="alert" className="doctor-order-record-validation">
-          <span>{confirmPlan.error.message}</span>
-          <Button variant="secondary" size="sm" onClick={() => {
-            setReviewOpen(false)
-            confirmPlan.reset()
-            onEditInvalidRecord()
-          }}>返回病历补充</Button>
-        </div> : confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>}
+        {submitError}
         {saveOnlyDocumentInfos.error && <Alert>{errorMessage(saveOnlyDocumentInfos.error)}</Alert>}
         {previewSafetyReview.error && <Alert>{errorMessage(previewSafetyReview.error)}</Alert>}
         {previewSafetyReview.isPending && <p className="doctor-safety-review-loading" role="status">
@@ -444,8 +520,8 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
           </div>
           {safetyReviews.filter((review) => review.mode !== 'SHADOW' && !medicationSafetyBlocksSubmission(review))
             .map((review) => <FormField key={review.prescriptionId}
-              label={`${prescriptions.data?.find((value) => value.id === review.prescriptionId)?.prescriptionNo ?? review.prescriptionId} 继续开立理由${medicationSafetyNeedsReason(review) ? '（必填）' : '（选填）'}`}>
-              <textarea aria-label={`${review.prescriptionId} 继续开立理由`} maxLength={1000}
+              label={`${prescriptions.data?.find((value) => value.id === review.prescriptionId)?.prescriptionNo ?? review.prescriptionId} 继续${signVerb}理由${medicationSafetyNeedsReason(review) ? '（必填）' : '（选填）'}`}>
+              <textarea aria-label={`${review.prescriptionId} 继续${signVerb}理由`} maxLength={1000}
                 disabled={confirmPlan.isPending} value={safetyReasons[review.prescriptionId] ?? ''}
                 placeholder="请说明已核对的风险及继续用药的临床理由"
                 onChange={(event) => setSafetyReasons((current) => ({ ...current, [review.prescriptionId]: event.target.value }))} />
@@ -454,9 +530,9 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
 
         <div className="doctor-split-overview-bar">
           <div className="doctor-split-overview-summary">
-            <strong>{splitPreview.ready ? `${reviewDocumentCount} 张单据` : '单据数量待确认'}</strong>
+            <strong>{splitPreview.ready && serviceDocumentPreview.ready ? `${reviewDocumentCount} 张单据` : '单据数量待确认'}</strong>
             <span>{reviewItemCount} 项医嘱</span>
-            <span aria-label="单据分类统计">{splitPreview.ready ? reviewTypeSummary : '药品分方待确认'}</span>
+            <span aria-label="单据分类统计">{splitPreview.ready && serviceDocumentPreview.ready ? reviewTypeSummary : '分单待确认'}</span>
           </div>
           {encounter.diagnoses.length > 0 && (
             <div className="doctor-split-overview-actions">
@@ -471,6 +547,12 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
         {medicationDrafts.length > 0 && splitPreview.isError && <div role="alert" className="doctor-unified-order-alert">
           分方预览失败：{errorMessage(splitPreview.error)}
           <Button variant="secondary" disabled={splitPreview.isFetching} onClick={() => void splitPreview.refetch()}>重新核对分方</Button>
+        </div>}
+        {serviceDrafts.length > 0 && serviceDocumentPreview.isFetching && <LoadingState label="正在核对申请单合单…" />}
+        {serviceDrafts.length > 0 && serviceDocumentPreview.isError && <div role="alert" className="doctor-unified-order-alert">
+          申请单合单预览失败：{errorMessage(serviceDocumentPreview.error)}
+          <Button variant="secondary" disabled={serviceDocumentPreview.isFetching}
+            onClick={() => void serviceDocumentPreview.refetch()}>重新核对合单</Button>
         </div>}
 
         <OrderDocumentReviewList>
@@ -492,7 +574,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
                 doseText: pi.item.doseValue ? `${pi.item.doseValue} ${pi.item.doseUnit || ''}` : '—',
                 routeAndFreqText: [routeDisplay(pi.item.routeCode, matchDraft?.routeName),
                   frequencyDisplay(pi.item.frequencyCode),
-                  pi.item.durationValue ? `${pi.item.durationValue}${pi.item.durationUnit || '单位待确认'}` : ''].filter(Boolean).join(' · '),
+                  pi.item.durationValue ? `${pi.item.durationValue}${formatDurationUnit(pi.item.durationUnit, '单位待确认')}` : ''].filter(Boolean).join(' · '),
                 instruction: matchDraft?.request.medicationInstruction,
                 quantityText: `${pi.item.quantity} ${pi.item.quantityUnit ? formatPackageUnit(matchDraft?.packageUnitName, pi.item.quantityUnit) : '单位待确认'}`,
                 isInfusionGroup: Boolean(pi.groupKey),
@@ -517,35 +599,40 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
             )
           })}
 
-          {/* 2. 待开立的检查、检验和处置单据 */}
-          {serviceDrafts.map((service, serviceIndex) => {
-            const cardKey = `draft-service:${service.catalogItemId}`
-            const serviceType: ServiceRequest['serviceType'] = service.serviceType === 'LABORATORY'
-              || service.serviceType === 'EXAMINATION' || service.serviceType === 'TREATMENT'
-              ? service.serviceType : 'OTHER'
+          {/* 2. 待开立的检查、检验和处置：按后端合单结果成单，单据信息写入单内每个项目。 */}
+          {serviceDocumentPreview.plans.map((plan, planIndex) => {
+            const members = plan.itemIndexes.map((index) => serviceDrafts[index]).filter(Boolean)
+            const cardKey = `draft-service-doc:${planIndex}`
+            const memberKeys = members.map((service) => `draft-service:${service.catalogItemId}`)
+            const planType = members[0]?.serviceType || plan.serviceType
+            const serviceType: ServiceRequest['serviceType'] = planType === 'LABORATORY'
+              || planType === 'EXAMINATION' || planType === 'TREATMENT'
+              ? planType : 'OTHER'
             const kind = serviceType === 'LABORATORY' ? 'lab'
               : serviceType === 'EXAMINATION' ? 'exam' : 'treatment'
-            const sameTypeIndex = serviceDrafts.slice(0, serviceIndex + 1)
-              .filter((item) => (item.serviceType || 'OTHER') === serviceType).length
-            const currentInfo = reviewDocumentInfos[cardKey]
-              || buildDefaultDocumentInfo(encounter, 'service', service.clinicalDescription)
-            const items = [{
+            const sameTypeIndex = serviceDocumentPreview.plans.slice(0, planIndex + 1)
+              .filter((candidate) => (serviceDrafts[candidate.itemIndexes[0]]?.serviceType || candidate.serviceType) === planType).length
+            const currentInfo = memberKeys.map((key) => reviewDocumentInfos[key]).find(Boolean)
+              || buildDefaultDocumentInfo(encounter, 'service', members.length === 1 ? members[0].clinicalDescription : '')
+            const items = members.map((service) => ({
               id: service.id,
               name: service.itemName,
               quantityText: `${service.quantity} ${service.unitCode || '项'}`,
               note: service.clinicalDescription,
-            }]
+            }))
             return (
               <OrderDocumentReviewCard
                 key={cardKey}
                 cardKey={cardKey}
                 title={serviceReviewTitle(serviceType, sameTypeIndex)}
                 kind={kind}
-                deptOrSite={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: service.performerDepartmentId,
-                  performerDepartmentName: service.performerDepartmentName })}
+                deptOrSite={resolveExecutingDepartment({ kind: 'service', performerDepartmentId: members[0]?.performerDepartmentId,
+                  performerDepartmentName: members[0]?.performerDepartmentName })}
+                ruleReasons={plan.ruleReasons}
                 items={items}
                 info={currentInfo}
-                onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr, [cardKey]: next }))}
+                onChangeInfo={(next) => setReviewDocumentInfos((curr) => ({ ...curr,
+                  ...Object.fromEntries(memberKeys.map((key) => [key, next])) }))}
                 encounter={encounter}
               />
             )
@@ -570,7 +657,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
                 doseText: m.doseValue ? `${m.doseValue} ${m.doseUnit || ''}` : '—',
                 routeAndFreqText: [routeDisplay(m.routeCode, m.routeName),
                   frequencyDisplay(m.frequencyCode, m.frequencyName),
-                  m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
+                  m.durationValue ? `${m.durationValue}${formatDurationUnit(m.durationUnit)}` : ''].filter(Boolean).join(' · '),
                 instruction: m.medicationInstruction,
                 quantityText: `${m.quantity} ${m.quantityUnit ? formatPackageUnit(undefined, m.quantityUnit) : '单位待确认'}`,
               }))
@@ -590,7 +677,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
               )
             })}
 
-          {/* 4. 服务申请创建后即为 ACTIVE；无待开立医嘱时也展示已提交处方供整单核查。 */}
+          {/* 4. 已保存的申请单（草稿随本次开立生效，已生效的可改单据信息）；无待开立医嘱时也展示已提交处方供整单核查。 */}
           {documents.filter((document) => document.kind === 'service'
             || (planCount === 0 && document.value.status !== 'DRAFT')).map((doc) => {
             const cardKey = doc.key
@@ -613,20 +700,21 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
                   doseText: m.doseValue ? `${m.doseValue} ${m.doseUnit || ''}` : '—',
                   routeAndFreqText: [routeDisplay(m.routeCode, m.routeName),
                     frequencyDisplay(m.frequencyCode, m.frequencyName),
-                    m.durationValue ? `${m.durationValue}${m.durationUnit || '天'}` : ''].filter(Boolean).join(' · '),
+                    m.durationValue ? `${m.durationValue}${formatDurationUnit(m.durationUnit)}` : ''].filter(Boolean).join(' · '),
                   instruction: m.medicationInstruction,
                   quantityText: `${m.quantity} ${m.quantityUnit ? formatPackageUnit(undefined, m.quantityUnit) : '单位待确认'}`,
                 }))
               : svc
-              ? [{
-                  id: svc.id,
-                  name: svc.itemName,
-                  quantityText: `${svc.quantity} ${svc.unitCode || '项'}`,
-                  note: [svc.specimenType, svc.clinicalDescription].filter(Boolean).join(' · '),
-                }]
+              ? (doc.members ?? [svc]).map((member) => ({
+                  id: member.id,
+                  name: member.itemName,
+                  quantityText: `${member.quantity} ${member.unitCode || '项'}`,
+                  note: [member.specimenType, member.clinicalDescription].filter(Boolean).join(' · '),
+                }))
               : []
-            const readOnly = isPrescription ? rx?.status !== 'DRAFT' : svc?.documentInfoEditable === false
-            const draftTypeCount = svc ? serviceDrafts.filter(service => (service.serviceType || 'OTHER') === svc.serviceType).length : 0
+            const readOnly = isPrescription ? rx?.status !== 'DRAFT'
+              : (doc.members ?? [svc]).some((member) => member?.documentInfoEditable === false)
+            const draftTypeCount = svc ? serviceDocumentPreview.plans.filter(plan => (plan.serviceType || 'OTHER') === svc.serviceType).length : 0
             const typeIndex = draftTypeCount + documents.slice(0, documents.indexOf(doc) + 1).filter((candidate) => isPrescription && rx
               ? candidate.kind === 'prescription' && (candidate.value as Prescription).categoryCode === rx.categoryCode
               : candidate.kind === 'service' && (candidate.value as ServiceRequest).serviceType === svc?.serviceType).length

@@ -1934,6 +1934,25 @@ describe('Structured JSON parameter values', () => {
     expect(saveValue.mock.calls[0][1].valueJson).toBe('{"enabled":true,"minAge":35,"enforceAt":"COMPLETION"}')
   })
 
+  it('shows the field-level default value in the definition facts', async () => {
+    setup()
+    expect(await screen.findByText('门诊就诊必测血压：是；必测起始年龄（周岁）：18；拦截时机：诊毕时')).toBeInTheDocument()
+  })
+
+  it('offers schema enum options for a scalar select bound to no dictionary', async () => {
+    const { user, saveValue } = setup({ sdParamValueType: 'STRING', sdParamControlType: 'SELECT', dictionaryCode: undefined,
+      jsonSchema: JSON.stringify({ type: 'string', enum: ['STANDARD', 'SIMPLE'], 'x-enumLabels': { STANDARD: '标准', SIMPLE: '简易' } }),
+      defaultValueJson: '"STANDARD"' })
+    expect(await screen.findByText('标准（STANDARD）')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '维护当前值' }))
+    expect(screen.queryByRole('textbox', { name: '参数值' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: '参数值' }))
+    await user.click(await screen.findByRole('option', { name: /简易/ }))
+    await user.click(screen.getByRole('button', { name: '保存当前值' }))
+    await waitFor(() => expect(saveValue).toHaveBeenCalled())
+    expect(saveValue.mock.calls[0][1].valueJson).toBe('"SIMPLE"')
+  })
+
   it('falls back to raw JSON on request and shows field-level change history', async () => {
     const { user } = setup()
     await user.click(await screen.findByRole('button', { name: '维护当前值' }))

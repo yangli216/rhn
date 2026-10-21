@@ -1131,6 +1131,22 @@ export function createPharmacyApi(client: ApiClient) {
     }) => client.request<MedicationDispense>(`/api/pharmacy/dispense-tasks/${taskId}/dispenses`, {
       method: 'POST', body: JSON.stringify(input),
     }),
+    cancelDispense: (taskId: string, input: {
+      cancelNo: string
+      operatorPractitionerId: string
+      operatorAssignmentId: string
+      reasonCode?: string
+      description?: string
+      occurredAt?: string
+    }) => client.request<{
+      taskId: string
+      taskNo: string
+      taskStatus: DispenseTaskStatus
+      cancelDispenseId: string
+      cancelNo: string
+    }>(`/api/pharmacy/dispense-tasks/${taskId}/cancel-dispense`, {
+      method: 'POST', body: JSON.stringify(input),
+    }),
     trace: (taskId: string) => client.request<DispenseTrace>(
       `/api/pharmacy/dispense-tasks/${taskId}/trace`,
     ),

@@ -399,7 +399,8 @@
 }
 .registration-strip-label { display: block; margin-bottom: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); }
 .registration-intake-strip__search { position: relative; min-width: 0; display: block; }
-.registration-intake-strip .registration-intake-search { min-width: 0; padding: 0; border: 0; }
+.registration-intake-strip .registration-intake-search { min-width: 0; padding: 0; border: 0; display: flex; align-items: flex-start; gap: var(--space-2); }
+.registration-intake-strip .registration-intake-search > .registration-patient-search { flex: 1; min-width: 0; }
 .registration-intake-strip .registration-patient-search { position: relative; }
 .registration-intake-strip .registration-patient-search .ui-patient-search__form > button { height: var(--control-height-md); }
 .registration-intake-strip .registration-patient-search .ui-patient-search__results,
@@ -2736,32 +2737,4 @@
 }
 .batch-estimate-text {
   flex: 1;
-}
-
-/* 医保 Mock 联调模拟入口：仅在后端 simulator 开关打开时渲染，用虚线边框与 MOCK 徽标与正式界面区分 */
-.insurance-media-simulator {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px dashed var(--color-warning);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-warning-soft) 50%, var(--color-surface));
-}
-
-.insurance-media-simulator__head,
-.insurance-media-simulator__body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.insurance-media-simulator__head small,
-.insurance-media-simulator__hint {
-  color: var(--color-text-secondary);
-}
-
-.insurance-media-simulator__body > :first-child {
-  min-width: 18rem;
 }

@@ -30,6 +30,13 @@ class ServiceRequestController {
         return service.create(encounterId, request);
     }
 
+    @PostMapping("/document-preview")
+    @io.swagger.v3.oas.annotations.Operation(operationId = "previewOutpatientServiceDocuments")
+    List<ServiceDocumentPlan> previewDocuments(@PathVariable Long encounterId,
+                                               @Valid @RequestBody List<@jakarta.validation.constraints.NotNull @Valid CreateServiceRequest> items) {
+        return service.previewDocuments(encounterId, items);
+    }
+
     @org.springframework.web.bind.annotation.PutMapping("/{id}/document-info")
     ServiceRequestResponse updateDocumentInfo(@PathVariable Long encounterId, @PathVariable Long id,
                                              @Valid @RequestBody UpdateOrderDocumentInfo input) {
@@ -39,6 +46,12 @@ class ServiceRequestController {
     @GetMapping
     List<ServiceRequestResponse> list(@PathVariable Long encounterId) {
         return service.list(encounterId);
+    }
+
+    @PostMapping("/{requestId}/withdraw-signature")
+    ServiceRequestResponse withdrawSignature(@PathVariable Long encounterId, @PathVariable Long requestId,
+                                             @Valid @RequestBody WithdrawSignatureRequest request) {
+        return service.withdrawSignature(encounterId, requestId, request.expectedRevision());
     }
 
     @PostMapping("/{requestId}/cancel")

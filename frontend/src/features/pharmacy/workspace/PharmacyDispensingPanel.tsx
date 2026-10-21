@@ -7,7 +7,7 @@ import { usePharmacyWorkspace } from './usePharmacyWorkspace'
 import { parseTraceCodeBatch, genderText, ageText, requestPackageUnit } from './pharmacyShared'
 
 export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof usePharmacyWorkspace> }) {
- const { actionNotice, setActionNotice, error, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, completePicking, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, refresh, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal } = model
+ const { actionNotice, setActionNotice, error, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, batchPicking, handleBatchPicking, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, refresh, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal } = model
 
 
   // =========================================================================
@@ -92,6 +92,7 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
           size="sm"
           className="pharmacy-dispense-btn-f4"
           busy={batchDispensing}
+          disabled={batchPicking}
           onClick={() => void handleBatchDispenseF4()}
         >
           发药(F4)
@@ -99,8 +100,9 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
         <Button
           size="sm"
           variant="secondary"
-          busy={completePicking.isPending}
-          onClick={() => void handleBatchDispenseF4()}
+          busy={batchPicking}
+          disabled={batchDispensing}
+          onClick={() => void handleBatchPicking()}
         >
           配药
         </Button>

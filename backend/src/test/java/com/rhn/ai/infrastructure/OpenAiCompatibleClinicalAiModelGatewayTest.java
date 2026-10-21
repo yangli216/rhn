@@ -730,10 +730,12 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         for (String prompt : List.of(full, treatment)) {
             assertTrue(prompt.contains("待医生核对的预填草稿"));
             assertTrue(prompt.contains("{doseValue（数值）,doseUnit,route（给药途径中文名或常用写法）,frequency（频次中文名或 QD/BID/TID 等常用写法）,durationDays（整数）}"));
-            assertTrue(prompt.contains("只给成人常规、有把握的 doseValue/doseUnit/route/frequency/durationDays；不确定就整体省略 usage，不要编造"));
+            assertTrue(prompt.contains("每个 MEDICATION 项都应尽量输出完整 usage，五个字段 doseValue/doseUnit/route/frequency/durationDays 都给全"));
+            assertTrue(prompt.contains("某个字段确实没把握才省略该字段，其余字段照常给出"));
             assertTrue(prompt.contains("儿童（patient 年龄小于18岁）、孕妇/哺乳期、肝肾功能不全或需按体重/体表面积计算的药物，一律不给 usage"));
             assertTrue(prompt.contains("草药、输液、需皮试或抗菌药的用法不给 usage"));
-            assertTrue(prompt.contains("不输出总量、包装数量、已开立状态；durationDays 仅在适应证疗程明确时给"));
+            assertTrue(prompt.contains("durationDays 按本次适应证的常用首诊疗程给出"));
+            assertTrue(prompt.contains("不输出总量、包装数量、已开立状态"));
             assertTrue(prompt.contains("检验、检查项不输出 usage"));
             assertTrue(prompt.contains("usage?"));
             assertFalse(prompt.contains("不生成剂量、疗程或已开立状态"));

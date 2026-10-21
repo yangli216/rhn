@@ -195,6 +195,15 @@ class PrescriptionService {
                 .stream().map(this::response).toList();
     }
 
+    /** 本次就诊仍含草稿药品、可整批提交的处方草稿，用于提交命令核对医生看到的单据集合。 */
+    List<Prescription> submittableDrafts(Long tenantId, Long encounterId) {
+        return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounterId).stream()
+                .filter(value -> value.status() == PrescriptionStatus.DRAFT)
+                .filter(value -> medicationService.prescriptionRequests(tenantId, value.id()).stream()
+                        .anyMatch(request -> request.status() == MedicationRequestStatus.DRAFT))
+                .toList();
+    }
+
     @Transactional
     PrescriptionResponse submit(Long encounterId, Long prescriptionId, PrescriptionAction action) {
         var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
@@ -244,6 +253,26 @@ class PrescriptionService {
         return response(value, safetyEvaluation);
     }
 
+    /**
+     * 取消签署：整张处方退回未签署（签署以处方为单位），释放库存冻结；每条药品须未进结算单、药房未接收，
+     * 记账和执行项由撤回事件作废。之后可直接修改，再次签署时重新记账。
+     */
+    @Transactional
+    PrescriptionResponse withdrawSignature(Long encounterId, Long prescriptionId, long expectedRevision) {
+        var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
+        ExecutionContext context = contextProvider.requireCurrent();
+        Prescription value = requirePrescription(encounter.tenantId(), encounterId, prescriptionId);
+        value.withdrawSignature(expectedRevision);
+        medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId).stream()
+                .filter(request -> request.status() == MedicationRequestStatus.ACTIVE)
+                .forEach(request -> medicationService.withdrawFromPrescription(request, encounter));
+        inventoryDirectory.releasePrescription(new PrescriptionReleaseCommand(encounter.tenantId(), encounterId,
+                prescriptionId, "取消签署释放", context.subjectId()));
+        medicationRepository.flush(); repository.flush();
+        publish(value, "PRESCRIPTION_WITHDRAWN", "取消签署门诊处方", Map.of());
+        return response(value);
+    }
+
     @Transactional
     PrescriptionResponse cancel(Long encounterId, Long prescriptionId, PrescriptionAction action) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
@@ -269,6 +298,11 @@ class PrescriptionService {
         publish(value, "PRESCRIPTION_CANCELLED", "撤销门诊处方", Map.of(
                 "medicationCount", requests.size(), "reason", reason));
         return response(value);
+    }
+
+    long currentRevision(Long tenantId, Long prescriptionId) {
+        return repository.findByIdAndTenantId(prescriptionId, tenantId)
+                .orElseThrow(() -> notFound("PRESCRIPTION_NOT_FOUND", "未找到当前就诊的处方")).revision();
     }
 
     private Prescription requirePrescription(Long tenantId, Long encounterId, Long id) {

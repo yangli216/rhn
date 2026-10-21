@@ -21990,6 +21990,80 @@
     ]
   },
   {
+    "logical": "ex.service_document",
+    "legacy": "service_documents",
+    "physical": "RHN_EX_SVC_DOC",
+    "domain": "EX",
+    "comment": "门诊服务申请单；一行代表一张检验、检查或治疗申请单，包含一条或多条服务请求",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SVC_DOC",
+        "comment": "申请单主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "患者标识"
+      },
+      {
+        "logical": "encounter_id",
+        "physical": "ID_ENC",
+        "comment": "就诊标识"
+      },
+      {
+        "logical": "document_no",
+        "physical": "CD_DOC_NO",
+        "comment": "申请单号"
+      },
+      {
+        "logical": "service_type",
+        "physical": "SD_SVC_TYPE",
+        "comment": "服务类型：LABORATORY、EXAMINATION、TREATMENT 等"
+      },
+      {
+        "logical": "performer_organization_id",
+        "physical": "ID_ORG_EXEC",
+        "comment": "执行机构标识"
+      },
+      {
+        "logical": "performer_department_id",
+        "physical": "ID_DEPT_EXEC",
+        "comment": "执行科室标识"
+      },
+      {
+        "logical": "grouping_rule",
+        "physical": "SD_GRP_RULE",
+        "comment": "开立时采用的合单规则"
+      },
+      {
+        "logical": "grouping_value",
+        "physical": "CD_GRP_VAL",
+        "comment": "合单依据值：标本类型或检查类型；按科室合单时为空"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "开立人标识"
+      }
+    ]
+  },
+  {
     "logical": "ex.service_request",
     "legacy": "service_requests",
     "physical": "RHN_EX_SVC_REQ",
@@ -22031,6 +22105,11 @@
         "logical": "examination_type_snapshot",
         "physical": "SD_EXAM_TYPE_SNAP",
         "comment": "检查类型快照"
+      },
+      {
+        "logical": "service_document_id",
+        "physical": "ID_SVC_DOC",
+        "comment": "所属申请单标识；为空表示一项一单"
       }
     ]
   },

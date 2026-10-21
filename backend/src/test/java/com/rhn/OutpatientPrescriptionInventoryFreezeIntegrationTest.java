@@ -121,14 +121,17 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                 .andExpect(status().isOk()).andExpect(jsonPath("$.commandCode").value(command))
                 .andExpect(jsonPath("$.prescriptions.length()").value(1)).andExpect(jsonPath("$.services.length()").value(1))
                 .andExpect(jsonPath("$.prescriptions[0].status").value("DRAFT"))
-                .andExpect(jsonPath("$.services[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.services[0].status").value("DRAFT"))
+                .andExpect(jsonPath("$.services[0].documentId").isNotEmpty())
+                .andExpect(jsonPath("$.services[0].documentNo").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
         String replay = mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertEquals(json(first), json(replay));
-        assertEquals(chargesBefore + 1, jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC=?", Integer.class, Long.valueOf(encounter)));
-        assertEquals(eventsBefore + 3, jdbcTemplate.queryForObject(eventCountSql, Integer.class, Long.valueOf(TENANT)));
+        // 诊疗项目保存为草稿：不记账、不发布开立事件。
+        assertEquals(chargesBefore, jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC=?", Integer.class, Long.valueOf(encounter)));
+        assertEquals(eventsBefore + 2, jdbcTemplate.queryForObject(eventCountSql, Integer.class, Long.valueOf(TENANT)));
         mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(body.replace("\"quantity\":1", "\"quantity\":2")))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_REUSED"));
@@ -142,6 +145,268 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
             mockMvc.perform(get("/api/encounters/{id}/" + path, encounter).with(rhnWorkContext()))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
         }
+    }
+
+    @Test
+    void one_submission_command_checks_the_reviewed_draft_set_defaults_diagnosis_and_submits_all() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String resident = createResident(suffix), encounter = createAndStartEncounter(resident);
+        recordNoKnownDrugAllergy(resident, encounter); saveClinicalRecord(encounter); createPharmacyWithStock(suffix, 2);
+        mockMvc.perform(get("/api/encounters/{id}/ordering-policy", encounter).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.reviewMode").value("STANDARD"))
+                .andExpect(jsonPath("$.mergeWesternAndPatent").value(false))
+                .andExpect(jsonPath("$.separateInfusion").value(true))
+                .andExpect(jsonPath("$.maxItemsPerPrescription").value(5));
+        String medication = """
+                {"catalogItemId":"%s","packageId":"%s","quantity":1,"quantityUnit":"BOX",
+                 "doseValue":5,"doseUnit":"mg","routeCode":"PO","frequencyCode":"QD",
+                 "durationValue":7,"durationUnit":"DAY","allergyReviewConfirmed":true,
+                 "substitutionAllowed":false,"selfProvided":false,"priceType":"SALE","pricingRequired":true}
+                """.formatted(PRODUCT_ID, PACKAGE_ID);
+        var receipt = json(mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commandCode\":\"SUBMIT-%s\",\"medicationItems\":[%s],\"serviceItems\":[]}".formatted(suffix, medication)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String prescriptionId = receipt.path("prescriptions").get(0).path("id").asString();
+        long revision = receipt.path("prescriptions").get(0).path("revision").asLong();
+
+        mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"prescriptions\":[],\"serviceDocuments\":[]}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("ORDER_SUBMISSION_EMPTY"));
+        String stale = "{\"prescriptions\":[{\"id\":\"%s\",\"expectedRevision\":%d}],\"serviceDocuments\":[]}"
+                .formatted(prescriptionId, revision + 7);
+        mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(stale))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRESCRIPTION_REVISION_CONFLICT"));
+
+        String body = "{\"prescriptions\":[{\"id\":\"%s\",\"expectedRevision\":%d}],\"serviceDocuments\":[]}"
+                .formatted(prescriptionId, revision);
+        var result = json(mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        if ("REVIEW_REQUIRED".equals(result.path("status").asString())) {
+            // 合理用药提示须带回本次审查键才会写入；未确认前处方仍是草稿。
+            mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounter).with(rhnWorkContext()))
+                    .andExpect(jsonPath("$[0].status").value("DRAFT"));
+            String acknowledged = body.replace("\"serviceDocuments\":[]",
+                    "\"serviceDocuments\":[],\"acknowledgedReviewKey\":\"" + result.path("reviewKey").asString() + "\"");
+            result = json(mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content(acknowledged))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        }
+        assertEquals("SUBMITTED", result.path("status").asString());
+        assertEquals("ACTIVE", result.path("prescriptions").get(0).path("status").asString());
+        var diagnosis = result.path("prescriptions").get(0).path("documentInfo").path("diagnoses").get(0);
+        assertEquals("I10", diagnosis.path("code").asString());
+        assertEquals(true, diagnosis.path("primary").asBoolean());
+        // 已提交的处方不再是待开立草稿，重放同一命令不会重复提交。
+        mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ORDER_SUBMISSION_DRAFTS_CHANGED"));
+
+        // 签署后未划价：整张处方取消签署退回未签署，药品原地改量，再次签署仍是同一张处方、同一条药品，收费只有一条。
+        var signed = result.path("prescriptions").get(0);
+        String requestId = signed.path("medicationRequests").get(0).path("id").asString();
+        assertEquals(1, medicationChargeCount(requestId));
+        var withdrawn = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions/{prescriptionId}/withdraw-signature",
+                        encounter, prescriptionId).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":%d}".formatted(signed.path("revision").asLong())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.medicationRequests[0].status").value("DRAFT"))
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(0, medicationChargeCount(requestId));
+        String revised = medication.replace("\"quantity\":1", "\"quantity\":2");
+        var revisedReceipt = json(mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commandCode\":\"REVISE-%s\",\"medicationItems\":[],\"serviceItems\":[],\"revisedOrders\":[{\"kind\":\"MEDICATION\",\"id\":\"%s\",\"expectedRevision\":%d,\"medication\":%s}]}"
+                                .formatted(suffix, requestId, withdrawn.path("medicationRequests").get(0).path("revision").asLong(), revised)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(requestId, revisedReceipt.path("revisedMedications").get(0).path("id").asString());
+        assertEquals(0, revisedReceipt.path("revisedMedications").get(0).path("quantity").decimalValue().compareTo(java.math.BigDecimal.TWO));
+        long draftRevision = json(mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounter).with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString()).get(0).path("revision").asLong();
+        String resubmit = "{\"prescriptions\":[{\"id\":\"%s\",\"expectedRevision\":%d}],\"serviceDocuments\":[]}"
+                .formatted(prescriptionId, draftRevision);
+        var again = json(mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(resubmit))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        if ("REVIEW_REQUIRED".equals(again.path("status").asString())) {
+            again = json(mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content(resubmit.replace("\"serviceDocuments\":[]",
+                                    "\"serviceDocuments\":[],\"acknowledgedReviewKey\":\"" + again.path("reviewKey").asString() + "\"")))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        }
+        assertEquals("ACTIVE", again.path("prescriptions").get(0).path("status").asString());
+        assertEquals(1, medicationChargeCount(requestId));
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_SRC = ? and SD_SRC_TYPE = 'MEDICATION_REQUEST_REVERSAL'",
+                Integer.class, Long.valueOf(requestId)));
+
+        // 已划价未付款：医嘱仍可修改，取消签署时提示先取消结算单；取消后收费回到待结算，再取消签署即删除收费。
+        var statement = json(mockMvc.perform(get("/api/billing/encounters/{id}/statement", encounter).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String accountId = statement.path("accountId").asString();
+        mockMvc.perform(post("/api/billing/accounts/{accountId}/invoices", accountId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"invoiceNo\":\"INV-CANCEL-%s\",\"terminalScene\":\"DOCTOR_STATION\"}".formatted(suffix)))
+                .andExpect(status().isCreated());
+        var priced = json(mockMvc.perform(get("/api/billing/encounters/{id}/statement", encounter).with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString());
+        java.math.BigDecimal pricedUninvoiced = priced.path("uninvoicedAmount").decimalValue();
+        JsonNode pricedSettlement = null;
+        for (JsonNode value : priced.path("settlements")) {
+            if ("PRICED".equals(value.path("status").asString()) && "OUTPATIENT".equals(value.path("settlementScene").asString())) {
+                pricedSettlement = value;
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertNotNull(pricedSettlement);
+        var activePrescription = json(mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounter).with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString()).get(0);
+        assertEquals(true, activePrescription.path("medicationRequests").get(0).path("editBlockedReason").isNull());
+        String withdrawBody = "{\"expectedRevision\":%d}".formatted(activePrescription.path("revision").asLong());
+        mockMvc.perform(post("/api/encounters/{id}/prescriptions/{prescriptionId}/withdraw-signature", encounter, prescriptionId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(withdrawBody))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ORDER_SETTLEMENT_UNPAID"));
+        mockMvc.perform(post("/api/billing/settlements/{id}/cancel", pricedSettlement.path("id").asString()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\" \"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/billing/encounters/{id}/unpaid-settlements/cancel", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"医生修改医嘱\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].settlementId").value(pricedSettlement.path("id").asString()));
+        var cancelled = json(mockMvc.perform(get("/api/billing/encounters/{id}/statement", encounter).with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(0, cancelled.path("uninvoicedAmount").decimalValue()
+                .compareTo(pricedUninvoiced.add(pricedSettlement.path("grossAmount").decimalValue())));
+        for (JsonNode value : cancelled.path("settlements")) {
+            org.junit.jupiter.api.Assertions.assertNotEquals(pricedSettlement.path("id").asString(), value.path("id").asString());
+        }
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_INT_OUTBOX_EVT where ID_TNT=? and SD_EVT_TYPE='BILLING_SETTLEMENT_CANCELLED'",
+                Integer.class, Long.valueOf(TENANT)));
+        mockMvc.perform(post("/api/billing/settlements/{id}/cancel", pricedSettlement.path("id").asString()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"重复取消\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/encounters/{id}/prescriptions/{prescriptionId}/withdraw-signature", encounter, prescriptionId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(withdrawBody))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DRAFT"));
+        assertEquals(0, medicationChargeCount(requestId));
+    }
+
+    private int medicationChargeCount(String requestId) {
+        return jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_SRC = ? and SD_SRC_TYPE = 'MEDICATION_REQUEST'",
+                Integer.class, Long.valueOf(requestId));
+    }
+
+    @Test
+    void batch_saved_services_are_drafts_grouped_by_department_and_charged_only_when_submitted() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String resident = createResident(suffix), encounter = createAndStartEncounter(resident);
+        saveClinicalRecord(encounter);
+        String first = createOrderSaveService(suffix + "A"), second = createOrderSaveService(suffix + "B");
+        String items = "{\"catalogItemId\":\"%s\",\"quantity\":1,\"priceType\":\"SALE\",\"pricingRequired\":true},"
+                .formatted(first) + "{\"catalogItemId\":\"%s\",\"quantity\":2,\"priceType\":\"SALE\",\"pricingRequired\":true}"
+                .formatted(second);
+        mockMvc.perform(post("/api/encounters/{id}/service-requests/document-preview", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("[" + items + "]"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].groupingRule").value("BY_DEPT"))
+                .andExpect(jsonPath("$[0].itemIndexes.length()").value(2));
+        mockMvc.perform(get("/api/encounters/{id}/service-requests", encounter).with(rhnWorkContext()))
+                .andExpect(jsonPath("$.length()").value(0));
+        var receipt = json(mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commandCode\":\"DOC-%s\",\"medicationItems\":[],\"serviceItems\":[%s]}".formatted(suffix, items)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var services = receipt.path("services");
+        assertEquals(2, services.size());
+        assertEquals(services.get(0).path("documentId").asString(), services.get(1).path("documentId").asString());
+        org.junit.jupiter.api.Assertions.assertNotEquals(services.get(0).path("requestNo").asString(),
+                services.get(0).path("documentNo").asString());
+        // 草稿不对收费和执行科室可见；一次开立命令激活后才记账。
+        for (var service : services) {
+            assertEquals("DRAFT", service.path("status").asString());
+            assertEquals(0, chargeCount(service.path("id").asString()));
+        }
+        String entries = "{\"id\":\"%s\",\"expectedRevision\":%d},{\"id\":\"%s\",\"expectedRevision\":%d}".formatted(
+                services.get(0).path("id").asString(), services.get(0).path("revision").asLong(),
+                services.get(1).path("id").asString(), services.get(1).path("revision").asLong());
+        mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"prescriptions\":[],\"serviceDocuments\":[%s]}".formatted(entries.substring(0, entries.indexOf("},") + 1))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ORDER_SUBMISSION_DRAFTS_CHANGED"));
+        assertEquals(0, chargeCount(services.get(0).path("id").asString()));
+        mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"prescriptions\":[],\"serviceDocuments\":[%s]}".formatted(entries)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUBMITTED"))
+                .andExpect(jsonPath("$.services.length()").value(2))
+                .andExpect(jsonPath("$.services[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.services[1].status").value("ACTIVE"));
+        for (var service : services) assertEquals(1, chargeCount(service.path("id").asString()));
+
+        // 已签署未划价的申请：取消签署退回未签署、作废记账，原地修改后重新签署只有一条收费，不留撤销记录。
+        String original = services.get(0).path("id").asString();
+        mockMvc.perform(get("/api/encounters/{id}/service-requests", encounter).with(rhnWorkContext()))
+                .andExpect(jsonPath("$[0].editBlockedReason").doesNotExist());
+        String revision = "{\"commandCode\":\"%s\",\"medicationItems\":[],\"serviceItems\":[],\"revisedOrders\":[{\"kind\":\"SERVICE\",\"id\":\"%s\",\"expectedRevision\":%d,\"service\":{\"catalogItemId\":\"%s\",\"quantity\":3,\"clinicalDescription\":\"加做\"}}]}";
+        mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(revision.formatted("EDIT-STALE-" + suffix, original, 0, first)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ORDER_REVISION_CONFLICT"));
+        assertEquals(1, chargeCount(original));
+        long activeRevision = json(mockMvc.perform(get("/api/encounters/{id}/service-requests", encounter).with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString()).valueStream()
+                .filter(value -> value.path("id").asString().equals(original)).findFirst().orElseThrow().path("revision").asLong();
+        var revised = json(mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(revision.formatted("EDIT-" + suffix, original, activeRevision, first)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("revisedServices").get(0);
+        assertEquals(original, revised.path("id").asString());
+        assertEquals("DRAFT", revised.path("status").asString());
+        assertEquals(0, revised.path("quantity").decimalValue().compareTo(java.math.BigDecimal.valueOf(3)));
+        assertEquals("加做", revised.path("clinicalDescription").asString());
+        assertEquals(0, chargeCount(original));
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_SRC = ? and SD_SRC_TYPE = 'SERVICE_REQUEST_REVERSAL'",
+                Integer.class, Long.valueOf(original)));
+        mockMvc.perform(post("/api/encounters/{id}/order-submissions", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"prescriptions\":[],\"serviceDocuments\":[{\"id\":\"%s\",\"expectedRevision\":%d}]}"
+                                .formatted(original, revised.path("revision").asLong())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.services[0].status").value("ACTIVE"));
+        assertEquals(1, chargeCount(original));
+        assertEquals(0, jdbcTemplate.queryForObject("select AMT_TOTAL - 3 * PRICE_UNIT from RHN_BIL_CHARGE_ITEM where ID_SRC = ? and SD_SRC_TYPE = 'SERVICE_REQUEST'",
+                java.math.BigDecimal.class, Long.valueOf(original)).signum());
+
+        // 签署模式的取消签署：单独命令退回未签署，记账作废。
+        long signedRevision = json(mockMvc.perform(get("/api/encounters/{id}/service-requests", encounter).with(rhnWorkContext()))
+                .andReturn().getResponse().getContentAsString()).valueStream()
+                .filter(value -> value.path("id").asString().equals(original)).findFirst().orElseThrow().path("revision").asLong();
+        mockMvc.perform(post("/api/encounters/{id}/service-requests/{requestId}/withdraw-signature", encounter, original)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":%d}".formatted(signedRevision)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DRAFT"));
+        assertEquals(0, chargeCount(original));
+
+        // 草稿撤销不冲销、不产生收费记录。
+        var draft = json(mockMvc.perform(post("/api/encounters/{id}/order-drafts", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commandCode\":\"DOC2-%s\",\"medicationItems\":[],\"serviceItems\":[{\"catalogItemId\":\"%s\",\"quantity\":1,\"priceType\":\"SALE\",\"pricingRequired\":true}]}"
+                                .formatted(suffix, first)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("services").get(0);
+        mockMvc.perform(post("/api/encounters/{id}/service-requests/{requestId}/cancel", encounter, draft.path("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":%d,\"reason\":\"删除草稿\"}".formatted(draft.path("revision").asLong())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertEquals(0, chargeCount(draft.path("id").asString()));
+
+        // 单条开立接口不归单，仍按一项一单展示。
+        mockMvc.perform(post("/api/encounters/{id}/service-requests", encounter).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"catalogItemId\":\"%s\",\"quantity\":1,\"priceType\":\"SALE\",\"pricingRequired\":true}".formatted(first)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.documentId").doesNotExist());
+    }
+
+    private int chargeCount(String requestId) {
+        return jdbcTemplate.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM where ID_SRC = ? and SD_SRC_TYPE = 'SERVICE_REQUEST'",
+                Integer.class, Long.valueOf(requestId));
     }
 
     private String createOrderSaveService(String suffix) throws Exception {

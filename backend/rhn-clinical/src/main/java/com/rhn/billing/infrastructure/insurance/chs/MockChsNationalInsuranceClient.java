@@ -5,12 +5,14 @@ import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PersonInfoRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PersonInfoResponse;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PreSettleRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PreSettleResponse;
+import com.rhn.billing.infrastructure.insurance.chs.ChsModels.PreSettlementCancelRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.ReversalRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.ReversalResponse;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.SettleRequest;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.SettleResponse;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction;
+import com.rhn.billing.api.InsuranceSettlementAdapter.InsurancePreSettlementCancellation;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +65,12 @@ public class MockChsNationalInsuranceClient implements NationalInsuranceClient {
     public ReversalRequest prepareReversal(InsuranceReversal input) {
         return new ReversalRequest(input.originalExternalSettlementNo(), "MOCK-PSN-" + input.residentId(),
                 "MOCK-OP-" + input.practitionerCode(), input.reason());
+    }
+
+    @Override
+    public PreSettlementCancelRequest preparePreSettlementCancel(InsurancePreSettlementCancellation input) {
+        return new PreSettlementCancelRequest(input.externalPreSettlementNo(), "MOCK-PSN-" + input.claimId(),
+                "MOCK-OP-" + input.practitionerCode(), input.settlementNo(), input.insuranceTypeCode(), input.visitRegisteredByClaim());
     }
 
     @Override
@@ -219,5 +227,14 @@ public class MockChsNationalInsuranceClient implements NationalInsuranceClient {
                 true,
                 "模拟医保结算已撤销（仅限离线测试）"
         );
+    }
+
+    /** 模拟 2205/2202：预结算只在内存登记，重启后可能已不存在，撤销视为成功。 */
+    @Override
+    public String cancelPreSettlement(PreSettlementCancelRequest request) {
+        preSettlements.remove(request.preSetlId());
+        log.info("[CHS-Mock 2205] 费用明细已撤销 preSetlId={}, settlementNo={}, 撤销登记={}",
+                request.preSetlId(), request.settlementNo(), request.registrationCancel());
+        return "模拟医保费用明细已撤销（仅限离线测试）";
     }
 }

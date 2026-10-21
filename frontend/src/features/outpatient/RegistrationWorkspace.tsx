@@ -22,7 +22,7 @@ import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
 import { InsuranceInfoPopover, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
-import { InsuranceMediaSimulator, type SimulatedInsuranceRead } from './InsuranceMediaSimulator'
+import { InsuranceMediaButtons, useInsuranceMediaReader, type InsuranceMediaRead } from '../../shared/billing/insuranceMedia'
 import '../../styles/features/scheduling-registration.css'
 
 export { getCashPresets }
@@ -639,18 +639,19 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const needsPaymentAtCreate = !selectedCoverage
   useEffect(() => { setInsurancePerson(null) }, [coverageSelection, selected?.id])
 
-  // 联调模拟：模拟读卡/医保码已完成 1101，待患者与费用类别稳定后再回填鉴权结果（上面的清理会随费用类别变化触发）。
-  const [simulatedRead, setSimulatedRead] = useState<SimulatedInsuranceRead | null>(null)
-  const handleSimulatedRead = useCallback((value: SimulatedInsuranceRead) => {
-    selectPatient(value.resident, { channel: value.media === 'CARD' ? 'INSURANCE_CARD' : 'INSURANCE_CODE', identifier: value.persona.certNo })
-    setSimulatedRead(value)
-  }, [selectPatient])
+  // 读卡/医保码已完成 1101（正式读证或 mock 人员），待患者与费用类别稳定后再回填鉴权结果（上面的清理会随费用类别变化触发）。
+  const [mediaRead, setMediaRead] = useState<InsuranceMediaRead | null>(null)
+  const insuranceReader = useInsuranceMediaReader(api, (value) => {
+    selectPatient(value.resident, { channel: value.media === 'CARD' ? 'INSURANCE_CARD' : 'INSURANCE_CODE', identifier: value.person.certno })
+    setMediaRead(value)
+    return undefined
+  })
   useEffect(() => {
-    if (!simulatedRead) return
-    if (selected?.id !== simulatedRead.resident.id) { setSimulatedRead(null); return }
-    setInsurancePerson(simulatedRead.person)
-    if (coverageSelection.startsWith('COVERAGE:')) setSimulatedRead(null)
-  }, [coverageSelection, selected?.id, simulatedRead])
+    if (!mediaRead) return
+    if (selected?.id !== mediaRead.resident.id) { setMediaRead(null); return }
+    setInsurancePerson(mediaRead.person)
+    if (coverageSelection.startsWith('COVERAGE:')) setMediaRead(null)
+  }, [coverageSelection, selected?.id, mediaRead])
 
   // 选号阶段只展示目录有效价；医保支付与减免以正式结算结果为准。
   const feeBreakdown = useMemo(() => {
@@ -1037,6 +1038,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         : `就诊号 ${success.encounter.encounterNo}`}
     </Alert>}
 
+    {insuranceReader.dialog}
     {showQuickCreate && <QuickResidentCreateDialog api={api} onClose={() => setShowQuickCreate(false)}
       onSuccess={selectPatient} />}
 
@@ -1068,7 +1070,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       onConfirm={(reason) => cancelRegistration.mutate({ item: cancellingItem, reason })} />}
 
     <section className="registration-workspace-layout">
-      <InsuranceMediaSimulator api={api} disabled={Boolean(intentId)} onRead={handleSimulatedRead} />
       <div className={`registration-intake-strip ${selected ? 'has-patient' : ''}`}>
         {selected ? (
           <div className="registration-intake-strip__identity">
@@ -1140,6 +1141,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   setTimeout(() => patientSearchInputRef.current?.focus(), 50)
                 }}
                 emptyCopy="输入姓名/拼音/卡号快速检索，或按 F2 快速建档。" />
+              <InsuranceMediaButtons disabled={Boolean(intentId)} onRead={insuranceReader.open} />
               {linkedResidentId && linkedResident.isPending && <LoadingState label="正在加载居民…" />}
             </section>
           </div>

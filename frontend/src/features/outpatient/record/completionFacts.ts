@@ -20,8 +20,8 @@ export function requireCompletionMode(value: unknown): OutpatientCompletionMode 
   return value.value
 }
 
-export function requireCompletionOrderCount(value: unknown, encounter: Encounter, kind: 'service' | 'medication'): number {
-  const states = kind === 'service' ? ['ACTIVE', 'CANCELLED'] : ['DRAFT', 'ACTIVE', 'CANCELLED']
+export function requireCompletionOrderCount(value: unknown, encounter: Encounter, _kind: 'service' | 'medication'): number {
+  const states = ['DRAFT', 'ACTIVE', 'CANCELLED']
   requireFact(Array.isArray(value), '医嘱列表缺失')
   requireFact(value.every(row => object(row) && text(row.id) && row.encounterId === encounter.id
     && row.residentId === encounter.residentId && states.includes(String(row.status)))

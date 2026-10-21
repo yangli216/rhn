@@ -12854,6 +12854,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pharmacy/dispense-tasks/{taskId}/cancel-dispense": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelDispense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/service-requests/{requestId}/withdraw-signature": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdrawSignature"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/service-requests/document-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewOutpatientServiceDocuments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/prescriptions/{prescriptionId}/withdraw-signature": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["withdrawSignature_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/order-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submitOutpatientOrders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/settlements/{settlementId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelSettlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/encounters/{encounterId}/unpaid-settlements/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancelUnpaidSettlements"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encounters/{encounterId}/ordering-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getOutpatientOrderingPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -16491,6 +16619,10 @@ export interface components {
             readonly priceTypeText?: string;
             /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
             readonly serviceTypeText?: string;
+            editBlockedReason?: string;
+            /** @example 824633720832983041 */
+            documentId?: string;
+            documentNo?: string;
         };
         Evidence: {
             sourceType?: string;
@@ -16635,6 +16767,7 @@ export interface components {
             readonly doseFormText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly medicationTypeText?: string;
+            editBlockedReason?: string;
         };
         MedicationSafetyDecision: {
             /** @example 824633720832983041 */
@@ -23808,6 +23941,7 @@ export interface components {
             commandCode: string;
             medicationItems: components["schemas"]["BatchOrderMedicationItem"][];
             serviceItems: components["schemas"]["CreateServiceRequest"][];
+            revisedOrders?: components["schemas"]["RevisedOrder"][];
         };
         OrderDraftSaveResponse: {
             commandCode?: string;
@@ -23815,6 +23949,8 @@ export interface components {
             encounterId?: string;
             prescriptions?: components["schemas"]["PrescriptionResponse"][];
             services?: components["schemas"]["ServiceRequestResponse"][];
+            revisedMedications?: components["schemas"]["MedicationRequestResponse"][];
+            revisedServices?: components["schemas"]["ServiceRequestResponse"][];
         };
         CreateMedicationRequest: {
             /** @example 824633720832983041 */
@@ -29609,6 +29745,103 @@ export interface components {
         ResidentPersonInfoQuery: {
             /** @example 824633720832983041 */
             residentId?: string;
+        };
+        CancelDispenseRequest: {
+            cancelNo: string;
+            /** @example 824633720832983041 */
+            operatorPractitionerId: string;
+            /** @example 824633720832983041 */
+            operatorAssignmentId: string;
+            reasonCode?: string;
+            description?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
+        DispenseCancelResultView: {
+            /** @example 824633720832983041 */
+            taskId?: string;
+            taskNo?: string;
+            taskStatus?: string;
+            /** @example 824633720832983041 */
+            cancelDispenseId?: string;
+            cancelNo?: string;
+            /** @description 字典 SUP_DISPENSE_TASK_STATUS 的显示文本 */
+            readonly taskStatusText?: string;
+        };
+        WithdrawSignatureRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+        };
+        ServiceDocumentPlan: {
+            serviceType?: string;
+            title?: string;
+            /** @example 824633720832983041 */
+            performerOrganizationId?: string;
+            /** @example 824633720832983041 */
+            performerDepartmentId?: string;
+            groupingRule?: string;
+            groupingValue?: string;
+            ruleReasons?: string[];
+            itemIndexes?: number[];
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly serviceTypeText?: string;
+        };
+        OrderSubmissionRequest: {
+            prescriptions: components["schemas"]["PrescriptionEntry"][];
+            serviceDocuments: components["schemas"]["ServiceDocumentEntry"][];
+            acknowledgedReviewKey?: string;
+            dryRun?: boolean;
+        };
+        PrescriptionEntry: {
+            /** @example 824633720832983041 */
+            id: string;
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            documentInfo?: components["schemas"]["OrderDocumentInfo"];
+            safetyReason?: string;
+        };
+        ServiceDocumentEntry: {
+            /** @example 824633720832983041 */
+            id: string;
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            documentInfo?: components["schemas"]["OrderDocumentInfo"];
+        };
+        OrderSubmissionResponse: {
+            /** @enum {string} */
+            status?: "SUBMITTED" | "REVIEW_REQUIRED" | "READY";
+            reviewKey?: string;
+            reviews?: components["schemas"]["MedicationSafetyDecision"][];
+            prescriptions?: components["schemas"]["PrescriptionResponse"][];
+            services?: components["schemas"]["ServiceRequestResponse"][];
+        };
+        RevisedOrder: {
+            /** @enum {string} */
+            kind: "MEDICATION" | "SERVICE";
+            /** @example 824633720832983041 */
+            id: string;
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            medication?: components["schemas"]["BatchOrderMedicationItem"];
+            service?: components["schemas"]["CreateServiceRequest"];
+        };
+        CancelSettlementRequest: {
+            reason: string;
+        };
+        CancelledSettlementView: {
+            /** @example 824633720832983041 */
+            settlementId?: string;
+            settlementNo?: string;
+            netAmount?: number;
+            chargeItemIds?: string[];
+            insuranceNote?: string;
+        };
+        OrderingPolicyResponse: {
+            reviewMode?: string;
+            mergeWesternAndPatent?: boolean;
+            separateInfusion?: boolean;
+            /** Format: int32 */
+            maxItemsPerPrescription?: number;
         };
     };
     responses: never;
@@ -60215,6 +60448,284 @@ export interface operations {
                     "*/*": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    cancelDispense: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelDispenseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DispenseCancelResultView"];
+                };
+            };
+        };
+    };
+    withdrawSignature: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawSignatureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ServiceRequestResponse"];
+                };
+            };
+        };
+    };
+    previewOutpatientServiceDocuments: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServiceRequest"][];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ServiceDocumentPlan"][];
+                };
+            };
+        };
+    };
+    withdrawSignature_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+                prescriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawSignatureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PrescriptionResponse"];
+                };
+            };
+        };
+    };
+    submitOutpatientOrders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrderSubmissionResponse"];
+                };
+            };
+        };
+    };
+    cancelSettlement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelSettlementRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CancelledSettlementView"];
+                };
+            };
+        };
+    };
+    cancelUnpaidSettlements: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelSettlementRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CancelledSettlementView"][];
+                };
+            };
+        };
+    };
+    getOutpatientOrderingPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OrderingPolicyResponse"];
                 };
             };
         };

@@ -989,7 +989,10 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       onGenerate={async (focus, options) => (await generate.mutateAsync({ focus, intent: options?.intent })).value.id} onApply={applyInline}
       onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory} onOpenResults={onOpenResults}
       onOpenEvidenceChain={setEvidenceDiagnosis}
-      onReviewTreatment={reviewTreatments}
+      // Confirming the selection settles this batch: unticked recommendations are discarded with it.
+      onReviewTreatment={(items) => reviewTreatments(items, (keys) => {
+        if (keys.length && currentSuggestion) setDismissedTreatmentBatchId(currentSuggestion.id)
+      })}
       existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
 
       sceneAssessment={sceneAssessment}

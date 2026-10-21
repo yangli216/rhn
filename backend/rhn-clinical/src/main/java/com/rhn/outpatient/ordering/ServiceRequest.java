@@ -72,12 +72,22 @@ class ServiceRequest {
     @Column(name = "DES_CLIN_DESCR", table = "RHN_EX_SVC_REQ") private String clinicalDescription;
 
     @jakarta.persistence.Lob @Column(name = "JSON_DOC_INFO") private String documentInfoJson;
+    @Column(name = "ID_SVC_DOC", table = "RHN_EX_SVC_REQ") private Long documentId;
+
+    Long documentId() { return documentId; }
+    void assignDocument(Long documentId) {
+        if (this.documentId != null) throw new BusinessException("SERVICE_REQUEST_DOCUMENT_ASSIGNED",
+                "诊疗请求已归入申请单", HttpStatus.CONFLICT);
+        this.documentId = documentId;
+    }
 
     String documentInfoJson() { return documentInfoJson; }
     void updateDocumentInfo(long expectedRevision, String json) {
         if (revision != expectedRevision) throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT",
                 "申请单已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
-        if (status != ServiceRequestStatus.ACTIVE) throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "当前申请单不能修改", HttpStatus.CONFLICT);
+        if (status != ServiceRequestStatus.ACTIVE && status != ServiceRequestStatus.DRAFT) {
+            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "当前申请单不能修改", HttpStatus.CONFLICT);
+        }
         documentInfoJson = json;
     }
 
@@ -93,7 +103,7 @@ class ServiceRequest {
                    BigDecimal totalAmount, String currencyCode, String itemAttributeSnapshot,
                    String itemAttributeHash, Instant itemAttributeResolvedAt, String standardMappingSnapshot,
                    String serviceTypeSnapshot, String specimenTypeSnapshot, String examinationTypeSnapshot,
-                   BigDecimal quantity, String clinicalDescription) {
+                   BigDecimal quantity, String clinicalDescription, boolean draft) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.serviceTenantId = tenantId;
@@ -104,7 +114,7 @@ class ServiceRequest {
         this.encounterId = encounterId;
         this.requestNo = requestNo;
         this.requestKind = "SERVICE";
-        this.status = ServiceRequestStatus.ACTIVE;
+        this.status = draft ? ServiceRequestStatus.DRAFT : ServiceRequestStatus.ACTIVE;
         this.intentCode = "ORDER";
         this.priorityCode = "ROUTINE";
         this.catalogItemId = catalogItemId;
@@ -138,12 +148,51 @@ class ServiceRequest {
         this.clinicalDescription = clinicalDescription;
     }
 
+    /** 开立：草稿转为生效，开立时间与开立人记为本次签发，此后才对收费和执行科室可见。 */
+    void activate(long expectedRevision, Long actorId) {
+        if (revision != expectedRevision) {
+            throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT", "诊疗请求已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
+        }
+        if (status != ServiceRequestStatus.DRAFT) {
+            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有草稿诊疗请求可以开立", HttpStatus.CONFLICT);
+        }
+        status = ServiceRequestStatus.ACTIVE;
+        authoredAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        authoredBy = actorId;
+    }
+
+    /** 取消签署：未缴费、未执行的申请退回未签署，记账和执行任务由撤回事件清理。 */
+    void withdrawSignature(long expectedRevision) {
+        requireRevision(expectedRevision);
+        if (status != ServiceRequestStatus.ACTIVE) {
+            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有已签署的诊疗请求可以取消签署", HttpStatus.CONFLICT);
+        }
+        status = ServiceRequestStatus.DRAFT;
+    }
+
+    /** 未签署申请原地修改数量与临床说明；项目不变，金额按原单价重算。 */
+    void reviseDraft(long expectedRevision, BigDecimal quantity, String clinicalDescription) {
+        requireRevision(expectedRevision);
+        if (status != ServiceRequestStatus.DRAFT) {
+            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有未签署的诊疗请求可以直接修改", HttpStatus.CONFLICT);
+        }
+        this.quantity = quantity;
+        this.totalAmount = unitPrice == null ? null : unitPrice.multiply(quantity);
+        this.clinicalDescription = clinicalDescription;
+    }
+
+    private void requireRevision(long expectedRevision) {
+        if (revision != expectedRevision) {
+            throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT", "诊疗请求已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
+        }
+    }
+
     void cancel(long expectedRevision, String reason, Long actorId) {
         if (revision != expectedRevision) {
             throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT", "诊疗请求已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
         }
-        if (status != ServiceRequestStatus.ACTIVE) {
-            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有生效中的诊疗请求可以撤销", HttpStatus.CONFLICT);
+        if (status != ServiceRequestStatus.ACTIVE && status != ServiceRequestStatus.DRAFT) {
+            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有草稿或生效中的诊疗请求可以撤销", HttpStatus.CONFLICT);
         }
         status = ServiceRequestStatus.CANCELLED;
         cancelledAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);

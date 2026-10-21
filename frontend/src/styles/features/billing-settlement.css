@@ -92,7 +92,6 @@
 .billing-queue-list > button.is-active { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
 .billing-queue-list > button.is-highlighted { box-shadow: inset var(--space-1) 0 0 var(--color-border-strong); background: var(--color-surface-subtle); }
 .billing-queue-hint { margin: 0; padding: var(--space-1) var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); opacity: 0.8; border-bottom: 1px solid var(--color-border); }
-.billing-patient-lookup__actions { display: flex; align-items: center; gap: var(--space-2); }
 .billing-queue-list > button > div, .billing-queue-item__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .billing-queue-list strong, .billing-queue-list > button > span, .billing-queue-list > button > small, .billing-queue-item__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .billing-queue-list > button > span, .billing-queue-list > button > small, .billing-queue-item__meta { color: var(--color-text-secondary); font-size: var(--font-size-table, 0.8125rem); }
@@ -471,6 +470,13 @@
 .billing-timeline li b { color: var(--color-text-primary); font-size: var(--font-size-small); }
 .billing-side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-4); }
 .billing-action-form { padding: var(--space-4); display: grid; gap: var(--space-3); }
+/* 未付款结算单：可取消回到待结算 */
+.billing-unpaid-settlements { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-warning-soft); }
+.billing-unpaid-settlements__row { display: flex; align-items: center; gap: var(--space-2); min-height: 2rem; }
+.billing-unpaid-settlements__label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.billing-unpaid-settlements__label strong { color: var(--color-text); font-weight: var(--font-weight-semibold); }
+.billing-unpaid-settlements__label small { color: var(--color-text-secondary); }
+.billing-unpaid-settlements__amount { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-semibold); }
 .billing-action-form + .billing-action-form { border-top: 1px solid var(--color-border); }
 .billing-action-form h3 { margin: 0; color: var(--color-text-primary); font-size: var(--font-size-body); }
 .billing-action-form .ui-field { min-width: 0; margin: 0; }

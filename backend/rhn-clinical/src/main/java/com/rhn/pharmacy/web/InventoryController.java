@@ -4,6 +4,7 @@ import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionPageView;
+import com.rhn.pharmacy.api.PharmacyViews.DispenseCancelResultView;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTraceView;
 import com.rhn.pharmacy.api.PharmacyViews.MedicationDispenseView;
 import com.rhn.pharmacy.api.PharmacyViews.PreparationResultView;
@@ -16,6 +17,7 @@ import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeBatchScanView;
 import com.rhn.pharmacy.application.InventoryApplicationService;
 import com.rhn.pharmacy.application.DispenseApplicationService;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService;
+import com.rhn.pharmacy.application.DispenseApplicationService.CancelDispenseCommand;
 import com.rhn.pharmacy.application.DispenseApplicationService.CompletePickingCommand;
 import com.rhn.pharmacy.application.DispenseApplicationService.DispenseCommand;
 import com.rhn.pharmacy.application.DispenseApplicationService.ReturnCommand;
@@ -180,6 +182,28 @@ public class InventoryController {
     @GetMapping("/dispense-tasks/{taskId}/trace")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     DispenseTraceView trace(@PathVariable Long taskId) { return dispenseService.trace(taskId); }
+
+    @PostMapping("/dispense-tasks/{taskId}/cancel-dispense")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
+    DispenseCancelResultView cancelDispense(@PathVariable Long taskId,
+                                           @Valid @RequestBody CancelDispenseRequest input) {
+        return dispenseService.cancelDispense(taskId, input.command());
+    }
+
+    record CancelDispenseRequest(
+            @NotBlank @Size(max = 128) String cancelNo,
+            @NotNull Long operatorPractitionerId,
+            @NotNull Long operatorAssignmentId,
+            String reasonCode,
+            String description,
+            Instant occurredAt
+    ) {
+        public CancelDispenseCommand command() {
+            return new CancelDispenseCommand(
+                    cancelNo, operatorPractitionerId, operatorAssignmentId, reasonCode, description, occurredAt
+            );
+        }
+    }
 
     record CreateBinRequest(
             Long parentBinId, @NotBlank @Size(max = 64) String code,

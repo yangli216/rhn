@@ -26,6 +26,14 @@ class PharmacyOrderFulfillmentGuard implements OrderFulfillmentGuard {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public String withdrawBlockedReason(OrderRef order, boolean forUpdate) {
+        if (!MEDICATION_REQUEST.equals(order.sourceType())) return null;
+        return pharmacy.hasDispenseTask(order.tenantId(), order.requestId())
+                ? "药房已接收处方，不能取消签署；如需调整请撤销后重新开立" : null;
+    }
+
+    @Override
     @Transactional
     public void releaseUnstarted(OrderRef order) {
         if (MEDICATION_REQUEST.equals(order.sourceType())) {

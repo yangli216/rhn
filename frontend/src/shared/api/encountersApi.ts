@@ -137,13 +137,19 @@ export interface ServiceRequest {
   documentInfoEditable?: boolean
   /** Set by the server when fulfillment has started and the request can no longer be cancelled. */
   cancelBlockedReason?: string | null
+  /** 不能修改或取消签署的原因（已撤销、已执行或已进结算单）；为空时可在原申请上修改。 */
+  editBlockedReason?: string | null
   documentInfo?: OrderDocumentInfo
+  /** 所属申请单；为空表示历史或单条开立的一项一单。 */
+  documentId?: string | null
+  documentNo?: string | null
   id: string
   revision: number
   residentId: string
   encounterId: string
   requestNo: string
-  status: 'ACTIVE' | 'CANCELLED'
+  /** DRAFT 只属于开立医生；一次开立命令转为 ACTIVE 后才记账、下发执行科室。 */
+  status: 'DRAFT' | 'ACTIVE' | 'CANCELLED'
   catalogItemId: string
   businessDate: string
   itemCode: string
@@ -188,6 +194,8 @@ export interface CreateServiceRequestInput {
 export interface MedicationRequest {
   /** Set by the server when the drug has been dispensed or executed and the request can no longer be cancelled. */
   cancelBlockedReason?: string | null
+  /** 不能修改或取消签署的原因（已撤销、药房已接收或已进结算单）；为空时可在原医嘱上修改。 */
+  editBlockedReason?: string | null
   stockSiteId?: string | null
   stockSiteName?: string | null
   stockSiteSource?: 'RESERVATION' | 'ROUTING' | null
@@ -242,6 +250,7 @@ export interface MedicationRequest {
   packageSpec?: string
   substitutionAllowed: boolean
   selfProvided: boolean
+  priceType?: string
   unitPrice?: number
   priceQuantity?: number
   totalAmount?: number
@@ -448,6 +457,15 @@ export function createEncountersApi(client: ApiClient) {
         `/api/encounters/${encounterId}/prescriptions/${prescriptionId}/safety-evaluations`,
         { method: 'POST' },
       ),
+    /** 取消签署：整张处方退回未签署，未进结算单的记账作废。 */
+    withdrawPrescriptionSignature: (encounterId: string, prescriptionId: string, expectedRevision: number) =>
+      client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/withdraw-signature`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision }),
+      }),
+    withdrawServiceSignature: (encounterId: string, requestId: string, expectedRevision: number) =>
+      client.request<ServiceRequest>(`/api/encounters/${encounterId}/service-requests/${requestId}/withdraw-signature`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision }),
+      }),
     cancelPrescription: (encounterId: string, prescriptionId: string, expectedRevision: number, reason: string) =>
       client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/cancel`, {
         method: 'POST', body: JSON.stringify({ expectedRevision, reason }),
@@ -460,6 +478,14 @@ export function createEncountersApi(client: ApiClient) {
     saveOrderDrafts: (encounterId: string, input: OrderDraftSaveInput) => client.request<OrderDraftSaveReceipt>(
       `/api/encounters/${encounterId}/order-drafts`, { method: 'POST', body: JSON.stringify(input) },
     ),
+    submitOrders: (encounterId: string, input: OrderSubmissionInput) => client.request<OrderSubmissionResult>(
+      `/api/encounters/${encounterId}/order-submissions`, { method: 'POST', body: JSON.stringify(input) },
+    ),
+    previewServiceDocuments: (encounterId: string, items: CreateServiceRequestInput[]) => client.request<ServiceDocumentPlan[]>(
+      `/api/encounters/${encounterId}/service-requests/document-preview`, { method: 'POST', body: JSON.stringify(items) },
+    ),
+    orderingPolicy: (encounterId: string) => client.request<OrderingPolicy>(
+      `/api/encounters/${encodeURIComponent(encounterId)}/ordering-policy`),
     batchOrderPrescriptions: (encounterId: string, input: BatchOrderPrescriptionInput) => client.request<Prescription[]>(
       `/api/encounters/${encounterId}/prescriptions/batch-order`, {
         method: 'POST', body: JSON.stringify(input),
@@ -568,10 +594,56 @@ export interface BatchOrderMedicationItem {
   reason?: string
 }
 
+/** 原地修改的医嘱：已签署且未进结算单的先退回未签署再改；药品、项目本身不能更换。 */
+export interface RevisedOrder {
+  kind: 'MEDICATION' | 'SERVICE'
+  id: string
+  expectedRevision: number
+  medication?: BatchOrderMedicationItem
+  service?: CreateServiceRequestInput
+}
+
 export interface OrderDraftSaveInput {
   commandCode: string
   medicationItems: BatchOrderMedicationItem[]
   serviceItems: CreateServiceRequestInput[]
+  revisedOrders?: RevisedOrder[]
+}
+
+/** 一次开立命令：prescriptions 须与当前全部处方草稿一致；documentInfo 为空时由服务端默认关联主诊断。 */
+export interface OrderSubmissionInput {
+  prescriptions: Array<{ id: string; expectedRevision: number; documentInfo?: OrderDocumentInfo; safetyReason?: string }>
+  serviceDocuments: Array<{ id: string; expectedRevision: number; documentInfo?: OrderDocumentInfo }>
+  acknowledgedReviewKey?: string
+  /** 只核对草稿集合并返回合理用药审查结果，不写入单据。 */
+  dryRun?: boolean
+}
+
+export interface OrderSubmissionResult {
+  status: 'SUBMITTED' | 'REVIEW_REQUIRED' | 'READY'
+  reviewKey?: string | null
+  reviews: MedicationSafetyDecision[]
+  prescriptions: Prescription[]
+  services: ServiceRequest[]
+}
+
+/** 后端合单结果；itemIndexes 指向提交的服务项目下标，与整批保存使用同一规则。 */
+export interface ServiceDocumentPlan {
+  serviceType: string
+  title: string
+  performerOrganizationId: string
+  performerDepartmentId: string
+  groupingRule: 'PER_ITEM' | 'BY_DEPT' | 'BY_DEPT_SPECIMEN' | 'BY_DEPT_EXAM_TYPE'
+  groupingValue?: string | null
+  ruleReasons: string[]
+  itemIndexes: number[]
+}
+
+export interface OrderingPolicy {
+  reviewMode: 'STANDARD' | 'SIMPLE'
+  mergeWesternAndPatent: boolean
+  separateInfusion: boolean
+  maxItemsPerPrescription: number
 }
 
 export interface OrderDraftSaveReceipt {
@@ -579,6 +651,9 @@ export interface OrderDraftSaveReceipt {
   encounterId: string
   prescriptions: Prescription[]
   services: ServiceRequest[]
+  /** 原地修改后的医嘱，均为未签署。 */
+  revisedMedications?: MedicationRequest[]
+  revisedServices?: ServiceRequest[]
 }
 
 export interface BatchOrderPrescriptionInput {

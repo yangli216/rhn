@@ -8,7 +8,7 @@ import type { MedicationKnowledge } from '../../../shared/api/masterDataApi'
 import { IconButton, Button, Icon, Select } from '../../../shared/ui'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { ServiceInsertButton } from './ServiceInsertButton'
-import { defaultPackageQuantity, hasNoDailyRate } from '../orders/medicationQuantity'
+import { calculatePackageQuantity, defaultPackageQuantity, hasNoDailyRate } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
 import {
   formatPackageUnit,
@@ -46,13 +46,25 @@ function aiUsage(suggestion: ClinicalAiTreatmentRecommendation['usageSuggestion'
   return result
 }
 
+/** Footer rows stay below every ordered recommendation row. */
+const TAIL_ORDER = { order: 100_000 }
+
+/** Without a course the total cannot be derived; when the usage itself converts, prefill one package for review. */
+function draftPackageQuantity(input: Parameters<typeof calculatePackageQuantity>[0]) {
+  const quantity = defaultPackageQuantity(input)
+  if (quantity !== undefined || Number(input.durationValue) > 0) return quantity
+  return calculatePackageQuantity({ ...input, durationValue: 1 }) ? 1 : undefined
+}
+
 /** Resolve catalog details after a requested analysis; this never triggers another model request. */
-export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onReview }: {
+export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onReview, orderOf }: {
   items: ClinicalAiTreatmentRecommendation[]
   api: RhnApi
   encounter: Encounter
   disabled: boolean
   onReview: (items: ClinicalAiTreatmentRecommendation[]) => void
+  /** Flex order per row key, shared with pending catalog rows so the list never reshuffles. */
+  orderOf?: (key: string) => number
 }) {
   const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
   const [excluded, setExcluded] = useState<string[]>([])
@@ -115,7 +127,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
     // Default quantity is derivable once an AI-supplied draft completes dose/frequency/duration; PRN/once defaults to one package.
     if ((aiFields.length || hasNoDailyRate(frequencies.data, base.frequencyCode)) && base.quantity === undefined
       && resolved?.medication && resolved.product) {
-      base.quantity = defaultPackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product, doseValue: base.doseValue,
+      base.quantity = draftPackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product, doseValue: base.doseValue,
         doseUnit: base.doseUnit, frequencyCode: base.frequencyCode, durationValue: base.durationValue, frequencies: frequencies.data })
     }
     const details: EditableOrderDetails = { ...base, ...edits[key] }
@@ -132,7 +144,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       if ('quantity' in patch) setManualQuantities(current => ({ ...current, [key]: true }))
       if (resolved?.medication && resolved.product && !manualQuantities[key]
         && !('quantity' in patch) && ['doseValue', 'doseUnit', 'frequencyCode', 'durationValue'].some((field) => field in patch)) {
-        const quantity = defaultPackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product,
+        const quantity = draftPackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product,
           doseValue: next.doseValue, doseUnit: next.doseUnit, frequencyCode: next.frequencyCode,
           durationValue: next.durationValue, frequencies: frequencies.data })
         patch.quantity = quantity
@@ -158,6 +170,8 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
         ? resolved?.specification || item.specification || (shouldDisplayOrderCode(item.code) ? item.code : undefined)
         : (shouldDisplayOrderCode(item.code) ? item.code : undefined)
       const open = editingKey === key
+      const doseUnits = [...new Set([details.doseUnit, resolved?.medication?.strengthUnit, resolved?.medication?.preparationUnit,
+        resolved?.medication?.defaultDoseUnit].map((value) => value?.trim()).filter((value): value is string => Boolean(value)))]
       const typeCell = <label className="doctor-ai-order-select">
         <input type="checkbox" aria-label={`选择 ${item.name}`} checked={!excluded.includes(key)} disabled={disabled}
           onChange={() => setExcluded((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} />
@@ -177,26 +191,31 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
               )}
               {!medication && <ServiceInsertButton name={item.name} serviceType={item.type} onView={setInspectTarget} />}
             </div>
-            {item.aiOriginalName && <small>AI 原建议：{item.aiOriginalName}</small>}
-            {secondaryText && <small>{secondaryText}</small>}
+            {/* Keep the name cell to two lines: catalog detail and the AI's original wording share one line. */}
+            {(secondaryText || item.aiOriginalName) && <small title={item.aiOriginalName ? `AI 原建议：${item.aiOriginalName}` : undefined}>
+              {[secondaryText, item.aiOriginalName && `AI 原建议：${item.aiOriginalName}`].filter(Boolean).join(' · ')}</small>}
       </>
       const numberInput = (label: string, value: number | undefined, onValue: (next: number | undefined) => void, unit: string, autoFocus = false) =>
         <div className="doctor-entry-input-unit"><input aria-label={label} type="number" step="any" min="0" value={value ?? ''} disabled={disabled}
           autoFocus={autoFocus} onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => onValue(event.target.value === '' ? undefined : Number(event.target.value))} /><small>{unit}</small></div>
-      if (open) return <div key={key} className="doctor-ai-treatment-item">
+      const order = orderOf ? { order: orderOf(key) } : undefined
+      if (open) return <div key={key} className="doctor-ai-treatment-item" style={order}>
         <div className="doctor-unified-inline-composer is-draft-editor is-ai-suggestion" role="row" aria-label={`修改 ${item.name}`}>
           <div className="doctor-inline-order-static-type">{typeCell}</div>
           <div className="doctor-inline-order-static-resource doctor-unified-cell-name">{nameCell}</div>
           {medication ? <div className="doctor-inline-order-directions-group">
             <div className="doctor-inline-order-field doctor-inline-order-dose">
-              {/* The AI unit may differ from the catalog default, so the unit stays editable beside the dose. */}
+              {/* The AI unit may differ from the catalog default, so the catalog's units stay selectable as in order entry. */}
               <div className="doctor-entry-input-unit">
                 <input aria-label="单次剂量" type="number" step="any" min="0" autoFocus value={details.doseValue ?? ''} disabled={disabled}
                   onFocus={(event) => event.currentTarget.select()}
                   onChange={(event) => change({ doseValue: event.target.value === '' ? undefined : Number(event.target.value) })} />
-                <input aria-label="剂量单位" className="doctor-ai-dose-unit-input" placeholder="单位" maxLength={32} value={details.doseUnit ?? ''}
-                  disabled={disabled} onChange={(event) => change({ doseUnit: event.target.value })} /></div>
+                {doseUnits.length > 1
+                  ? <select aria-label="剂量单位" className="doctor-inline-dose-unit-select" value={details.doseUnit ?? ''} disabled={disabled}
+                    onChange={(event) => change({ doseUnit: event.target.value })}>
+                    {doseUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select>
+                  : <small>{details.doseUnit}</small>}</div>
             </div>
             <div className="doctor-inline-order-field doctor-inline-order-route">
               <Select aria-label="途径" value={details.routeCode ?? ''} disabled={disabled} showValue placeholder="途径"
@@ -214,8 +233,8 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           <div className="doctor-inline-order-field doctor-inline-order-quantity" title={`总量（${resolved?.unit ?? ''}）`}>
             {numberInput(`总量（${resolved?.unit ?? ''}）`, details.quantity, (quantity) => change({ quantity }), resolved?.unit ?? '', !medication)}
           </div>
-          {medication ? <div className="doctor-inline-order-static doctor-inline-order-dept">
-            <span className="doctor-direction-chip is-dept">{resolved?.stockSiteName || '发药药房待确认'}</span></div>
+          {medication ? <div className="doctor-inline-order-static doctor-inline-order-dept doctor-ai-order-dept-text">
+            {resolved?.stockSiteName || '发药药房待确认'}</div>
             : <div className="doctor-inline-order-field doctor-inline-order-dept">
               <Select aria-label="执行科室" value={details.performerDepartmentId || ''}
                 disabled={disabled || departments.isPending || departments.isError}
@@ -230,11 +249,11 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           </div>
           <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(resolved?.price, resolved?.currencyCode)}</div>
           <div className="doctor-inline-order-status"><span className="doctor-ai-review-status">{valid ? '待核对' : '需补全'}</span></div>
-          <div className="doctor-inline-order-actions"><Button size="sm" variant="text" onClick={() => setEditingKey(undefined)}>收起</Button></div>
+          <div className="doctor-inline-order-actions"><Button size="sm" variant="text" onClick={() => setEditingKey(undefined)}>完成</Button></div>
         </div>
         {!valid && <small className="doctor-ai-treatment-editor-error" role="alert">请补全有效的{medication ? '剂量、单位、途径、频次和总量；填写天数时须大于 0' : '执行科室和总量'}。</small>}
       </div>
-      return <div key={key} className="doctor-ai-treatment-item">
+      return <div key={key} className="doctor-ai-treatment-item" style={order}>
         <div className="doctor-unified-order-row is-ai-suggestion" role="row">
           <span className="doctor-unified-cell-type">{typeCell}</span>
           <span className="doctor-unified-cell-name">{nameCell}</span>
@@ -242,7 +261,8 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             ? <span role="alert">{result.error.message}<Button variant="text" size="sm" onClick={() => void result.refetch()}>重试</Button></span>
             : medication ? <span className="doctor-ai-treatment-directions">
               <span>每次 {details.doseValue ?? '待填'} {details.doseUnit} · {route || '途径待填'} · {frequency || '频次待填'}</span>
-              <small>{details.durationValue ? `${details.durationValue} 天` : details.frequencyCode === 'PRN' ? '按需使用，天数可补充' : '疗程未设定，可修改'} · {edits[key] ? '已修改，待核对' : usageSource === 'ai' ? 'AI 建议用法，需核对' : usageSource === 'mixed' ? '部分来自 AI 建议，需核对' : '目录默认，需核对'}</small>
+              <small>{details.durationValue ? `${details.durationValue} 天` : details.frequencyCode === 'PRN' ? '按需使用，天数可补充'
+                : details.quantity ? `疗程未设定，总量按 ${details.quantity} ${resolved?.unit ?? ''} 预填` : '疗程未设定，可修改'} · {edits[key] ? '已修改，待核对' : usageSource === 'ai' ? 'AI 建议用法，需核对' : usageSource === 'mixed' ? '部分来自 AI 建议，需核对' : '目录默认，需核对'}</small>
             </span> : serviceExecution || '按项目执行流程'}
           </span>
           <span className="doctor-unified-cell-qty">{resolved ? `${details.quantity ?? '待填'} ${resolved.unit}` : '—'}</span>
@@ -259,11 +279,11 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
         </div>
       </div>
     })}
-    {departments.isError && <div role="alert">执行科室加载失败。<Button variant="text" size="sm"
+    {departments.isError && <div role="alert" style={TAIL_ORDER}>执行科室加载失败。<Button variant="text" size="sm"
       onClick={() => void departments.refetch()}>重试</Button></div>}
-    {(routes.isError || frequencies.isError) && <div role="alert">用法字典加载失败，暂不能确认药品。<Button variant="text" size="sm"
+    {(routes.isError || frequencies.isError) && <div role="alert" style={TAIL_ORDER}>用法字典加载失败，暂不能确认药品。<Button variant="text" size="sm"
       onClick={() => { void routes.refetch(); void frequencies.refetch() }}>重试</Button></div>}
-    <div className="doctor-ai-order-batch" role="row"><span>已选 {selected.length} 项，核对后可批量转入待开立医嘱。</span>
+    <div className="doctor-ai-order-batch" role="row" style={TAIL_ORDER}><span>已选 {selected.length} 项，核对后可批量转入待开立医嘱。</span>
       <Button size="sm" variant="primary" disabled={disabled || !selectedReady}
         onClick={() => {
           if (!selectedReady) return

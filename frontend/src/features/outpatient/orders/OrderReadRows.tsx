@@ -3,13 +3,53 @@ import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import type { MedicationRequest, ServiceRequest } from '../../../shared/api/encountersApi'
 import type { SkinTestWorkItem } from '../../../shared/api/treatmentApi'
 import { IconButton, Button, Popconfirm, StatusBadge } from '../../../shared/ui'
-import { formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, orderStatusLabel, formatUnitPrice } from './orderPresentation'
+import { formatDurationUnit, formatPackageUnit, resolveExecutingDepartment, formatServiceExecution, orderStatusLabel, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge, AdministrationGroupBracket } from './OrderRowDecorations'
+import type { OrderWorkflowMode } from './editSavedOrder'
 
-export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, isMid, onCancel, onInspectMedication, currentDept, documentLink }: {
+/** 已保存医嘱的修改与取消签署；只在允许时给出对应回调，不允许的操作不显示。 */
+export interface SavedOrderEditAction {
+  onEdit?: () => void
+  onWithdraw?: () => void
+  /** 取消签署的确认说明，例如药品会整张处方退回。 */
+  withdrawNotice?: string
+  mode: OrderWorkflowMode
+}
+
+function SavedOrderActions({ name, status, editBlockedReason, cancelBlockedReason, editAction, busy, onCancel }: {
+  name: string; status: MedicationRequest['status']; cancelBlockedReason?: string | null; editBlockedReason?: string | null
+  editAction?: SavedOrderEditAction; busy: boolean; onCancel: () => void
+}) {
+  if (status === 'CANCELLED') return null
+  // 未签署或未进结算单的撤销不产生退费，对医生就是删除；已进结算单的仍称撤销，由收费处按冲销退费。
+  const label = status === 'DRAFT' || (editAction?.mode === 'SIMPLE' && !editBlockedReason) ? '删除' : '撤销'
+  return <>
+    {editAction?.onEdit && <Button size="sm" variant="text" disabled={busy}
+      title="在原医嘱上修改，保存后生效" onClick={editAction.onEdit}>修改</Button>}
+    {editAction?.onWithdraw && <Popconfirm title={`确认取消签署“${name}”？${editAction.withdrawNotice ?? ''}`}
+      okText="取消签署" onConfirm={editAction.onWithdraw}>
+      <Button size="sm" variant="text" busy={busy}>取消签署</Button>
+    </Popconfirm>}
+    {cancelBlockedReason ? (
+      <Button size="sm" variant="text" disabled title={cancelBlockedReason}>{label}</Button>
+    ) : (
+      <Popconfirm
+        title={label === '删除' ? `确认删除“${name}”？` : `确认撤销“${name}”？${editAction ? '已缴费的需到收费处退费' : ''}`}
+        okText={label}
+        okVariant="danger"
+        onConfirm={onCancel}
+      >
+        <Button size="sm" variant="text" busy={busy}>{label}</Button>
+      </Popconfirm>
+    )}
+  </>
+}
+
+export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, isMid, onCancel, editAction, onInspectMedication, currentDept, documentLink }: {
   value: MedicationRequest; skinTest?: SkinTestWorkItem; busy: boolean; readOnly: boolean
   isHead?: boolean; isTail?: boolean; isMid?: boolean
   onCancel: () => void
+  editAction?: SavedOrderEditAction
   onInspectMedication?: (name: string) => void
   documentLink?: { key: string; label: string; selected: boolean }
   currentDept?: string
@@ -52,7 +92,7 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
       {value.doseValue ? <span className="doctor-direction-chip is-dose">{value.doseValue}{value.doseUnit || ''}</span> : null}
       {value.routeName || value.routeCode ? <span className="doctor-direction-chip">{value.routeName || value.routeCode}</span> : null}
       {value.frequencyName || value.frequencyCode ? <span className="doctor-direction-chip">{value.frequencyName || value.frequencyCode}</span> : null}
-      {value.durationValue ? <span className="doctor-direction-chip">{value.durationValue}{value.durationUnit || '天'}</span> : null}
+      {value.durationValue ? <span className="doctor-direction-chip">{value.durationValue}{formatDurationUnit(value.durationUnit)}</span> : null}
       {!value.doseValue && !value.routeName && !value.frequencyName && <span className="doctor-direction-empty">—</span>}
     </span>
     <span className="doctor-unified-cell-qty">
@@ -73,7 +113,7 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
     <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : value.status === 'DRAFT' ? 'warning' : 'neutral'}>
-        {orderStatusLabel(value.status)}
+        {orderStatusLabel(value.status, editAction?.mode)}
       </StatusBadge>
       {value.skinTestExempt ? (
         <span title={value.skinTestExemptReason || '已免做皮试'}><StatusBadge tone="info">免皮试</StatusBadge></span>
@@ -83,18 +123,9 @@ export function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isT
       ) : null}
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
-      {value.status !== 'CANCELLED' && (value.cancelBlockedReason ? (
-        <Button size="sm" variant="text" disabled title={value.cancelBlockedReason}>撤销</Button>
-      ) : (
-        <Popconfirm
-          title={`确认撤销“${value.itemName || value.medicationName}”？`}
-          okText="撤销"
-          okVariant="danger"
-          onConfirm={onCancel}
-        >
-          <Button size="sm" variant="text" busy={busy}>撤销</Button>
-        </Popconfirm>
-      ))}
+      <SavedOrderActions name={value.itemName || value.medicationName} status={value.status}
+        cancelBlockedReason={value.cancelBlockedReason} editBlockedReason={value.editBlockedReason}
+        editAction={editAction} busy={busy} onCancel={onCancel} />
     </span>}
   </div>
 }
@@ -110,8 +141,9 @@ export function doctorSkinTestLabel(value?: SkinTestWorkItem['status']) {
   return '待皮试'
 }
 
-export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, documentLink, performerDepartmentName, onInspectService }: {
+export function ServiceReadRow({ value, busy, readOnly, onCancel, editAction, currentDept, documentLink, performerDepartmentName, onInspectService }: {
   value: ServiceRequest; busy: boolean; readOnly: boolean; onCancel: () => void
+  editAction?: SavedOrderEditAction
   onInspectService?: (target: MedicalInsertTarget) => void
   documentLink?: { key: string; label: string; selected: boolean }
   currentDept?: string
@@ -146,21 +178,12 @@ export function ServiceReadRow({ value, busy, readOnly, onCancel, currentDept, d
     <span className="doctor-unified-order-detail">—</span>
     <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
-      <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : 'neutral'}>{orderStatusLabel(value.status)}</StatusBadge>
+      <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : value.status === 'DRAFT' ? 'warning' : 'neutral'}>{orderStatusLabel(value.status, editAction?.mode)}</StatusBadge>
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
-      {value.status === 'ACTIVE' && (value.cancelBlockedReason ? (
-        <Button size="sm" variant="text" disabled title={value.cancelBlockedReason}>撤销</Button>
-      ) : (
-        <Popconfirm
-          title={`确认撤销“${value.itemName}”？`}
-          okText="撤销"
-          okVariant="danger"
-          onConfirm={onCancel}
-        >
-          <Button size="sm" variant="text" busy={busy}>撤销</Button>
-        </Popconfirm>
-      ))}
+      <SavedOrderActions name={value.itemName} status={value.status}
+        cancelBlockedReason={value.cancelBlockedReason} editBlockedReason={value.editBlockedReason}
+        editAction={editAction} busy={busy} onCancel={onCancel} />
     </span>}
   </div>
 }

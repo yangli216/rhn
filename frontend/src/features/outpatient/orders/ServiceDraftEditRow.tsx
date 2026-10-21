@@ -1,6 +1,6 @@
 import { useDraftRowInteractions } from './useDraftRowInteractions'
 import { useRef, useState } from 'react'
-import { Button, Popconfirm, Select, StatusBadge } from '../../../shared/ui'
+import { Button, Popconfirm, Select } from '../../../shared/ui'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import { useOrderExecutionDepartments } from './useOrderExecutionDepartments'
@@ -8,6 +8,7 @@ import { type ServicePlanDraft } from './orderDraftTypes'
 import { formatServiceExecution, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge } from './OrderRowDecorations'
 import { continueDraftOnEnter } from './orderEditorControls'
+import { DraftStatusBadge } from './DraftStatusBadge'
 
 export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encounter, api }: {
   value: ServicePlanDraft; onSave: (value: ServicePlanDraft) => void; onCancel: () => void; onRemove: () => void
@@ -68,7 +69,7 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encount
           onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} />
       </div>
       <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
-      <div className="doctor-inline-order-status"><StatusBadge tone="warning">待确认</StatusBadge></div>
+      <div className="doctor-inline-order-status"><DraftStatusBadge /></div>
       <div className="doctor-inline-order-actions">
         <Popconfirm
           title={`确认移除“${value.itemName || '该项目'}”？`}

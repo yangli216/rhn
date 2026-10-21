@@ -100,6 +100,8 @@ export type SettlementTender = RequiredWireView<components['schemas']['Settlemen
 
 export type SettlementEvent = RequiredWireView<components['schemas']['SettlementEventView'], 'id' | 'eventType' | 'statusTo' | 'commandCode' | 'occurredAt'>
 
+export type CancelledSettlement = RequiredWireView<components['schemas']['CancelledSettlementView'],
+  'settlementId' | 'settlementNo' | 'netAmount' | 'chargeItemIds'>
 export type Settlement = ContractProjection<RequiredWireView<components['schemas']['SettlementView'], 'id' | 'revision' | 'patientAccountId' | 'settlementNo' | 'commandCode' | 'grossAmount' | 'discountAmount' | 'insuranceAmount' | 'patientAmount' | 'otherAmount' | 'roundingAmount' | 'netAmount' | 'tenderedAmount' | 'outstandingAmount' | 'currencyCode' | 'createdBy' | 'createdAt'>, {
   settlementType: 'NORMAL' | 'REVERSAL' | 'SUPPLEMENT'
   settlementScene: 'REGISTRATION' | 'OUTPATIENT' | 'INPATIENT' | 'HOME_BED' | 'PHARMACY'
@@ -474,6 +476,14 @@ export function createBillingApi(client: ApiClient) {
     ),
     settlement: (settlementId: string) => client.request<Settlement>(
       `/api/billing/settlements/${settlementId}`,
+    ),
+    /** 取消未付款结算单，所含收费回到待结算；已试算医保的同时撤销医保平台费用明细。 */
+    cancelSettlement: (settlementId: string, reason: string) => client.request<CancelledSettlement>(
+      `/api/billing/settlements/${settlementId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) },
+    ),
+    /** 取消本就诊全部可取消的未付款结算单（不含挂号），供医生修改医嘱、放弃诊间收款时使用。 */
+    cancelUnpaidSettlements: (encounterId: string, reason: string) => client.request<CancelledSettlement[]>(
+      `/api/billing/encounters/${encounterId}/unpaid-settlements/cancel`, { method: 'POST', body: JSON.stringify({ reason }) },
     ),
     settlementRecords: (limit = 200, filter?: { from: string; to: string; cashier?: string }) => {
       const params = new URLSearchParams({ limit: String(limit) })

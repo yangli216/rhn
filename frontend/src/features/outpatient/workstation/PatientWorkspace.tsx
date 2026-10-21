@@ -105,7 +105,9 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
   const [editing, setEditing] = useState(false)
   const saveDraftHandlerRef = useRef<(() => Promise<boolean>) | null>(null)
-  const [saveDraftNotice, setSaveDraftNotice] = useState<{ message: string; tone?: 'success' | 'error' | 'warning' } | null>(null)
+  // Only the button that started a save shows its spinner, so the header never runs two loaders at once.
+  const [savingFor, setSavingFor] = useState<GuardedPatientAction | null>(null)
+  const [saveDraftNotice, setSaveDraftNotice] = useState<{ message: string; tone?: 'success' | 'error' | 'warning'; id?: number } | null>(null)
   const automaticEntry = useRef<string | null>(null)
   const [resumeCommandCode] = useState(() => commandCode('RESUME', encounterId ?? resident.id))
   const queryClient = useQueryClient()
@@ -158,9 +160,16 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   })
   const completionMode = completionModeQuery.isSuccess && !completionModeQuery.isFetching ? completionModeQuery.data : undefined
   const bloodPressureRequirement = useBloodPressureRequirement(api, encounter?.id ?? '')
-  const hasCompletionBasics = Boolean(encounter?.chiefComplaint
-    && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote
-    && !bloodPressureMissing(bloodPressureRequirement.data, encounter))
+  const completionBlockers = [
+    !encounter?.chiefComplaint && '主诉',
+    !encounter?.diagnoses.some((item) => item.type === 'PRIMARY') && '主要诊断',
+    !outpatientNote && '门诊病历',
+    bloodPressureMissing(bloodPressureRequirement.data, encounter) && '血压',
+  ].filter((item): item is string => Boolean(item))
+  const hasCompletionBasics = completionBlockers.length === 0
+  // Read after an awaited save, when this render's closure still holds the pre-save encounter.
+  const completionBlockersRef = useRef(completionBlockers)
+  completionBlockersRef.current = completionBlockers
   const readyToComplete = Boolean(completionMode && hasCompletionBasics && (outpatientNote?.status === 'SIGNED'
     || completionMode === 'COMBINED_CONFIRMATION'))
   const captureDocumentSession = useClinicalDocumentSession(api, JSON.stringify([encounter?.id, resident.id,
@@ -184,6 +193,14 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   })
   const draftLabels = draftStateLabels(draftState)
   const hasUnsavedDraft = draftLabels.length > 0
+  // 与医嘱面板共用缓存：简单模式“保存即生效”，没有单独的开立，诊毕前自动保存。
+  const orderingPolicy = useQuery({
+    queryKey: ['outpatient-ordering-policy', encounter?.id],
+    queryFn: () => api.encounters.orderingPolicy(encounter!.id),
+    enabled: Boolean(encounter?.id), staleTime: 5 * 60 * 1000,
+  })
+  const simpleOrdering = orderingPolicy.data?.reviewMode === 'SIMPLE'
+  const hasPendingSave = hasUnsavedDraft || (simpleOrdering && (draftState.unissuedOrderCount ?? 0) > 0)
   useEffect(() => {
     setEditing(false)
     setAiContext(null)
@@ -232,8 +249,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     saveDraftHandlerRef.current = handler
   }, [])
   const handleSaveDraftNotice = useCallback((notice: { message: string; tone?: 'success' | 'error' | 'warning' }) => {
-    setSaveDraftNotice(notice)
-    setTimeout(() => setSaveDraftNotice(null), 3500)
+    // The toast's own duration (and its progress bar) decides when it closes; a new notice restarts it.
+    setSaveDraftNotice({ ...notice, id: Date.now() })
   }, [])
   useEffect(() => {
     if (!editing || encounter?.status !== 'IN_PROGRESS') return
@@ -321,6 +338,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   })
   const requestAction = (action: GuardedPatientAction) => {
     if (aiAdoptionBusy) return
+    // 简单模式诊毕：未保存内容直接保存并生效，成功后进入诊毕核对；失败原因已在保存提示和医嘱区展示。
+    if (action === 'complete' && simpleOrdering && hasPendingSave) { void saveAndContinue(action); return }
     if (hasUnsavedDraft) { setGuardedAction(action); return }
     runAction(action)
   }
@@ -328,12 +347,27 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     setGuardedAction(null)
     if (action === 'queue') onBack()
     if (action === 'suspend') setSuspensionOpen(true)
-    if (action === 'complete') setCompletionOpen(true)
+    if (action === 'complete') {
+      // 必填未完成时留在当前页面提示，避免打开诊毕窗口后还要关闭才能修改。
+      const blockers = completionBlockersRef.current
+      if (!blockers.length) { setCompletionOpen(true); return }
+      handleSaveDraftNotice({ message: `暂不能诊毕，请先完善：${blockers.join('、')}`, tone: 'warning' })
+      // Put the cursor where the doctor has to type, so the missing vital is noticed and filled at once.
+      if (blockers.includes('血压')) window.requestAnimationFrame(() => {
+        const input = document.getElementById('doctor-vital-systolic')
+        if (!(input instanceof HTMLInputElement) || input.disabled) return
+        input.scrollIntoView({ block: 'center' })
+        input.focus()
+      })
+    }
     if (action === 'terminate') setTerminationOpen(true)
   }
   const saveAndContinue = async (action: GuardedPatientAction) => {
-    const saved = await handleSaveDraft()
-    if (saved) runAction(action)
+    setSavingFor(action)
+    try {
+      const saved = await handleSaveDraft()
+      if (saved) runAction(action)
+    } finally { setSavingFor(null) }
   }
   const enterEditing = () => {
     if (!encounter || !canEdit) return
@@ -428,20 +462,20 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                 size="sm"
                 variant="secondary"
                 className="doctor-btn--save-draft"
-                aria-label={hasUnsavedDraft ? '保存草稿' : '草稿已保存'}
-                busy={draftState.busy}
-                disabled={aiAdoptionBusy || Boolean(aiFieldStream) || !hasUnsavedDraft}
-                title={hasUnsavedDraft ? '保存病历、诊断与医嘱草稿 (Ctrl+S)' : '当前草稿已与服务器同步 (Ctrl+S)'}
+                aria-label={hasPendingSave ? (simpleOrdering ? '保存' : '保存草稿') : '已保存'}
+                busy={draftState.busy && !savingFor}
+                disabled={aiAdoptionBusy || Boolean(aiFieldStream) || !hasPendingSave || Boolean(savingFor)}
+                title={!hasPendingSave ? '当前内容已与服务器同步 (Ctrl+S)'
+                  : simpleOrdering ? '保存病历、诊断，医嘱随保存生效 (Ctrl+S)' : '保存病历、诊断与医嘱草稿 (Ctrl+S)'}
                 onClick={() => { void handleSaveDraft() }}
               >
-                <Icon name="check" />
-                <span>{hasUnsavedDraft ? '保存草稿' : '已保存'}</span>
+                {hasPendingSave ? (simpleOrdering ? '保存' : '保存草稿') : '已保存'}
               </Button>
               <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
                 title="暂时释放当前接诊工作会话，患者返回后可继续"
                 onClick={() => requestAction('suspend')}>暂挂</Button>
-              <Button size="sm" busy={complete.isPending} disabled={aiAdoptionBusy}
-                title="进入诊毕汇总，核对费用和转归信息"
+              <Button size="sm" busy={complete.isPending || savingFor === 'complete'} disabled={aiAdoptionBusy || draftState.busy}
+                title={simpleOrdering && hasPendingSave ? '自动保存未保存内容后进入诊毕汇总' : '进入诊毕汇总，核对费用和转归信息'}
                 onClick={() => requestAction('complete')}>诊毕</Button>
               <ActionMenu label="更多" disabled={aiAdoptionBusy} items={[{
                 key: 'terminate', label: '终止诊疗', danger: true,
@@ -457,7 +491,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
           <main className={`doctor-workspace-main${aiAdoptionBusy ? ' is-ai-adoption-busy' : ''}`}
             aria-busy={aiAdoptionBusy || undefined}>
             {(start.error || resume.error) && <Alert className="ui-page-feedback">{errorMessage(start.error || resume.error)}</Alert>}
-            {saveDraftNotice && <Alert tone={saveDraftNotice.tone ?? 'success'} className="ui-page-feedback">
+            {saveDraftNotice && <Alert key={saveDraftNotice.id} tone={saveDraftNotice.tone ?? 'success'} className="ui-page-feedback"
+              onDismiss={() => setSaveDraftNotice(null)}>
               {saveDraftNotice.message}
             </Alert>}
             <ClinicalRecordPanel aiSurfaceRefs={aiSurfaceRefs} key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
@@ -536,7 +571,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
             {editing && <ToolButton icon="organization" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />}
           </nav>
         </div>}
-    {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api}
+    {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api} simpleOrdering={simpleOrdering}
       canEdit={canEdit} billingWriter={completionBillingWriter}
       signed={outpatientNote?.status === 'SIGNED'} ready={readyToComplete}
       busy={complete.isPending || completeWithSignature.isPending}

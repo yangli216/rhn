@@ -143,13 +143,12 @@ class QmedExistingRuleMigrationTest {
                 """;
         var item = createItem(1, 301L, drugJson, BigDecimal.valueOf(3), false, null);
 
-        // 1. 患者过敏史未采集且未勾选复核 -> 阻断/要求确认
+        // 1. 患者过敏史未采集 -> 不由本规则阻断（由过敏核验参数控制，默认仅警告）
         var unrecordedContext = new PatientSafetyContext(false, false, null, List.of());
         var snapshot1 = new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION, 1L, 10L, 0,
                 20L, 30L, 1L, 1L, "DRAFT", List.of(item), unrecordedContext);
         var result1 = engine.evaluate(snapshot1, ruleVersions, Instant.now());
-        assertTrue(result1.findings().stream().anyMatch(f -> f.rule().definition().code().equals(DrugAllergyRule.CODE)
-                && f.message().contains("过敏状态尚未采集或核对")));
+        assertFalse(result1.findings().stream().anyMatch(f -> f.rule().definition().code().equals(DrugAllergyRule.CODE)));
 
         // 2. 患者命中过敏原，无覆盖理由 -> 拦截
         var matchedAllergy = new AllergyFact(1L, "AMOX", "阿莫西林", "青霉素类", "ALLERGY");

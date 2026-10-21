@@ -67,6 +67,10 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
 
     /** Stops dispensing for a cancelled order; a task that has meanwhile been dispensed rejects the cancellation. */
     @Transactional
+    public boolean hasDispenseTask(Long tenantId, Long medicationRequestId) {
+        return !taskLines.findTaskIdsForRequest(tenantId, medicationRequestId).isEmpty();
+    }
+
     public void cancelUnfulfilledForOrderCancellation(Long tenantId, Long medicationRequestId) {
         cancelUnfulfilled(tenantId, medicationRequestId, "门诊医嘱撤销取消未发药任务", true);
     }

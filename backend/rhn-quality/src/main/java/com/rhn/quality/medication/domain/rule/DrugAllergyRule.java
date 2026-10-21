@@ -33,13 +33,9 @@ public final class DrugAllergyRule implements MedicationSafetyRule {
 
         var findings = new ArrayList<MedicationSafetyFinding>();
 
-        if (!context.allergyStatusRecorded() && !context.allergyReviewConfirmed()) {
-            findings.add(new MedicationSafetyFinding(GlobalIds.next(), version,
-                    "患者药物过敏状态尚未采集或核对，请在问诊中核对过敏史后再行开方。",
-                    active.stream().map(PrescriptionSafetySnapshot.MedicationItem::medicationRequestId).toList(),
-                    "询问并确认患者过敏史，并勾选过敏复核确认。"));
-            return findings;
-        }
+        // An unrecorded allergy status is governed by the institution's allergy-verification mode (warn by default),
+        // not by this blocking rule: doctors often ask, hear "none", and never record it, so it must not block issuing.
+        if (!context.allergyStatusRecorded()) return findings;
 
         var allergies = context.activeAllergies();
         if (!allergies.isEmpty() && !context.allergyReviewConfirmed()) {
