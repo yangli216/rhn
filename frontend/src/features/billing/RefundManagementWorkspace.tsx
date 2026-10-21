@@ -10,6 +10,7 @@ import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, 
 import { semanticTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { requireRefundPreCheck, requireRefundStatement } from './refundVerification'
+import { formatLocaleDateTime } from '../../shared/format'
 
 export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
@@ -413,7 +414,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                         <td><strong>{item.paymentNo}</strong><code>{item.externalTransactionNo || item.id}</code></td>
                         <td>{(item.paymentMethodCodeText ?? item.paymentMethodCode)}</td>
                         <td>{money(item.amount, item.currencyCode)}</td>
-                        <td>{new Date(item.paidAt).toLocaleString('zh-CN')}</td>
+                        <td>{formatLocaleDateTime(item.paidAt)}</td>
                         <td><StatusBadge tone="success">已支付</StatusBadge></td>
                       </tr>
                     ))}

@@ -4,6 +4,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import { Button, EmptyState, Icon, type IconName, LoadingState, Panel, PanelHead } from '../../shared/ui'
 import '../../styles/features/dashboard-analytics.css'
 import { requirePortalSummary } from './portalSummary'
+import { formatDateTimeParts } from '../../shared/format'
 
 function greetingTime(): string {
   const hour = new Date().getHours()
@@ -22,7 +23,7 @@ export function Dashboard({ api, contextKey, onStart, onOpenTasks, onNavigate }:
   onNavigate?: (path: string) => void
 }) {
   const summary = useQuery({ queryKey: ['portal-summary', contextKey], queryFn: async () => requirePortalSummary(await api.portal.summary()), refetchInterval: 60_000 })
-  const todayText = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
+  const todayText = formatDateTimeParts(new Date(), { month: 'long', day: 'numeric', weekday: 'long' })
 
   return (
     <div className="dashboard-container">

@@ -4,6 +4,7 @@ import type { ReceiptView, Settlement } from '../api/billingApi'
 import { fiscalReceiptStatusPresentation } from '../presentation'
 import { Alert, Button, DataTable, Dialog, StatusBadge, tableCellClass } from '../ui'
 import { Icon } from '../ui/Icon'
+import { formatLocaleDateTime } from '../format'
 
 export interface FiscalReceiptModalProps {
   open: boolean
@@ -147,7 +148,7 @@ export function FiscalReceiptModal({ open, onClose, receipt, settlement, onPrint
             {[
               ['电子票据代码', receipt.fiscalCode], ['电子票据号码', receipt.fiscalNumber],
               ['防伪校验码', receipt.verificationCode],
-              ['开票日期', receipt.issuedAt ? new Date(receipt.issuedAt).toLocaleString('zh-CN', { hour12: false }) : undefined],
+              ['开票日期', receipt.issuedAt ? formatLocaleDateTime(receipt.issuedAt, { hour12: false }) : undefined],
             ].map(([label, value]) => <div className="fiscal-element-row" key={label}>
               <span className="fiscal-element-label">{label}：</span>
               <span className="fiscal-element-value">{value || '未提供'}</span>

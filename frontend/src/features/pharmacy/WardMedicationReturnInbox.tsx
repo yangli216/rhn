@@ -10,6 +10,7 @@ import { formatTime } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
 import './ward-medication-return-inbox.css'
+import { formatNumber } from '../../shared/utils/precision'
 
 const dispositionOptions = [
   { value: 'RESTOCK', label: '验收合格，重新入库' },
@@ -124,5 +125,5 @@ function assignmentOption(value: PersonnelAssignment) {
 
 
 function formatQuantity(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)
+  return formatNumber(value, { maximumFractionDigits: 8 })
 }

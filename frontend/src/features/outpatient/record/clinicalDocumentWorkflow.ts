@@ -1,6 +1,7 @@
 import type { ClinicalDocument, ClinicalDocumentVersion } from '../../../shared/api/clinicalDocumentsApi'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { errorMessage } from '../../../shared/api/httpClient'
+import { UnconfirmedOperationError } from './UnconfirmedOperationError'
 
 type DocumentApi = Pick<RhnApi['clinicalDocuments'], 'byEncounter' | 'sign' | 'amend' | 'updateDraft'>
 type CurrentCheck = () => void
@@ -13,7 +14,7 @@ function object(value: unknown): value is Record<string, unknown> {
 }
 function text(value: unknown): value is string { return typeof value === 'string' && Boolean(value.trim()) }
 function requireFact(condition: unknown, detail: string): asserts condition {
-  if (!condition) throw new Error(`文书操作未确认：${detail}。后续操作已停止，远端可能已完成部分操作，请核实后重试`)
+  if (!condition) throw new UnconfirmedOperationError('clinical-document', `文书操作未确认：${detail}。后续操作已停止，远端可能已完成部分操作，请核实后重试`)
 }
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical)
@@ -110,8 +111,8 @@ export async function signClinicalDocument(api: DocumentApi, source: ClinicalDoc
     const confirmed = requireSignedClinicalDocument(current, receipt)
     return requireSignedClinicalDocument(confirmed, await readCurrent(api, confirmed, assertCurrent))
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('文书操作未确认')) throw error
-    throw new Error(`文书操作未确认：${errorMessage(error)}。后续操作已停止，远端可能已签署；重试将先核实当前版本`)
+    if (error instanceof UnconfirmedOperationError && error.kind === 'clinical-document') throw error
+    throw new UnconfirmedOperationError('clinical-document', `文书操作未确认：${errorMessage(error)}。后续操作已停止，远端可能已签署；重试将先核实当前版本`)
   }
 }
 
@@ -173,8 +174,8 @@ export function createClinicalAmendmentWriter() {
         pending = undefined
         return signed
       } catch (error) {
-        if (error instanceof Error && error.message.startsWith('文书操作未确认')) throw error
-        throw new Error(`文书操作未确认：${errorMessage(error)}。内容已保留，远端可能已保存更正版；重试将先核实同一份文书`)
+        if (error instanceof UnconfirmedOperationError && error.kind === 'clinical-document') throw error
+        throw new UnconfirmedOperationError('clinical-document', `文书操作未确认：${errorMessage(error)}。内容已保留，远端可能已保存更正版；重试将先核实同一份文书`)
       } finally { busy = false }
     },
   }

@@ -4,7 +4,7 @@ import type { ClinicalContext } from '../../shared/clinical/workContext'
 import { systemEnumItemName } from '../../shared/api/dictionaryApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
 import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'
-import { age } from '../../shared/format'
+import { age, formatDateTimeParts } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
   Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, getTodayRange, Icon, LoadingState, PageHeader, Pagination, Panel, PanelHead, Select,
@@ -20,24 +20,24 @@ function formatRegistrationDate(value?: string) {
   if (!value) return '--'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(date, {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(date).replace(/\//g, '-')
+  }).replace(/\//g, '-')
 }
 
 function formatRegistrationTime(value?: string) {
   if (!value) return '--'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(date, {
     timeZone: 'Asia/Shanghai',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date)
+  })
 }
 
 function queueTone(status: ReceptionQueueItem['status']) {

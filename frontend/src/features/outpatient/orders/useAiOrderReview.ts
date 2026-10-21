@@ -9,6 +9,7 @@ import { clinicalAiTreatmentKey, type AiOrderReviewCommand, type ServicePlanDraf
 import { resolveDispensableOptions } from './dispensableOptions'
 import { defaultPackageQuantity } from './medicationQuantity'
 import { defaultServiceExecutionDepartment, resolveOrderExecutionDepartment } from './orderExecutionDepartment'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 // Resolve a one-shot AI command against the live catalog before adding editable drafts.
 export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api,
@@ -144,7 +145,7 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
           return { item, medicationDraft: draft }
         }
         const matches = await api.masterData.searchServices(item.code, item.type, 'ACTIVE', encounter.organizationId, 0, 100)
-        const today = new Date().toLocaleDateString('sv-SE')
+        const today = formatDateKey()
         const valid = (from?: string, to?: string) => (!from || from <= today) && (!to || to >= today)
         const raw = matches.content.find((value) => String(value.id) === String(item.catalogItemId)
           && value.sdStatus === 'ACTIVE' && value.orderable && ['COMMON', 'OUTPATIENT'].includes(value.sdUsageType)

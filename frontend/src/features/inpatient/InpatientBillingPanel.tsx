@@ -4,6 +4,9 @@ import type { InpatientEpisode } from '../../shared/api/inpatientApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { useCashierPaymentMethods } from '../../shared/billing/useCashierPaymentMethods'
 import { Alert, Button, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
+import { formatAmount } from '../../shared/utils/precision'
+import { formatDateKey } from '../../shared/utils/dateRange'
+import { formatDateTimeParts } from '../../shared/format'
 
 export function InpatientBillingPanel({ api, episode, view = 'full' }: {
   api: RhnApi
@@ -223,17 +226,15 @@ export function InpatientBillingPanel({ api, episode, view = 'full' }: {
 }
 
 function money(value: number, currency: string) {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: 2 }).format(value)
+  return formatAmount(value, currency, { minimumFractionDigits: 2 })
 }
 
 function dateTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(new Date(value), {
     timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date(value))
+  })
 }
 
 function today() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date())
+  return formatDateKey(new Date(), 'Asia/Shanghai')
 }

@@ -9,7 +9,7 @@ import {
 } from '../../shared/api/appointmentsApi'
 import type { ServiceSchedule } from '../../shared/api/schedulingApi'
 import { systemEnumItems } from '../../shared/api/dictionaryApi'
-import { age } from '../../shared/format'
+import { age, formatDateTimeParts } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
@@ -18,29 +18,26 @@ import {
   StatusBadge, type DateRange,
 } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
-import { formatDate, offsetDays, parseDate } from '../../shared/utils/dateRange'
+import { formatDate, offsetDays, parseDate, formatDateKey } from '../../shared/utils/dateRange'
 import '../../styles/features/scheduling-registration.css'
+import { formatAmount } from '../../shared/utils/precision'
 
 function businessDate(days = 0) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date(Date.now() + days * 86_400_000))
+  return formatDateKey(new Date(Date.now() + days * 86_400_000), 'Asia/Shanghai')
 }
 
 function dateTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(new Date(value), {
     timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', weekday: 'short',
     hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date(value))
+  })
 }
 
 function scheduleFeeText(schedule: ServiceSchedule) {
   if (!schedule.feeConfigured || typeof schedule.registrationFee !== 'number' || !Number.isFinite(schedule.registrationFee)) {
     return '未定价'
   }
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency', currency: schedule.feeCurrencyCode,
-  }).format(schedule.registrationFee)
+  return formatAmount(schedule.registrationFee, schedule.feeCurrencyCode)
 }
 
 function statusTone(status: AppointmentStatus) {
@@ -241,15 +238,15 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
 }
 
 function clock(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(new Date(value), {
     timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date(value))
+  })
 }
 
 function shortDate(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(new Date(value), {
     timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', weekday: 'short',
-  }).format(new Date(value))
+  })
 }
 
 function handleVerticalRadioNavigation(event: KeyboardEvent<HTMLElement>) {

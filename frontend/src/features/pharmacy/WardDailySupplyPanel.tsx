@@ -7,6 +7,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
 import './ward-daily-supply-panel.css'
+import { formatNumber } from '../../shared/utils/precision'
 
 const shiftOptions = [
   { value: 'DAY', label: '白班（08:00–16:00）' },
@@ -409,5 +410,5 @@ function currentShift(): WardSupplyShiftCode {
 }
 
 function formatQuantity(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)
+  return formatNumber(value, { maximumFractionDigits: 8 })
 }

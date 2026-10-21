@@ -4,6 +4,7 @@ import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
 import { Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
+import { formatLocaleDateTime } from '../../../shared/format'
 import {
   DEFAULT_DISPATCH_RULES,
   announceQueueCall,
@@ -426,9 +427,9 @@ export function DedicatedWaitingWorkspace({
                     <div className="waiting-card__footer-meta">
                       <span>就诊服务: <strong>{item.serviceName || '普通门诊'}</strong></span>
                       <span>接诊医生: {item.clinicianName || item.practitionerName || '现场接诊'}</span>
-                      <span>挂号时间: {item.registeredAt ? new Date(item.registeredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                      {isCompleted && <span>完成时间: {item.completedAt ? new Date(item.completedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>}
-                      {item.validUntil && <span>效期至: {new Date(item.validUntil).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+                      <span>挂号时间: {item.registeredAt ? formatLocaleDateTime(item.registeredAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                      {isCompleted && <span>完成时间: {item.completedAt ? formatLocaleDateTime(item.completedAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>}
+                      {item.validUntil && <span>效期至: {formatLocaleDateTime(item.validUntil, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
                     </div>
                   </div>
 

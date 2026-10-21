@@ -6,6 +6,8 @@ import {
   safeAdd,
   safeMultiply,
   formatCurrency,
+  formatNumber,
+  formatAmount,
 } from './precision'
 
 describe('precision utility', () => {
@@ -65,5 +67,21 @@ describe('precision utility', () => {
       expect(formatted).toMatch(/¥214\.90/)
       expect(formatCurrency(null)).toBe('—')
     })
+  })
+})
+
+describe('formatNumber / formatAmount', () => {
+  it('formatNumber groups thousands with zh-CN and honours fraction digit options', () => {
+    expect(formatNumber(1234567.891)).toBe('1,234,567.891')
+    expect(formatNumber(1234.123456789, { maximumFractionDigits: 8 })).toBe('1,234.12345679')
+    expect(formatNumber(1234.5, { minimumFractionDigits: 2, maximumFractionDigits: 6 })).toBe('1,234.50')
+    expect(formatNumber(12345.6, { maximumFractionDigits: 0 })).toBe('12,346')
+    expect(formatNumber(0)).toBe('0')
+  })
+
+  it('formatAmount renders a currency amount without rounding or null handling', () => {
+    expect(formatAmount(1234.5, 'CNY', { minimumFractionDigits: 2 })).toBe('¥1,234.50')
+    expect(formatAmount(1234.567, 'CNY')).toBe('¥1,234.57')
+    expect(formatAmount(0.1234567, 'USD', { maximumFractionDigits: 6 })).toBe('US$0.123457')
   })
 })

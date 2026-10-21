@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import type { TriageRecord } from '../../../shared/api/outpatientTriageApi'
 import { Alert, Button, Dialog, Icon } from '../../../shared/ui'
 import { TRIAGE_LEVEL_DEFINITIONS } from './triageAssessmentRules'
+import { formatDateTimeParts } from '../../../shared/format'
 
 export interface TriageTicketModalProps {
   open: boolean
@@ -28,7 +29,7 @@ export function TriageTicketModal({
 
   const formatDateTime = (iso: string) => {
     try {
-      return new Intl.DateTimeFormat('zh-CN', {
+      return formatDateTimeParts(new Date(iso), {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -36,7 +37,7 @@ export function TriageTicketModal({
         minute: '2-digit',
         second: '2-digit',
         hour12: false,
-      }).format(new Date(iso))
+      })
     } catch {
       return iso
     }

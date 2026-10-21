@@ -91,3 +91,25 @@ export function formatCurrency(
     maximumFractionDigits: maxFractionDigits,
   }).format(num)
 }
+
+const DISPLAY_LOCALE = 'zh-CN'
+
+/**
+ * 数字展示（千分位、最大/最小小数位），不做 roundNumber，与 Intl.NumberFormat 行为一致。
+ * 不传 options 时等同于默认千分位格式（最多 3 位小数）。
+ */
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  return new Intl.NumberFormat(DISPLAY_LOCALE, options).format(value)
+}
+
+/**
+ * 带币种的金额展示，不做 null 处理与 roundNumber（需要时用 formatCurrency）。
+ * 小数位等变体通过 options 传入。
+ */
+export function formatAmount(
+  value: number,
+  currencyCode: string,
+  options?: Omit<Intl.NumberFormatOptions, 'style' | 'currency'>,
+): string {
+  return new Intl.NumberFormat(DISPLAY_LOCALE, { style: 'currency', currency: currencyCode, ...options }).format(value)
+}

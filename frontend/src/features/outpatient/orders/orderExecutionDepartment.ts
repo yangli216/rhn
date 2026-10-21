@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Department } from '../../../shared/api/organizationApi'
 import type { ServiceCatalogItem } from '../../../shared/api/masterDataApi'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 export function defaultServiceExecutionDepartment(service: ServiceCatalogItem, encounterDepartmentId: string) {
   if (service.defaultExecutionDepartment) return service.defaultExecutionDepartment.departmentId ?? undefined
@@ -9,7 +10,7 @@ export function defaultServiceExecutionDepartment(service: ServiceCatalogItem, e
 }
 
 export function isActiveExecutionDepartment(department: Department, organizationId: string) {
-  const at = new Date().toLocaleDateString('sv-SE')
+  const at = formatDateKey()
   return department.organizationId === organizationId && Boolean(department.id && department.name?.trim())
     && department.sdOrgStatus === 'ACTIVE' && !department.virtual
     && z.iso.date().safeParse(department.validFrom).success && department.validFrom <= at

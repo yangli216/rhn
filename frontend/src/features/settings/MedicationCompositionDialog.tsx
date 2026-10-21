@@ -4,6 +4,7 @@ import { errorMessage, type RhnApi, type MedicationKnowledge } from '../../share
 import type { MedicationComposition, MedicationComponent } from '../../shared/api/masterDataApi'
 import { Button, Dialog, FormField, LoadingState, Select } from '../../shared/ui'
 import './medication-composition.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 export function MedicationCompositionDialog({api, medication, onClose}: {
   api: RhnApi; medication: MedicationKnowledge; onClose: () => void
@@ -90,7 +91,7 @@ export function MedicationCompositionDialog({api, medication, onClose}: {
           </form>
           <section><h3>资料变更记录</h3>{history.isError ? <p role="alert">变更记录暂时无法加载</p> :
             <ul className="med-composition-history">{history.data?.map(v=><li key={v.revision}>
-              <time>{new Date(v.recordedAt).toLocaleString('zh-CN')}</time>
+              <time>{formatLocaleDateTime(v.recordedAt)}</time>
               <span>{v.changeType==='INITIAL_CAPTURE'?'首次记录':v.changeType==='DISPLAY_CHANGE'?'显示资料更新':'药品资料更新'}</span>
               <small>{v.source==='LOCAL_MEDICATION'?'本院药品资料':v.source}</small>
             </li>)}</ul>}</section>

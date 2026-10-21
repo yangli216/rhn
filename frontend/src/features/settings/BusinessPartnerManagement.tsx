@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import '../../styles/features/treatment-skintest.css'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { regionDisplayName } from '../../shared/format'
 import type { Organization } from '../../shared/model'
 import {
   errorMessage, type DictionaryValue, type Manufacturer, type ManufacturerInput,
@@ -181,7 +182,7 @@ function PartnerStatus({ status, text }: { status: string; text?: string }) {
 
 function countryName(code?: string) {
   if (!code) return '—'
-  try { return new Intl.DisplayNames(['zh-CN'], { type: 'region' }).of(code) ?? code }
+  try { return regionDisplayName(code) ?? code }
   catch { return code }
 }
 

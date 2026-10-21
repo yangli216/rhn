@@ -17,10 +17,9 @@ import {
   PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, tableCellClass, TableShell,
 } from '../../shared/ui'
 import '../../styles/features/resident-center.css'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
-const today = () => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(new Date())
+const today = () => formatDateKey(new Date(), 'Asia/Shanghai')
 
 type GenderFilter = '' | '1' | '2' | '0' | '9'
 type StatusFilter = '' | 'ACTIVE' | 'MERGED' | 'INACTIVE'

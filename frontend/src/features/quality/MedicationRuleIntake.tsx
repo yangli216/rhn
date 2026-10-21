@@ -5,6 +5,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import type { RuleIntakeRun, IntakeImprovementOrigin } from '../../shared/api/medicationKnowledgeDraftApi'
 import { Alert, Button, FormField, Icon, Pagination, StatusBadge } from '../../shared/ui'
 import './medication-rule-intake.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 export interface IntakeSeed { kind: string; run: RuleIntakeRun; knowledgeId?: string }
 const scopes: Record<string, string> = { ALL_DRUGS: '全部药品', NAMED_DRUGS: '指定药品', CLASS: '药品类别', INGREDIENT: '成分范围', UNSPECIFIED: '范围待明确' }
@@ -49,7 +50,7 @@ export function IntakeFeedbackSource({ origin }: { origin: IntakeImprovementOrig
   if (origin.pharmacy) {
     const p = origin.pharmacy
     return <details open className="rule-intake__source"><summary>改进线索：药师审方 · {origin.title}</summary>
-      <p>审方结论：{p.review.result} · {new Date(p.review.reviewedAt).toLocaleString()}</p>
+      <p>审方结论：{p.review.result} · {formatLocaleDateTime(p.review.reviewedAt)}</p>
       <p>药师说明：{p.review.description || '未填写补充说明'}</p>
       <p>相关规则提示：{p.finding?.message || '未关联提示，可提出漏报或新增知识需求'}</p>
       {origin.knowledgeId ? <p>关联知识第 {origin.knowledgeVersion} 版；进入编辑时载入最新草稿供核对。</p> : <p>未关联可编辑知识，将建立新的知识草稿。</p>}
@@ -57,11 +58,11 @@ export function IntakeFeedbackSource({ origin }: { origin: IntakeImprovementOrig
     </details>
   }
   const e = origin.feedback
-  return <details open className="rule-intake__source"><summary>改进线索：{origin.title} · 知识第 {origin.knowledgeVersion} 版</summary><p>观察 {e.basis.runId} · 发布 {e.basis.deploymentId} · 机构 {e.basis.organizationId} / 科室 {e.basis.departmentId}</p><p>固定研判第 {e.revision} 次 · {e.actor} · {new Date(e.time).toLocaleString()}。后续更正或撤回不会改写此记录，请继续分析前核对原观察。</p><p>研判：{e.assessment}</p><p>核对依据：{e.evidence}</p><p>改进建议：{e.suggestion || '未填写'}</p><p>这些是人工意见，不是药学证据。发送给模型的内容以需求和澄清输入为准，不自动附带处方事实或本材料。</p></details>
+  return <details open className="rule-intake__source"><summary>改进线索：{origin.title} · 知识第 {origin.knowledgeVersion} 版</summary><p>观察 {e.basis.runId} · 发布 {e.basis.deploymentId} · 机构 {e.basis.organizationId} / 科室 {e.basis.departmentId}</p><p>固定研判第 {e.revision} 次 · {e.actor} · {formatLocaleDateTime(e.time)}。后续更正或撤回不会改写此记录，请继续分析前核对原观察。</p><p>研判：{e.assessment}</p><p>核对依据：{e.evidence}</p><p>改进建议：{e.suggestion || '未填写'}</p><p>这些是人工意见，不是药学证据。发送给模型的内容以需求和澄清输入为准，不自动附带处方事实或本材料。</p></details>
 }
 export function IntakeSource({ run, api }: { run: RuleIntakeRun; api?: RhnApi }) {
   const origin = useQuery({ queryKey: ['intake-feedback-origin', run.id], queryFn: () => api!.medicationKnowledgeDrafts.intakeFeedbackOrigin(run.id), enabled: !!api, retry: false })
-  return <section className="rule-intake__source"><>{api && origin.error && <Alert tone="error">改进来源读取失败：{errorMessage(origin.error)}</Alert>}{api && !origin.isError && origin.data && <IntakeFeedbackSource origin={origin.data} />}</><strong>需求分析 {run.id} · {run.actor} · {new Date(run.createdAt).toLocaleString()}</strong><p>这是业务需求来源，不是药学证据。分析时能力范围已留存，当前可用能力仍会单独检查。模型：{run.model}。</p><blockquote>{run.input.requirement}</blockquote>{run.input.clarifications.map((a, i) => <details key={i}><summary>澄清 {i + 1} · {a.question}</summary><p>{a.answer}</p><small>来源分析 {a.analysisId}</small></details>)}</section>
+  return <section className="rule-intake__source"><>{api && origin.error && <Alert tone="error">改进来源读取失败：{errorMessage(origin.error)}</Alert>}{api && !origin.isError && origin.data && <IntakeFeedbackSource origin={origin.data} />}</><strong>需求分析 {run.id} · {run.actor} · {formatLocaleDateTime(run.createdAt)}</strong><p>这是业务需求来源，不是药学证据。分析时能力范围已留存，当前可用能力仍会单独检查。模型：{run.model}。</p><blockquote>{run.input.requirement}</blockquote>{run.input.clarifications.map((a, i) => <details key={i}><summary>澄清 {i + 1} · {a.question}</summary><p>{a.answer}</p><small>来源分析 {a.analysisId}</small></details>)}</section>
 }
 export function MedicationRuleIntake({ api, onStartKnowledge, onDraftRule, improvement, onBusy }: { api: RhnApi; onStartKnowledge: (seed: IntakeSeed) => void; onDraftRule?: (req: string, source?: string) => void; improvement?: IntakeImprovementOrigin; onBusy?: (busy: boolean) => void }) {
   const instance = useId(), [requirement, setRequirement] = useState(improvement ? `请核查“${improvement.title}”的适用范围与例外，形成待人工核对的知识改进需求。请填写具体问题与需保留的条件。` : ''), [run, setRun] = useState<RuleIntakeRun>(), [answers, setAnswers] = useState<Record<string, string>>({})
@@ -90,7 +91,7 @@ export function MedicationRuleIntake({ api, onStartKnowledge, onDraftRule, impro
       <div className="rule-intake__actions">{!improvement && <Button variant="secondary" disabled={busy} onClick={() => { setRequirement('所有药品单次用量超过3倍制剂规格用量时警告'); setRun(undefined); setAnswers({}); setHistorical(false) }}>填入剂量需求示例</Button>}<Button disabled={busy || !requirement.trim() || !status.data?.available || (!!improvement && !confirmed)} onClick={() => analyze(false)}>{busy ? '正在处理…' : '分析需求与能力缺口'}</Button></div>
       <p>{status.isPending ? '正在检查模型配置…' : status.isError ? errorMessage(status.error) : status.data?.available ? `模型已配置：${status.data.model}` : status.data?.message}</p>
       <details><summary>当前知识建设能力范围</summary>{capabilities.error && <Alert tone="error">{errorMessage(capabilities.error)}</Alert>}{capabilities.data?.map(c => <div key={c.kind} className="rule-intake__capability"><strong>{c.name}</strong> · {c.knowledgeWorkflow ? '可进入知识工作流' : '需求保留，能力待扩展'}<p>{c.boundary}</p></div>)}</details>
-      <h4>{improvement ? '本次反馈的改进分析历史' : '分析与澄清历史'}</h4>{history.error && <Alert tone="error">{errorMessage(history.error)}</Alert>}{history.data?.content.map(h => <button type="button" key={h.id} className="rule-intake__history" disabled={busy} onClick={() => { setRun(undefined); setHistorical(true); setAnswers({}); void task(async () => setRun(await api.medicationKnowledgeDrafts.intake(h.id))) }}><strong>{h.requirement}</strong><small>{states[h.status]} · {new Date(h.createdAt).toLocaleString()}</small></button>)}
+      <h4>{improvement ? '本次反馈的改进分析历史' : '分析与澄清历史'}</h4>{history.error && <Alert tone="error">{errorMessage(history.error)}</Alert>}{history.data?.content.map(h => <button type="button" key={h.id} className="rule-intake__history" disabled={busy} onClick={() => { setRun(undefined); setHistorical(true); setAnswers({}); void task(async () => setRun(await api.medicationKnowledgeDrafts.intake(h.id))) }}><strong>{h.requirement}</strong><small>{states[h.status]} · {formatLocaleDateTime(h.createdAt)}</small></button>)}
       {history.data && <Pagination page={page} totalPages={Math.max(1, history.data.totalPages)} total={history.data.totalElements} pageSize={20} onChange={p => { if (!busy) setPage(p) }} label="需求分析历史分页" />}
     </aside><main className="rule-intake__pane"><h3>{historical ? '历史分析 · 只读' : '规则类型、范围与待澄清项'}</h3>
       {!run && <p>分析后逐项核对分类与原文。重复用药、相互作用可转入知识草稿；其他类型显示需要建设的标准、知识和事实能力。</p>}

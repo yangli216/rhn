@@ -1,6 +1,7 @@
 import type { KnowledgeRulePreview } from '../../shared/api/medicationKnowledgeDraftApi'
 import { Alert, StatusBadge } from '../../shared/ui'
 import './medication-knowledge-rule.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const outcomes: Record<string, string> = { MATCH: '条件命中', NO_MATCH: '未命中', NOT_APPLICABLE: '不适用', UNAVAILABLE: '不可评价' }
 const actions: Record<string, string> = { WARN: '警告提示', REQUIRE_OVERRIDE: '需理由后继续', BLOCK: '阻断' }
@@ -22,6 +23,6 @@ export function MedicationKnowledgeRuleView({ value }: { value: Pick<KnowledgeRu
     </section><section><h4>冻结来源 · 知识第 {k.version} 版</h4><p>来源类型：{sources[evidence?.sourceType] || evidence?.sourceType || '尚未明确'}</p><p>{evidence?.title} · {evidence?.publisher} · {evidence?.edition}</p><p>{evidence?.locator}</p><blockquote>{evidence?.excerpt || '未提供原文'}</blockquote>
       <h4>结构样例 {value.cases.filter(c => c.passed).length} / {value.cases.length} 通过</h4>{value.cases.map((c, i) => <details key={i}><summary><StatusBadge tone={c.passed ? 'info' : 'danger'}>{c.passed ? '通过' : '失败'}</StatusBadge> {c.name}</summary><p>预期：{outcomes[c.expected]}；实际：{outcomes[c.actual.outcome]}</p><p>{c.actual.reasons.join('；')}</p><p>参与命中：{c.actual.matchedOrderIds.join('、') || '无'}</p><pre>{JSON.stringify(c.input, null, 2)}</pre></details>)}
     </section></div>
-    <details><summary>追溯信息与完整结构化表达</summary><small>知识 {k.id} · 第 {k.version} 版 · {k.actor} · {new Date(k.savedAt).toLocaleString()}</small><small>知识指纹：{value.knowledgeHash}</small><small>来源文件指纹：{evidence?.documentHash}</small><small>规则表达指纹：{value.programHash}</small><pre>{JSON.stringify({ program: p, knowledge: k }, null, 2)}</pre></details>
+    <details><summary>追溯信息与完整结构化表达</summary><small>知识 {k.id} · 第 {k.version} 版 · {k.actor} · {formatLocaleDateTime(k.savedAt)}</small><small>知识指纹：{value.knowledgeHash}</small><small>来源文件指纹：{evidence?.documentHash}</small><small>规则表达指纹：{value.programHash}</small><pre>{JSON.stringify({ program: p, knowledge: k }, null, 2)}</pre></details>
   </div>
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { formatTime } from '../../shared/format'
+import { formatTime, formatDateTimeParts } from '../../shared/format'
 import type {
   InpatientEpisode,
   InpatientOrder,
@@ -37,6 +37,7 @@ import {
 } from '../../shared/ui'
 import { WardMedicationReturnPanel } from './WardMedicationReturnPanel'
 import './inpatient-orders.css'
+import { formatNumber } from '../../shared/utils/precision'
 
 export type InpatientOrderWorkbench = 'DOCTOR' | 'NURSE'
 export type InpatientNurseArea = 'EXECUTION' | 'MEDICATION'
@@ -745,8 +746,7 @@ function groupTasksByScheduledMinute(tasks: InpatientOrderTask[]) {
   })
   return [...groups.entries()].map(([key, values]) => ({
     key,
-    label: new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-      .format(new Date(key * 60_000)),
+    label: formatDateTimeParts(new Date(key * 60_000), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
     tasks: values,
   }))
 }
@@ -768,7 +768,7 @@ function pharmacyFulfillmentText(task: InpatientOrderTask) {
 }
 
 function formatQuantity(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)
+  return formatNumber(value, { maximumFractionDigits: 8 })
 }
 
 function orderDirections(value: Pick<InpatientOrder, 'dosageAmount' | 'dosageUnit' | 'routeCode' | 'frequencyCode'>) {

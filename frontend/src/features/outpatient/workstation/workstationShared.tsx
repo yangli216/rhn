@@ -7,10 +7,9 @@ import type { Resident } from "../../../shared/model";
 import { age, formatTime } from "../../../shared/format";
 import { Button, Icon, StatusBadge, Tooltip } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "../orders/medicationDraft";
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
-export const businessDate = () => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(new Date())
+export const businessDate = () => formatDateKey(new Date(), 'Asia/Shanghai')
 
 export function commandCode(action: string, encounterId: string) {
   return `${action}-${encounterId}-${globalThis.crypto.randomUUID()}`

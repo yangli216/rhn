@@ -14,6 +14,7 @@ import { formatDate, getTodayRange, type DateRange } from '../../shared/utils/da
 import { Icon } from '../../shared/ui/Icon'
 import { money } from './BillingShared'
 import './billing-query-workspace.css'
+import { formatDateTimeParts } from '../../shared/format'
 
 export function BillingQueryWorkspace({ api, clinicalContext }: {
   api: RhnApi
@@ -544,9 +545,9 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
 function formatDateTime(value?: string) {
   if (!value) return '--'
   try {
-    return new Intl.DateTimeFormat('zh-CN', {
+    return formatDateTimeParts(new Date(value), {
       year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-    }).format(new Date(value))
+    })
   } catch {
     return value
   }

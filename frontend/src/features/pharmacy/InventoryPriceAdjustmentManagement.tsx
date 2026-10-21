@@ -9,6 +9,8 @@ import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, Select, Sta
 import { inventoryPriceAdjustmentPresentation } from '../../shared/presentation'
 import { inventoryAverageCost, knownInventoryNumber } from './inventoryLedgerTruth'
 import { hasAdjustmentSnapshot, hasAdjustmentTotals, requirePriceAdjustment, requirePriceAdjustments, validAdjustmentTargets } from './priceAdjustmentTruth'
+import { formatNumber } from '../../shared/utils/precision'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
 export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, balances }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]; balances: InventoryBalance[]
@@ -214,14 +216,14 @@ function itemBalance(itemId: string, balances: InventoryBalance[]) {
 }
 function money(value: number | undefined, currency: string) {
   return knownInventoryNumber(value) === undefined ? '金额未取得'
-    : `${currency} ${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(value!)}`
+    : `${currency} ${formatNumber(value!, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`
 }
 function signedMoney(value: number | undefined, currency: string) {
   if (knownInventoryNumber(value) === undefined) return '金额未取得'
   return `${value! > 0 ? '+' : value! < 0 ? '-' : ''}${money(Math.abs(value!), currency)}`
 }
 function quantity(value?: number) {
-  return knownInventoryNumber(value) === undefined ? '数量未取得' : new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value!)
+  return knownInventoryNumber(value) === undefined ? '数量未取得' : formatNumber(value!, { maximumFractionDigits: 8 })
 }
-function today() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }) }
+function today() { return formatDateKey(new Date(), 'Asia/Shanghai') }
 function binName(bins: StockBin[], id: string) { return bins.find(value => value.id === id)?.name ?? `库位 …${id.slice(-6)}` }

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { errorMessage, type RhnApi, type MasterDataImportBatch, type MasterDataImportRow, type MasterDataImportType } from "../../../shared/rhnApi";
 import { Alert, Button, Dialog, FormField, StatusBadge } from "../../../shared/ui";
+import { formatLocaleDateTime } from '../../../shared/format'
 
 export function MasterDataImportDialog({ api, importType, onClose, onCompleted }: {
   api: RhnApi; importType: MasterDataImportType; onClose: () => void; onCompleted: () => Promise<void>
@@ -54,7 +55,7 @@ export function MasterDataImportDialog({ api, importType, onClose, onCompleted }
           <div><span>已导入</span><strong>{batch.importedRows}</strong></div>
         </div>
         <div className="master-data-import-batch-meta"><span>{batch.fileName}</span><code>批次 {batch.id}</code>
-          <span>更新时间 {new Date(batch.updatedAt).toLocaleString()}</span></div>
+          <span>更新时间 {formatLocaleDateTime(batch.updatedAt)}</span></div>
         <div className="master-data-import-table-wrap"><UiDataTable className="master-data-import-table"><thead><tr>
           <th>行</th><th>编码 / 名称</th><th>预检结果</th><th>错误明细</th><th>目标记录</th><th>操作</th>
         </tr></thead><tbody>{batch.rows.map((row) => <tr key={`${row.id}-${row.revision}`}>
@@ -78,7 +79,7 @@ export function MasterDataImportDialog({ api, importType, onClose, onCompleted }
       {!batch && recent.data?.length ? <section className="master-data-import-recent"><h3>最近导入批次</h3>
         <div>{recent.data.filter((item) => item.importType === importType).slice(0, 5).map((item) => <Button key={item.id}
           type="button" onClick={() => execute('open', () => api.masterData.importBatch(item.id))} variant="text" size="sm">
-          <span><strong>{item.fileName}</strong><small>{new Date(item.createdAt).toLocaleString()}</small></span>
+          <span><strong>{item.fileName}</strong><small>{formatLocaleDateTime(item.createdAt)}</small></span>
           <span><ImportStatus value={item.status} /><small>{item.importedRows}/{item.totalRows} 已导入</small></span>
         </Button>)}</div></section> : null}
       <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>关闭</Button></div>

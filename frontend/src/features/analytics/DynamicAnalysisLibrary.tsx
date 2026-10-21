@@ -7,6 +7,8 @@ import { AnalysisPlanEditor, PlanChanges, dimensionNames, periodNames } from './
 import { SemanticWorkbench } from './SemanticWorkbench'
 import { SYSTEM_PRESET_PAGES, isPresetPage } from './analyticsPresets'
 import './dynamic-analysis.css'
+import { formatLocaleDateTime } from '../../shared/format'
+import { formatNumber } from '../../shared/utils/precision'
 
 export const pageTemplates: {code:PageTemplate;name:string;description:string;icon:'tasks'|'roadmap'}[] = [
   {code:'AUTO',name:'AI 自动识别',description:'根据需求选择形式 · 自由组合展示',icon:'roadmap'},
@@ -18,7 +20,7 @@ export const pageTemplates: {code:PageTemplate;name:string;description:string;ic
 ]
 const dimensions=dimensionNames
 const periods=periodNames
-const number=(v:number)=>new Intl.NumberFormat('zh-CN',{maximumFractionDigits:2}).format(v)
+const number=(v:number)=>formatNumber(v, {maximumFractionDigits:2})
 const templateName=(code:PageTemplate)=>pageTemplates.find(t=>t.code===code)?.name??(code==='CUSTOM'?'AI 组合页面':code)
 function normalizeSpecForCompare(s:PageSpec){
   return {
@@ -324,7 +326,7 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
       {management==='rename'&&<label>功能名称<input className="ui-field__control" aria-label="新的功能名称" maxLength={80} value={renameTitle} disabled={managementBusy} onChange={event=>setRenameTitle(event.target.value)}/></label>}
       {management==='archive'&&<p>{activeSaved?.archived?'恢复后可继续运行和编辑，历史版本将保留。':'归档后从使用中列表移出，可在“已归档”中恢复，历史记录保留。'}</p>}
       {management==='history'&&(managementBusy?<LoadingState/>:<div className="da-version-list">{versions.map(item=><details key={item.id}>
-        <summary>V{item.version??1} · {item.spec.title} · {new Date(item.savedAt).toLocaleString('zh-CN')}{item.archived?' · 已归档':''}</summary>
+        <summary>V{item.version??1} · {item.spec.title} · {formatLocaleDateTime(item.savedAt)}{item.archived?' · 已归档':''}</summary>
         <dl><dt>展示形式</dt><dd>{templateName(item.spec.template)}</dd><dt>统计范围</dt><dd>{item.spec.scope==='CURRENT'?'当前科室':'可访问科室'}</dd>
           <dt>统计周期</dt><dd>{periods[item.spec.period.kind]} {item.spec.period.startDate} {item.spec.period.endDate}</dd>
           <dt>分组方式</dt><dd>{dimensions[item.spec.dimension]}</dd><dt>指标</dt><dd>{item.spec.measures?.map(m=>m.name).join('、')||item.spec.metrics.map(code=>catalog.find(m=>m.code===code)?.name||code).join('、')}</dd></dl>
@@ -351,11 +353,11 @@ export function DynamicResult({result,view='all'}:{result:PageResult;view?:'all'
       <tbody>{[...rows].map(([key,row],index)=><tr key={key}>{template==='RANKING'&&<td>{index+1}</td>}<td>{row.label}</td>{result.series.map(s=><td key={s.code}>{number(row.values.get(s.code)??0)}</td>)}</tr>)}{!rows.size&&<tr><td colSpan={result.series.length+(template==='RANKING'?2:1)}>当前范围暂无符合统计口径的数据，可调整日期或统计范围。</td></tr>}</tbody>
       <tfoot><tr>{template==='RANKING'&&<td/>}<th>整体统计</th>{result.series.map(s=><td key={s.code}>{number(s.total)}</td>)}</tr></tfoot></table></div>}
     {view!=='widget'&&<><details className="da-definitions"><summary>本页统计口径</summary>{result.series.map(s=><p key={s.code}><strong>{s.name}：</strong>{s.definition}</p>)}</details>
-    <footer>取数时间 {new Date(result.fetchedAt).toLocaleString('zh-CN')} · {result.timezone} · 实际业务数据</footer></>}
+    <footer>取数时间 {formatLocaleDateTime(result.fetchedAt)} · {result.timezone} · 实际业务数据</footer></>}
   </div>
 }
 function CustomDisplay({result}:{result:PageResult}) {
-  return <div className="da-result"><p className="da-result-meta">{result.startDate} — {result.endDate} · {result.scopeName}</p><div className="da-custom-grid">{result.spec.widgets?.map((widget,i)=>{const series=widget.metrics.map(code=>result.series.find(s=>s.code===code)).filter((s):s is PageSeries=>Boolean(s));return <section key={i} className={`da-custom-widget ${widget.type==='TABLE'?'is-wide':''}`}>{!(widget.type==='KPI'&&series.length===1&&widget.title===series[0].name)&&<h3>{widget.title}</h3>}{widget.type==='KPI'?<div className="da-metrics">{series.map(s=><article key={s.code}><span>{s.name}</span><strong>{number(s.total)} <small>{s.unit}</small></strong></article>)}</div>:widget.type==='TABLE'?<DynamicResult result={{...result,spec:{...result.spec,template:'LIST'},series}} view="widget"/>:<div className="da-custom-series">{series.map(s=><div key={s.code}>{series.length>1&&<h4>{s.name}</h4>}<SeriesChart series={s} line={widget.type==='LINE'}/></div>)}</div>}</section>})}</div><details className="da-definitions"><summary>本页统计口径</summary>{result.series.map(s=><p key={s.code}><strong>{s.name}：</strong>{s.definition}</p>)}</details><footer>取数时间 {new Date(result.fetchedAt).toLocaleString('zh-CN')} · {result.timezone} · 实际业务数据</footer></div>
+  return <div className="da-result"><p className="da-result-meta">{result.startDate} — {result.endDate} · {result.scopeName}</p><div className="da-custom-grid">{result.spec.widgets?.map((widget,i)=>{const series=widget.metrics.map(code=>result.series.find(s=>s.code===code)).filter((s):s is PageSeries=>Boolean(s));return <section key={i} className={`da-custom-widget ${widget.type==='TABLE'?'is-wide':''}`}>{!(widget.type==='KPI'&&series.length===1&&widget.title===series[0].name)&&<h3>{widget.title}</h3>}{widget.type==='KPI'?<div className="da-metrics">{series.map(s=><article key={s.code}><span>{s.name}</span><strong>{number(s.total)} <small>{s.unit}</small></strong></article>)}</div>:widget.type==='TABLE'?<DynamicResult result={{...result,spec:{...result.spec,template:'LIST'},series}} view="widget"/>:<div className="da-custom-series">{series.map(s=><div key={s.code}>{series.length>1&&<h4>{s.name}</h4>}<SeriesChart series={s} line={widget.type==='LINE'}/></div>)}</div>}</section>})}</div><details className="da-definitions"><summary>本页统计口径</summary>{result.series.map(s=><p key={s.code}><strong>{s.name}：</strong>{s.definition}</p>)}</details><footer>取数时间 {formatLocaleDateTime(result.fetchedAt)} · {result.timezone} · 实际业务数据</footer></div>
 }
 
 function Ranking({series}:{series:PageSeries}){const max=Math.max(1,...series.points.map(p=>Math.abs(p.value)));return <div className="da-ranking">{series.points.map((p,i)=><div key={p.key}><span>{i+1}</span><strong title={p.label}>{p.label}</strong><div className="da-rank-track"><i className={p.value<0?'is-negative':undefined} style={{width:`${Math.abs(p.value)/max*100}%`}}/></div><span>{number(p.value)} {series.unit}</span></div>)}{!series.points.length&&<p>暂无排行数据</p>}</div>}

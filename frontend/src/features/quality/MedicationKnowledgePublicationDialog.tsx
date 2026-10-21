@@ -6,6 +6,7 @@ import type { KnowledgeRuleCandidate, KnowledgePublicationBasis, KnowledgePublic
 import { Alert, Button, Dialog, FormField, Pagination } from '../../shared/ui'
 import { feedbackVerdicts } from './MedicationKnowledgeFeedbackDialog'
 import './medication-knowledge-publication.css'
+import { formatLocaleDateTime } from '../../shared/format'
 const actions: Record<string, string> = { WARN: '提醒核对', REQUIRE_OVERRIDE: '须填写继续开立理由', BLOCK: '阻止提交' }
 const outcomes: Record<string, string> = { MATCH: '命中', NO_MATCH: '未命中', NOT_APPLICABLE: '不适用', UNAVAILABLE: '不可评价' }
 export function MedicationKnowledgePublicationDialog({ api, candidate, onClose }: { api: RhnApi; candidate: KnowledgeRuleCandidate; onClose: () => void }) {
@@ -53,7 +54,7 @@ export function MedicationKnowledgePublicationDialog({ api, candidate, onClose }
           <FormField label="操作原因（启用、暂停或回退）"><textarea aria-label="操作原因（启用、暂停或回退）" rows={3} maxLength={2000} value={reason} onChange={e => { setReason(e.target.value); setChecks([false, false, false]) }} /></FormField>
         </fieldset>
         <h4>本规则全部正式发布记录</h4>{!releases.some(d => d.mode === 'ENFORCED') && <p>尚无正式发布。</p>}
-        {[...releases].filter(d => d.mode === 'ENFORCED').reverse().map(d => <article key={d.id}><strong>v{d.version} · {d.status === 'PAUSED' ? '已暂停' : d.status === 'SUPERSEDED' ? '已替换' : d.effectiveTo && new Date(d.effectiveTo).getTime() <= Date.now() ? '已结束' : '正式生效'}</strong><small>{d.id} · {new Date(d.effectiveFrom).toLocaleString()}</small><p>命中：{actions[d.action]}</p><p>{d.reason}</p><div className="knowledge-publication__actions"><Button variant="secondary" size="sm" disabled={busy} onClick={() => void showMaterial(d.id, d.versionId)}>查看固定上线材料</Button>{d.status === 'ACTIVE' && <Button variant="secondary" size="sm" disabled={busy || deployments.isFetching || !reason.trim()} onClick={() => void pause(d.id, d.versionId)}>暂停此正式发布</Button>}</div></article>)}
+        {[...releases].filter(d => d.mode === 'ENFORCED').reverse().map(d => <article key={d.id}><strong>v{d.version} · {d.status === 'PAUSED' ? '已暂停' : d.status === 'SUPERSEDED' ? '已替换' : d.effectiveTo && new Date(d.effectiveTo).getTime() <= Date.now() ? '已结束' : '正式生效'}</strong><small>{d.id} · {formatLocaleDateTime(d.effectiveFrom)}</small><p>命中：{actions[d.action]}</p><p>{d.reason}</p><div className="knowledge-publication__actions"><Button variant="secondary" size="sm" disabled={busy} onClick={() => void showMaterial(d.id, d.versionId)}>查看固定上线材料</Button>{d.status === 'ACTIVE' && <Button variant="secondary" size="sm" disabled={busy || deployments.isFetching || !reason.trim()} onClick={() => void pause(d.id, d.versionId)}>暂停此正式发布</Button>}</div></article>)}
       </aside><section>
         {preview.isFetching && source && <p>正在核对固定批准、标准、观察及最新研判…</p>}
         {!source && !material && <p>选择旁路发布以准备正式启用，或选择曾正式运行的发布以准备回退。所有操作均生成独立记录。</p>}
@@ -67,7 +68,7 @@ export function MedicationKnowledgePublicationDialog({ api, candidate, onClose }
             <Button disabled={!assessment.trim() || !rollbackPlan.trim() || !reason.trim() || !checks.every(Boolean)} onClick={() => void publish()}>{operation === 'PROMOTE' ? '确认正式启用当前科室' : '确认创建回退发布'}</Button>
           </fieldset>
         </>}
-        {material && <article><h4>固定上线材料 · 发布 {material.deploymentId}</h4><p>{material.actor} · {new Date(material.time).toLocaleString()}</p><p>上线评估：{material.assessment}</p><p>回退安排：{material.rollbackPlan}</p><p>原因：{material.reason}</p><PublicationBasis value={material.basis} /></article>}
+        {material && <article><h4>固定上线材料 · 发布 {material.deploymentId}</h4><p>{material.actor} · {formatLocaleDateTime(material.time)}</p><p>上线评估：{material.assessment}</p><p>回退安排：{material.rollbackPlan}</p><p>原因：{material.reason}</p><PublicationBasis value={material.basis} /></article>}
       </section></div>
     </div>
   </Dialog>

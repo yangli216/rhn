@@ -2,6 +2,7 @@ import type { CompleteEncounterInput } from '../../../shared/api/encountersApi'
 import { errorMessage } from '../../../shared/api/httpClient'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
+import { UnconfirmedOperationError } from './UnconfirmedOperationError'
 
 type CompletionApi = Pick<RhnApi['encounters'], 'complete' | 'get'>
 const identityFields = ['id', 'residentId', 'organizationId', 'departmentId', 'encounterNo'] as const
@@ -13,7 +14,7 @@ function requireCompleted(target: Encounter, value: unknown): Encounter {
     || typeof completed.completedAt !== 'string' || !Number.isFinite(Date.parse(completed.completedAt))
     || Date.parse(completed.completedAt) < Date.parse(target.registeredAt)
     || (target.startedAt && Date.parse(completed.completedAt) < Date.parse(target.startedAt))) {
-    throw new Error('诊毕结果未确认：就诊归属、完成状态或完成时间不一致。当前接诊界面已保留，远端可能已诊毕，请核实后使用原请求重试')
+    throw new UnconfirmedOperationError('encounter-completion', '诊毕结果未确认：就诊归属、完成状态或完成时间不一致。当前接诊界面已保留，远端可能已诊毕，请核实后使用原请求重试')
   }
   return completed
 }
@@ -34,7 +35,7 @@ export async function completeEncounter(api: CompletionApi, encounter: Encounter
     if (completed.completedAt !== confirmed.completedAt) throw new Error('读取的诊毕时间与操作回执不一致')
     return completed
   } catch (error) {
-    if (error instanceof Error && (error.message.startsWith('诊毕结果未确认') || error.message.startsWith('文书操作未确认'))) throw error
-    throw new Error(`诊毕结果未确认：${errorMessage(error)}。当前接诊界面已保留，远端可能已诊毕，请核实后使用原请求重试`)
+    if (error instanceof UnconfirmedOperationError) throw error
+    throw new UnconfirmedOperationError('encounter-completion', `诊毕结果未确认：${errorMessage(error)}。当前接诊界面已保留，远端可能已诊毕，请核实后使用原请求重试`)
   }
 }

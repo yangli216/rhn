@@ -6,6 +6,7 @@ import type { KnowledgeReviewEvent, KnowledgeRuleCandidate } from '../../shared/
 import { Alert, Button, Dialog, FormField, Pagination, Select, StatusBadge } from '../../shared/ui'
 import { MedicationKnowledgeRuleView } from './MedicationKnowledgeRuleView'
 import './medication-knowledge-review.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const operations: Record<string, string> = { SUBMIT: '提交审核', APPROVE: '审核通过', REJECT: '退回修改', WITHDRAW: '撤回提交' }
 const states: Record<string, string> = { DRAFT: '草稿', IN_REVIEW: '待审核', APPROVED: '审核通过', REJECTED: '已退回', RETIRED: '已废止' }
@@ -48,7 +49,7 @@ export function MedicationKnowledgeReviewDialog({ api, candidate, onClose }: { a
             {basis.validation.results.map(r => { const c = basis.validation!.suite.cases[r.index]; return <details key={r.index}><summary>{r.passed ? '通过' : '失败'} · {c?.title || `样例 ${r.index + 1}`}</summary><p>预期依据：{c?.rationale}</p><p>预期：{outcomes[c?.expectedOutcome]}；实际：{outcomes[r.actual.outcome]}</p><p>预期医嘱：{c?.expectedOrderIds.join('、') || '无'}；实际医嘱：{r.actual.matchedOrderIds.join('、') || '无'}</p><p>{r.actual.reasons.join('；')}</p><pre>{JSON.stringify(c?.input, null, 2)}</pre></details> })}
           </> : <p>还没有最新人工样例的执行记录。</p>}<small>审核材料指纹：{basis.fingerprint}</small>
         </section></>}
-        {displayedEvent && <section className="knowledge-review__decision"><h4>{operations[displayedEvent.operation]}记录</h4><p>{displayedEvent.actor} · {new Date(displayedEvent.time).toLocaleString()} · {displayedEvent.reason}</p>{displayedEvent.operation === 'APPROVE' && <><p>命中时：{actions[displayedEvent.action ?? '']}；无法评价时：{actions[displayedEvent.unavailableAction ?? '']}</p><p>药学审核意见：{displayedEvent.assessment}</p></>}</section>}
+        {displayedEvent && <section className="knowledge-review__decision"><h4>{operations[displayedEvent.operation]}记录</h4><p>{displayedEvent.actor} · {formatLocaleDateTime(displayedEvent.time)} · {displayedEvent.reason}</p>{displayedEvent.operation === 'APPROVE' && <><p>命中时：{actions[displayedEvent.action ?? '']}；无法评价时：{actions[displayedEvent.unavailableAction ?? '']}</p><p>药学审核意见：{displayedEvent.assessment}</p></>}</section>}
       </section><aside className="knowledge-review__aside"><h4>当前治理状态</h4>{current && <><StatusBadge tone={current.status === 'APPROVED' ? 'info' : 'warning'}>{states[current.status] || current.status}</StatusBadge><p>审核状态与部署状态独立管理。</p>
         {current.gaps.length > 0 && <Alert tone="warning"><strong>当前待处理项</strong><ul>{current.gaps.map(g => <li key={g}>{g}</li>)}</ul></Alert>}{current.issues.map((i, index) => <p key={index}>{i.message}</p>)}
         {current.submission && !current.basisUnchanged && <Alert tone="warning">当前材料与提交时不同。原记录保留；需核对新知识或验证版本，不能直接批准旧提交。</Alert>}
@@ -61,7 +62,7 @@ export function MedicationKnowledgeReviewDialog({ api, candidate, onClose }: { a
         </fieldset>}
       </>}
         <h4>提交与审核历史</h4>{history.error && <Alert tone="error">{errorMessage(history.error)}</Alert>}
-        {!history.isError && history.data?.content.map(h => <button type="button" className="knowledge-review__history" key={h.id} disabled={busy} onClick={() => { setHistoryMode(true); setEvent(undefined); invalidateChecks(); void task(async () => setEvent(await api.medicationKnowledgeDrafts.reviewEvent(candidate.id, h.id))) }}><strong>{operations[h.operation]} · {h.actor}</strong><small>{new Date(h.time).toLocaleString()}</small><small>{h.reason}</small></button>)}
+        {!history.isError && history.data?.content.map(h => <button type="button" className="knowledge-review__history" key={h.id} disabled={busy} onClick={() => { setHistoryMode(true); setEvent(undefined); invalidateChecks(); void task(async () => setEvent(await api.medicationKnowledgeDrafts.reviewEvent(candidate.id, h.id))) }}><strong>{operations[h.operation]} · {h.actor}</strong><small>{formatLocaleDateTime(h.time)}</small><small>{h.reason}</small></button>)}
         {history.data && <Pagination page={page} totalPages={Math.max(1, history.data.totalPages)} total={history.data.totalElements} pageSize={20} onChange={p => { if (!busy) setPage(p) }} label="知识审核历史分页" />}
       </aside></div>
     </div>

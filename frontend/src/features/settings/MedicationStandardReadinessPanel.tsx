@@ -5,6 +5,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, DataTable, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge, TableShell, tableCellClass } from '../../shared/ui'
 import { MedicationStandardBindingDialog } from './MedicationStandardBindingDialog'
 import './clinical-medication-standards.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const statuses: Record<string, string> = { LINKED: '关联一致', UNMAPPED: '未关联', AMBIGUOUS: '关联冲突', STALE: '版本不可用', MISMATCH: '信息不一致' }
 const matchingLabels: Record<string, string> = {
@@ -72,7 +73,7 @@ export function MedicationStandardReadinessPanel({ api, organizationId, onOpenCa
         <div><span>关联后来源待核验</span><strong>{value.summary.sourceUnverified}</strong><small>与换算缺口可重叠</small></div>
         <div><span>关联后含量换算待补</span><strong>{value.summary.clinicalConversionUnavailable ?? value.summary.conversionUnavailable}</strong><small>制剂或体积到含量的关系尚不完整</small></div>
       </div>
-      <small className="medication-readiness__metrics-meta">核查时间：{new Date(value.inspectedAt).toLocaleString()}。来源与换算统计仅覆盖关联一致的药品，不构成用药安全评分。{value.summary.concentrationAvailable !== undefined && ` 已支持 ${value.summary.concentrationAvailable} 项明确浓度的体积到含量换算；不据此推算整支、整瓶用量。`}</small>
+      <small className="medication-readiness__metrics-meta">核查时间：{formatLocaleDateTime(value.inspectedAt)}。来源与换算统计仅覆盖关联一致的药品，不构成用药安全评分。{value.summary.concentrationAvailable !== undefined && ` 已支持 ${value.summary.concentrationAvailable} 项明确浓度的体积到含量换算；不据此推算整支、整瓶用量。`}</small>
     </>}
     {value?.summary.matchingStatuses && <div className="medication-readiness__matching" aria-label="未关联药品处理分组">
       <span className="medication-readiness__matching-label">未关联归因：</span>

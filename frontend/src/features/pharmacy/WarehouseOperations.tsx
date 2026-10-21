@@ -7,6 +7,8 @@ import { errorMessage } from '../../shared/rhnApi'
 import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
 import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
 import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { formatLocaleDateTime } from '../../shared/format'
+import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import {
   IconBolt,
   IconBuildingStore,
@@ -1953,7 +1955,7 @@ function CountRecordDialog({ api, value, items, bins, onClose, onDone }: { api: 
   </Dialog>
 }
 
-function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }
+function formatTime(value: string) { return formatLocaleDateTime(value, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }
 function displayUnitName(value: string) {
   return ({ BOX: '盒', BOTTLE: '瓶', BAG: '袋', PACK: '包', VIAL: '瓶', AMP: '支', AMPOULE: '支',
     TABLET: '片', TAB: '片', CAPSULE: '粒', CAP: '粒', PIECE: '个', PCS: '个', ML: '毫升', G: '克' } as Record<string, string>)[value] ?? value
@@ -1964,7 +1966,7 @@ function transferRequestSummary(value: StockTransfer, items: StockItem[]) {
   const item = items.find(candidate => candidate.id === line.sourceStockItemId || candidate.id === line.destinationStockItemId)
   return `申请 ${formatQuantity(line.requestedOperationQuantity)}${item?.packageUnitName ?? line.operationUnitCode}`
 }
-function formatQuantity(value: number) { return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(Number(value)) }
-function formatMoney(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 }).format(value) }
+function formatQuantity(value: number) { return formatNumber(Number(value), { maximumFractionDigits: 8 }) }
+function formatMoney(value: number) { return formatAmount(value, 'CNY', {  maximumFractionDigits: 2 }) }
 
 function formatRecordedMoney(value: number | undefined) { return value == null ? '金额未取得' : formatMoney(value) }

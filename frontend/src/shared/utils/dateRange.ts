@@ -221,3 +221,10 @@ export function findMatchingPreset(range: DateRange, presets: PresetOption[] = D
   }
   return null
 }
+
+/**
+ * 业务日期键 YYYY-MM-DD。timeZone 不传时按运行环境本地时区。
+ */
+export function formatDateKey(value: Date | number = new Date(), timeZone?: string): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(value)
+}

@@ -7,6 +7,7 @@ import { Alert, Button, Dialog, FormField, Pagination } from '../../shared/ui'
 import { MedicationKnowledgeRuleView } from './MedicationKnowledgeRuleView'
 import './medication-knowledge-feedback.css'
 import { MedicationFeedbackImprovementDialog } from './MedicationFeedbackImprovementDialog'
+import { formatLocaleDateTime } from '../../shared/format'
 
 export const feedbackVerdicts: Record<string, string> = { SUPPORTED: '结果与核对事实一致', FALSE_POSITIVE: '疑似误报', POSSIBLE_MISS: '疑似漏检', DATA_ISSUE: '事实或标准数据问题', RULE_ISSUE: '规则范围或条件问题', UNCERTAIN: '尚不能判断' }
 const outcomes: Record<string, string> = { MATCH: '命中', NO_MATCH: '未命中', NOT_APPLICABLE: '不适用', UNAVAILABLE: '不可评价' }
@@ -38,7 +39,7 @@ export function MedicationKnowledgeFeedbackDialog({ api, candidateId, deployment
       <Button variant="secondary" disabled={busy || query.isFetching} onClick={() => { setConfirmed(false); void query.refetch() }}>刷新观察与研判</Button>
       {query.isPending && <p>正在读取本次运行的冻结事实与研判历史…</p>}
       {value && <div className="knowledge-feedback__layout"><section><h4>原观察与固定评价事实</h4>
-        <p>处方 {value.observation.prescriptionId} · {new Date(value.observation.time).toLocaleString()} · {outcomes[value.observation.outcome] ?? value.observation.outcome}</p>
+        <p>处方 {value.observation.prescriptionId} · {formatLocaleDateTime(value.observation.time)} · {outcomes[value.observation.outcome] ?? value.observation.outcome}</p>
         <p>机构 {value.basis.organizationId} · 科室 {value.basis.departmentId} · 发布 {value.basis.deploymentId}</p>
         <p>{value.observation.reasons.join('；')}</p><p>命中医嘱：{value.observation.matchedOrderIds.join('、') || '无'}</p>
         {value.gaps.length > 0 && <Alert tone="warning">{value.gaps.join('；')}</Alert>}
@@ -60,7 +61,7 @@ export function MedicationKnowledgeFeedbackDialog({ api, candidateId, deployment
           <div className="knowledge-feedback__actions"><Button disabled={!verdict || !assessment.trim() || !evidence.trim() || !reason.trim() || !confirmed || !value.allowedVerdicts.includes(verdict)} onClick={() => void send('RECORD')}>追加研判意见</Button>{value.canWithdraw && <Button variant="secondary" disabled={!reason.trim() || !confirmed} onClick={() => void send('WITHDRAW')}>撤回我的最新意见</Button>}</div>
         </fieldset>
         {value.latest?.operation === 'RECORD' && value.latest.verdict !== 'SUPPORTED' && value.frozenCandidate && !value.gaps.length && <Button variant="secondary" disabled={busy || query.isFetching} onClick={() => setImprovement({ feedback: value.latest!, knowledgeId: value.frozenCandidate!.knowledgeId, knowledgeVersion: value.frozenCandidate!.version, title: value.frozenCandidate!.knowledge.body.title })}>转为 AI 改进需求</Button>}
-        <h4>研判历史</h4>{!value.history.content.length && <p>尚无人工研判。</p>}{value.history.content.map(event => <details key={event.id}><summary>第 {event.revision} 次 · {event.operation === 'WITHDRAW' ? '撤回意见' : feedbackVerdicts[event.verdict ?? '']} · {event.actor} · {new Date(event.time).toLocaleString()}</summary><p>{event.assessment}</p><p>依据：{event.evidence || '本次为撤回操作'}</p><p>建议：{event.suggestion || '未填写'}</p><p>记录原因：{event.reason}</p><small>引用观察：{event.basis.runId} · 表达指纹：{event.basis.programHash}</small></details>)}
+        <h4>研判历史</h4>{!value.history.content.length && <p>尚无人工研判。</p>}{value.history.content.map(event => <details key={event.id}><summary>第 {event.revision} 次 · {event.operation === 'WITHDRAW' ? '撤回意见' : feedbackVerdicts[event.verdict ?? '']} · {event.actor} · {formatLocaleDateTime(event.time)}</summary><p>{event.assessment}</p><p>依据：{event.evidence || '本次为撤回操作'}</p><p>建议：{event.suggestion || '未填写'}</p><p>记录原因：{event.reason}</p><small>引用观察：{event.basis.runId} · 表达指纹：{event.basis.programHash}</small></details>)}
         <Pagination page={page} totalPages={Math.max(1, value.history.totalPages)} total={value.history.totalElements} pageSize={20} onChange={next => { setConfirmed(false); setPage(next) }} label="旁路研判历史分页" />
       </section></div>}
     </div>

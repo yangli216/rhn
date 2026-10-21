@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import type { InventoryTraceCode, StockBin, StockItem } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
+import { formatLocaleDateTime } from '../../shared/format'
 import {
   Alert, Button, Dialog, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge, useSystemEnum,
 } from '../../shared/ui'
@@ -150,4 +151,4 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
   </section>
 }
 
-function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
+function formatTime(value: string) { return formatLocaleDateTime(value, { hour12: false }) }

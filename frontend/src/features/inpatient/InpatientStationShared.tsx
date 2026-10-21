@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { InpatientEpisode } from '../../shared/api/inpatientApi'
-import { age, formatTime } from '../../shared/format'
+import { age, formatTime, formatDateTimeParts } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { Button, EmptyState, Icon, IconButton, LoadingState, Panel, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './inpatient-station.css'
@@ -277,7 +277,7 @@ function paymentLabel(value?: InpatientEpisode['paymentMethodCode']) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(value))
+  return formatDateTimeParts(new Date(value), { month: '2-digit', day: '2-digit' })
 }
 
 function inpatientDay(value: string) {

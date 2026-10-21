@@ -18,7 +18,7 @@ import { insuranceFailureText as failureText, insuranceSettlementReady, isInsura
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon, type IconName } from '../../shared/ui/Icon'
-import { age } from '../../shared/format'
+import { age, formatLocaleDateTime } from '../../shared/format'
 import { chargeCategoryTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { actionableRelief, SettlementReliefPanel, type SettlementReliefPlan } from './relief/SettlementReliefPanel'
@@ -1133,7 +1133,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
                                 <td className={tableCellClass('numeric')}>
                                   {money(charge.totalAmount, charge.currencyCode)}
                                 </td>
-                                <td>{new Date(charge.occurredAt).toLocaleString('zh-CN')}</td>
+                                <td>{formatLocaleDateTime(charge.occurredAt)}</td>
                                 <td className={tableCellClass('status')}>
                                   {isInvoiced ? (
                                     <StatusBadge tone="warning">待缴款</StatusBadge>

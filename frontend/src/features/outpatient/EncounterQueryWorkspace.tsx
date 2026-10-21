@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { EncounterQueryItem } from '../../shared/api/encountersApi'
-import { age } from '../../shared/format'
+import { age, formatDateTimeParts } from '../../shared/format'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import type { Encounter } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
@@ -32,7 +32,7 @@ function formatDateTime(value?: string | null) {
   if (!value) return '--'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(date, {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',
     month: '2-digit',
@@ -40,19 +40,19 @@ function formatDateTime(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date).replace(/\//g, '-')
+  }).replace(/\//g, '-')
 }
 
 function formatTimeOnly(value?: string | null) {
   if (!value) return '--'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', {
+  return formatDateTimeParts(date, {
     timeZone: 'Asia/Shanghai',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date)
+  })
 }
 
 function resolveStatusPresentation(status: string) {

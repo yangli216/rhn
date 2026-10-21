@@ -11,6 +11,9 @@ import {
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import '../../styles/features/pharmacy-warehouse.css'
 import { inventoryAverageCost, inventoryKnownTotal, knownInventoryNumber, requireInventoryBalances, requireInventoryList, requireInventoryPage } from './inventoryLedgerTruth'
+import { formatLocaleDateTime } from '../../shared/format'
+import { formatAmount, formatNumber } from '../../shared/utils/precision'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
 const TraceCodeManagement = lazy(() => import('./TraceCodeManagement')
   .then((module) => ({ default: module.TraceCodeManagement })))
@@ -559,7 +562,7 @@ export function ItemDialog({ api, organizationId, stockSiteType, existingItems, 
   const [packageIds, setPackageIds] = useState<Record<string, string>>({})
   const productsQuery = useQuery({ queryKey: ['warehouse-catalog-products', organizationId, stockSiteType, query, page],
     queryFn: () => api.masterData.searchMedicationProducts(query, '', 'ACTIVE', organizationId, page, 20, true, stockSiteType === 'PHARMACY') })
-  const today = new Date().toLocaleDateString('sv-SE')
+  const today = formatDateKey()
   const products = (productsQuery.data?.content ?? []).map(({ product }) => ({ ...product,
     packages: product.packages.filter(pkg => pkg.sdStatus === 'ACTIVE' && pkg.validFrom <= today && (!pkg.validTo || pkg.validTo >= today)),
   })).filter(product => !existingItems.some(item => item.catalogItemId === product.id))
@@ -645,17 +648,17 @@ export function ItemDialog({ api, organizationId, stockSiteType, existingItems, 
 }
 
 function formatWarehouseQuantity(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(Number(value))
+  return formatNumber(Number(value), { maximumFractionDigits: 8 })
 }
 
 function formatWarehousePackageQuantity(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(Number(value))
+  return formatNumber(Number(value), { maximumFractionDigits: 2 })
 }
 
 function formatWarehouseMoney(value: number) {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 6 }).format(Number(value))
+  return formatAmount(Number(value), 'CNY', {  maximumFractionDigits: 6 })
 }
 
 function formatWarehouseTime(value: string) {
-  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+  return formatLocaleDateTime(value, { hour12: false })
 }

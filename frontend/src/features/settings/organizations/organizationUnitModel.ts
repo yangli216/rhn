@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import type { DictionaryValue, OrganizationProfileResult, OrganizationType, OrganizationUnit, OrganizationUnitInput } from '../../../shared/rhnApi'
 import { departmentStructure } from '../organizationUnitReceipt'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 export const LEGAL_ORGANIZATION_TYPES = ['TOWNSHIP_HEALTH_CENTER', 'COMMUNITY_HEALTH_CENTER', 'HOSPITAL', 'CLINIC']
 export const TIMEZONE_OPTIONS = [{ value: 'Asia/Shanghai', label: 'Asia/Shanghai（中国标准时间）' }, { value: 'Asia/Urumqi', label: 'Asia/Urumqi（新疆时间）' }]
 
-export const today = () => new Date().toLocaleDateString('sv-SE')
+export const today = () => formatDateKey()
 export const codeNameOption = (item: { code: string; name: string }) => ({ value: item.code, label: item.name })
 
 /** 当前有效：启用且今天在有效期内。资质与联系只展示和维护当前有效记录，历史在变更记录查看。 */

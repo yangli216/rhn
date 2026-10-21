@@ -31,6 +31,7 @@ import {
 import type { PrepareAiPlan } from '../record/useAiPlanApplication'
 import { requireUsedPlanReceipt, templateApiScope } from '../templates/templateApplicationReceipt'
 import { requirePlanPreflight } from './planPreflightReceipt'
+import { formatDateTimeParts } from '../../../shared/format'
 
 interface AiAdoptionIntent {
   suggestion: ClinicalAiSuggestion
@@ -1050,9 +1051,9 @@ function suggestionStatusPresentation(status: ClinicalAiSuggestion['status']) {
 
 function formatSuggestionTime(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', {
+  return Number.isNaN(date.getTime()) ? value : formatDateTimeParts(date, {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(date)
+  })
 }
 
 function SuggestionResult({ suggestion, recordEntries, showMissing, showSafety, showDiagnoses, onOpenInsert, onOpenEvidence }: {

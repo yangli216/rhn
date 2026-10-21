@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { errorMessage, type AccessRole, type AccessUser, type DataScopeType, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DatePicker, Dialog, FormField, Select } from '../../../shared/ui'
 import { endOfDateInstant, requireGrants } from './accessFacts'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 export type GrantTarget = { key: string; label: string; dataScopeType: DataScopeType; organizationId?: string | null; departmentId?: string | null }
 
@@ -20,7 +21,7 @@ export function GrantRoleDialog({ api, title, eyebrow, user, users, role, roles,
   const [targetKey, setTargetKey] = useState(targets.length === 1 ? targets[0].key : '')
   const [validTo, setValidTo] = useState('')
   const [validation, setValidation] = useState('')
-  const today = new Date().toLocaleDateString('sv-SE')
+  const today = formatDateKey()
   const mutation = useMutation({
     mutationFn: async () => {
       const target = targets.find(item => item.key === targetKey)!

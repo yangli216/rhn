@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { AccessUser, DepartmentDefaultRoles, PractitionerAccess, UserRoleAssignment } from '../../../shared/rhnApi'
 import { isIsoInstant } from '../../../shared/validation/instant'
+import { formatLocaleDateTime } from '../../../shared/format'
 
 const text = z.string().refine(value => value.trim().length > 0)
 const instant = z.string().refine(isIsoInstant)
@@ -79,7 +80,7 @@ export function grantStatus(value: Pick<UserRoleAssignment, 'effective' | 'valid
 export const grantOpen = (value: Pick<UserRoleAssignment, 'validTo'>, now = Date.now()) => !value.validTo || Date.parse(value.validTo) > now
 
 export function formatValidity(from: string, to?: string | null) {
-  const format = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  const format = (value: string) => formatLocaleDateTime(value, { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
   return `${format(from)} 至 ${to ? format(to) : '长期'}`
 }
 

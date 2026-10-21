@@ -5,6 +5,7 @@ import type { UsageImpactSelection } from '../../shared/api/clinicalSemanticImpa
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, Pagination, Select, StatusBadge, TableShell } from '../../shared/ui'
 import './medication-standard-impact.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const kinds: Record<string, string> = { MEDICATION: '药品默认用法', PRODUCT: '关联产品', FREQUENCY_CONFIGURATION: '机构／科室配置', SEMANTIC_VERSION: '语义冻结记录', KNOWLEDGE: '知识版本', RULE_VERSION: '规则版本', DEPLOYMENT: '发布记录' }
 const relationNames: Record<string, string> = { CURRENT_REFERENCE: '当前保存引用', INDIRECT_REFERENCE: '经药品间接引用', FROZEN_REFERENCE: '保存的冻结引用', POTENTIAL: '潜在影响 · 待复核' }
@@ -21,7 +22,7 @@ export function ClinicalSemanticImpactDialog({ api, scope, onClose }: { api: Rhn
         <label><input type="checkbox" checked={includeHistory} onChange={e => { setIncludeHistory(e.target.checked); setPage(0) }} />包含冻结记录与非当前版本</label><Button variant="secondary" disabled={report.isFetching} onClick={() => { void report.refetch() }}>重新盘点</Button></div>
       {report.error && <Alert tone="error">{errorMessage(report.error)}；当前未能完成盘点，不能判断没有影响。</Alert>}{report.isPending && <p>正在核对默认用法、知识和规则引用…</p>}
       {value && <><div className="standard-impact__metrics standard-impact__metrics--usage">{Object.entries(kinds).map(([kind, label]) => <div key={kind}><small>{label}</small><strong>{value.totals[kind] ?? 0}</strong></div>)}</div>
-        <small>统计为本次已识别记录，不随下方类型和历史筛选改变；未完成来源不计入数量。潜在影响 {value.potentialCount} 条，冻结／历史记录 {value.historicalCount} 条。盘点时间 {new Date(value.inspectedAt).toLocaleString()}。</small>
+        <small>统计为本次已识别记录，不随下方类型和历史筛选改变；未完成来源不计入数量。潜在影响 {value.potentialCount} 条，冻结／历史记录 {value.historicalCount} 条。盘点时间 {formatLocaleDateTime(value.inspectedAt)}。</small>
         {value.scope.status === 'MISSING' && <Alert tone="warning">当前标准定义不可见或已缺失；下方仍保留能按原标识识别的历史引用，编码或别名引用可能无法归属。</Alert>}
         {value.coverage.some(c => ['UNAVAILABLE', 'PARTIAL'].includes(c.coverage)) && <Alert tone="warning">存在未覆盖或未完成的来源，请查看右侧核对边界；清单不能作为“变更无影响”的依据。</Alert>}
         <div className="standard-impact__layout"><section><TableShell><table><thead><tr><th>对象与版本</th><th>状态</th><th>引用依据</th></tr></thead><tbody>{value.content.map((item, index) => <tr key={`${item.kind}-${item.id}-${item.version}-${index}`}>

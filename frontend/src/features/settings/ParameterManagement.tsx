@@ -24,6 +24,7 @@ import { requireSavedParameterDefinition, type ParameterDefinitionCommand } from
 import { parameterRollbackIssue, prepareParameterRollback, requireParameterChanges, requireParameterValueActionResult, type ParameterValueAction } from './parameterValueAction'
 import { mergeConfirmedCategories, requireCreatedCategory, requireParameterCategories, requireReorderedCategories, requireUpdatedCategory } from './parameterCategoryFacts'
 import { ConfigurationScopeTarget, useConfigurationScopeTarget } from './ConfigurationScopeTarget'
+import { formatDateTimeParts } from '../../shared/format'
 import { describeParameterFieldValue, diffParameterFieldValues, parameterFieldErrors, parameterFieldVisible, readParameterEnumOptions,
   readParameterFieldDraft, readParameterFields, writeParameterFieldDraft, type ParameterField, type ParameterFieldDraft } from './parameterFieldSchema'
 
@@ -1856,7 +1857,7 @@ function parameterValueError(type: ParameterValueType, value: string) {
 function optional(value: string) { return value.trim() || undefined }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return formatDateTimeParts(new Date(value), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function requireParameterList<T>(value: T[], label: string): T[] {

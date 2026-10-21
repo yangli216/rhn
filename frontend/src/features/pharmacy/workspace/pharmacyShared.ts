@@ -2,6 +2,7 @@ import { genderLabel } from '../../../shared/format'
 import { displayUnitName } from "../medicationDisplay";
 import type { PersonnelAssignment } from "../../../shared/api/organizationApi";
 import type { PharmacyInboxItem } from "../../../shared/api/pharmacyApi";
+import { formatNumber } from '../../../shared/utils/precision'
 
 export type PharmacyWorkspaceMode = 'dispensing' | 'review' | 'returns' | 'query' | 'ward' | 'cancel-dispense'
 
@@ -250,7 +251,7 @@ export function requestPackageUnit(code: string, name?: string) {
 }
 
 export function formatQuantityWithUnit(value: number, unit: string) {
-  return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)}${unit}`
+  return `${formatNumber(value, { maximumFractionDigits: 8 })}${unit}`
 }
 
 export function genderText(value?: string) {

@@ -15,14 +15,14 @@ import {
 } from './ReliefPolicyEditor'
 import { emptyPolicyForm, formFromPolicy, toDraftInput, type PolicyForm } from './reliefPolicyForm'
 import './billing-relief.css'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 type EditorTab = 'basic' | 'qualification' | 'rules' | 'quota' | 'versions'
 type Feedback = { tone: 'success' | 'error' | 'warning'; text: string } | null
 const NEW = '__new__'
 
 function today() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .format(new Date())
+  return formatDateKey(new Date(), 'Asia/Shanghai')
 }
 
 function useReliefEnums(api: RhnApi): ReliefEnums {

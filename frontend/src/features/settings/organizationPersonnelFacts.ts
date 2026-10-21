@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { Employment, OrganizationUnit, PersonnelAssignment, Position, Practitioner, PractitionerDetail } from '../../shared/rhnApi'
 import { isIsoInstant } from '../../shared/validation/instant'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
 const text = z.string().refine(value => value.trim().length > 0)
 const revision = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -78,7 +79,7 @@ export function requirePractitionerDetail(source: unknown, id: string): Practiti
 
 /** Multiple main relationships can exist over time or across departments; never pick an arbitrary first record. */
 export function onlyPrimary<T extends Employment | PersonnelAssignment>(values: T[], kind: 'employment' | 'assignment'): T | undefined {
-  const today = new Date().toLocaleDateString('sv-SE')
+  const today = formatDateKey()
   const matches = values.filter(value => {
     const from = 'hireDate' in value ? value.hireDate : value.validFrom
     const to = 'hireDate' in value ? value.leaveDate : value.validTo

@@ -1,5 +1,6 @@
+import { formatDateKey } from '../../../shared/utils/dateRange'
 export function accountDate(zoneId: string, offset = 0): string {
-  const current = new Intl.DateTimeFormat('sv-SE', { timeZone: zoneId, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  const current = formatDateKey(new Date(), zoneId)
   const date = new Date(`${current}T12:00:00Z`)
   date.setUTCDate(date.getUTCDate() + offset)
   return date.toISOString().slice(0, 10)

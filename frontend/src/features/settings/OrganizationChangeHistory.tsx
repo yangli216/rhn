@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { organizationQueryScope } from './organizationQueryScope'
 import { Alert, Button, DataTable, Dialog, EmptyState, LoadingState } from '../../shared/ui'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const historySchema = z.array(z.object({ id: z.string().min(1), action: z.string(), actionText: z.string().min(1), beforeSnapshot: z.string(),
   afterSnapshot: z.string(), reason: z.string(), occurredAt: z.string(), actor: z.string() }))
@@ -33,7 +34,7 @@ export function OrganizationChangeHistory({ api, type, id }: { api: RhnApi; type
     <p>展示最近 200 条维护记录。结束、作废和调岗保留原记录；历史版本以变更时快照为准。</p>
     {!query.data.length ? <EmptyState icon="settings" title="暂无变更记录" copy="启用维护留痕后发生的变更将在这里展示。" /> : <DataTable compact aria-label="组织人员变更记录">
       <thead><tr><th>时间</th><th>操作</th><th>原因</th><th>操作账号</th><th className="ui-table-cell--actions">详情</th></tr></thead>
-      <tbody>{query.data.map(item => <tr key={item.id}><td>{new Date(item.occurredAt).toLocaleString('zh-CN')}</td><td>{item.actionText}</td>
+      <tbody>{query.data.map(item => <tr key={item.id}><td>{formatLocaleDateTime(item.occurredAt)}</td><td>{item.actionText}</td>
         <td>{item.reason}</td><td>{item.actor}</td><td className="ui-table-cell--actions"><Button size="sm" variant="text" onClick={() => setSelected(item)}>查看变更</Button></td></tr>)}</tbody>
     </DataTable>}
     {selected && <Dialog title="变更前后记录" onClose={() => setSelected(undefined)} size="xwide" footer={<Button onClick={() => setSelected(undefined)}>关闭</Button>}>

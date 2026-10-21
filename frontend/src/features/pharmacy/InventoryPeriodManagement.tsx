@@ -7,6 +7,9 @@ import { inventoryPeriodClosePresentation } from '../../shared/presentation'
 import { inventoryKnownTotal, knownInventoryNumber } from './inventoryLedgerTruth'
 import { requireCloseDifferences, requireCloseRun, requireCloseRuns, requirePeriods } from './periodCloseTruth'
 import { Alert, Button, Dialog, EmptyState, LoadingState, StatusBadge } from '../../shared/ui'
+import { formatLocaleDateTime } from '../../shared/format'
+import { formatNumber } from '../../shared/utils/precision'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
 export function InventoryPeriodManagement({ api, siteId, items, bins }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]
@@ -203,17 +206,17 @@ function formatPeriod(value?: InventoryPeriod) {
   if (!value) return '当前期间'
   return `${value.periodFrom.slice(0, 4)}年${Number(value.periodFrom.slice(5, 7))}月`
 }
-function currentYearMonth() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }).slice(0, 7) }
-function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
+function currentYearMonth() { return formatDateKey(new Date(), 'Asia/Shanghai').slice(0, 7) }
+function formatTime(value: string) { return formatLocaleDateTime(value, { hour12: false }) }
 function money(value?: number, currency?: string) {
   return knownInventoryNumber(value) === undefined ? '金额未取得'
-    : `${currency || '币种未取得'} ${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value!)}`
+    : `${currency || '币种未取得'} ${formatNumber(value!, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 function signedMoney(value?: number, currency?: string) {
   if (knownInventoryNumber(value) === undefined) return '金额未取得'
   return value === 0 ? money(0, currency) : `${value! > 0 ? '+' : '-'}${money(Math.abs(value!), currency)}`
 }
-function quantity(value: number) { return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value) }
+function quantity(value: number) { return formatNumber(value, { maximumFractionDigits: 8 }) }
 function signedQuantity(value: number) { return `${value > 0 ? '+' : ''}${quantity(value)}` }
 function itemName(items: StockItem[], id: string) { return items.find(value => value.id === id)?.productName ?? `经营项目 …${id.slice(-6)}` }
 function binName(bins: StockBin[], id: string) { return bins.find(value => value.id === id)?.name ?? `库位 …${id.slice(-6)}` }

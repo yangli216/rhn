@@ -10,6 +10,7 @@ import {
 import { Alert, Button, DataTable, DateRangePicker, EmptyState, Icon, LoadingState, PageHeader, Select, tableCellClass } from '../../shared/ui'
 import { workloadData, workloadSpec } from './workloadReportData'
 import './analytics-reports.css'
+import { formatNumber } from '../../shared/utils/precision'
 
 export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
   const navigate = useNavigate()
@@ -114,22 +115,22 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
         <article className="analytics-kpi-card analytics-kpi-card--primary">
           <span className="analytics-kpi-label">门诊登记就诊总人次</span>
           <div className="analytics-kpi-val-row">
-            <strong>{totalEnc.toLocaleString()}</strong>
+            <strong>{formatNumber(totalEnc)}</strong>
             <small>人次</small>
           </div>
           <p className="analytics-kpi-sub">
-            去重服务患者 {totalPat.toLocaleString()} 人
+            去重服务患者 {formatNumber(totalPat)} 人
           </p>
         </article>
 
         <article className="analytics-kpi-card analytics-kpi-card--success">
           <span className="analytics-kpi-label">有效医嘱总量</span>
           <div className="analytics-kpi-val-row">
-            <strong>{totalOrders.toLocaleString()}</strong>
+            <strong>{formatNumber(totalOrders)}</strong>
             <small>条</small>
           </div>
           <p className="analytics-kpi-sub">
-            药品医嘱 {totalMedOrders.toLocaleString()} 条 · 服务医嘱 {Math.max(0, totalOrders - totalMedOrders).toLocaleString()} 条
+            药品医嘱 {formatNumber(totalMedOrders)} 条 · 服务医嘱 {formatNumber(Math.max(0, totalOrders - totalMedOrders))} 条
           </p>
         </article>
 
@@ -185,7 +186,7 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
                       <div className="analytics-rank-bar-bg">
                         <div className="analytics-rank-bar-fill" style={{ width: `${pct}%` }} />
                       </div>
-                      <span className="analytics-rank-val">{w.encounterCount.toLocaleString()} 人次</span>
+                      <span className="analytics-rank-val">{formatNumber(w.encounterCount)} 人次</span>
                     </div>
                   )
                 })}
@@ -221,11 +222,11 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
                         <td>
                           <strong>{w.deptName}</strong>
                         </td>
-                        <td className={tableCellClass('numeric')}>{w.encounterCount.toLocaleString()}</td>
-                        <td className={tableCellClass('numeric')}>{w.patientCount.toLocaleString()}</td>
-                        <td className={tableCellClass('numeric')}>{w.medOrderCount.toLocaleString()}</td>
-                        <td className={tableCellClass('numeric')}>{w.serviceOrderCount.toLocaleString()}</td>
-                        <td className={tableCellClass('numeric')}>{w.totalOrderCount.toLocaleString()}</td>
+                        <td className={tableCellClass('numeric')}>{formatNumber(w.encounterCount)}</td>
+                        <td className={tableCellClass('numeric')}>{formatNumber(w.patientCount)}</td>
+                        <td className={tableCellClass('numeric')}>{formatNumber(w.medOrderCount)}</td>
+                        <td className={tableCellClass('numeric')}>{formatNumber(w.serviceOrderCount)}</td>
+                        <td className={tableCellClass('numeric')}>{formatNumber(w.totalOrderCount)}</td>
                         <td className={tableCellClass('numeric')}>{w.avgOrdersPerEncounter?.toFixed(2) ?? '—'}</td>
                       </tr>
                     ))}
@@ -233,11 +234,11 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
                   <tfoot>
                     <tr>
                       <th colSpan={2}>所选范围合计</th>
-                      <th className={tableCellClass('numeric')}>{totalEnc.toLocaleString()}</th>
-                      <th className={tableCellClass('numeric')}>{totalPat.toLocaleString()}</th>
-                      <th className={tableCellClass('numeric')}>{totalMedOrders.toLocaleString()}</th>
-                      <th className={tableCellClass('numeric')}>{Math.max(0, totalOrders - totalMedOrders).toLocaleString()}</th>
-                      <th className={tableCellClass('numeric')}>{totalOrders.toLocaleString()}</th>
+                      <th className={tableCellClass('numeric')}>{formatNumber(totalEnc)}</th>
+                      <th className={tableCellClass('numeric')}>{formatNumber(totalPat)}</th>
+                      <th className={tableCellClass('numeric')}>{formatNumber(totalMedOrders)}</th>
+                      <th className={tableCellClass('numeric')}>{formatNumber(Math.max(0, totalOrders - totalMedOrders))}</th>
+                      <th className={tableCellClass('numeric')}>{formatNumber(totalOrders)}</th>
                       <th className={tableCellClass('numeric')}>{avgOverallOrders}</th>
                     </tr>
                   </tfoot>

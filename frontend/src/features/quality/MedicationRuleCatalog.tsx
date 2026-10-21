@@ -18,6 +18,7 @@ import { MedicationKnowledgeReviewDialog } from './MedicationKnowledgeReviewDial
 import { MedicationKnowledgeTestDialog } from './MedicationKnowledgeTestDialog'
 import { MedicationKnowledgeRuleView } from './MedicationKnowledgeRuleView'
 import { getBuiltinRuleSpec } from './medicationRuleCatalogSpecs'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const reviews: Record<string, string> = {
   DRAFT: '草稿',
@@ -668,7 +669,7 @@ export function MedicationRuleCatalog({
                                   </span>
                                 </div>
                                 <div className="qmed-release-row__meta">
-                                  <span>有效期限：{new Date(d.effectiveFrom).toLocaleString()} 至 {d.effectiveTo ? new Date(d.effectiveTo).toLocaleString() : '长期有效'}</span>
+                                  <span>有效期限：{formatLocaleDateTime(d.effectiveFrom)} 至 {d.effectiveTo ? formatLocaleDateTime(d.effectiveTo) : '长期有效'}</span>
                                   {d.reason && <span>· 说明：{d.reason}</span>}
                                 </div>
                               </div>

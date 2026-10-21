@@ -725,15 +725,29 @@
 }
 
 /* --------------------------------------------------------------------------
-   Right Column: Main Dispensing Stage
+   Right Column: Main Dispensing Stage (Unified Workbench Panel)
    -------------------------------------------------------------------------- */
 .pharmacy-dispense-main {
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: none;
+}
+
+.pharmacy-dispense-main > .ui-panel {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Patient Header Info Bar */
@@ -744,8 +758,9 @@
   align-items: center;
   gap: var(--space-3);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
   box-shadow: none;
   flex-shrink: 0;
   box-sizing: border-box;
@@ -871,20 +886,21 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding-right: var(--space-1);
+  gap: 0;
+  background: var(--color-surface);
 }
 
 .pharmacy-prescription-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
   overflow: hidden;
   box-shadow: none;
 }
 
 .pharmacy-prescription-card__header {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   min-height: 2.75rem;
   display: flex;
   align-items: center;
@@ -1019,6 +1035,16 @@
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
   box-sizing: border-box;
+}
+
+.pharmacy-prescription-table th:first-child,
+.pharmacy-prescription-table td:first-child {
+  padding-left: var(--space-4);
+}
+
+.pharmacy-prescription-table th:last-child,
+.pharmacy-prescription-table td:last-child {
+  padding-right: var(--space-4);
 }
 
 .pharmacy-prescription-table th {
@@ -1160,14 +1186,15 @@
    -------------------------------------------------------------------------- */
 .pharmacy-dispense-footer {
   height: 3.25rem;
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-6);
   background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
   font-size: var(--font-size-body);
   color: var(--color-text-primary);
   flex-shrink: 0;
@@ -1355,16 +1382,19 @@
 }
 
 .pharmacy-cancel-banner-alert {
-  margin-block: calc(var(--space-1) * -1);
   width: 100%;
   box-sizing: border-box;
   flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .pharmacy-cancel-banner-alert .ui-alert {
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   gap: var(--space-2);
+  border: none;
+  border-radius: 0;
+  background: var(--color-warning-soft);
 }
 
 .pharmacy-cancel-card-actions {

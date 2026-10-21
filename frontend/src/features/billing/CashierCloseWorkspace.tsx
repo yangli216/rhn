@@ -8,11 +8,11 @@ import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { billingTone, money } from './BillingShared'
 import { CashierCloseCalculator } from './CashierCloseCalculator'
+import { formatDateKey } from '../../shared/utils/dateRange'
+import { formatLocaleDateTime } from '../../shared/format'
 
 function today() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date())
+  return formatDateKey(new Date(), 'Asia/Shanghai')
 }
 
 export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
@@ -133,7 +133,7 @@ export function CashierCloseWorkspace({ api, clinicalContext }: { api: RhnApi; c
           <div className="billing-close-list">{(closes.isSuccess ? closes.data : []).map((item) => <button type="button" key={item.id}
             className={item.id === selectedId ? 'is-active' : ''} onClick={() => { setSelectedId(item.id); setDifferenceReason('') }}>
             <div><strong>{item.closeNo}</strong><StatusBadge tone={billingTone(item.status)}>{item.statusText ?? item.status}</StatusBadge></div>
-            <span>{new Date(item.rangeFrom).toLocaleString('zh-CN')} 至 {new Date(item.rangeTo).toLocaleString('zh-CN')}</span>
+            <span>{formatLocaleDateTime(item.rangeFrom)} 至 {formatLocaleDateTime(item.rangeTo)}</span>
             <small>{item.transactionCount} 笔 · {money(item.expectedAmount, item.currencyCode)}</small>
           </button>)}</div>
           {closes.isSuccess && !closes.data.length && <EmptyState icon="billing" title="暂无日结记录" copy="完成首次日结计算后将在此展示。" />}

@@ -5,6 +5,7 @@ import type { CatalogEntryReviewView } from '../../shared/api/standardCatalogEdi
 import { Button, FormField, LoadingState, PanelHead, SearchField, Select, StatusBadge } from '../../shared/ui'
 import { StandardCatalogPdfPage } from './StandardCatalogPdfPage'
 import { WorkspacePane } from '../../shared/ui/templates/PageTemplates'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const sourcePdfHash = '25671de0d85d12e409d79764d48865522e03122d8e9c1b0957a7ad1c8bf97e8e'
 const sameIdentity = (a: StandardCatalogIdentity, b: StandardCatalogIdentity) => a.catalogId === b.catalogId && a.catalogVersion === b.catalogVersion && a.contentHash === b.contentHash && a.sourceHash === b.sourceHash
@@ -125,7 +126,7 @@ export function StandardCatalogComparison({api, identity, content, editionId = '
         })()}
         <details><summary>查看转录原文</summary><p>{selected.sourceSpecification || '原稿未列规格'}</p>{selected.sourceNote && <p>{selected.sourceNote}</p>}</details>
         {locations.length > 1 && <div className="catalog-review__actions">{locations.map((loc, i) => <Button key={i} size="sm" variant="secondary" aria-pressed={locationIndex === i} onClick={() => setLocationIndex(i)}>出处 {i + 1} · 第 {loc.page} 页</Button>)}</div>}
-        {record && <p>{record.actor} · {new Date(record.recordedAt).toLocaleString()}{record.note && ` · ${record.note}`}</p>}
+        {record && <p>{record.actor} · {formatLocaleDateTime(record.recordedAt)}{record.note && ` · ${record.note}`}</p>}
         {issue && <div><FormField label="问题说明" required><input autoFocus maxLength={1000} value={note} disabled={mutation.isPending} onChange={e => setNote(e.target.value)} placeholder="例如：原稿为 0.5g，电子规格录为 5g" /></FormField>
           <Button disabled={disabled || !note.trim()} onClick={() => mutation.mutate('ISSUE')}>记录问题，下一条</Button></div>}
       </article>}

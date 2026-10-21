@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { errorMessage, type RhnApi, type StandardCatalogIdentity, type StandardMedicationDetail,
   type StandardMedicationSpecification, type StandardSpecificationDispositionEvent } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, FormField, Select, StatusBadge } from '../../shared/ui'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const labels: Record<StandardSpecificationDispositionEvent['status'], string> = {
   SUPPLEMENT_REQUIRED: '待补充具体规格',
@@ -53,6 +54,6 @@ export function StandardSpecificationDispositionDialog({api, identity, entry, sp
       <textarea rows={4} maxLength={1000} value={note} onChange={event => setNote(event.target.value)}
         placeholder={status === 'SUPPLEMENT_REQUIRED' ? '例如：等待本院实际采购产品说明书及批准文号，补充每片各成分含量。' : '例如：本院无对应采购产品，不建立药品主档。'} />
     </FormField>
-    {current && <small>{current.actor} · {new Date(current.recordedAt).toLocaleString()} · 第 {current.revision} 版处置</small>}
+    {current && <small>{current.actor} · {formatLocaleDateTime(current.recordedAt)} · 第 {current.revision} 版处置</small>}
   </Dialog>
 }

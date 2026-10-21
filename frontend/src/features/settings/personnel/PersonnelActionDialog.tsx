@@ -8,6 +8,7 @@ import { requirePractitionerDetail } from '../organizationPersonnelFacts'
 import { organizationQueryScope } from '../organizationQueryScope'
 import { departmentOwner } from '../organizationUnitReceipt'
 import type { usePersonnelOptions } from './usePersonnelOptions'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 export type PersonnelAction = { kind: 'profile' | 'status' | 'assign' | 'leave' }
   | { kind: 'transfer' | 'end-assignment'; assignment: PersonnelAssignment }
@@ -15,7 +16,7 @@ export type PersonnelAction = { kind: 'profile' | 'status' | 'assign' | 'leave' 
 const TITLES: Record<PersonnelAction['kind'], string> = {
   profile: '编辑档案', status: '变更档案状态', assign: '新增任职', leave: '办理离职', transfer: '调岗', 'end-assignment': '结束任职',
 }
-const today = () => new Date().toLocaleDateString('sv-SE')
+const today = () => formatDateKey()
 
 /**
  * 人员流转与档案维护。调岗只能在原机构内；离职结束所选机构的聘用及其下全部任职，可一并停用登录账号

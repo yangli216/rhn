@@ -1,3 +1,4 @@
+import { formatLocaleDateTime } from '../format'
 export const decisionScenes = {
   ASSISTANT_RECOMMENDATIONS: '辅诊目录核查', PLAN_COMPILATION: '智能建方目录核查', OUTPATIENT_TRIAGE: '预检分诊辅助',
 }
@@ -13,7 +14,7 @@ export const decisionComparisons = { COMPARABLE: '可比较', MANUAL_REVIEW: '�
 export const decisionVerdicts = { APPROPRIATE: '建议适当', INAPPROPRIATE: '建议不适当', UNCERTAIN: '资料不足／暂无法研判' }
 export const medicationEvaluationDecisions = { PASS: '未记录需处理项', WARN: '提醒核对', REQUIRE_OVERRIDE: '需填写理由', BLOCK: '阻止提交', UNAVAILABLE: '不可评价' }
 export const labelOf = (labels: Record<string, string>, value?: string | null) => value ? labels[value] ?? value : '—'
-export const observationTime = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
+export const observationTime = (value?: string | null) => value ? formatLocaleDateTime(value) : '—'
 export function observationRange(days = 7) {
   const to = new Date(), from = new Date(to)
   from.setDate(from.getDate() - days + 1)

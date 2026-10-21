@@ -1,10 +1,11 @@
 import type { DiagnosticObservation, DiagnosticReport } from '../api/diagnosticsApi'
+import { formatDateTimeParts } from '../format'
 
 const valueFields = ['valueString', 'valueNumber', 'valueBoolean', 'valueCode', 'valueDateTime'] as const
-const dateTime = new Intl.DateTimeFormat('zh-CN', {
+const dateTimeOptions: Intl.DateTimeFormatOptions = {
   year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
   hourCycle: 'h23', timeZoneName: 'short',
-})
+}
 
 /** Read the declared value only. A missing boolean is not false and conflicting fields are not alternatives. */
 export function diagnosticObservationValue(value: DiagnosticObservation): string {
@@ -31,7 +32,7 @@ export function diagnosticObservationValue(value: DiagnosticObservation): string
       if (typeof value.valueDateTime === 'string'
         && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value.valueDateTime)
         && Number.isFinite(Date.parse(value.valueDateTime))) {
-        return dateTime.format(new Date(value.valueDateTime))
+        return formatDateTimeParts(new Date(value.valueDateTime), dateTimeOptions)
       }
       break
   }

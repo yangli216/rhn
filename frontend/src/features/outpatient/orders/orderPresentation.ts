@@ -1,5 +1,6 @@
 import { unitPriceText } from './dispensableOptions'
 import { type OrderEntryType } from './orderDraftTypes'
+import { formatAmount } from '../../../shared/utils/precision'
 
 /** Duration units are stored as UCUM codes (d/wk/mo/h); doctors read them in Chinese. */
 export function formatDurationUnit(unit?: string, fallback = '天'): string {
@@ -140,7 +141,5 @@ export function formatUnitPrice(value?: number, currencyCode?: string) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0
     || !currencyCode || !/^[A-Z]{3}$/.test(currencyCode)) return '价格待确认'
   if (value > 0 && value < 1e-20) return unitPriceText(value, currencyCode)
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency', currency: currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 20,
-  }).format(value)
+  return formatAmount(value, currencyCode, { minimumFractionDigits: 2, maximumFractionDigits: 20 })
 }

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react
 import type { BillingWorkItem, Invoice, Payment, ReceiptView } from '../../shared/api/billingApi'
 import { formatTime } from '../../shared/format'
 import { EmptyState, Panel, PanelHead, SearchField, StatusBadge } from '../../shared/ui'
+import { formatAmount } from '../../shared/utils/precision'
 
 export function billingTone(status?: string) {
   if (status === 'SETTLED' || status === 'MATCHED' || status === 'CONFIRMED') return 'success' as const
@@ -12,7 +13,7 @@ export function billingTone(status?: string) {
 }
 
 export function money(value?: number, currency = 'CNY') {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: 2 }).format(value ?? 0)
+  return formatAmount(value ?? 0, currency, { minimumFractionDigits: 2 })
 }
 
 function patientDemographics(item: BillingWorkItem) {

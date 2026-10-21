@@ -11,6 +11,7 @@ import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, DictionarySelect, EmptyState, FormField, LoadingState, PageHeader, Panel,
   PatientIdentitySearch, SearchField, Select, StatusBadge } from '../../shared/ui'
 import '../../styles/features/inpatient.css'
+import { formatAmount } from '../../shared/utils/precision'
 
 const bedTone: Record<InpatientBed['displayStatus'], 'success' | 'info' | 'warning' | 'danger' | 'neutral'> = {
   AVAILABLE: 'success', OCCUPIED: 'info', CLEANING: 'warning', BLOCKED: 'neutral', MAINTENANCE: 'danger',
@@ -202,9 +203,8 @@ function localDateTimeValue() {
 }
 
 function money(value: number) {
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency', currency: 'CNY', minimumFractionDigits: 2,
-  }).format(value)
+  return formatAmount(value, 'CNY', {
+     minimumFractionDigits: 2 })
 }
 
 const admissionTypeOptions = [

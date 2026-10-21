@@ -4,6 +4,7 @@ import { Alert, Button, FormField, Select, StatusBadge } from '../ui'
 import { CashAmountInput, CashPaymentCalculator, PaymentAmountReadonlyRow } from './CashPaymentCalculator'
 import { isCollectableMethod, MAX_SHORTCUTS, PaymentMethodSelector, sortPaymentMethods, type PaymentMethodOption } from './PaymentMethodSelector'
 import { roundAmount } from './roundAmount'
+import { formatAmount } from '../utils/precision'
 
 export interface SettlementOption {
   id: string
@@ -453,7 +454,7 @@ export function SettlementPaymentPanel({
 }
 
 function money(value: number, currency: string) {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: 2 }).format(value)
+  return formatAmount(value, currency, { minimumFractionDigits: 2 })
 }
 
 function isEditableTarget(target: EventTarget | null) {

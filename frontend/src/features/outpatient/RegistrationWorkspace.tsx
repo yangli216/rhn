@@ -8,7 +8,7 @@ import type { Appointment } from '../../shared/api/appointmentsApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
 import type { ResidentCoverageInput } from '../../shared/api/residentsApi'
 import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem, type ScheduleDayPart, type ServiceSchedule } from '../../shared/api/schedulingApi'
-import { age } from '../../shared/format'
+import { age, formatDateTimeParts } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
@@ -24,18 +24,16 @@ import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
 import { InsuranceInfoPopover, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
 import { InsuranceMediaButtons, useInsuranceMediaReader, type InsuranceMediaRead } from '../../shared/billing/insuranceMedia'
 import '../../styles/features/scheduling-registration.css'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
 export { getCashPresets }
 export type { PatientIntakeChannel, PatientIntakeMeta }
 
-const businessDate = (value = new Date()) => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(value)
+const businessDate = (value = new Date()) => formatDateKey(value, 'Asia/Shanghai')
 
 function clock(value: string, includeSeconds = false) {
-  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit',
+  return formatDateTimeParts(new Date(value), { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit',
     second: includeSeconds ? '2-digit' : undefined, hour12: false })
-    .format(new Date(value))
 }
 
 function availableSchedules(schedules: ServiceSchedule[]) {

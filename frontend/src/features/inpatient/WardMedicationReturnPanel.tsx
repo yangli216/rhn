@@ -10,6 +10,7 @@ import { formatTime } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, LoadingState, StatusBadge } from '../../shared/ui'
 import './ward-medication-returns.css'
+import { formatNumber } from '../../shared/utils/precision'
 
 const statusText: Record<WardMedicationReturnStatus, string> = {
   REQUESTED: '待交出', IN_TRANSIT: '已交出', RECEIVED: '药房已接收',
@@ -134,5 +135,5 @@ function dispositionText(value: string) {
 }
 
 function formatQuantity(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value)
+  return formatNumber(value, { maximumFractionDigits: 8 })
 }

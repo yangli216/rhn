@@ -10,6 +10,7 @@ import {
 import { Alert, Button, DateRangePicker, Icon, LoadingState, EmptyState, PageHeader, Select } from '../../shared/ui'
 import { registrationData, registrationSpecs } from './registrationReportData'
 import './analytics-reports.css'
+import { formatNumber } from '../../shared/utils/precision'
 
 interface DepartmentStat {
   deptId: string
@@ -185,7 +186,7 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
         <article className="analytics-kpi-card analytics-kpi-card--primary">
           <span className="analytics-kpi-label">挂号总人次</span>
           <div className="analytics-kpi-val-row">
-            <strong>{totalReg.toLocaleString()}</strong>
+            <strong>{formatNumber(totalReg)}</strong>
             <small>人次</small>
           </div>
           <p className="analytics-kpi-sub">
@@ -196,7 +197,7 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
         <article className="analytics-kpi-card analytics-kpi-card--success">
           <span className="analytics-kpi-label">有效挂号人次</span>
           <div className="analytics-kpi-val-row">
-            <strong>{validCount.toLocaleString()}</strong>
+            <strong>{formatNumber(validCount)}</strong>
             <small>人次</small>
           </div>
           <p className="analytics-kpi-sub">
@@ -207,7 +208,7 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
         <article className="analytics-kpi-card analytics-kpi-card--warning">
           <span className="analytics-kpi-label">退号总量与退号率</span>
           <div className="analytics-kpi-val-row">
-            <strong>{totalCancel.toLocaleString()}</strong>
+            <strong>{formatNumber(totalCancel)}</strong>
             <small>人次</small>
           </div>
           <p className="analytics-kpi-sub">
@@ -218,7 +219,7 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
         <article className="analytics-kpi-card analytics-kpi-card--info">
           <span className="analytics-kpi-label">去重挂号患者数</span>
           <div className="analytics-kpi-val-row">
-            <strong>{totalPat.toLocaleString()}</strong>
+            <strong>{formatNumber(totalPat)}</strong>
             <small>人</small>
           </div>
           <p className="analytics-kpi-sub">
@@ -305,9 +306,9 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
                             <td>
                               <strong>{pt.date}</strong>
                             </td>
-                            <td style={{ textAlign: 'right' }}>{pt.regCount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>{formatNumber(pt.regCount)}</td>
                             <td style={{ textAlign: 'right', color: 'var(--color-success)' }}>
-                              {pt.validCount.toLocaleString()}
+                              {formatNumber(pt.validCount)}
                             </td>
                             <td style={{ textAlign: 'right', color: pt.cancelCount > 0 ? 'var(--color-warning)' : 'inherit' }}>
                               {pt.cancelCount}
@@ -345,7 +346,7 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
                         <div className="analytics-rank-bar-bg">
                           <div className="analytics-rank-bar-fill" style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="analytics-rank-val">{d.regCount.toLocaleString()} 人次</span>
+                        <span className="analytics-rank-val">{formatNumber(d.regCount)} 人次</span>
                       </div>
                     )
                   })}
@@ -380,8 +381,8 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
                           <td>
                             <strong>{d.deptName}</strong>
                           </td>
-                          <td style={{ textAlign: 'right' }}>{d.regCount.toLocaleString()}</td>
-                          <td style={{ textAlign: 'right' }}>{d.patientCount.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>{formatNumber(d.regCount)}</td>
+                          <td style={{ textAlign: 'right' }}>{formatNumber(d.patientCount)}</td>
                           <td style={{ textAlign: 'right', color: d.cancelCount > 0 ? 'var(--color-warning)' : 'inherit' }}>
                             {d.cancelCount}
                           </td>
@@ -393,9 +394,9 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
                     <tfoot>
                       <tr>
                         <th colSpan={2}>查询范围合计</th>
-                        <th style={{ textAlign: 'right' }}>{totalReg.toLocaleString()}</th>
-                        <th style={{ textAlign: 'right' }}>{totalPat.toLocaleString()}</th>
-                        <th style={{ textAlign: 'right' }}>{totalCancel.toLocaleString()}</th>
+                        <th style={{ textAlign: 'right' }}>{formatNumber(totalReg)}</th>
+                        <th style={{ textAlign: 'right' }}>{formatNumber(totalPat)}</th>
+                        <th style={{ textAlign: 'right' }}>{formatNumber(totalCancel)}</th>
                         <th style={{ textAlign: 'right' }}>{cancelRate}%</th>
                         <th style={{ textAlign: 'right' }}>{totalReg > 0 ? '100.0%' : '—'}</th>
                       </tr>

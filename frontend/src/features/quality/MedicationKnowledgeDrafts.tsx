@@ -14,6 +14,7 @@ import type { RuleIntakeRun } from '../../shared/api/medicationKnowledgeDraftApi
 import { KnowledgeTargetPicker } from './KnowledgeTargetPicker'
 import { MedicationKnowledgeExamplesDialog } from './MedicationKnowledgeExamplesDialog'
 import './medication-knowledge-drafts.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const option = (entries: Record<string, string>) => Object.entries(entries).map(([value, label]) => ({ value, label }))
 const kindNames = { DUPLICATE_THERAPY: '重复用药', DRUG_INTERACTION: '相互作用' }
@@ -204,5 +205,5 @@ export function MedicationKnowledgeDrafts({ api, initialIntake, onIntakeConsumed
   </section>
 }
 function KnowledgeHistory({ value: v, onExtraction, onIntake }: { value: KnowledgeVersion; onIntake: () => void; onExtraction: (id: string) => void }) {
-  return <details className="knowledge-history"><summary>第 {v.version} 版 · {new Date(v.savedAt).toLocaleString()} · {v.actor} · 草稿</summary><p>保存原因：{v.changeReason}</p><Button size="sm" variant="secondary" onClick={onIntake}>查看需求分析来源</Button>{v.extractionId && <Button size="sm" variant="secondary" onClick={() => onExtraction(v.extractionId!)}>查看此版抽取来源</Button>}<p>{v.assessment.ruleDescription}</p><p>保存时校验：{v.assessment.structureComplete ? '结构完整，未核验证据' : '结构待补充'}</p><p>{v.body.evidence?.title} · {v.body.evidence?.edition} · {v.body.evidence?.locator}</p><blockquote>{v.body.evidence?.excerpt || '未填写原文'}</blockquote><details><summary>查看完整版本快照</summary><pre>{JSON.stringify(v, null, 2)}</pre></details></details>
+  return <details className="knowledge-history"><summary>第 {v.version} 版 · {formatLocaleDateTime(v.savedAt)} · {v.actor} · 草稿</summary><p>保存原因：{v.changeReason}</p><Button size="sm" variant="secondary" onClick={onIntake}>查看需求分析来源</Button>{v.extractionId && <Button size="sm" variant="secondary" onClick={() => onExtraction(v.extractionId!)}>查看此版抽取来源</Button>}<p>{v.assessment.ruleDescription}</p><p>保存时校验：{v.assessment.structureComplete ? '结构完整，未核验证据' : '结构待补充'}</p><p>{v.body.evidence?.title} · {v.body.evidence?.edition} · {v.body.evidence?.locator}</p><blockquote>{v.body.evidence?.excerpt || '未填写原文'}</blockquote><details><summary>查看完整版本快照</summary><pre>{JSON.stringify(v, null, 2)}</pre></details></details>
 }

@@ -12,6 +12,7 @@ import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { RevokeGrantDialog } from './RevokeGrantDialog'
 import { RoleGrantsTable } from './RoleGrantsTable'
 import '../../../styles/features/access-control.css'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 type Pending = { kind: 'open' | 'grant' | 'status' | 'password' } | { kind: 'revoke'; grant: UserRoleAssignment }
 
@@ -33,7 +34,7 @@ export function PractitionerAccessSection({ api, detail, canManage, onChanged }:
 
   const { account, assignments } = access.data
   const visible = showHistory ? assignments : assignments.filter(item => grantOpen(item))
-  const today = new Date().toLocaleDateString('sv-SE')
+  const today = formatDateKey()
   const managed = access.data.scope
   const targets: GrantTarget[] = [...new Map(detail.assignments
     .filter(item => item.sdPersonnelStatus === 'ACTIVE' && (!item.validTo || item.validTo >= today))

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SCHEDULING_DATE_PRESETS, type PresetKey } from './dateRange'
+import { SCHEDULING_DATE_PRESETS, formatDateKey, type PresetKey } from './dateRange'
 
 const range = (key: PresetKey) => SCHEDULING_DATE_PRESETS.find(preset => preset.key === key)!.getRange()
 afterEach(() => vi.useRealTimers())
@@ -25,5 +25,22 @@ describe('scheduling date presets', () => {
     expect(range('NEXT_MONTH')).toEqual({ from: '2027-01-01', to: '2027-01-31' })
     vi.setSystemTime(new Date(2028, 0, 31, 12))
     expect(range('NEXT_MONTH')).toEqual({ from: '2028-02-01', to: '2028-02-29' })
+  })
+})
+
+describe('formatDateKey', () => {
+  it('formats YYYY-MM-DD in the requested time zone, defaulting to the local zone and now', () => {
+    const at = new Date('2026-12-25T18:30:00Z')
+    expect(formatDateKey(at, 'Asia/Shanghai')).toBe('2026-12-26')
+    expect(formatDateKey(at, 'UTC')).toBe('2026-12-25')
+    expect(formatDateKey(at)).toBe('2026-12-26')
+    expect(formatDateKey(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05')
+    expect(formatDateKey(at.getTime(), 'America/New_York')).toBe('2026-12-25')
+  })
+
+  it('uses the current date when called without arguments', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 9, 8))
+    expect(formatDateKey()).toBe('2026-09-09')
   })
 })

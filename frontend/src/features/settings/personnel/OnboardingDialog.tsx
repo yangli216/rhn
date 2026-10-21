@@ -5,6 +5,7 @@ import { Alert, Button, DatePicker, Dialog, FormField, Select } from '../../../s
 import { departmentOwner } from '../organizationUnitReceipt'
 import { requireOnboardedPractitioner } from '../practitionerOnboarding'
 import type { usePersonnelOptions } from './usePersonnelOptions'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 /** 办理入职一次建立人员档案、聘用和主任职；执业资质在入职后打开的档案中填写。 */
 export function OnboardingDialog({ api, options, onClose, onDone }: {
@@ -13,7 +14,7 @@ export function OnboardingDialog({ api, options, onClose, onDone }: {
   const units = options.units.data ?? []
   const organizations = units.filter(unit => unit.sdOrgKind === 'LEGAL_ORGANIZATION' && unit.sdOrgStatus === 'ACTIVE')
   const [value, setValue] = useState({ code: '', fullName: '', gender: '', organizationId: organizations.length === 1 ? organizations[0].id : '',
-    departmentId: '', positionId: '', hireDate: new Date().toLocaleDateString('sv-SE') })
+    departmentId: '', positionId: '', hireDate: formatDateKey() })
   const [validation, setValidation] = useState('')
   const set = (key: keyof typeof value, next: string) => setValue(current => ({ ...current, [key]: next, ...(key === 'organizationId' ? { departmentId: '' } : {}) }))
   const genders = systemEnumItems(options.enums, ORGANIZATION_SYSTEM_ENUM.gender).map(item => ({ value: item.code, label: item.name }))

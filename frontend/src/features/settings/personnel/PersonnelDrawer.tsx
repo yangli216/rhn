@@ -9,8 +9,9 @@ import { PersonnelActionDialog, type PersonnelAction } from './PersonnelActionDi
 import { requireQualification } from './personnelFacts'
 import { QualificationForm } from './QualificationForm'
 import type { usePersonnelOptions } from './usePersonnelOptions'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
-export const currentAssignment = (value: PersonnelAssignment, on = new Date().toLocaleDateString('sv-SE')) =>
+export const currentAssignment = (value: PersonnelAssignment, on = formatDateKey()) =>
   value.sdPersonnelStatus === 'ACTIVE' && value.validFrom <= on && (!value.validTo || value.validTo >= on)
 
 /** 人员档案抽屉：基本档案、任职、执业资质。聘用不单独展示：入职、新增任职和离职由系统维护聘用。 */
@@ -58,8 +59,8 @@ export function PersonnelDrawer({ api, practitionerId, options, canManage, onCha
               return <tr key={item.id}>
                 <td>{item.organizationName}</td><td>{item.departmentName}</td><td>{item.positionName}</td><td>{item.primaryAssignment ? '是' : '否'}</td>
                 <td>{item.validFrom} 至 {item.validTo || '长期'}</td>
-                <td className={tableCellClass('status')}><StatusBadge tone={current ? 'success' : 'neutral'}>{current ? '在岗' : item.sdPersonnelStatus === 'ACTIVE' ? (item.validFrom > new Date().toLocaleDateString('sv-SE') ? '待生效' : '已结束') : '已作废'}</StatusBadge></td>
-                {canManage && <td className={tableCellClass('actions')}>{item.sdPersonnelStatus === 'ACTIVE' && (!item.validTo || item.validTo >= new Date().toLocaleDateString('sv-SE')) && <>
+                <td className={tableCellClass('status')}><StatusBadge tone={current ? 'success' : 'neutral'}>{current ? '在岗' : item.sdPersonnelStatus === 'ACTIVE' ? (item.validFrom > formatDateKey() ? '待生效' : '已结束') : '已作废'}</StatusBadge></td>
+                {canManage && <td className={tableCellClass('actions')}>{item.sdPersonnelStatus === 'ACTIVE' && (!item.validTo || item.validTo >= formatDateKey()) && <>
                   <Button size="sm" variant="text" onClick={() => setAction({ kind: 'transfer', assignment: item })}>调岗</Button>
                   <Button size="sm" variant="text" onClick={() => setAction({ kind: 'end-assignment', assignment: item })}>结束任职</Button></>}</td>}
               </tr>

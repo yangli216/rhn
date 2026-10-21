@@ -24,3 +24,26 @@ export function formatTime(value?: string | null) {
 export function statusLabel(status: Encounter['status']) {
   return encounterStatusPresentation(status).label
 }
+
+const DISPLAY_LOCALE = 'zh-CN'
+
+/**
+ * 与 Date.prototype.toLocaleString('zh-CN', options) 一致：未指定任何日期/时间字段时默认输出日期+时间。
+ * 无效日期返回 'Invalid Date'。
+ */
+export function formatLocaleDateTime(value: Date | string | number, options?: Intl.DateTimeFormatOptions) {
+  return new Date(value).toLocaleString(DISPLAY_LOCALE, options)
+}
+
+/**
+ * 与 new Intl.DateTimeFormat('zh-CN', options).format(date) 一致：未指定字段时默认只输出日期；
+ * 无效日期抛 RangeError，调用方按需 try/catch。
+ */
+export function formatDateTimeParts(value: Date | string | number, options?: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat(DISPLAY_LOCALE, options).format(value instanceof Date ? value : new Date(value))
+}
+
+/** 地区（ISO 3166 代码）中文名；非法代码抛 RangeError，未收录返回 undefined。 */
+export function regionDisplayName(code: string) {
+  return new Intl.DisplayNames([DISPLAY_LOCALE], { type: 'region' }).of(code)
+}

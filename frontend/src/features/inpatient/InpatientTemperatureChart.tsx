@@ -15,6 +15,7 @@ import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { VITAL_HARD_LIMITS } from '../../shared/validation/businessValidation'
 import { Alert, Button, EmptyState, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
 import './inpatient-temperature-chart.css'
+import { formatDateTimeParts } from '../../shared/format'
 
 const DAY_MS = 86_400_000
 const CHART_DAYS = 7
@@ -499,8 +500,7 @@ function weekday(value: string) {
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-    .format(new Date(value))
+  return formatDateTimeParts(new Date(value), { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 export default InpatientTemperatureChartPanel

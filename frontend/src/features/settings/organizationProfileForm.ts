@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { OrganizationProfileInput, OrganizationProfileSection } from '../../shared/rhnApi'
 import type { ProfileRecordEdit } from './OrganizationProfileRecords'
+import { formatDateKey } from '../../shared/utils/dateRange'
 
 export const profileSchema = z.object({
   section: z.enum(['identifier', 'contact', 'address', 'relation', 'capability', 'responsibility']),
@@ -75,5 +76,5 @@ export const identifierSystemFor = (typeCode: string) => `urn:rhn:organization-i
 /** 新增行隐藏的字典字段默认取字典首项，用户只改需要改的内容。 */
 export type ProfileDefaults = { dictionaryType?: string; dictionaryUse?: string }
 export function blankProfile(section: OrganizationProfileSection, defaults: ProfileDefaults = {}): ProfileForm {
-  return { section, firstCode: section === 'address' ? 'CN' : '', secondCode: '', thirdCode: '', fourthCode: '', fifthCode: '', sixthCode: '', dictionaryType: defaults.dictionaryType ?? '', dictionaryUse: defaults.dictionaryUse ?? '', targetOrganizationId: '', description: '', primary: false, sortOrder: 0, validFrom: new Date().toLocaleDateString('sv-SE'), validTo: '', verifyStatus: 'UNVERIFIED', assignmentId: '', responsibilitySubject: 'internal', status: 'ACTIVE', reason: '' }
+  return { section, firstCode: section === 'address' ? 'CN' : '', secondCode: '', thirdCode: '', fourthCode: '', fifthCode: '', sixthCode: '', dictionaryType: defaults.dictionaryType ?? '', dictionaryUse: defaults.dictionaryUse ?? '', targetOrganizationId: '', description: '', primary: false, sortOrder: 0, validFrom: formatDateKey(), validTo: '', verifyStatus: 'UNVERIFIED', assignmentId: '', responsibilitySubject: 'internal', status: 'ACTIVE', reason: '' }
 }

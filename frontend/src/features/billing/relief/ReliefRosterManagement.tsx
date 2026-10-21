@@ -15,14 +15,14 @@ import { useSystemEnum } from '../../../shared/ui/useSystemEnum'
 import { QUALIFICATION_TYPE_DICTIONARY } from './ReliefPolicyEditor'
 import { parseRosterText, ROSTER_IMPORT_LIMIT, ROSTER_TEMPLATE } from './rosterImport'
 import './billing-relief.css'
+import { formatDateKey } from '../../../shared/utils/dateRange'
 
 const PAGE_SIZE = 50
 type Feedback = { tone: 'success' | 'error'; text: string } | null
 type DialogState = { kind: 'add' } | { kind: 'edit' | 'revoke'; entry: ReliefRosterEntry } | { kind: 'import' } | null
 
 function today() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .format(new Date())
+  return formatDateKey(new Date(), 'Asia/Shanghai')
 }
 
 export function ReliefRosterManagement({ api, canEdit }: { api: RhnApi; canEdit: boolean }) {

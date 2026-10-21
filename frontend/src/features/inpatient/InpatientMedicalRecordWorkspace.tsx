@@ -14,6 +14,7 @@ import {
   type InpatientDocumentType,
 } from './InpatientMedicalRecordTemplates'
 import './inpatient-medical-records.css'
+import { formatDateTimeParts } from '../../shared/format'
 
 const CONTENT_SCHEMA = 'RHN.CANVAS_EDITOR_DOCUMENT.V1'
 let dailyDocumentSequence = 0
@@ -49,9 +50,9 @@ function newDailyInstanceKey() {
 
 function formatDateTime(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', {
+  return Number.isNaN(date.getTime()) ? value : formatDateTimeParts(date, {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(date)
+  })
 }
 
 export function InpatientMedicalRecordWorkspace({ api, episode, organizationName }: {

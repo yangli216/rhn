@@ -5,6 +5,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import type { KnowledgeReplayRun, KnowledgeVersion } from '../../shared/api/medicationKnowledgeDraftApi'
 import { Alert, Button, Dialog, Pagination, StatusBadge, TableShell } from '../../shared/ui'
 import './medication-knowledge-replay.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const outcomes: Record<string, string> = { MATCH: '草稿条件命中', NO_MATCH: '未命中此草稿', NOT_APPLICABLE: '不在适用范围', UNAVAILABLE: '不可评价' }
 const states: Record<string, string> = { DRAFT: '草稿', ACTIVE: '有效', CANCELLED: '已取消', STOPPED: '已停止' }
@@ -26,13 +27,13 @@ export function MedicationKnowledgeReplayDialog({ api, knowledge, onClose }: { a
       <div className="knowledge-replay__layout"><aside className="knowledge-replay__queue"><h4>选择原审查记录</h4><p>仅当前工作机构／科室；同一处方的不同审查记录代表不同冻结输入。</p>
         {sources.error && <Alert tone="error">{errorMessage(sources.error)}</Alert>}{sources.isPending && <p>读取原审查记录…</p>}
         {!sources.isError && sources.data?.content.map(s => <button key={s.evaluationId} type="button" disabled={busy} className={selected === s.evaluationId ? 'is-selected' : ''} onClick={() => { setSelected(s.evaluationId); setRun(undefined); setError('') }}>
-          <strong>处方 {s.prescriptionId} · 版本 {s.prescriptionRevision}</strong><small>审查记录 {s.evaluationId}</small><small>{s.evaluatedAt ? new Date(s.evaluatedAt).toLocaleString() : '原审查时间未知'} · {s.originalMode === 'SHADOW' ? '旁路' : s.originalMode === 'ENFORCED' ? '正式' : s.originalMode}</small>
+          <strong>处方 {s.prescriptionId} · 版本 {s.prescriptionRevision}</strong><small>审查记录 {s.evaluationId}</small><small>{s.evaluatedAt ? formatLocaleDateTime(s.evaluatedAt) : '原审查时间未知'} · {s.originalMode === 'SHADOW' ? '旁路' : s.originalMode === 'ENFORCED' ? '正式' : s.originalMode}</small>
         </button>)}
         {!sources.isError && sources.data && !sources.data.content.length && <p>当前范围暂无原审查快照。请先在正常门诊流程中完成用药审查；不以合成事实代替历史处方。</p>}
         {sources.data && <Pagination page={page} totalPages={Math.max(1, sources.data.totalPages)} total={sources.data.totalElements} pageSize={20} onChange={changePage} label="原审查记录分页" />}
         <div className="knowledge-replay__actions"><Button variant="secondary" disabled={busy || sources.isFetching} onClick={() => { setSelected(''); setRun(undefined); void sources.refetch() }}>刷新原记录</Button><Button disabled={busy || !selected || sources.isError} onClick={() => { void task(() => api.medicationKnowledgeDrafts.replay(knowledge.id, knowledge.version, selected), true) }}>{busy ? '处理中…' : '执行并保存回放'}</Button></div>
         <h4>已保存回放 · 全部知识版本</h4>{history.error && <Alert tone="error">{errorMessage(history.error)}</Alert>}
-        {!history.isError && history.data?.content.map(h => <button type="button" key={h.id} disabled={busy} onClick={() => { setSelected(''); void task(() => api.medicationKnowledgeDrafts.replayDetail(knowledge.id, h.id)) }}><strong>知识第 {h.knowledgeVersion} 版 · {outcomes[h.outcome]}</strong><small>原审查 {h.evaluationId} · {h.actor}</small><small>{new Date(h.createdAt).toLocaleString()}</small></button>)}
+        {!history.isError && history.data?.content.map(h => <button type="button" key={h.id} disabled={busy} onClick={() => { setSelected(''); void task(() => api.medicationKnowledgeDrafts.replayDetail(knowledge.id, h.id)) }}><strong>知识第 {h.knowledgeVersion} 版 · {outcomes[h.outcome]}</strong><small>原审查 {h.evaluationId} · {h.actor}</small><small>{formatLocaleDateTime(h.createdAt)}</small></button>)}
         {history.data && <Pagination page={historyPage} totalPages={Math.max(1, history.data.totalPages)} total={history.data.totalElements} pageSize={20} onChange={p => { if (!busy) setHistoryPage(p) }} label="知识回放历史分页" />}
       </aside><section className="knowledge-replay__result"><h4>冻结输入与回放结果</h4>
         {!run && <p>选择原审查记录后执行回放，或查看已有回放。草稿有未保存修改时，请先保存新版本。</p>}
@@ -46,7 +47,7 @@ export function MedicationKnowledgeReplayDialog({ api, knowledge, onClose }: { a
             <td>{item.fact.entryId || '标准条目缺失'}<small>{item.fact.specificationId || '规格身份缺失'}</small><small>{item.fact.catalogId} · {item.fact.catalogVersion}</small></td>
             <td>{item.route?.code || '途径未知'}<small>{item.route?.system} · {item.route?.version}</small>{item.gaps.map((g, i) => <p key={i}>{g}</p>)}</td>
           </tr>)}</tbody></table></TableShell>
-          <details><summary>知识依据与回放指纹</summary><p>{run.knowledge.body.evidence?.title} · {run.knowledge.body.evidence?.edition} · {run.knowledge.body.evidence?.locator}</p><blockquote>{run.knowledge.body.evidence?.excerpt}</blockquote><small>知识指纹：{run.knowledgeHash}</small><small>原评价输入指纹：{run.source.inputHash}</small><small>本次适配输入指纹：{run.inputHash}</small><small>引擎：{run.engineVersion} · {run.actor} · {new Date(run.createdAt).toLocaleString()}</small></details>
+          <details><summary>知识依据与回放指纹</summary><p>{run.knowledge.body.evidence?.title} · {run.knowledge.body.evidence?.edition} · {run.knowledge.body.evidence?.locator}</p><blockquote>{run.knowledge.body.evidence?.excerpt}</blockquote><small>知识指纹：{run.knowledgeHash}</small><small>原评价输入指纹：{run.source.inputHash}</small><small>本次适配输入指纹：{run.inputHash}</small><small>引擎：{run.engineVersion} · {run.actor} · {formatLocaleDateTime(run.createdAt)}</small></details>
         </>}
       </section></div>
     </div>

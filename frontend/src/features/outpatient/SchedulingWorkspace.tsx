@@ -13,6 +13,8 @@ import {
   SCHEDULING_DATE_PRESETS,
 } from '../../shared/ui'
 import '../../styles/features/scheduling-registration.css'
+import { formatAmount, formatNumber } from '../../shared/utils/precision'
+import { formatDateTimeParts } from '../../shared/format'
 
 const weekdayOptions = [
   { value: 1, label: '周一' }, { value: 2, label: '周二' }, { value: 3, label: '周三' },
@@ -77,12 +79,11 @@ function formatWeekRange(mondayStr: string): string {
 }
 
 function shortTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value))
+  return formatDateTimeParts(new Date(value), { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 function dateLabel(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })
-    .format(new Date(`${value}T00:00:00`))
+  return formatDateTimeParts(new Date(`${value}T00:00:00`), { month: 'long', day: 'numeric', weekday: 'short' })
 }
 
 function scheduleTone(status: string) {
@@ -103,7 +104,7 @@ function effectiveSalePrice(service: ServiceCatalogItem, organizationId: string,
 function feeText(service: ServiceCatalogItem, price?: CatalogPrice) {
   if (!service.chargeable) return '免收'
   if (!price) return '未定价'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: price.currencyCode }).format(price.price)
+  return formatAmount(price.price, price.currencyCode)
 }
 
 function serviceSelectOption(service: ServiceCatalogItem, organizationId: string, businessDate: string) {
@@ -871,7 +872,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                 <>
                   在选定日期区间内，符合规则的出诊日共 <strong>{estimatedDays}</strong> 天 ·
                   预计生成 <strong>{estimatedSchedules}</strong> 个班次 ·
-                  投放 <strong>{estimatedTotalSlots.toLocaleString()}</strong> 个共享号源
+                  投放 <strong>{formatNumber(estimatedTotalSlots)}</strong> 个共享号源
                 </>
               ) : (
                 <span style={{ color: 'var(--color-warning)' }}>请选择至少一个出诊日与时段</span>
@@ -1099,7 +1100,7 @@ function ScheduleDetailDrawer({
         <div className="schedule-detail-item">
           <span>挂号费用</span>
           <strong>{schedule.feeConfigured && typeof schedule.registrationFee === 'number' && Number.isFinite(schedule.registrationFee)
-            ? new Intl.NumberFormat('zh-CN', { style: 'currency', currency: schedule.feeCurrencyCode }).format(schedule.registrationFee)
+            ? formatAmount(schedule.registrationFee, schedule.feeCurrencyCode)
             : '未定价'}</strong>
         </div>
       </div>

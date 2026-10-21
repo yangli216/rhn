@@ -7,6 +7,7 @@ import type { StandardImpactScope } from '../../shared/api/medicationStandardImp
 import { Alert, Button, Dialog, FormField, Pagination } from '../../shared/ui'
 import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
 import './medication-standard-revision.css'
+import { formatLocaleDateTime } from '../../shared/format'
 
 const states: Record<string, string> = { SUBMITTED: '待独立复核', APPLIED: '已应用', REJECTED: '已退回', CANCELLED: '已撤回' }
 export function MedicationStandardRevisionDialog({ api, medicationId, onClose }: { api: RhnApi; medicationId: string; onClose: () => void }) {
@@ -65,7 +66,7 @@ export function MedicationStandardRevisionDialog({ api, medicationId, onClose }:
             <Button variant="primary" disabled={!selected || !reason.trim() || !impactNotes.trim() || !confirmed || !impactConfirmed || !impactQuery.data || !!impactQuery.error || impactQuery.isFetching} onClick={() => submit.mutate()}>提交修订，等待复核</Button>
           </fieldset>}
         </section>
-        <section><h3>当前修订与独立复核</h3>{proposal ? <><p>提交人：{proposal.submitter} · {new Date(proposal.submittedAt).toLocaleString()}</p><article><strong>目标：{proposal.target.name} · {proposal.target.specification}</strong><small>{proposal.identity.catalogVersion} · {proposal.specificationId}</small><p>{proposal.reason}</p><h4>提交时的影响核对说明</h4><p className="standard-revision__text">{proposal.impactNotes}</p><Button size="sm" variant="secondary" onClick={() => inspect(proposal.identity.catalogId, proposal.target.entryId, proposal.specificationId)}>复查目标影响</Button></article>
+        <section><h3>当前修订与独立复核</h3>{proposal ? <><p>提交人：{proposal.submitter} · {formatLocaleDateTime(proposal.submittedAt)}</p><article><strong>目标：{proposal.target.name} · {proposal.target.specification}</strong><small>{proposal.identity.catalogVersion} · {proposal.specificationId}</small><p>{proposal.reason}</p><h4>提交时的影响核对说明</h4><p className="standard-revision__text">{proposal.impactNotes}</p><Button size="sm" variant="secondary" onClick={() => inspect(proposal.identity.catalogId, proposal.target.entryId, proposal.specificationId)}>复查目标影响</Button></article>
           {proposal.impact ? <ImpactSnapshotView value={proposal.impact} title="提交时冻结的影响清单" /> : <Alert tone="warning">此历史修订没有冻结影响清单。待复核记录需撤回或退回后重新提交。</Alert>}
           {value.currentImpact && proposal.impact && value.currentImpact.fingerprint !== proposal.impact.fingerprint && <>
             <ImpactChanges before={proposal.impact} after={value.currentImpact} />
@@ -79,7 +80,7 @@ export function MedicationStandardRevisionDialog({ api, medicationId, onClose }:
             <div className="standard-revision__actions">{value.allowedActions.includes('CANCEL') && <Button variant="secondary" disabled={!reviewReason.trim()} onClick={() => review.mutate('CANCEL')}>撤回修订</Button>}{value.allowedActions.includes('REJECT') && <Button variant="secondary" disabled={!reviewReason.trim()} onClick={() => review.mutate('REJECT')}>退回修订</Button>}{value.allowedActions.includes('APPLY') && <Button variant="primary" disabled={!reviewReason.trim() || !identityChecked || !impactChecked} onClick={() => review.mutate('APPLY')}>复核通过并应用</Button>}</div>
             {value.allowedActions.includes('CANCEL') && <small>提交人不能自行复核应用，请由另一位有管理权限的人员处理。</small>}
           </fieldset>}</> : <p>提交后在此核对冻结的原关系、目标和依据。</p>}
-          <h3>不可变修订记录</h3>{value.history.map(event => <details key={event.id}><summary>{states[event.status]} · {event.actor} · {new Date(event.recordedAt).toLocaleString()}</summary><p>{event.reason}</p><p>提交人：{event.proposal.submitter}；目标：{event.proposal.specificationId}</p><p className="standard-revision__text">{event.proposal.impactNotes}</p>{event.proposal.impact && <ImpactSnapshotView value={event.proposal.impact} title="该次修订冻结的影响清单" />}<details><summary>完整审计快照</summary><pre>{JSON.stringify(event, null, 2)}</pre></details></details>)}
+          <h3>不可变修订记录</h3>{value.history.map(event => <details key={event.id}><summary>{states[event.status]} · {event.actor} · {formatLocaleDateTime(event.recordedAt)}</summary><p>{event.reason}</p><p>提交人：{event.proposal.submitter}；目标：{event.proposal.specificationId}</p><p className="standard-revision__text">{event.proposal.impactNotes}</p>{event.proposal.impact && <ImpactSnapshotView value={event.proposal.impact} title="该次修订冻结的影响清单" />}<details><summary>完整审计快照</summary><pre>{JSON.stringify(event, null, 2)}</pre></details></details>)}
           <Pagination page={page} totalPages={Math.max(1, Math.ceil(value.totalEvents / 20))} total={value.totalEvents} pageSize={20} onChange={setPage} label="标准修订历史分页" />
         </section>
       </div></>}
@@ -90,7 +91,7 @@ export function MedicationStandardRevisionDialog({ api, medicationId, onClose }:
 const impactKinds: Record<string, string> = { MEDICATION: '药品', PRODUCT: '产品', KNOWLEDGE: '知识版本', RULE_VERSION: '规则版本', DEPLOYMENT: '部署' }
 function ImpactSnapshotView({ value, title }: { value: StandardRevisionImpact; title: string }) {
   return <details className="standard-revision__impact"><summary>{title} · {value.areas.length} 个标准范围</summary>
-    <small>核查时间：{new Date(value.inspectedAt).toLocaleString()} · 按标准范围分别列出，同一对象可能出现多次。</small>
+    <small>核查时间：{formatLocaleDateTime(value.inspectedAt)} · 按标准范围分别列出，同一对象可能出现多次。</small>
     <small>清单指纹：{value.fingerprint}</small>
     {value.areas.map((area, index) => <section key={index}><h4>{area.scope.catalogId} · {area.scope.specificationId}</h4>
       <p>{area.coverage.join('；')}</p><p>{area.dependencies.length} 条依赖，其中 {area.dependencies.filter(row => row.matchType === 'POTENTIAL').length} 条潜在影响。</p>

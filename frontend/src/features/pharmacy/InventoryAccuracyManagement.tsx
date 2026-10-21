@@ -5,6 +5,8 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { inventoryReconciliationPresentation } from '../../shared/presentation'
 import { requireOpenPackages, requireReconciliation } from './inventoryAccuracyTruth'
+import { formatLocaleDateTime } from '../../shared/format'
+import { formatNumber } from '../../shared/utils/precision'
 import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
 } from '../../shared/ui'
@@ -199,8 +201,8 @@ function OpenPackageDialog({ api, siteId, items, bins, onClose, onDone }: {
 
 function itemName(items: StockItem[], id?: string) { return items.find(value => value.id === id)?.productName ?? '未知经营项目' }
 function binName(bins: StockBin[], id?: string) { return bins.find(value => value.id === id)?.name ?? '未知库位' }
-function formatQuantity(value: number) { return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(value) }
-function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
+function formatQuantity(value: number) { return formatNumber(value, { maximumFractionDigits: 8 }) }
+function formatTime(value: string) { return formatLocaleDateTime(value, { hour12: false }) }
 function formatDuration(startedAt: string, completedAt: string) {
   const seconds = Math.max(0, Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000))
   return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`

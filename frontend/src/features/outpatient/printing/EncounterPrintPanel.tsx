@@ -7,6 +7,7 @@ import type { Encounter, Resident } from "../../../shared/model";
 import { formatTime } from "../../../shared/format";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from "../../../shared/ui"
+import { formatAmount } from '../../../shared/utils/precision'
 
 export const printPurposeOptions: Array<{ value: PrintPurpose; label: string }> = [
   { value: 'PATIENT_COPY', label: '患者副本' },
@@ -234,8 +235,7 @@ export function HistoricalReprintDialog({ api, record, title, onReprinted, onClo
 }
 
 export function money(value: number, currencyCode = 'CNY') {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: currencyCode,
-    minimumFractionDigits: 2 }).format(value)
+  return formatAmount(value, currencyCode, { minimumFractionDigits: 2 })
 }
 
 export interface BatchPrintItem {

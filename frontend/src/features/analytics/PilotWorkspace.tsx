@@ -5,9 +5,11 @@ import type { PilotAnalysisResult, PilotAnalysisSaved } from '../../shared/api/a
 import { Alert, Button, LoadingState } from '../../shared/ui'
 import { initialQuery, dateRange, metricNames, dimensionNames, scopeNames, type PilotQuery, type Chart } from './pilotModel'
 import './pilot-workspace.css'
+import { formatLocaleDateTime } from '../../shared/format'
+import { formatNumber } from '../../shared/utils/precision'
 
 type Snapshot = { query: PilotQuery; chart: Chart; title: string }
-const format = (n: number | undefined, rate=false) => new Intl.NumberFormat('zh-CN', { maximumFractionDigits: rate ? 2 : 0 }).format(n ?? 0)
+const format = (n: number | undefined, rate=false) => formatNumber(n ?? 0, { maximumFractionDigits: rate ? 2 : 0 })
 
 export type AnalysisDefinition = { id: string; title: string; query: PilotQuery; chart: Chart }
 export function PilotWorkspace({ api, definition, creating = true, onSaved }: { api: RhnApi; definition?: AnalysisDefinition; creating?: boolean; onSaved?: (item: PilotAnalysisSaved) => void }) {
@@ -117,7 +119,7 @@ export function PilotWorkspace({ api, definition, creating = true, onSaved }: { 
             <div className="ap-result-summary"><strong>{total}<small>{result.unit}</small></strong><span>{result.changePercent==null?'比较期基数为零，不计算增幅':`较比较期 ${result.changePercent>=0?'+':''}${format(result.changePercent,true)}%`}</span><span className="ap-muted">比较期 {result.comparisonStart} — {result.comparisonEnd}</span></div>
             {view==='chart' ? <div className="ap-chart-wrap"><div className="ap-chart-actions"><span className="ap-muted">{dimensionNames[result.query?.dimension??'DAY']} · 点击数据点查看</span><div className="ap-switch"><Button variant={chart==='BAR'?'secondary':'text'} onClick={()=>{remember();setChart('BAR')}}>柱状图</Button><Button variant={chart==='LINE'?'secondary':'text'} onClick={()=>{remember();setChart('LINE')}}>折线图</Button></div></div><Plot rows={rows} chart={chart} selected={selected} select={setSelected} unit={result.unit??''}/></div> : <div className="ap-table-scroll"><table><thead><tr><th>分组</th><th>挂号</th><th>退号</th><th>诊毕</th><th>{result.metricName}</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i}><td>{r.label}</td><td>{format(r.registered)}</td><td>{format(r.cancelled)}</td><td>{format(r.completed)}</td><td>{format(r.value,rate)} {result.unit}</td></tr>)}</tbody></table></div>}
             <div className="ap-insight"><span>数据观察</span><p>{result.registered===0 && result.completed===0?'这个范围内暂无挂号或诊毕记录。可扩大时间，或切换到可访问科室；系统不会补入演示数据。':`${result.metricName}${rate?'总体':'合计'} ${total}${result.unit}。${peak && (peak.value??0)>0?`${peak.label} 最高，为 ${format(peak.value,rate)}${result.unit}。`:''}这里只描述实际数据，不推断变化原因。`}</p></div>
-            <footer className="ap-result-footer">取数时间 {result.fetchedAt?new Date(result.fetchedAt).toLocaleString('zh-CN'):''} · {result.timezone} · 本地门诊业务库</footer>
+            <footer className="ap-result-footer">取数时间 {result.fetchedAt?formatLocaleDateTime(result.fetchedAt):''} · {result.timezone} · 本地门诊业务库</footer>
           </>}
         </section>
       </main>
