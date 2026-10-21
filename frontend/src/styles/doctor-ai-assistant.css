@@ -970,6 +970,12 @@
   border-top: 1px solid color-mix(in srgb, var(--color-brand-primary) 24%, var(--color-border));
   background: color-mix(in srgb, var(--color-brand-soft) 22%, var(--color-surface)); }
 .doctor-ai-order-batch > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-generating-row { justify-content: flex-start;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--color-brand-soft) 22%, var(--color-surface)) 35%, var(--color-brand-soft) 50%, color-mix(in srgb, var(--color-brand-soft) 22%, var(--color-surface)) 65%) 0 0 / 300% 100%;
+  animation: doctor-ai-generating-sweep 1.8s linear infinite; }
+.doctor-ai-generating-row > span { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-brand-primary); }
+@keyframes doctor-ai-generating-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .doctor-ai-generating-row { animation: none; } }
 .doctor-ai-review-status { padding: .15rem .4rem; border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border)); border-radius: var(--radius-sm); background: var(--color-brand-soft); }
 .doctor-diagnosis-row.is-ai-suggestion .doctor-diag-col-management,
 .doctor-unified-order-row.is-ai-suggestion .doctor-unified-cell-instruction { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
@@ -984,28 +990,13 @@
 .doctor-ai-treatment-item .doctor-unified-cell-name small { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; }
 .doctor-ai-treatment-directions { display: flex; flex-direction: column; gap: var(--space-1); white-space: normal; }
 .doctor-ai-treatment-directions small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-ai-treatment-editor {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(70px, 1fr));
-  min-width: 54rem;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-}
-.doctor-ai-treatment-editor > label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-size-small); color: var(--color-text-secondary); }
-.doctor-ai-treatment-editor > label input, .doctor-ai-treatment-editor > label select {
-  width: 100%; min-width: 0; height: 30px; padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-}
-.doctor-ai-treatment-editor__instruction { grid-column: span 6; }
-.doctor-ai-treatment-editor.is-service {
-  grid-template-columns: minmax(12rem, 1fr) minmax(7rem, 0.6fr) minmax(16rem, 2.4fr);
-  align-items: start;
-}
-.doctor-ai-treatment-editor.is-service .doctor-ai-treatment-editor__instruction { grid-column: auto; }
-.doctor-ai-treatment-editor > .ui-field { min-width: 0; margin: 0; }
-.doctor-ai-treatment-editor > small { grid-column: 1 / -1; color: var(--color-danger); }
+/* Editing reuses the order-entry draft row, so fields line up with the list columns. */
+.doctor-ai-treatment-item .doctor-unified-inline-composer { min-height: 3.75rem; }
+.doctor-ai-treatment-item .doctor-inline-order-static-type { grid-column: 1; padding: 0 var(--space-2); }
+.doctor-ai-treatment-item .doctor-inline-order-static-resource { min-width: 0; padding: var(--space-1) var(--space-2); overflow: hidden; }
+.doctor-ai-dose-unit-input { flex: 0 0 2.6rem; width: 2.6rem; min-width: 0 !important; text-align: left !important; border-left: 1px solid var(--color-border) !important; }
+.doctor-ai-treatment-editor-error { display: block; min-width: 54rem; padding: var(--space-1) var(--space-4) var(--space-2); color: var(--color-danger); font-size: var(--font-size-small);
+  background: color-mix(in srgb, var(--color-warning-soft) 38%, var(--color-surface)); }
 .doctor-vital-required { color: var(--color-danger); }
 .doctor-vital-input-wrap input[aria-invalid="true"] { box-shadow: inset 0 -1px 0 var(--color-danger); }
 

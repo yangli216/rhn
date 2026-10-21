@@ -2667,11 +2667,11 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(within(drawer).getByRole('tab', { name: /病历模板/ }))
     await user.click(await within(drawer).findByRole('button', { name: '带入病历草稿 (2)' }))
     await user.click(screen.getByRole('button', { name: '无胸痛：模板内容 · 待核实' }))
-    expect(screen.getByRole('button', { name: '改为：有' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: '改为：有胸痛' })).toHaveFocus()
     expect(screen.queryByRole('button', { name: '确认无误' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '改为：有' }))
+    await user.click(screen.getByRole('button', { name: '改为：有胸痛' }))
     expect(screen.getByRole('textbox', { name: '现病史' })).toHaveTextContent('咳嗽3天，用药3天；有胸痛')
-    expect(screen.getByText(/已改为「有」/)).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: '模板内容 · 待核实' })).getByRole('status')).toHaveTextContent('已改为「有胸痛」')
     await user.click(screen.getByRole('button', { name: '保存草稿' }))
     await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
       presentIllness: '咳嗽3天，用药3天；有胸痛',

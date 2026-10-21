@@ -7,7 +7,7 @@ import type { RhnApi } from '../../../shared/rhnApi'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { clinicalAiTreatmentKey, type AiOrderReviewCommand, type ServicePlanDraft } from './orderDraftTypes'
 import { resolveDispensableOptions } from './dispensableOptions'
-import { calculatePackageQuantity } from './medicationQuantity'
+import { defaultPackageQuantity } from './medicationQuantity'
 import { defaultServiceExecutionDepartment, resolveOrderExecutionDepartment } from './orderExecutionDepartment'
 
 // Resolve a one-shot AI command against the live catalog before adding editable drafts.
@@ -110,8 +110,8 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
             allergy.assertionType === 'NO_KNOWN_ALLERGY' || allergy.assertionType === 'NO_KNOWN_DRUG_ALLERGY')
             || drugAllergies.length > 0
           const hasSafetyAlert = drugAllergies.length > 0 || Boolean(raw.skinTestRequired || raw.antimicrobial)
-          const quantity = item.orderDraft?.quantity ?? calculatePackageQuantity({ medication: raw, doseValue, doseUnit, frequencyCode,
-            durationValue, selectedPackage: product, frequencies: activeFrequencies })?.quantity
+          const quantity = item.orderDraft?.quantity ?? defaultPackageQuantity({ medication: raw, doseValue, doseUnit, frequencyCode,
+            durationValue, selectedPackage: product, frequencies: activeFrequencies })
           if (quantity == null) return { item, error: '剂量、疗程或包装信息无法可靠推算总量，请手动填写开药总量' }
           if (!Number.isFinite(quantity) || quantity <= 0) return { item, error: '请填写有效的开药总量' }
           if (quantity > Number(raw.availablePackageQuantity)) return { item, error: '当前可用库存不足' }

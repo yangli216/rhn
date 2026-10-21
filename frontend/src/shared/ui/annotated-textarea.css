@@ -35,4 +35,4 @@
 .ui-annotation-popover__quick { min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
 .ui-annotation-popover__actions > .ui-button { flex: none; margin-left: auto; }
 .ui-annotation-popover:focus { outline: none; }
-.ui-annotation-undo { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.ui-annotation-popover__result { align-self: center; min-width: 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }

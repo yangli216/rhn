@@ -3,7 +3,7 @@ import type { ActiveOrderFrequency, MedicationKnowledge } from '../../../shared/
 import type { DispensableProductOption } from './dispensableOptions'
 import type { MedicationPlanDraft } from './medicationDraft'
 import { syncMedicationDraftGroup } from './administrationGroups'
-import { calculatePackageQuantity } from './medicationQuantity'
+import { calculatePackageQuantity, defaultPackageQuantity } from './medicationQuantity'
 
 describe('medication quantity from structured frequency', () => {
   const frequency = (ruleType: ActiveOrderFrequency['ruleType'], frequencyCount = 1, periodValue = 1, periodUnit = 'D'): ActiveOrderFrequency => ({
@@ -17,6 +17,13 @@ describe('medication quantity from structured frequency', () => {
     doseValue: 20, doseUnit: 'mg', frequencyCode: 'MISLEADING-QD', durationValue: 7,
   }
 
+  it('defaults PRN and once totals to one package, but never guesses other uncomputable totals', () => {
+    expect(defaultPackageQuantity({ ...input, frequencies: [frequency('PRN')] })).toBe(1)
+    expect(defaultPackageQuantity({ ...input, durationValue: undefined, frequencies: [frequency('ONCE')] })).toBe(1)
+    expect(defaultPackageQuantity({ ...input, frequencies: [frequency('TIMES_PER_PERIOD', 1, 1, 'D')] })).toBe(2)
+    expect(defaultPackageQuantity({ ...input, durationValue: undefined, frequencies: [frequency('TIMES_PER_PERIOD')] })).toBeUndefined()
+    expect(defaultPackageQuantity({ ...input, frequencies: [frequency('CALENDAR')] })).toBeUndefined()
+  })
   it('converts hours and weeks before rounding to whole packages', () => {
     expect(calculatePackageQuantity({ ...input, frequencies: [frequency('FIXED_INTERVAL', 1, 8, 'H')] }))
       .toMatchObject({ totalBaseUnits: 42, quantity: 5 })

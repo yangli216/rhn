@@ -40,7 +40,8 @@ h2 { font-size: var(--font-size-h2); line-height: var(--line-height-h2); }
 h3 { font-size: var(--font-size-h3); line-height: var(--line-height-h3); }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
-::selection { color: var(--color-text-primary); background: var(--color-brand-soft); }
+/* brand-soft is near-white on white surfaces; selection needs a visibly stronger tint. */
+::selection { color: var(--color-text-primary); background: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-surface)); }
 
 .visually-hidden {
   position: absolute;

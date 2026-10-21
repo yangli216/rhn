@@ -22,6 +22,9 @@ import { RecordExpansionTrigger } from './RecordExpansionTrigger'
 import { canExpandRecord, hasRecordNarrative, pickRecordExpansion, recordExpansionTargets } from './recordExpansion'
 import type { ClinicalAiGenerateOptions } from './ClinicalAiInlineWorkspace'
 
+export type ClinicalAiGeneratingTarget = 'DIAGNOSES' | 'TREATMENTS'
+const generatingTargetText = (target: ClinicalAiGeneratingTarget) => target === 'DIAGNOSES' ? '正在推荐诊断…' : '正在推荐医嘱…'
+
 export interface ClinicalAiCopilotHubProps {
   context: ClinicalAiDraftContext
   capability: ClinicalAiCapabilities
@@ -29,6 +32,8 @@ export interface ClinicalAiCopilotHubProps {
   current: boolean
   busy: boolean
   generating: boolean
+  /** Set when the running generation only recommends diagnoses or orders, not the record. */
+  generatingTarget?: ClinicalAiGeneratingTarget
   inputBusy: boolean
   preview: ClinicalAiPreview
   onView: () => void
@@ -57,7 +62,7 @@ export interface ClinicalAiCopilotHubProps {
 }
 
 export function ClinicalAiCopilotHub({
-  context, capability, suggestion, current, busy, generating, inputBusy, preview,
+  context, capability, suggestion, current, busy, generating, generatingTarget, inputBusy, preview,
   onView, disabled, canAdopt, error, voiceInput, interimTranscript, question,
   onQuestionChange, onClearVoice, onGenerate, planInputKey, stableVoiceTranscript, onFindPlans, onReviewRecommendedPlan, onApply, onOpenDetail, onOpenHistory,
   onOpenResults, sceneAssessment, sceneLoading, surfaces, chronicRefill,
@@ -455,7 +460,7 @@ export function ClinicalAiCopilotHub({
           {generating ? (
             <span className="doctor-ai-copilot-pill__status">
               <span className="doctor-ai-copilot-pill__pulse" />
-              正在共写…
+              {generatingTarget ? generatingTargetText(generatingTarget) : '正在共写…'}
             </span>
           ) : !nextStep && scenePillText ? (
             <span className="doctor-ai-copilot-pill__tag">{scenePillText}</span>
@@ -821,7 +826,8 @@ export function ClinicalAiCopilotHub({
                     <Icon name="sparkles" />
                   </span>
                   <span className="doctor-ai-generation__label">
-                    {preview.phase === 'TREATMENTS' ? '建议已生成，正在准备确认'
+                    {generatingTarget ? generatingTargetText(generatingTarget)
+                      : preview.phase === 'TREATMENTS' ? '建议已生成，正在准备确认'
                       : preview.phase === 'DIAGNOSES' ? '诊断已生成，正在匹配医嘱' : '正在共写病历'}
                   </span>
                 </div>

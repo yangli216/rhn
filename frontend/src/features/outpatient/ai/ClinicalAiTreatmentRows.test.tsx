@@ -23,7 +23,8 @@ function setup(defaults = true, servicePricePatch: Record<string, unknown> = {},
   ]) }, encounters: { orderableMedications: vi.fn().mockResolvedValue([medication]) }, masterData: {
     activeMedicationRoutes: vi.fn().mockResolvedValue([{ code: 'ORAL', name: '口服' }]),
     activeOrderFrequencies: vi.fn().mockResolvedValue([{ code: 'QD', name: '每日一次', executionTimes: ['08:00'],
-      ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D' }]),
+      ruleType: 'TIMES_PER_PERIOD', frequencyCount: 1, periodValue: 1, periodUnit: 'D' },
+      { code: 'PRN', name: '必要时', executionTimes: [], ruleType: 'PRN' }]),
     searchServices: vi.fn().mockResolvedValue({ content: [{ id: 's1', unitCode: 'ITEM', specimenType: '静脉血',
       examinationNotes: '测试采样要求', sdStatus: 'ACTIVE', sdUsageType: 'OUTPATIENT', orderable: true, chargeable: true, validFrom: '2020-01-01',
       organizationAdoption: { organizationId: 'o1', defaultDepartmentId: 'd1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
@@ -39,6 +40,21 @@ function setup(defaults = true, servicePricePatch: Record<string, unknown> = {},
 }
 
 describe('catalog-backed AI order details', () => {
+  it('edits in the order row and defaults a PRN total to one pharmacy package', async () => {
+    const { onReview } = setup()
+    await screen.findByText('每次 0.5 g · 口服 · 每日一次')
+    fireEvent.click(screen.getAllByRole('button', { name: '修改' })[0])
+    const editor = screen.getByRole('row', { name: '修改 测试药品' })
+    expect(editor).toHaveClass('doctor-unified-inline-composer')
+    expect(within(editor).getByLabelText('单次剂量')).toHaveFocus()
+    expect(within(editor).getByLabelText('总量（盒）')).toHaveValue(null)
+    fireEvent.click(within(editor).getByRole('combobox', { name: '频次' }))
+    fireEvent.click(screen.getByRole('option', { name: /必要时/ }))
+    expect(within(editor).getByLabelText('总量（盒）')).toHaveValue(1)
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 测试检验' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
+    expect(onReview.mock.calls[0][0][0].orderDraft).toMatchObject({ frequencyCode: 'PRN', quantity: 1 })
+  })
   it('uses the server resolved default instead of the requesting clinic and preserves it in review', async () => {
     const { onReview } = setup(true, {}, { defaultExecutionDepartment: { departmentId: 'd2', departmentName: '检验中心', source: 'DEPARTMENT_TYPE' } })
     expect(await screen.findByText('检验中心')).toBeInTheDocument()
@@ -111,8 +127,10 @@ describe('catalog-backed AI order details', () => {
     fireEvent.click(within(serviceRow as HTMLElement).getByRole('button', { name: '修改' }))
     const serviceEditor = within(screen.getByLabelText('修改 测试检验'))
     fireEvent.change(serviceEditor.getByLabelText('检查目的'), { target: { value: '医生明确填写的临床说明' } })
-    expect(serviceRow?.querySelector('.doctor-unified-cell-directions')).toHaveTextContent('医生明确填写的临床说明')
-    expect(serviceRow?.querySelector('.doctor-unified-cell-instruction')).toHaveTextContent('—')
+    fireEvent.click(serviceEditor.getByRole('button', { name: '收起' }))
+    const collapsed = screen.getByRole('checkbox', { name: '选择 测试检验' }).closest('.doctor-unified-order-row')
+    expect(collapsed?.querySelector('.doctor-unified-cell-directions')).toHaveTextContent('医生明确填写的临床说明')
+    expect(collapsed?.querySelector('.doctor-unified-cell-instruction')).toHaveTextContent('—')
     fireEvent.click(screen.getByRole('button', { name: '确认所选（2）' }))
     expect(onReview.mock.calls[0][0][1].orderDraft).toMatchObject({ quantity: 1, instruction: '医生明确填写的临床说明' })
   })

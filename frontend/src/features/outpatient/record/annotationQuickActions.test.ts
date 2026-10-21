@@ -8,9 +8,16 @@ describe('annotationQuickActions', () => {
     expect(next('有高血压史')).toEqual(['无高血压史'])
     expect(next('不伴发热')).toEqual(['伴发热'])
     expect(next('伴发热')).toEqual(['不伴发热'])
-    expect(next('否认药物过敏')).toEqual(['诉药物过敏'])
+    expect(next('否认药物过敏')).toEqual(['有药物过敏'])
     expect(next('诉头痛')).toEqual(['否认头痛'])
-    expect(annotationQuickActions('无胸痛')[0]).toEqual({ label: '改为：有', nextText: '有胸痛' })
+    expect(annotationQuickActions('无胸痛')[0]).toEqual({ label: '改为：有胸痛', nextText: '有胸痛' })
+  })
+  it('labels the swap with neighbouring characters, stopping at punctuation', () => {
+    const labels = (text: string) => annotationQuickActions(text).map((item) => item.label)
+    expect(labels('否认高血压、糖尿病等慢性病史')).toEqual(['改为：有高血压'])
+    expect(labels('诉头痛')).toEqual(['改为：否认头痛'])
+    expect(labels('疼痛明显')[0]).toBe('改为：疼痛轻微')
+    expect(labels('尿蛋白阳性')).toEqual(['改为：尿蛋白阴性'])
   })
   it.each(['无力', '乏力', '有力', '无锡', '主诉', '比较', '所有', '陪伴', '有效'])('does not treat %s as a presence word', (text) => {
     expect(next(text)).toEqual([])

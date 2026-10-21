@@ -438,13 +438,18 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     onNotice: (msg) => setLocalError(msg),
     enabled: sceneAssessment.scene === 'CHRONIC_REFILL',
   })
+  const generatingIntent = generate.isPending ? generate.variables?.intent : undefined
+  const generatingTarget = generatingIntent === 'DIAGNOSIS_RECOMMENDATION' ? 'DIAGNOSES' as const
+    : generatingIntent === 'TREATMENT_RECOMMENDATION' ? 'TREATMENTS' as const : undefined
   useEffect(() => {
+    // Diagnosis/order-only runs never rewrite the record, so the record stays editable without the co-writing state.
+    if (generatingTarget) { onFieldStream?.(null); return }
     // Expansion only previews the fields it may write, so doctor-written sections never flash model text.
     const recordDraft = expansionTargets.current ? pickRecordExpansion(preview.recordDraft, expansionTargets.current)
       : preview.recordDraft
     onFieldStream?.(generate.isPending && !disabled && !currentContext.busy
       ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft } : null)
-  }, [generate.isPending, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
+  }, [generate.isPending, generatingTarget, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
   useEffect(() => () => onFieldStream?.(null), [onFieldStream])
   const inputBusy = adoptDraft.isPending || ignoreSuggestion.isPending
   useEffect(() => {
@@ -952,7 +957,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       diagnosisBatchDismissed={dismissedDiagnosisBatchId === currentSuggestion?.id}
       treatmentBatchDismissed={dismissedTreatmentBatchId === currentSuggestion?.id}
       onDiscardTreatments={() => { if (currentSuggestion) setDismissedTreatmentBatchId(currentSuggestion.id) }}
-      busy={actionPending} inputBusy={inputBusy} generating={generate.isPending}
+      busy={actionPending} inputBusy={inputBusy} generating={generate.isPending} generatingTarget={generatingTarget}
       preview={preview}
       onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}
       canAdopt={auditFeature} error={localError || (error ? errorMessage(error) : '')}

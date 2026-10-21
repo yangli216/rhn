@@ -57,3 +57,14 @@ export function calculatePackageQuantity({
   const calculationText = `1${selectedPackage.unitName}=${factor}${baseUnit} · ${days}天共需${totalBaseUnits}${baseUnit}，合${packageQty}${selectedPackage.unitName}`
   return { quantity: packageQty, calculationText, totalBaseUnits }
 }
+
+/** PRN and one-off frequencies have no daily rate; their total defaults to one pharmacy package. */
+export function hasNoDailyRate(frequencies?: ActiveOrderFrequency[], code?: string) {
+  const ruleType = code ? frequencies?.find((frequency) => frequency.code === code)?.ruleType : undefined
+  return ruleType === 'PRN' || ruleType === 'ONCE'
+}
+
+/** The calculated package quantity, or one package when the frequency cannot drive a calculation. */
+export function defaultPackageQuantity(input: Parameters<typeof calculatePackageQuantity>[0]): number | undefined {
+  return calculatePackageQuantity(input)?.quantity ?? (hasNoDailyRate(input.frequencies, input.frequencyCode) ? 1 : undefined)
+}

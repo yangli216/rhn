@@ -12,7 +12,7 @@ import { IconButton, Button, Icon } from '../../../shared/ui'
 import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
 
-import { ClinicalAiCopilotHub } from './ClinicalAiCopilotHub'
+import { ClinicalAiCopilotHub, type ClinicalAiGeneratingTarget } from './ClinicalAiCopilotHub'
 import type { ChronicRefillController } from './useChronicRefill'
 
 export interface ClinicalAiSurfaces {
@@ -41,7 +41,7 @@ export interface InlineAiSelection {
 
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
-  generating, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
+  generating, generatingTarget, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
   onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading, chronicRefill }: {
   api: RhnApi
   encounter: Encounter
@@ -52,6 +52,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   current: boolean
   busy: boolean
   generating: boolean
+  generatingTarget?: ClinicalAiGeneratingTarget
   inputBusy: boolean
   preview: ClinicalAiPreview
   diagnosisBatchDismissed?: boolean
@@ -116,6 +117,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
         current={current}
         busy={busy}
         generating={generating}
+        generatingTarget={generatingTarget}
         inputBusy={inputBusy}
         preview={preview}
         onView={onView}
@@ -144,6 +146,11 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       surfaces.note,
       'copilot-hub'
     )}
+
+    {generatingTarget === 'DIAGNOSES' && diagnosisFeature && diagnoses.length === 0 && portal(
+      <GeneratingRow text="AI 正在依据病历推荐诊断，完成后可逐项核对确认。" />, surfaces.diagnoses, 'diagnoses-loading')}
+    {generatingTarget === 'TREATMENTS' && planFeature && availableTreatmentItems.length === 0 && portal(
+      <GeneratingRow text="AI 正在依据病历和诊断推荐医嘱，完成后可逐项核对确认。" />, surfaces.plans, 'treatments-loading')}
 
     {(current || generating) && diagnosisFeature && diagnoses.length > 0 && portal(
       <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断待确认">
@@ -179,7 +186,8 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
               </Button></span>
           </div>
         })}
-        <div className="doctor-ai-order-batch is-diagnosis" role="row"><span>{generating ? '诊断建议已生成，正在整理医嘱，完成后可确认。' : `已选 ${selectedDiagnoses.length} 项，核对后录入诊断。`}</span>
+        <div className="doctor-ai-order-batch is-diagnosis" role="row"><span>{generatingTarget === 'DIAGNOSES' ? '正在生成诊断建议，完成后可确认。'
+          : generating ? '诊断建议已生成，正在整理医嘱，完成后可确认。' : `已选 ${selectedDiagnoses.length} 项，核对后录入诊断。`}</span>
           <Button size="sm" disabled={disabled || busy || generating || !canAdopt || selectedDiagnoses.length === 0}
             onClick={() => onApply({ diagnoses: selectedDiagnoses.map(({ code, display, type }) => ({ code, display, type })) })}>
             <Icon name="check" />确认所选诊断（{selectedDiagnoses.length}）</Button></div>
@@ -206,6 +214,13 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       api={api}
     />
   </>
+}
+
+/** Loading placeholder shown where the recommendation will land, so the doctor's eyes stay on that section. */
+function GeneratingRow({ text }: { text: string }) {
+  return <div className="doctor-ai-order-batch doctor-ai-generating-row" role="status" aria-live="polite">
+    <span><span className="doctor-ai-copilot-pill__pulse" aria-hidden="true" />{text}</span>
+  </div>
 }
 
 function treatmentKey(item: ClinicalAiTreatmentRecommendation) {

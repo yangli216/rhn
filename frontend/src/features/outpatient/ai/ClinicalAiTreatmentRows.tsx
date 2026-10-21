@@ -5,10 +5,10 @@ import type { ClinicalAiTreatmentRecommendation } from '../../../shared/api/clin
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { Encounter } from '../../../shared/model'
 import type { MedicationKnowledge } from '../../../shared/api/masterDataApi'
-import { IconButton, Button, FormField, Icon, Select } from '../../../shared/ui'
+import { IconButton, Button, Icon, Select } from '../../../shared/ui'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { ServiceInsertButton } from './ServiceInsertButton'
-import { calculatePackageQuantity } from '../orders/medicationQuantity'
+import { defaultPackageQuantity, hasNoDailyRate } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
 import {
   formatPackageUnit,
@@ -112,10 +112,11 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
     const base: EditableOrderDetails = { ...resolved?.details, ...ai }
     // Lab/exam: the AI-suggested examination purpose seeds the editable instruction (becomes the document's examination purpose).
     if (!medication && resolved && base.instruction === undefined) base.instruction = item.purpose?.trim() || ''
-    // Default quantity is only derivable once an AI-supplied draft completes dose/frequency/duration.
-    if (aiFields.length && base.quantity === undefined && resolved?.medication && resolved.product) {
-      base.quantity = calculatePackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product, doseValue: base.doseValue,
-        doseUnit: base.doseUnit, frequencyCode: base.frequencyCode, durationValue: base.durationValue, frequencies: frequencies.data })?.quantity
+    // Default quantity is derivable once an AI-supplied draft completes dose/frequency/duration; PRN/once defaults to one package.
+    if ((aiFields.length || hasNoDailyRate(frequencies.data, base.frequencyCode)) && base.quantity === undefined
+      && resolved?.medication && resolved.product) {
+      base.quantity = defaultPackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product, doseValue: base.doseValue,
+        doseUnit: base.doseUnit, frequencyCode: base.frequencyCode, durationValue: base.durationValue, frequencies: frequencies.data })
     }
     const details: EditableOrderDetails = { ...base, ...edits[key] }
     const usageSource = !aiFields.length ? 'default' : (['doseValue', 'doseUnit', 'routeCode', 'frequencyCode'] as const).every(field => field in ai) ? 'ai' : 'mixed'
@@ -131,15 +132,20 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       if ('quantity' in patch) setManualQuantities(current => ({ ...current, [key]: true }))
       if (resolved?.medication && resolved.product && !manualQuantities[key]
         && !('quantity' in patch) && ['doseValue', 'doseUnit', 'frequencyCode', 'durationValue'].some((field) => field in patch)) {
-        const quantity = calculatePackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product,
+        const quantity = defaultPackageQuantity({ medication: resolved.medication, selectedPackage: resolved.product,
           doseValue: next.doseValue, doseUnit: next.doseUnit, frequencyCode: next.frequencyCode,
-          durationValue: next.durationValue, frequencies: frequencies.data })?.quantity
+          durationValue: next.durationValue, frequencies: frequencies.data })
         patch.quantity = quantity
       }
       setEdits((current) => ({ ...current, [key]: { ...current[key], ...patch } }))
     }
     return { item, key, result, resolved, details, usageSource, valid, medication, department, change }
   })
+  const routeOptions = (routes.data ?? []).map((route) => ({ value: route.code, label: route.name, secondaryText: route.code,
+    searchKeywords: [route.code, route.name] }))
+  const frequencyOptions = (frequencies.data ?? []).map((frequency) => ({ value: frequency.code, label: frequency.name,
+    secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}`,
+    searchKeywords: [frequency.code, frequency.shortName ?? ''] }))
   const selected = rows.filter((row) => !excluded.includes(row.key))
   const selectedReady = selected.length > 0 && selected.every((row) => row.valid)
   if (!items.length) return null
@@ -152,14 +158,12 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
         ? resolved?.specification || item.specification || (shouldDisplayOrderCode(item.code) ? item.code : undefined)
         : (shouldDisplayOrderCode(item.code) ? item.code : undefined)
       const open = editingKey === key
-      return <div key={key} className="doctor-ai-treatment-item">
-        <div className="doctor-unified-order-row is-ai-suggestion" role="row">
-          <span className="doctor-unified-cell-type"><label className="doctor-ai-order-select">
-            <input type="checkbox" aria-label={`选择 ${item.name}`} checked={!excluded.includes(key)} disabled={disabled}
-              onChange={() => setExcluded((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} />
-            <span className="doctor-ai-pending-badge">
-              {{ MEDICATION: '药品', LABORATORY: '检验', EXAMINATION: '检查' }[item.type]}</span></label></span>
-          <span className="doctor-unified-cell-name">
+      const typeCell = <label className="doctor-ai-order-select">
+        <input type="checkbox" aria-label={`选择 ${item.name}`} checked={!excluded.includes(key)} disabled={disabled}
+          onChange={() => setExcluded((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} />
+        <span className="doctor-ai-pending-badge">
+          {{ MEDICATION: '药品', LABORATORY: '检验', EXAMINATION: '检查' }[item.type]}</span></label>
+      const nameCell = <>
             <div className="doctor-order-name-with-action">
               <strong>{item.name}</strong>
               {medication && (
@@ -175,7 +179,65 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
             </div>
             {item.aiOriginalName && <small>AI 原建议：{item.aiOriginalName}</small>}
             {secondaryText && <small>{secondaryText}</small>}
-          </span>
+      </>
+      const numberInput = (label: string, value: number | undefined, onValue: (next: number | undefined) => void, unit: string, autoFocus = false) =>
+        <div className="doctor-entry-input-unit"><input aria-label={label} type="number" step="any" min="0" value={value ?? ''} disabled={disabled}
+          autoFocus={autoFocus} onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => onValue(event.target.value === '' ? undefined : Number(event.target.value))} /><small>{unit}</small></div>
+      if (open) return <div key={key} className="doctor-ai-treatment-item">
+        <div className="doctor-unified-inline-composer is-draft-editor is-ai-suggestion" role="row" aria-label={`修改 ${item.name}`}>
+          <div className="doctor-inline-order-static-type">{typeCell}</div>
+          <div className="doctor-inline-order-static-resource doctor-unified-cell-name">{nameCell}</div>
+          {medication ? <div className="doctor-inline-order-directions-group">
+            <div className="doctor-inline-order-field doctor-inline-order-dose">
+              {/* The AI unit may differ from the catalog default, so the unit stays editable beside the dose. */}
+              <div className="doctor-entry-input-unit">
+                <input aria-label="单次剂量" type="number" step="any" min="0" autoFocus value={details.doseValue ?? ''} disabled={disabled}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => change({ doseValue: event.target.value === '' ? undefined : Number(event.target.value) })} />
+                <input aria-label="剂量单位" className="doctor-ai-dose-unit-input" placeholder="单位" maxLength={32} value={details.doseUnit ?? ''}
+                  disabled={disabled} onChange={(event) => change({ doseUnit: event.target.value })} /></div>
+            </div>
+            <div className="doctor-inline-order-field doctor-inline-order-route">
+              <Select aria-label="途径" value={details.routeCode ?? ''} disabled={disabled} showValue placeholder="途径"
+                options={routeOptions} onChange={(routeCode) => change({ routeCode })} />
+            </div>
+            <div className="doctor-inline-order-field doctor-inline-order-frequency">
+              <Select aria-label="频次" value={details.frequencyCode ?? ''} disabled={disabled} showValue placeholder="频次"
+                options={frequencyOptions} onChange={(frequencyCode) => change({ frequencyCode })} />
+            </div>
+            <div className="doctor-inline-order-field doctor-inline-order-duration" title="天数，可不填">
+              {numberInput('天数', details.durationValue, (durationValue) => change({ durationValue }), '天')}
+            </div>
+          </div> : <div className="doctor-inline-order-static doctor-inline-service-execution"
+            title={resolved?.executionRequirements || undefined}>{resolved?.specification || '按项目执行流程'}</div>}
+          <div className="doctor-inline-order-field doctor-inline-order-quantity" title={`总量（${resolved?.unit ?? ''}）`}>
+            {numberInput(`总量（${resolved?.unit ?? ''}）`, details.quantity, (quantity) => change({ quantity }), resolved?.unit ?? '', !medication)}
+          </div>
+          {medication ? <div className="doctor-inline-order-static doctor-inline-order-dept">
+            <span className="doctor-direction-chip is-dept">{resolved?.stockSiteName || '发药药房待确认'}</span></div>
+            : <div className="doctor-inline-order-field doctor-inline-order-dept">
+              <Select aria-label="执行科室" value={details.performerDepartmentId || ''}
+                disabled={disabled || departments.isPending || departments.isError}
+                placeholder={departments.isPending ? '加载科室…' : '执行科室'}
+                options={(departments.data || []).map(value => ({ value: value.id, label: value.name }))}
+                onChange={id => change({ performerOrganizationId: encounter.organizationId, performerDepartmentId: id || undefined })} />
+            </div>}
+          <div className={`doctor-inline-order-field doctor-inline-order-instruction${medication ? '' : ' doctor-inline-order-service-note'}`}>
+            <input aria-label={medication ? '用药嘱托' : '检查目的'} placeholder={medication ? '用药嘱托' : '检查目的'}
+              value={details.instruction ?? ''} disabled={disabled} maxLength={1000}
+              onChange={(event) => change({ instruction: event.target.value })} />
+          </div>
+          <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(resolved?.price, resolved?.currencyCode)}</div>
+          <div className="doctor-inline-order-status"><span className="doctor-ai-review-status">{valid ? '待核对' : '需补全'}</span></div>
+          <div className="doctor-inline-order-actions"><Button size="sm" variant="text" onClick={() => setEditingKey(undefined)}>收起</Button></div>
+        </div>
+        {!valid && <small className="doctor-ai-treatment-editor-error" role="alert">请补全有效的{medication ? '剂量、单位、途径、频次和总量；填写天数时须大于 0' : '执行科室和总量'}。</small>}
+      </div>
+      return <div key={key} className="doctor-ai-treatment-item">
+        <div className="doctor-unified-order-row is-ai-suggestion" role="row">
+          <span className="doctor-unified-cell-type">{typeCell}</span>
+          <span className="doctor-unified-cell-name">{nameCell}</span>
           <span className="doctor-unified-cell-directions" title={medication ? undefined : resolved?.executionRequirements || undefined}>{result.isPending ? '正在补齐目录用法…' : result.isError
             ? <span role="alert">{result.error.message}<Button variant="text" size="sm" onClick={() => void result.refetch()}>重试</Button></span>
             : medication ? <span className="doctor-ai-treatment-directions">
@@ -193,36 +255,8 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           <span className="doctor-unified-cell-price">{formatUnitPrice(resolved?.price, resolved?.currencyCode)}</span>
           <span className="doctor-unified-cell-status"><span className="doctor-ai-review-status">{resolved && !valid ? '需补全' : '待核对'}</span></span>
           <span className="doctor-unified-cell-actions"><Button size="sm" variant="text" disabled={disabled || !resolved}
-            onClick={() => setEditingKey(open ? undefined : key)}>{open ? '收起' : '修改'}</Button></span>
+            onClick={() => setEditingKey(key)}>修改</Button></span>
         </div>
-        {open && <div className={`doctor-ai-treatment-editor${medication ? '' : ' is-service'}`} aria-label={`修改 ${item.name}`}>
-          {!medication && <FormField label="执行科室">
-            <Select aria-label="执行科室" value={details.performerDepartmentId || ''}
-              disabled={disabled || departments.isPending || departments.isError}
-              placeholder={departments.isPending ? '加载科室…' : '请选择执行科室'}
-              options={(departments.data || []).map(value => ({ value: value.id, label: value.name }))}
-              onChange={id => change({ performerOrganizationId: encounter.organizationId, performerDepartmentId: id || undefined })} />
-          </FormField>}
-          {medication && <>
-            <label>单次剂量<input type="number" step="any" min="0" value={details.doseValue ?? ''} disabled={disabled}
-              onChange={(event) => change({ doseValue: event.target.value === '' ? undefined : Number(event.target.value) })} /></label>
-            <label>剂量单位<input value={details.doseUnit ?? ''} disabled={disabled} maxLength={32}
-              onChange={(event) => change({ doseUnit: event.target.value })} /></label>
-            <label>途径<select value={details.routeCode ?? ''} disabled={disabled}
-              onChange={(event) => change({ routeCode: event.target.value })}><option value="">请选择</option>
-              {routes.data?.map((value) => <option key={value.code} value={value.code}>{value.name}</option>)}</select></label>
-            <label>频次<select value={details.frequencyCode ?? ''} disabled={disabled}
-              onChange={(event) => change({ frequencyCode: event.target.value })}><option value="">请选择</option>
-              {frequencies.data?.map((value) => <option key={value.code} value={value.code}>{value.name}</option>)}</select></label>
-            <label>天数<input type="number" step="any" min="0" placeholder="未设定" value={details.durationValue ?? ''} disabled={disabled}
-              onChange={(event) => change({ durationValue: event.target.value === '' ? undefined : Number(event.target.value) })} /></label>
-          </>}
-          <FormField label={`总量（${resolved?.unit ?? ''}）`}><input type="number" step="any" min="0" value={details.quantity ?? ''} disabled={disabled}
-            onChange={(event) => change({ quantity: event.target.value === '' ? undefined : Number(event.target.value) })} /></FormField>
-          <FormField className="doctor-ai-treatment-editor__instruction" label={medication ? '用药嘱托' : '检查目的'}><input aria-label={medication ? '用药嘱托' : '检查目的'} value={details.instruction ?? ''} disabled={disabled}
-            maxLength={1000} onChange={(event) => change({ instruction: event.target.value })} /></FormField>
-          {!valid && <small role="alert">请补全有效的{medication ? '剂量、单位、途径、频次和总量；填写天数时须大于 0' : '执行科室和总量'}。</small>}
-        </div>}
       </div>
     })}
     {departments.isError && <div role="alert">执行科室加载失败。<Button variant="text" size="sm"

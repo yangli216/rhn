@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { stableClinicalAiFingerprint } from './aiDraftAdapter'
@@ -281,5 +281,28 @@ describe('ClinicalAiAssistantPanel focused next-step results', () => {
     expect(await screen.findByRole('button', { name: /确认所选诊断/ })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /丢弃本轮推荐/ })).not.toBeInTheDocument()
     expect(onApply).not.toHaveBeenCalled()
+  })
+
+  it('shows diagnosis loading in the diagnosis section without the record co-writing state', async () => {
+    const generate = vi.fn().mockImplementation(() => new Promise(() => undefined))
+    const api = assistantApi({ generate })
+    const onFieldStream = vi.fn()
+    const slots = render(<div><div data-testid="s" /><div data-testid="n" /><div data-testid="d" /><div data-testid="p" /></div>)
+    const surfaces = { summary: slots.getByTestId('s') as HTMLDivElement, note: slots.getByTestId('n') as HTMLDivElement,
+      diagnoses: slots.getByTestId('d') as HTMLDivElement, plans: slots.getByTestId('p') as HTMLDivElement, detail: null }
+    const written = { ...context, chiefComplaint: '咳嗽3天', presentIllness: '咳嗽3天，无发热。',
+      medicationDraftFingerprint: stableClinicalAiFingerprint('medications', []),
+      serviceDraftFingerprint: stableClinicalAiFingerprint('services', []) }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><ClinicalAiAssistantPanel surfaces={surfaces} encounter={encounter}
+      currentContext={written} allergies={[]} allergyState="READY" api={api} disabled={false}
+      onAdoptionBusyChange={vi.fn()} onApply={vi.fn()} onFieldStream={onFieldStream} /></QueryClientProvider>)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'AI 推荐诊断' }))
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
+    expect(within(surfaces.diagnoses).getByRole('status')).toHaveTextContent('AI 正在依据病历推荐诊断')
+    expect(screen.getByText('正在推荐诊断…')).toBeInTheDocument()
+    expect(screen.queryByText('正在共写…')).not.toBeInTheDocument()
+    expect(onFieldStream).not.toHaveBeenCalledWith(expect.objectContaining({ encounterId: encounter.id }))
   })
 })

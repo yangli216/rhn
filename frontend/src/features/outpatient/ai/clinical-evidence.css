@@ -1,5 +1,10 @@
 /* 门诊临床知识轻量面板 */
 
+/* 指南与说明书正文较长，默认比通用面板（30rem）宽一些。 */
+.ui-dialog-backdrop--panel > .clinical-knowledge-panel.ui-dialog--panel {
+  width: min(36rem, calc(100vw - 2 * var(--space-4)));
+}
+
 .clinical-knowledge-panel__body {
   min-height: 0;
   overflow-y: auto;
