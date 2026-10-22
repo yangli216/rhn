@@ -26,10 +26,50 @@ export interface PrintReceipt {
     revision: number
     deviceId?: string | null
     deviceName: string
-    channel: 'BROWSER_PDF' | 'LOCAL_BRIDGE'
-    status: 'GENERATED' | 'QUEUED' | 'SENT' | 'DEVICE_CONFIRMED' | 'FAILED' | 'CANCELLED'
+    channel: PrintDeliveryChannel
+    status: PrintDeliveryStatus
     attemptCount: number
   }
+}
+
+/** DESKTOP_LINK：页面在 RHN Link 工作站中运行时经 `rhn.printing` 插件提交到系统打印队列。 */
+export type PrintDeliveryChannel = 'BROWSER_PDF' | 'LOCAL_BRIDGE' | 'DESKTOP_LINK'
+export type PrintDeliveryStatus = 'GENERATED' | 'QUEUED' | 'DISPATCHED' | 'SENT' | 'UNCERTAIN'
+  | 'DEVICE_CONFIRMED' | 'FAILED' | 'CANCELLED'
+
+export interface DesktopPrintDelivery {
+  id: string
+  revision: number
+  channel: PrintDeliveryChannel
+  status: PrintDeliveryStatus
+  attemptCount: number
+  errorCode?: string | null
+  errorMessage?: string | null
+  operationId?: string | null
+  printerName?: string | null
+  systemJobNo?: string | null
+  sentAt?: string | null
+  confirmedAt?: string | null
+  batchStatus?: string | null
+}
+
+/** 工作站执行打印所需的全部参数；jobName 不含患者信息，sha256 为小写十六进制。 */
+export interface DesktopPrintDispatch {
+  delivery: DesktopPrintDelivery
+  operationId: string
+  printerName: string
+  jobName: string
+  copies: number
+  sha256: string
+  downloadUrl: string
+}
+
+export interface DesktopPrintResultReport {
+  expectedRevision: number
+  operationId: string
+  outcome: 'SUBMITTED' | 'NOT_EXECUTED' | 'UNCERTAIN'
+  systemJobNo?: string
+  resultCode?: string
 }
 
 export interface PrintJobRecord {
@@ -253,7 +293,7 @@ export interface ClinicalPrintDevice {
   revision: number
   deviceCode: string
   deviceName: string
-  channel: 'BROWSER_PDF' | 'LOCAL_BRIDGE'
+  channel: PrintDeliveryChannel
   outputLanguage: 'PDF' | 'ZPL' | 'TSPL' | 'ESC_POS'
   queueName?: string | null
   defaultDevice: boolean
@@ -281,7 +321,7 @@ export interface SaveClinicalPrintDevice {
   expectedRevision: number
   deviceCode: string
   deviceName: string
-  channel: 'BROWSER_PDF' | 'LOCAL_BRIDGE'
+  channel: PrintDeliveryChannel
   outputLanguage: 'PDF' | 'ZPL' | 'TSPL' | 'ESC_POS'
   queueName?: string
   capabilitiesJson?: string
@@ -324,7 +364,7 @@ export interface ClinicalPrintBatch {
   downloadUrl?: string | null
   createdAt: string
   createdBy: string
-  delivery?: { id: string; revision: number; channel: 'BROWSER_PDF' | 'LOCAL_BRIDGE'; status: string
+  delivery?: { id: string; revision: number; channel: PrintDeliveryChannel; status: string
     attemptCount: number; errorCode?: string | null; errorMessage?: string | null; queuedAt?: string | null
     sentAt?: string | null; confirmedAt?: string | null } | null
   items: Array<{ id: string; sourceId: string; sourceVersion: number; residentId?: string | null
@@ -502,5 +542,24 @@ export function createPrintingApi(client: ApiClient) {
       }),
     printPdf,
     download,
+    content: (downloadUrl: string) => client.download(downloadUrl),
+    desktopDispatch: (deliveryId: string, expectedRevision: number, operationId: string) =>
+      client.request<DesktopPrintDispatch>(`/api/platform/printing/deliveries/${deliveryId}/desktop-dispatches`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision, operationId }),
+      }),
+    desktopResult: (deliveryId: string, report: DesktopPrintResultReport) =>
+      client.request<DesktopPrintDelivery>(`/api/platform/printing/deliveries/${deliveryId}/desktop-results`, {
+        method: 'POST', body: JSON.stringify(report),
+      }),
+    reconcileDesktopPrint: (deliveryId: string, expectedRevision: number, printed: boolean, note?: string) =>
+      client.request<DesktopPrintDelivery>(`/api/platform/printing/deliveries/${deliveryId}/reconciliations`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision, printed, note }),
+      }),
+    desktopBrowserFallback: (deliveryId: string, expectedRevision: number) =>
+      client.request<DesktopPrintDelivery>(`/api/platform/printing/deliveries/${deliveryId}/browser-fallbacks`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision }),
+      }),
   }
 }
+
+export type PrintingApi = ReturnType<typeof createPrintingApi>

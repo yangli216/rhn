@@ -23,6 +23,7 @@ import { parseChineseResidentId } from '../../shared/validation/businessValidati
 import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
 import { InsuranceInfoPopover, useRegistrationInsuranceSettlement, useRegistrationInsuranceTiming } from './registrationInsurance'
 import { InsuranceMediaButtons, useInsuranceMediaReader, type InsuranceMediaRead } from '../../shared/billing/insuranceMedia'
+import { printReceipt } from '../../shared/desktop/desktopPrintDelivery'
 import '../../styles/features/scheduling-registration.css'
 import { formatDateKey } from '../../shared/utils/dateRange'
 
@@ -286,7 +287,19 @@ function ThermalReceiptModal({
         throw new Error('受控打印平台未返回有效凭条输出文档，请重试')
       }
       setPrintFeedback(`已生成受控热敏凭条 (版本 V${result.templateVersion || 1})，调起打印...`)
-      if (api.printing.printPdf) {
+      if (result.delivery?.channel === 'DESKTOP_LINK') {
+        const outcome = await printReceipt(api.printing, result)
+        if (outcome.kind === 'desktop') {
+          setPrintFeedback(outcome.settlement.kind === 'submitted'
+            ? `凭条已提交到 ${outcome.printerName} 的打印队列。`
+            : null)
+          if (outcome.settlement.kind !== 'submitted') {
+            setPrintError(outcome.settlement.kind === 'uncertain'
+              ? `凭条打印结果不确定，可能已进入 ${outcome.printerName} 的打印队列，请先核对出纸，勿重复打印。`
+              : `工作站未执行凭条打印，请核对打印设备 ${outcome.printerName} 后重试。`)
+          }
+        }
+      } else if (api.printing.printPdf) {
         await api.printing.printPdf(result.downloadUrl)
       } else {
         await api.printing.download(result)

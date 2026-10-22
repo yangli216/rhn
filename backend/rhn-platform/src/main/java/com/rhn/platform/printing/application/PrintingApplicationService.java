@@ -355,7 +355,8 @@ public class PrintingApplicationService implements PrintingService {
                 .orElse(null);
         PrintDelivery delivery = new PrintDelivery(context.tenantId(), null, jobId,
                 device == null ? null : device.id(), device == null ? "BROWSER_PDF" : device.channel());
-        if (device != null && "LOCAL_BRIDGE".equals(device.channel())) delivery.queue(0);
+        if (device != null && ("LOCAL_BRIDGE".equals(device.channel())
+                || DesktopPrintDeliveryService.CHANNEL.equals(device.channel()))) delivery.queue(0);
         else delivery.sent(0);
         return deliveryRepository.save(delivery);
     }

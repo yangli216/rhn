@@ -12982,6 +12982,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/printing/deliveries/{deliveryId}/reconciliations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reconcileDesktopPrint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/printing/deliveries/{deliveryId}/desktop-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reportDesktopPrintResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/printing/deliveries/{deliveryId}/desktop-dispatches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dispatchDesktopPrint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/printing/deliveries/{deliveryId}/browser-fallbacks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["fallBackDesktopPrintToBrowser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -29842,6 +29906,60 @@ export interface components {
             separateInfusion?: boolean;
             /** Format: int32 */
             maxItemsPerPrescription?: number;
+        };
+        DesktopReconcileRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            printed?: boolean;
+            note?: string;
+        };
+        DesktopPrintDeliveryView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            channel?: string;
+            status?: string;
+            /** Format: int32 */
+            attemptCount?: number;
+            errorCode?: string;
+            errorMessage?: string;
+            operationId?: string;
+            printerName?: string;
+            systemJobNo?: string;
+            /** Format: date-time */
+            sentAt?: string;
+            /** Format: date-time */
+            confirmedAt?: string;
+            batchStatus?: string;
+        };
+        DesktopResultRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            operationId: string;
+            /** @enum {string} */
+            outcome: "SUBMITTED" | "NOT_EXECUTED" | "UNCERTAIN";
+            systemJobNo?: string;
+            resultCode?: string;
+        };
+        DesktopDispatchRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            operationId: string;
+        };
+        DesktopPrintDispatchView: {
+            delivery?: components["schemas"]["DesktopPrintDeliveryView"];
+            operationId?: string;
+            printerName?: string;
+            jobName?: string;
+            /** Format: int32 */
+            copies?: number;
+            sha256?: string;
+            downloadUrl?: string;
+        };
+        DesktopRevisionRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
         };
     };
     responses: never;
@@ -60726,6 +60844,146 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["OrderingPolicyResponse"];
+                };
+            };
+        };
+    };
+    reconcileDesktopPrint: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesktopReconcileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DesktopPrintDeliveryView"];
+                };
+            };
+        };
+    };
+    reportDesktopPrintResult: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesktopResultRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DesktopPrintDeliveryView"];
+                };
+            };
+        };
+    };
+    dispatchDesktopPrint: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesktopDispatchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DesktopPrintDispatchView"];
+                };
+            };
+        };
+    };
+    fallBackDesktopPrintToBrowser: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesktopRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DesktopPrintDeliveryView"];
                 };
             };
         };

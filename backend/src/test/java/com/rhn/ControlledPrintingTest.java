@@ -261,14 +261,152 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         "OUTPATIENT_NOTE_A4", "OUTPATIENT_PRESCRIPTION_A5", "ORAL_MEDICATION_CARD_80",
                         "INFUSION_LABEL_70X50", "INFUSION_PATROL_A5", "LABORATORY_APPLICATION_A5",
                         "EXAMINATION_APPLICATION_A5", "TREATMENT_APPLICATION_A5")));
-        assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_JOB where ID_TNT = ?", Integer.class,
-                Long.valueOf(TENANT)));
-        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ?", Integer.class,
-                Long.valueOf(TENANT)));
-        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ? and CD_PRINT_TASK is not null and ID_PRINT_IMPL is not null and ID_PRINT_IMPL_BIND is not null", Integer.class,
-                Long.valueOf(TENANT)));
-        assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_DELIVERY where ID_TNT = ?", Integer.class,
-                Long.valueOf(TENANT)));
+        // 同一测试库中其他用例也会打印，计数限定为本次就诊的输出。
+        String encounterOutputs = "select ID_PRINT_OUTPUT from RHN_SYS_PRINT_OUTPUT where ID_TNT = ? and ID_ENC = ?";
+        Long tenant = Long.valueOf(TENANT); Long encounter = Long.valueOf(encounterId);
+        assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_JOB where ID_PRINT_OUTPUT in ("
+                + encounterOutputs + ")", Integer.class, tenant, encounter));
+        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ? and ID_ENC = ?",
+                Integer.class, tenant, encounter));
+        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ? and ID_ENC = ? and CD_PRINT_TASK is not null and ID_PRINT_IMPL is not null and ID_PRINT_IMPL_BIND is not null",
+                Integer.class, tenant, encounter));
+        assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_DELIVERY where ID_PRINT_JOB in ("
+                + "select ID_PRINT_JOB from RHN_SYS_PRINT_JOB where ID_PRINT_OUTPUT in (" + encounterOutputs + "))",
+                Integer.class, tenant, encounter));
+    }
+
+    @Test
+    void desktop_link_delivery_persists_operation_before_dispatch_and_requires_reconciliation_when_uncertain() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String residentId = createResident(suffix);
+        String encounterId = createActiveEncounter(residentId);
+        String documentId = createAndSignDocument(residentId, encounterId, "OUTPATIENT_NOTE", "门诊病历", "工作站打印测试");
+        mockMvc.perform(post("/api/platform/printing/devices").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "expectedRevision", 0, "deviceCode", "DESKTOP-BAD-" + suffix, "deviceName", "缺打印机名",
+                                "channel", "DESKTOP_LINK", "outputLanguage", "PDF"))))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PRINT_DEVICE_PRINTER_REQUIRED"));
+        JsonNode printer = json(mockMvc.perform(post("/api/platform/printing/devices").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "expectedRevision", 0, "deviceCode", "DESKTOP-" + suffix, "deviceName", "诊室工作站打印机",
+                                "channel", "DESKTOP_LINK", "outputLanguage", "PDF", "queueName", "处方打印机",
+                                "capabilitiesJson", "{\"mediaCodes\":[\"A4_PORTRAIT\"]}"))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode binding = json(mockMvc.perform(post("/api/platform/printing/device-bindings").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"expectedRevision":0,"documentType":"OUTPATIENT_NOTE",
+                                 "mediaProfileId":"270000000000201","deviceId":"%s"}
+                                """.formatted(printer.get("id").asString())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        try {
+            JsonNode receipt = json(mockMvc.perform(post("/api/platform/printing/tasks").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"taskCode":"OP.MEDICAL_RECORD.PRINT",
+                                     "source":{"sourceType":"ClinicalDocument","sourceId":"%s","encounterId":"%s"},
+                                     "purpose":"PATIENT_COPY","copies":1,"idempotencyKey":"DESKTOP-%s"}
+                                    """.formatted(documentId, encounterId, suffix)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.delivery.channel").value("DESKTOP_LINK"))
+                    .andExpect(jsonPath("$.delivery.status").value("QUEUED"))
+                    .andReturn().getResponse().getContentAsString());
+            String deliveryId = receipt.get("delivery").get("id").asString();
+            String base = "/api/platform/printing/deliveries/" + deliveryId;
+            long revision = receipt.get("delivery").get("revision").asLong();
+            String firstOperation = UUID.randomUUID().toString();
+            String secondOperation = UUID.randomUUID().toString();
+
+            mockMvc.perform(post(base + "/desktop-dispatches").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"operationId\":\"NOT-A-UUID\"}".formatted(revision)))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PRINT_DESKTOP_OPERATION_INVALID"));
+            JsonNode dispatched = json(mockMvc.perform(post(base + "/desktop-dispatches").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"operationId\":\"%s\"}".formatted(revision, firstOperation)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.delivery.status").value("DISPATCHED"))
+                    .andExpect(jsonPath("$.printerName").value("处方打印机"))
+                    .andExpect(jsonPath("$.jobName").value("RHN-" + receipt.get("outputId").asString()))
+                    .andExpect(jsonPath("$.copies").value(1))
+                    .andExpect(jsonPath("$.sha256").value(receipt.get("contentDigest").asString().toLowerCase()))
+                    .andReturn().getResponse().getContentAsString());
+            revision = dispatched.get("delivery").get("revision").asLong();
+            mockMvc.perform(post(base + "/desktop-dispatches").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":0,\"operationId\":\"%s\"}".formatted(firstOperation)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.delivery.revision").value(revision));
+            mockMvc.perform(post(base + "/desktop-dispatches").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"operationId\":\"%s\"}".formatted(revision, secondOperation)))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRINT_DELIVERY_STATE_INVALID"));
+
+            revision = json(mockMvc.perform(post(base + "/desktop-results").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"expectedRevision":%d,"operationId":"%s","outcome":"UNCERTAIN","resultCode":"job-aborted"}
+                                    """.formatted(revision, firstOperation)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UNCERTAIN"))
+                    .andExpect(jsonPath("$.errorCode").value("job-aborted"))
+                    .andReturn().getResponse().getContentAsString()).get("revision").asLong();
+            mockMvc.perform(post(base + "/desktop-dispatches").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"operationId\":\"%s\"}".formatted(revision, secondOperation)))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRINT_DESKTOP_RECONCILE_REQUIRED"));
+            mockMvc.perform(post(base + "/reconciliations").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"printed\":false}".formatted(revision)))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PRINT_DESKTOP_NOTE_REQUIRED"));
+            revision = json(mockMvc.perform(post(base + "/reconciliations").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"printed\":false,\"note\":\"打印队列无该作业\"}".formatted(revision)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FAILED"))
+                    .andReturn().getResponse().getContentAsString()).get("revision").asLong();
+
+            revision = json(mockMvc.perform(post(base + "/desktop-dispatches").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"operationId\":\"%s\"}".formatted(revision, secondOperation)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.delivery.attemptCount").value(2))
+                    .andReturn().getResponse().getContentAsString()).get("delivery").get("revision").asLong();
+            mockMvc.perform(post(base + "/desktop-results").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"expectedRevision":%d,"operationId":"%s","outcome":"SUBMITTED"}
+                                    """.formatted(revision, firstOperation)))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRINT_DESKTOP_OPERATION_MISMATCH"));
+            String submitted = """
+                    {"expectedRevision":%d,"operationId":"%s","outcome":"SUBMITTED","systemJobNo":"42"}
+                    """.formatted(revision, secondOperation);
+            revision = json(mockMvc.perform(post(base + "/desktop-results").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content(submitted))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SENT"))
+                    .andExpect(jsonPath("$.systemJobNo").value("42"))
+                    .andReturn().getResponse().getContentAsString()).get("revision").asLong();
+            mockMvc.perform(post(base + "/desktop-results").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content(submitted))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SENT"));
+            mockMvc.perform(post(base + "/reconciliations").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"printed\":true}".formatted(revision)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DEVICE_CONFIRMED"));
+
+            JsonNode reprint = json(mockMvc.perform(post("/api/platform/printing/jobs/{id}/reprints",
+                                    receipt.get("jobId").asString()).with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"copies\":1}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.delivery.status").value("QUEUED"))
+                    .andReturn().getResponse().getContentAsString());
+            String fallbackBase = "/api/platform/printing/deliveries/" + reprint.get("delivery").get("id").asString();
+            long fallbackRevision = json(mockMvc.perform(post(fallbackBase + "/browser-fallbacks").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d}".formatted(reprint.get("delivery").get("revision").asLong())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.channel").value("BROWSER_PDF"))
+                    .andExpect(jsonPath("$.status").value("SENT"))
+                    .andReturn().getResponse().getContentAsString()).get("revision").asLong();
+            mockMvc.perform(post(fallbackBase + "/desktop-dispatches").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"expectedRevision\":%d,\"operationId\":\"%s\"}".formatted(
+                                    fallbackRevision, UUID.randomUUID())))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PRINT_DELIVERY_CHANNEL_MISMATCH"));
+            assertEquals(secondOperation, jdbcTemplate.queryForObject(
+                    "select CD_DESKTOP_OPER from RHN_SYS_PRINT_DELIVERY where ID_PRINT_DELIV = ?", String.class,
+                    Long.valueOf(deliveryId)));
+        } finally {
+            mockMvc.perform(post("/api/platform/printing/device-bindings").with(rhnWorkContext())
+                            .contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"expectedRevision":%d,"documentType":"OUTPATIENT_NOTE",
+                                     "mediaProfileId":"270000000000201","deviceId":"270000000000301"}
+                                    """.formatted(binding.get("revision").asLong())))
+                    .andExpect(status().isOk());
+        }
     }
 
     private byte[] download(JsonNode receipt) throws Exception {

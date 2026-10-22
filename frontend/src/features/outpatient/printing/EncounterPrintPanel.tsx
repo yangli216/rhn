@@ -7,6 +7,9 @@ import type { Encounter, Resident } from "../../../shared/model";
 import { formatTime } from "../../../shared/format";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from "../../../shared/ui"
+import { printReceipt, type ReceiptPrintResult } from '../../../shared/desktop/desktopPrintDelivery'
+import { ReceiptPrintStatus } from '../../../shared/desktop/ReceiptPrintStatus'
+import { useReceiptPrinter } from '../../../shared/desktop/useReceiptPrinter'
 import { formatAmount } from '../../../shared/utils/precision'
 
 export const printPurposeOptions: Array<{ value: PrintPurpose; label: string }> = [
@@ -14,6 +17,14 @@ export const printPurposeOptions: Array<{ value: PrintPurpose; label: string }> 
   { value: 'CLINICAL_USE', label: '临床使用' },
   { value: 'ARCHIVE_COPY', label: '归档副本' },
 ]
+
+/** 批量打印逐项结果：工作站未提交时提示，不在批量流程里自动重打。 */
+function desktopPrintNote(outcome: ReceiptPrintResult) {
+  if (outcome.kind !== 'desktop' || outcome.settlement.kind === 'submitted') return undefined
+  return outcome.settlement.kind === 'uncertain'
+    ? '工作站打印结果不确定，请先核对打印机出纸，勿重复打印'
+    : '工作站未执行打印，请核对打印设备后单独补打'
+}
 
 export function printPurposeLabel(value: PrintPurpose) {
   return printPurposeOptions.find((item) => item.value === value)?.label ?? value
@@ -43,6 +54,7 @@ export function ControlledPrintDialog({ api, title, description, sourceLabel, ge
   const [feedbackError, setFeedbackError] = useState('')
   const [isPrinting, setIsPrinting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const printer = useReceiptPrinter(api.printing)
 
   const triggerDirectPrint = async (value: PrintReceipt) => {
     if (value.delivery?.channel === 'LOCAL_BRIDGE') return
@@ -50,7 +62,7 @@ export function ControlledPrintDialog({ api, title, description, sourceLabel, ge
     try {
       setIsPrinting(true)
       setFeedbackError('')
-      await api.printing.printPdf(value.downloadUrl)
+      await printer.print(value)
     } catch (err) {
       setFeedbackError(`已生成受控文件，但调起系统打印机失败：${errorMessage(err)}。您可尝试手动点击【调起打印机】或【下载 PDF】。`)
     } finally {
@@ -140,7 +152,10 @@ export function ControlledPrintDialog({ api, title, description, sourceLabel, ge
         </dl>
         <p>{receipt.delivery?.channel === 'LOCAL_BRIDGE'
           ? '本地打印桥将领取任务并回传设备结果；当前入队不代表已经出纸。'
-          : '系统已尝试调起打印机预览；若未弹出，可点击下方【调起打印机】或【下载 PDF】。'}</p>
+          : receipt.delivery?.channel === 'DESKTOP_LINK'
+            ? '已通过 RHN Link 工作站提交到绑定打印机；结果见下方，必要时核对纸面结果。'
+            : '系统已尝试调起打印机预览；若未弹出，可点击下方【调起打印机】或【下载 PDF】。'}</p>
+        <ReceiptPrintStatus result={printer.result} reconciling={printer.reconciling} onReconcile={printer.reconcile} />
       </section>}
     </div>
   </Dialog>
@@ -154,16 +169,17 @@ export function HistoricalReprintDialog({ api, record, title, onReprinted, onClo
   const [downloadError, setDownloadError] = useState('')
   const [isPrinting, setIsPrinting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const printer = useReceiptPrinter(api.printing)
   const sourceJob = record.jobs[0]
   const dialogTitle = title || (record.sourceType === 'Prescription' ? '补打门诊处方'
     : record.sourceType === 'ServiceRequest' ? '补打门诊申请单' : '补打门诊病历')
 
-  const triggerDirectPrint = async (downloadUrl?: string | null) => {
-    if (!downloadUrl) return
+  const triggerDirectPrint = async (value: PrintReceipt) => {
+    if (!value.downloadUrl) return
     try {
       setIsPrinting(true)
       setDownloadError('')
-      await api.printing.printPdf(downloadUrl)
+      await printer.print(value)
     } catch (err) {
       setDownloadError(`已登记补打，但调起系统打印机失败：${errorMessage(err)}`)
     } finally {
@@ -192,7 +208,7 @@ export function HistoricalReprintDialog({ api, record, title, onReprinted, onClo
       setReceipt(value)
       onReprinted()
       if (value.delivery?.channel === 'LOCAL_BRIDGE') return
-      await triggerDirectPrint(value.downloadUrl)
+      await triggerDirectPrint(value)
     },
   })
   return <Dialog title={dialogTitle} eyebrow="受控打印 · 复用不可变输出"
@@ -204,7 +220,7 @@ export function HistoricalReprintDialog({ api, record, title, onReprinted, onClo
           <Button variant="secondary" busy={isDownloading} onClick={() => void triggerDownload(receipt)}>
             <Icon name="download" />下载 PDF
           </Button>
-          <Button variant="primary" busy={isPrinting} onClick={() => void triggerDirectPrint(receipt.downloadUrl)}>
+          <Button variant="primary" busy={isPrinting} onClick={() => void triggerDirectPrint(receipt)}>
             <Icon name="print" />调起打印机
           </Button>
         </div>
@@ -230,6 +246,7 @@ export function HistoricalReprintDialog({ api, record, title, onReprinted, onClo
       {receipt && <Alert>补打任务 {receipt.jobId} 已登记，共 {receipt.copies} 份；
         {receipt.delivery?.channel === 'LOCAL_BRIDGE' ? `已进入 ${receipt.delivery.deviceName} 队列。` : '已发起打印/下载流程。'}
         输出摘要保持不变。</Alert>}
+      <ReceiptPrintStatus result={printer.result} reconciling={printer.reconciling} onReconcile={printer.reconcile} />
     </div>
   </Dialog>
 }
@@ -263,7 +280,7 @@ export function BatchPrintDialog({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isExecuting, setIsExecuting] = useState(false)
   const [feedbackError, setFeedbackError] = useState('')
-  const [results, setResults] = useState<Array<{ item: BatchPrintItem; receipt?: PrintReceipt; error?: string }>>([])
+  const [results, setResults] = useState<Array<{ item: BatchPrintItem; receipt?: PrintReceipt; error?: string; printNote?: string }>>([])
   const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
 
   const documents = useQuery({
@@ -351,7 +368,7 @@ export function BatchPrintDialog({
 
     setIsExecuting(true)
     setFeedbackError('')
-    const batchResults: Array<{ item: BatchPrintItem; receipt?: PrintReceipt; error?: string }> = []
+    const batchResults: Array<{ item: BatchPrintItem; receipt?: PrintReceipt; error?: string; printNote?: string }> = []
 
     for (const item of selectedItems) {
       try {
@@ -363,12 +380,14 @@ export function BatchPrintDialog({
         } else {
           receipt = await api.printing.serviceRequest(encounter.id, (item.raw as ServiceRequest).id, purpose, copies)
         }
-        batchResults.push({ item, receipt })
+        const entry: (typeof batchResults)[number] = { item, receipt }
+        batchResults.push(entry)
 
         if (receipt.delivery?.channel !== 'LOCAL_BRIDGE' && receipt.downloadUrl) {
           try {
-            await api.printing.printPdf(receipt.downloadUrl)
+            entry.printNote = desktopPrintNote(await printReceipt(api.printing, receipt))
           } catch (e) {
+            if (receipt.delivery?.channel === 'DESKTOP_LINK') entry.printNote = `工作站打印失败：${errorMessage(e)}`
             console.warn('Direct print warning for', item.title, e)
           }
         }
@@ -513,7 +532,7 @@ export function BatchPrintDialog({
               <small>已为选中的就绪单据生成防篡改正式 PDF 并调起打印，记录已留痕归档。</small>
             </div>
             <div className="doctor-batch-receipt-list">
-              {results.map(({ item, receipt, error }, index) => (
+              {results.map(({ item, receipt, error, printNote }, index) => (
                 <div key={`${item.id}-${index}`} className="doctor-batch-receipt-item">
                   <div className="doctor-batch-receipt-meta">
                     <strong>{item.title}</strong>
@@ -524,11 +543,12 @@ export function BatchPrintDialog({
                     ) : (
                       <small className="doctor-batch-item-reason">生成失败: {error}</small>
                     )}
+                    {printNote && <small className="doctor-batch-item-reason">{printNote}</small>}
                   </div>
                   <div className="doctor-batch-receipt-actions">
                     {receipt && (
                       <>
-                        <Button
+                        {receipt.delivery?.channel !== 'DESKTOP_LINK' && <Button
                           size="sm"
                           variant="text"
                           onClick={() => {
@@ -536,7 +556,7 @@ export function BatchPrintDialog({
                           }}
                         >
                           <Icon name="print" />调起打印
-                        </Button>
+                        </Button>}
                         <Button
                           size="sm"
                           variant="text"
@@ -767,8 +787,10 @@ export function EncounterPrintPanel({
 
         if (receipt.delivery?.channel !== 'LOCAL_BRIDGE' && receipt.downloadUrl) {
           try {
-            await api.printing.printPdf(receipt.downloadUrl)
+            const note = desktopPrintNote(await printReceipt(api.printing, receipt))
+            if (note) errors.push(`${item.title}: ${note}`)
           } catch (e) {
+            if (receipt.delivery?.channel === 'DESKTOP_LINK') errors.push(`${item.title}: 工作站打印失败：${errorMessage(e)}`)
             console.warn('Direct print warning for', item.title, e)
           }
         }

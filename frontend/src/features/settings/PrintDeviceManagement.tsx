@@ -24,6 +24,7 @@ export function PrintDeviceManagement({ api, catalog }: { api: RhnApi; catalog: 
   const [feedback, setFeedback] = useState('')
 
   const selected = management.data?.devices.find((value) => value.id === selectedId)
+  const desktop = form.channel === 'DESKTOP_LINK'
   useEffect(() => {
     if (!selectedId && management.data?.devices.length) setSelectedId(management.data.devices[0].id ?? null)
   }, [management.data, selectedId])
@@ -99,21 +100,25 @@ export function PrintDeviceManagement({ api, catalog }: { api: RhnApi; catalog: 
           <FormField label="设备名称" required><input value={form.deviceName}
             onChange={(event) => setForm({ ...form, deviceName: event.target.value })} /></FormField>
           <FormField label="连接通道"><Select value={form.channel} clearable={false} searchable={false}
-            options={[{ value: 'BROWSER_PDF', label: '浏览器 PDF' }, { value: 'LOCAL_BRIDGE', label: '本地打印桥' }]}
+            options={[{ value: 'BROWSER_PDF', label: '浏览器 PDF' }, { value: 'LOCAL_BRIDGE', label: '本地打印桥' },
+              { value: 'DESKTOP_LINK', label: 'RHN Link 工作站' }]}
             onChange={(value) => setForm({ ...form, channel: value as SaveClinicalPrintDevice['channel'],
-              outputLanguage: value === 'BROWSER_PDF' ? 'PDF' : form.outputLanguage })} /></FormField>
+              outputLanguage: value === 'LOCAL_BRIDGE' ? form.outputLanguage : 'PDF' })} /></FormField>
           <FormField label="输出语言"><Select value={form.outputLanguage} clearable={false} searchable={false}
             options={['PDF', 'ZPL', 'TSPL', 'ESC_POS'].map((value) => ({ value, label: value }))}
             onChange={(value) => setForm({ ...form, outputLanguage: value as SaveClinicalPrintDevice['outputLanguage'] })} /></FormField>
-          <FormField label="系统队列名"><input value={form.queueName} placeholder="如 Zebra-ZD421"
-            onChange={(event) => setForm({ ...form, queueName: event.target.value })} /></FormField>
+          <FormField label={desktop ? '系统打印机名称' : '系统队列名'} required={desktop}
+            hint={desktop ? '与工作站 Windows“打印机和扫描仪”中的名称一致；不同纸张建议配置为不同打印机' : undefined}>
+            <input value={form.queueName} placeholder={desktop ? '如 处方打印机' : '如 Zebra-ZD421'} maxLength={200}
+              onChange={(event) => setForm({ ...form, queueName: event.target.value })} /></FormField>
           <FormField label="启用状态"><Switch checked={form.status === 'ACTIVE'} checkedText="启用" uncheckedText="停用"
             onChange={(checked) => setForm({ ...form, status: checked ? 'ACTIVE' : 'INACTIVE' })} /></FormField>
         </div>
         <FormField label="设备能力 JSON"><textarea rows={5} spellCheck={false} value={form.capabilitiesJson}
           onChange={(event) => setForm({ ...form, capabilitiesJson: event.target.value })} /></FormField>
         <div className="print-device-save"><Button busy={saveDevice.isPending}
-          disabled={!form.deviceCode.trim() || !form.deviceName.trim()} onClick={() => saveDevice.mutate()}>
+          disabled={!form.deviceCode.trim() || !form.deviceName.trim() || (desktop && !form.queueName?.trim())}
+          onClick={() => saveDevice.mutate()}>
           <Icon name="check" />保存设备</Button></div>
       </div>
     </section>
@@ -148,11 +153,12 @@ export function PrintDeviceManagement({ api, catalog }: { api: RhnApi; catalog: 
 }
 
 function channelLabel(value: ClinicalPrintDevice['channel']) {
-  return value === 'LOCAL_BRIDGE' ? '本地打印桥' : '浏览器 PDF'
+  return value === 'LOCAL_BRIDGE' ? '本地打印桥' : value === 'DESKTOP_LINK' ? 'RHN Link 工作站' : '浏览器 PDF'
 }
 
+/** 只有本地打印桥有心跳；浏览器与工作站打印在操作员所在终端执行，不做在线判断。 */
 function isOnline(value: ClinicalPrintDevice) {
-  if (value.channel === 'BROWSER_PDF') return true
+  if (value.channel !== 'LOCAL_BRIDGE') return true
   if (!value.lastSeenAt) return false
   return Date.now() - new Date(value.lastSeenAt).getTime() < 120_000
 }

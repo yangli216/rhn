@@ -259,7 +259,12 @@ public class ClinicalPrintBatchService {
             if (!device.id().equals(delivery.deviceId())) {
                 throw conflict("PRINT_DEVICE_CHANGE_REQUIRES_REBUILD", "打印批次已冻结目标设备，如需更换请重新生成批次");
             }
-            if ("LOCAL_BRIDGE".equals(device.channel())) {
+            if (DesktopPrintDeliveryService.CHANNEL.equals(device.channel())
+                    && delivery.status() != PrintDeliveryStatus.GENERATED && delivery.status() != PrintDeliveryStatus.QUEUED
+                    && delivery.status() != PrintDeliveryStatus.FAILED) {
+                throw conflict("PRINT_DESKTOP_DELIVERY_IN_PROGRESS", "该批次已下发到工作站，请按工作站结果处理或先核对纸面结果");
+            }
+            if ("LOCAL_BRIDGE".equals(device.channel()) || DesktopPrintDeliveryService.CHANNEL.equals(device.channel())) {
                 delivery.queue(delivery.revision()); batch.queued(context.subjectId());
             } else {
                 delivery.sent(delivery.revision()); batch.sent(context.subjectId());
@@ -631,10 +636,17 @@ public class ClinicalPrintBatchService {
     private void validateDevice(DeviceCommand command) {
         if (command == null || Strings.trimToNull(command.deviceCode()) == null || Strings.trimToNull(command.deviceName()) == null)
             throw badRequest("PRINT_DEVICE_INVALID", "设备编码和名称不能为空");
-        if (!Set.of("BROWSER_PDF", "LOCAL_BRIDGE").contains(command.channel()))
+        if (!Set.of("BROWSER_PDF", "LOCAL_BRIDGE", DesktopPrintDeliveryService.CHANNEL).contains(command.channel()))
             throw badRequest("PRINT_DEVICE_CHANNEL_INVALID", "打印设备通道不受支持");
         if (!Set.of("PDF", "ZPL", "TSPL", "ESC_POS").contains(command.outputLanguage()))
             throw badRequest("PRINT_DEVICE_LANGUAGE_INVALID", "打印设备输出语言不受支持");
+        if (DesktopPrintDeliveryService.CHANNEL.equals(command.channel())) {
+            if (!"PDF".equals(command.outputLanguage()))
+                throw badRequest("PRINT_DEVICE_LANGUAGE_INVALID", "工作站打印只支持 PDF 输出");
+            String printer = Strings.trimToNull(command.queueName());
+            if (printer == null || printer.length() > 200 || printer.chars().anyMatch(Character::isISOControl))
+                throw badRequest("PRINT_DEVICE_PRINTER_REQUIRED", "工作站打印必须填写系统打印机名称");
+        }
     }
 
     private String normalizeDocumentType(String value) {

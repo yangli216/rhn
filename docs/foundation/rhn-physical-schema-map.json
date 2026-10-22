@@ -27830,7 +27830,7 @@
     "legacy": "print_deliveries",
     "physical": "RHN_SYS_PRINT_DELIVERY",
     "domain": "SYS",
-    "comment": "打印投递；一行代表批次输出向浏览器或本地桥的一次投递",
+    "comment": "打印投递；一行代表一份输出向浏览器、本地桥或 RHN Link 工作站的一次投递",
     "columns": [
       {
         "logical": "id",
@@ -27906,6 +27906,21 @@
         "logical": "updated_at",
         "physical": "DT_UPDATED",
         "comment": "更新时间"
+      },
+      {
+        "logical": "desktop_operation_code",
+        "physical": "CD_DESKTOP_OPER",
+        "comment": "工作站持久调用操作编码"
+      },
+      {
+        "logical": "desktop_printer_name",
+        "physical": "NA_DESKTOP_PRINTER",
+        "comment": "工作站实际打印机名称"
+      },
+      {
+        "logical": "external_print_job_no",
+        "physical": "CD_EXT_PRINT_JOB_NO",
+        "comment": "工作站系统打印队列作业号"
       }
     ]
   },

@@ -31,6 +31,9 @@ public class PrintDelivery {
     @Column(name = "DT_SENT") private Instant sentAt;
     @Column(name = "DT_CNFRMD") private Instant confirmedAt;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "CD_DESKTOP_OPER") private String desktopOperationId;
+    @Column(name = "NA_DESKTOP_PRINTER") private String desktopPrinterName;
+    @Column(name = "CD_EXT_PRINT_JOB_NO") private String systemJobNo;
 
     protected PrintDelivery() {}
 
@@ -58,6 +61,47 @@ public class PrintDelivery {
         requireRevision(expectedRevision); this.status = PrintDeliveryStatus.FAILED; this.errorCode = code;
         this.errorMessage = message; this.updatedAt = Instant.now();
     }
+    /** 下发到 RHN Link 工作站前先持久保存操作编码；只允许从待投递或已确认未执行的失败状态发起。 */
+    public void dispatchToDesktop(long expectedRevision, String operationId, String printerName) {
+        requireRevision(expectedRevision);
+        requireStatus(PrintDeliveryStatus.QUEUED, PrintDeliveryStatus.FAILED);
+        if (status != PrintDeliveryStatus.QUEUED) this.attemptCount++;
+        this.status = PrintDeliveryStatus.DISPATCHED;
+        this.desktopOperationId = operationId; this.desktopPrinterName = printerName; this.systemJobNo = null;
+        this.updatedAt = Instant.now(); clearError();
+    }
+    public void desktopSubmitted(long expectedRevision, String systemJobNo) {
+        requireRevision(expectedRevision); requireStatus(PrintDeliveryStatus.DISPATCHED);
+        this.status = PrintDeliveryStatus.SENT; this.systemJobNo = systemJobNo;
+        this.sentAt = Instant.now(); this.updatedAt = sentAt; clearError();
+    }
+    public void desktopNotExecuted(long expectedRevision, String code, String message) {
+        requireRevision(expectedRevision); requireStatus(PrintDeliveryStatus.DISPATCHED);
+        this.status = PrintDeliveryStatus.FAILED; this.errorCode = code; this.errorMessage = message;
+        this.updatedAt = Instant.now();
+    }
+    public void desktopUncertain(long expectedRevision, String code, String message) {
+        requireRevision(expectedRevision); requireStatus(PrintDeliveryStatus.DISPATCHED);
+        this.status = PrintDeliveryStatus.UNCERTAIN; this.errorCode = code; this.errorMessage = message;
+        this.updatedAt = Instant.now();
+    }
+    /** 人工核对纸面结果：已提交或结果不确定的工作站投递才能确认出纸或判定未出纸。 */
+    public void reconcile(long expectedRevision, boolean printed, String note) {
+        requireRevision(expectedRevision); requireStatus(PrintDeliveryStatus.SENT, PrintDeliveryStatus.UNCERTAIN);
+        if (printed) { this.status = PrintDeliveryStatus.DEVICE_CONFIRMED; this.confirmedAt = Instant.now(); this.updatedAt = confirmedAt; clearError(); }
+        else { this.status = PrintDeliveryStatus.FAILED; this.errorCode = "PRINT_DESKTOP_NOT_PRINTED"; this.errorMessage = note; this.updatedAt = Instant.now(); }
+    }
+    /** 页面不在 RHN Link 中时改由浏览器打印，投递通道如实记为 BROWSER_PDF。 */
+    public void fallBackToBrowser(long expectedRevision) {
+        requireRevision(expectedRevision); requireStatus(PrintDeliveryStatus.QUEUED, PrintDeliveryStatus.FAILED);
+        if (status != PrintDeliveryStatus.QUEUED) this.attemptCount++;
+        this.channel = "BROWSER_PDF"; this.status = PrintDeliveryStatus.SENT;
+        this.sentAt = Instant.now(); this.updatedAt = sentAt; clearError();
+    }
+    private void requireStatus(PrintDeliveryStatus... allowed) {
+        for (PrintDeliveryStatus value : allowed) if (status == value) return;
+        throw new BusinessException("PRINT_DELIVERY_STATE_INVALID", "打印投递当前状态不允许该操作，请刷新后重试", HttpStatus.CONFLICT);
+    }
     private void requireRevision(long expectedRevision) {
         if (revision != expectedRevision) throw new BusinessException(
                 "PRINT_DELIVERY_REVISION_CONFLICT", "打印投递状态已变化，请刷新后重试", HttpStatus.CONFLICT);
@@ -79,4 +123,7 @@ public class PrintDelivery {
     public Instant sentAt() { return sentAt; }
     public Instant confirmedAt() { return confirmedAt; }
     public Instant updatedAt() { return updatedAt; }
+    public String desktopOperationId() { return desktopOperationId; }
+    public String desktopPrinterName() { return desktopPrinterName; }
+    public String systemJobNo() { return systemJobNo; }
 }
