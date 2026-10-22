@@ -167,7 +167,8 @@ public class OutpatientFlowService {
         Instant to = end.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         List<EncounterFlowSnapshot> encounterValues = encounters.findInRange(context.tenantId(),
                 context.organizationId(), context.departmentId(), from, to);
-        Map<Long, ResidentDirectory.ResidentSnapshot> residentFacts = new LinkedHashMap<>();
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentFacts = new LinkedHashMap<>(residents.requireSnapshots(
+                encounterValues.stream().map(EncounterFlowSnapshot::residentId).toList()));
         String statusFilter = upper(flowStatus);
         String term = upper(keyword);
         Instant refreshedAt = Instant.now();

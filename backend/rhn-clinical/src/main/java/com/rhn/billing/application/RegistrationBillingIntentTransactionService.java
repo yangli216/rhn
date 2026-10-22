@@ -77,6 +77,7 @@ class RegistrationBillingIntentTransactionService {
     private final ExecutionContextProvider contextProvider;
     private final RegistrationInsurancePolicy insurancePolicy;
     private final InsuranceClaimRepository claims;
+    private final RegistrationIntentLifecycle lifecycle;
 
     RegistrationBillingIntentTransactionService(RegistrationBillingIntentRepository intents,
             PatientAccountRepository accounts, PaymentRepository payments, ChargeItemRepository charges,
@@ -89,8 +90,8 @@ class RegistrationBillingIntentTransactionService {
             EncounterDirectory encounters, CoverageDirectory coverages, OrganizationDirectory organizations,
             ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers,
             SystemEnumDirectory systemEnums, RegistrationInsurancePolicy insurancePolicy,
-            InsuranceClaimRepository claims) {
-        this.insurancePolicy = insurancePolicy; this.claims = claims;
+            InsuranceClaimRepository claims, RegistrationIntentLifecycle lifecycle) {
+        this.insurancePolicy = insurancePolicy; this.claims = claims; this.lifecycle = lifecycle;
         this.numbers = numbers;
         this.systemEnums = systemEnums;
         this.intents = intents; this.accounts = accounts; this.payments = payments;
@@ -137,6 +138,7 @@ class RegistrationBillingIntentTransactionService {
             if (scheduleId != null && !scheduleId.equals(booking.scheduleId())) {
                 throw badRequest("REGISTRATION_APPOINTMENT_SCHEDULE_MISMATCH", "预约与挂号班次不一致");
             }
+            lifecycle.expireStaleForAppointment(context.tenantId(), appointmentId);
             var active = intents.findFirstByTenantIdAndAppointmentIdAndStatusIn(context.tenantId(), appointmentId,
                     List.of(RegistrationBillingIntentStatus.PAYMENT_PENDING, RegistrationBillingIntentStatus.PAID,
                             RegistrationBillingIntentStatus.COMPLETING, RegistrationBillingIntentStatus.COMPLETION_FAILED));
@@ -269,7 +271,11 @@ class RegistrationBillingIntentTransactionService {
         if (!accountId.equals(value.patientAccountId())) {
             throw conflict("REGISTRATION_PAYMENT_ACCOUNT_MISMATCH", "支付账户与挂号意向不一致");
         }
-        value.linkPaymentOrder(paymentOrderId);
+        if (value.status() == RegistrationBillingIntentStatus.CANCELLED) {
+            throw conflict("REGISTRATION_INTENT_CANCELLED", "挂号意向已关闭，不能再发起支付");
+        }
+        value.linkPaymentOrder(paymentOrderId, lifecycle.linkedOrderFailed(context.tenantId(), value));
+        if (value.slotHoldId() != null) schedules.pinHold(value.slotHoldId());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -426,7 +432,7 @@ class RegistrationBillingIntentTransactionService {
         RegistrationBillingIntent value = intents.lockByIdAndTenantId(intentId, context.tenantId())
                 .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到挂号收费意向"));
         requireOrganizationContext(value.organizationId());
-        value.cancel();
+        value.cancel(lifecycle.linkedOrderFailed(context.tenantId(), value));
         if (value.slotHoldId() != null) {
             schedules.release(value.slotHoldId(), "CANCEL-REG-INTENT-" + value.id(), false);
         }

@@ -15,6 +15,7 @@ import java.util.Optional;
 interface ResidentRepository extends JpaRepository<Resident, Long> {
     Optional<Resident> findByTenantIdAndNationalId(Long tenantId, String nationalId);
     Optional<Resident> findByIdAndTenantId(Long id, Long tenantId);
+    List<Resident> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Resident> findForUpdateByIdAndTenantId(Long id, Long tenantId);
     List<Resident> findByTenantIdAndStatusAndFullNameContainingIgnoreCase(

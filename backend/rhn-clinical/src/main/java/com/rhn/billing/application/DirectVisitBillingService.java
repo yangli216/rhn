@@ -20,6 +20,7 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 @Transactional
 public class DirectVisitBillingService implements DirectVisitBillingDirectory {
     private final RegistrationBillingIntentRepository intents;
+    private final RegistrationIntentLifecycle lifecycle;
     private final PatientAccountRepository accounts;
     private final ChargeItemRepository charges;
     private final ChargeItemComponentRepository components;
@@ -30,13 +31,15 @@ public class DirectVisitBillingService implements DirectVisitBillingDirectory {
 
     public DirectVisitBillingService(RegistrationBillingIntentRepository intents, PatientAccountRepository accounts,
             ChargeItemRepository charges, ChargeItemComponentRepository components, LedgerEntryRepository ledger,
-            CatalogLifecycleDirectory catalog, ServiceCatalogDirectory services, ExecutionContextProvider contexts) {
-        this.intents = intents; this.accounts = accounts; this.charges = charges; this.components = components;
+            CatalogLifecycleDirectory catalog, ServiceCatalogDirectory services, ExecutionContextProvider contexts,
+            RegistrationIntentLifecycle lifecycle) {
+        this.lifecycle = lifecycle; this.intents = intents; this.accounts = accounts; this.charges = charges; this.components = components;
         this.ledger = ledger; this.catalog = catalog; this.services = services; this.contexts = contexts;
     }
 
     @Override
     public void requireNoPendingRegistration(Long residentId, Long organizationId, Long departmentId) {
+        lifecycle.expireStaleForResident(contexts.requireCurrent().tenantId(), residentId, organizationId, departmentId);
         if (intents.existsByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
                 contexts.requireCurrent().tenantId(), residentId, organizationId, departmentId,
                 List.of(RegistrationBillingIntentStatus.PAYMENT_PENDING, RegistrationBillingIntentStatus.PAID,

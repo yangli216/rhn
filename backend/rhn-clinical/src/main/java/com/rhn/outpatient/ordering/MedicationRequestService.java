@@ -571,6 +571,18 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.Set<Long> cancelledRequestIds(Long tenantId, java.util.Collection<Long> requestIds) {
+        java.util.Set<Long> result = new java.util.HashSet<>();
+        List<Long> ids = requestIds.stream().distinct().toList();
+        // Oracle IN 上限 1000，按 500 分片
+        for (int from = 0; from < ids.size(); from += 500) {
+            result.addAll(repository.findCancelledIds(tenantId, ids.subList(from, Math.min(from + 500, ids.size()))));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<MedicationRequestSnapshot> activeForPharmacy(Long organizationId) {
         ExecutionContext context = contextProvider.requireCurrent();
         requirePharmacyOrganizationAccess(context, organizationId);

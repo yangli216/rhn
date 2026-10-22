@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { errorMessage, type AccessPermission, type AccessRole, type RhnApi, type UserRoleAssignment } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, SearchField, Select, StatusBadge, Switch, Tabs } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, SearchField, Select, StatusBadge, Switch, Tabs, useSystemEnum } from '../../shared/ui'
 import { MasterDetailPage } from '../../shared/ui/templates/PageTemplates'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
@@ -14,7 +14,6 @@ import { requireAccessRoleStatus, requireCreatedAccessRole, requireRenamedAccess
 import { organizationQueryScope } from './organizationQueryScope'
 import '../../styles/features/access-control.css'
 
-const ROLE_TYPES: Record<AccessRole['roleType'], string> = { SYSTEM: '系统角色', ADMIN: '管理角色', BUSINESS: '业务角色', CUSTOM: '自定义角色' }
 type Tab = 'permissions' | 'members'
 type Pending = { kind: 'create' } | { kind: 'rename'; role: AccessRole } | { kind: 'status'; role: AccessRole }
   | { kind: 'grant'; role: AccessRole } | { kind: 'revoke'; grant: UserRoleAssignment }
@@ -25,6 +24,7 @@ type Pending = { kind: 'create' } | { kind: 'rename'; role: AccessRole } | { kin
  */
 export function AccessControlManagement({ api, context }: { api: RhnApi; context: ClinicalContext }) {
   const queryClient = useQueryClient()
+  const roleTypes = useSystemEnum(api.dictionaries, 'SYS_ACC_ROLE_TYPE')
   const scope = `${organizationQueryScope(api)}:${context.organization.id}:${context.department.id}`
   const roles = useQuery({ queryKey: ['iam-roles', scope], queryFn: async () => requireAccessRoles(await api.identityAccess.roles()) })
   const permissions = useQuery({ queryKey: ['iam-permissions', scope], queryFn: async () => requireAccessPermissions(await api.identityAccess.permissions()) })
@@ -75,7 +75,7 @@ export function AccessControlManagement({ api, context }: { api: RhnApi; context
       </div>}
     detailLabel="角色详情" detailResetScrollKey={`${selectedId}:${tab}`}
     detailHeader={selected && <header className="access-detail-head">
-      <div className="access-detail-head__title"><span className="ui-eyebrow">{ROLE_TYPES[selected.roleType]}</span>
+      <div className="access-detail-head__title"><span className="ui-eyebrow">{roleTypes.name(selected.roleType)}</span>
         <h2>{selected.name}</h2><code>{selected.code}</code>
         <StatusBadge tone={selected.status === 'ACTIVE' ? 'success' : 'neutral'}>{selected.status === 'ACTIVE' ? '启用' : '停用'}</StatusBadge></div>
       <div className="access-detail-head__actions">
@@ -196,6 +196,7 @@ function GrantFromRole({ api, role, context, scope, onClose, onDone }: {
 function CreateRoleDialog({ api, roles, onClose, onDone }: {
   api: RhnApi; roles: AccessRole[]; onClose: () => void; onDone: (role: AccessRole) => Promise<void>
 }) {
+  const roleTypes = useSystemEnum(api.dictionaries, 'SYS_ACC_ROLE_TYPE')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [roleType, setRoleType] = useState<'BUSINESS' | 'CUSTOM'>('BUSINESS')
@@ -223,7 +224,7 @@ function CreateRoleDialog({ api, roles, onClose, onDone }: {
         onChange={event => setCode(event.target.value.toUpperCase())} /></FormField>
       <FormField label="角色名称" required><input value={name} maxLength={128} placeholder="例如 门诊护士" onChange={event => setName(event.target.value)} /></FormField>
       <FormField label="角色类型"><Select value={roleType} clearable={false} onChange={value => setRoleType(value as 'BUSINESS' | 'CUSTOM')}
-        options={[{ value: 'BUSINESS', label: ROLE_TYPES.BUSINESS }, { value: 'CUSTOM', label: ROLE_TYPES.CUSTOM }]} /></FormField>
+        options={[{ value: 'BUSINESS', label: roleTypes.name('BUSINESS') }, { value: 'CUSTOM', label: roleTypes.name('CUSTOM') }]} /></FormField>
     </fieldset>
     <p className="access-hint">新角色没有任何权限，创建后在「功能权限」中勾选。</p>
   </Dialog>

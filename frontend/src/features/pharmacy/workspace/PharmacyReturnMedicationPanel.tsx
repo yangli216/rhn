@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { DataTable as UiDataTable } from '../../../shared/ui'
 import { recordedMedicationAmount, displayRecordedAmount } from '../medicationDisplay'
 import { formatTime, genderLabel } from '../../../shared/format'
@@ -35,7 +35,7 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
     returnQuantities, setReturnQuantityForRequest, returnDispositions, setReturnDispositionForRequest,
     returnReasonCode, setReturnReasonCode, returnDescription, setReturnDescription,
     selectedSite, api, practitioners, eligibleAssignments, practitionerId, assignmentId,
-    setPractitionerId, setAssignmentId,
+    setPractitionerId, setAssignmentId, residentMap,
   } = model
 
   const [activeTab, setActiveTab] = useState<'outpatient' | 'ward'>('outpatient')
@@ -58,16 +58,18 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
     return prescriptionCards.flatMap((c) => c.items)
   }, [prescriptionCards])
 
-  // Default check all returnable items when patient or prescriptions change
+  // 默认勾选可退项：只在切换患者或处方项数量变化时重置，退药后刷新同数量数据不覆盖用户的勾选。
+  const allPatientItemsRef = useRef(allPatientItems)
+  allPatientItemsRef.current = allPatientItems
   useEffect(() => {
-    const returnableIds = allPatientItems
+    const returnableIds = allPatientItemsRef.current
       .filter((it) => (it.dispensedQuantity ?? it.request.quantity ?? 0) > (it.returnedQuantity ?? 0))
       .map((it) => it.request.id)
     setCheckedItemIds(new Set(returnableIds))
   }, [activePatient?.residentId, allPatientItems.length])
 
   // Get item returnable info
-  const getItemReturnInfo = (item: typeof allPatientItems[0]) => {
+  const getItemReturnInfo = useCallback((item: typeof allPatientItems[0]) => {
     const req = item.request
     const dispensedQty = item.dispensedQuantity ?? req.quantity ?? 0
     const returnedQty = item.returnedQuantity ?? 0
@@ -91,7 +93,7 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
       isFullyReturned,
       isPartiallyReturned,
     }
-  }
+  }, [returnQuantities, returnDispositions])
 
   // Toggle single item check
   const toggleItemCheck = (requestId: string, returnableQty: number) => {
@@ -139,7 +141,7 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
         }
       })
       .filter((d) => d.quantity > 0)
-  }, [allPatientItems, checkedItemIds, returnQuantities, returnDispositions])
+  }, [allPatientItems, checkedItemIds, getItemReturnInfo])
 
   const selectedReturnTotalAmount = useMemo(() => {
     return selectedItemsData.reduce((sum, d) => sum + d.amount, 0)
@@ -281,8 +283,14 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
               ) : (
                 filteredPatientGroups.map((group) => {
                   const isSelected = activePatient?.residentId === group.residentId
-                  const prescCount = new Set(group.items.map((it) => it.request.prescriptionId || it.request.requestNo || it.request.id)).size
-                  const itemCount = group.items.length
+                  const resInfo = residentMap.get(group.residentId)
+                  const displayName = (isSelected && pFullName !== '患者') ? pFullName : (resInfo?.fullName || group.residentName)
+                  const displayGender = (resInfo?.gender || group.gender)
+                    ? genderLabel(resInfo?.gender || group.gender)
+                    : (isSelected && pGender ? pGender : '性别未知')
+                  const displayAge = (resInfo?.birthDate || group.birthDate)
+                    ? ageText(resInfo?.birthDate || group.birthDate)
+                    : (isSelected && pAge ? pAge : '年龄未知')
 
                   const totalDispensed = group.items.reduce((sum, it) => {
                     const price = it.request.unitPrice ?? (it.plannedQuantity ? ((recordedMedicationAmount(it.request) || 0) / it.plannedQuantity) : 0)
@@ -306,7 +314,7 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
                       key={group.residentId}
                       role="article"
                       tabIndex={0}
-                      className={`pharmacy-patient-card ${isSelected ? 'is-selected' : ''}`}
+                      className={`pharmacy-queue-item ${isSelected ? 'is-selected' : ''}`}
                       onClick={() => setSelectedResidentId(group.residentId)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -314,56 +322,40 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
                           setSelectedResidentId(group.residentId)
                         }
                       }}
-                      aria-label={`选择患者 ${group.residentName}`}
+                      aria-label={`选择患者 ${displayName}`}
                     >
-                      <div className="pharmacy-patient-card__main">
-                        <div className="pharmacy-patient-card__avatar">
-                          <Icon name="user" />
+                      <div className="pharmacy-queue-item__main">
+                        <div className="pharmacy-queue-item__row-top">
+                          <strong className="pharmacy-queue-item__name">{displayName}</strong>
+                          <strong className="pharmacy-cancel-queue-amount">
+                            可退 ¥{totalReturnable.toFixed(2)}
+                          </strong>
                         </div>
-                        <div className="pharmacy-patient-card__info">
-                          <div className="pharmacy-patient-card__row">
-                            <strong className="pharmacy-patient-card__name">{group.residentName}</strong>
-                            <span className="pharmacy-patient-card__meta">
-                              {genderLabel(group.gender)} · {ageText(group.birthDate)}
+                        <div className="pharmacy-queue-item__row-bottom">
+                          <span className="pharmacy-queue-item__meta">
+                            {displayGender} · {displayAge} · {group.items.length} 剂/方
+                          </span>
+                          {isFullyReturned ? (
+                            <span className="pharmacy-cancel-queue-badge">已全退</span>
+                          ) : isPartiallyReturned ? (
+                            <span className="pharmacy-return-queue-returned">部分退药</span>
+                          ) : (
+                            <span className="pharmacy-cancel-queue-badge">已发药·可退</span>
+                          )}
+                        </div>
+                        <div className="pharmacy-queue-item__row-bottom">
+                          <span className="pharmacy-queue-item__meta">
+                            发药 ¥{totalDispensed.toFixed(2)}
+                          </span>
+                          {totalReturned > 0 ? (
+                            <span className="pharmacy-return-queue-returned">
+                              已退 ¥{totalReturned.toFixed(2)}
                             </span>
-                            {isFullyReturned ? (
-                              <StatusBadge tone="neutral">已全退</StatusBadge>
-                            ) : isPartiallyReturned ? (
-                              <StatusBadge tone="warning">部分退药</StatusBadge>
-                            ) : (
-                              <StatusBadge tone="success">已发药·可退</StatusBadge>
-                            )}
-                          </div>
-
-                          <div className="pharmacy-patient-card__row pharmacy-patient-card__row--sub">
-                            <span className="pharmacy-patient-card__encounter">
-                              就诊: {group.encounterNo || '未关联'}
-                            </span>
-                            <span className="pharmacy-cancel-count-badge">
-                              共 {prescCount} 处方 · {itemCount} 药品
-                            </span>
-                          </div>
-
-                          {/* Return-related list fields */}
-                          <div className="pharmacy-patient-card__row pharmacy-patient-card__row--sub">
-                            <span className="pharmacy-cancel-queue-badge">
-                              发药 ¥{totalDispensed.toFixed(2)}
-                            </span>
-                            {totalReturned > 0 && (
-                              <span className="pharmacy-return-queue-returned">
-                                已退 ¥{totalReturned.toFixed(2)}
-                              </span>
-                            )}
-                            <strong className="pharmacy-cancel-queue-amount">
-                              可退 ¥{totalReturnable.toFixed(2)}
-                            </strong>
-                          </div>
-
-                          <div className="pharmacy-patient-card__row pharmacy-patient-card__row--sub">
+                          ) : dispensedAt ? (
                             <span className="pharmacy-cancel-item-time">
-                              发药时间: {formatTime(dispensedAt) || '未记录'}
+                              发药于 {formatTime(dispensedAt)}
                             </span>
-                          </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>

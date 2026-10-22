@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(123))
+                .andExpect(jsonPath("$.length()").value(124))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))
@@ -428,7 +428,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.code == 'PARAMETER_GOVERNANCE')].dictionaryCount").value(10))
                 .andExpect(jsonPath("$[?(@.code == 'ORGANIZATION_GOVERNANCE')].dictionaryCount").value(13))
                 .andExpect(jsonPath("$[?(@.code == 'DEPARTMENT_GOVERNANCE')].dictionaryCount").value(6))
-                .andExpect(jsonPath("$[?(@.code == 'PERSONNEL_GOVERNANCE')].dictionaryCount").value(5))
+                .andExpect(jsonPath("$[?(@.code == 'PERSONNEL_GOVERNANCE')].dictionaryCount").value(7))
                 .andExpect(jsonPath("$[?(@.code == 'MASTER_DATA_GOVERNANCE')].dictionaryCount").value(6))
                 .andExpect(jsonPath("$[?(@.code == 'CLINICAL_SERVICE')].dictionaryCount").value(6))
                 .andExpect(jsonPath("$[?(@.code == 'MEDICATION')].dictionaryCount").value(6))
@@ -456,7 +456,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", "362387869840000").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(41));
+                .andExpect(jsonPath("$.length()").value(43));
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", "362387869796000").with(rhn()))
                 .andExpect(status().isOk())

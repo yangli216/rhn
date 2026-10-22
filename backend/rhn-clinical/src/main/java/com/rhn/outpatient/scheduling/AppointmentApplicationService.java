@@ -90,9 +90,13 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
 
         String filter = normalizedQuery;
         Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
-        return appointmentRepository.findByTenantIdAndScheduleIdInAndStartAtBetweenOrderByStartAt(
+        List<Appointment> appointments = appointmentRepository.findByTenantIdAndScheduleIdInAndStartAtBetweenOrderByStartAt(
                         context.tenantId(), scheduleById.keySet(), start, end).stream()
                 .filter(value -> normalizedStatus == null || normalizedStatus.equals(value.status().name()))
+                .toList();
+        residentCache.putAll(residentDirectory.requireSnapshots(
+                appointments.stream().map(Appointment::residentId).toList()));
+        return appointments.stream()
                 .map(value -> toView(value, scheduleById.get(value.scheduleId()),
                         residentCache.computeIfAbsent(value.residentId(), residentDirectory::requireSnapshot)))
                 .filter(value -> filter == null || matches(value, filter))

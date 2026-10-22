@@ -76,8 +76,9 @@ public class RegistrationBillingIntent {
         this.patientAccountId = accountId; this.settlementId = settlementId; this.updatedAt = Instant.now();
     }
 
-    public void linkPaymentOrder(Long orderId) {
-        if (paymentOrderId != null && !paymentOrderId.equals(orderId)) {
+    /** @param currentOrderFailed 当前已绑定的支付指令已处于失败/取消/过期终态，允许换绑新的支付指令 */
+    public void linkPaymentOrder(Long orderId, boolean currentOrderFailed) {
+        if (paymentOrderId != null && !paymentOrderId.equals(orderId) && !currentOrderFailed) {
             throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_PAYMENT_ORDER_MISMATCH",
                     "挂号意向已绑定其他支付指令");
         }
@@ -116,8 +117,9 @@ public class RegistrationBillingIntent {
         this.updatedAt = Instant.now();
     }
 
-    public void cancel() {
-        if (status != RegistrationBillingIntentStatus.PAYMENT_PENDING || paymentOrderId != null) {
+    /** @param linkedOrderFailed 已绑定的支付指令是否为失败/取消/过期终态（无支付指令时可忽略） */
+    public void cancel(boolean linkedOrderFailed) {
+        if (status != RegistrationBillingIntentStatus.PAYMENT_PENDING || (paymentOrderId != null && !linkedOrderFailed)) {
             throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_INTENT_NOT_CANCELLABLE",
                     "已发起支付或已完成的挂号意向不能直接取消");
         }

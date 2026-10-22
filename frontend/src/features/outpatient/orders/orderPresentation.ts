@@ -131,9 +131,12 @@ export function orderTypeLabel(value: OrderEntryType) {
 
 /** 简单模式“保存即生效”，签署模式“签署后生效”；未传模式时沿用通用口径。 */
 export function orderStatusLabel(status: string, mode?: 'SIMPLE' | 'SIGNING') {
-  const labels: Record<string, string> = mode === 'SIMPLE' ? { DRAFT: '未生效', ACTIVE: '已生效' }
-    : mode === 'SIGNING' ? { DRAFT: '未签署', ACTIVE: '已签署' } : { DRAFT: '草稿', ACTIVE: '已开立' }
-  return ({ ...labels, SUBMITTED: '已提交', CANCELLED: '已撤销' } as Record<string, string>)[status] ?? status
+  // 草稿/已开立两种状态的措辞随生效方式变化，属于界面语义而非编码字典；其余状态不在此处另存中文名。
+  if (status === 'DRAFT') return mode === 'SIMPLE' ? '未生效' : mode === 'SIGNING' ? '未签署' : '草稿'
+  if (status === 'ACTIVE') return mode === 'SIMPLE' ? '已生效' : mode === 'SIGNING' ? '已签署' : '已开立'
+  if (status === 'SUBMITTED') return '已提交'
+  if (status === 'CANCELLED') return '已撤销'
+  return status
 }
 
 export function formatUnitPrice(value?: number, currencyCode?: string) {

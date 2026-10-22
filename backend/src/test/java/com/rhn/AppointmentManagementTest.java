@@ -139,6 +139,45 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(appointmentId)));
     }
 
+    @Test
+    void expired_unpaid_registration_intent_stops_blocking_appointment_cancel() throws Exception {
+        String suffix = "E" + Long.toString(Math.floorMod(GlobalIds.next(), 1_000_000));
+        String residentId = createResident(suffix);
+        LocalDate scheduleDate = LocalDate.now().plusDays(5);
+        String scheduleId = createSchedules(scheduleDate, suffix).at("/schedules/0/id").asString();
+        String appointmentId = json(mockMvc.perform(post("/api/outpatient/appointments")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"residentId":"%s","scheduleId":"%s","bookingSource":"WINDOW",
+                                 "idempotencyCode":"APPT-STALE-%s"}
+                                """.formatted(residentId, scheduleId, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
+        jdbc.update("update RHN_SC_SVC_SCHED set DA_SVC = ? where ID_SVC_SCHED = ?", LocalDate.now(), Long.valueOf(scheduleId));
+        JsonNode intent = json(mockMvc.perform(post("/api/billing/registration-intents")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                 "appointmentId":"%s","idempotencyCode":"REG-STALE-%s",
+                                 "registrationSource":"WINDOW","visitType":"GENERAL"}
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, appointmentId, suffix)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
+                .andReturn().getResponse().getContentAsString());
+        jdbc.update("update RHN_SC_SVC_SCHED set DA_SVC = ? where ID_SVC_SCHED = ?", scheduleDate, Long.valueOf(scheduleId));
+        String cancelBody = "{\"commandCode\":\"APPT-STALE-CANCEL-%s\",\"reason\":\"患者取消\"}".formatted(suffix);
+        String cancelUrl = "/api/outpatient/appointments/{appointmentId}/cancel";
+
+        // 未过期：仍阻塞。
+        mockMvc.perform(post(cancelUrl, appointmentId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(cancelBody))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("APPOINTMENT_REGISTRATION_IN_PROGRESS"));
+        jdbc.update("update RHN_BIL_REG_BIL_INTENT set DT_EXPIRES = ? where ID_REG_BIL_INTENT = ?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(60)), intent.get("id").asLong());
+        // 已过期且尚无支付指令：惰性关闭，不再阻塞。
+        mockMvc.perform(post(cancelUrl, appointmentId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(cancelBody))
+                .andExpect(status().isOk());
+        assertEquals("CANCELLED", jdbc.queryForObject("select SD_STATUS as status from RHN_BIL_REG_BIL_INTENT where ID_REG_BIL_INTENT = ?",
+                String.class, intent.get("id").asLong()));
+    }
+
     private String createResident(String suffix) throws Exception {
         String digits = "%06d".formatted(Math.floorMod(suffix.hashCode(), 1_000_000));
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())

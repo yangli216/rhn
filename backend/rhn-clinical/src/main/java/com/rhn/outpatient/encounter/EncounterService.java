@@ -869,6 +869,8 @@ public class EncounterService implements EncounterDirectory {
     }
 
 
+    private static final long MAX_QUERY_RANGE_DAYS = 92;
+    private static final int IN_CHUNK = 500;
     private static final java.time.ZoneId BUSINESS_ZONE = java.time.ZoneId.of("Asia/Shanghai");
 
     @Transactional(readOnly = true)
@@ -892,6 +894,10 @@ public class EncounterService implements EncounterDirectory {
             start = end;
             end = tmp;
         }
+        // 查询跨度上限，避免一次加载过多就诊记录
+        if (java.time.temporal.ChronoUnit.DAYS.between(start, end) > MAX_QUERY_RANGE_DAYS) {
+            throw badRequest("ENCOUNTER_QUERY_RANGE_TOO_LONG", "就诊查询日期范围不能超过 93 天");
+        }
         Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
 
@@ -905,20 +911,6 @@ public class EncounterService implements EncounterDirectory {
             return new EncounterPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
         }
 
-        List<Long> encounterIds = encounters.stream().map(Encounter::id).toList();
-
-        Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails =
-                registrationDirectory.findEncounterRegistrationDetails(encounterIds);
-
-        List<EncounterDiagnosis> allDiagnoses = diagnosisRepository
-                .findByTenantIdAndEncounterIdInAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
-                        context.tenantId(), encounterIds, "ENCOUNTER", "ACTIVE");
-        Map<Long, List<EncounterDiagnosis>> diagnosisMap = allDiagnoses.stream()
-                .collect(Collectors.groupingBy(EncounterDiagnosis::encounterId));
-
-        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
-        Map<Long, String> departmentCache = new java.util.HashMap<>();
-
         String normalizedStatus = Strings.trimToNull(status);
         String normalizedQuery = Strings.trimToNull(query);
         if (normalizedQuery != null) {
@@ -926,13 +918,35 @@ public class EncounterService implements EncounterDirectory {
         }
         final String matchQuery = normalizedQuery;
 
-        List<Encounter> filtered = encounters.stream()
-                .filter(enc -> matchesEncounter(enc, normalizedStatus, matchQuery,
-                        residentCache, registrationDetails, diagnosisMap))
-                .toList();
+        // 状态过滤只看实体字段，先于详情/诊断加载，缩小后续范围
+        List<Encounter> candidates = normalizedStatus == null ? encounters : encounters.stream()
+                .filter(enc -> enc.status().name().equalsIgnoreCase(normalizedStatus)).toList();
+
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
+        Map<Long, String> departmentCache = new java.util.HashMap<>();
+        Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails = new java.util.HashMap<>();
+        Map<Long, List<EncounterDiagnosis>> diagnosisMap = new java.util.HashMap<>();
+
+        List<Encounter> filtered;
+        if (matchQuery == null) {
+            filtered = candidates;
+        } else {
+            // 关键字需匹配登记/诊断，须对候选全量加载(按 500 分片)
+            loadDetails(context.tenantId(), candidates, registrationDetails, diagnosisMap);
+            residentCache.putAll(residentDirectory.requireSnapshots(context.tenantId(),
+                    candidates.stream().map(Encounter::residentId).toList()));
+            filtered = candidates.stream()
+                    .filter(enc -> matchesEncounter(enc, null, matchQuery,
+                            residentCache, registrationDetails, diagnosisMap))
+                    .toList();
+        }
 
         EncounterPageSlice pageSlice = pageOf(filtered, safePage, safeSize);
         List<Encounter> slice = pageSlice.slice();
+        if (matchQuery == null) {
+            // 无关键字时只为当前页加载详情与诊断
+            loadDetails(context.tenantId(), slice, registrationDetails, diagnosisMap);
+        }
         long totalElements = pageSlice.totalElements();
         int totalPages = pageSlice.totalPages();
 
@@ -943,6 +957,20 @@ public class EncounterService implements EncounterDirectory {
         boolean first = safePage == 0;
         boolean last = totalPages == 0 || safePage >= totalPages - 1;
         return new EncounterPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    private void loadDetails(Long tenantId, List<Encounter> source,
+                             Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails,
+                             Map<Long, List<EncounterDiagnosis>> diagnosisMap) {
+        List<Long> ids = source.stream().map(Encounter::id).toList();
+        for (int from = 0; from < ids.size(); from += IN_CHUNK) {
+            List<Long> chunk = ids.subList(from, Math.min(from + IN_CHUNK, ids.size()));
+            registrationDetails.putAll(registrationDirectory.findEncounterRegistrationDetails(chunk));
+            diagnosisRepository
+                    .findByTenantIdAndEncounterIdInAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
+                            tenantId, chunk, "ENCOUNTER", "ACTIVE")
+                    .forEach(dx -> diagnosisMap.computeIfAbsent(dx.encounterId(), key -> new java.util.ArrayList<>()).add(dx));
+        }
     }
 
     private boolean matchesEncounter(Encounter enc, String normalizedStatus, String matchQuery,

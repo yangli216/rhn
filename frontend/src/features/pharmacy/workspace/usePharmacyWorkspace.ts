@@ -278,7 +278,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
   const residentsLookup = useQuery({
     queryKey: ['pharmacy-residents-lookup', organizationId],
     queryFn: () => api.residents.page({ size: 200 }),
-    enabled: mode === 'dispensing' || mode === 'cancel-dispense' || mode === 'query',
+    enabled: mode === 'dispensing' || mode === 'cancel-dispense' || mode === 'query' || mode === 'returns',
   })
 
   const residentMap = useMemo(() => {
@@ -318,6 +318,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       const resInfo = residentMap.get(resId)
       const reqSnapshot = item.request.medicationSnapshot as Record<string, unknown> | undefined
       const snapName = resInfo?.fullName
+        || (reqSnapshot?.fullName as string)
         || (reqSnapshot?.residentName as string)
         || (item.request as unknown as { residentName?: string }).residentName
         || (resId !== 'unknown' && resId.length > 8 ? `患者 (${resId.slice(-4)})` : '患者')

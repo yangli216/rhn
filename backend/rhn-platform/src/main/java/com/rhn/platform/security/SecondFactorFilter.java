@@ -3,6 +3,7 @@ package com.rhn.platform.security;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.platform.web.CorrelationIdFilter;
 import com.rhn.shared.api.ApiError;
+import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.json.JsonCodec;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -56,12 +57,24 @@ class SecondFactorFilter extends OncePerRequestFilter {
             return;
         }
         List<String> authorities = authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
-        if (policy.exempt(authentication.getName())
-                || !policy.required(TenantContext.requireTenantId(), authorities)) {
+        Object correlationId = request.getAttribute(CorrelationIdFilter.ATTRIBUTE_NAME);
+        boolean required;
+        try {
+            required = !policy.exempt(authentication.getName())
+                    && policy.required(TenantContext.requireTenantId(), authorities);
+        } catch (BusinessException error) {
+            // Policy lookup runs outside MVC, so an unknown tenant must be answered here instead of surfacing as a 500.
+            response.setStatus(error.status().value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.getWriter().write(jsonCodec.write(new ApiError(error.code(), error.getMessage(),
+                    correlationId == null ? "" : correlationId.toString(), Instant.now(), List.of())));
+            return;
+        }
+        if (!required) {
             chain.doFilter(request, response);
             return;
         }
-        Object correlationId = request.getAttribute(CorrelationIdFilter.ATTRIBUTE_NAME);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());

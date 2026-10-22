@@ -99,8 +99,12 @@ public class TreatmentExecutionService {
                 && value.status() != TreatmentExecutionTaskStatus.CANCELLED).forEach(this::reconcile);
         Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
         String typeFilter = upper(taskType); String statusFilter = upper(status); String term = upper(keyword);
-        return values.stream().filter(value -> typeFilter == null || typeFilter.equals(value.taskType()))
+        List<TreatmentExecutionTask> visible = values.stream()
+                .filter(value -> typeFilter == null || typeFilter.equals(value.taskType()))
                 .filter(value -> statusFilter == null || statusFilter.equals(value.verifiedStatus().name()))
+                .toList();
+        residentCache.putAll(residents.requireSnapshots(visible.stream().map(TreatmentExecutionTask::residentId).toList()));
+        return visible.stream()
                 .map(value -> view(value, residentCache))
                 .filter(value -> term == null || searchable(value).contains(term))
                 .toList();

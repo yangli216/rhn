@@ -119,7 +119,6 @@
         "HistoricalEncounterWindowTest",
         "DiagnosisManagementEvidenceTest",
         "DiagnosisDomainTruthTest",
-        "DiagnosisDomainMigrationTest",
         "DiagnosisOwnershipPersistenceTest",
         "com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest",
         "com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest",
@@ -237,7 +236,6 @@
         "HistoricalEncounterWindowTest",
         "DiagnosisManagementEvidenceTest",
         "DiagnosisDomainTruthTest",
-        "DiagnosisDomainMigrationTest",
         "DiagnosisOwnershipPersistenceTest",
         "com.rhn.outpatient.encounter.DiagnosisOwnershipValidationTest",
         "com.rhn.outpatient.encounter.DiagnosisManagementSnapshotTest",
@@ -542,7 +540,6 @@
         "com.rhn.ai.application.TreatmentCatalogDecisionServiceTest",
         "com.rhn.ai.application.PlanInvestigationDecisionServiceTest",
         "com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest",
-        "com.rhn.quality.MedicationWorkbenchShadowTest",
         "ClinicalAiConfigurationTest"
       ]
     },

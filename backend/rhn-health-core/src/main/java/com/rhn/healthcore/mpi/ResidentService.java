@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +38,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class ResidentService implements ResidentDirectory {
     private static final String ACTIVE = "ACTIVE";
+    private static final int SNAPSHOT_BATCH_SIZE = 500;
     private static final String IDENTIFIER_SYSTEM_DICTIONARY = "PI_RESIDENT_IDENTIFIER_SYSTEM";
     // Other identifiers lack a verified issuing scope (or have already lost their original type).
     private static final Set<String> EXACT_MATCH_SYSTEMS = Set.of("1", "2", "3", "4", "5", "6");
@@ -282,6 +284,31 @@ public class ResidentService implements ResidentDirectory {
         Long canonicalId = resolveCanonicalResidentId(tenantId, residentId);
         Resident resident = requireEntity(tenantId, canonicalId);
         return snapshot(resident);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, ResidentSnapshot> requireSnapshots(Collection<Long> residentIds) {
+        return requireSnapshots(TenantContext.requireTenantId(), residentIds);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, ResidentSnapshot> requireSnapshots(Long tenantId, Collection<Long> residentIds) {
+        List<Long> ids = residentIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, ResidentSnapshot> result = new LinkedHashMap<>();
+        for (int from = 0; from < ids.size(); from += SNAPSHOT_BATCH_SIZE) {
+            List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + SNAPSHOT_BATCH_SIZE));
+            Map<Long, Resident> found = new java.util.HashMap<>();
+            residentRepository.findByTenantIdAndIdIn(tenantId, chunk).forEach(r -> found.put(r.id(), r));
+            for (Long id : chunk) {
+                Resident resident = found.get(id);
+                // Active residents map directly; merged/missing/inactive ones take the single path for identical errors.
+                result.put(id, resident != null && resident.status() == ResidentStatus.ACTIVE
+                        ? snapshot(resident) : requireSnapshot(tenantId, id));
+            }
+        }
+        return result;
     }
 
     private Long resolveCanonicalResidentId(Long tenantId, Long residentId) {

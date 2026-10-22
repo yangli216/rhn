@@ -44,6 +44,18 @@ class EncounterQueryTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void page_rejects_ranges_longer_than_93_days() throws Exception {
+        mockMvc.perform(get("/api/encounters/page").with(rhnWorkContext())
+                        .queryParam("dateFrom", "2026-01-01").queryParam("dateTo", "2026-04-05"))
+                .andExpect(status().isBadRequest())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.code").value("ENCOUNTER_QUERY_RANGE_TOO_LONG"));
+        mockMvc.perform(get("/api/encounters/page").with(rhnWorkContext())
+                        .queryParam("dateFrom", "2026-01-01").queryParam("dateTo", "2026-04-03"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void page_queries_encounters_with_pagination_status_and_keyword_filters() throws Exception {
         String suffix = Long.toString(GlobalIds.next()).substring(13);
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())

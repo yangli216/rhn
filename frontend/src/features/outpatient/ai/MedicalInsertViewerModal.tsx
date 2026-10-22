@@ -124,7 +124,7 @@ export function MedicalInsertViewerModal({
     return () => {
       active = false
     }
-  }, [isOpen, name, id, type, api])
+  }, [isOpen, name, id, type, target?.icd10, api])
 
   if (!isOpen) return null
 

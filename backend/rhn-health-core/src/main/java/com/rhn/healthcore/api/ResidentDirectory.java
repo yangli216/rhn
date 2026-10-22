@@ -13,6 +13,27 @@ public interface ResidentDirectory {
     ResidentSnapshot requireSnapshot(Long tenantId, Long residentId);
 
     /**
+     * Batch form of {@link #requireSnapshot(Long)} for list/board assembly: keyed by the requested id, with the same
+     * errors as the single lookup (any missing or unusable id throws).
+     */
+    default java.util.Map<Long, ResidentSnapshot> requireSnapshots(java.util.Collection<Long> residentIds) {
+        java.util.Map<Long, ResidentSnapshot> result = new java.util.LinkedHashMap<>();
+        for (Long id : residentIds) {
+            if (id != null && !result.containsKey(id)) result.put(id, requireSnapshot(id));
+        }
+        return result;
+    }
+
+    /** Tenant-explicit batch lookup; see {@link #requireSnapshots(java.util.Collection)}. */
+    default java.util.Map<Long, ResidentSnapshot> requireSnapshots(Long tenantId, java.util.Collection<Long> residentIds) {
+        java.util.Map<Long, ResidentSnapshot> result = new java.util.LinkedHashMap<>();
+        for (Long id : residentIds) {
+            if (id != null && !result.containsKey(id)) result.put(id, requireSnapshot(tenantId, id));
+        }
+        return result;
+    }
+
+    /**
      * Returns the canonical resident while holding a write lock for the current transaction.
      * Cross-module workflows use this to serialize creation of resident-scoped authoritative facts.
      */

@@ -633,6 +633,122 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(residentId)));
     }
 
+    @Test
+    void intent_bound_to_failed_payment_order_can_be_cancelled_and_releases_the_hold() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        String scheduleId = createTodaySchedule(suffix, 1);
+        JsonNode intent = createIntent(residentId, scheduleId, "FAILED-CANCEL-" + suffix);
+        JsonNode order = createWechatOrder(intent, "FAILED-CANCEL-PAY-" + suffix);
+        mockMvc.perform(post("/api/billing/registration-intents/{intentId}/cancel", intent.get("id").asString())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("REGISTRATION_INTENT_NOT_CANCELLABLE"));
+
+        markOrder(order, "FAILED");
+        mockMvc.perform(post("/api/billing/registration-intents/{intentId}/cancel", intent.get("id").asString())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertEquals("RELEASED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
+                String.class, intent.get("slotHoldId").asLong()));
+        assertEquals(0, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
+                Integer.class, Long.valueOf(scheduleId)));
+    }
+
+    @Test
+    void intent_bound_to_failed_payment_order_accepts_a_new_payment_order() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        JsonNode intent = createIntent(createResident(suffix), createTodaySchedule(suffix, 1), "RELINK-" + suffix);
+        JsonNode first = createWechatOrder(intent, "RELINK-PAY-1-" + suffix);
+        markOrder(first, "FAILED");
+        JsonNode second = createWechatOrder(intent, "RELINK-PAY-2-" + suffix);
+        assertEquals(second.get("id").asLong(), jdbc.queryForObject(
+                "select ID_PAY_ORDER from RHN_BIL_REG_BIL_INTENT where ID_REG_BIL_INTENT = ?", Long.class,
+                intent.get("id").asLong()));
+        // 新指令仍在途：不能再被第三个指令替换。
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", intent.get("settlementId").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"idempotencyKey":"RELINK-PAY-3-%s","businessScene":"REGISTRATION",
+                                 "paymentSceneCode":"CASHIER","paymentMethodCode":"WECHAT","amount":10.00}
+                                """.formatted(suffix)))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void hold_of_an_intent_with_a_pending_payment_order_survives_another_patients_reserve_after_expiry() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String scheduleId = createTodaySchedule(suffix, 2);
+        JsonNode intent = createIntent(createResident("A" + suffix), scheduleId, "PIN-A-" + suffix);
+        long holdId = intent.get("slotHoldId").asLong();
+        // 模拟 15 分钟暂占窗口已过，但清理尚未发生；随后发起的支付指令必须钉住暂占。
+        jdbc.update("update RHN_SC_SCHED_SLOT_HOLD set DT_CREATED = ?, DT_EXPIRES = ? where ID_SCHED_SLOT_HOLD = ?",
+                java.sql.Timestamp.from(Instant.now().minusSeconds(1200)), java.sql.Timestamp.from(Instant.now().minusSeconds(60)), holdId);
+        JsonNode order = createWechatOrder(intent, "PIN-PAY-" + suffix);
+
+        createIntent(createResident("B" + suffix), scheduleId, "PIN-B-" + suffix);
+        assertEquals("ACTIVE", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
+                String.class, holdId));
+        assertEquals(2, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
+                Integer.class, Long.valueOf(scheduleId)));
+
+        mockMvc.perform(post("/api/billing/payment-orders/recovery").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"batchCode\":\"PIN-RECOVERY-%s\",\"limit\":20}".formatted(suffix)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/billing/registration-intents/{intentId}", intent.get("id").asString())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
+        assertEquals(order.get("id").asLong(), jdbc.queryForObject(
+                "select ID_PAY_ORDER from RHN_BIL_REG_BIL_INTENT where ID_REG_BIL_INTENT = ?", Long.class,
+                intent.get("id").asLong()));
+    }
+
+    @Test
+    void failed_payment_order_unpins_the_hold_so_another_patient_can_take_the_slot_after_the_grace_period() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String scheduleId = createTodaySchedule(suffix, 1);
+        JsonNode intent = createIntent(createResident("A" + suffix), scheduleId, "UNPIN-A-" + suffix);
+        long holdId = intent.get("slotHoldId").asLong();
+        JsonNode order = createWechatOrder(intent, "UNPIN-PAY-" + suffix);
+        java.sql.Timestamp pinned = jdbc.queryForObject("select DT_EXPIRES from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
+                java.sql.Timestamp.class, holdId);
+
+        ReceiptAdapterConfiguration.FAILING_ORDER_NOS.add(order.get("orderNo").asString());
+        try {
+            mockMvc.perform(post("/api/billing/payment-orders/{id}/query", order.get("id").asLong()).with(rhnWorkContext()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FAILED"));
+        } finally {
+            ReceiptAdapterConfiguration.FAILING_ORDER_NOS.clear();
+        }
+        java.sql.Timestamp restored = jdbc.queryForObject("select DT_EXPIRES from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
+                java.sql.Timestamp.class, holdId);
+        org.junit.jupiter.api.Assertions.assertTrue(restored.before(pinned) || restored.equals(pinned),
+                "失败后暂占不应继续钉在排班结束");
+        org.junit.jupiter.api.Assertions.assertTrue(restored.toInstant().isBefore(Instant.now().plusSeconds(16 * 60)));
+
+        // 宽限期过后：另一患者预占时常规清理释放原暂占，号源可被占用。
+        jdbc.update("update RHN_SC_SCHED_SLOT_HOLD set DT_CREATED = ?, DT_EXPIRES = ? where ID_SCHED_SLOT_HOLD = ?",
+                java.sql.Timestamp.from(Instant.now().minusSeconds(1200)), java.sql.Timestamp.from(Instant.now().minusSeconds(60)), holdId);
+        createIntent(createResident("B" + suffix), scheduleId, "UNPIN-B-" + suffix);
+        assertEquals("EXPIRED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
+                String.class, holdId));
+        assertEquals(1, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
+                Integer.class, Long.valueOf(scheduleId)));
+    }
+
+    private JsonNode createWechatOrder(JsonNode intent, String idempotencyKey) throws Exception {
+        return json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"idempotencyKey":"%s","businessScene":"REGISTRATION",
+                                 "paymentSceneCode":"CASHIER","paymentMethodCode":"WECHAT","amount":10.00}
+                                """.formatted(idempotencyKey)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+    }
+
+    private void markOrder(JsonNode order, String status) {
+        jdbc.update("update RHN_BIL_PAY_ORDER set SD_STATUS = ? where ID_PAY_ORDER = ?", status, order.get("id").asLong());
+    }
+
     /** 在租户级覆盖“挂号医保结算时机”参数；测试方法结束后由数据库重置清除，缓存在此刷新。 */
     private void useInsuranceTiming(String timing) {
         jdbc.update("""
@@ -1129,6 +1245,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
 
     @TestConfiguration
     static class ReceiptAdapterConfiguration {
+        static final java.util.Set<String> FAILING_ORDER_NOS = java.util.concurrent.ConcurrentHashMap.newKeySet();
         @Bean
         @Order(Ordered.HIGHEST_PRECEDENCE)
         FiscalReceiptAdapter pendingThenQueryableReceiptAdapter() {
@@ -1204,6 +1321,9 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                     return RefundResult.pending("WX-RF-" + input.orderNo());
                 }
                 @Override public QueryResult query(QueryInstruction input) {
+                    if (FAILING_ORDER_NOS.contains(input.orderNo())) {
+                        return QueryResult.failed(input.externalOrderNo(), "TEST_PAYMENT_FAILED", "测试支付失败");
+                    }
                     return QueryResult.succeeded(input.externalOrderNo(), "WX-TXN-" + input.orderNo(),
                             input.expectedAmount());
                 }

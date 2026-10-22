@@ -30,6 +30,7 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
     private static final ZoneId ORGANIZATION_ZONE = ZoneId.of("Asia/Shanghai");
 
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.rhn.outpatient.api.MedicationRequestDirectory requestDirectory;
 
     @Test
     void two_administrations_require_two_issued_units_and_only_unconsumed_unit_can_be_returned() throws Exception {
@@ -252,6 +253,10 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.request.id == '" + facts.requestId()
                         + "' && @.request.status == 'CANCELLED' && @.closureStatus == 'RETURN_REQUIRED')]")
                         .isNotEmpty());
+        // 批量筛选只放行已停嘱请求；未作废/不存在的 id 不进入 closure 计算
+        Long stoppedId = Long.valueOf(facts.requestId());
+        assertEquals(java.util.Set.of(stoppedId), requestDirectory.cancelledRequestIds(
+                Long.valueOf(TENANT), java.util.List.of(stoppedId, Long.MAX_VALUE)));
 
         mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", dispenseTaskId)
                         .with(pharmacyContext()).contentType(MediaType.APPLICATION_JSON).content("""

@@ -17,10 +17,17 @@ public interface RegistrationBillingIntentRepository extends JpaRepository<Regis
     Optional<RegistrationBillingIntent> findByIdAndTenantId(Long id, Long tenantId);
     Optional<RegistrationBillingIntent> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
     Optional<RegistrationBillingIntent> findByTenantIdAndSettlementId(Long tenantId, Long settlementId);
+    Optional<RegistrationBillingIntent> findByTenantIdAndPaymentOrderId(Long tenantId, Long paymentOrderId);
     Optional<RegistrationBillingIntent> findByTenantIdAndEncounterId(Long tenantId, Long encounterId);
     java.util.List<RegistrationBillingIntent> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
     Optional<RegistrationBillingIntent> findFirstByTenantIdAndAppointmentIdAndStatusIn(
             Long tenantId, Long appointmentId, Collection<RegistrationBillingIntentStatus> statuses);
+
+    java.util.List<RegistrationBillingIntent> findByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusAndExpiresAtBefore(
+            Long tenantId, Long residentId, Long organizationId, Long departmentId,
+            RegistrationBillingIntentStatus status, java.time.Instant before);
+    java.util.List<RegistrationBillingIntent> findByTenantIdAndAppointmentIdAndStatusAndExpiresAtBefore(
+            Long tenantId, Long appointmentId, RegistrationBillingIntentStatus status, java.time.Instant before);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from RegistrationBillingIntent value where value.id = :id and value.tenantId = :tenantId")

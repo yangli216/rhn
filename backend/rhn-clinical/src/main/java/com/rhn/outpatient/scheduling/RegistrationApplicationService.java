@@ -394,11 +394,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         }
         final boolean doctorHasPersonalSchedule = hasPersonalSchedule;
 
-        return registrations.stream()
+        List<PatientRegistration> visibleRegistrations = registrations.stream()
                 .filter(reg -> registeredByMe || matchesQueue(reg, tickets, context, start, end, now))
                 .filter(registration -> registeredByMe || isVisibleInQueue(
                         registration, schedules, encounters, tickets, context, resolvedScope, doctorHasPersonalSchedule
-                )).map(registration -> toQueueItem(registration, tickets, schedules, encounters, context,
+                )).toList();
+        preloadResidents(queueResidentCache, visibleRegistrations);
+        return visibleRegistrations.stream()
+                .map(registration -> toQueueItem(registration, tickets, schedules, encounters, context,
                         queueOperatorCache, queueDepartmentCache, clinicianNameCache, queueResidentCache))
                 .sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                         .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
@@ -440,6 +443,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Map<Long, String> operatorCache = new HashMap<>();
         Map<Long, String> departmentCache = new HashMap<>();
 
+        if (matchQuery != null) preloadResidents(residentCache, registrations);
         List<PatientRegistration> filtered = registrations.stream()
                 .filter(reg -> matchesRegistration(reg, normalizedStatus, matchQuery, tickets,
                         residentCache, scheduleCache, operatorCache, departmentCache, context))
@@ -452,6 +456,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         int toIndex = Math.min((int) totalElements, fromIndex + safeSize);
         List<PatientRegistration> slice = filtered.subList(fromIndex, toIndex);
 
+        preloadResidents(residentCache, slice);
         List<ReceptionQueueItem> content = slice.stream()
                 .map(registration -> toPageItem(registration, tickets, residentCache, scheduleCache,
                         operatorCache, departmentCache, context))
@@ -460,6 +465,13 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         boolean first = safePage == 0;
         boolean last = totalPages == 0 || safePage >= totalPages - 1;
         return new RegistrationPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    private void preloadResidents(Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
+                                  List<PatientRegistration> source) {
+        List<Long> missing = source.stream().map(PatientRegistration::residentId)
+                .filter(id -> id != null && !residentCache.containsKey(id)).distinct().toList();
+        if (!missing.isEmpty()) residentCache.putAll(residentDirectory.requireSnapshots(missing));
     }
 
     private record QueueWindow(LocalDate start, LocalDate end, Instant from, Instant to) {

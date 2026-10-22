@@ -54,6 +54,14 @@ class ScheduleSlotHold {
         this.closedAt = Instant.now();
     }
 
+    void extendTo(Instant until) {
+        if (status == ScheduleSlotHoldStatus.ACTIVE && until.isAfter(expiresAt)) this.expiresAt = until;
+    }
+
+    void shrinkTo(Instant until) {
+        if (status == ScheduleSlotHoldStatus.ACTIVE && until.isBefore(expiresAt)) this.expiresAt = until;
+    }
+
     void bindRegistration(Long registrationId) { this.consumedRegistrationId = registrationId; }
 
     Long id() { return id; }

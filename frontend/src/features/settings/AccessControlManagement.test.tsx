@@ -25,7 +25,10 @@ function setup(overrides: Record<string, unknown> = {}) {
       staffAssignmentId: null, practitionerId: 'p-2', practitionerName: '李护士', roleId: input.roleId })),
     revokeAssignment: vi.fn().mockResolvedValue(undefined),
     ...overrides }
-  const api = { identityAccess } as unknown as RhnApi
+  const roleTypeNames = { SYSTEM: '系统角色', ADMIN: '管理角色', BUSINESS: '业务角色', CUSTOM: '自定义角色' }
+  const dictionaries = { systemEnum: vi.fn().mockResolvedValue({ code: 'SYS_ACC_ROLE_TYPE', name: '角色类型', description: '',
+    items: Object.entries(roleTypeNames).map(([code, name], index) => ({ code, name, description: '', sortOrder: (index + 1) * 10 })) }) }
+  const api = { identityAccess, dictionaries } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(<QueryClientProvider client={client}><AccessControlManagement api={api} context={context} /></QueryClientProvider>)
   return { identityAccess, client }

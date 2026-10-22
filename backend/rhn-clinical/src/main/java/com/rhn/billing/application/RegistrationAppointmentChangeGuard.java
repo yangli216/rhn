@@ -14,14 +14,16 @@ class RegistrationAppointmentChangeGuard implements AppointmentChangeGuard {
             RegistrationBillingIntentStatus.PAYMENT_PENDING, RegistrationBillingIntentStatus.PAID,
             RegistrationBillingIntentStatus.COMPLETING, RegistrationBillingIntentStatus.COMPLETION_FAILED);
     private final RegistrationBillingIntentRepository intents;
+    private final RegistrationIntentLifecycle lifecycle;
 
-    RegistrationAppointmentChangeGuard(RegistrationBillingIntentRepository intents) {
-        this.intents = intents;
+    RegistrationAppointmentChangeGuard(RegistrationBillingIntentRepository intents, RegistrationIntentLifecycle lifecycle) {
+        this.intents = intents; this.lifecycle = lifecycle;
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public boolean registrationInProgress(Long tenantId, Long appointmentId) {
+        lifecycle.expireStaleForAppointment(tenantId, appointmentId);
         return intents.findFirstByTenantIdAndAppointmentIdAndStatusIn(tenantId, appointmentId, ACTIVE).isPresent();
     }
 }

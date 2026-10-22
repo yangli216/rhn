@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -16,6 +15,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class RegistrationSlotHoldService implements OutpatientScheduleDirectory {
+    private static final java.time.Duration HOLD_WINDOW = java.time.Duration.ofMinutes(15);
     private final ServiceScheduleRepository schedules;
     private final ScheduleSlotPoolRepository pools;
     private final ScheduleSlotHoldRepository holds;
@@ -48,7 +48,7 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         expireActiveHolds(context, pool);
         pool.holdOne();
         Instant now = Instant.now();
-        Instant requested = command.expiresAt() == null ? now.plus(15, ChronoUnit.MINUTES) : command.expiresAt();
+        Instant requested = command.expiresAt() == null ? now.plus(HOLD_WINDOW) : command.expiresAt();
         Instant expiresAt = requested.isBefore(schedule.endAt()) ? requested : schedule.endAt();
         if (!expiresAt.isAfter(now)) throw conflict("SLOT_HOLD_EXPIRY_INVALID", "所选排班已结束或暂占有效期无效");
         ScheduleSlotHold hold = holds.save(new ScheduleSlotHold(context.tenantId(), pool.id(), schedule.id(),
@@ -92,6 +92,25 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         append(context, pool, schedule.id(), "OCCUPIED", -1, 1,
                 commandCode, "支付成功，暂占号源转为正式占用");
         return snapshot(hold, schedule);
+    }
+
+    @Override
+    @Transactional
+    public SlotHoldSnapshot pinHold(Long holdId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        ScheduleSlotHold hold = holds.findWithLockByIdAndTenantId(holdId, context.tenantId())
+                .orElseThrow(() -> notFound("SCHEDULE_SLOT_HOLD_NOT_FOUND", "未找到号源暂占记录"));
+        ServiceSchedule schedule = schedule(hold.scheduleId(), context.tenantId());
+        hold.extendTo(schedule.endAt());
+        return snapshot(hold, schedule);
+    }
+
+    @Override
+    @Transactional
+    public void unpinHold(Long holdId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        holds.findWithLockByIdAndTenantId(holdId, context.tenantId())
+                .ifPresent(hold -> hold.shrinkTo(Instant.now().plus(HOLD_WINDOW)));
     }
 
     @Override

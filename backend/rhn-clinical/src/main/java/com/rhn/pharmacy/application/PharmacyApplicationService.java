@@ -54,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -243,6 +244,8 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         Map<Long, PharmacyInboxItem> result = new LinkedHashMap<>();
         Map<Long, ResidentDirectory.ResidentSnapshot> residents = new HashMap<>();
         List<MedicationRequestSnapshot> activeRequests = requestDirectory.activeForPharmacy(organizationId);
+        residents.putAll(residentDirectory.requireSnapshots(context.tenantId(),
+                activeRequests.stream().map(MedicationRequestSnapshot::residentId).toList()));
         for (MedicationRequestSnapshot request : activeRequests) {
             var resident = residents.computeIfAbsent(request.residentId(),
                     id -> residentDirectory.requireSnapshot(context.tenantId(), id));
@@ -276,9 +279,22 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                     clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
         }
         // 应退(RETURN_REQUIRED)必须 已发>已退，SQL 先滤掉从未发出/已退清的历史任务，其余才查 closure
-        for (DispenseTaskLine line : lineRepository.findNetDispensedBySite(context.tenantId(), currentSite.id())) {
+        List<DispenseTaskLine> netLines = lineRepository.findNetDispensedBySite(context.tenantId(), currentSite.id())
+                .stream().filter(line -> !result.containsKey(line.requestId())).toList();
+        // 只有已作废(停嘱)的请求才可能应退，先一次性批量筛出，避免对历史已完成发药逐条加载
+        Set<Long> cancelledIds = requestDirectory.cancelledRequestIds(context.tenantId(),
+                netLines.stream().map(DispenseTaskLine::requestId).collect(Collectors.toSet()));
+        List<DispenseTaskLine> candidates = netLines.stream().filter(line -> cancelledIds.contains(line.requestId())).toList();
+        Map<Long, DispenseTask> tasksById = new HashMap<>();
+        List<Long> taskIds = candidates.stream().map(DispenseTaskLine::taskId).distinct().toList();
+        for (int from = 0; from < taskIds.size(); from += 500) {
+            taskRepository.findByTenantIdAndIdIn(context.tenantId(),
+                    taskIds.subList(from, Math.min(from + 500, taskIds.size())))
+                    .forEach(value -> tasksById.put(value.id(), value));
+        }
+        for (DispenseTaskLine line : candidates) {
             if (result.containsKey(line.requestId())) continue;
-            DispenseTask task = taskRepository.findByIdAndTenantId(line.taskId(), context.tenantId()).orElse(null);
+            DispenseTask task = tasksById.get(line.taskId());
             if (task == null) continue;
             var closure = medicationStops.closure(context.tenantId(), line.requestId());
             if (!closure.returnRequired()) continue;

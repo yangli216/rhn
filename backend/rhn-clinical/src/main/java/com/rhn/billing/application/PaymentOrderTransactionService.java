@@ -52,6 +52,7 @@ class PaymentOrderTransactionService {
     private final SettlementApplicationService settlements;
     private final PaymentRoundingPolicy roundingPolicy;
     private final BillingCodes codes;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     PaymentOrderTransactionService(PaymentOrderRepository orderRepository,
                                    PaymentEventRepository eventRepository,
@@ -63,8 +64,8 @@ class PaymentOrderTransactionService {
                                    DictionaryAttributeDirectory attributeDirectory,
                                    ExecutionContextProvider contextProvider,
                                    SettlementApplicationService settlements, PaymentRoundingPolicy roundingPolicy, BusinessNumberGenerator numbers,
-                                   BillingCodes codes) {
-        this.numbers = numbers; this.codes = codes;
+                                   BillingCodes codes, org.springframework.context.ApplicationEventPublisher events) {
+        this.numbers = numbers; this.codes = codes; this.events = events;
         this.orderRepository = orderRepository; this.eventRepository = eventRepository;
         this.accountRepository = accountRepository; this.invoiceRepository = invoiceRepository;
         this.paymentRepository = paymentRepository; this.ledgerRepository = ledgerRepository;
@@ -249,6 +250,9 @@ class PaymentOrderTransactionService {
                 upper(input.eventType()), current, next, commandCode, Strings.trimToNull(input.externalTransactionNo()),
                 input.eventAmount() == null ? null : money(input.eventAmount()),
                 Strings.trimToNull(input.errorCode()), Strings.trimToNull(input.errorMessage()), context.subjectId()));
+        if ("SETTLEMENT_PAY".equals(order.orderType()) && Set.of("FAILED", "CANCELLED", "EXPIRED").contains(next)) {
+            events.publishEvent(new PaymentOrderFailedEvent(order.tenantId(), order.id(), order.businessScene()));
+        }
         return new TransitionResult(order, false);
     }
 

@@ -20,5 +20,6 @@ public interface DispenseTaskRepository extends JpaRepository<DispenseTask, Long
     List<DispenseTask> findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(Long tenantId, Long stockSiteId);
     List<DispenseTask> findByTenantIdAndStockSiteIdAndStatusOrderByCreatedAtDesc(
             Long tenantId, Long stockSiteId, DispenseTaskStatus status);
+    List<DispenseTask> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
     List<DispenseTask> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
 }

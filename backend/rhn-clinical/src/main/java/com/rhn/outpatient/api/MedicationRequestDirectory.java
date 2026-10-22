@@ -7,13 +7,18 @@ import tools.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /** Public, read-only medication-order contract consumed by pharmacy and billing modules. */
 public interface MedicationRequestDirectory {
     MedicationRequestSnapshot requireForPharmacy(Long requestId);
     MedicationRequestSnapshot lockForPharmacyIntake(Long requestId);
     MedicationRequestSnapshot requireForRouting(Long tenantId, Long requestId);
+
+    /** 批量筛出已作废(停嘱)的药品请求 id，供药房应退列表避免逐条加载。 */
+    Set<Long> cancelledRequestIds(Long tenantId, Collection<Long> requestIds);
 
     List<MedicationRequestSnapshot> activeForPharmacy(Long organizationId);
     List<MedicationRequestSnapshot> activeForExecution(Long organizationId, Long departmentId);
