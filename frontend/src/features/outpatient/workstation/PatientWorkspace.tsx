@@ -252,7 +252,10 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   const handleRegisterSaveDraft = useCallback((handler: (() => Promise<boolean>) | null) => {
     saveDraftHandlerRef.current = handler
   }, [])
+  // 诊毕前的自动保存不单独提示成功或待补录，由诊毕核对给出一条合并提示；保存失败照常提示。
+  const quietSaveNoticeRef = useRef(false)
   const handleSaveDraftNotice = useCallback((notice: { message: string; tone?: 'success' | 'error' | 'warning' }) => {
+    if (quietSaveNoticeRef.current && notice.tone !== 'error') return
     // The toast's own duration (and its progress bar) decides when it closes; a new notice restarts it.
     setSaveDraftNotice({ ...notice, id: Date.now() })
   }, [])
@@ -351,7 +354,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     pendingSwitch.current = { item, call }
     requestAction('switch')
   }
-  const runAction = (action: GuardedPatientAction) => {
+  const runAction = (action: GuardedPatientAction, savedBeforeAction = false) => {
     setGuardedAction(null)
     if (action === 'switch') {
       const target = pendingSwitch.current
@@ -368,7 +371,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
       // 必填未完成时留在当前页面提示，避免打开诊毕窗口后还要关闭才能修改。
       const blockers = completionBlockersRef.current
       if (!blockers.length) { setCompletionOpen(true); return }
-      handleSaveDraftNotice({ message: `暂不能诊毕，请先完善：${blockers.join('、')}`, tone: 'warning' })
+      handleSaveDraftNotice({ message: `${savedBeforeAction ? '门诊病历、诊断与医嘱已保存；' : ''}暂不能诊毕，请先完善：${blockers.join('、')}`, tone: 'warning' })
       // Put the cursor where the doctor has to type, so the missing vital is noticed and filled at once.
       if (blockers.includes('血压')) window.requestAnimationFrame(() => {
         const input = document.getElementById('doctor-vital-systolic')
@@ -381,10 +384,12 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   }
   const saveAndContinue = async (action: GuardedPatientAction) => {
     setSavingFor(action)
+    quietSaveNoticeRef.current = action === 'complete'
     try {
       const saved = await handleSaveDraft()
-      if (saved) runAction(action)
-    } finally { setSavingFor(null) }
+      quietSaveNoticeRef.current = false
+      if (saved) runAction(action, true)
+    } finally { quietSaveNoticeRef.current = false; setSavingFor(null) }
   }
   const enterEditing = () => {
     if (!encounter || !canEdit) return

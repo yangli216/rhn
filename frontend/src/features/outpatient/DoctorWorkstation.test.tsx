@@ -1502,6 +1502,25 @@ describe('DoctorWorkstation reception flow', () => {
     expect(await screen.findByText(/35 周岁及以上患者就诊须填写收缩压和舒张压，诊毕前需补录/)).toBeInTheDocument()
   })
 
+  it('shows one merged notice when completion saves first and blood pressure is still missing', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.encounters.orderingPolicy).mockResolvedValue({ reviewMode: 'SIMPLE', mergeWesternAndPatent: false,
+      separateInfusion: true, maxItemsPerPrescription: 5 })
+    api.encounters.bloodPressureRequirement = vi.fn().mockResolvedValue({ required: true, enforceAt: 'COMPLETION', minAge: 35,
+      message: '按本机构要求，35 周岁及以上患者就诊须填写收缩压和舒张压' })
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const complaint = await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')
+    await user.clear(complaint)
+    await user.type(complaint, '发热3天')
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalled())
+    expect(await screen.findByText(/^门诊病历、诊断与医嘱已保存；暂不能诊毕，请先完善：.*血压$/)).toBeInTheDocument()
+    expect(screen.queryByText(/诊毕前需补录/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /诊毕确认/ })).not.toBeInTheDocument()
+  })
+
   it('preserves chief complaint, diagnoses, and physical exam data without clearing after saving draft', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
