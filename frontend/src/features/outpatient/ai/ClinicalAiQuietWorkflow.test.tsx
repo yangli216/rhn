@@ -19,7 +19,7 @@ function result(input: GenerateClinicalAiSuggestionInput): ClinicalAiSuggestion 
     expiresAt: new Date(Date.now() + 600000).toISOString(), summary: '已整理合成资料', recordDraft: { chiefComplaint: '待核对的测试主诉' },
     diagnosisCandidates: [], differentialDiagnoses: [], missingInformation: [], safetyAlerts: [], recommendedPlans: [], disclaimer: '待核对' }
 }
-function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview = false,
+function setup(generateStream = vi.fn().mockImplementation(async (_id, input) => result(input)), withTreatmentReview: boolean | 'empty' = false,
   plans?: ClinicalAiRecommendedPlan[], diagnoses: ClinicalAiDraftContext['diagnoses'] = []) {
   const reviewRecommendedPlan = vi.fn()
   let registeredDiscard: (() => (() => void) | undefined) | null = null
@@ -64,6 +64,7 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
         onRegisterTreatmentBatchDiscard={registerTreatmentBatchDiscard}
         onReviewTreatment={withTreatmentReview ? (items, completed) => {
           const keys = items.map((item) => `${item.type}:${item.catalogItemId}`)
+          if (withTreatmentReview === 'empty') { completed([]); return }
           completed(keys); setTreatmentKeys(keys)
         } : undefined}
         onAdoptionBusyChange={() => undefined} onApply={apply} onFieldStream={onFieldStream} /></>
@@ -340,11 +341,28 @@ describe('quiet clinical AI workflow', () => {
     expect(apply).not.toHaveBeenCalled()
     expect(screen.getByRole('checkbox', { name: '选择 测试诊断乙' })).not.toBeChecked()
     expect(screen.getByLabelText('AI 诊断待确认')).toHaveTextContent('测试诊断甲')
+    // The reason is rendered beside the confirm button, not only in the (possibly collapsed) hub.
+    expect(within(screen.getByTestId('diagnoses')).getByRole('alert')).toHaveTextContent('留痕失败')
+    expect(within(screen.getByTestId('plans')).queryByRole('alert')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '确认所选诊断（1）' }))
     await advance(100)
     expect(apply).toHaveBeenCalledOnce()
     expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
     expect(screen.getByText('血常规')).toBeInTheDocument()
+  })
+
+  it('explains inline why an order confirmation added nothing instead of failing silently', async () => {
+    const generateStream = vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [{ code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY' }],
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规' }] }))
+    const { openHub } = setup(generateStream, 'empty')
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    fireEvent.click(screen.getByRole('button', { name: '确认所选（1）' }))
+    await advance(100)
+    expect(within(screen.getByTestId('plans')).getByRole('alert')).toHaveTextContent('未新增医嘱，请核对是否已带入。')
+    expect(within(screen.getByTestId('diagnoses')).queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('shows diagnosis and order stages before completion, then enables confirmation without adopting orders', async () => {

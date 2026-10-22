@@ -10,7 +10,12 @@
 .doctor-ai-inline summary:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
 .doctor-ai-inline > footer { border-top: 1px solid var(--color-border); padding-top: var(--space-2); margin-top: var(--space-2); }
 .doctor-ai-inline__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-ai-inline .doctor-ai-inline__stale { color: var(--color-warning); padding: var(--space-2); background: var(--color-warning-soft); border-radius: var(--radius-sm); }
+.doctor-ai-inline .doctor-ai-inline__stale,
+.doctor-ai-diagnosis-suggestions .doctor-ai-inline__stale,
+.doctor-ai-treatment-flow .doctor-ai-inline__stale { color: var(--color-warning); padding: var(--space-2); background: var(--color-warning-soft); border-radius: var(--radius-sm); }
+/* Sit under the right-aligned confirm button, which stays in view when the table scrolls horizontally. */
+.doctor-ai-diagnosis-suggestions .doctor-ai-inline__stale,
+.doctor-ai-treatment-flow .doctor-ai-inline__stale { margin: 0; text-align: end; }
 .doctor-ai-brief { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-3); }
 .doctor-ai-brief__facts { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); margin-top: var(--space-2); }
 .doctor-ai-brief__facts > div + div { border-left: 1px solid var(--color-border); padding-left: var(--space-3); }

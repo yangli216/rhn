@@ -156,6 +156,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const [viewMode, setViewMode] = useState<'current' | 'history'>('current')
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
   const [localError, setLocalError] = useState('')
+  // Failures of the inline confirm buttons, shown beside the button so a collapsed hub never hides them.
+  const [inlineError, setInlineError] = useState<{ target: 'diagnosis' | 'treatment'; message: string } | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<ClinicalAiRecommendedPlan | null>(null)
   const [evidenceDiagnosis, setEvidenceDiagnosis] = useState<{ code: string; display: string } | null>(null)
   const [medicalInsertTarget, setMedicalInsertTarget] = useState<MedicalInsertTarget | null>(null)
@@ -472,6 +474,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const error = generationError || knowledgeSearch.error || templates.error
     || adoptDraft.error || ignoreSuggestion.error
 
+  useEffect(() => { setInlineError(null) }, [currentSuggestion?.id])
   useEffect(() => {
     setCurrentSuggestion(null)
     setSelectedHistoryId(null)
@@ -879,8 +882,19 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     && (inputKey === suggestionInputKey || continuation) && voiceTranscript.trim() === suggestionVoiceTranscript)
   const applyInline = (selection: InlineAiSelection) => {
     const value = currentSuggestion
-    if (!value || disabled || actionPending || !auditFeature || !liveCurrent
-      || !guardCurrent(value, latestContext.current, setLocalError, undefined, encounter)) return
+    const diagnosisTarget = Boolean(selection.diagnoses?.length)
+    const fail = (message: string) => {
+      setLocalError(message)
+      if (diagnosisTarget) setInlineError({ target: 'diagnosis', message })
+    }
+    setInlineError((previous) => previous?.target === 'diagnosis' ? null : previous)
+    if (!value) return fail('AI 建议已失效或不存在，请重新分析后再带入。')
+    if (disabled) return fail('当前就诊不可编辑，无法带入 AI 建议。')
+    if (generate.isPending) return fail('AI 正在生成建议，请等待完成后再带入。')
+    if (actionPending) return fail('上一项操作仍在处理中，请稍后再试。')
+    if (!auditFeature) return fail('当前未启用 AI 留痕能力，不能采纳建议。')
+    if (!liveCurrent) return fail('当前语音转写或就诊草稿已变化，请重新分析后再带入。')
+    if (!guardCurrent(value, latestContext.current, fail, undefined, encounter)) return
     const sectionCode = selection.recordDraft && selection.diagnoses?.length ? 'RECORD_DIAGNOSIS'
       : selection.recordDraft ? 'RECORD' : 'DIAGNOSIS'
     const selectionFingerprint = stableClinicalAiFingerprint('selection', selection)
@@ -895,13 +909,24 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         encounterId: context.encounterId, residentId: context.residentId,
         contextFingerprint: value.clientContextFingerprint, sourceLabel: 'AI 共写所选内容',
         ...selection, overwriteRecord: !selection.incrementalRecord },
-    })
+    }, diagnosisTarget ? {
+      onSuccess: () => setInlineError((previous) => previous?.target === 'diagnosis' ? null : previous),
+      onError: (adoptError) => setInlineError({ target: 'diagnosis', message: errorMessage(adoptError) }),
+    } : undefined)
   }
   const reviewTreatments = (items: ClinicalAiTreatmentRecommendation[], onSettled?: (keys: string[], error?: string) => void) => {
     const value = currentSuggestion
-    if (!value || !onReviewTreatment || disabled || actionPending || !liveCurrent || items.length === 0) return
+    const refuse = (message: string) => { setInlineError({ target: 'treatment', message }); onSettled?.([], message) }
+    setInlineError((previous) => previous?.target === 'treatment' ? null : previous)
+    if (!value) return refuse('AI 建议已失效或不存在，请重新分析后再带入。')
+    if (!onReviewTreatment) return refuse('当前不支持带入医嘱，请在医嘱区手动添加。')
+    if (disabled) return refuse('当前就诊不可编辑，无法带入医嘱。')
+    if (generate.isPending) return refuse('AI 正在生成建议，请等待完成后再带入。')
+    if (actionPending) return refuse('上一项操作仍在处理中，请稍后再试。')
+    if (!liveCurrent) return refuse('当前语音转写或就诊草稿已变化，请重新分析后再带入。')
+    if (items.length === 0) return refuse('请先勾选要带入的医嘱。')
     onReviewTreatment(items, (acceptedKeys) => {
-      if (!acceptedKeys.length) { onSettled?.([], '未新增医嘱，请核对是否已带入。'); return }
+      if (!acceptedKeys.length) { refuse('未新增医嘱，请核对是否已带入。'); return }
       setAcceptedTreatmentKeys((current) => [...new Set([...current, ...acceptedKeys])])
       treatmentContinuation.current = { id: value.id, fingerprint: clinicalContextWithoutOrdersFingerprint(latestContext.current),
         controls: controlsKey }
@@ -909,7 +934,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         adoptionCommand(adoptionCommands.current, value.id, `TREATMENT:${acceptedKeys.sort().join('|')}`),
         JSON.stringify({ treatmentKeys: acceptedKeys }))).catch(() => undefined)
       onSettled?.(acceptedKeys)
-    }, message => onSettled?.([], message))
+    }, message => refuse(message))
   }
 
   const handleApplyGapOrders = async (items: ClinicalAiTreatmentRecommendation[]) => {
@@ -961,6 +986,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       busy={actionPending} inputBusy={inputBusy} generating={generate.isPending} generatingTarget={generatingTarget}
       preview={preview}
       onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}
+      diagnosisError={inlineError?.target === 'diagnosis' ? inlineError.message : undefined}
+      treatmentError={inlineError?.target === 'treatment' ? inlineError.message : undefined}
       canAdopt={auditFeature} error={localError || (error ? errorMessage(error) : '')}
       voiceInput={voiceInput} interimTranscript={interimTranscript} question={question} onQuestionChange={setQuestion}
       onClearVoice={() => { setVoiceTranscript(''); setInterimTranscript('') }}

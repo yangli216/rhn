@@ -41,7 +41,7 @@ export interface InlineAiSelection {
 
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
-  generating, generatingTarget, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
+  generating, generatingTarget, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, diagnosisError, treatmentError, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
   onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading, chronicRefill }: {
   api: RhnApi
   encounter: Encounter
@@ -61,6 +61,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   disabled: boolean
   canAdopt: boolean
   error: string
+  /** Inline failure of the diagnosis / order confirm button, rendered beside it. */
+  diagnosisError?: string
+  treatmentError?: string
   voiceInput: ReactNode
   interimTranscript?: string
   question: string
@@ -201,6 +204,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
           <Button size="sm" disabled={disabled || busy || generating || !canAdopt || selectedDiagnoses.length === 0}
             onClick={() => onApply({ diagnoses: selectedDiagnoses.map(({ code, display, type }) => ({ code, display, type })) })}>
             <Icon name="check" />确认所选诊断（{selectedDiagnoses.length}）</Button></div>
+        {diagnosisError && <p className="doctor-ai-inline__stale" role="alert">{diagnosisError}</p>}
       </div>, surfaces.diagnoses, 'diagnoses')}
 
     {(suggestion || generating) && planFeature && portal(
@@ -216,7 +220,8 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
             origins: { ...resolvedCatalog.origins, ...Object.fromEntries(items.map(item => [treatmentKey(item), keys[0]])) } })} />
         <ClinicalAiTreatmentRows key={context.encounterId} items={availableTreatmentItems}
         api={api} encounter={encounter} disabled={disabled || busy || generating || !canAdopt || !onReviewTreatment} orderOf={treatmentOrder}
-        onReview={(items) => onReviewTreatment?.(items)} /></div>, surfaces.plans, 'treatments')}
+        onReview={(items) => onReviewTreatment?.(items)} />
+        {treatmentError && <p className="doctor-ai-inline__stale" role="alert">{treatmentError}</p>}</div>, surfaces.plans, 'treatments')}
 
     <MedicalInsertViewerModal
       isOpen={Boolean(viewingGuideline)}
