@@ -318,7 +318,8 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     + (value.status === 'DRAFT' ? value.medicationRequests.filter((request) => request.status === 'DRAFT').length : 0), 0)
   const persistedServiceDraftCount = (services.data ?? []).filter((value) => value.status === 'DRAFT').length
   const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount + persistedServiceDraftCount
-  const unissuedCount = simpleReview ? persistedDraftCount + persistedServiceDraftCount : 0
+  // 已保存但未生效/未签署的项数：简单模式显示为“未生效”，签署模式作为诊毕拦截。
+  const unissuedCount = persistedDraftCount + persistedServiceDraftCount
   useEffect(() => onUnissuedCountChange?.(unissuedCount), [onUnissuedCountChange, unissuedCount])
   const orderCount = (services.data?.length ?? 0) + (medications.data?.length ?? 0)
   const hasUnverifiedAllergyDraft = medicationDrafts.some((value) => value.request.allergyReviewConfirmed !== true)

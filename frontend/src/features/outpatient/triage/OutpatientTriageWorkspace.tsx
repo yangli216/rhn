@@ -576,8 +576,6 @@ export function OutpatientTriageWorkspace({
         greenChannel,
         disposition,
         notes: notes.trim() || undefined,
-        nurseId: 'nurse-01',
-        nurseName: '分诊护士',
       }
 
       let result: TriageRecord

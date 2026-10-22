@@ -43,15 +43,18 @@ public class JpaPharmacyFlowDirectory implements PharmacyFlowDirectory {
                 .filter(value -> tenantId.equals(value.tenantId()) && encounterSet.contains(value.encounterId())).toList();
         if (values.isEmpty()) return Map.of();
         List<Long> requestIds = values.stream().map(MedicationRequestSnapshot::id).toList();
-        List<DispenseTaskLine> taskLines = lines.findByTenantIdAndRequestIdIn(tenantId, requestIds);
+        List<DispenseTaskLine> taskLines = partitions(requestIds).stream()
+                .flatMap(part -> lines.findByTenantIdAndRequestIdIn(tenantId, part).stream()).toList();
         Map<Long, List<DispenseTaskLine>> linesByRequest = new HashMap<>();
         taskLines.forEach(line -> linesByRequest.computeIfAbsent(line.requestId(), ignored -> new ArrayList<>()).add(line));
         Map<Long, DispenseTask> tasksById = new HashMap<>();
-        tasks.findAllById(taskLines.stream().map(DispenseTaskLine::taskId).distinct().toList()).stream()
+        partitions(taskLines.stream().map(DispenseTaskLine::taskId).distinct().toList()).stream()
+                .flatMap(part -> tasks.findAllById(part).stream())
                 .filter(task -> tenantId.equals(task.tenantId())).forEach(task -> tasksById.put(task.id(), task));
         Map<Long, TaskLineQuantities> quantities = new HashMap<>();
         if (!taskLines.isEmpty()) {
-            dispenseLines.flowQuantities(tenantId, taskLines.stream().map(DispenseTaskLine::id).toList())
+            partitions(taskLines.stream().map(DispenseTaskLine::id).toList()).stream()
+                    .flatMap(part -> dispenseLines.flowQuantities(tenantId, part).stream())
                     .forEach(value -> quantities.put(value.getTaskLineId(), value));
         }
         Map<Long, MutableSummary> grouped = new LinkedHashMap<>();
@@ -63,6 +66,13 @@ public class JpaPharmacyFlowDirectory implements PharmacyFlowDirectory {
         Map<Long, PharmacyFlowSnapshot> result = new LinkedHashMap<>();
         grouped.forEach((encounterId, value) -> result.put(encounterId, value.snapshot()));
         return Map.copyOf(result);
+    }
+
+    /** 全量汇总后 IN 列表可能很长，分片避免 Oracle 1000 项上限。 */
+    private static <T> List<List<T>> partitions(List<T> values) {
+        List<List<T>> parts = new ArrayList<>();
+        for (int i = 0; i < values.size(); i += 500) parts.add(values.subList(i, Math.min(i + 500, values.size())));
+        return parts;
     }
 
     private LineState state(MedicationRequestSnapshot request, DispenseTaskLine line, DispenseTask task,

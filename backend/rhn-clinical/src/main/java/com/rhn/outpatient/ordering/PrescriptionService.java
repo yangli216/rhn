@@ -191,8 +191,19 @@ class PrescriptionService {
     @Transactional(readOnly = true)
     List<PrescriptionResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
-        return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId)
-                .stream().map(this::response).toList();
+        var prescriptions = repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId);
+        // 药品行与响应各批量取一次，避免每张处方单独查询。
+        var grouped = medicationService.prescriptionRequests(encounter.tenantId(),
+                prescriptions.stream().map(Prescription::id).toList());
+        var all = grouped.values().stream().flatMap(List::stream).toList();
+        var responses = medicationService.responses(all);
+        var byPrescription = new java.util.HashMap<Long, List<MedicationRequestResponse>>();
+        for (int index = 0; index < all.size(); index++) {
+            byPrescription.computeIfAbsent(all.get(index).requestGroupId(), key -> new java.util.ArrayList<>())
+                    .add(responses.get(index));
+        }
+        return prescriptions.stream()
+                .map(value -> response(value, null, byPrescription.getOrDefault(value.id(), List.of()))).toList();
     }
 
     /** 本次就诊仍含草稿药品、可整批提交的处方草稿，用于提交命令核对医生看到的单据集合。 */
@@ -316,8 +327,12 @@ class PrescriptionService {
     }
 
     private PrescriptionResponse response(Prescription value, MedicationSafetyDecision safetyEvaluation) {
-        List<MedicationRequestResponse> requests = medicationService.responses(
-                medicationService.prescriptionRequests(value.tenantId(), value.id()));
+        return response(value, safetyEvaluation, medicationService.responses(
+                medicationService.prescriptionRequests(value.tenantId(), value.id())));
+    }
+
+    private PrescriptionResponse response(Prescription value, MedicationSafetyDecision safetyEvaluation,
+                                          List<MedicationRequestResponse> requests) {
         return new PrescriptionResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
                 value.groupNo(), value.categoryCode(), value.status().name(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.authoredAt(), value.authoredBy(), value.submittedAt(),

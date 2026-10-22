@@ -45,7 +45,7 @@ class InsuranceQuickContextTruthTest {
         when(account.residentId()).thenReturn(6L); when(account.encounterId()).thenReturn(7L);
         when(accounts.findByIdAndTenantId(4L,1L)).thenReturn(Optional.of(account));
         var visit=new InsuranceQuickSubmissionResolver.Visit("doctor",Instant.parse("2026-10-04T01:00:00Z"),null,date);
-        when(resolver.visit(account)).thenReturn(visit);
+        when(resolver.visit(account,"cashier")).thenReturn(visit);
         when(coverages.requireExistingActive(null,6L,date,null)).thenReturn(new CoverageDirectory.CoverageView(8L,6L,"310","真实保障",true,date,null));
         when(resolver.resolve(account,visit,"310",null)).thenReturn(new InsuranceQuickSubmissionResolver.Submission("330100","H","D","P","REAL-INSURANCE","SHA256-actual"));
         var line=mock(SettlementLine.class); when(line.id()).thenReturn(9L); when(line.chargeItemId()).thenReturn(11L);

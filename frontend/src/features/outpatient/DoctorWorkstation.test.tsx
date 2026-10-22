@@ -2128,6 +2128,36 @@ describe('DoctorWorkstation reception flow', () => {
     expect(await screen.findByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
   })
 
+  it('asks about unsaved work before calling and switching to the next queued patient', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const readyEncounter = { ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80 } as Encounter
+    api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    api.scheduling.receptionQueue = vi.fn().mockResolvedValue([
+      { ...mockQueueItem, status: 'SERVING' },
+      { ...mockQueueItem, registrationId: 'reg-2', encounterId: 'encounter-102', residentId: 'resident-2',
+        residentName: '李秀英', ticketNo: 'A002', sequenceNo: 2, status: 'WAITING' },
+    ])
+    const queueAction = vi.fn().mockResolvedValue({})
+    ;(api as unknown as { queueing: unknown }).queueing = { action: queueAction }
+    renderStation(api)
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const complaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await waitFor(() => expect(complaint).toHaveValue('头痛复诊'))
+    fireEvent.change(complaint, { target: { value: '头痛复诊，今日加重' } })
+    expect(await screen.findByRole('button', { name: /保存草稿/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /候诊协同胶囊/ }))
+    await user.click(await screen.findByRole('button', { name: /呼叫并接诊下一位/ }))
+
+    expect(await screen.findByRole('dialog', { name: /切换患者前请处理草稿/ })).toBeInTheDocument()
+    expect(queueAction).not.toHaveBeenCalled()
+    expect(api.encounters.byResident).not.toHaveBeenCalledWith('resident-2')
+    expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('头痛复诊，今日加重')
+  })
+
   it('saves pending work automatically when completing in simple ordering mode', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -2412,7 +2442,7 @@ describe('DoctorWorkstation reception flow', () => {
       const overview = screen.getByRole('region', { name: '费用结算' })
       expect(await within(overview).findByText(failure === 'uninvoiced' ? '¥10.00 未结算'
         : pending ? '支付处理中' : unpaid ? '¥10.00' : '结算尚未完成',
-      { selector: '.doctor-fee-stat-content > strong' })).toBeInTheDocument()
+      { selector: '.doctor-fee-stat__status' })).toBeInTheDocument()
       const button = screen.getByRole('button', { name: '签署并诊毕' })
       await waitFor(() => expect(button).toBeEnabled())
       expect(screen.queryByText(/已结清/)).not.toBeInTheDocument()

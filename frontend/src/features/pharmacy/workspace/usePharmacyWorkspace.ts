@@ -1,6 +1,6 @@
 import { recordedMedicationAmount, sumRecordedAmounts, displayRecordedAmount } from "../medicationDisplay";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { ClinicalContext } from "../../../shared/clinical/workContext";
 import type { MedicationRequest } from "../../../shared/api/encountersApi";
@@ -8,6 +8,9 @@ import type { DispenseTaskStatus, InventoryTraceCode, PharmacyInboxItem, Pharmac
 import type { RhnApi } from "../../../shared/rhnApi";
 import { errorMessage } from "../../../shared/rhnApi";
 import { type PharmacyWorkspaceMode, type PharmacyQueryFilters, defaultPharmacyQueryFilters, activeTaskStatuses, cancelDispenseTaskStatuses, postReviewTaskStatuses, returnTaskStatuses, closedTaskStatuses, pharmacyQueryItemMatches, pharmacyQueryItemInDateRange, type DispensingPatientGroup, patientMatchesSearch, CHINESE_NUMBER_WORDS, groupTraceCodesByPrefix, TRACE_SCAN_DEBOUNCE_MS, parseTraceCodeBatch, inferDispenseSearchIntent, requestMatchesSearch, dispenseSearchIntentText, workspaceCopy, genderText, ageText } from './pharmacyShared'
+
+/** 退药数量拆分时消除浮点误差；后端按单位精度再校验。 */
+const roundQuantity = (value: number) => Math.round(value * 1e6) / 1e6
 
 export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }: {
   api: RhnApi; clinicalContext: ClinicalContext; mode?: PharmacyWorkspaceMode
@@ -304,9 +307,9 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
   }, [residentsLookup.data])
 
 
-  // In dispensing and cancel-dispense modes, we group inbox items by patient
+  // In dispensing, cancel-dispense and returns modes, we group inbox items by patient
   const patientGroups = useMemo(() => {
-    if (mode !== 'dispensing' && mode !== 'cancel-dispense') return []
+    if (mode !== 'dispensing' && mode !== 'cancel-dispense' && mode !== 'returns') return []
     const groupsMap = new Map<string, DispensingPatientGroup>()
 
     for (const item of visibleInbox) {
@@ -353,7 +356,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   // Sync selected resident
   useEffect(() => {
-    if (mode === 'dispensing' || mode === 'cancel-dispense') {
+    if (mode === 'dispensing' || mode === 'cancel-dispense' || mode === 'returns') {
       if (!selectedResidentId && patientGroups.length > 0) {
         setSelectedResidentId(patientGroups[0].residentId)
       } else if (selectedResidentId && !patientGroups.some((p) => p.residentId === selectedResidentId)) {
@@ -364,7 +367,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   const activePatient = patientGroups.find((p) => p.residentId === selectedResidentId) ?? patientGroups[0]
 
-  const activeResidentId = (mode === 'dispensing' || mode === 'cancel-dispense') ? activePatient?.residentId : undefined
+  const activeResidentId = (mode === 'dispensing' || mode === 'cancel-dispense' || mode === 'returns') ? activePatient?.residentId : undefined
 
   const showDispenseVerification = Boolean(activeResidentId)
 
@@ -407,9 +410,21 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       const first = items[0]
       const title = `处方${CHINESE_NUMBER_WORDS[index - 1] || index}`
       const totalAmount = sumRecordedAmounts(items.map((it) => recordedMedicationAmount(it.request)))
+      const returnedTotalAmount = items.reduce((sum, it) => {
+        const unitPrice = it.request.unitPrice ?? (it.plannedQuantity ? ((recordedMedicationAmount(it.request) || 0) / it.plannedQuantity) : 0)
+        return sum + (it.returnedQuantity ?? 0) * unitPrice
+      }, 0)
+      const returnableTotalAmount = items.reduce((sum, it) => {
+        const unitPrice = it.request.unitPrice ?? (it.plannedQuantity ? ((recordedMedicationAmount(it.request) || 0) / it.plannedQuantity) : 0)
+        const dispensedQty = it.dispensedQuantity ?? it.request.quantity ?? 0
+        const rem = Math.max(0, dispensedQty - (it.returnedQuantity ?? 0))
+        return sum + rem * unitPrice
+      }, 0)
+      const isFullyReturned = items.length > 0 && items.every((it) => (it.returnedQuantity ?? 0) >= (it.dispensedQuantity ?? it.request.quantity ?? 0) && (it.returnedQuantity ?? 0) > 0)
+      const isPartiallyReturned = !isFullyReturned && items.some((it) => (it.returnedQuantity ?? 0) > 0)
       const isDispensed = items.every((it) => it.taskStatus === 'COMPLETED')
       const isReady = items.some((it) => it.taskStatus === 'READY_TO_DISPENSE' || it.taskStatus === 'PARTIALLY_DISPENSED')
-      const statusLabel = isDispensed ? '已发药' : isReady ? '已配药' : '未配药'
+      const statusLabel = isFullyReturned ? '已全退' : isPartiallyReturned ? '部分退药' : isDispensed ? '已发药' : isReady ? '已配药' : '未配药'
       const isChinese = items.some((it) => it.request.medicationType === 'CHINESE_PATENT' || it.request.medicationType === 'HERBAL')
 
       const snap = (first.request.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
@@ -437,6 +452,10 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
         authoredAt: first.request.authoredAt,
         statusLabel,
         isDispensed,
+        isFullyReturned,
+        isPartiallyReturned,
+        returnedTotalAmount,
+        returnableTotalAmount,
         isChinese,
         totalAmount,
         items,
@@ -871,6 +890,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       showActionNotice('info', '所选处方中没有可取消的发药记录')
       return
     }
+    const uniqueTaskIds = Array.from(new Set(itemsToCancel.map((it) => it.taskId!)))
     if (!practitionerId || !assignmentId) {
       showActionNotice('warning', departmentAssignments.isPending
         ? '正在加载当前药房的药师任职，请稍后重试'
@@ -880,9 +900,9 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
     setCancellingTaskId('batch')
     let cancelledCount = 0
     try {
-      for (const item of itemsToCancel) {
-        await api.pharmacy.cancelDispense(item.taskId!, {
-          cancelNo: `CNC-${item.taskId}-${Date.now()}`,
+      for (const taskId of uniqueTaskIds) {
+        await api.pharmacy.cancelDispense(taskId, {
+          cancelNo: `CNC-${taskId}-${Date.now()}`,
           operatorPractitionerId: practitionerId,
           operatorAssignmentId: assignmentId,
           reasonCode: cancelReasonCode,
@@ -898,6 +918,116 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       await refresh().catch(() => undefined)
     } finally {
       setCancellingTaskId(null)
+    }
+  }
+
+  // Medication return state and handler for outpatient return workbench
+  const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({})
+  const [returnDispositions, setReturnDispositions] = useState<Record<string, string>>({})
+  const [returnReasonCode, setReturnReasonCode] = useState<string>('PATIENT_NOT_USE')
+  const [returnDescription, setReturnDescription] = useState<string>('')
+  const [returningTaskId, setReturningTaskId] = useState<string | null>(null)
+
+  const setReturnQuantityForRequest = useCallback((reqId: string, qty: number) => {
+    setReturnQuantities((prev) => ({ ...prev, [reqId]: qty }))
+  }, [])
+
+  const setReturnDispositionForRequest = useCallback((reqId: string, disp: string) => {
+    setReturnDispositions((prev) => ({ ...prev, [reqId]: disp }))
+  }, [])
+
+  const patientReturnedTotalAmount = useMemo(() => {
+    if (!activePatient) return 0
+    return activePatient.items.reduce((sum, it) => {
+      const unitPrice = it.request.unitPrice ?? (it.plannedQuantity ? ((recordedMedicationAmount(it.request) || 0) / it.plannedQuantity) : 0)
+      return sum + (it.returnedQuantity ?? 0) * unitPrice
+    }, 0)
+  }, [activePatient])
+
+  const patientReturnableTotalAmount = useMemo(() => {
+    if (!activePatient) return 0
+    return activePatient.items.reduce((sum, it) => {
+      const unitPrice = it.request.unitPrice ?? (it.plannedQuantity ? ((recordedMedicationAmount(it.request) || 0) / it.plannedQuantity) : 0)
+      const dispensedQty = it.dispensedQuantity ?? it.request.quantity ?? 0
+      const remaining = Math.max(0, dispensedQty - (it.returnedQuantity ?? 0))
+      return sum + remaining * unitPrice
+    }, 0)
+  }, [activePatient])
+
+  const handleReturnItems = async (
+    itemsToReturn: Array<{ item: PharmacyInboxItem; quantity: number; disposition: string }>,
+    reasonCode: string,
+    note?: string
+  ) => {
+    if (!itemsToReturn.length || returningTaskId) return
+    if (!practitionerId || !assignmentId) {
+      showActionNotice('warning', departmentAssignments.isPending
+        ? '正在加载当前药房的药师任职，请稍后重试'
+        : '当前药房未找到有效的药师任职，请先在人员与岗位中配置后重试')
+      return
+    }
+    setReturningTaskId('batch')
+    try {
+      let successCount = 0
+      let totalRefundAmount = 0
+      for (const { item, quantity, disposition } of itemsToReturn) {
+        if (!item.taskId || quantity <= 0) continue
+        const traceData = await api.pharmacy.trace(item.taskId)
+        // 已取消发药的事件库存已冲回，不能再作为退药原单；数量按批次明细依次拆分，避免单批次不足时退药失败。
+        const cancelledIds = new Set(traceData.events
+          .filter((e) => e.dispenseType === 'CANCEL' && e.originalDispenseId)
+          .map((e) => e.originalDispenseId!))
+        const returnedMap = new Map<string, number>()
+        for (const ev of traceData.events) {
+          if (ev.dispenseType !== 'RETURN') continue
+          for (const ln of ev.lines) {
+            if (ln.originalDispenseLineId) {
+              returnedMap.set(ln.originalDispenseLineId, (returnedMap.get(ln.originalDispenseLineId) ?? 0) + ln.quantityDispensed)
+            }
+          }
+        }
+        let remaining = quantity
+        const plan: Array<{ eventId: string; lines: Array<{ originalDispenseLineId: string; quantity: number }> }> = []
+        for (const ev of traceData.events) {
+          if (remaining <= 0) break
+          if ((ev.dispenseType !== 'DISPENSE' && ev.dispenseType !== 'REDISPENSE') || cancelledIds.has(ev.id)) continue
+          const lines: Array<{ originalDispenseLineId: string; quantity: number }> = []
+          for (const ln of ev.lines) {
+            const take = Math.min(remaining, roundQuantity(ln.quantityDispensed - (returnedMap.get(ln.id) ?? 0)))
+            if (take <= 0) continue
+            lines.push({ originalDispenseLineId: ln.id, quantity: take })
+            remaining = roundQuantity(remaining - take)
+            if (remaining <= 0) break
+          }
+          if (lines.length) plan.push({ eventId: ev.id, lines })
+        }
+        if (!plan.length || remaining > 0) {
+          throw new Error(`药品 ${item.request.medicationName} 的可退数量不足，请刷新后核对发药记录`)
+        }
+
+        for (const { eventId, lines } of plan) {
+          await api.pharmacy.returnMedication(eventId, {
+            returnNo: `RET-${item.taskId}-${crypto.randomUUID()}`,
+            reasonCode: reasonCode || 'PATIENT_NOT_USE',
+            processorPractitionerId: practitionerId,
+            processorAssignmentId: assignmentId,
+            description: note?.trim() || '门诊患者退药',
+            lines: lines.map((line) => ({ ...line, disposition: disposition || 'RESTOCK' })),
+          })
+        }
+        successCount++
+        const unitPrice = item.request.unitPrice ?? (item.plannedQuantity ? ((recordedMedicationAmount(item.request) || 0) / item.plannedQuantity) : 0)
+        totalRefundAmount += quantity * unitPrice
+      }
+      showActionNotice('success', `成功办理 ${successCount} 项药品退药，退药金额 ¥${totalRefundAmount.toFixed(2)}，库存已按处置方式原路处理`)
+      setReturnDescription('')
+      setReturnQuantities({})
+      await refresh()
+    } catch (err) {
+      showActionNotice('error', `退药办理失败：${errorMessage(err)}`)
+      await refresh().catch(() => undefined)
+    } finally {
+      setReturningTaskId(null)
     }
   }
 
@@ -1318,5 +1448,5 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
   const pPhone = pResident?.phone || activePatient?.phone || '未维护'
 
   const pAddress = pProfile?.addresses?.[0]?.addressText || '未维护'
- return { practitioners, queryVisibleInbox, pharmacyQueryPage, pharmacyQueryPageSize, setPharmacyQueryDraft, setPharmacyQueryFilters, setPharmacyQueryPage, copy, refresh, actionNotice, setActionNotice, error, sites, inbox, eligibleSites, pharmacyQueryDraft, applyPharmacyQuery, resetPharmacyQuery, pagedPharmacyQueryInbox, residentMap, querySummary, setPharmacyQueryPageSize, pharmacyQueryPageCount, mode, prescriptionReviewMode, selected, selectedSite, api, organizationId, stockItems, eligibleAssignments, practitionerId, assignmentId, setPractitionerId, setAssignmentId, displayInbox, visibleInbox, requestId, setRequestId, task, configuredReviewMode, canReview, reviewResult, setReviewResult, reasonCode, setReasonCode, description, setDescription, review, returnLineId, setReturnLineId, returnableLines, selectedReturnLine, returnQuantity, setReturnQuantity, returnDisposition, setReturnDisposition, returnReason, setReturnReason, returnMedication, trace, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, batchPicking, handleBatchPicking, completePicking, cancellingTaskId, cancelReasonCode, setCancelReasonCode, cancelDescription, setCancelDescription, handleCancelDispense, handleBatchCancelDispense, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal }
+ return { practitioners, queryVisibleInbox, pharmacyQueryPage, pharmacyQueryPageSize, setPharmacyQueryDraft, setPharmacyQueryFilters, setPharmacyQueryPage, copy, refresh, actionNotice, setActionNotice, error, sites, inbox, eligibleSites, pharmacyQueryDraft, applyPharmacyQuery, resetPharmacyQuery, pagedPharmacyQueryInbox, residentMap, querySummary, setPharmacyQueryPageSize, pharmacyQueryPageCount, mode, prescriptionReviewMode, selected, selectedSite, api, organizationId, stockItems, eligibleAssignments, practitionerId, assignmentId, setPractitionerId, setAssignmentId, displayInbox, visibleInbox, requestId, setRequestId, task, configuredReviewMode, canReview, reviewResult, setReviewResult, reasonCode, setReasonCode, description, setDescription, review, returnLineId, setReturnLineId, returnableLines, selectedReturnLine, returnQuantity, setReturnQuantity, returnDisposition, setReturnDisposition, returnReason, setReturnReason, returnMedication, trace, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, batchPicking, handleBatchPicking, completePicking, cancellingTaskId, cancelReasonCode, setCancelReasonCode, cancelDescription, setCancelDescription, handleCancelDispense, handleBatchCancelDispense, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, patientReturnedTotalAmount, patientReturnableTotalAmount, returnQuantities, setReturnQuantityForRequest, returnDispositions, setReturnDispositionForRequest, returnReasonCode, setReturnReasonCode, returnDescription, setReturnDescription, returningTaskId, handleReturnItems, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal }
 }

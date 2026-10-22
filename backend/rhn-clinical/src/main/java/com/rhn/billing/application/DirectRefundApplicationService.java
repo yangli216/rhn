@@ -26,7 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,12 +37,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.rhn.shared.api.BusinessErrors.badRequest;
+
 /**
  * 门诊直接退费与协同逆向作废编排服务。
  * billing 仅通过 pharmacy.api 请求药房逆向处理，不再修改药房内部实体或仓储。
  */
 @Service
 public class DirectRefundApplicationService {
+    private static final String REFUND_SUCCEEDED = "REFUNDED";
     private static final Logger log = LoggerFactory.getLogger(DirectRefundApplicationService.class);
 
     private final PaymentRepository payments;
@@ -58,6 +62,7 @@ public class DirectRefundApplicationService {
     private final com.rhn.billing.api.RefundDiagnosticDirectory diagnostics;
     private final ExecutionContextProvider contextProvider;
     private final SettlementReliefService relief;
+    private final TransactionTemplate transactionTemplate;
 
     public DirectRefundApplicationService(PaymentRepository payments,
                                           PatientAccountRepository accounts,
@@ -72,7 +77,8 @@ public class DirectRefundApplicationService {
                                           RefundPreCheckService preCheckService,
                                           com.rhn.billing.api.RefundDiagnosticDirectory diagnostics,
                                           ExecutionContextProvider contextProvider,
-                                          SettlementReliefService relief) {
+                                          SettlementReliefService relief,
+                                          PlatformTransactionManager transactionManager) {
         this.payments = payments;
         this.accounts = accounts;
         this.charges = charges;
@@ -87,19 +93,48 @@ public class DirectRefundApplicationService {
         this.diagnostics = diagnostics;
         this.contextProvider = contextProvider;
         this.relief = relief;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
+    /**
+     * 退费分三段：幂等重放直接返回；本地事务内完成校验、药房取消与额度准备并提交；渠道退款在任何事务之外调用
+     * （外部调用不持有账户行锁，事务回滚也不会丢失已发生的渠道退款）。仅退款指令成功后才红冲发票；
+     * 失败/处理中直接返回指令视图，处理中的后续完成走回调/恢复路径，不在此红冲。
+     */
     public PaymentOrderView directRefund(Long paymentId, DirectRefundCommand command) {
         ExecutionContext context = contextProvider.requireCurrent();
+        var existing = paymentOrchestration.findExistingRefund(
+                new PaymentOrchestrationService.CreateRefundOrderCommand(
+                        paymentId, command.idempotencyKey(), command.amount(), command.reason(),
+                        null, command.terminalCode()));
+        if (existing.isPresent()) return existing.get();
+
+        ResolvedRefund resolved = transactionTemplate.execute(status -> prepareRefund(context, paymentId, command));
+        PaymentOrderView refundOrder = paymentOrchestration.refund(
+                new PaymentOrchestrationService.CreateRefundOrderCommand(
+                        paymentId, command.idempotencyKey(), resolved.refundAmount(), command.reason(),
+                        "DIRECT-REFUND-" + resolved.account().encounterId(), command.terminalCode()));
+        if (REFUND_SUCCEEDED.equals(refundOrder.status())) {
+            tryRedFlushFiscalReceipts(context.tenantId(), resolved.originalPayment(), command.idempotencyKey(), command.reason());
+        }
+        return refundOrder;
+    }
+
+    private ResolvedRefund prepareRefund(ExecutionContext context, Long paymentId, DirectRefundCommand command) {
         ResolvedRefund resolved = resolveRefundTarget(context, paymentId, command);
         PatientAccount account = resolved.account();
-        BigDecimal refundAmount = resolved.refundAmount();
 
         RefundPreCheckSummaryView preCheck = preCheckService.preCheck(account.encounterId());
 
         Set<Long> targetItemIds = command.chargeItemIds() != null && !command.chargeItemIds().isEmpty()
                 ? new HashSet<>(command.chargeItemIds()) : null;
+        if (targetItemIds != null) {
+            Set<Long> known = preCheck.items().stream().map(RefundItemPreCheckView::chargeItemId)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!known.containsAll(targetItemIds)) {
+                throw badRequest("REFUND_CHARGE_ITEM_INVALID", "退费收费项不属于当前就诊账户");
+            }
+        }
 
         List<RefundItemPreCheckView> itemsToCheck = preCheck.items().stream()
                 .filter(item -> targetItemIds == null || targetItemIds.contains(item.chargeItemId()))
@@ -109,24 +144,15 @@ public class DirectRefundApplicationService {
         diagnostics.requireUnexecutedForRefund(context.tenantId(), itemsToCheck.stream()
                 .filter(item -> "SERVICE_REQUEST".equals(item.sourceType()) && item.sourceId() != null)
                 .map(RefundItemPreCheckView::sourceId).toList());
-        ensureSufficientCredit(context, account, refundAmount, targetItemIds);
-
-        PaymentOrderView refundOrder = paymentOrchestration.refund(
-                new PaymentOrchestrationService.CreateRefundOrderCommand(
-                        paymentId, command.idempotencyKey(), refundAmount, command.reason(),
-                        "DIRECT-REFUND-" + account.encounterId(), command.terminalCode()
-                )
-        );
-
+        // 先停药房发药再放钱：最坏结果是患者有余额无药，不会既退款又发药。已发药会抛冲突并整体回滚。
         for (RefundItemPreCheckView item : itemsToCheck) {
             if ("MEDICATION_REQUEST".equals(item.sourceType()) && item.sourceId() != null) {
-                cancelPharmacyFulfillment(context.tenantId(), item.sourceId());
+                pharmacy.cancelUnfulfilledForRefund(context.tenantId(), item.sourceId());
+                log.info("Direct refund requested pharmacy cancellation for request {}", item.sourceId());
             }
         }
-
-        tryRedFlushFiscalReceipts(context.tenantId(), resolved.originalPayment(), command.idempotencyKey(), command.reason());
-
-        return refundOrder;
+        ensureSufficientCredit(context, account, resolved.refundAmount(), targetItemIds);
+        return resolved;
     }
 
     private ResolvedRefund resolveRefundTarget(ExecutionContext context, Long paymentId, DirectRefundCommand command) {
@@ -251,15 +277,6 @@ public class DirectRefundApplicationService {
 
         BigDecimal relieved = relief.reverseForChargeReversals(context, account, List.of(reversal), null, null);
         return original.totalAmount().subtract(relieved);
-    }
-
-    private void cancelPharmacyFulfillment(Long tenantId, Long requestId) {
-        try {
-            pharmacy.cancelUnfulfilledForRefund(tenantId, requestId);
-            log.info("Direct refund requested pharmacy cancellation for request {}", requestId);
-        } catch (Exception ex) {
-            log.warn("Downstream pharmacy cancellation failed for request {}: {}", requestId, ex.getMessage());
-        }
     }
 
     private void tryRedFlushFiscalReceipts(Long tenantId, Payment originalPayment, String idempotencyKey, String reason) {

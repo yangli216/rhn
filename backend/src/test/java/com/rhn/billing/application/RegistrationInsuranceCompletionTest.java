@@ -100,6 +100,56 @@ class RegistrationInsuranceCompletionTest {
         verify(intents).markCancellationFailed(eq(5L), anyString(), anyString());
     }
 
+    @Test void failedRefundIsRetriedWithNewAttemptKeyWhilePendingRefundKeepsTheSameKey() {
+        var intents = mock(RegistrationBillingIntentTransactionService.class);
+        var payments = mock(PaymentOrchestrationService.class);
+        var claims = mock(InsuranceClaimApplicationService.class);
+        when(intents.prepareCancellation(11L)).thenReturn(new RegistrationBillingIntentTransactionService.CancellationPlan(
+                5L, "CANCELLATION_FAILED", new BigDecimal("3.000000"), "CNY", 8L, false));
+        var failed = mock(PaymentOrderView.class);
+        when(failed.status()).thenReturn("FAILED");
+        var pending = mock(PaymentOrderView.class);
+        when(pending.status()).thenReturn("REFUNDING"); when(pending.id()).thenReturn(98L);
+        when(payments.findExistingRefund(any())).thenAnswer(invocation -> {
+            String key = ((PaymentOrchestrationService.CreateRefundOrderCommand) invocation.getArgument(0)).idempotencyKey();
+            return key.equals("REG-CANCEL-11-CMD") ? java.util.Optional.of(failed) : java.util.Optional.empty();
+        });
+        when(payments.refund(any())).thenReturn(pending);
+
+        var result = new RegistrationCancellationBillingService(intents, payments, claims)
+                .cancelBeforeService(11L, "CMD", "患者取消", "T");
+
+        var captor = org.mockito.ArgumentCaptor.forClass(PaymentOrchestrationService.CreateRefundOrderCommand.class);
+        verify(payments).refund(captor.capture());
+        assertEquals("REG-CANCEL-11-CMD-R1", captor.getValue().idempotencyKey());
+        assertEquals("CANCELLATION_PENDING", result.billingStatus());
+
+        // 处理中的订单：沿用原键，交给幂等回放
+        doReturn(java.util.Optional.of(pending)).when(payments).findExistingRefund(any());
+        new RegistrationCancellationBillingService(intents, payments, claims).cancelBeforeService(11L, "CMD", "患者取消", "T");
+        verify(payments, times(2)).refund(captor.capture());
+        assertEquals("REG-CANCEL-11-CMD", captor.getValue().idempotencyKey());
+    }
+
+    @Test void failedInsuranceReversalRetriesWithRevisionScopedCommand() {
+        var intents = mock(RegistrationBillingIntentTransactionService.class);
+        var payments = mock(PaymentOrchestrationService.class);
+        var claims = mock(InsuranceClaimApplicationService.class);
+        var failedClaim = mock(InsuranceSettlementView.class);
+        when(failedClaim.status()).thenReturn("FAILED"); when(failedClaim.currentOperation()).thenReturn("REVERSE");
+        when(failedClaim.revision()).thenReturn(7L);
+        var reversed = mock(InsuranceSettlementView.class);
+        when(reversed.status()).thenReturn("REVERSED");
+        when(intents.prepareCancellation(11L)).thenReturn(new RegistrationBillingIntentTransactionService.CancellationPlan(
+                5L, "CANCELLATION_FAILED", BigDecimal.ZERO.setScale(6), "CNY", null, false, 6L));
+        when(claims.get(6L)).thenReturn(failedClaim);
+        when(claims.reverse(anyLong(), anyString(), anyString())).thenReturn(reversed);
+
+        new RegistrationCancellationBillingService(intents, payments, claims).cancelBeforeService(11L, "CMD", "取消", "T");
+
+        verify(claims).reverse(6L, "REG-CANCEL-INS-11-CMD-R7", "取消");
+    }
+
     @Test void fullyInsuranceCoveredRegistrationNeedsNoRefundAfterReversal() {
         var intents = mock(RegistrationBillingIntentTransactionService.class);
         var payments = mock(PaymentOrchestrationService.class);

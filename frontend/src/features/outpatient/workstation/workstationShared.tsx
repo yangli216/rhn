@@ -28,7 +28,7 @@ export interface EncounterDraftState {
   diagnosesChanged: boolean
   medicationDraftCount: number
   serviceDraftCount: number
-  /** 简单模式下已保存但未生效的医嘱（开立被合理用药或校验拦下）；保存时会再次尝试生效，不计入未保存内容。 */
+  /** 已保存但未生效的医嘱。简单模式下为开立被合理用药或校验拦下的，保存时会再次尝试生效，不计入未保存内容；签署模式下为未签署医嘱，诊毕前须签署。 */
   unissuedOrderCount?: number
   busy: boolean
 }
@@ -73,7 +73,7 @@ export function QueueRow({ item, busy, canEdit, onEnter, onView }: {
 
 export type WorkTool = 'assistant' | 'plans' | 'history' | 'results' | 'coordination' | 'allergy' | 'prints'
 
-export type GuardedPatientAction = 'queue' | 'suspend' | 'complete' | 'terminate'
+export type GuardedPatientAction = 'queue' | 'switch' | 'suspend' | 'complete' | 'terminate'
 
 export type HistoryRecordField = 'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'
 

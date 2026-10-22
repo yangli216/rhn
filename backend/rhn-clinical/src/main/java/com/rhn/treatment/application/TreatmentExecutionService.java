@@ -51,7 +51,7 @@ public class TreatmentExecutionService {
             "INPATIENT_SERVICE_REQUEST_ACTIVATED", "INPATIENT_SERVICE_REQUEST_CANCELLED",
             "MEDICATION_REQUEST_AUTHORED", "MEDICATION_REQUEST_ACTIVATED", "MEDICATION_REQUEST_CANCELLED",
             "BILLING_SETTLEMENT_FINALIZED", "BILLING_SETTLEMENT_REVERSED",
-            "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED",
+            "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED", "MEDICATION_DISPENSE_CANCELLED",
             "SKIN_TEST_STARTED", "SKIN_TEST_COMPLETED", "SKIN_TEST_CANCELLED");
     private final TreatmentExecutionTaskRepository tasks;
     private final TreatmentExecutionItemRepository items;
@@ -94,11 +94,14 @@ public class TreatmentExecutionService {
         List<TreatmentExecutionTask> values = tasks
                 .findTop100ByTenantIdAndOrganizationIdAndDepartmentIdOrderByCreatedAtDesc(
                         context.tenantId(), context.organizationId(), context.departmentId());
-        values.forEach(this::reconcile);
+        // COMPLETED/CANCELLED 的 synchronize 本就直接返回，30s 轮询不再对终态任务逐个对账
+        values.stream().filter(value -> value.status() != TreatmentExecutionTaskStatus.COMPLETED
+                && value.status() != TreatmentExecutionTaskStatus.CANCELLED).forEach(this::reconcile);
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
         String typeFilter = upper(taskType); String statusFilter = upper(status); String term = upper(keyword);
         return values.stream().filter(value -> typeFilter == null || typeFilter.equals(value.taskType()))
                 .filter(value -> statusFilter == null || statusFilter.equals(value.verifiedStatus().name()))
-                .map(this::view)
+                .map(value -> view(value, residentCache))
                 .filter(value -> term == null || searchable(value).contains(term))
                 .toList();
     }
@@ -149,7 +152,8 @@ public class TreatmentExecutionService {
             case "MEDICATION_REQUEST_WITHDRAWN" -> withdraw(event, "MEDICATION_REQUEST");
             case "BILLING_SETTLEMENT_FINALIZED" -> settlementChanged(event, true);
             case "BILLING_SETTLEMENT_REVERSED" -> settlementChanged(event, false);
-            case "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED" -> fulfillmentChanged(event);
+            case "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED", "MEDICATION_DISPENSE_CANCELLED" ->
+                    fulfillmentChanged(event);
             case "SKIN_TEST_STARTED", "SKIN_TEST_COMPLETED", "SKIN_TEST_CANCELLED" -> skinTestChanged(event);
             default -> { }
         }
@@ -269,18 +273,23 @@ public class TreatmentExecutionService {
     }
 
     private void backfill(ExecutionContext context) {
-        for (ServiceRequestSnapshot value : serviceRequests.activeForExecution(
-                context.organizationId(), context.departmentId())) {
-            if (!"TREATMENT".equals(value.serviceType())) continue;
+        List<ServiceRequestSnapshot> serviceValues = serviceRequests.activeForExecution(
+                context.organizationId(), context.departmentId());
+        Set<Long> knownServices = existingSources(context, "SERVICE_REQUEST", serviceValues.stream().map(ServiceRequestSnapshot::id).toList());
+        for (ServiceRequestSnapshot value : serviceValues) {
+            if (!"TREATMENT".equals(value.serviceType()) || knownServices.contains(value.id())) continue;
             createItem(value.tenantId(), value.performerOrganizationId(), value.performerDepartmentId(),
                     value.residentId(), value.encounterId(), "SERVICE", value.id(), "SERVICE_REQUEST", value.id(),
                     null, value.requestNo(), value.itemCode(), value.itemName(), null, null, null, null, null, null,
                     null, null, null, false, value.totalAmount() != null && value.totalAmount().signum() > 0,
                     false, value.authoredAt());
         }
-        for (MedicationRequestSnapshot value : medicationRequests.activeForExecution(
-                context.organizationId(), context.departmentId())) {
-            if (value.routeExecutionType() == null || "NONE".equals(value.routeExecutionType())) continue;
+        List<MedicationRequestSnapshot> medicationValues = medicationRequests.activeForExecution(
+                context.organizationId(), context.departmentId());
+        Set<Long> knownMedications = existingSources(context, "MEDICATION_REQUEST", medicationValues.stream().map(MedicationRequestSnapshot::id).toList());
+        for (MedicationRequestSnapshot value : medicationValues) {
+            if (value.routeExecutionType() == null || "NONE".equals(value.routeExecutionType())
+                    || knownMedications.contains(value.id())) continue;
             Long groupId = value.parentRequestId() == null ? value.id() : value.parentRequestId();
             createItem(value.tenantId(), value.performerOrganizationId(), value.performerDepartmentId(),
                     value.residentId(), value.encounterId(), "MEDICATION", groupId, "MEDICATION_REQUEST", value.id(),
@@ -292,6 +301,12 @@ public class TreatmentExecutionService {
                     value.totalAmount() != null && value.totalAmount().signum() > 0, !value.selfProvided(),
                     value.authoredAt());
         }
+    }
+
+    /** 一次查出已存在的执行项来源，backfill 只为缺失项走 createItem。 */
+    private Set<Long> existingSources(ExecutionContext context, String sourceType, List<Long> ids) {
+        if (ids.isEmpty()) return Set.of();
+        return new java.util.HashSet<>(items.findExistingSourceIds(context.tenantId(), sourceType, ids));
     }
 
     private void reconcile(TreatmentExecutionTask task) {
@@ -340,7 +355,13 @@ public class TreatmentExecutionService {
     }
 
     private TreatmentExecutionTaskView view(TreatmentExecutionTask task) {
-        ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(task.residentId());
+        return view(task, new java.util.HashMap<>());
+    }
+
+    private TreatmentExecutionTaskView view(TreatmentExecutionTask task,
+                                            Map<Long, ResidentDirectory.ResidentSnapshot> residentCache) {
+        ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(
+                task.residentId(), residents::requireSnapshot);
         List<TreatmentExecutionItem> taskItems = items
                 .findByTenantIdAndTaskIdOrderByCreatedAtAscIdAsc(task.tenantId(), task.id());
         Map<Long, SkinTestSnapshot> skinTestFacts = skinTests.latestForMedicationRequests(task.tenantId(),

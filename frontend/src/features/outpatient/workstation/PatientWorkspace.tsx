@@ -103,6 +103,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   }), [])
   const [draftState, setDraftState] = useState<EncounterDraftState>(emptyDraftState)
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
+  // 切换患者的目标；有未保存草稿时先经 guardedAction 确认，确认后才呼叫（如需）并切换。
+  const pendingSwitch = useRef<{ item: EnhancedQueueItem; call: boolean } | null>(null)
   const [editing, setEditing] = useState(false)
   const saveDraftHandlerRef = useRef<(() => Promise<boolean>) | null>(null)
   // Only the button that started a save shows its spinner, so the header never runs two loaders at once.
@@ -160,11 +162,20 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   })
   const completionMode = completionModeQuery.isSuccess && !completionModeQuery.isFetching ? completionModeQuery.data : undefined
   const bloodPressureRequirement = useBloodPressureRequirement(api, encounter?.id ?? '')
+  // 与医嘱面板共用缓存：简单模式“保存即生效”，没有单独的开立，诊毕前自动保存。
+  const orderingPolicy = useQuery({
+    queryKey: ['outpatient-ordering-policy', encounter?.id],
+    queryFn: () => api.encounters.orderingPolicy(encounter!.id),
+    enabled: Boolean(encounter?.id), staleTime: 5 * 60 * 1000,
+  })
+  const simpleOrdering = orderingPolicy.data?.reviewMode === 'SIMPLE'
+  const unsignedOrderCount = orderingPolicy.data && !simpleOrdering ? draftState.unissuedOrderCount ?? 0 : 0
   const completionBlockers = [
     !encounter?.chiefComplaint && '主诉',
     !encounter?.diagnoses.some((item) => item.type === 'PRIMARY') && '主要诊断',
     !outpatientNote && '门诊病历',
     bloodPressureMissing(bloodPressureRequirement.data, encounter) && '血压',
+    unsignedOrderCount > 0 && `存在未签署医嘱 ${unsignedOrderCount} 项`,
   ].filter((item): item is string => Boolean(item))
   const hasCompletionBasics = completionBlockers.length === 0
   // Read after an awaited save, when this render's closure still holds the pre-save encounter.
@@ -193,13 +204,6 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   })
   const draftLabels = draftStateLabels(draftState)
   const hasUnsavedDraft = draftLabels.length > 0
-  // 与医嘱面板共用缓存：简单模式“保存即生效”，没有单独的开立，诊毕前自动保存。
-  const orderingPolicy = useQuery({
-    queryKey: ['outpatient-ordering-policy', encounter?.id],
-    queryFn: () => api.encounters.orderingPolicy(encounter!.id),
-    enabled: Boolean(encounter?.id), staleTime: 5 * 60 * 1000,
-  })
-  const simpleOrdering = orderingPolicy.data?.reviewMode === 'SIMPLE'
   const hasPendingSave = hasUnsavedDraft || (simpleOrdering && (draftState.unissuedOrderCount ?? 0) > 0)
   useEffect(() => {
     setEditing(false)
@@ -343,8 +347,21 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     if (hasUnsavedDraft) { setGuardedAction(action); return }
     runAction(action)
   }
+  const requestSwitch = (item: EnhancedQueueItem, call: boolean) => {
+    pendingSwitch.current = { item, call }
+    requestAction('switch')
+  }
   const runAction = (action: GuardedPatientAction) => {
     setGuardedAction(null)
+    if (action === 'switch') {
+      const target = pendingSwitch.current
+      pendingSwitch.current = null
+      if (!target) return
+      void (async () => {
+        if (target.call) await onQueueAction?.(target.item, 'call')
+        onSwitchPatient?.(target.item)
+      })()
+    }
     if (action === 'queue') onBack()
     if (action === 'suspend') setSuspensionOpen(true)
     if (action === 'complete') {
@@ -428,12 +445,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
             currentEncounterId={encounter.id}
             currentResidentName={resident.fullName}
             canEdit={canEdit}
-            onCallAndEnterNext={(targetItem) => {
-              void (async () => {
-                await onQueueAction?.(targetItem, 'call')
-                onSwitchPatient?.(targetItem)
-              })()
-            }}
+            onCallAndEnterNext={(targetItem) => requestSwitch(targetItem, true)}
             onRecallCurrent={currentCalledItem && onQueueAction
               ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
             onSkipAndPostpone={currentCalledItem && onQueueAction
@@ -615,7 +627,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
       busy={terminate.isPending} error={terminate.error} onClose={() => setTerminationOpen(false)}
       onConfirm={(input) => terminate.mutate(input)} />}
     {guardedAction && <UnsavedPatientWorkDialog residentName={resident.fullName} action={guardedAction}
-      labels={draftLabels} saving={draftState.busy} onClose={() => setGuardedAction(null)}
+      labels={draftLabels} saving={draftState.busy} onClose={() => { pendingSwitch.current = null; setGuardedAction(null) }}
       onSaveAndContinue={() => saveAndContinue(guardedAction)} onDiscard={() => runAction(guardedAction)} />}
     {setPeekDrawerOpen && (
       <QueuePeekDrawer
@@ -624,9 +636,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
         items={enhancedQueueItems}
         currentEncounterId={encounter?.id ?? null}
         canEdit={canEdit}
-        onSelectPatient={(targetItem) => {
-          onSwitchPatient?.(targetItem)
-        }}
+        onSelectPatient={(targetItem) => requestSwitch(targetItem, false)}
         onSkipItem={onQueueAction ? (item) => { void onQueueAction(item, 'miss') } : undefined}
       />
     )}
@@ -637,7 +647,7 @@ export function UnsavedPatientWorkDialog({ residentName, action, labels, saving,
   residentName: string; action: GuardedPatientAction; labels: string[]; saving: boolean
   onClose: () => void; onSaveAndContinue: () => Promise<void>; onDiscard: () => void
 }) {
-  const actionText = ({ queue: '切换患者', suspend: '暂挂接诊', complete: '完成诊毕', terminate: '终止诊疗' } as const)[action]
+  const actionText = ({ queue: '切换患者', switch: '切换患者', suspend: '暂挂接诊', complete: '完成诊毕', terminate: '终止诊疗' } as const)[action]
   const completionBlocked = action === 'complete'
   return <Dialog title={`${actionText}前请处理草稿`} eyebrow={`${residentName} · 防止串写`}
     closeOnBackdrop={false} description="当前页面还有未保存内容，直接离开会丢失这些修改。"

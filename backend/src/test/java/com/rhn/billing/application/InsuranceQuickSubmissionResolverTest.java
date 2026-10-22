@@ -107,7 +107,10 @@ class InsuranceQuickSubmissionResolverTest {
         assertNotEquals(result.diagnosisDigest(), submit().diagnosisDigest());
     }
     @Test void missingOrOtherTenantRegistrationCannotSupplyIdentifiers() {
-        resolver = resolver(List.of()); assertEquals("INSURANCE_REGISTRATION_UNCONFIRMED", assertThrows(BusinessException.class, this::submit).code());
+        resolver = resolver(List.of());
+        var unloaded = assertThrows(BusinessException.class, this::submit);
+        assertEquals("INSURANCE_REGISTRATION_UNCONFIRMED", unloaded.code());
+        assertTrue(unloaded.getMessage().contains("系统未加载任何医保注册资料"));
         resolver = resolver(List.of(registration(99L, "360100", Map.of("treating-doctor", "D"))));
         assertThrows(BusinessException.class, this::submit);
     }

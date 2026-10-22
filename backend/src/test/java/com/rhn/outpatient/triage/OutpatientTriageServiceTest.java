@@ -53,7 +53,8 @@ class OutpatientTriageServiceTest {
                 triageRepository,
                 registrationDirectory,
                 mock(ClinicalValidationDirectory.class),
-                assessments, contexts, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class));
+                assessments, contexts, org.mockito.Mockito.mock(com.rhn.platform.numbering.api.BusinessNumberGenerator.class),
+                mock(com.rhn.platform.organization.api.OrganizationDirectory.class));
     }
 
     @AfterEach
@@ -99,6 +100,23 @@ class OutpatientTriageServiceTest {
         var result = service.createTriageRecord(request);
         assertThat(result.organizationId()).isEqualTo(902L);
         assertThat(result.tenantId()).isEqualTo(TENANT_ID);
+    }
+
+    @Test
+    void createTakesNurseFromExecutionContextAndIgnoresClientFields() {
+        var request = mock(TriageContracts.CreateTriageRequest.class);
+        when(request.patientName()).thenReturn("测试患者");
+        when(request.gender()).thenReturn("0");
+        when(request.triageLevel()).thenReturn("LEVEL_4_NON_URGENT");
+        when(request.organizationId()).thenReturn(null);
+        when(request.encounterId()).thenReturn(null);
+        when(request.nurseId()).thenReturn("nurse-01");
+        when(request.nurseName()).thenReturn("伪造护士");
+        when(assessments.assessRules(any())).thenReturn(new RuleAssessment("LEVEL_4_NON_URGENT", "普通", List.of(), List.of()));
+        when(triageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var result = service.createTriageRecord(request);
+        assertThat(result.triageNurseId()).isEqualTo("1");
+        assertThat(result.triageNurseName()).isEqualTo("test");
     }
 
     @Test

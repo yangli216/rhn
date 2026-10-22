@@ -38,12 +38,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Service
 public class OutpatientFlowService {
     // Bounds fact-query IN lists, not the number of encounters returned by the board.
     private static final int FACT_BATCH_SIZE = 200;
+    private static final long MAX_RANGE_DAYS = 31;
     private static final BigDecimal ZERO = new BigDecimal("0.00");
 
     private final EncounterFlowDirectory encounters;
@@ -158,6 +160,9 @@ public class OutpatientFlowService {
             start = end;
             end = tmp;
         }
+        if (java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1 > MAX_RANGE_DAYS) {
+            throw badRequest("OUTPATIENT_FLOW_RANGE_TOO_LONG", "诊间流转查询日期范围不能超过31天");
+        }
         Instant from = start.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant to = end.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         List<EncounterFlowSnapshot> encounterValues = encounters.findInRange(context.tenantId(),
@@ -167,13 +172,14 @@ public class OutpatientFlowService {
         String term = upper(keyword);
         Instant refreshedAt = Instant.now();
         List<VisitView> visits = new ArrayList<>();
+        // 药房事实一次汇总全量（activeForPharmacy 只加载一次），其余事实仍按批
+        Map<Long, PharmacyFlowSnapshot> pharmacyFacts = pharmacy.summarize(context.tenantId(), context.organizationId(),
+                encounterValues.stream().map(EncounterFlowSnapshot::encounterId).toList());
         for (int offset = 0; offset < encounterValues.size(); offset += FACT_BATCH_SIZE) {
             List<EncounterFlowSnapshot> batch = encounterValues.subList(offset,
                     Math.min(offset + FACT_BATCH_SIZE, encounterValues.size()));
             List<Long> encounterIds = batch.stream().map(EncounterFlowSnapshot::encounterId).toList();
             Map<Long, BillingFlowSnapshot> billingFacts = billing.summarize(context.tenantId(), encounterIds);
-            Map<Long, PharmacyFlowSnapshot> pharmacyFacts = pharmacy.summarize(
-                    context.tenantId(), context.organizationId(), encounterIds);
             Map<Long, DiagnosticFlowSnapshot> diagnosticFacts = diagnostics.summarize(context.tenantId(), encounterIds);
             Map<Long, TreatmentFlowSnapshot> treatmentFacts = treatments.summarize(context.tenantId(), encounterIds);
             Map<Long, ReferralFlowSnapshot> referralFacts = referrals.summarize(context.tenantId(), encounterIds);

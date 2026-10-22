@@ -14,6 +14,7 @@ import com.rhn.outpatient.triage.TriageContracts.PendingEncounterResponse;
 import com.rhn.outpatient.triage.TriageContracts.TriageRecordResponse;
 import com.rhn.outpatient.triage.TriageContracts.TriageStatisticsResponse;
 import com.rhn.outpatient.triage.TriageContracts.UpdateTriageRequest;
+import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
@@ -51,11 +52,14 @@ public class OutpatientTriageService {
     private final ClinicalValidationDirectory clinicalValidationDirectory;
     private final TriageAssessmentEngine assessmentEngine;
     private final ExecutionContextProvider contextProvider;
+    private final OrganizationDirectory organizationDirectory;
 
     public OutpatientTriageService(OutpatientTriageRepository triageRepository,
                                   OutpatientRegistrationDirectory registrationDirectory,
                                   ClinicalValidationDirectory clinicalValidationDirectory,
-                                  TriageAssessmentEngine assessmentEngine, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+                                  TriageAssessmentEngine assessmentEngine, ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers,
+                                  OrganizationDirectory organizationDirectory) {
+        this.organizationDirectory = organizationDirectory;
         this.numbers = numbers;
         this.triageRepository = triageRepository;
         this.registrationDirectory = registrationDirectory;
@@ -73,6 +77,20 @@ public class OutpatientTriageService {
                     "请在有权访问的机构工作上下文中办理分诊", HttpStatus.FORBIDDEN);
         }
         return organizationId;
+    }
+
+    private String resolveNurseName(ExecutionContext context) {
+        if (context.practitionerId() != null) {
+            try {
+                var staff = organizationDirectory.requireStaff(context.tenantId(), context.practitionerId());
+                if (staff != null && staff.practitioner() != null && staff.practitioner().fullName() != null) {
+                    return staff.practitioner().fullName();
+                }
+            } catch (RuntimeException ignored) {
+                // 任职信息不可用时回退到登录账号名。
+            }
+        }
+        return context.actor();
     }
 
     public TriageRecordResponse createTriageRecord(CreateTriageRequest request) {
@@ -95,9 +113,11 @@ public class OutpatientTriageService {
         entity.updateDemographics(request.residentId(), request.age(), request.birthDate(),
                 request.phone(), request.idCardNo(), request.healthRecordNo());
 
-        if (request.nurseId() != null || request.nurseName() != null) {
-            entity.updateStaff(request.nurseId(), request.nurseName());
-        }
+        // 分诊护士取自当前登录上下文，忽略客户端传入的护士字段，避免伪造或硬编码身份。
+        ExecutionContext nurse = contextProvider.requireCurrent();
+        entity.updateStaff(nurse.practitionerId() != null ? nurse.practitionerId().toString()
+                        : nurse.subjectId() == null ? null : nurse.subjectId().toString(),
+                resolveNurseName(nurse));
 
         entity.updateArrivalAndCompanion(request.arrivalMethod(), request.companionType());
 

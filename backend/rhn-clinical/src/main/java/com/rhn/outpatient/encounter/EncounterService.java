@@ -57,6 +57,7 @@ public class EncounterService implements EncounterDirectory {
     private final EncounterStatusEventRepository statusEventRepository;
     private final EncounterWorkSessionRepository workSessionRepository;
     private final EncounterCompletionService completionService;
+    private final com.rhn.outpatient.api.OrderSigningDirectory orderSigningDirectory;
     private final OutpatientReferralService referralService;
     private final ResidentDirectory residentDirectory;
     private final OrganizationDirectory organizationDirectory;
@@ -98,7 +99,9 @@ public class EncounterService implements EncounterDirectory {
                             JsonCodec jsonCodec,
                             com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                             RegistrationValidityPolicy validityPolicy, BusinessNumberGenerator numbers,
-                            OutpatientBloodPressurePolicy bloodPressurePolicy) {
+                            OutpatientBloodPressurePolicy bloodPressurePolicy,
+                            com.rhn.outpatient.api.OrderSigningDirectory orderSigningDirectory) {
+        this.orderSigningDirectory = orderSigningDirectory;
         this.bloodPressurePolicy = bloodPressurePolicy;
         this.numbers = numbers;
         this.encounterRepository = encounterRepository;
@@ -304,13 +307,16 @@ public class EncounterService implements EncounterDirectory {
         var reservation = idempotencyService.reserve(RECORD_OPERATION, commandCode,
                 canonicalCommand(encounterId, request));
         if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        // 血压证据只在数值相对已保存值变化时发布，避免每次保存重复生成观察并重跑高血压筛查。
+        boolean bloodPressureChanged = !java.util.Objects.equals(encounter.systolic(), request.systolic())
+                || !java.util.Objects.equals(encounter.diastolic(), request.diastolic());
         encounter.recordClinicalData(request.chiefComplaint().trim(), request.systolic(), request.diastolic());
 
         ExecutionContext context = executionContextProvider.requireCurrent();
         List<EncounterDiagnosis> diagnoses = syncDiagnoses(tenantId, encounter, request, context);
         recordDraftNote(encounter, request, diagnoses);
         encounterRepository.flush();
-        publishBloodPressureEvidence(encounter, tenantId, request, context);
+        if (bloodPressureChanged) publishBloodPressureEvidence(encounter, tenantId, request, context);
         publishDiagnosisEvents(encounter, diagnoses);
         EncounterResponse response = EncounterResponse.from(encounter,
                 diagnoses.stream().map(this::diagnosisResponse).toList());
@@ -532,7 +538,8 @@ public class EncounterService implements EncounterDirectory {
         boolean bloodPressureMissing = bloodPressure.blocksCompletion()
                 && (encounter.systolic() == null || encounter.diastolic() == null);
         EncounterCompletionService.CompletionDecision decision = completionService.evaluate(encounter,
-                identityChecked, noteSigned, hasPrimaryDiagnosis, bloodPressureMissing);
+                identityChecked, noteSigned, hasPrimaryDiagnosis, bloodPressureMissing,
+                orderSigningDirectory.unsignedOrderCount(snapshot(encounter)));
         if (!decision.passed()) {
             completionService.recordBlocked(encounter, decision, context, commandCode);
             if (documentFailure != null && decision.issues().size() == 1) throw documentFailure;

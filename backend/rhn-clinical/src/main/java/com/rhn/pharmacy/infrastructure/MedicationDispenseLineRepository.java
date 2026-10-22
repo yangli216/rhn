@@ -49,6 +49,8 @@ public interface MedicationDispenseLineRepository extends JpaRepository<Medicati
             join MedicationDispense d on d.id = l.medicationDispenseId and d.tenantId = l.tenantId
             where l.tenantId = :tenantId and l.taskLineId = :taskLineId
               and d.dispenseType in ('DISPENSE', 'REDISPENSE')
+              and not exists (select c.id from MedicationDispense c where c.tenantId = d.tenantId
+                  and c.originalDispenseId = d.id and c.dispenseType = 'CANCEL')
             order by d.occurredAt, d.id, l.sortOrder, l.id
             """)
     List<MedicationDispenseLine> findIssuedLines(@Param("tenantId") Long tenantId,

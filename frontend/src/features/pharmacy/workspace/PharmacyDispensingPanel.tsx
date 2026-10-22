@@ -2,7 +2,7 @@ import { DataTable as UiDataTable } from '../../../shared/ui'
 import { formatDoseWithMinimumUnit, formatFrequencyName, recordedMedicationAmount, displayRecordedAmount, formatRecordedDuration } from "../medicationDisplay";
 import { formatTime } from "../../../shared/format";
 import { errorMessage } from "../../../shared/rhnApi";
-import { ActionMenu, Alert, Button, Dialog, EmptyState, FormField, Icon, Panel, Select } from "../../../shared/ui";
+import { ActionMenu, Alert, Button, Dialog, EmptyState, FormField, Icon, Select } from "../../../shared/ui";
 import { usePharmacyWorkspace } from './usePharmacyWorkspace'
 import { parseTraceCodeBatch, genderText, ageText, requestPackageUnit } from './pharmacyShared'
 
@@ -207,9 +207,9 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
       {/* Right Column: Main Dispensing Workspace */}
       <main className="pharmacy-dispense-main">
         {!activePatient ? (
-          <Panel>
+          <div className="pharmacy-dispense-empty">
             <EmptyState icon="pharmacy" title="请选择待发药患者" copy="左侧选择待发药患者后查看处方明细并核对发药。" />
-          </Panel>
+          </div>
         ) : (
           <>
             {/* Top Patient Info Banner */}

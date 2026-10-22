@@ -3,6 +3,7 @@ package com.rhn.diagnostics.application;
 import com.rhn.diagnostics.domain.Observation;
 import com.rhn.diagnostics.infrastructure.ObservationRepository;
 import com.rhn.healthcore.api.ClinicalObservationDirectory;
+import com.rhn.shared.api.BusinessErrors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,18 +40,17 @@ class ClinicalObservationService implements ClinicalObservationDirectory {
 
     private Observation numeric(BloodPressureCommand command, String code, String name, BigDecimal value,
                                 String performerCode) {
-        Long orgId = 1L;
-        Long deptId = 1L;
-        if (command.encounterId() != null) {
-            java.util.List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "select ID_ORG, ID_DEPT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
-                    command.tenantId(), command.encounterId());
-            if (!rows.isEmpty()) {
-                java.util.Map<String, Object> r = rows.get(0);
-                if (r.get("ID_ORG") != null) orgId = ((Number) r.get("ID_ORG")).longValue();
-                if (r.get("ID_DEPT") != null) deptId = ((Number) r.get("ID_DEPT")).longValue();
-            }
+        if (command.encounterId() == null) {
+            throw BusinessErrors.conflict("OBSERVATION_ENCOUNTER_REQUIRED", "记录血压必须关联就诊");
         }
+        java.util.List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "select ID_ORG, ID_DEPT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
+                command.tenantId(), command.encounterId());
+        if (rows.isEmpty() || rows.get(0).get("ID_ORG") == null || rows.get(0).get("ID_DEPT") == null) {
+            throw BusinessErrors.notFound("OBSERVATION_ENCOUNTER_NOT_FOUND", "未找到血压所属就诊或其机构科室");
+        }
+        Long orgId = ((Number) rows.get(0).get("ID_ORG")).longValue();
+        Long deptId = ((Number) rows.get(0).get("ID_DEPT")).longValue();
         return new Observation(command.tenantId(), command.residentId(), command.encounterId(),
                 orgId, deptId,
                 LOINC_URI, null, code, name, "FINAL", "NUMBER", command.effectiveAt(), null, value,

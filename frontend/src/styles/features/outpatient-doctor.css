@@ -1426,36 +1426,27 @@
 /* 有待结算费用时加宽，右侧放诊间收款竖栏（与收费页收银面板一致）。 */
 .doctor-completion-modal.has-payment { width: min(84rem, 100%); }
 .doctor-completion-dialog { display: grid; gap: var(--layout-section-gap); }
-.doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem); align-items: start; }
-.doctor-completion-main { min-width: 0; display: grid; gap: var(--layout-section-gap); }
-.doctor-completion-side { min-width: 0; position: sticky; top: 0; }
-.doctor-completion-side .doctor-completion-payment-section { margin: 0; }
-.doctor-completion-fee .doctor-fee-stat-content { padding: var(--space-3); }
-.doctor-completion-fee .doctor-fee-stat-metrics { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+/* 左右两栏等高：右侧收款面板撑满，左侧末块“诊毕核对”吸收剩余高度。 */
+.doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem); align-items: stretch; }
+.doctor-completion-main { min-width: 0; display: flex; flex-direction: column; gap: var(--layout-section-gap); }
+.doctor-completion-main > .doctor-completion-workflow { flex: 1 0 auto; }
+.doctor-completion-side { min-width: 0; display: flex; }
+.doctor-completion-side .doctor-completion-payment-section { margin: 0; flex: 1; }
+.doctor-completion-fee .doctor-fee-stat-content { padding: 0; }
+.doctor-completion-fee .doctor-fee-stat-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.doctor-completion-fee .doctor-fee-stat-metrics span {
+  padding: var(--space-2) var(--space-3);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-1);
+}
+.doctor-completion-fee .doctor-fee-stat-metrics span + span { border-left: 1px solid var(--color-border); }
+.doctor-completion-fee .doctor-fee-stat-metrics span strong { font-size: var(--font-size-body); }
+.doctor-completion-fee .doctor-fee-stat__hint { padding: var(--space-3); }
+.doctor-fee-stat__status { color: var(--color-text-primary); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
 @media (max-width: 1100px) {
   .doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr); }
-  .doctor-completion-side { position: static; }
-}
-.doctor-completion-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.doctor-completion-banner__content {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-body);
-}
-.doctor-completion-banner__content > .ui-icon { width: 1rem; height: 1rem; }
-.doctor-completion-banner__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
 }
 .doctor-completion-overview {
   display: grid;
@@ -1470,8 +1461,7 @@
 }
 .doctor-overview-stat + .doctor-overview-stat { border-left: 1px solid var(--color-border); }
 .doctor-overview-stat__header { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-overview-stat > strong,
-.doctor-fee-stat-content > strong {
+.doctor-overview-stat > strong {
   color: var(--color-text-primary);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);

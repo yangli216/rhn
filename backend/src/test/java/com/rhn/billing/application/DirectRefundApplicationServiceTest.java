@@ -83,7 +83,7 @@ class DirectRefundApplicationServiceTest {
                 payments, accounts, charges, components, ledger,
                 settlements, receipts, pharmacy,
                 paymentOrchestration, receiptService, preCheckService, mock(com.rhn.billing.api.RefundDiagnosticDirectory.class), contextProvider,
-                relief
+                relief, mock(org.springframework.transaction.PlatformTransactionManager.class)
         );
         when(relief.reverseForChargeReversals(any(), any(), any(), any(), any())).thenReturn(java.math.BigDecimal.ZERO);
     }
@@ -179,7 +179,56 @@ class DirectRefundApplicationServiceTest {
         prepareRefund();
         when(accounts.findByIdAndTenantId(10L, 1L).orElseThrow().organizationId()).thenReturn(2001L);
         assertEquals("BILLING_ACCOUNT_SCOPE_INVALID", assertThrows(BusinessException.class, this::refund).code());
-        verifyNoInteractions(preCheckService, paymentOrchestration, pharmacy, receiptService);
+        verifyNoInteractions(preCheckService, pharmacy, receiptService);
+        verify(paymentOrchestration, never()).refund(any());
+    }
+
+    @Test
+    void failed_channel_result_returns_the_order_without_red_flush() {
+        prepareRefund();
+        when(paymentOrchestration.refund(any())).thenReturn(orderWithStatus("FAILED"));
+        assertEquals("FAILED", refund().status());
+        verifyNoInteractions(receiptService);
+        verify(pharmacy, times(1)).cancelUnfulfilledForRefund(1L, 8001L);
+    }
+
+    @Test
+    void replayed_idempotency_key_returns_existing_order_without_side_effects() {
+        prepareRefund();
+        PaymentOrderView existing = orderWithStatus("REFUNDED");
+        when(paymentOrchestration.findExistingRefund(any())).thenReturn(Optional.of(existing));
+        assertEquals(existing, refund());
+        verifyNoInteractions(preCheckService, pharmacy, receiptService);
+        verify(paymentOrchestration, never()).refund(any());
+        verify(charges, never()).save(any(ChargeItem.class));
+        verify(ledger, never()).save(any());
+    }
+
+    @Test
+    void unknown_charge_item_id_is_rejected_before_any_mutation() {
+        prepareRefund();
+        var error = assertThrows(BusinessException.class, () -> service.directRefund(100L,
+                new DirectRefundCommand("IDEMP-1", new BigDecimal("60.00"), "患者退费", "CASHIER", List.of(501L, 999L))));
+        assertEquals("REFUND_CHARGE_ITEM_INVALID", error.code());
+        verifyNoInteractions(pharmacy, receiptService);
+        verify(paymentOrchestration, never()).refund(any());
+        verify(charges, never()).save(any(ChargeItem.class));
+    }
+
+    @Test
+    void pharmacy_failure_aborts_the_refund_before_money_moves() {
+        prepareRefund();
+        org.mockito.Mockito.doThrow(new BusinessException("REFUND_MEDICATION_ALREADY_DISPENSED", "已发药",
+                org.springframework.http.HttpStatus.CONFLICT)).when(pharmacy).cancelUnfulfilledForRefund(1L, 8001L);
+        assertEquals("REFUND_MEDICATION_ALREADY_DISPENSED", assertThrows(BusinessException.class, this::refund).code());
+        verify(paymentOrchestration, never()).refund(any());
+        verify(charges, never()).save(any(ChargeItem.class));
+    }
+
+    private PaymentOrderView orderWithStatus(String status) {
+        return new PaymentOrderView(2001L, 1L, 10L, null, 100L, "RPO-001", "IDEMP-1", "OUTPATIENT", "CASHIER",
+                "WECHAT", "微信支付", "REFUND", status, new BigDecimal("60.00"), new BigDecimal("60.00"), BigDecimal.ZERO,
+                "CNY", "EXT-REF-1", "CORR-1", "CASHIER", null, Instant.now(), Instant.now(), null, null, false, List.of());
     }
 
     private PaymentOrderView refund() {
@@ -242,7 +291,7 @@ class DirectRefundApplicationServiceTest {
         PaymentOrderView mockRefundOrder = new PaymentOrderView(
                 2001L, 1L, accountId, null, paymentId, "RPO-001",
                 "IDEMP-1", "OUTPATIENT", "CASHIER",
-                "WECHAT", "微信支付", "REFUND", "SUCCEEDED",
+                "WECHAT", "微信支付", "REFUND", "REFUNDED",
                 new BigDecimal("60.00"), new BigDecimal("60.00"), BigDecimal.ZERO,
                 "CNY", "EXT-REF-1", "CORR-1", "CASHIER",
                 null, Instant.now(), Instant.now(),

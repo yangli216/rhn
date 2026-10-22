@@ -44,6 +44,17 @@ class ResidentCoverageDirectoryService implements CoverageDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.List<String> findActiveMemberNos(Long residentId, LocalDate serviceDate) {
+        LocalDate date = serviceDate == null ? LocalDate.now() : serviceDate;
+        return repository.findByTenantIdAndResidentIdAndStatusOrderByPrimaryDescIdAsc(
+                        TenantContext.requireTenantId(), residentId, "ACTIVE").stream()
+                .filter(v -> !v.validFrom().isAfter(date) && (v.validTo() == null || !v.validTo().isBefore(date)))
+                .map(ResidentCoverage::memberNo)
+                .filter(no -> no != null && !no.isBlank()).map(String::trim).distinct().toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CoverageView requireExistingActive(Long coverageId, Long residentId, LocalDate serviceDate,
                                                String coverageTypeCode) {
         if (coverageId != null) {

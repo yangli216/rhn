@@ -170,7 +170,7 @@ export function PharmacyCancelDispensePanel({ model }: { model: ReturnType<typeo
         {/* Right Column: Main Workbench */}
         <main className="pharmacy-dispense-main" aria-label="取消发药工作区">
           {!activePatient ? (
-            <div className="pharmacy-workbench-empty">
+            <div className="pharmacy-dispense-empty">
               <EmptyState
                 icon="pharmacy"
                 title="请在左侧选择需要取消发药的患者"
@@ -219,12 +219,13 @@ export function PharmacyCancelDispensePanel({ model }: { model: ReturnType<typeo
                 </div>
               </section>
 
-              {/* 2. Notice Banner (aligned with patient banner) */}
-              <div className="pharmacy-cancel-banner-alert">
-                <Alert tone="warning" placement="inline">
+              {/* 2. Notice Banner (Integrated warning strip) */}
+              <div className="pharmacy-cancel-banner-notice" role="status">
+                <Icon name="warning" className="pharmacy-cancel-banner-notice__icon" />
+                <div className="pharmacy-cancel-banner-notice__content">
                   <strong>误发药撤销说明：</strong>
                   取消发药会将已出库药品的实物库存原路冲回当前药房的可用库存中，追溯码恢复可用，处方状态恢复为【待发药】。撤销后，患者将重新返回【门诊发药】工作台的待发队列中，便于后续重新核对与发药。
-                </Alert>
+                </div>
               </div>
 
               {/* 3. Prescriptions Board */}

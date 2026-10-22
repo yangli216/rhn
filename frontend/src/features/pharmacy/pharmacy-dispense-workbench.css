@@ -739,15 +739,11 @@
   box-shadow: none;
 }
 
-.pharmacy-dispense-main > .ui-panel {
+.pharmacy-dispense-empty {
   height: 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 20rem;
+  display: grid;
+  place-items: center;
 }
 
 /* Patient Header Info Bar */
@@ -1381,20 +1377,29 @@
   white-space: nowrap;
 }
 
-.pharmacy-cancel-banner-alert {
-  width: 100%;
-  box-sizing: border-box;
-  flex-shrink: 0;
+.pharmacy-cancel-banner-notice {
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
   border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
-.pharmacy-cancel-banner-alert .ui-alert {
-  margin: 0;
-  padding: var(--space-2) var(--space-4);
-  gap: var(--space-2);
-  border: none;
-  border-radius: 0;
-  background: var(--color-warning-soft);
+.pharmacy-cancel-banner-notice__icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+}
+
+.pharmacy-cancel-banner-notice__content {
+  min-width: 0;
+  flex: 1;
 }
 
 .pharmacy-cancel-card-actions {
@@ -1439,5 +1444,146 @@
   display: flex;
   gap: var(--space-2);
   justify-content: flex-end;
+}
+
+/* --------------------------------------------------------------------------
+   Medication Return (Outpatient Workbench) Styles
+   -------------------------------------------------------------------------- */
+.pharmacy-return-banner-notice {
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.pharmacy-return-banner-notice__icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+}
+
+.pharmacy-return-banner-notice__content {
+  min-width: 0;
+  flex: 1;
+}
+
+.pharmacy-return-queue-returned {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 28%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pharmacy-return-card-returnable {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.pharmacy-return-qty-input {
+  width: 5rem;
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+}
+
+.pharmacy-return-qty-input:focus {
+  border-color: var(--color-brand-primary);
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.pharmacy-return-disposition-select {
+  min-width: 9rem;
+}
+
+.pharmacy-return-amount-cell {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.pharmacy-return-text-active {
+  color: var(--color-brand-primary);
+}
+
+.pharmacy-return-text-inactive {
+  color: var(--color-text-tertiary);
+}
+
+.pharmacy-return-card-meta-label {
+  margin-left: var(--space-2);
+}
+
+.pharmacy-return-status-done {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+}
+
+.pharmacy-return-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pharmacy-return-confirm-table {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.pharmacy-return-confirm-total-box {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
+}
+
+.pharmacy-return-form-field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pharmacy-return-desc-input {
+  height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  box-sizing: border-box;
+}
+
+.pharmacy-return-desc-input:focus {
+  border-color: var(--color-brand-primary);
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 

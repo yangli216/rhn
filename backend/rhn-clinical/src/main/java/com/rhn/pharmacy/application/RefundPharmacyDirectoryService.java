@@ -62,7 +62,8 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
     @Override
     @Transactional
     public void cancelUnfulfilledForRefund(Long tenantId, Long medicationRequestId) {
-        cancelUnfulfilled(tenantId, medicationRequestId, "门诊退费取消未发药任务", false);
+        cancelUnfulfilled(tenantId, medicationRequestId, "门诊退费取消未发药任务", true,
+                "REFUND_MEDICATION_ALREADY_DISPENSED", "药品已发药，不能直接退费；请先由药房办理退药");
     }
 
     /** Stops dispensing for a cancelled order; a task that has meanwhile been dispensed rejects the cancellation. */
@@ -72,11 +73,12 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
     }
 
     public void cancelUnfulfilledForOrderCancellation(Long tenantId, Long medicationRequestId) {
-        cancelUnfulfilled(tenantId, medicationRequestId, "门诊医嘱撤销取消未发药任务", true);
+        cancelUnfulfilled(tenantId, medicationRequestId, "门诊医嘱撤销取消未发药任务", true,
+                "MEDICATION_REQUEST_CANCEL_DISPENSED", "药品已发药，不能直接撤销；请先由药房办理退药");
     }
 
     private void cancelUnfulfilled(Long tenantId, Long medicationRequestId, String releaseReason,
-                                   boolean rejectDispensed) {
+                                   boolean rejectDispensed, String dispensedCode, String dispensedMessage) {
         if (medicationRequestId == null) return;
         var context = contextProvider.requireCurrent();
         if (!tenantId.equals(context.tenantId())) throw forbidden("REFUND_TENANT_MISMATCH", "退费租户不匹配");
@@ -84,7 +86,7 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
             DispenseTask task = tasks.lockByIdAndTenantId(taskId, tenantId)
                     .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "退费对应发药任务不存在"));
             if (rejectDispensed && task.status() != DispenseTaskStatus.RETURNED && dispensedOrPartlyReturned(task)) {
-                throw conflict("MEDICATION_REQUEST_CANCEL_DISPENSED", "药品已发药，不能直接撤销；请先由药房办理退药");
+                throw conflict(dispensedCode, dispensedMessage);
             }
             if (task.status() == DispenseTaskStatus.COMPLETED || task.status() == DispenseTaskStatus.RETURNED) continue;
             for (var line : taskLines.findByTenantIdAndTaskIdOrderById(tenantId, taskId)) {

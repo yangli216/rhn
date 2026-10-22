@@ -93,16 +93,13 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   const refreshQueue = () => queryClient.invalidateQueries({ queryKey: ['outpatient-reception-queue'] })
   const refreshInbox = () => queryClient.invalidateQueries({ queryKey: ['outpatient-referral-inbox'] })
 
-  const rawQueue = (queue.data ?? []).filter((item) =>
-    ['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED'].includes(item.status))
-  const enhancedItems = useMemo(() => {
-    return enhanceQueueList(rawQueue)
-  }, [rawQueue])
+  const enhancedItems = useMemo(() => enhanceQueueList((queue.data ?? []).filter((item) =>
+    ['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED'].includes(item.status))), [queue.data])
 
   const handleQueueAction = (item: EnhancedQueueItem, action: QueueCommand) =>
     queueAction.mutateAsync({ item, action })
 
-  if (selected) return <PatientWorkspace resident={selected.resident} encounterId={selected.encounterId}
+  if (selected) return <PatientWorkspace key={selected.encounterId ?? selected.resident.id} resident={selected.resident} encounterId={selected.encounterId}
     entryIntent={selected.entryIntent} api={api}
     clinicalContext={clinicalContext} canEdit={canEdit} onBack={() => setSelected(null)} onQueueRefresh={refreshQueue}
     enhancedQueueItems={enhancedItems}

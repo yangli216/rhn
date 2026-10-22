@@ -519,7 +519,7 @@ export interface MedicationDispense {
   stockSiteId: string
   originalDispenseId?: string
   dispenseNo: string
-  dispenseType: 'DISPENSE' | 'RETURN' | 'REDISPENSE'
+  dispenseType: 'DISPENSE' | 'RETURN' | 'REDISPENSE' | 'CANCEL'
   occurredAt: string
   dispenserPractitionerId: string
   dispenserUserId: string

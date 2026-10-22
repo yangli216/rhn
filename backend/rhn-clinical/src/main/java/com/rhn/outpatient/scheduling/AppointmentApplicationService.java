@@ -3,6 +3,7 @@ package com.rhn.outpatient.scheduling;
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.healthcore.api.ResidentDirectory;
+import com.rhn.outpatient.api.AppointmentChangeGuard;
 import com.rhn.outpatient.api.OutpatientAppointmentDirectory;
 import com.rhn.outpatient.scheduling.AppointmentContracts.AppointmentView;
 import com.rhn.outpatient.scheduling.AppointmentContracts.CancelAppointmentRequest;
@@ -45,6 +46,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
     private final SlotEventRepository slotEventRepository;
     private final ResidentDirectory residentDirectory;
     private final ExecutionContextProvider contextProvider;
+    private final List<AppointmentChangeGuard> changeGuards;
 
     AppointmentApplicationService(AppointmentRepository appointmentRepository,
                                   AppointmentEventRepository appointmentEventRepository,
@@ -53,7 +55,9 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
                                   ScheduleSlotPoolRepository poolRepository,
                                   SlotEventRepository slotEventRepository,
                                   ResidentDirectory residentDirectory,
-                                  ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers) {
+                                  ExecutionContextProvider contextProvider, BusinessNumberGenerator numbers,
+                                  List<AppointmentChangeGuard> changeGuards) {
+        this.changeGuards = changeGuards;
         this.numbers = numbers;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
@@ -85,10 +89,12 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         if (normalizedQuery != null) normalizedQuery = normalizedQuery.toLowerCase(Locale.ROOT);
 
         String filter = normalizedQuery;
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
         return appointmentRepository.findByTenantIdAndScheduleIdInAndStartAtBetweenOrderByStartAt(
                         context.tenantId(), scheduleById.keySet(), start, end).stream()
                 .filter(value -> normalizedStatus == null || normalizedStatus.equals(value.status().name()))
-                .map(value -> toView(value, scheduleById.get(value.scheduleId())))
+                .map(value -> toView(value, scheduleById.get(value.scheduleId()),
+                        residentCache.computeIfAbsent(value.residentId(), residentDirectory::requireSnapshot)))
                 .filter(value -> filter == null || matches(value, filter))
                 .sorted(Comparator.comparing(AppointmentView::startAt).thenComparing(AppointmentView::appointmentNo))
                 .toList();
@@ -172,6 +178,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         if (registrationRepository.existsByTenantIdAndAppointmentId(context.tenantId(), appointment.id())) {
             throw conflict("APPOINTMENT_ALREADY_REGISTERED", "该预约已转为挂号，请通过撤号流程处理");
         }
+        requireNoRegistrationInProgress(context, appointment.id());
         ScheduleSlotPool pool = poolRepository.findWithLockByIdAndTenantId(
                         appointment.slotPoolId(), context.tenantId())
                 .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "预约关联的号源池不存在"));
@@ -182,6 +189,12 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         appointmentEventRepository.save(new AppointmentEvent(context.tenantId(), appointment.id(), null,
                 "CANCELLED", previous, "CANCELLED", commandCode, context.subjectId(), request.reason().trim()));
         return toView(appointment, schedule);
+    }
+
+    private void requireNoRegistrationInProgress(ExecutionContext context, Long appointmentId) {
+        if (changeGuards.stream().anyMatch(guard -> guard.registrationInProgress(context.tenantId(), appointmentId))) {
+            throw conflict("APPOINTMENT_REGISTRATION_IN_PROGRESS", "该预约正在办理挂号收费，请先完成或取消挂号后再操作");
+        }
     }
 
     @Transactional
@@ -204,6 +217,7 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         if (registrationRepository.existsByTenantIdAndAppointmentId(context.tenantId(), original.id())) {
             throw conflict("APPOINTMENT_ALREADY_REGISTERED", "该预约已转为挂号，不能直接改约");
         }
+        requireNoRegistrationInProgress(context, original.id());
         ServiceSchedule originalSchedule = requireScopedSchedule(context, original.scheduleId());
         ServiceSchedule targetSchedule = requireBookableSchedule(context, request.targetScheduleId());
         if (originalSchedule.id().equals(targetSchedule.id())) {

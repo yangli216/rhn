@@ -90,6 +90,13 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         return transactions.view(order.id(), false);
     }
 
+    /** 同一幂等键已存在的退款指令视图；不存在返回空。 */
+    public java.util.Optional<PaymentOrderView> findExistingRefund(CreateRefundOrderCommand input) {
+        return transactions.findExistingRefund(new PaymentOrderTransactionService.CreateRefundCommand(
+                input.originalPaymentId(), input.idempotencyKey(), input.amount(), input.reason(),
+                input.correlationId(), input.terminalCode()));
+    }
+
     public PaymentOrderView refund(CreateRefundOrderCommand input) {
         String method = transactions.refundPaymentMethod(input.originalPaymentId());
         PaymentChannelAdapter adapter = channels.resolve(method);

@@ -29,6 +29,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -155,6 +156,15 @@ class PaymentOrderTransactionService {
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
         requireAccess(context, account);
         return original.paymentMethodCode();
+    }
+
+    /** 同一幂等键已有退款指令时返回其视图（内容不一致则冲突），没有则为空；不产生任何副作用。 */
+    @Transactional(readOnly = true)
+    Optional<PaymentOrderView> findExistingRefund(CreateRefundCommand input) {
+        ExecutionContext context = requireWorkContext();
+        String idempotencyKey = required(input.idempotencyKey(), "REFUND_IDEMPOTENCY_KEY_REQUIRED", "退款幂等键不能为空");
+        return orderRepository.findByTenantIdAndIdempotencyKey(context.tenantId(), idempotencyKey)
+                .map(existing -> view(verifySameRefund(existing, input).id(), true));
     }
 
     @Transactional

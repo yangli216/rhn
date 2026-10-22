@@ -379,6 +379,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Map<Long, String> queueOperatorCache = new HashMap<>();
         Map<Long, String> queueDepartmentCache = new HashMap<>();
         Map<String, String> clinicianNameCache = new HashMap<>();
+        Map<Long, ResidentDirectory.ResidentSnapshot> queueResidentCache = new HashMap<>();
         Instant now = Instant.now();
 
         boolean hasPersonalSchedule = false;
@@ -398,7 +399,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 .filter(registration -> registeredByMe || isVisibleInQueue(
                         registration, schedules, encounters, tickets, context, resolvedScope, doctorHasPersonalSchedule
                 )).map(registration -> toQueueItem(registration, tickets, schedules, encounters, context,
-                        queueOperatorCache, queueDepartmentCache, clinicianNameCache))
+                        queueOperatorCache, queueDepartmentCache, clinicianNameCache, queueResidentCache))
                 .sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                         .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
@@ -472,6 +473,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             start = end;
             end = tmp;
         }
+        if (end.isAfter(start.plusDays(92))) {
+            throw badRequest("REGISTRATION_QUERY_RANGE_TOO_LONG", "单次最多查询 93 天挂号记录");
+        }
         Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
         return new QueueWindow(start, end, from, to);
@@ -518,9 +522,11 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                            Map<Long, EncounterFlowSnapshot> encounters, ExecutionContext context,
                                            Map<Long, String> queueOperatorCache,
                                            Map<Long, String> queueDepartmentCache,
-                                           Map<String, String> clinicianNameCache) {
+                                           Map<String, String> clinicianNameCache,
+                                           Map<Long, ResidentDirectory.ResidentSnapshot> residentCache) {
         TicketSnapshot ticket = tickets.get(registration.id());
-        ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
+        ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(registration.residentId(),
+                residentDirectory::requireSnapshot);
         ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
         EncounterFlowSnapshot encounter = encounters.get(registration.encounterId());
         Instant validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), context.tenantId(),

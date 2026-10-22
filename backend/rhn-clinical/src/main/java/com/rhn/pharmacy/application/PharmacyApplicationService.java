@@ -48,6 +48,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -240,9 +241,11 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                 context.tenantId(), organizationId, context.departmentId()).orElse(null);
         if (currentSite == null || !"PHARMACY".equals(currentSite.siteType())) return List.of();
         Map<Long, PharmacyInboxItem> result = new LinkedHashMap<>();
+        Map<Long, ResidentDirectory.ResidentSnapshot> residents = new HashMap<>();
         List<MedicationRequestSnapshot> activeRequests = requestDirectory.activeForPharmacy(organizationId);
         for (MedicationRequestSnapshot request : activeRequests) {
-            var resident = residentDirectory.requireSnapshot(context.tenantId(), request.residentId());
+            var resident = residents.computeIfAbsent(request.residentId(),
+                    id -> residentDirectory.requireSnapshot(context.tenantId(), id));
             DispenseTaskLine line = lineRepository
                     .findByTenantIdAndFulfillmentSourceTypeAndFulfillmentSourceId(
                             context.tenantId(), "MEDICATION_REQUEST", request.id())
@@ -272,14 +275,16 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                     line.plannedQuantity(), line.dispensedQuantity(), line.returnedQuantity(), line.dispenseUnitCode(),
                     clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
         }
-        for (DispenseTask task : taskRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(
-                context.tenantId(), currentSite.id())) {
-            DispenseTaskLine line = lineRepository.findByTenantIdAndTaskId(context.tenantId(), task.id()).orElse(null);
-            if (line == null || result.containsKey(line.requestId())) continue;
+        // 应退(RETURN_REQUIRED)必须 已发>已退，SQL 先滤掉从未发出/已退清的历史任务，其余才查 closure
+        for (DispenseTaskLine line : lineRepository.findNetDispensedBySite(context.tenantId(), currentSite.id())) {
+            if (result.containsKey(line.requestId())) continue;
+            DispenseTask task = taskRepository.findByIdAndTenantId(line.taskId(), context.tenantId()).orElse(null);
+            if (task == null) continue;
             var closure = medicationStops.closure(context.tenantId(), line.requestId());
             if (!closure.returnRequired()) continue;
             MedicationRequestSnapshot request = requestDirectory.requireForPharmacy(line.requestId());
-            var resident = residentDirectory.requireSnapshot(context.tenantId(), request.residentId());
+            var resident = residents.computeIfAbsent(request.residentId(),
+                    id -> residentDirectory.requireSnapshot(context.tenantId(), id));
             List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                     context.tenantId(), task.id());
             MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());

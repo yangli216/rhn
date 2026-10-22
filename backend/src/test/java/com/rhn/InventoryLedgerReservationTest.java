@@ -325,6 +325,52 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void cancel_dispense_restores_reserved_stock_at_cost_and_blocks_return_against_cancelled_event() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture fixture = createPharmacy("C" + suffix);
+        JsonNode lot = createLot(fixture.stockItemId(), "CNC-" + suffix, "2027-12-31");
+        receive("CNC-RCV-" + suffix, fixture, lot.get("id").asString(), "3");
+        Reviewer pharmacist = createReviewer("C" + suffix);
+        JsonNode task = createReviewedTask("C" + suffix, fixture.stockItemId(), pharmacist, 1);
+        String taskId = task.get("id").asString();
+        reserve(taskId);
+        completePicking(taskId, pharmacist);
+        JsonNode first = dispense(taskId, "CNC-DSP-1-" + suffix, "1", pharmacist);
+        assertEquals(28, sum(balances(fixture), "quantityOnHand"));
+
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/cancel-dispense", taskId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"cancelNo":"CNC-%s","operatorPractitionerId":"%s","operatorAssignmentId":"%s",
+                                 "reasonCode":"WRONG_DRUG","description":"误发撤销","occurredAt":"2026-08-27T10:30:00Z"}
+                                """.formatted(suffix, pharmacist.practitionerId(), pharmacist.assignmentId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskStatus").value("READY_TO_DISPENSE"));
+        JsonNode afterCancel = balances(fixture);
+        assertEquals(42, sum(afterCancel, "quantityOnHand"));
+        // 冲回的库存仍被本任务预留，其他处方不能占用；批次成本保持入库成本。
+        assertEquals(14, sum(afterCancel, "quantityReserved"));
+        assertEquals(28, sum(afterCancel, "quantityAvailable"));
+        assertEquals(0, new java.math.BigDecimal("8.50").compareTo(afterCancel.at("/0/averageUnitCost").decimalValue()));
+
+        JsonNode second = dispense(taskId, "CNC-DSP-2-" + suffix, "1", pharmacist);
+        JsonNode afterRedispense = balances(fixture);
+        assertEquals(28, sum(afterRedispense, "quantityOnHand"));
+        assertEquals(0, sum(afterRedispense, "quantityReserved"));
+
+        mockMvc.perform(post("/api/pharmacy/dispenses/{dispenseId}/returns", first.get("id").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"returnNo":"CNC-RET-OLD-%s","reasonCode":"PATIENT_NOT_USE","occurredAt":"2026-08-27T11:00:00Z",
+                                 "processorPractitionerId":"%s","processorAssignmentId":"%s",
+                                 "lines":[{"originalDispenseLineId":"%s","quantity":1,"disposition":"RESTOCK"}]}
+                                """.formatted(suffix, pharmacist.practitionerId(), pharmacist.assignmentId(),
+                                first.at("/lines/0/id").asString())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STOCK_RETURN_ORIGINAL_CANCELLED"));
+        returnMedication(second, "CNC-RET-" + suffix, pharmacist, "RESTOCK");
+        assertEquals(42, sum(balances(fixture), "quantityOnHand"));
+    }
+
+    @Test
     void concurrent_final_dispense_allows_exactly_one_immutable_event() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         PharmacyFixture fixture = createPharmacy("R" + suffix);

@@ -20,6 +20,9 @@ public interface CoverageDirectory {
      */
     default java.util.Optional<String> findMemberNo(Long coverageId, Long residentId) { return java.util.Optional.empty(); }
 
+    /** 患者当前有效保障登记的全部保障编号（去空），供医保鉴权核对返回的个人编号；未知时返回空列表，调用方不得据此放行或拒绝。 */
+    default java.util.List<String> findActiveMemberNos(Long residentId, LocalDate serviceDate) { return java.util.List.of(); }
+
     record CoverageView(Long id, Long residentId, String coverageTypeCode, String payerName,
                         boolean primary, LocalDate validFrom, LocalDate validTo) {}
 }

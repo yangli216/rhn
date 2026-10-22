@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class RegistrationCancellationBillingService implements RegistrationCancellationBillingDirectory {
+    private static final java.util.List<String> FAILED_REFUND_STATUSES = java.util.List.of("FAILED", "CANCELLED", "EXPIRED");
+    private static final int MAX_REFUND_ATTEMPTS = 20;
     private final RegistrationBillingIntentTransactionService transactions;
     private final PaymentOrchestrationService payments;
     private final InsuranceClaimApplicationService insuranceClaims;
@@ -50,7 +52,7 @@ public class RegistrationCancellationBillingService implements RegistrationCance
             // 先冲正医保（外部调用不在持锁事务内）；冲正成功后再退个人自付部分。冲正按固定命令重试保持幂等。
             try {
                 var reversed = insuranceClaims.reverse(plan.insuranceClaimId(),
-                        "REG-CANCEL-INS-" + encounterId + "-" + commandCode, reason);
+                        insuranceReversalCommand(plan.insuranceClaimId(), encounterId, commandCode), reason);
                 if (!"REVERSED".equals(reversed.status())) {
                     transactions.markCancellationFailed(plan.intentId(), "REGISTRATION_INSURANCE_REVERSAL_PENDING",
                             "医保冲正未确认完成");
@@ -66,12 +68,10 @@ public class RegistrationCancellationBillingService implements RegistrationCance
                 return new CancellationBillingResult("CANCELLED", null, null, true, "医保结算已冲正，挂号费无需退款");
             }
         }
-        String refundKey = "REG-CANCEL-" + encounterId + "-" + commandCode;
         PaymentOrderView refund;
         try {
-            refund = payments.refund(new PaymentOrchestrationService.CreateRefundOrderCommand(
-                    plan.originalPaymentId(), refundKey, plan.amount(), reason,
-                    "REGISTRATION-CANCEL-" + encounterId, terminalCode));
+            var refundCommand = refundCommand(plan, encounterId, commandCode, reason, terminalCode);
+            refund = payments.refund(refundCommand);
         } catch (BusinessException exception) {
             transactions.markCancellationFailed(plan.intentId(), exception.code(), exception.getMessage());
             throw exception;
@@ -81,7 +81,7 @@ public class RegistrationCancellationBillingService implements RegistrationCance
             return new CancellationBillingResult("CANCELLED", refund.id(), refund.status(), true,
                     "挂号费已原路退回");
         }
-        if (java.util.List.of("FAILED", "CANCELLED", "EXPIRED").contains(refund.status())) {
+        if (FAILED_REFUND_STATUSES.contains(refund.status())) {
             transactions.markCancellationFailed(plan.intentId(),
                     refund.errorCode() == null ? "REGISTRATION_REFUND_FAILED" : refund.errorCode(),
                     refund.errorMessage() == null ? "挂号费退款失败" : refund.errorMessage());
@@ -90,5 +90,35 @@ public class RegistrationCancellationBillingService implements RegistrationCance
         }
         return new CancellationBillingResult("CANCELLATION_PENDING", refund.id(), refund.status(), false,
                 "退款处理中，成功后再次确认即可完成退号");
+    }
+
+    /**
+     * 同一退号指令码重试时，上一次退款已终态失败（FAILED/CANCELLED/EXPIRED）则换用新的尝试序号（-R{n}），
+     * 避免固定指令码永远命中同一张失败订单；处理中或已成功的订单沿用原键，保持幂等。
+     */
+    private PaymentOrchestrationService.CreateRefundOrderCommand refundCommand(
+            RegistrationBillingIntentTransactionService.CancellationPlan plan, Long encounterId, String commandCode, String reason, String terminalCode) {
+        String baseKey = "REG-CANCEL-" + encounterId + "-" + commandCode;
+        String key = baseKey;
+        for (int attempt = 1; attempt <= MAX_REFUND_ATTEMPTS; attempt++) {
+            var candidate = new PaymentOrchestrationService.CreateRefundOrderCommand(
+                    plan.originalPaymentId(), key, plan.amount(), reason,
+                    "REGISTRATION-CANCEL-" + encounterId, terminalCode);
+            var existing = payments.findExistingRefund(candidate);
+            if (existing.isEmpty() || !FAILED_REFUND_STATUSES.contains(existing.get().status())) return candidate;
+            key = baseKey + "-R" + attempt;
+        }
+        throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_REFUND_ATTEMPTS_EXHAUSTED",
+                "退款多次失败，请联系管理员处理后再退号");
+    }
+
+    /** 医保冲正失败后（FAILED/REVERSE）同一指令码已有失败回执，重试需换用按申请修订号区分的新指令码。 */
+    private String insuranceReversalCommand(Long claimId, Long encounterId, String commandCode) {
+        String base = "REG-CANCEL-INS-" + encounterId + "-" + commandCode;
+        var claim = insuranceClaims.get(claimId);
+        if (claim != null && "FAILED".equals(claim.status()) && "REVERSE".equals(claim.currentOperation())) {
+            return base + "-R" + claim.revision();
+        }
+        return base;
     }
 }

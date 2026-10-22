@@ -516,6 +516,14 @@ class MedicationRequestService implements MedicationRequestDirectory {
         return repository.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(tenantId, prescriptionId);
     }
 
+    /** 一次查询取多张处方的药品行，按处方分组；组内顺序与单张查询一致。 */
+    java.util.Map<Long, List<MedicationRequest>> prescriptionRequests(Long tenantId, java.util.Collection<Long> prescriptionIds) {
+        if (prescriptionIds.isEmpty()) return java.util.Map.of();
+        return repository.findByTenantIdAndRequestGroupIdInOrderByAuthoredAt(tenantId, prescriptionIds).stream()
+                .collect(java.util.stream.Collectors.groupingBy(MedicationRequest::requestGroupId,
+                        java.util.LinkedHashMap::new, java.util.stream.Collectors.toList()));
+    }
+
     void activateFromPrescription(MedicationRequest value, EncounterDirectory.EncounterSnapshot encounter) {
         value.activateFromPrescription();
         publish(value, "MEDICATION_REQUEST_ACTIVATED", "提交处方并激活药品",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
@@ -140,18 +140,29 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     ])
   }
 
+  // 每个退费意图固定一个幂等键：超时重试复用同一键，只有成功或支付/金额/项目/原因变化后才换新键
+  const refundKeyRef = useRef<{ fingerprint: string; key: string } | null>(null)
+  const refundKey = (prefix: string, ...parts: unknown[]) => {
+    const fingerprint = JSON.stringify([prefix, ...parts])
+    if (refundKeyRef.current?.fingerprint !== fingerprint) {
+      refundKeyRef.current = { fingerprint, key: `${prefix}-${crypto.randomUUID()}` }
+    }
+    return refundKeyRef.current.key
+  }
+
   // 常规退费：药房已实物退药形成负余额
   const refund = useMutation({
     mutationFn: () => {
       if (!canExecuteStandardRefund) throw new Error('退款资料尚未核实或金额、原因不完整')
       return api.billing.createRefundOrder(paymentId, {
-        idempotencyKey: `REFUND-${crypto.randomUUID()}`,
+        idempotencyKey: refundKey('REFUND', paymentId, amount, reason.trim()),
         amount: Number(amount),
         reason: reason.trim(),
         terminalCode: 'CASHIER-WEB',
       })
     },
     onSuccess: async () => {
+      refundKeyRef.current = null
       setAmount('')
       await refresh()
     },
@@ -162,7 +173,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     mutationFn: () => {
       if (!canExecuteDirectRefund) throw new Error('请核实可退项目、原支付剩余金额与退款原因')
       return api.billing.directRefund(paymentId, {
-        idempotencyKey: `DIR-REF-${crypto.randomUUID()}`,
+        idempotencyKey: refundKey('DIR-REF', paymentId, amount, reason.trim(), [...selectedChargeItemIds].sort()),
         refundAmount: Number(amount),
         reason: reason.trim(),
         terminalCode: 'CASHIER-WEB',
@@ -170,6 +181,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
       })
     },
     onSuccess: async () => {
+      refundKeyRef.current = null
       setAmount('')
       await refresh()
     },

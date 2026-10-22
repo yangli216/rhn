@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface TreatmentExecutionItemRepository extends JpaRepository<TreatmentExecutionItem, Long> {
     Optional<TreatmentExecutionItem> findByTenantIdAndSourceTypeAndSourceId(
             Long tenantId, String sourceType, Long sourceId);
+    @Query("select i.sourceId from TreatmentExecutionItem i where i.tenantId=:tenantId "
+            + "and i.sourceType=:sourceType and i.sourceId in :sourceIds")
+    List<Long> findExistingSourceIds(Long tenantId, String sourceType, java.util.Collection<Long> sourceIds);
     List<TreatmentExecutionItem> findByTenantIdAndTaskIdOrderByCreatedAtAscIdAsc(Long tenantId, Long taskId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

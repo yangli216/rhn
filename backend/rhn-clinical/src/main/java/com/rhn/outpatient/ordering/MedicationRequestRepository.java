@@ -43,6 +43,10 @@ interface MedicationRequestRepository extends JpaRepository<MedicationRequest, L
             + "order by request.authoredAt")
     List<MedicationRequest> findByTenantIdAndRequestGroupIdOrderByAuthoredAt(Long tenantId, Long requestGroupId);
     @Query("select request from MedicationRequest request where request.tenantId = :tenantId "
+            + "and request.requestGroupId in :requestGroupIds and request.requestKind = 'MEDICATION' "
+            + "order by request.authoredAt")
+    List<MedicationRequest> findByTenantIdAndRequestGroupIdInOrderByAuthoredAt(Long tenantId, java.util.Collection<Long> requestGroupIds);
+    @Query("select request from MedicationRequest request where request.tenantId = :tenantId "
             + "and request.performerOrganizationId = :performerOrganizationId and request.status = :status "
             + "and request.requestKind = 'MEDICATION' order by request.authoredAt")
     List<MedicationRequest> findByTenantIdAndPerformerOrganizationIdAndStatusOrderByAuthoredAt(

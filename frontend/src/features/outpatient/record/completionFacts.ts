@@ -76,13 +76,18 @@ export function hasPendingCompletionPayment(orders: PaymentOrder[]) {
 export async function confirmCompletionFacts(api: RhnApi, encounter: Encounter,
   displayedMode: OutpatientCompletionMode | undefined, assertCurrent: () => void) {
   assertCurrent()
-  const [configuration, services, medications] = await Promise.all([
+  const [configuration, services, medications, policy] = await Promise.all([
     api.configuration.resolve(completionModeKey, { organizationId: encounter.organizationId,
       departmentId: encounter.departmentId, moduleCode: 'DOCTOR_WORKSTATION' }),
     api.encounters.serviceRequests(encounter.id), api.encounters.medicationRequests(encounter.id),
+    api.encounters.orderingPolicy(encounter.id),
   ])
   assertCurrent()
   requireFact(requireCompletionMode(configuration) === displayedMode, '诊毕模式已变化')
   requireCompletionOrderCount(services, encounter, 'service')
   requireCompletionOrderCount(medications, encounter, 'medication')
+  // 标准（签署）模式下，已保存未签署的医嘱不会计费、发药或执行，诊毕前必须签署；简单模式保存即生效，不在此拦截。
+  const unsigned = policy.reviewMode === 'SIMPLE' ? 0
+    : [...services, ...medications].filter(row => (row as { status?: string }).status === 'DRAFT').length
+  if (unsigned > 0) throw new Error(`存在未签署医嘱 ${unsigned} 项，请先签署后再诊毕`)
 }

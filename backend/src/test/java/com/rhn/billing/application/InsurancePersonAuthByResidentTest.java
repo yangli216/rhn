@@ -2,6 +2,7 @@ package com.rhn.billing.application;
 
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels;
 import com.rhn.billing.infrastructure.insurance.chs.NationalInsuranceClient;
+import com.rhn.healthcore.api.CoverageDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.shared.api.BusinessException;
@@ -44,6 +45,23 @@ class InsurancePersonAuthByResidentTest {
         var ex = assertThrows(BusinessException.class,
                 () -> service(mock(NationalInsuranceClient.class), Optional.of(ID), "钱医保").queryPersonInfoByResident(7L));
         assertEquals("INSURANCE_PERSON_NAME_MISMATCH", ex.code());
+    }
+
+    @Test void rejectsWhenReturnedPersonNoDiffersFromCoverage() {
+        var service = service(mock(NationalInsuranceClient.class), Optional.of(ID), "赵医保");
+        var coverages = mock(CoverageDirectory.class);
+        when(coverages.findActiveMemberNos(7L, null)).thenReturn(List.of("PSN-OTHER"));
+        service.setCoverages(coverages);
+        var ex = assertThrows(BusinessException.class, () -> service.queryPersonInfoByResident(7L));
+        assertEquals("INSURANCE_PERSON_NO_MISMATCH", ex.code());
+        assertTrue(ex.getMessage().contains("PSN1") && ex.getMessage().contains("PSN-OTHER"));
+        assertFalse(ex.getMessage().contains("凭证已失效"));
+
+        when(coverages.findActiveMemberNos(7L, null)).thenReturn(List.of("PSN-OTHER", "PSN1"));
+        assertEquals("PSN1", service.queryPersonInfoByResident(7L).personNo());
+        // 保障信息未登记个人编号时不在此处拦截，由预结算给出“未登记医保个人编号”的提示
+        when(coverages.findActiveMemberNos(7L, null)).thenReturn(List.of());
+        assertEquals("PSN1", service.queryPersonInfoByResident(7L).personNo());
     }
 
     @Test void rejectsWhenArchiveHasNoNationalId() {

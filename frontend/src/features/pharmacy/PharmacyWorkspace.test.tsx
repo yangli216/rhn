@@ -931,4 +931,196 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
 
     expect(await screen.findByText(/已成功取消 1 张处方的发药记录/)).toBeInTheDocument()
   })
+
+  it('supports outpatient medication return with return-related fields in returns mode', async () => {
+    const mockInboxItems: PharmacyInboxItem[] = [
+      {
+        request: {
+          id: 'req-ret-1',
+          revision: 1,
+          residentId: 'res-1',
+          encounterId: 'enc-1',
+          requestNo: 'REQ-RET-001',
+          status: 'ACTIVE',
+          prescriptionId: 'rx-ret-1',
+          catalogItemId: 'cat-1',
+          medicationId: 'med-1',
+          itemCode: 'ITEM001',
+          itemName: '护肝片 200片/盒',
+          medicationCode: 'MED001',
+          medicationName: '护肝片',
+          medicationType: 'CHINESE_PATENT',
+          skinTestRequired: false,
+          antimicrobial: false,
+          doseValue: 1,
+          doseUnit: 'G',
+          routeCode: '口服',
+          frequencyName: 'TID',
+          quantity: 2,
+          quantityUnit: 'BOX',
+          baseQuantity: 400,
+          baseUnit: 'TAB',
+          packageFactor: 200,
+          packageUnitName: '盒',
+          packageSpec: '200片/盒',
+          substitutionAllowed: true,
+          selfProvided: false,
+          unitPrice: 20,
+          totalAmount: 40,
+          durationValue: 2,
+          durationUnit: 'DAY',
+          itemAttributeSnapshot: {},
+          itemAttributeHash: 'hash-1',
+          medicationSnapshot: {
+            residentName: '晓康',
+            gender: '1',
+            birthDate: '1945-05-11',
+            nationalId: '230208194505119377',
+            phone: '13367581545',
+            manufacturerName: '云南制药有限公司',
+            organizationName: '三江镇中心卫生院',
+            departmentName: '全科医疗科',
+            doctorName: '范贺欣',
+          },
+          standardMappings: [],
+          authoredAt: '2026-08-30T13:32:00.000Z',
+        },
+        taskId: 'task-ret-1',
+        taskNo: 'TASK-RET-001',
+        taskStatus: 'COMPLETED',
+        dispensedQuantity: 2,
+        returnedQuantity: 0,
+        dispensedAt: '2026-08-30T13:40:00.000Z',
+        stockItemId: 'stock-1',
+        clinicalContext: {
+          encounterId: 'enc-1',
+          encounterNo: 'ENC20260828001',
+          clinicianId: '范贺欣',
+          chiefComplaint: '常规配药',
+          diagnoses: [],
+        },
+      },
+    ]
+
+    const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
+      pharmacy: {
+        sites: vi.fn().mockResolvedValue([
+          { id: 'site-1', name: '门诊药房', code: 'W-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
+        ]),
+        inbox: vi.fn().mockResolvedValue(mockInboxItems),
+        stockItems: vi.fn().mockResolvedValue([
+          { id: 'stock-1', productName: '护肝片', productCode: 'P001', packageSpec: '200片/盒', packageUnitName: '盒', status: 'ACTIVE', catalogItemId: 'cat-1', medicationId: 'med-1', traceRequired: false },
+        ]),
+        task: vi.fn().mockResolvedValue({
+          id: 'task-ret-1', taskNo: 'TASK-RET-001', status: 'COMPLETED', stockSiteId: 'site-1',
+          lines: [{ id: 'line-1', requestId: 'req-ret-1', stockItemId: 'stock-1', plannedQuantity: 2, dispensedQuantity: 2, returnedQuantity: 0, dispenseUnitCode: 'BOX', status: 'DISPENSED', productCode: 'P001', productName: '护肝片' }],
+          reviews: [],
+        }),
+        balances: vi.fn().mockResolvedValue([]),
+        reservations: vi.fn().mockResolvedValue({ allocations: [] }),
+        trace: vi.fn().mockResolvedValue({
+          taskId: 'task-ret-1',
+          events: [
+            {
+              id: 'dispense-event-1',
+              dispenseType: 'DISPENSE',
+              lines: [{ id: 'dispense-line-1', quantityDispensed: 2, dispenseUnitCode: 'BOX' }],
+            },
+          ],
+        }),
+        returnMedication: vi.fn().mockResolvedValue({ id: 'ret-event-1', returnNo: 'RET-001' }),
+      },
+      organization: {
+        practitioners: vi.fn().mockResolvedValue([
+          { id: '201', fullName: '王药师', code: 'P002', sdPersonnelStatus: 'ACTIVE' },
+        ]),
+        assignments: vi.fn().mockResolvedValue([
+          { id: '301', practitionerId: '201', organizationId: 'org-1', departmentId: 'dept-1',
+            positionName: '主管药师', departmentName: '全科医疗科', sdPositionType: 'PHARMACY',
+            primaryAssignment: true, sdPersonnelStatus: 'ACTIVE' },
+        ]),
+        practitioner: vi.fn().mockImplementation((id: string) => Promise.resolve({
+          practitioner: { id, fullName: '王药师', code: 'P002', sdPersonnelStatus: 'ACTIVE' },
+          assignments: [{ id: '301', practitionerId: '201', organizationId: 'org-1', departmentId: 'dept-1',
+            positionName: '主管药师', departmentName: '全科医疗科', sdPositionType: 'PHARMACY',
+            primaryAssignment: true, sdPersonnelStatus: 'ACTIVE' }],
+        })),
+      },
+      residents: {
+        page: vi.fn().mockResolvedValue({
+          items: [{ id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' }],
+          total: 1,
+        }),
+        get: vi.fn().mockResolvedValue({
+          id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545',
+          maskedNationalId: '230208194505119377', nationalId: '230208194505119377',
+        }),
+        profile: vi.fn().mockResolvedValue({
+          resident: { id: 'res-1', fullName: '晓康', gender: '1', birthDate: '1945-05-11', phone: '13367581545', maskedNationalId: '230208194505119377' },
+          demographicProfile: { ethnicityCodeText: '汉族' },
+          addresses: [{ addressText: '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑', primary: true }],
+          coverages: [{ sdCoverageType: 'SELF_PAY', sdCoverageTypeText: '自费' }],
+          relatedPersons: [],
+          employments: [],
+        }),
+        allergies: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as RhnApi
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PharmacyWorkspace api={api} clinicalContext={clinicalContext} mode="returns" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    // Left queue header & patient card return fields
+    expect(await screen.findByText('已发药待退药记录')).toBeInTheDocument()
+    expect(await screen.findByText('已发药·可退')).toBeInTheDocument()
+    expect(await screen.findByText(/发药 ¥40\.00/)).toBeInTheDocument()
+    expect(await screen.findByText(/可退 ¥40\.00/)).toBeInTheDocument()
+
+    // Right main stage return fields in prescription table
+    expect(await screen.findByText('门诊退药说明：')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '发药数量' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '已退数量' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '可退数量' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '本次退药数量' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '处置方式' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '退药金额' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '退药状态' })).toBeInTheDocument()
+
+    // Submit batch return
+    const batchReturnBtn = screen.getByRole('button', { name: '确认办理退药' })
+    expect(batchReturnBtn).toBeInTheDocument()
+    await userEvent.click(batchReturnBtn)
+
+    expect(await screen.findByRole('heading', { name: '确认办理门诊退药' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '确认退药出库冲回' }))
+
+    await waitFor(() => {
+      expect(api.pharmacy.returnMedication).toHaveBeenCalledWith(
+        'dispense-event-1',
+        expect.objectContaining({
+          processorPractitionerId: '201',
+          processorAssignmentId: '301',
+          lines: [
+            expect.objectContaining({
+              originalDispenseLineId: 'dispense-line-1',
+              quantity: 2,
+              disposition: 'RESTOCK',
+            }),
+          ],
+        })
+      )
+    })
+
+    expect(await screen.findByText(/成功办理 1 项药品退药/)).toBeInTheDocument()
+  })
 })

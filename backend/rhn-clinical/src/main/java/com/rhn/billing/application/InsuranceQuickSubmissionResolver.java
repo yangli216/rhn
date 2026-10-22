@@ -86,8 +86,14 @@ class InsuranceQuickSubmissionResolver {
                         && insuranceType.equalsIgnoreCase(r.insuranceTypeCode())
                         && (blank(requestedRegion) || requestedRegion.trim().equals(r.regionCode())))
                 .toList();
-        if (registrations.size() != 1) throw conflict("INSURANCE_REGISTRATION_UNCONFIRMED",
-                "当前机构、科室和险种的医保注册资料缺失或不唯一，请维护真实统筹区、机构及科室编码");
+        // 区分“系统未加载任何注册资料”“本科室/险种未登记”“重复登记”，便于收费员直接判断该找谁处理。
+        if (properties.registrations().isEmpty()) throw conflict("INSURANCE_REGISTRATION_UNCONFIRMED",
+                "系统未加载任何医保注册资料，暂不能医保结算，请联系管理员完成医保接入配置，或改为自费结算");
+        if (registrations.isEmpty()) throw conflict("INSURANCE_REGISTRATION_UNCONFIRMED",
+                "当前就诊科室未登记险种 " + insuranceType + (blank(requestedRegion) ? "" : "（统筹区 " + requestedRegion.trim() + "）")
+                        + " 的医保注册资料，请在医保接入配置中补充本机构、科室编码，或改为自费结算");
+        if (registrations.size() > 1) throw conflict("INSURANCE_REGISTRATION_UNCONFIRMED",
+                "当前就诊科室险种 " + insuranceType + " 存在 " + registrations.size() + " 条医保注册资料，无法确定统筹区，请管理员去除重复登记");
         var registration = registrations.getFirst();
         String region = required(registration.regionCode(), "统筹区编码", 64);
         String organizationCode = required(registration.organizationCode(), "机构医保编码", 128);

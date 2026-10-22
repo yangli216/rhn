@@ -219,23 +219,6 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
       {factsError && <Alert duration={null}>诊毕资料加载失败：{errorMessage(factsError)}</Alert>}
       {billingError && <Alert placement="inline" tone="warning" duration={null}>费用信息加载失败：{errorMessage(billingError)}。不影响签署和诊毕</Alert>}
 
-      <div className="doctor-completion-banner" role="status">
-        <div className="doctor-completion-banner__content">
-          <Icon name={factsLoading ? 'info' : canComplete ? 'check' : 'warning'} />
-          <span>
-            {factsLoading ? '正在核对诊毕资料…' : !factsReady ? '诊毕资料待核对'
-              : !signatureReady ? '请先签署病历' : !ready ? '请完善并保存病历和主要诊断'
-                : pendingPayment ? '支付处理中，不影响诊毕'
-                  : billing?.settled ? '可以确认诊毕' : confirmedStatement && !billingError && !billingLoading
-                    ? '费用可在诊毕后结算' : '可以确认诊毕，费用状态待核对'}
-          </span>
-        </div>
-        <div className="doctor-completion-banner__actions">
-          <IconButton icon="refresh" label="重新加载诊毕资料" disabled={factsLoading || billingLoading}
-            aria-busy={factsLoading || billingLoading || undefined} onClick={() => void reloadFacts()} />
-        </div>
-      </div>
-
       <Panel className="doctor-completion-overview" aria-label="诊毕状态汇总">
         <div className="doctor-overview-stat doctor-overview-stat--diagnosis">
           <div className="doctor-overview-stat__header">
@@ -258,15 +241,14 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
         </div>
       </Panel>
       <Panel className="doctor-completion-fee" aria-label="费用结算">
-        <PanelHead title="费用结算" />
+        <PanelHead title="费用结算" meta={<strong className="doctor-fee-stat__status">
+          {!confirmedStatement ? '费用待核对' : !ordersReady ? '支付状态待核对' : pendingPayment ? '支付处理中'
+            : billing?.settled ? '已结清'
+              : outstanding! > 0 ? money(outstanding!, confirmedStatement.currencyCode)
+                : confirmedStatement.uninvoicedAmount !== 0 ? `${money(confirmedStatement.uninvoicedAmount, confirmedStatement.currencyCode)} 未结算`
+                  : confirmedStatement.accountBalance !== 0 ? '账户余额待核对' : '结算尚未完成'}
+        </strong>} />
         <div className="doctor-fee-stat-content">
-          <strong>
-            {!confirmedStatement ? '费用待核对' : !ordersReady ? '支付状态待核对' : pendingPayment ? '支付处理中'
-              : billing?.settled ? '已结清'
-                : outstanding! > 0 ? money(outstanding!, confirmedStatement.currencyCode)
-                  : confirmedStatement.uninvoicedAmount !== 0 ? `${money(confirmedStatement.uninvoicedAmount, confirmedStatement.currencyCode)} 未结算`
-                    : confirmedStatement.accountBalance !== 0 ? '账户余额待核对' : '结算尚未完成'}
-          </strong>
           {confirmedStatement ? (
             <div className="doctor-fee-stat-metrics">
               {/* 费用合计 − 已支付 = 尚需支付；尚需支付再按是否已生成结算单拆成“未结算”和“已结算待付”。 */}
@@ -283,7 +265,12 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
         </div>
       </Panel>
       <Panel className="doctor-completion-workflow">
-        <PanelHead title="诊毕核对" />
+        {/* 仅在资料核对中或支付处理中提示；正常状态由下方核对项表达，不再单独占一行。 */}
+        <PanelHead title="诊毕核对"
+          meta={factsLoading ? '正在核对诊毕资料…' : !factsReady ? '诊毕资料待核对'
+            : pendingPayment ? '支付处理中，不影响诊毕' : undefined}
+          actions={<IconButton icon="refresh" label="重新加载诊毕资料" disabled={factsLoading || billingLoading}
+            aria-busy={factsLoading || billingLoading || undefined} onClick={() => void reloadFacts()} />} />
         <div className="doctor-completion-confirmation">
           <FormField label="就诊转归" required>
             <Select value={dispositionCode} searchable={false} clearable={false}

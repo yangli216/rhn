@@ -46,6 +46,11 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setResidents(com.rhn.healthcore.api.ResidentDirectory residents) { this.residents = residents; }
 
+    private com.rhn.healthcore.api.CoverageDirectory coverages;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setCoverages(com.rhn.healthcore.api.CoverageDirectory coverages) { this.coverages = coverages; }
+
     private RegistrationBillingService registrations;
 
     /** 挂号结算单被医保资金结清时没有支付指令触发建就诊，由本服务在医保结算成功后补触发；缺省（如单测）不触发。 */
@@ -85,6 +90,13 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         }
         if (view.certNo() != null && !view.certNo().isBlank() && !view.certNo().trim().equalsIgnoreCase(nationalId.trim())) {
             throw badRequest("INSURANCE_PERSON_CERT_MISMATCH", "医保登记证件号与患者档案不一致，请核对身份");
+        }
+        // 预结算按保障信息登记的个人编号取鉴权凭证；两者不一致时鉴权结果无法被使用，此处直接说明原因，
+        // 避免后续误报“凭证已失效”。
+        var memberNos = coverages == null ? List.<String>of() : coverages.findActiveMemberNos(residentId, null);
+        if (!memberNos.isEmpty() && (view.personNo() == null || !memberNos.contains(view.personNo().trim()))) {
+            throw conflict("INSURANCE_PERSON_NO_MISMATCH", "医保返回的个人编号（" + view.personNo() + "）与患者保障信息登记的（"
+                    + String.join("、", memberNos) + "）不一致，请核对保障信息中的医保个人编号，或改用医保电子凭证/社保卡读取");
         }
         return view;
     }
