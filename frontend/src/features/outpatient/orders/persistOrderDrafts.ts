@@ -46,6 +46,7 @@ export function draftToServiceItem(draft: ServicePlanDraft): CreateServiceReques
     ...(draft.performerDepartmentId ? { performerDepartmentId: draft.performerDepartmentId } : {}),
     quantity: draft.quantity, unitCode: draft.unitCode, priceType: 'SALE', pricingRequired: true,
     reason: '门诊诊疗申请', clinicalDescription: draft.clinicalDescription?.trim() || undefined,
+    ...(draft.bodySites?.length ? { bodySiteCodes: draft.bodySites.map(site => site.code) } : {}),
   }
 }
 
@@ -138,7 +139,8 @@ export function requireOrderDraftReceipt(receipt: OrderDraftSaveReceipt, encount
     const index = pendingServices.findIndex(draft => row.catalogItemId === draft.catalogItemId && row.quantity === draft.quantity
       && (!draft.performerOrganizationId || draft.performerOrganizationId === row.performerOrganizationId)
       && (!draft.performerDepartmentId || draft.performerDepartmentId === row.performerDepartmentId)
-      && (draft.clinicalDescription?.trim() ?? '') === (row.clinicalDescription?.trim() ?? ''))
+      && (draft.clinicalDescription?.trim() ?? '') === (row.clinicalDescription?.trim() ?? '')
+      && (draft.bodySites ?? []).map(site => site.code).join('\n') === (row.bodySites ?? []).map(site => site.code).join('\n'))
     if (index < 0) fail()
     pendingServices.splice(index, 1)
   }

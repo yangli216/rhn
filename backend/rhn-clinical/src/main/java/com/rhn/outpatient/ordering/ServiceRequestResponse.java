@@ -28,5 +28,11 @@ record ServiceRequestResponse(
         /** 不能直接修改的原因（已撤销、已执行或已缴费）；为空表示可以作为“修改”替换为新医嘱。 */
         String editBlockedReason,
         /** 所属申请单；为空表示历史或单条开立的一项一单。 */
-        Long documentId, String documentNo) {
+        Long documentId, String documentNo,
+        /** 检查申请所选部位，按选择顺序；未选部位为空数组。 */
+        java.util.List<RequestBodySite> bodySites) {
+
+    record RequestBodySite(String code, String name,
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_VARIANT_METHOD) String methodType,
+            String mutualRecognitionCode) {}
 }

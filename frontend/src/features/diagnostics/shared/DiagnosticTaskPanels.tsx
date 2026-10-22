@@ -92,6 +92,7 @@ export function DiagnosticRequestDetails({ task }: { task: DiagnosticExecutionTa
   return <section><h3>申请与执行记录</h3><dl className="diagnostic-request-details">
     <div><dt>申请单号</dt><dd>{task.requestNo}</dd></div><div><dt>执行任务号</dt><dd>{task.taskNo || '—'}</dd></div>
     <div><dt>申请项目</dt><dd>{task.itemName} · {task.itemCode}</dd></div>
+    {task.bodySiteText && <div><dt>检查部位</dt><dd>{task.bodySiteText}</dd></div>}
     <div><dt>{task.requestType === 'LABORATORY' ? '标本类型' : '检查类型'}</dt><dd>{task.specimenType || task.examinationTypeText || task.examinationType || '未配置'}</dd></div>
     <div><dt>申请时间</dt><dd>{formatTime(task.createdAt) || '—'}</dd></div><div><dt>采集时间</dt><dd>{formatTime(task.collectedAt) || '—'}</dd></div>
     <div><dt>开始时间</dt><dd>{formatTime(task.startedAt) || '—'}</dd></div><div><dt>完成时间</dt><dd>{formatTime(task.completedAt) || '—'}</dd></div>

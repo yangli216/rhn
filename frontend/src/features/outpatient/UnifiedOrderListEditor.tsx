@@ -4,6 +4,9 @@ import { useSkinTestHistory } from './orders/skinTestHistory'
 import { OrderComposerSafety } from './orders/OrderComposerSafety'
 import { OrderComposerInstruction } from './orders/OrderComposerInstruction'
 import { OrderComposerQuantity } from './orders/OrderComposerQuantity'
+import { ExaminationSiteSelect } from './orders/ExaminationSiteSelect'
+import { examinationSiteError, examinationSiteQuantity, usesSiteQuantity } from './orders/examinationSites'
+import { useExaminationSiteOptions } from './orders/useExaminationSiteOptions'
 import { OrderComposerDirections } from './orders/OrderComposerDirections'
 import { OrderComposerResource } from './orders/OrderComposerResource'
 import { type MedicationEntry, emptyMedicationEntry, withSkinTestExemption } from './orders/medicationEntry'
@@ -108,6 +111,12 @@ export function UnifiedOrderListEditor({
   const [service, setService] = useState<ClinicalResourceOption<ServiceCatalogItem>>()
   const [serviceQuantity, setServiceQuantity] = useState(1)
   const [serviceDescription, setServiceDescription] = useState('')
+  const [serviceSites, setServiceSites] = useState<{ code: string; name: string }[]>([])
+  const serviceSiteOptions = useExaminationSiteOptions(api, encounter.id, service?.raw?.id, service?.raw?.sdServiceType)
+  const serviceSiteRule = serviceSiteOptions.data
+  const serviceQuantityBySites = usesSiteQuantity(serviceSiteRule, serviceSites.length)
+  const effectiveServiceQuantity = serviceQuantityBySites && serviceSiteRule
+    ? examinationSiteQuantity(serviceSiteRule, serviceSites.length) : serviceQuantity
   const [validationError, setValidationError] = useState('')
   const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
   const setInspectMedicationName = useCallback((name: string | null) => setInspectTarget(name ? { name, type: 'medication' } : null), [])
@@ -538,6 +547,7 @@ export function UnifiedOrderListEditor({
         ? sType : 'TREATMENT'
       setEntryType(srvType)
       setService(option as ClinicalResourceOption<ServiceCatalogItem>)
+      setServiceSites([])
       setValidationError('')
       if (srvType === 'TREATMENT') {
         focusControlAfterSelection('doctor-unified-quantity')
@@ -631,7 +641,13 @@ export function UnifiedOrderListEditor({
     if (busy || readOnly || groupImport.pending) return
     if (!isMedication) {
       const selected = service?.raw
-      if (!selected || !Number.isFinite(serviceQuantity) || serviceQuantity <= 0) { setValidationError('请选择诊疗项目并填写数量'); return }
+      if (!selected || !Number.isFinite(effectiveServiceQuantity) || effectiveServiceQuantity <= 0) { setValidationError('请选择诊疗项目并填写数量'); return }
+      if (selected.sdServiceType === 'EXAMINATION') {
+        if (serviceSiteOptions.isPending) { setValidationError('正在读取检查部位配置，请稍候'); return }
+        if (serviceSiteOptions.isError) { setValidationError('检查部位配置读取失败，请重新选择项目'); return }
+        const siteError = examinationSiteError(serviceSiteRule, selected.name, serviceSites.length)
+        if (siteError) { setValidationError(siteError); return }
+      }
       const pricing = resolveServicePricing(selected, encounter.organizationId)
       if (pricing.error) { setValidationError(pricing.error); return }
       const activePrice = pricing.price
@@ -642,8 +658,9 @@ export function UnifiedOrderListEditor({
       setServiceDrafts((current) => [...current, {
         id: globalThis.crypto.randomUUID(), sequence: Date.now(), serviceType: selected.sdServiceType,
         catalogItemId: selected.id, itemCode: selected.code, itemName: selected.name,
-        quantity: serviceQuantity, unitCode: selected.unitCode,
+        quantity: effectiveServiceQuantity, unitCode: selected.unitCode,
         clinicalDescription: serviceDescription.trim() || undefined,
+        ...(serviceSites.length ? { bodySites: serviceSites } : {}),
         unitPrice: activePrice?.price,
         currencyCode: activePrice?.currencyCode,
         performerOrganizationId: encounter.organizationId, performerDepartmentId,
@@ -653,6 +670,7 @@ export function UnifiedOrderListEditor({
       setService(undefined)
       setServiceQuantity(1)
       setServiceDescription('')
+      setServiceSites([])
       setValidationError('')
       setEntryType('ALL')
       focusResource('ALL')
@@ -921,12 +939,16 @@ export function UnifiedOrderListEditor({
             medicationEntry={medicationEntry} updateMedication={updateMedication} availableDoseUnits={availableDoseUnits}
             updateRoute={updateRoute} routesLoading={routes.isPending} frequenciesLoading={frequencies.isPending}
             routeOptions={routeOptions} frequencyOptions={frequencyOptions} serviceType={service?.raw?.sdServiceType}
-            continueOnEnter={continueOnEnter} addCurrentEntry={addCurrentEntry} />
+            continueOnEnter={continueOnEnter} addCurrentEntry={addCurrentEntry}
+            siteSelect={serviceSiteRule?.configured && serviceSiteRule.sites.length ? <ExaminationSiteSelect id="doctor-unified-exam-site"
+              rule={serviceSiteRule} value={serviceSites.map(site => site.code)} disabled={!hasEnteredOrder}
+              onChange={sites => { setServiceSites(sites); setValidationError('') }} /> : undefined} />
 
           <OrderComposerQuantity entryType={entryType} isMedication={isMedication} hasEnteredOrder={hasEnteredOrder}
             medicationEntry={medicationEntry} updateMedication={updateMedication} selectedProduct={selectedProduct}
             isStockInsufficient={isStockInsufficient} frequencyQuantityUnavailable={frequencyQuantityUnavailable}
-            calculationText={calcResult?.calculationText} serviceQuantity={serviceQuantity} setServiceQuantity={setServiceQuantity}
+            calculationText={calcResult?.calculationText} serviceQuantity={effectiveServiceQuantity} setServiceQuantity={setServiceQuantity}
+            serviceQuantityLocked={serviceQuantityBySites}
             serviceUnit={service?.raw?.unitCode} continueOnEnter={continueOnEnter} />
 
           <div className="doctor-inline-order-static doctor-inline-order-dept">

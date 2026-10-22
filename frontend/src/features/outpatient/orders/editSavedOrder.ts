@@ -65,6 +65,7 @@ export function serviceRequestToDraft(value: ServiceRequest, performerDepartment
     unitPrice: value.unitPrice, currencyCode: value.currencyCode,
     performerOrganizationId: value.performerOrganizationId, performerDepartmentId: value.performerDepartmentId,
     performerDepartmentName,
+    ...(value.bodySites?.length ? { bodySites: value.bodySites.map(({ code, name }) => ({ code, name })) } : {}),
     revises: { id: value.id, revision: value.revision },
   }
 }

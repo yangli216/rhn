@@ -403,7 +403,7 @@ export function ExaminationWorkspace({
                             >
                               {std.code}
                             </span>{' '}
-                            {task.itemName}
+                            {task.itemName}{task.bodySiteText ? `（${task.bodySiteText}）` : ''}
                           </span>
                           <span className="diagnostic-queue-meta">
                             申请 {formatTime(task.createdAt) || '—'} · 单号 {task.requestNo}
@@ -569,6 +569,10 @@ export function ExaminationWorkspace({
                           <strong>{selected.itemName}</strong> ({selected.itemCode})
                         </dd>
                       </div>
+                      {selected.bodySiteText && <div>
+                        <dt>检查部位</dt>
+                        <dd>{selected.bodySiteText}</dd>
+                      </div>}
                       <div>
                         <dt>检查类型</dt>
                         <dd>{currentModalityStandard?.name || selected.examinationTypeText || '未配置'}</dd>

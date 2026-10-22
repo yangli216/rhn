@@ -143,6 +143,8 @@ export interface ServiceRequest {
   /** 所属申请单；为空表示历史或单条开立的一项一单。 */
   documentId?: string | null
   documentNo?: string | null
+  /** 检查申请开立时所选部位，按选择顺序；未选部位为空数组。 */
+  bodySites?: ServiceRequestBodySite[]
   id: string
   revision: number
   residentId: string
@@ -178,8 +180,29 @@ export interface ServiceRequest {
   cancelReason?: string
 }
 
+export interface ServiceRequestBodySite {
+  code: string
+  name: string
+  methodType?: string | null
+  mutualRecognitionCode?: string | null
+}
+
+/** 检查项目可选部位与数量换算规则；configured=false 表示项目未维护检查部位配置。 */
+export interface ExaminationSiteOptions {
+  catalogItemId: string
+  configured: boolean
+  bodySiteRequired: boolean
+  multiBodySite: boolean
+  maxBodySiteCount?: number | null
+  sitePricingMode?: string | null
+  maxChargeableSiteCount?: number | null
+  sites: { code: string; name: string; methodType?: string | null }[]
+}
+
 export interface CreateServiceRequestInput {
   catalogItemId: string
+  /** 检查部位编码，按选择顺序；按部位计价的数量以服务端换算为准。 */
+  bodySiteCodes?: string[]
   quantity: number
   unitCode?: string
   priceType?: string
@@ -481,6 +504,8 @@ export function createEncountersApi(client: ApiClient) {
     submitOrders: (encounterId: string, input: OrderSubmissionInput) => client.request<OrderSubmissionResult>(
       `/api/encounters/${encounterId}/order-submissions`, { method: 'POST', body: JSON.stringify(input) },
     ),
+    examinationSiteOptions: (encounterId: string, catalogItemId: string) => client.request<ExaminationSiteOptions>(
+      `/api/encounters/${encodeURIComponent(encounterId)}/service-requests/examination-sites?catalogItemId=${encodeURIComponent(catalogItemId)}`),
     previewServiceDocuments: (encounterId: string, items: CreateServiceRequestInput[]) => client.request<ServiceDocumentPlan[]>(
       `/api/encounters/${encounterId}/service-requests/document-preview`, { method: 'POST', body: JSON.stringify(items) },
     ),

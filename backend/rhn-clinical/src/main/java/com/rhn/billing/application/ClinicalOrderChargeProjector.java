@@ -92,10 +92,28 @@ public class ClinicalOrderChargeProjector {
                 sourceType, event.aggregateId(), facts.requestNo(), facts.quantity(), facts.unitCode(), facts.unitPrice(),
                 facts.totalAmount(), facts.currency(), facts.priceId(), facts.priceRevision(), facts.priceType(),
                 facts.itemCode(), facts.itemName(), facts.occurredAt(), facts.actorId(), null, facts.accountingCategory()));
-        components.save(new ChargeItemComponent(event.tenantId(), charge.id(), facts.catalogItemId(), facts.itemCode(),
-                facts.itemName(), facts.quantity(), facts.unitCode(), BigDecimal.ONE, facts.unitPrice(), facts.totalAmount()));
+        saveComponents(event.tenantId(), charge.id(), facts);
         ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", facts.totalAmount(), facts.currency(),
                 charge.id(), null, null, null, facts.occurredAt(), facts.actorId()));
+    }
+
+    /**
+     * 检查数量等于所选部位数时（按部位计价）每个部位一行收费构成；只选一个部位时整行记该部位；
+     * 其余情况（不按部位计价或超过最大计费部位数）保持一行，不猜测部位与数量的对应。
+     */
+    private void saveComponents(Long tenantId, Long chargeId, ClinicalOrderChargeFacts facts) {
+        List<String> sites = facts.bodySiteCodes();
+        if (sites.size() > 1 && facts.quantity().compareTo(BigDecimal.valueOf(sites.size())) == 0) {
+            for (int index = 0; index < sites.size(); index++) {
+                components.save(new ChargeItemComponent(tenantId, chargeId, index + 1, facts.catalogItemId(),
+                        facts.itemCode(), facts.itemName(), sites.get(index), BigDecimal.ONE, facts.unitCode(),
+                        BigDecimal.ONE, facts.unitPrice(), facts.unitPrice()));
+            }
+            return;
+        }
+        components.save(new ChargeItemComponent(tenantId, chargeId, 1, facts.catalogItemId(), facts.itemCode(),
+                facts.itemName(), sites.size() == 1 ? sites.getFirst() : null, facts.quantity(), facts.unitCode(),
+                BigDecimal.ONE, facts.unitPrice(), facts.totalAmount()));
     }
 
     private void reverse(DomainEventEnvelope event, ClinicalOrderChargeFacts facts, String sourceType,
@@ -127,9 +145,17 @@ public class ClinicalOrderChargeProjector {
                 original.unitCode(), original.unitPrice(), original.totalAmount().negate(), original.currencyCode(),
                 original.priceId(), original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
                 original.itemNameSnapshot(), facts.occurredAt(), facts.actorId(), original.id(), original.accountingCategory()));
-        components.save(new ChargeItemComponent(event.tenantId(), reversal.id(), original.catalogItemId(),
-                original.itemCodeSnapshot(), original.itemNameSnapshot(), original.quantity().negate(),
-                original.unitCode(), BigDecimal.ONE, original.unitPrice(), original.totalAmount().negate()));
+        List<ChargeItemComponent> originalComponents = components.findByTenantIdAndChargeItemId(event.tenantId(), original.id());
+        if (originalComponents.isEmpty()) originalComponents = List.of(new ChargeItemComponent(event.tenantId(), original.id(), 1,
+                original.catalogItemId(), original.itemCodeSnapshot(), original.itemNameSnapshot(), null, original.quantity(),
+                original.unitCode(), BigDecimal.ONE, original.unitPrice(), original.totalAmount()));
+        for (ChargeItemComponent component : originalComponents.stream()
+                .sorted(java.util.Comparator.comparingInt(ChargeItemComponent::lineNo)).toList()) {
+            components.save(new ChargeItemComponent(event.tenantId(), reversal.id(), component.lineNo(),
+                    original.catalogItemId(), original.itemCodeSnapshot(), original.itemNameSnapshot(),
+                    component.bodySiteCode(), component.quantity().negate(), original.unitCode(), BigDecimal.ONE,
+                    original.unitPrice(), component.amount().negate()));
+        }
         ledger.save(new LedgerEntry(event.tenantId(), original.patientAccountId(), "CHARGE_REVERSAL", "CREDIT",
                 original.totalAmount(), original.currencyCode(), reversal.id(), null, null, originalLedger.id(),
                 facts.occurredAt(), facts.actorId()));

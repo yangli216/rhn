@@ -43,6 +43,13 @@ class ServiceRequestController {
         return service.updateDocumentInfo(encounterId, id, input);
     }
 
+    @GetMapping("/examination-sites")
+    @io.swagger.v3.oas.annotations.Operation(operationId = "getOutpatientExaminationSiteOptions")
+    ExaminationSiteOptionsResponse examinationSites(@PathVariable Long encounterId,
+                                                    @org.springframework.web.bind.annotation.RequestParam Long catalogItemId) {
+        return service.examinationSites(encounterId, catalogItemId);
+    }
+
     @GetMapping
     List<ServiceRequestResponse> list(@PathVariable Long encounterId) {
         return service.list(encounterId);

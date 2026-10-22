@@ -19,5 +19,7 @@ public interface ServiceRequestDirectory {
             Long performerOrganizationId, Long performerDepartmentId, LocalDate businessDate,
             Instant authoredAt, Long authoredBy, String reason, String clinicalDescription,
             BigDecimal totalAmount, String currencyCode,
-            String itemAttributeHash, String itemAttributeSnapshot, String standardMappingSnapshot, String examinationPurpose) {}
+            String itemAttributeHash, String itemAttributeSnapshot, String standardMappingSnapshot, String examinationPurpose,
+            /** 检查部位名称，按开立顺序以顿号连接；未选部位为空。 */
+            String bodySiteText) {}
 }

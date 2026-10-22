@@ -858,6 +858,32 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByText('放射影像科')).not.toBeInTheDocument()
   })
 
+  it('edits examination body sites and derives the per-site quantity before saving the draft', async () => {
+    const examinationSiteOptions = vi.fn().mockResolvedValue({ catalogItemId: 'srv-ct', configured: true,
+      bodySiteRequired: true, multiBodySite: true, maxBodySiteCount: 3, sitePricingMode: 'PER_SITE',
+      maxChargeableSiteCount: null, sites: [{ code: 'CHEST', name: '胸部' }, { code: 'ABDOMEN', name: '上腹部' }] })
+    const api = { ...mockApi, encounters: { ...mockApi.encounters, examinationSiteOptions } } as unknown as RhnApi
+    const draft: ServicePlanDraft = { id: 'draft-ct', serviceType: 'EXAMINATION', catalogItemId: 'srv-ct',
+      itemCode: 'CT01', itemName: '胸腹部CT平扫', quantity: 1, unitCode: '部位' }
+    const setServiceDrafts = vi.fn()
+    renderComponent({ api, serviceDrafts: [draft], setServiceDrafts })
+
+    await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 胸腹部CT平扫' }))
+    const siteSelect = await screen.findByRole('combobox', { name: '检查部位' })
+    expect(examinationSiteOptions).toHaveBeenCalledWith(mockEncounter.id, 'srv-ct')
+    expect(siteSelect).toHaveAttribute('aria-invalid', 'true')
+    await userEvent.click(siteSelect)
+    await userEvent.click(await screen.findByRole('option', { name: /胸部/ }))
+    await userEvent.click(await screen.findByRole('option', { name: /上腹部/ }))
+    expect((screen.getByLabelText('编辑项目数量') as HTMLInputElement).value).toBe('2')
+    fireEvent.keyDown(screen.getByLabelText('编辑临床说明'), { key: 'Enter' })
+
+    await waitFor(() => expect(setServiceDrafts).toHaveBeenCalled())
+    const update = setServiceDrafts.mock.calls.at(-1)?.[0]
+    const [saved] = typeof update === 'function' ? update([draft]) : update
+    expect(saved).toMatchObject({ quantity: 2, bodySites: [{ code: 'CHEST', name: '胸部' }, { code: 'ABDOMEN', name: '上腹部' }] })
+  })
+
   it('automatically selects input text on focus for quick value replacement without backspacing', async () => {
     renderComponent({ medicationDrafts: [mockMedicationDraft] })
 

@@ -297,8 +297,9 @@ class DiagnosticExchangeTest extends SettlementWaivedDiagnosticsTestSupport {
         return json(mockMvc.perform(post("/api/encounters/{id}/service-requests", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","quantity":1,"priceType":"SALE",
-                                 "performerDepartmentId":"%s","businessDate":"2026-08-27","reason":"%s","clinicalDescription":"门诊检查检验申请"}
-                                """.formatted(catalogItemId, DEPARTMENT, reason)))
+                                 "performerDepartmentId":"%s","businessDate":"2026-08-27","reason":"%s","clinicalDescription":"门诊检查检验申请"%s}
+                                """.formatted(catalogItemId, DEPARTMENT, reason,
+                                "362387869795103".equals(catalogItemId) ? ",\"bodySiteCodes\":[\"ABDOMEN\"]" : "")))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 

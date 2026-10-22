@@ -13046,6 +13046,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/encounters/{encounterId}/service-requests/examination-sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getOutpatientExaminationSiteOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -16687,6 +16703,7 @@ export interface components {
             /** @example 824633720832983041 */
             documentId?: string;
             documentNo?: string;
+            bodySites?: components["schemas"]["RequestBodySite"][];
         };
         Evidence: {
             sourceType?: string;
@@ -23918,6 +23935,7 @@ export interface components {
             performerDepartmentId?: string;
             reason?: string;
             clinicalDescription?: string;
+            bodySiteCodes?: string[];
         };
         PrintAction: {
             purpose: string;
@@ -24131,6 +24149,7 @@ export interface components {
             readonly genderText?: string;
             /** @description 字典 BD_EXAM_TYPE 的显示文本 */
             readonly examinationTypeText?: string;
+            bodySiteText?: string;
         };
         LocalObservationRequest: {
             observationCode?: string;
@@ -29960,6 +29979,34 @@ export interface components {
         DesktopRevisionRequest: {
             /** Format: int64 */
             expectedRevision?: number;
+        };
+        RequestBodySite: {
+            code?: string;
+            name?: string;
+            methodType?: string;
+            mutualRecognitionCode?: string;
+            /** @description 字典 BD_SERVICE_VARIANT_METHOD 的显示文本 */
+            readonly methodTypeText?: string;
+        };
+        ExaminationSiteChoice: {
+            code?: string;
+            name?: string;
+            methodType?: string;
+            /** @description 字典 BD_SERVICE_VARIANT_METHOD 的显示文本 */
+            readonly methodTypeText?: string;
+        };
+        ExaminationSiteOptionsResponse: {
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            configured?: boolean;
+            bodySiteRequired?: boolean;
+            multiBodySite?: boolean;
+            /** Format: int32 */
+            maxBodySiteCount?: number;
+            sitePricingMode?: string;
+            /** Format: int32 */
+            maxChargeableSiteCount?: number;
+            sites?: components["schemas"]["ExaminationSiteChoice"][];
         };
     };
     responses: never;
@@ -60984,6 +61031,39 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DesktopPrintDeliveryView"];
+                };
+            };
+        };
+    };
+    getOutpatientExaminationSiteOptions: {
+        parameters: {
+            query: {
+                catalogItemId: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExaminationSiteOptionsResponse"];
                 };
             };
         };

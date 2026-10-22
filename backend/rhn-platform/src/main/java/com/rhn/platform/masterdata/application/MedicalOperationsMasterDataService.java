@@ -2,6 +2,8 @@ package com.rhn.platform.masterdata.application;
 
 import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.platform.dictionary.api.DictionaryItemReference;
+import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationSiteOption;
+import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationSiteRule;
 import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
 import com.rhn.platform.masterdata.api.MasterDataItemTypes;
 import com.rhn.platform.masterdata.api.MedicalOperationsCommands.*;
@@ -27,7 +29,8 @@ import java.util.stream.Collectors;
 import static com.rhn.shared.api.BusinessErrors.*;
 
 @Service
-public class MedicalOperationsMasterDataService implements com.rhn.platform.masterdata.api.LaboratorySpecimenDirectory {
+public class MedicalOperationsMasterDataService implements com.rhn.platform.masterdata.api.LaboratorySpecimenDirectory,
+        com.rhn.platform.masterdata.api.ExaminationSiteDirectory {
     private static final Set<String> STATUSES = Set.of("ACTIVE", "INACTIVE");
     private final ServiceCatalogItemRepository serviceRepository;
     private final LaboratoryServiceRepository laboratoryRepository;
@@ -285,23 +288,15 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         ExaminationService profile = examinationRepository
                 .findByTenantIdAndCatalogItemId(context.tenantId(), serviceId)
                 .orElseThrow(() -> notFound("EXAM_PROFILE_NOT_FOUND", "未找到检查项目配置"));
-        List<String> sites = (bodySiteCodes == null ? List.<String>of() : bodySiteCodes).stream()
-                .map(this::text).filter(Objects::nonNull).distinct().toList();
-        int siteCount = sites.size();
-        if (profile.bodySiteRequired() && siteCount == 0) {
-            throw badRequest("EXAM_BODY_SITE_REQUIRED", "该检查项目必须选择检查部位");
-        }
-        if (profile.maxBodySiteCount() != null && siteCount > profile.maxBodySiteCount()) {
-            throw badRequest("EXAM_BODY_SITE_LIMIT_EXCEEDED", "所选检查部位数超过项目允许上限");
-        }
+        ExaminationSiteRule rule = siteRule(profile);
+        int siteCount = rule.select(bodySiteCodes).size();
         int effectiveSiteCount = Math.max(1, siteCount);
         if (profile.maxChargeableSiteCount() != null) {
             effectiveSiteCount = Math.min(effectiveSiteCount, profile.maxChargeableSiteCount());
         }
         int extraSiteCount = Math.max(0, effectiveSiteCount - profile.includedSiteCount());
         List<DiagnosticChargeLine> lines = new ArrayList<>();
-        BigDecimal baseQuantity = "PER_SITE".equals(profile.sitePricingMode())
-                ? BigDecimal.valueOf(effectiveSiteCount) : BigDecimal.ONE;
+        BigDecimal baseQuantity = rule.baseQuantity(siteCount);
         lines.add(chargeLine(service, baseQuantity, "BASE_SERVICE", true, null, "检查主项目"));
         if (extraSiteCount > 0 && "BASE_PLUS_FIXED".equals(profile.sitePricingMode())) {
             BigDecimal amount = profile.additionalSitePrice().multiply(BigDecimal.valueOf(extraSiteCount));
@@ -339,6 +334,26 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         }
         return new ExaminationChargePlan(serviceId, siteCount, profile.sitePricingMode(),
                 profile.includedSiteCount(), extraSiteCount, List.copyOf(lines));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ExaminationSiteRule> siteRule(Long serviceId) {
+        ExecutionContext context = current();
+        requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
+        return examinationRepository.findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).map(this::siteRule);
+    }
+
+    private ExaminationSiteRule siteRule(ExaminationService profile) {
+        List<ExaminationSiteOption> sites = variantRepository
+                .findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(profile.tenantId(), profile.catalogItemId()).stream()
+                .filter(v -> "ACTIVE".equals(v.status()))
+                .map(v -> new ExaminationSiteOption(v.id(), v.code(), v.name(), v.bodySiteConceptId(),
+                        v.methodType(), v.mutualRecognitionCode()))
+                .toList();
+        return new ExaminationSiteRule(profile.catalogItemId(), profile.bodySiteRequired(), profile.multiBodySite(),
+                profile.maxBodySiteCount(), profile.sitePricingMode(), profile.includedSiteCount(),
+                profile.maxChargeableSiteCount(), sites);
     }
 
     @Transactional(readOnly = true)

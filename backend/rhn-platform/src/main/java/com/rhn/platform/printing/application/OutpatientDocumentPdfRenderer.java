@@ -198,7 +198,9 @@ final class OutpatientDocumentPdfRenderer {
         if (rows.isEmpty()) rows = List.of(data);
         for (Object value : rows) {
             Map<String, Object> item = map(value);
-            items.addCell(plain(text(item, "itemName", "未记录"), 11, true));
+            String sites = text(item, "bodySiteText", "");
+            String name = text(item, "itemName", "未记录");
+            items.addCell(plain(sites.isEmpty() ? name : name + "（" + sites + "）", 11, true));
             items.addCell(plain(text(item, "quantityText", "未记录"), 10, false));
         }
         doc.add(items);

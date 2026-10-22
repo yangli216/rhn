@@ -9,6 +9,9 @@ import { formatServiceExecution, formatUnitPrice } from './orderPresentation'
 import { OrderTypeBadge } from './OrderRowDecorations'
 import { continueDraftOnEnter } from './orderEditorControls'
 import { DraftStatusBadge } from './DraftStatusBadge'
+import { ExaminationSiteSelect } from './ExaminationSiteSelect'
+import { examinationSiteError, examinationSiteQuantity, usesSiteQuantity } from './examinationSites'
+import { useExaminationSiteOptions } from './useExaminationSiteOptions'
 
 export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encounter, api }: {
   value: ServicePlanDraft; onSave: (value: ServicePlanDraft) => void; onCancel: () => void; onRemove: () => void
@@ -18,6 +21,12 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encount
   const [description, setDescription] = useState(value.clinicalDescription ?? '')
   const [quantity, setQuantity] = useState(value.quantity)
   const [departmentId, setDepartmentId] = useState(value.performerDepartmentId || encounter.departmentId)
+  const [sites, setSites] = useState(value.bodySites ?? [])
+  const siteOptions = useExaminationSiteOptions(api, encounter.id, value.catalogItemId, value.serviceType)
+  const siteRule = siteOptions.data
+  const quantityBySites = usesSiteQuantity(siteRule, sites.length)
+  const effectiveQuantity = quantityBySites && siteRule ? examinationSiteQuantity(siteRule, sites.length) : quantity
+  const siteInvalid = Boolean(examinationSiteError(siteRule, value.itemName, sites.length))
   const departments = useOrderExecutionDepartments(api, encounter.organizationId)
   const selectedDepartment = departments.data?.find(department => department.id === departmentId)
 
@@ -27,8 +36,9 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encount
     if (hasSavedRef.current || isRemovingRef.current) return
     if (!selectedDepartment) return
     hasSavedRef.current = true
-    if (quantity > 0) {
-      onSave({ ...value, quantity, clinicalDescription: description.trim() || undefined,
+    if (effectiveQuantity > 0) {
+      onSave({ ...value, quantity: effectiveQuantity, clinicalDescription: description.trim() || undefined,
+        bodySites: sites.length ? sites : undefined,
         performerOrganizationId: encounter.organizationId,
         performerDepartmentId: selectedDepartment.id, performerDepartmentName: selectedDepartment.name })
     } else {
@@ -47,10 +57,16 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encount
     onBlur={handleBlur} onKeyDown={handleKeyDown}>
       <div className="doctor-inline-order-static-type"><OrderTypeBadge type={value.serviceType || 'OTHER'} /></div>
       <div className="doctor-inline-order-static-resource"><strong>{value.itemName}</strong></div>
-      <div className="doctor-inline-order-static doctor-inline-service-execution"><span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span></div>
+      {siteRule?.configured && siteRule.sites.length
+        ? <div className="doctor-inline-order-field doctor-inline-service-execution has-exam-site">
+          <ExaminationSiteSelect id={`draft-service-site-${value.id}`} rule={siteRule}
+            value={sites.map(site => site.code)} invalid={siteInvalid} onChange={setSites} />
+        </div>
+        : <div className="doctor-inline-order-static doctor-inline-service-execution"><span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span></div>}
       <div className="doctor-inline-order-field doctor-inline-order-quantity">
         <div className="doctor-entry-input-unit"><input id={`draft-service-quantity-${value.id}`} aria-label="编辑项目数量" type="number" min="0.01" step="0.01"
-          autoFocus value={quantity}
+          autoFocus value={effectiveQuantity} readOnly={quantityBySites}
+          title={quantityBySites ? '按所选检查部位计算' : undefined}
           onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => setQuantity(Number(event.target.value))}
           onKeyDown={(event) => continueDraftOnEnter(event, `draft-service-note-${value.id}`)} /><small>{value.unitCode || '项'}</small></div>

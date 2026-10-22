@@ -133,6 +133,8 @@ export interface DiagnosticExecutionTask {
   gender?: 'MALE' | 'FEMALE' | 'UNKNOWN'
   genderText?: string
   birthDate?: string
+  /** 检查申请所选部位，按开立顺序以顿号连接；未选部位为空。 */
+  bodySiteText?: string | null
   encounterId: string
   requestId: string
   organizationId: string

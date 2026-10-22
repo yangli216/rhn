@@ -11,6 +11,7 @@
 | 已开立单据、打印／撤销、单据编辑插槽 | `SavedOrderList.tsx` | `../UnifiedOrderListEditor.test.tsx` |
 | 待确认分类、整方更新、编辑行切换 | `DraftOrderList.tsx` | `../UnifiedOrderListEditor.test.tsx` |
 | 药品／项目待确认行编辑 | `MedicationDraftEditRow.tsx`、`ServiceDraftEditRow.tsx` | `../UnifiedOrderListEditor.test.tsx` |
+| 检查部位选择与按部位计数量 | `ExaminationSiteSelect.tsx`、`examinationSites.ts`、`useExaminationSiteOptions.ts`；后端 `ServiceRequestService.selectSites`、平台 `ExaminationSiteDirectory` | `examinationSites.test.ts`、`../UnifiedOrderListEditor.test.tsx`、后端 `ExaminationBodySiteOrderingTest` |
 | 失焦保存、滚动／弹层保护、快捷键 | `useDraftRowInteractions.ts` | `useDraftRowInteractions.test.tsx` |
 | 输液组识别、标签、组内同步 | `administrationGroups.ts` | `orderEntries.test.ts`、`medicationQuantity.test.ts` |
 | 已开立单据排序、草稿同组相邻、录入框组尾定位 | `orderEntries.ts` | `orderEntries.test.ts` |
@@ -59,6 +60,7 @@
 - **分方以后端为准**：预览与开立共用后端分方引擎，不用本地估算补单据数；预览不是开立成功凭据（分方预览与开立事实）。
 - **简单模式保存即生效**：工作区“保存”成功后由 `OrdersPanel` 注册的处理器立即开立（不再调用一次保存，避免过期草稿重复提交）；旁路合理用药提示自动确认，正式确认才弹核查窗；被拦下的医嘱显示“N 项未生效”，再次保存或诊毕时重试。“修改”只隐藏原行并打开编辑行，保存时在原医嘱上更新（`revisedOrders`），不新建也不撤销；已进结算单的不显示修改。签署模式（标准模式）按“未签署 / 已签署”称呼，已签署未进结算单的可取消签署。
 - **服务申请先草稿后开立**：整批保存写成 `DRAFT` 申请，计入“N 项草稿”和核查窗；一次开立命令必须带上全部申请草稿，生效后才记账、下发执行科室。草稿可删除（撤销），不能打印。
+- **检查部位只取已维护部位**：可选部位来自项目已启用的检查部位方式；必选部位未选、部位不属于本项目或超过上限时由服务端拒绝。选了部位或项目要求部位时，数量按部位计价方式换算（按部位计价＝计费部位数，受最大计费部位数限制；其余方式为 1），前端只读预览，保存回执以服务端为准。部位为开立时快照，打印、医技与收费构成（每部位一行）读取快照。多部位加收和附加项目自动计费尚未接入。
 - **服务申请按单归集、逐项执行**：每个项目仍是一条申请与执行任务，整批开立按机构合单参数归入申请单，合单依据缺失时单独成单；检查目的选填（频次、数量预览与开立核查）。
 - **开立一次提交**：处方集合、合理用药确认、单据信息与提交在 `order-submissions` 单事务完成；核查模式与分方参数由后端下发，不在前端另设规则（一次开立命令与核查模式）。
 - **AI 目录匹配**：只采用唯一可靠匹配，多候选由医生选择，不取搜索首项；未构建的推荐在医嘱保存回执核实后丢弃（AI 目录匹配与知识库调入）。

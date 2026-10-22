@@ -51,7 +51,7 @@ export function OrderComposerInstruction({
       <div className={`doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note${!hasEnteredOrder ? ' is-disabled' : ''}`}>
         <input id="doctor-unified-service-note" className="doctor-unified-service-note" aria-label="临床说明"
           disabled={!hasEnteredOrder}
-          value={serviceDescription} placeholder={entryType === 'LABORATORY' ? '标本种类或检验目的 (回车跳至数量)' : entryType === 'EXAMINATION' ? '检查部位及检查目的 (回车跳至数量)' : '治疗部位或临床说明 (回车确认添加)'}
+          value={serviceDescription} placeholder={entryType === 'LABORATORY' ? '标本种类或检验目的 (回车跳至数量)' : entryType === 'EXAMINATION' ? '检查目的或临床说明 (回车跳至数量)' : '治疗部位或临床说明 (回车确认添加)'}
           onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => setServiceDescription(event.target.value)}
           onKeyDown={(event) => continueOnEnter(event, entryType === 'TREATMENT' ? undefined : 'doctor-unified-quantity')} />

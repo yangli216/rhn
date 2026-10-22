@@ -117,6 +117,20 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.examination.attachments[0].attachmentItemName").exists())
                 .andReturn().getResponse().getContentAsString());
         JsonNode attachment = attachmentConfiguration.get("examination").get("attachments").get(0);
+        for (String side : java.util.List.of("LEFT", "RIGHT")) {
+            mockMvc.perform(post("/api/platform/master-data/operations/services/362387869795103/examination-variants")
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                            {"code":"%s","name":"%s","methodType":"STANDARD","bodySiteRequired":true,
+                             "sortOrder":30,"status":"ACTIVE"}
+                            """.formatted(side, "LEFT".equals(side) ? "左侧" : "右侧")))
+                    .andExpect(status().isCreated());
+        }
+        mockMvc.perform(post("/api/platform/master-data/operations/services/362387869795103/examination-charge-plan")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"bodySiteCodes":["UNKNOWN_SITE"],"selectedAttachmentIds":[]}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EXAM_BODY_SITE_INVALID"));
 
         mockMvc.perform(post("/api/platform/master-data/operations/services/362387869795103/examination-charge-plan")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

@@ -15,6 +15,7 @@ final class OutpatientMaintenanceTables {
                 new TableDefinition("RHN_EX_REQ_GRP", "ID_REQ_GRP", "OUTPATIENT", "请求分组", false),
                 new TableDefinition("RHN_EX_SVC_DOC", "ID_SVC_DOC", "OUTPATIENT", "服务申请单", false),
                 new TableDefinition("RHN_EX_SVC_REQ", "ID_CARE_REQ", "OUTPATIENT", "服务请求", false),
+                new TableDefinition("RHN_EX_SVC_REQ_SITE", "ID_SVC_REQ_SITE", "OUTPATIENT", "检查申请部位", false),
                 new TableDefinition("RHN_META_OP_NOTE_FORM_VER", "ID_OP_NOTE_FORM_VER", "OUTPATIENT", "门诊备注表单版本", true),
                 new TableDefinition("RHN_META_OP_NOTE_TMPL", "ID_OP_NOTE_TMPL", "OUTPATIENT", "门诊备注模板", true),
                 new TableDefinition("RHN_META_OP_PLAN_DIAG", "ID_OP_PLAN_DIAG", "OUTPATIENT", "门诊方案诊断", true),

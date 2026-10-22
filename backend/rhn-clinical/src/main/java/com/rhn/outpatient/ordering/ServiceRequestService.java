@@ -7,6 +7,8 @@ import com.rhn.outpatient.api.OrderFulfillmentGuard;
 import com.rhn.outpatient.api.ServiceRequestDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
+import com.rhn.platform.masterdata.api.ExaminationSiteDirectory;
+import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationSiteOption;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
@@ -47,6 +49,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private final OrderCancellationPolicy cancellationPolicy;
     private final ServiceDocumentRepository documentRepository;
     private final ServiceDocumentGroupingPolicy groupingPolicy;
+    private final ExaminationSiteDirectory examinationSites;
+    private final ServiceRequestSiteRepository siteRepository;
 
     ServiceRequestService(ServiceRequestRepository repository, EncounterDirectory encounterDirectory,
                           CatalogLifecycleDirectory catalogDirectory,
@@ -57,7 +61,10 @@ class ServiceRequestService implements ServiceRequestDirectory {
                           ExecutionContextProvider contextProvider, JsonCodec jsonCodec, OrderDocumentInfoSupport documentInfoSupport,
                           com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments,
                           OrderCancellationPolicy cancellationPolicy, BusinessNumberGenerator numbers,
-                          ServiceDocumentRepository documentRepository, ServiceDocumentGroupingPolicy groupingPolicy) {
+                          ServiceDocumentRepository documentRepository, ServiceDocumentGroupingPolicy groupingPolicy,
+                          ExaminationSiteDirectory examinationSites, ServiceRequestSiteRepository siteRepository) {
+        this.examinationSites = examinationSites;
+        this.siteRepository = siteRepository;
         this.cancellationPolicy = cancellationPolicy;
         this.documentRepository = documentRepository;
         this.groupingPolicy = groupingPolicy;
@@ -124,7 +131,28 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private record Resolved(CreateServiceRequest input, LocalDate businessDate, Long performerOrganizationId,
                             Long performerDepartmentId, String unitCode,
                             com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot catalog,
-                            BigDecimal totalAmount) {}
+                            BigDecimal quantity, List<ExaminationSiteOption> sites, BigDecimal totalAmount) {}
+
+    private record SiteSelection(BigDecimal quantity, List<ExaminationSiteOption> sites) {}
+
+    /**
+     * 检查部位只能取项目已启用的部位方式；选了部位或项目要求部位时，主项目数量按部位计价方式换算，
+     * 不采用客户端数量。未维护检查配置或非检查项目不接受部位。
+     */
+    private SiteSelection selectSites(Long catalogItemId, String itemName, String serviceType, List<String> codes,
+                                      BigDecimal requested) {
+        var rule = "EXAMINATION".equals(serviceType) ? examinationSites.siteRule(catalogItemId) : java.util.Optional.<ExaminationSiteDirectory.ExaminationSiteRule>empty();
+        if (rule.isEmpty()) {
+            if (!codes.isEmpty()) throw badRequest("SERVICE_REQUEST_BODY_SITE_UNSUPPORTED", "该项目未配置检查部位，不能选择部位");
+            return new SiteSelection(requested, List.of());
+        }
+        if (rule.get().bodySiteRequired() && codes.isEmpty()) {
+            throw badRequest("EXAM_BODY_SITE_REQUIRED", "“" + itemName + "”必须选择检查部位");
+        }
+        List<ExaminationSiteOption> sites = rule.get().select(codes);
+        if (sites.isEmpty()) return new SiteSelection(requested, List.of());
+        return new SiteSelection(rule.get().baseQuantity(sites.size()), sites);
+    }
 
     private Resolved resolve(EncounterDirectory.EncounterSnapshot encounter, CreateServiceRequest input) {
         ExecutionContext context = contextProvider.requireCurrent();
@@ -193,8 +221,10 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 throw conflict("CATALOG_PRICE_NOT_CONFIGURED", "业务日期内未配置可用的机构价格");
             }
         }
-        BigDecimal totalAmount = price == null ? null : price.price().multiply(input.quantity());
-        return new Resolved(input, businessDate, performerOrganizationId, performerDepartmentId, unitCode, catalog, totalAmount);
+        SiteSelection selection = selectSites(input.catalogItemId(), item.name(), item.serviceType(), input.sites(), input.quantity());
+        BigDecimal totalAmount = price == null ? null : price.price().multiply(selection.quantity());
+        return new Resolved(input, businessDate, performerOrganizationId, performerDepartmentId, unitCode, catalog,
+                selection.quantity(), selection.sites(), totalAmount);
     }
 
     private ServiceRequest persist(EncounterDirectory.EncounterSnapshot encounter, Resolved resolved, boolean draft) {
@@ -227,10 +257,18 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 price == null ? null : price.currencyCode(), jsonCodec.write(attributes.jsonItemAttrSnapshot()),
                 attributes.hashItemAttrSnapshot(), attributes.resolvedAt(), jsonCodec.write(mappings),
                 item.serviceType(), item.specimenType(), item.examinationType(),
-                input.quantity(), Strings.trimToNull(input.clinicalDescription()), draft));
+                resolved.quantity(), Strings.trimToNull(input.clinicalDescription()), draft));
+        saveSites(value, resolved.sites());
         if (!draft) publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
                 financialEventDetails(value, encounter, item.accountingCategory(), false));
         return value;
+    }
+
+    private void saveSites(ServiceRequest value, List<ExaminationSiteOption> sites) {
+        for (int index = 0; index < sites.size(); index++) {
+            siteRepository.save(new ServiceRequestSite(value.tenantId(), value.id(), index + 1, sites.get(index)));
+        }
+        siteRepository.flush();
     }
 
     List<ServiceRequest> submittableDrafts(Long tenantId, Long encounterId) {
@@ -270,6 +308,17 @@ class ServiceRequestService implements ServiceRequestDirectory {
     }
 
     @Transactional(readOnly = true)
+    ExaminationSiteOptionsResponse examinationSites(Long encounterId, Long catalogItemId) {
+        encounterDirectory.requireActiveForOrdering(encounterId);
+        return examinationSites.siteRule(catalogItemId)
+                .map(rule -> new ExaminationSiteOptionsResponse(catalogItemId, true, rule.bodySiteRequired(),
+                        rule.multiBodySite(), rule.maxBodySiteCount(), rule.sitePricingMode(), rule.maxChargeableSiteCount(),
+                        rule.sites().stream().map(site -> new ExaminationSiteOptionsResponse.ExaminationSiteChoice(
+                                site.code(), site.name(), site.methodType())).toList()))
+                .orElseGet(() -> new ExaminationSiteOptionsResponse(catalogItemId, false, false, false, null, null, null, List.of()));
+    }
+
+    @Transactional(readOnly = true)
     List<ServiceRequestResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
         return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(encounter.tenantId(), encounterId)
@@ -302,9 +351,13 @@ class ServiceRequestService implements ServiceRequestDirectory {
         if (!value.catalogItemId().equals(input.catalogItemId())) {
             throw badRequest("SERVICE_REQUEST_REVISION_ITEM_CHANGED", "修改不能更换项目，请删除后重新开立");
         }
-        value.reviseDraft(expectedRevision, input.quantity(), Strings.trimToNull(input.clinicalDescription()));
+        SiteSelection selection = selectSites(value.catalogItemId(), value.itemNameSnapshot(), value.serviceTypeSnapshot(), input.sites(), input.quantity());
+        value.reviseDraft(expectedRevision, selection.quantity(), Strings.trimToNull(input.clinicalDescription()));
         repository.flush();
-        publish(value, "SERVICE_REQUEST_DRAFT_REVISED", "修改未签署诊疗项目", Map.of("quantity", value.quantity()));
+        siteRepository.deleteAllInBatch(siteRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()));
+        saveSites(value, selection.sites());
+        publish(value, "SERVICE_REQUEST_DRAFT_REVISED", "修改未签署诊疗项目", Map.of("quantity", value.quantity(),
+                "bodySiteCodes", selection.sites().stream().map(ExaminationSiteOption::code).toList()));
         return response(value);
     }
 
@@ -335,14 +388,24 @@ class ServiceRequestService implements ServiceRequestDirectory {
         Map<Long, String> documentNos = documentIds.isEmpty() || values.isEmpty() ? Map.of()
                 : documentRepository.findByTenantIdAndIdIn(values.getFirst().tenantId(), documentIds).stream()
                 .collect(java.util.stream.Collectors.toMap(ServiceDocument::id, ServiceDocument::documentNo));
-        return values.stream().map(value -> response(value, documentNos)).toList();
+        Map<Long, List<ServiceRequestResponse.RequestBodySite>> sites = values.isEmpty() ? Map.of()
+                : siteRepository.findByTenantIdAndRequestIdInOrderByRequestIdAscLineNoAsc(values.getFirst().tenantId(),
+                        values.stream().map(ServiceRequest::id).toList()).stream()
+                .collect(java.util.stream.Collectors.groupingBy(ServiceRequestSite::requestId,
+                        java.util.stream.Collectors.mapping(ServiceRequestService::bodySite, java.util.stream.Collectors.toList())));
+        return values.stream().map(value -> response(value, documentNos, sites.getOrDefault(value.id(), List.of()))).toList();
+    }
+
+    private static ServiceRequestResponse.RequestBodySite bodySite(ServiceRequestSite site) {
+        return new ServiceRequestResponse.RequestBodySite(site.code(), site.name(), site.methodType(), site.mutualRecognitionCode());
     }
 
     private ServiceRequestResponse response(ServiceRequest value) {
         return responses(List.of(value)).getFirst();
     }
 
-    private ServiceRequestResponse response(ServiceRequest value, Map<Long, String> documentNos) {
+    private ServiceRequestResponse response(ServiceRequest value, Map<Long, String> documentNos,
+                                            List<ServiceRequestResponse.RequestBodySite> bodySites) {
         String cancelBlockedReason = value.status() == ServiceRequestStatus.ACTIVE
                 ? cancellationPolicy.blockedReason(fulfillmentRef(value)) : null;
         return new ServiceRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
@@ -363,7 +426,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 cancelBlockedReason,
                 cancellationPolicy.editBlockedReason(value.status() == ServiceRequestStatus.CANCELLED,
                         value.status() == ServiceRequestStatus.ACTIVE ? fulfillmentRef(value) : null),
-                value.documentId(), value.documentId() == null ? null : documentNos.get(value.documentId()));
+                value.documentId(), value.documentId() == null ? null : documentNos.get(value.documentId()),
+                List.copyOf(bodySites));
     }
 
     /** 草稿只属于开立医生，执行科室与外部接口按不存在处理。 */
@@ -427,7 +491,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.clinicalDescription(),
                 value.totalAmount(), value.currencyCode(),
                 value.itemAttributeHash(), value.itemAttributeSnapshot(), value.standardMappingSnapshot(),
-                documentInfoSupport.read(value.documentInfoJson()).examinationPurpose());
+                documentInfoSupport.read(value.documentInfoJson()).examinationPurpose(),
+                Strings.trimToNull(siteRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()).stream()
+                        .map(ServiceRequestSite::name).collect(java.util.stream.Collectors.joining("、"))));
     }
 
     private void publish(ServiceRequest value, String type, String summary, Map<String, Object> details) {
@@ -463,6 +529,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
         if (value.examinationTypeSnapshot() != null) details.put("examinationType", value.examinationTypeSnapshot());
         details.put("authoredBy", value.authoredBy());
         details.put("chargeQuantity", value.quantity());
+        List<ServiceRequestSite> sites = siteRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id());
+        if (!sites.isEmpty()) details.put("bodySites", sites.stream().map(site -> Map.of(
+                "code", site.code(), "name", site.name())).toList());
         details.put("chargeUnit", value.unitCodeSnapshot());
         details.put("itemCode", value.itemCodeSnapshot());
         details.put("itemName", value.itemNameSnapshot());

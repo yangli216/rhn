@@ -26,10 +26,12 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
     private final ResidentDirectory residents;
     private final OrganizationDirectory organizations;
     private final ServiceDocumentRepository documents;
+    private final ServiceRequestSiteRepository sites;
 
     ServiceRequestPrintDataProvider(ServiceRequestRepository repository, EncounterDirectory encounters,
                                     ResidentDirectory residents, OrganizationDirectory organizations, OrderDocumentInfoSupport documentInfoSupport,
-                                    ServiceDocumentRepository documents) {
+                                    ServiceDocumentRepository documents, ServiceRequestSiteRepository sites) {
+        this.sites = sites;
         this.documentInfoSupport = documentInfoSupport;
         this.documents = documents;
         this.repository = repository; this.encounters = encounters;
@@ -70,6 +72,7 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
         payload.put("serviceType", request.serviceTypeSnapshot());
         payload.put("serviceTypeText", serviceTypeText(request.serviceTypeSnapshot()));
         payload.put("itemCode", request.itemCodeSnapshot()); payload.put("itemName", request.itemNameSnapshot());
+        payload.put("bodySiteText", bodySiteText(request));
         payload.put("localCode", request.localCodeSnapshot()); payload.put("localName", request.localNameSnapshot());
         String quantityText = request.quantity().stripTrailingZeros().toPlainString() + " " + request.unitCodeSnapshot();
         payload.put("quantityText", quantityText); payload.put("specimenType", valueOrDash(request.specimenTypeSnapshot()));
@@ -88,12 +91,18 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
                 : documents.findById(request.documentId()).map(ServiceDocument::documentNo).orElse(request.requestNo());
         payload.put("requestNo", printedNo);
         payload.put("items", members.stream().map(value -> Map.<String, Object>of("itemCode", value.itemCodeSnapshot(),
-                "itemName", value.itemNameSnapshot(),
+                "itemName", value.itemNameSnapshot(), "bodySiteText", bodySiteText(value),
                 "quantityText", value.quantity().stripTrailingZeros().toPlainString() + " " + value.unitCodeSnapshot(),
                 "clinicalDescription", valueOrDash(value.clinicalDescription()))).toList());
         return new PrintDataSnapshot("ServiceRequest", request.id(), request.revision(), request.residentId(),
                 request.encounterId(), encounter.organizationId(), encounter.departmentId(),
                 documentName + "-" + printedNo + ".pdf", payload);
+    }
+
+    /** 检查部位按开立顺序以顿号连接；未选部位为空串。 */
+    private String bodySiteText(ServiceRequest value) {
+        return sites.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()).stream()
+                .map(ServiceRequestSite::name).collect(java.util.stream.Collectors.joining("、"));
     }
 
     private ServiceRequest require(Long sourceId, EncounterDirectory.EncounterSnapshot encounter) {

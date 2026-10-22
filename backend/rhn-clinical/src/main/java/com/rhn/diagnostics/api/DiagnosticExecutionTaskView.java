@@ -13,5 +13,7 @@ public record DiagnosticExecutionTaskView(
         @DictionaryBinding(MasterDataDictionaryCodes.EXAM_TYPE) String examinationType,
         Instant createdAt, Instant collectedAt, String specimenNo, String collectionNote,
         Instant startedAt, Instant completedAt, String completionNote, String exceptionNote, String requestNo,
-        @DictionaryBinding("RESIDENT_GENDER") String gender, java.time.LocalDate birthDate) {}
+        @DictionaryBinding("RESIDENT_GENDER") String gender, java.time.LocalDate birthDate,
+        /** 检查申请所选部位，按开立顺序以顿号连接；未选部位为空。 */
+        String bodySiteText) {}
 

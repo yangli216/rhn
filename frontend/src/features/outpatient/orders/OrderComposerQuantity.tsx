@@ -9,7 +9,7 @@ import { numberValue } from './orderEditorControls'
 export function OrderComposerQuantity({
   entryType, isMedication, hasEnteredOrder, medicationEntry, updateMedication, selectedProduct,
   isStockInsufficient, frequencyQuantityUnavailable, calculationText, serviceQuantity,
-  setServiceQuantity, serviceUnit, continueOnEnter
+  setServiceQuantity, serviceUnit, continueOnEnter, serviceQuantityLocked = false
 }: {
   entryType: OrderEntryType
   isMedication: boolean
@@ -23,6 +23,8 @@ export function OrderComposerQuantity({
   serviceQuantity: number
   setServiceQuantity: (value: number) => void
   serviceUnit?: string
+  /** 检查按部位换算数量时只读显示。 */
+  serviceQuantityLocked?: boolean
   continueOnEnter: (event: KeyboardEvent<HTMLInputElement>, nextControlId?: string) => void
 }) {
   return <>
@@ -56,7 +58,8 @@ export function OrderComposerQuantity({
       <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
         <div className="doctor-entry-input-unit">
           <input id="doctor-unified-quantity" aria-label="项目数量" type="number" min="0.01" step="0.01"
-            disabled={!hasEnteredOrder}
+            disabled={!hasEnteredOrder} readOnly={serviceQuantityLocked}
+            title={serviceQuantityLocked ? '按所选检查部位计算' : undefined}
             value={serviceQuantity} placeholder="数量"
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => setServiceQuantity(Number(event.target.value))}

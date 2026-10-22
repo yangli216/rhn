@@ -22064,6 +22064,70 @@
     ]
   },
   {
+    "logical": "ex.service_request_site",
+    "legacy": "service_request_sites",
+    "physical": "RHN_EX_SVC_REQ_SITE",
+    "domain": "EX",
+    "comment": "检查申请部位；一行代表一条服务请求开立时选择的一个检查部位快照",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SVC_REQ_SITE",
+        "comment": "申请部位主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "service_request_id",
+        "physical": "ID_CARE_REQ",
+        "comment": "服务请求标识"
+      },
+      {
+        "logical": "line_no",
+        "physical": "SN_LINE",
+        "comment": "部位顺序号，从 1 开始"
+      },
+      {
+        "logical": "service_variant_id",
+        "physical": "ID_SVC_VAR",
+        "comment": "开立时选择的检查部位方式标识"
+      },
+      {
+        "logical": "body_site_code",
+        "physical": "CD_BODY_SITE",
+        "comment": "部位编码快照，取检查部位方式编码"
+      },
+      {
+        "logical": "body_site_name",
+        "physical": "NA_BODY_SITE",
+        "comment": "部位名称快照"
+      },
+      {
+        "logical": "body_site_concept_id",
+        "physical": "ID_CONCEPT_BODY_SITE",
+        "comment": "标准部位概念标识快照，未映射时为空"
+      },
+      {
+        "logical": "method_type",
+        "physical": "SD_METHOD_TYPE",
+        "comment": "检查方式快照"
+      },
+      {
+        "logical": "mutual_recognition_code",
+        "physical": "CD_MUTUAL_RECOG",
+        "comment": "检查结果互认编码快照"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      }
+    ]
+  },
+  {
     "logical": "ex.service_request",
     "legacy": "service_requests",
     "physical": "RHN_EX_SVC_REQ",

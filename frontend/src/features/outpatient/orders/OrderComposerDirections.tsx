@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import type { OrderEntryType } from './orderDraftTypes'
 import type { MedicationEntry, MedicationEntryUpdate } from './medicationEntry'
 import { Select } from '../../../shared/ui'
@@ -8,7 +8,7 @@ import { numberValue, focusControl, focusControlAfterSelection } from './orderEd
 export function OrderComposerDirections({
   entryType, isMedication, hasEnteredOrder, medicationEntry, updateMedication, availableDoseUnits,
   updateRoute, routesLoading, frequenciesLoading, routeOptions, frequencyOptions, serviceType,
-  continueOnEnter, addCurrentEntry
+  continueOnEnter, addCurrentEntry, siteSelect
 }: {
   entryType: OrderEntryType
   isMedication: boolean
@@ -24,6 +24,8 @@ export function OrderComposerDirections({
   serviceType?: string
   continueOnEnter: (event: KeyboardEvent<HTMLInputElement>, nextControlId?: string) => void
   addCurrentEntry: () => void
+  /** 检查部位选择，仅检查项目已维护部位时提供，占用执行要求列。 */
+  siteSelect?: ReactNode
 }) {
   return <>
     {isMedication ? (
@@ -113,6 +115,10 @@ export function OrderComposerDirections({
           </div>
         </div>
       )
+    ) : siteSelect ? (
+      <div className={`doctor-inline-order-field doctor-inline-service-execution has-exam-site${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+        {siteSelect}
+      </div>
     ) : (
       <div className="doctor-inline-order-static doctor-inline-service-execution">
         <span className="doctor-direction-service">{formatServiceExecution(serviceType || (entryType === 'ALL' ? undefined : entryType))}</span>

@@ -300,6 +300,7 @@ public class DiagnosticExecutionService {
     private DiagnosticExecutionTaskView view(DiagnosticExecutionTask value, DiagnosticExecutionTaskStatus verifiedStatus) {
         boolean inconsistent = verifiedStatus != value.status();
         ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(value.residentId());
+        var request = requests.requireForDiagnosticExchange(value.requestId());
         return new DiagnosticExecutionTaskView(value.id(), value.revision(), value.taskNo(), value.requestType(),
                 verifiedStatus.name(), value.residentId(), resident.fullName(), resident.healthRecordNo(),
                 value.encounterId(), value.requestId(), value.organizationId(), value.departmentId(),
@@ -308,7 +309,7 @@ public class DiagnosticExecutionService {
                 value.collectedAt(), value.specimenNo(), value.collectionNote(), value.startedAt(),
                 inconsistent ? null : value.completedAt(), inconsistent ? null : value.completionNote(),
                 inconsistent ? "任务完成标记与最新有效报告不一致，请核对报告记录" : value.exceptionNote(),
-                requests.requireForDiagnosticExchange(value.requestId()).requestNo(), resident.gender(), resident.birthDate());
+                request.requestNo(), resident.gender(), resident.birthDate(), request.bodySiteText());
     }
 
     private ExecutionContext requireWorkContext() {

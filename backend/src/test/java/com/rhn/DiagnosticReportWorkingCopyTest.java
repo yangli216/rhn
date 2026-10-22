@@ -341,7 +341,7 @@ class DiagnosticReportWorkingCopyTest extends SettlementWaivedDiagnosticsTestSup
         var resident=postJson("/api/residents","{\"fullName\":\"医技草稿测试\",\"gender\":\"2\",\"birthDate\":\"1992-08-08\",\"identifiers\":[{\"system\":\"9\",\"value\":\"DRAFT-"+suffix+"\",\"useType\":\"SECONDARY\"}]}",201);
         var encounter=postJson("/api/encounters","{\"residentId\":\""+resident.get("id").asString()+"\",\"organizationId\":\""+ORGANIZATION+"\",\"departmentId\":\""+DEPARTMENT+"\"}",201);
         mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString())).andExpect(status().isOk());
-        var request=postJson("/api/encounters/"+encounter.get("id").asString()+"/service-requests","{\"catalogItemId\":\""+catalog+"\",\"quantity\":1,\"priceType\":\"SALE\",\"performerDepartmentId\":\""+DEPARTMENT+"\",\"pricingRequired\":true,\"reason\":\"测试复查\"}",201);
+        var request=postJson("/api/encounters/"+encounter.get("id").asString()+"/service-requests","{\"catalogItemId\":\""+catalog+"\",\"quantity\":1,\"priceType\":\"SALE\",\"performerDepartmentId\":\""+DEPARTMENT+"\",\"pricingRequired\":true,\"reason\":\"测试复查\""+(lab?"":",\"bodySiteCodes\":[\"ABDOMEN\"]")+"}",201);
         var values=json(mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext())).andReturn().getResponse().getContentAsString());
         JsonNode task=null; for(var value:values) if(value.get("requestId").equals(request.get("id"))) task=value;
         assertNotNull(task);

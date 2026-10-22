@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -19,7 +21,7 @@ record ClinicalOrderChargeFacts(Long encounterId, Long residentId, Long organiza
                                 BigDecimal unitPrice, BigDecimal totalAmount, String currency, Long priceId,
                                 Long priceRevision, String priceType, String unitCode, String itemCode,
                                 String itemName, String requestNo, String accountingCategory, Instant occurredAt,
-                                ClinicalOrderBillingDisposition disposition) {
+                                ClinicalOrderBillingDisposition disposition, List<String> bodySiteCodes) {
     static ClinicalOrderChargeFacts read(DomainEventEnvelope event) {
         boolean medication = event.eventType().startsWith("MEDICATION_REQUEST");
         boolean cancellation = event.eventType().endsWith("_CANCELLED");
@@ -68,7 +70,8 @@ record ClinicalOrderChargeFacts(Long encounterId, Long residentId, Long organiza
                 quantity, price == null ? null : money(price), total == null ? null : money(total), currency,
                 priceId, priceRevision, priceType, text(data, "chargeUnit", true), text(data, "itemCode", true),
                 text(data, "itemName", true), prescriptionNo == null ? requestNo : prescriptionNo,
-                text(data, "accountingCategory", false), event.occurredAt().truncatedTo(ChronoUnit.MICROS), disposition);
+                text(data, "accountingCategory", false), event.occurredAt().truncatedTo(ChronoUnit.MICROS), disposition,
+                bodySiteCodes(data));
     }
 
     void requireOriginal(ChargeItem original, DomainEventEnvelope event, boolean cancellation) {
@@ -109,6 +112,18 @@ record ClinicalOrderChargeFacts(Long encounterId, Long residentId, Long organiza
     static void require(boolean condition, String message) { if (!condition) throw unverified(message); }
     static BusinessException unverified(String reason) {
         return new BusinessException("CLINICAL_ORDER_BILLING_UNVERIFIED", "医嘱计费未确认：" + reason, HttpStatus.CONFLICT);
+    }
+    /** 检查申请所选部位编码，按选择顺序；未选部位或药品为空。 */
+    private static List<String> bodySiteCodes(Map<String, Object> data) {
+        Object value = data.get("bodySites");
+        if (value == null) return List.of();
+        require(value instanceof List<?>, "bodySites缺失或无效");
+        List<String> codes = new ArrayList<>();
+        for (Object site : (List<?>) value) {
+            require(site instanceof Map<?, ?> map && map.get("code") instanceof String code && !code.isBlank(), "bodySites缺失或无效");
+            codes.add(((String) ((Map<?, ?>) site).get("code")).trim());
+        }
+        return List.copyOf(codes);
     }
     private static String text(Map<String, Object> data, String key, boolean required) {
         Object value = data.get(key);

@@ -35,4 +35,19 @@ public class ChargeItemComponent {
         this.itemNameSnapshot = itemNameSnapshot; this.quantity = quantity; this.unitCode = unitCode;
         this.unitFactor = unitFactor; this.unitPrice = unitPrice; this.amount = amount;
     }
+
+    /** 带行号与检查部位的收费构成；按部位计价的检查每个部位一行。 */
+    public ChargeItemComponent(Long tenantId, Long chargeItemId, int lineNo, Long catalogItemId, String itemCodeSnapshot,
+                               String itemNameSnapshot, String bodySiteCode, BigDecimal quantity, String unitCode,
+                               BigDecimal unitFactor, BigDecimal unitPrice, BigDecimal amount) {
+        this(tenantId, chargeItemId, catalogItemId, itemCodeSnapshot, itemNameSnapshot, quantity, unitCode,
+                unitFactor, unitPrice, amount);
+        this.lineNo = lineNo;
+        this.bodySiteCode = bodySiteCode;
+    }
+
+    public int lineNo() { return lineNo; }
+    public String bodySiteCode() { return bodySiteCode; }
+    public BigDecimal quantity() { return quantity; }
+    public BigDecimal amount() { return amount; }
 }

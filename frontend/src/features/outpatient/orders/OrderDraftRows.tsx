@@ -1,4 +1,5 @@
 import type { MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { formatBodySites } from './examinationSites'
 import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { IconButton, Button, Popconfirm, StatusBadge } from '../../../shared/ui'
 import type { MedicationPlanDraft } from './medicationDraft'
@@ -119,6 +120,7 @@ export function ServiceDraftRow({ value, onEdit, onRemove, currentDept, onInspec
     </span>
     <span className="doctor-unified-directions">
       <span className="doctor-direction-service">{formatServiceExecution(value.serviceType)}</span>
+      {value.bodySites?.length ? <span className="doctor-unified-order-detail" title={formatBodySites(value.bodySites)}>部位：{formatBodySites(value.bodySites)}</span> : null}
       {value.clinicalDescription && <span className="doctor-unified-order-detail" title={value.clinicalDescription}>临床说明：{value.clinicalDescription}</span>}
     </span>
     <span className="doctor-unified-cell-qty">
