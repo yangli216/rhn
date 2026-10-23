@@ -88,6 +88,22 @@ class TreatmentCatalogDecisionServiceTest {
         mode("ASSIST"); answer("LABORATORY|101", 0.99);
         assertTrue(service.match(groups, context).applied());
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = DecisionScene.class,
+            names = {"ASSISTANT_RECOMMENDATIONS", "PLAN_COMPILATION"})
+    void catalogScenesUseSelectedLingdtAndPreserveFallbackOnFailure(DecisionScene scene) {
+        mode("ASSIST"); answer("LABORATORY|101", 0.99);
+        when(policy.text(1L, "decision-provider", "JEV")).thenReturn("LINGDT");
+        when(policy.secret(1L, "decision-lingdt-api-key", null)).thenReturn("lingdt-key");
+        when(policy.booleanValue(1L, scene.settingKey(), scene.defaultEnabled())).thenReturn(true);
+        assertTrue(service.match(groups, context, scene).applied());
+        verify(gateway).decide(any(), argThat(settings -> settings.provider() == DecisionProvider.LINGDT
+                && settings.apiKey().equals("lingdt-key") && settings.model().equals("lingdt-decision-1.0")));
+        when(gateway.decide(any(), any())).thenThrow(new IllegalStateException("private-lingdt-key"));
+        var failed = service.match(groups, context, scene);
+        assertFalse(failed.applied());
+        assertFalse(failed.alerts().toString().contains("private-lingdt-key"));
+    }
     @Test void highConfidenceNoMatchDoesNotGuess() {
         mode("ASSIST"); answer("NONE", 0.99);
         var result = service.match(groups, context);

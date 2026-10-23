@@ -5,12 +5,23 @@ import {
   errorMessage, type ClinicalAiConfigurationScope, type ClinicalAiConfigurationSetting,
   type ClinicalAiConfigurationTestResult, type ClinicalAiConfigurationUpdate, type RhnApi,
 } from '../../shared/rhnApi'
+import type { ClinicalAiConfigurationTestInput } from '../../shared/api/clinicalAiApi'
 import {
   Alert, Button, FormField, Icon, type IconName, IconButton, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge, Switch, Tabs
 } from '../../shared/ui'
 import '../../styles/ai-configuration.css'
 
 type DraftValue = string | number | boolean
+
+const DECISION_PROVIDERS = {
+  JEV: { label: 'Jev', prefix: 'decision-' },
+  LINGDT: { label: 'LingDT', prefix: 'decision-lingdt-' },
+} as const
+
+const DECISION_CONNECTION_KEYS = {
+  JEV: ['decision-model', 'decision-endpoint', 'decision-api-key'],
+  LINGDT: ['decision-lingdt-model', 'decision-lingdt-endpoint', 'decision-lingdt-api-key'],
+} as const
 
 const GROUP_PRIMARY_TOGGLES: Record<string, string> = {
   '语音能力': 'voice-enabled',
@@ -110,20 +121,23 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
   const [testResult, setTestResult] = useState<Record<string, ClinicalAiConfigurationTestResult | null>>({})
   const [governanceCollapsed, setGovernanceCollapsed] = useState(true)
 
-  const testDecision = useMutation({
-    mutationFn: () => api.clinicalAi.testAdministrationConfiguration({
+  const decisionProvider = draft['decision-provider'] === 'LINGDT' ? 'LINGDT' : 'JEV'
+  const decisionPreset = DECISION_PROVIDERS[decisionProvider]
+  const decisionPrefix = decisionPreset.prefix
+  const decisionTestInput: ClinicalAiConfigurationTestInput = {
       scope, target: 'DECISION',
-      endpoint: typeof draft['decision-endpoint'] === 'string' ? draft['decision-endpoint'] : undefined,
-      model: typeof draft['decision-model'] === 'string' ? draft['decision-model'] : undefined,
-      secretValue: secrets['decision-api-key'] || undefined,
+      decisionProvider,
+      endpoint: typeof draft[`${decisionPrefix}endpoint`] === 'string' ? String(draft[`${decisionPrefix}endpoint`]) : undefined,
+      model: typeof draft[`${decisionPrefix}model`] === 'string' ? String(draft[`${decisionPrefix}model`]) : undefined,
+      secretValue: secrets[`${decisionPrefix}api-key`] || undefined,
       timeoutSeconds: typeof draft['decision-timeout-seconds'] === 'number' ? draft['decision-timeout-seconds'] : undefined,
-    }),
-    onSuccess: (result) => setTestResult((current) => ({ ...current, DECISION: result })),
-    onError: (error) => setTestResult((current) => ({ ...current, DECISION: {
-      target: 'DECISION', success: false, statusCode: 0, latencyMs: 0,
-      message: errorMessage(error),
-    } })),
+  }
+  const testDecision = useMutation({
+    mutationFn: (input: ClinicalAiConfigurationTestInput) => api.clinicalAi.testAdministrationConfiguration(input),
   })
+  const decisionTestMatches = Object.entries(decisionTestInput).every(([key, value]) =>
+    testDecision.variables?.[key as keyof ClinicalAiConfigurationTestInput] === value)
+  const decisionTestResult = decisionTestMatches ? testDecision.data : undefined
 
   const testModel = useMutation({
     mutationFn: () => api.clinicalAi.testAdministrationConfiguration({
@@ -479,7 +493,8 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
         />
         <div className="ai-config-editor__body">
           {groups.map((group) => {
-            const groupSettings = data.settings.filter((item) => item.group === group)
+            const inactiveDecisionKeys: readonly string[] = DECISION_CONNECTION_KEYS[decisionProvider === 'JEV' ? 'LINGDT' : 'JEV']
+            const groupSettings = data.settings.filter((item) => item.group === group && !inactiveDecisionKeys.includes(item.key))
             const primaryToggleKey = GROUP_PRIMARY_TOGGLES[group]
             const primarySetting = primaryToggleKey ? groupSettings.find((item) => item.key === primaryToggleKey) : undefined
             const childSettings = primaryToggleKey ? groupSettings.filter((item) => item.key !== primaryToggleKey) : groupSettings
@@ -499,15 +514,15 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
                       {group === '临床治理' && '把控临床建议生命周期与医师分批灰度策略'}
                       {group === '语音能力' && '接诊问诊音频流服务端转写配置'}
                       {group === '知识能力' && '可追溯临床知识库接入（支持 medical-llm-wiki 本地服务等）'}
-                      {group === '决策公共配置' && '所有场景共用总开关、Jev 模型、密钥、超时和置信度门槛'}
-                      {group === '决策业务场景' && '按业务独立启用；总开关关闭时所有场景均不调用 Jev。新场景默认关闭。'}
+                      {group === '决策公共配置' && '选择当前决策模型，Jev 与 LingDT 的连接和密钥分别保存；保存后生效'}
+                      {group === '决策业务场景' && '按业务独立启用；总开关关闭时所有场景均不调用决策模型'}
                     </span>
                   </div>
                 </div>
 
                 <div className="ai-config-group-card__actions">
                   {group === '决策公共配置' && <Button variant="secondary" size="sm"
-                    busy={testDecision.isPending} onClick={() => testDecision.mutate()}>测试 Jev 连接</Button>}
+                    busy={testDecision.isPending} onClick={() => testDecision.mutate(decisionTestInput)}>{`测试 ${decisionPreset.label} 连接`}</Button>}
                   {primarySetting && (
                     <div className="ai-config-group-toggle-wrap">
                       <span className="ai-config-group-toggle-label">{primarySetting.name}</span>
@@ -706,10 +721,13 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
 
               {isGroupEnabled && (group !== '临床治理' || !governanceCollapsed) ? (
                 <>
-                  {group === '决策公共配置' && <p className="ai-config-group-subtitle" role="status">
-                    {testResult.DECISION ? `${testResult.DECISION.message} · ${testResult.DECISION.latencyMs}ms`
-                      : '默认关闭。旁路观察保留原有推荐；辅助匹配仅采用达到门槛的目录结果，失败或不确定时回退。医生仍需确认。测试连接使用虚构目录，保存配置后生效。'}
-                  </p>}
+                  {group === '决策公共配置' && (decisionTestResult || (decisionTestMatches && testDecision.error) ? (
+                    <p className={`ai-config-decision-test-result ai-config-decision-test-result--${decisionTestResult?.success === false || !decisionTestResult ? 'error' : 'success'}`} role="status">
+                      {decisionTestResult ? `${decisionTestResult.message} · ${decisionTestResult.latencyMs}ms` : errorMessage(testDecision.error)}
+                    </p>
+                  ) : <p className="ai-config-group-subtitle" role="status">
+                    默认关闭。旁路观察保留原有推荐；辅助匹配仅采用达到门槛的目录结果，失败或不确定时回退。医生仍需确认。测试连接使用虚构目录，保存配置后生效。
+                  </p>)}
                   {group === '模型服务' && testResult.MODEL && !testResult.MODEL.success && (
                     <div className="ai-config-test-banner ai-config-test-banner--error">
                       <div className="ai-config-test-banner__header">
@@ -961,12 +979,18 @@ function SettingField({ setting, value, secretValue, reset, onChange, onSecretCh
           )
         })}
       </div>
+  } else if (setting.key === 'decision-provider') {
+    control = <Select aria-label="当前决策模型" value={String(value ?? 'JEV')}
+      clearable={false} searchable={false} onChange={onChange} options={[
+        { value: 'JEV', label: 'Jev（TypeSafe）' },
+        { value: 'LINGDT', label: 'LingDT-Decision（蚂蚁 DTMaaS）' },
+      ]} />
   } else if (setting.key === 'decision-mode') {
     control = <Select aria-label="决策总开关" value={String(value ?? 'DISABLED')}
       clearable={false} searchable={false} onChange={onChange} options={[
         { value: 'DISABLED', label: '关闭：所有场景使用原有流程' },
         { value: 'SHADOW', label: '旁路观察：已启用场景仅比较结果' },
-        { value: 'ASSIST', label: '辅助匹配：使用 Jev 高置信度结果' },
+        { value: 'ASSIST', label: '辅助匹配：使用当前决策模型的高置信度结果' },
       ]} />
   } else if (setting.secret) {
     control = <div className="ai-config-secret-wrap">

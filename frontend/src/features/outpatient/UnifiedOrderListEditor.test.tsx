@@ -960,15 +960,15 @@ describe('UnifiedOrderListEditor', () => {
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '血常规')
     await user.click(await screen.findByRole('option', { name: /血常规五分类/ }))
 
-    // 自动识别为检验类型，展示临床说明并落入焦点
-    await waitFor(() => expect(screen.getByLabelText('临床说明')).toHaveFocus())
+    // 自动识别为检验类型，焦点直接落入数量，嘱托/临床说明默认不经过
+    await waitFor(() => expect(screen.getByLabelText('项目数量')).toHaveFocus())
     expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('检验')
     expect(screen.queryByLabelText('单次剂量')).not.toBeInTheDocument()
 
-    // 填写说明并回车添加
+    // 需要时手动 Tab 到临床说明填写，回车添加
+    await user.tab()
+    expect(screen.getByLabelText('临床说明')).toHaveFocus()
     await user.type(screen.getByLabelText('临床说明'), '空腹')
-    await user.keyboard('{Enter}')
-    await waitFor(() => expect(screen.getByLabelText('项目数量')).toHaveFocus())
     await user.keyboard('{Enter}')
 
     expect(setServiceDrafts).toHaveBeenCalledTimes(1)
@@ -1073,7 +1073,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' })).toBeInTheDocument()
   })
 
-  it('focuses quantity first and then service note on Enter for treatment orders', async () => {
+  it('focuses quantity and adds on Enter without passing through service note for treatment orders', async () => {
     const user = userEvent.setup()
     const setServiceDrafts = vi.fn()
     const treatmentItem = {
@@ -1094,13 +1094,7 @@ describe('UnifiedOrderListEditor', () => {
     await waitFor(() => expect(screen.getByLabelText('项目数量')).toHaveFocus())
     expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('治疗')
 
-    // 2. 在数量框按下回车，焦点跳至临床说明/嘱托框
-    await user.keyboard('{Enter}')
-    await waitFor(() => expect(screen.getByLabelText('临床说明')).toHaveFocus())
-    expect(screen.getByPlaceholderText('治疗部位或临床说明 (回车确认添加)')).toBeInTheDocument()
-
-    // 3. 在说明框输入部位并回车确认添加
-    await user.type(screen.getByLabelText('临床说明'), '右小腿部')
+    // 2. 在数量框按下回车直接添加，不经过临床说明/嘱托框
     await user.keyboard('{Enter}')
 
     expect(setServiceDrafts).toHaveBeenCalledTimes(1)
@@ -1108,7 +1102,6 @@ describe('UnifiedOrderListEditor', () => {
     expect(updater([])[0]).toMatchObject({
       itemName: '创口清创缝合术',
       serviceType: 'TREATMENT',
-      clinicalDescription: '右小腿部',
       quantity: 1,
     })
   })

@@ -82,6 +82,8 @@ describe('AiPlanTemplateDraftModal', () => {
     expect(reviseDraftStream).toHaveBeenCalledWith(
       '成人上感常用方案', '诊断与评估：上呼吸道感染。', '删除血常规，并使用标准诊断名称', 'PERSONAL',
       expect.any(AbortSignal), expect.any(Function),
+      // 带上当前方案，服务端据此保护本轮未涉及的区块
+      expect.objectContaining({ reviewItems: expect.any(Array), noteTemplateContent: expect.any(Object) }),
     )
   })
 

@@ -9,7 +9,7 @@ const date = z.string().refine(value => /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value)
 const status = z.enum(['ACTIVE', 'INACTIVE'])
 const gender = z.enum(['1', '2', '0', '9'])
-const positionType = z.enum(['CLINICAL', 'NURSING', 'PHARMACY', 'MEDICAL_TECHNOLOGY', 'ADMINISTRATIVE'])
+const positionType = z.enum(['CLINICAL', 'NURSING', 'PHARMACY', 'MEDICAL_TECHNOLOGY', 'BILLING', 'ADMINISTRATIVE'])
 const identity = { id: text, revision, code: text }
 const practitionerSchema = z.object({ ...identity, fullName: text, sdPractGender: gender.nullable(), sdPractGenderText: text.nullable(),
   sdPersonnelStatus: status, sdPersonnelStatusText: text, createdAt: z.string().refine(isIsoInstant), updatedAt: z.string().refine(isIsoInstant),

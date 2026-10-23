@@ -63,7 +63,7 @@ export function OrderComposerQuantity({
             value={serviceQuantity} placeholder="数量"
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => setServiceQuantity(Number(event.target.value))}
-            onKeyDown={(event) => continueOnEnter(event, entryType === 'TREATMENT' ? 'doctor-unified-service-note' : undefined)} />
+            onKeyDown={(event) => continueOnEnter(event)} />
           <small>{serviceUnit ?? '项'}</small>
         </div>
       </div>

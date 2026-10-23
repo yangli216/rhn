@@ -46,8 +46,8 @@ describe('CashPaymentCalculator component', () => {
       />
     )
 
-    // 1. 验证标签为 缴款金额：
-    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
+    // 1. 验证标签为 缴款金额
+    expect(screen.getByText('缴款金额')).toBeInTheDocument()
 
     // 2. 验证开钱箱按钮彻底不存在
     expect(screen.queryByRole('button', { name: /开钱箱/ })).not.toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('CashPaymentCalculator component', () => {
     expect(onTenderedChange).toHaveBeenCalledWith('40')
 
     // 5. 找零展示
-    expect(screen.getByText('找零金额：')).toBeInTheDocument()
+    expect(screen.getByText('找零金额')).toBeInTheDocument()
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
   })
 

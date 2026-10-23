@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTabVisible } from '../../shared/hooks/focusLayout'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
@@ -544,24 +545,25 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     queryFn: () => api.dictionaries.systemEnum(SCHEDULING_SYSTEM_ENUM.receptionStatus),
   })
   const paymentMethods = useCashierPaymentMethods(api, clinicalContext)
+  const tabVisible = useTabVisible()
   const intent = useQuery({
     queryKey: ['registration-billing-intent', intentId],
     queryFn: () => api.billing.registrationIntent(intentId), enabled: Boolean(intentId),
     refetchInterval: (query) => ['PAYMENT_PENDING', 'PAID', 'COMPLETING'].includes(
-      (query.state.data as RegistrationBillingIntent | undefined)?.status ?? '') ? 2500 : false,
+      (query.state.data as RegistrationBillingIntent | undefined)?.status ?? '') && tabVisible ? 2500 : false,
   })
   const intentSettlement = useQuery({
     queryKey: ['registration-settlement', intent.data?.settlementId],
     queryFn: () => api.billing.settlement(intent.data!.settlementId!),
     enabled: Boolean(intent.data?.settlementId),
-    refetchInterval: (query) => intent.data?.settlementMode === 'MEDICAL_INSURANCE'
+    refetchInterval: (query) => tabVisible && intent.data?.settlementMode === 'MEDICAL_INSURANCE'
       && query.state.data && !insuranceSettlementReady(query.state.data as Settlement) ? 2500 : false,
   })
   const paymentOrders = useQuery({
     queryKey: ['registration-payment-orders', intent.data?.patientAccountId],
     queryFn: () => api.billing.paymentOrders(intent.data!.patientAccountId!),
     enabled: Boolean(intent.data?.patientAccountId),
-    refetchInterval: (query) => (query.state.data ?? []).some((value) =>
+    refetchInterval: (query) => tabVisible && (query.state.data ?? []).some((value) =>
       ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status)) ? 2500 : false,
   })
 

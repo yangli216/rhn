@@ -75,11 +75,38 @@ public class InsuranceClaim {
     /** 预结算在请求发出前即被拒（上下文/凭证未确认，医保端未收到交易）时，允许补齐条件后重新发起预结算。 */
     public void prepareRetryPreSettle() {
         if (!"FAILED".equals(status) || !"PRE_SETTLE".equals(currentOperation)
-                || !"CHS_REQUEST_CONTEXT_UNCONFIRMED".equals(errorCode) || externalPreSettlementNo != null) {
+                || !("CHS_REQUEST_CONTEXT_UNCONFIRMED".equals(errorCode) || preSettleRejectedAsVisitUnregistered())
+                || externalPreSettlementNo != null) {
             throw new IllegalStateException("当前医保申请不能重新发起预结算");
         }
         status = "PRE_SETTLEMENT_PENDING"; errorCode = null; errorMessage = null;
         updatedAt = Instant.now();
+    }
+
+    /** 平台拒绝信息表明沿用的就诊登记不可用：就诊未登记，或登记人员与当前参保人不一致（如挂号时读错凭证）。 */
+    public static boolean visitRegistrationStale(String message) {
+        return message != null && (message.contains("未登记") || message.contains("登记与人员不一致"));
+    }
+
+    /** 预结算阶段被平台以“就诊未登记”拒绝（沿用的就诊登记已失效），重新发起时会重新登记。 */
+    public boolean preSettleRejectedAsVisitUnregistered() {
+        return errorCode != null && errorCode.startsWith("CHS_REJECTED_")
+                && visitRegistrationStale(errorMessage);
+    }
+
+    /** 平台明确回复正式结算时就诊未登记：登记与预结算流水在平台侧已失效，需要重新登记就诊并重新预结算。 */
+    public boolean visitRegistrationLost() {
+        return "FAILED".equals(status) && "SETTLE".equals(currentOperation) && externalSettlementNo == null
+                && errorCode != null && errorCode.startsWith("CHS_REJECTED_")
+                && visitRegistrationStale(errorMessage);
+    }
+
+    /** 丢弃已失效的平台预结算流水，回到待预结算；金额待重新试算后确认。 */
+    public void restartPreSettleAfterVisitLost() {
+        if (!visitRegistrationLost()) throw new IllegalStateException("当前医保申请不能重新登记并预结算");
+        currentOperation = "PRE_SETTLE"; status = "PRE_SETTLEMENT_PENDING"; externalPreSettlementNo = null;
+        insuranceFundAmount = zero(); personalAccountAmount = zero(); patientCashAmount = grossAmount; otherFundAmount = zero();
+        errorCode = null; errorMessage = null; updatedAt = Instant.now();
     }
 
     public void prepareSettlement() {

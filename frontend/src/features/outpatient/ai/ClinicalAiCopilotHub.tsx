@@ -275,19 +275,25 @@ export function ClinicalAiCopilotHub({
   const chronicGuideReady = Boolean(isChronic && chronicRefill && !chronicRefill.loading
     && chronicRefill.encounterId === context.encounterId && guideUseful)
 
-  // Lightweight chronic follow-up guide: auto-open once per encounter as soon as the scene is recognized.
+  // Lightweight chronic follow-up guide: auto-open when the scene is first recognized, and again whenever the
+  // recognition changes meaningfully (a different set of matched conditions, or the scene was lost and regained
+  // after the chief complaint was revised). Plain edits that keep the same recognition never re-open it.
+  const guideKey = `${context.encounterId}|${[...(sceneAssessment?.matchedConditions ?? [])].sort().join(',')}`
   useEffect(() => { setRefillPanelOpen(false) }, [context.encounterId])
   useEffect(() => {
-    if (!chronicGuideReady || refillBlocked || chronicRefill?.adopted || hubOpen) return
-    if (refillAutoShownFor.current === context.encounterId) return
-    refillAutoShownFor.current = context.encounterId
-    setRefillPanelOpen(true)
-  }, [chronicGuideReady, refillBlocked, chronicRefill?.adopted, hubOpen, context.encounterId])
+    if (sceneAssessment && !sceneLoading && !isChronic) refillAutoShownFor.current = null
+  }, [sceneAssessment, sceneLoading, isChronic])
   useEffect(() => {
-    // Opening the full hub counts as having seen the shortcut for this encounter.
-    if (hubOpen) refillAutoShownFor.current = context.encounterId
+    if (!chronicGuideReady || refillBlocked || chronicRefill?.adopted || hubOpen) return
+    if (refillAutoShownFor.current === guideKey) return
+    refillAutoShownFor.current = guideKey
+    setRefillPanelOpen(true)
+  }, [chronicGuideReady, refillBlocked, chronicRefill?.adopted, hubOpen, guideKey])
+  useEffect(() => {
+    // Opening the full hub counts as having seen the shortcut for the current recognition.
+    if (hubOpen) refillAutoShownFor.current = guideKey
     if (hubOpen || chronicRefill?.adopted || !chronicGuideReady) setRefillPanelOpen(false)
-  }, [hubOpen, chronicRefill?.adopted, chronicGuideReady, context.encounterId])
+  }, [hubOpen, chronicRefill?.adopted, chronicGuideReady, guideKey])
   useEffect(() => {
     if (!refillPanelOpen) return
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setRefillPanelOpen(false) }
@@ -582,6 +588,14 @@ export function ClinicalAiCopilotHub({
                   </span>
                 </div>
                 <p className="doctor-ai-insight-card__summary">{sceneAssessment.summaryText}</p>
+                {isChronic && chronicRefill && chronicGuideReady && !chronicRefill.adopted && (
+                  <Button size="sm" variant="text" className="doctor-ai-insight-card__guide"
+                    title="收起辅诊中心，重新打开慢病复诊的续方引导卡片"
+                    onClick={() => { setHubOpen(false); setRefillPanelOpen(true) }}>
+                    <Icon name="pill" />
+                    <span>查看续方引导</span>
+                  </Button>
+                )}
 
                 {sceneAssessment.matchedConditions.length > 0 && (
                   <div className="doctor-ai-insight-card__pills">

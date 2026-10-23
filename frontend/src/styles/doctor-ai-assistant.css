@@ -1716,3 +1716,4 @@
   white-space: nowrap;
   color: var(--color-text-secondary);
 }
+.doctor-ai-insight-card__guide { align-self: flex-start; margin-top: var(--space-1); }

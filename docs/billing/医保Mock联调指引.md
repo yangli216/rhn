@@ -1,11 +1,11 @@
 # 医保 Mock 联调指引
 
-目标：在没有医保专网时，用独立的 `thirdparty-mock-server` 完整走通医保读卡/电子医保码 → 挂号结算 → 诊间结算 → 退费，并能稳定复现各类异常。
+目标：在没有医保专网时，用独立的 `rhn-thirdparty-mocks` 完整走通医保读卡/电子医保码 → 挂号结算 → 诊间结算 → 退费，并能稳定复现各类异常。
 mock 服务本身的报文规则见 [医保Mock服务接口要求](医保Mock服务接口要求.md) 与 mock 项目的 `docs/chs-mock-protocol.md`。
 
 ## 1. 启动
 
-1. 启动 mock（JDK 21，默认 `127.0.0.1:18090`）：`mvn spring-boot:run`（在 thirdparty-mock-server 目录）。
+1. 启动 mock（JDK 21，默认 `127.0.0.1:18090`）：`mvn spring-boot:run`（在 rhn-thirdparty-mocks 目录）。
 2. 以 `oracle-local,insurance-mock` 两个 profile 启动后端：
 
 ```bash
@@ -53,8 +53,10 @@ mock 不在默认端口时设置 `RHN_INSURANCE_MOCK_URL=http://127.0.0.1:<端�
 | TEST-SLOW / TEST-HTTP500 / TEST-BADJSON | 超时、500、非 JSON，结果未知需人工核对 |
 | TEST-SIGN-EXPIRE | 首次业务交易后签到失效，客户端应自动重新签到 |
 
+演示患者（HRMOCK0001~0012）可直接检索选人；按档案身份证鉴权时，mock 通过 `mock.chs.cert-aliases` 把身份证号映射到对应的 TEST-* 人员（返回 `PSN-TEST-*`，`certno` 仍回显身份证号），场景与上表一致。
+
 mock 的状态在内存里，重启即清空；需要清场或查看已收报文，用面板里的「打开 Mock 控制台」。
-挂号时结算联调前，按 mock 文档把 `diagnosisRequired` 置为 `false`。
+`diagnosisRequired` 在 mock 中默认为 `false`（挂号时结算无需 2203A，无需手动配置）；仅在验证“平台要求挂号带诊断”的拒绝提示时，才经 `PUT /mock/config {"diagnosisRequired":true}` 打开，`POST /mock/reset` 复位。
 
 ## 5. 目录对照
 

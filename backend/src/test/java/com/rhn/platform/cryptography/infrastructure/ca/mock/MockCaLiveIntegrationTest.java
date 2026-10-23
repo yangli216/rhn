@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 与 thirdparty-mock-server 真实联调（按需运行，默认跳过）：
+ * 与 rhn-thirdparty-mocks 真实联调（按需运行，默认跳过）：
  * {@code mvn test -Dtest=MockCaLiveIntegrationTest -Drhn.ca.mock.url=http://127.0.0.1:<port>}。
  * 实例须由调用方在非固定端口启动并自行关闭；用例只通过其管理端点复位和遥控。
  */

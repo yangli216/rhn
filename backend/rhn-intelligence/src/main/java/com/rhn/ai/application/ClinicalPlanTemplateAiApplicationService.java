@@ -106,7 +106,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         String text = input.naturalInput() == null ? "" : input.naturalInput().trim();
         if (text.isBlank()) throw badRequest("AI_PLAN_INPUT_BLANK", "请输入用于编译方案的临床意图或描述");
         return preview(text, "INPUT", normalizeScope(input.scopeType()), null, null,
-                input.confirmedNarrative(), input.revisionInstruction(), onDelta);
+                input.confirmedNarrative(), input.revisionInstruction(), onDelta, RevisionBaseline.of(input));
     }
 
     public SaveRequest convertPlanDraftFromInput(CompilePlanDraftRequest input) {
@@ -127,7 +127,7 @@ public class ClinicalPlanTemplateAiApplicationService {
         String scope = input.scopeType() == null || input.scopeType().isBlank()
                 ? "HOSPITAL" : normalizeScope(input.scopeType());
         return preview(text, "GUIDELINE", scope, input.guidelineName(), input.versionYear(),
-                input.confirmedNarrative(), input.revisionInstruction(), onDelta);
+                input.confirmedNarrative(), input.revisionInstruction(), onDelta, null);
     }
 
     public SaveRequest convertPlanFromGuideline(CompileGuidelinePlanRequest input) {
@@ -148,7 +148,7 @@ public class ClinicalPlanTemplateAiApplicationService {
 
     private PlanTextDraft preview(String text, String mode, String scope, String guidelineName, String versionYear,
                                   String currentNarrative, String revisionInstruction,
-                                  java.util.function.Consumer<String> onDelta) {
+                                  java.util.function.Consumer<String> onDelta, RevisionBaseline baseline) {
         ExecutionContext context = requireContext();
         ClinicalAssistantSettings runtime = runtimePolicy.current(context);
         if (runtime.mode() != ClinicalAssistantSettings.Mode.MODEL || !runtime.availableFor(context)) {
@@ -193,6 +193,8 @@ public class ClinicalPlanTemplateAiApplicationService {
         if (narrative == null || narrative.isBlank()) {
             narrative = revisionContext(intent.items());
         }
+        boolean protectUnchanged = baseline != null && revisionInstruction != null && !revisionInstruction.isBlank()
+                && intent.changedSections() != null && !intent.changedSections().isEmpty();
         String guidelineReference = null;
         if ("GUIDELINE".equals(mode)) {
             Map<String, Object> metadata = new LinkedHashMap<>();
@@ -206,9 +208,76 @@ public class ClinicalPlanTemplateAiApplicationService {
         List<PlanReviewItem> reviewItems = intent.items().stream()
                 .map(item -> reviewItem(item, context, today))
                 .toList();
+        Map<String, String> noteContent = noteTemplateContent(intent);
+        List<com.rhn.outpatient.api.RecordAnnotation> annotations = intent.recordAnnotations();
+        if (protectUnchanged) {
+            // 只让模型改动本轮要求涉及的区块，其余沿用医生正在审核的上一版，避免整份方案被重写。
+            Set<String> changed = new LinkedHashSet<>(intent.changedSections());
+            noteContent = keepUnchangedNote(noteContent, baseline.noteTemplateContent(), changed);
+            annotations = keepUnchangedAnnotations(annotations, baseline.recordAnnotations(), changed);
+            reviewItems = keepUnchangedItems(reviewItems, baseline.reviewItems(), changed);
+            narrative = revisionContext(reviewItems.stream()
+                    .map(item -> new ClinicalAiModelGateway.PlanIntentItem(item.kind(), item.text(),
+                            item.sourceQuote(), item.origin(), item.details())).toList());
+        }
         return new PlanTextDraft(scope, name, clipped(narrative, 4000),
-                "GUIDELINE".equals(mode) ? "AI_GUIDELINE" : "AI_INPUT", guidelineReference, reviewItems, noteTemplateContent(intent),
-                com.rhn.outpatient.api.RecordAnnotation.anchored(intent.recordAnnotations(), noteTemplateContent(intent), false));
+                "GUIDELINE".equals(mode) ? "AI_GUIDELINE" : "AI_INPUT", guidelineReference, reviewItems, noteContent,
+                com.rhn.outpatient.api.RecordAnnotation.anchored(annotations, noteContent, false));
+    }
+
+    /** 修订前医生正在审核的完整方案状态（含医生手工编辑），用于保护本轮未涉及的区块。 */
+    record RevisionBaseline(Map<String, String> noteTemplateContent,
+                            List<com.rhn.outpatient.api.RecordAnnotation> recordAnnotations,
+                            List<PlanReviewItem> reviewItems) {
+        static RevisionBaseline of(CompilePlanDraftRequest input) {
+            if (input.currentNoteTemplateContent() == null && input.currentReviewItems() == null) return null;
+            return new RevisionBaseline(
+                    input.currentNoteTemplateContent() == null ? Map.of() : input.currentNoteTemplateContent(),
+                    input.currentRecordAnnotations() == null ? List.of() : input.currentRecordAnnotations(),
+                    input.currentReviewItems() == null ? List.of() : input.currentReviewItems());
+        }
+    }
+
+    private static final List<String> NOTE_SECTIONS = List.of("chiefComplaint", "presentIllness", "medicalHistory",
+            "physicalExam", "healthEducation", "followUp");
+
+    private Map<String, String> keepUnchangedNote(Map<String, String> revised, Map<String, String> previous,
+                                                  Set<String> changed) {
+        Map<String, String> merged = new LinkedHashMap<>();
+        for (String key : NOTE_SECTIONS) {
+            String value = changed.contains(key) ? revised.get(key) : previous.get(key);
+            if (value != null && !value.isBlank()) merged.put(key, value);
+        }
+        return merged;
+    }
+
+    private List<com.rhn.outpatient.api.RecordAnnotation> keepUnchangedAnnotations(
+            List<com.rhn.outpatient.api.RecordAnnotation> revised,
+            List<com.rhn.outpatient.api.RecordAnnotation> previous, Set<String> changed) {
+        List<com.rhn.outpatient.api.RecordAnnotation> merged = new ArrayList<>();
+        if (previous != null) previous.stream().filter(value -> value != null && !changed.contains(value.field())).forEach(merged::add);
+        if (revised != null) revised.stream().filter(value -> value != null && changed.contains(value.field())).forEach(merged::add);
+        return merged;
+    }
+
+    /** 诊断与适用条件视为一组：诊断未能匹配标准术语时会降级为 CONDITION，不能拆开保留。 */
+    private static String itemGroup(String kind) {
+        return "CONDITION".equals(kind) ? "DIAGNOSIS" : kind;
+    }
+
+    private List<PlanReviewItem> keepUnchangedItems(List<PlanReviewItem> revised, List<PlanReviewItem> previous,
+                                                    Set<String> changed) {
+        boolean diagnosisChanged = changed.contains("DIAGNOSIS") || changed.contains("CONDITION");
+        List<PlanReviewItem> merged = new ArrayList<>();
+        for (String group : List.of("DIAGNOSIS", "MEDICATION", "LABORATORY", "EXAMINATION", "EDUCATION", "FOLLOW_UP")) {
+            boolean groupChanged = "DIAGNOSIS".equals(group) ? diagnosisChanged : changed.contains(group);
+            List<PlanReviewItem> source = groupChanged ? revised : previous;
+            source.stream().filter(item -> itemGroup(item.kind()).equals(group)).forEach(merged::add);
+        }
+        // 未知类型不在保护范围内，沿用模型本轮输出。
+        revised.stream().filter(item -> !List.of("DIAGNOSIS", "CONDITION", "MEDICATION", "LABORATORY", "EXAMINATION",
+                "EDUCATION", "FOLLOW_UP").contains(item.kind())).forEach(merged::add);
+        return merged.isEmpty() ? revised : merged;
     }
 
     private String revisionContext(List<ClinicalAiModelGateway.PlanIntentItem> items) {
@@ -244,7 +313,8 @@ public class ClinicalPlanTemplateAiApplicationService {
                 .filter(item -> !isBedsidePhysicalExam(item))
                 .toList();
         return new ClinicalAiModelGateway.PlanIntent(intent.name(), intent.description(), intent.narrative(),
-                sanitizedItems, intent.referenceTemplateId(), intent.noteTemplateContent(), intent.recordAnnotations());
+                sanitizedItems, intent.referenceTemplateId(), intent.noteTemplateContent(), intent.recordAnnotations(),
+                intent.changedSections());
     }
 
     private static final java.util.regex.Pattern FABRICATED_VITALS_PREFIX = java.util.regex.Pattern.compile(

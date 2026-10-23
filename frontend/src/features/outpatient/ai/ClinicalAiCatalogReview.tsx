@@ -185,7 +185,7 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
   </div>
 }
 
-/** Preselect only a Jev candidate that still belongs to this current catalog result. */
+/** Preselect only a decision candidate that still belongs to this current catalog result. */
 function defaultCandidate(match: ClinicalAiTreatmentMatch) {
   if (match.status === 'MATCHED') return match.candidates[0]
   const review = match.decisionReview
@@ -206,11 +206,11 @@ function CatalogRowMeta({ match, preview }: { match: ClinicalAiTreatmentMatch; p
   const review = match.decisionReview
   const percent = (value: number) => `${Math.round(value * 100)}%`
   const completed = review?.status === 'COMPLETED' && typeof review.confidence === 'number'
-  // Without a completed Jev judgment the reason column and status already explain the row; don't repeat it here.
+  // Without a completed decision judgment the reason column and status already explain the row; don't repeat it here.
   const decision = !completed ? ''
       : review.choice === 'NONE' ? '未确认等价项，需人工核对'
-        // Provider confidence is the concentration of Jev's whole answer (incl. NONE), not the preselected item's probability.
-        : preview && review.suggestedItem ? `Jev 判断集中度 ${percent(review.confidence!)}${typeof review.threshold === 'number'
+        // Provider confidence is the concentration of the provider's whole answer (incl. NONE), not the preselected item's probability.
+        : preview && review.suggestedItem ? `决策模型判断集中度 ${percent(review.confidence!)}${typeof review.threshold === 'number'
           && review.confidence! < review.threshold ? '，低于阈值需核对' : ''}`
           : '无唯一可预选候选'
   const parts = [
@@ -218,7 +218,7 @@ function CatalogRowMeta({ match, preview }: { match: ClinicalAiTreatmentMatch; p
     match.intent.specification ? `建议规格：${match.intent.specification}` : '',
     decision,
   ].filter(Boolean)
-  const title = completed ? ['集中度表示 Jev 在各候选及“无等价项”之间判断的集中程度，不是名称相似度或临床正确率',
+  const title = completed ? ['集中度表示决策模型在各候选及“无等价项”之间判断的集中程度，不是名称相似度或临床正确率',
     typeof review!.threshold === 'number' ? `自动采用阈值 ${percent(review!.threshold)}` : '', review!.detail]
     .filter(Boolean).join('；') : undefined
   if (!parts.length) return null
@@ -226,10 +226,10 @@ function CatalogRowMeta({ match, preview }: { match: ClinicalAiTreatmentMatch; p
 }
 
 function DecisionReview({ review, detailed = false }: { review?: ClinicalAiTreatmentMatch['decisionReview']; detailed?: boolean }) {
-  if (!review) return <small>Jev 待核查</small>
+  if (!review) return <small>决策模型待核查</small>
   if (review.status !== 'COMPLETED' || typeof review.confidence !== 'number') return <small>{review.detail}</small>
   const noEquivalent = review.choice === 'NONE'
-  return <small title={review.detail}>Jev 目录判断置信度 {(review.confidence * 100).toFixed(1)}%
+  return <small title={review.detail}>决策模型目录判断置信度 {(review.confidence * 100).toFixed(1)}%
     {noEquivalent && <> · 未确认等价项</>}
     {detailed && <> · {review.suggestedItem ? `最高概率院内候选：${review.suggestedItem.name}` : '无唯一可预选候选'}
       {typeof review.threshold === 'number' && <> · 当前阈值 {(review.threshold * 100).toFixed(0)}%</>}

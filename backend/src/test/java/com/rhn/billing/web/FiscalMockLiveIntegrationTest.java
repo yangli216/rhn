@@ -33,9 +33,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 对真实 thirdparty-mock-server 的 fiscal 协议做端到端联调：在随机端口启动其 jar（用完关闭，不占 18090），
+ * 对真实 rhn-thirdparty-mocks 的 fiscal 协议做端到端联调：在随机端口启动其 jar（用完关闭，不占 18090），
  * 走 开具→处理中→签名回调→查询→重复开具→作废→冲红 的闭环，并验证错误签名回调不触达领域。
- * 默认跳过；运行时加 {@code -Drhn.fiscal.mock.jar=<thirdparty-mock-server jar 路径>}。
+ * 默认跳过；运行时加 {@code -Drhn.fiscal.mock.jar=<rhn-thirdparty-mocks jar 路径>}。
  */
 @EnabledIfSystemProperty(named = "rhn.fiscal.mock.jar", matches = ".+")
 class FiscalMockLiveIntegrationTest {

@@ -119,7 +119,7 @@ describe('clinical search failures never become business results', () => {
     const option = await screen.findByRole('option', { name: /对乙酰氨基酚片/ })
     expect(option).toHaveTextContent('药品类型待确认')
     expect(option).toHaveTextContent('临床属性待确认')
-    expect(option).toHaveTextContent('参考销售价待确认')
+    expect(option).toHaveTextContent('单价待确认')
     expect(option).toHaveTextContent('库存待确认')
     expect(option).not.toHaveTextContent('西药')
     expect(option).not.toHaveTextContent('缺药')

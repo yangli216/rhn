@@ -19,9 +19,11 @@ const amountText = (value: number) => {
   return `${integer}.${fraction.padEnd(2, '0')}`
 }
 
+const currencySymbol = (code: string) => (code === 'CNY' ? '¥' : `${code} `)
+
 /** Keep price units, currencies and product identities separate; do not synthesize a range. */
 export function clinicalReferencePrices(subjects: unknown, organizationId?: string, at = clinicalBusinessDate()): string {
-  const unknown = '参考销售价待确认'
+  const unknown = '单价待确认'
   if (!Array.isArray(subjects) || !date(at)) return unknown
   const details: string[] = []
   for (const subject of subjects) {
@@ -62,10 +64,10 @@ export function clinicalReferencePrices(subjects: unknown, organizationId?: stri
       if (!text(unit)) return unknown
       const value = selected[0]
       const label = text(subject.name) && subjects.length > 1 ? `${subject.name}：` : ''
-      details.push(`${label}${value.currencyCode} ${amountText(value.price as number)}/${unit}${text(spec) ? `（${spec}）` : ''}`)
+      details.push(`${label}${currencySymbol(value.currencyCode as string)}${amountText(value.price as number)}/${unit}${text(spec) ? `（${spec}）` : ''}`)
     }
   }
-  return details.length ? `参考销售价：${details.join('；')}` : '暂无有效销售价'
+  return details.length ? `单价：${details.join('；')}` : '暂无有效销售价'
 }
 export function clinicalMedicationType(value: { sdMedicationType?: string; sdMedicationTypeText?: string }): string {
   if (text(value.sdMedicationTypeText)) return value.sdMedicationTypeText

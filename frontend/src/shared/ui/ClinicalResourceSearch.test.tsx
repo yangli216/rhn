@@ -93,7 +93,7 @@ describe('ClinicalResourceSearch', () => {
 
     // 验证第二行产品信息：厂家、单价、包装、药房库存（直接显示纯内容，无 label 前缀）
     expect(option.textContent).toContain('中美天津史克制药有限公司')
-    expect(option.textContent).toContain('CNY 15.60/盒')
+    expect(option.textContent).toContain('¥15.60/盒')
     expect(option.textContent).toContain('0.5g*20片/盒')
     expect(option.textContent).toContain('门诊药房 (可用: 49盒)')
     expect(option.textContent).not.toContain('厂家:')
@@ -183,7 +183,7 @@ describe('ClinicalResourceSearch', () => {
 
     const option = await screen.findByRole('option', { name: /血常规五分类/ })
     // The subtype is a code; doctors see the server-provided label, never the raw code.
-    expect(option.textContent).toContain('检验 · 血液体液检测 · 参考销售价：CNY 20.00/次')
+    expect(option.textContent).toContain('检验 · 血液体液检测 · 单价：¥20.00/次')
     expect(option.textContent).not.toContain('HEMATOLOGY')
     expect(option.textContent).not.toContain('单价:')
     expect(option.textContent).not.toContain('单位:')

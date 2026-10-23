@@ -157,6 +157,11 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
     setSelected('')
   }
 
+  const specHasAction = Boolean(onSetup && detail.data?.entryType !== 'SCOPE')
+  const specColgroup = <colgroup>
+    <col style={{ width: specHasAction ? '28%' : '34%' }} /><col style={{ width: specHasAction ? '28%' : '38%' }} />
+    <col style={{ width: specHasAction ? '24%' : '28%' }} />{specHasAction && <col style={{ width: '20%' }} />}
+  </colgroup>
   const error = summary.error || list.error || detail.error || usage.error || dispositions.error
   const stats = summary.data?.statistics
   return <section className="standard-medication" aria-label="标准药品参考目录">
@@ -176,14 +181,8 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
         setPdfOpen(true)
       }} />}
     <div className="standard-medication__header">
-      <div className="standard-medication__title-group">
-        <div className="standard-medication__title-row">
-          <h2>标准药品参考目录</h2>
-          <span className="standard-medication__version-tag">版本 {summary.data?.catalogVersion ?? '—'}</span>
-        </div>
-        <p className="standard-medication__subtitle">按品种、剂型与规格整理，支持追溯原文与核对差异</p>
-      </div>
       <div className="standard-medication__stats-bar">
+        <span className="standard-medication__version-tag">版本 {summary.data?.catalogVersion ?? '—'}</span>
         {[
           ['目录条目', stats?.entries],
           ['独立剂型规格', stats?.specifications],
@@ -264,7 +263,9 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
     <div className="standard-medication__workspace">
       <div className="standard-medication__list">
         {list.isPending ? <LoadingState /> : <>
-          <div className="standard-medication__table-scroll"><table className="master-data-table">
+          {/* 表头在滚动区域之外，滚动条只出现在列表内容区。 */}
+          <div className="standard-medication__table-head"><table className="master-data-table">
+            <colgroup><col style={{ width: '37%' }} /><col style={{ width: '37%' }} /><col style={{ width: '11%' }} /><col style={{ width: '15%' }} /></colgroup>
             <thead>
               <tr>
                 <th>药品名称</th>
@@ -273,6 +274,9 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                 <th className="ui-table-cell--status">条目核对</th>
               </tr>
             </thead>
+          </table></div>
+          <div className="standard-medication__table-scroll"><table className="master-data-table">
+            <colgroup><col style={{ width: '37%' }} /><col style={{ width: '37%' }} /><col style={{ width: '11%' }} /><col style={{ width: '15%' }} /></colgroup>
             <tbody>{list.data?.content.map(entry => (
               <tr
                 key={entry.id}
@@ -390,17 +394,19 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
               <span className="standard-medication__section-sub">按规格建立本院药品</span>
             </div>
             <div className="standard-medication__spec-table-wrap">
-              <table className="standard-medication__spec-table">
+              <div className="standard-medication__spec-head"><table className="standard-medication__spec-table">
+                {specColgroup}
                 <thead>
                   <tr>
-                    <th style={{ width: '28%' }}>剂型形态</th>
-                    <th style={{ width: '28%' }}>规格说明</th>
-                    <th style={{ width: '24%' }}>强度语义</th>
-                    {onSetup && detail.data.entryType !== 'SCOPE' && (
-                      <th style={{ width: '20%', textAlign: 'right' }}>操作</th>
-                    )}
+                    <th>剂型形态</th>
+                    <th>规格说明</th>
+                    <th>强度语义</th>
+                    {specHasAction && <th style={{ textAlign: 'right' }}>操作</th>}
                   </tr>
                 </thead>
+              </table></div>
+              <div className="standard-medication__spec-scroll"><table className="standard-medication__spec-table">
+                {specColgroup}
                 <tbody>
                   {detail.data.specifications.map(spec => {
                     const records = usage.data?.specifications.find(item => item.specificationId === spec.id)?.records ?? []
@@ -474,7 +480,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                     </tr>
                   })}
                 </tbody>
-              </table>
+              </table></div>
             </div>
 
             {groupedIssues.length > 0 && (

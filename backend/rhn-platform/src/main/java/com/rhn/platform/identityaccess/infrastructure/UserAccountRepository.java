@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
     Optional<UserAccount> findByTenantIdAndUsernameIgnoreCaseAndStatus(Long tenantId, String username, String status);
     Optional<UserAccount> findByIdAndTenantId(Long id, Long tenantId);
+    List<UserAccount> findByTenantIdAndPractitionerIdIn(Long tenantId, Collection<Long> practitionerIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from UserAccount value where value.id = :id and value.tenantId = :tenantId")

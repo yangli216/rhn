@@ -430,8 +430,12 @@ export function createOutpatientPlanTemplatesApi(client: ApiClient) {
         }), onDelta)
     },
     reviseDraftStream: async (naturalInput: string, currentNarrative: string, revisionInstruction: string,
-      scopeType: OutpatientPlanTemplateScope, signal: AbortSignal, onDelta: (text: string) => void) => {
-      const body = JSON.stringify({ naturalInput, confirmedNarrative: currentNarrative, revisionInstruction, scopeType })
+      scopeType: OutpatientPlanTemplateScope, signal: AbortSignal, onDelta: (text: string) => void,
+      current?: { noteTemplateContent?: OutpatientNoteTemplateContent; recordAnnotations?: RecordAnnotation[]; reviewItems?: PlanTextReviewItem[] }) => {
+      // 带上医生正在审核的当前方案（含手工编辑），服务端只采纳本轮要求涉及的区块，其余原样保留。
+      const body = JSON.stringify({ naturalInput, confirmedNarrative: currentNarrative, revisionInstruction, scopeType,
+        currentNoteTemplateContent: current?.noteTemplateContent, currentRecordAnnotations: current?.recordAnnotations,
+        currentReviewItems: current?.reviewItems })
       return await consumePlanTextDraftStream(
         await client.eventStream('/api/ai/clinical-assistant/plan-templates/draft/stream', signal, undefined, {
           method: 'POST', body,

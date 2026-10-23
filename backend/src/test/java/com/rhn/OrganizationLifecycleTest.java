@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class OrganizationLifecycleTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.rhn.platform.organization.api.OrganizationDirectory directory;
 
     @Test void transfer_is_atomic_retains_original_and_rejects_stale_revision() throws Exception {
         var person=onboard(); var original=person.path("assignments").get(0);
@@ -38,6 +39,22 @@ class OrganizationLifecycleTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/practitioners/{id}/changes",person.path("practitioner").path("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].action").value("TRANSFER_ASSIGNMENT"))
                 .andExpect(jsonPath("$[0].actionText").value("调岗"));
+    }
+
+    @Test void billing_position_holders_are_listed_only_while_their_assignment_is_active() throws Exception {
+        var person=onboard(); var original=person.path("assignments").get(0);
+        long practitionerId=person.path("practitioner").path("id").asLong();
+        var today=java.time.LocalDate.of(2026,10,22);
+        assertThat(directory.activeStaffByPositionType(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),"BILLING",today))
+                .extracting(com.rhn.platform.organization.api.PositionStaffRef::practitionerId).doesNotContain(practitionerId);
+        var billing=send(post("/api/platform/positions"),Map.of("code",code(),"name","收费窗口","sdPositionType","BILLING"),201);
+        send(post("/api/platform/assignments/"+original.path("id").asString()+"/transfer"),Map.of("expectedRevision",original.path("revision").asLong(),
+                "departmentId",DEPARTMENT,"positionId",billing.path("id").asString(),"effectiveDate","2026-10-10","reason","转收费岗"),200);
+        assertThat(directory.activeStaffByPositionType(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),"BILLING",today))
+                .filteredOn(value->value.practitionerId()==practitionerId).singleElement()
+                .extracting(com.rhn.platform.organization.api.PositionStaffRef::positionName).isEqualTo("收费窗口");
+        assertThat(directory.activeStaffByPositionType(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),"BILLING",java.time.LocalDate.of(2026,10,9)))
+                .extracting(com.rhn.platform.organization.api.PositionStaffRef::practitionerId).doesNotContain(practitionerId);
     }
 
     @Test void offboarding_closes_assignments_and_refuses_future_assignments() throws Exception {

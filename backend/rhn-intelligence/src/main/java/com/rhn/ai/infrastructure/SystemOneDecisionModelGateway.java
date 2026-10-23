@@ -2,6 +2,7 @@ package com.rhn.ai.infrastructure;
 
 import com.rhn.ai.application.DecisionModelGateway;
 import com.rhn.ai.application.DecisionModelSettings;
+import com.rhn.ai.application.DecisionProvider;
 import com.rhn.ai.application.ClinicalAiMetrics;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.stereotype.Component;
@@ -11,14 +12,16 @@ import java.util.*;
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 
 @Component
-public class JevDecisionModelGateway implements DecisionModelGateway {
+public class SystemOneDecisionModelGateway implements DecisionModelGateway {
     private final JsonCodec json;
     private final ClinicalAiMetrics metrics;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-    public JevDecisionModelGateway(JsonCodec json, ClinicalAiMetrics metrics) { this.json = json; this.metrics = metrics; }
+    public SystemOneDecisionModelGateway(JsonCodec json, ClinicalAiMetrics metrics) { this.json = json; this.metrics = metrics; }
 
     public Result decide(Request input, DecisionModelSettings settings) {
         if (!settings.ready()) throw badRequest("DECISION_NOT_READY", "决策模型地址、模型或独立 API Key 未配置完整。");
+        if (settings.provider() == DecisionProvider.LINGDT && input.questions().size() > 32)
+            throw badRequest("DECISION_QUESTION_LIMIT", "LingDT 单次最多支持 32 个决策问题，已保留原有流程。");
         var questions = new LinkedHashMap<String, Object>();
         for (var question : input.questions()) {
             if (question.criteria().size() < 2 || question.criteria().size() > 255
@@ -27,11 +30,14 @@ public class JevDecisionModelGateway implements DecisionModelGateway {
         }
         if (questions.isEmpty()) throw badRequest("DECISION_INPUT_INVALID", "决策问题不能为空。");
         String traceId = com.rhn.shared.id.GlobalIds.external(com.rhn.shared.id.GlobalIds.next());
+        String body = json.write(Map.of("model", settings.model(), "state", input.state(), "questions", questions));
+        // Conservative byte bound, not a tokenizer: leave headroom inside LingDT's 16K context.
+        if (settings.provider() == DecisionProvider.LINGDT && body.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 16_000)
+            throw badRequest("DECISION_INPUT_TOO_LARGE", "LingDT 决策输入超过试用长度上限，已保留原有流程。");
         var request = HttpRequest.newBuilder(settings.endpoint()).timeout(settings.timeout())
                 .header("Content-Type", "application/json").header("Authorization", "Bearer " + settings.apiKey())
                 .header("X-RHN-Decision-Version", input.version())
-                .POST(HttpRequest.BodyPublishers.ofString(json.write(Map.of("model", settings.model(),
-                        "state", input.state(), "questions", questions)))).build();
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build();
         long start = System.nanoTime();
         String outcome = "FAILED";
         try {
@@ -39,6 +45,9 @@ public class JevDecisionModelGateway implements DecisionModelGateway {
             if (response.statusCode() < 200 || response.statusCode() >= 300)
                 throw badRequest("DECISION_PROVIDER_FAILED", "决策服务调用失败（HTTP " + response.statusCode() + "）。");
             var root = json.readStrictTree(response.body());
+            if (settings.provider() == DecisionProvider.LINGDT && root.has("errorCode")
+                    && !"0".equals(root.path("errorCode").asString()))
+                throw badRequest("DECISION_PROVIDER_REJECTED", "决策供应商未完成本次判断。");
             if (!root.path("answers").isObject() || root.path("answers").size() != input.questions().size()) throw invalidOutput();
             var answers = new LinkedHashMap<String, ChoiceAnswer>();
             for (var question : input.questions()) {
@@ -65,7 +74,7 @@ public class JevDecisionModelGateway implements DecisionModelGateway {
             String model = root.path("model").asString("");
             if (model.isBlank() || model.length() > 200) throw invalidOutput();
             outcome = "COMPLETED";
-            metrics.recordProviderTokens("jev", model, "input", root.path("usage").path("input_tokens").asLong(-1));
+            metrics.recordProviderTokens(settings.provider().metricName(), model, "input", root.path("usage").path("input_tokens").asLong(-1));
             return new Result(traceId, model, answers, (System.nanoTime() - start) / 1_000_000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -73,7 +82,7 @@ public class JevDecisionModelGateway implements DecisionModelGateway {
         } catch (java.io.IOException e) {
             throw badRequest("DECISION_CONNECTION", "决策模型连接失败或超时。");
         } finally {
-            metrics.recordProviderRequest("jev", settings.model(), input.version(), "CHOICE", outcome, System.nanoTime() - start);
+            metrics.recordProviderRequest(settings.provider().metricName(), settings.model(), input.version(), "CHOICE", outcome, System.nanoTime() - start);
         }
     }
 

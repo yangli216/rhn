@@ -272,6 +272,21 @@ class HttpChsNationalInsuranceClientTest {
     }
 
     @Test
+    void reRegistersTheVisitWhenTheReusedRegistrationVisitIsUnknownToThePlatform() {
+        client.queryPersonInfo(new ChsModels.PersonInfoRequest("01", "360102198801011234", "张三"));
+        int[] uploads = {0};
+        routes.put("2203A", request -> uploads[0]++ == 0
+                ? new HttpChsNationalInsuranceClient.Transport.Response(200,
+                "{\"infcode\":-1,\"err_msg\":\"就诊未登记(2201)，不能上传诊断\"}")
+                : new HttpChsNationalInsuranceClient.Transport.Response(200, "{\"infcode\":0,\"err_msg\":\"\",\"output\":{}}"));
+        var pre = adapter.preSettle(visitInstructionReusing("MDT-LOST"));
+        assertThat(pre.outcome()).isEqualTo(InsuranceResult.Outcome.SUCCEEDED);
+        assertThat(sent.stream().map(n -> n.path("infno").asString()).filter(v -> v.equals("2201") || v.equals("2203A")).toList())
+                .containsExactly("2203A", "2201", "2203A");
+        assertThat(pre.externalSettlementNo()).startsWith("MDT001:");
+    }
+
+    @Test
     void cancellingAPreSettlementRevokesUploadedFeesAndOnlyTheVisitThisClaimRegistered() {
         ok("2205", "{}");
         var own = new InsurancePreSettlementCancellation(1L, 2L, "SET", "360100", "310", "MDT001:SETL-PRE", "DOC1", "PSN001", true);

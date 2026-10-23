@@ -206,6 +206,15 @@ class InsuranceClaimTransactionService {
     }
 
     @Transactional
+    InsuranceClaim prepareRestartPreSettleAfterVisitLost(Long claimId) {
+        ExecutionContext context = requireContext();
+        InsuranceClaim value = lock(claimId, context);
+        try { value.restartPreSettleAfterVisitLost(); }
+        catch (IllegalStateException exception) { throw conflict("INSURANCE_CLAIM_STATE_INVALID", exception.getMessage()); }
+        return value;
+    }
+
+    @Transactional
     InsuranceClaim prepareSettlement(Long claimId) {
         ExecutionContext context = requireContext();
         InsuranceClaim value = lock(claimId, context);

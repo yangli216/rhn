@@ -51,7 +51,7 @@ class MasterDataImportMapping {
             field("skinTestInstructions", "皮试配置说明"),
             field("defaultDose", "默认剂量"), field("defaultDoseUnit", "默认剂量单位"),
             field("defaultRoute", "默认给药途径"), field("defaultFrequency", "默认频次"),
-            field("chronicDiseaseDrug", "慢病用药"), field("singleOrder", "允许单开"),
+            field("chronicDiseaseDrug", "慢病用药"), field("singleOrder", "单列专方", "允许单开"),
             field("sdStatus", "状态"));
 
     private final JsonCodec jsonCodec;
@@ -155,7 +155,7 @@ class MasterDataImportMapping {
                 optional(value, "defaultDoseUnit", 64, errors), optional(value, "defaultRoute", 64, errors),
                 optional(value, "defaultFrequency", 64, errors),
                 requiredBoolean(value, "chronicDiseaseDrug", "慢病用药", errors),
-                requiredBoolean(value, "singleOrder", "允许单开", errors),
+                requiredBoolean(value, "singleOrder", "单列专方", errors),
                 required(value, "sdStatus", "状态", 32, errors),
                 required(value, "standardSpecificationId", "标准规格编码", 64, errors));
     }
@@ -255,6 +255,13 @@ class MasterDataImportMapping {
     }
 
     private static Field field(String name, String label) { return new Field(name, label, Set.of(name, label)); }
+    private static Field field(String name, String label, String... extraAliases) {
+        var set = new java.util.HashSet<String>();
+        set.add(name);
+        set.add(label);
+        set.addAll(List.of(extraAliases));
+        return new Field(name, label, Set.copyOf(set));
+    }
     private static String string(Map<String, Object> value, String key) { return String.valueOf(value.get(key)); }
     private static String optional(Map<String, Object> value, String key) {
         Object result = value.get(key); return result == null ? null : String.valueOf(result);

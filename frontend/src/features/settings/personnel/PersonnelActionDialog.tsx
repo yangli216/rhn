@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { ORGANIZATION_SYSTEM_ENUM, errorMessage, systemEnumItems, type PersonnelAssignment, type PractitionerDetail,
   type PractitionerGender, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DatePicker, Dialog, FormField, Select, Switch } from '../../../shared/ui'
-import { requireAccountChange, requirePractitionerAccess } from '../access/accessFacts'
+import { grantOpen, requireAccountChange, requirePractitionerAccess } from '../access/accessFacts'
 import { requirePractitionerDetail } from '../organizationPersonnelFacts'
 import { organizationQueryScope } from '../organizationQueryScope'
 import { departmentOwner } from '../organizationUnitReceipt'
@@ -41,12 +41,27 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
   const [employmentId, setEmploymentId] = useState(activeEmployments.find(item => item.primaryEmployment)?.id ?? activeEmployments[0]?.id ?? '')
   const [reason, setReason] = useState('')
   const [validation, setValidation] = useState('')
-  const access = useQuery({ queryKey: ['practitioner-access', person.id, organizationQueryScope(api)], enabled: action.kind === 'leave',
+  const access = useQuery({ queryKey: ['practitioner-access', person.id, organizationQueryScope(api)],
+    enabled: ['leave', 'transfer', 'end-assignment'].includes(action.kind),
     queryFn: async () => requirePractitionerAccess(await api.identityAccess.practitionerAccess(person.id), person.id) })
   const loginAccount = access.data?.account?.status === 'ACTIVE' ? access.data.account : undefined
   // 离开最后一个聘用机构时默认一并停用；仍在其他机构聘用时由操作人决定。
   const [disableAccount, setDisableAccount] = useState(activeEmployments.length <= 1)
   const [accountDisabled, setAccountDisabled] = useState('')
+
+  const selectedEmployment = activeEmployments.find(item => item.id === employmentId)
+  const affectedManualGrants = (access.data?.assignments ?? []).filter(item => {
+    if (item.grantSource !== 'MANUAL' || !grantOpen(item)) return false
+    if (action.kind === 'leave') {
+      return activeEmployments.length <= 1 || !item.organizationId || item.organizationId === selectedEmployment?.organizationId
+    }
+    if (action.kind === 'transfer' || action.kind === 'end-assignment') {
+      return item.departmentId === assignment?.departmentId
+    }
+    return false
+  })
+  const [revokeManualGrants, setRevokeManualGrants] = useState(true)
+
   const departments = units.filter(unit => unit.sdOrgKind === 'ORG_UNIT' && unit.sdOrgStatus === 'ACTIVE' && departmentOwner(unit.id, units) === organizationId)
     .map(unit => ({ value: unit.id, label: unit.name, secondaryText: unit.code }))
   const organizations = units.filter(unit => unit.sdOrgKind === 'LEGAL_ORGANIZATION' && unit.sdOrgStatus === 'ACTIVE').map(unit => ({ value: unit.id, label: unit.name }))
@@ -73,16 +88,22 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
           return `已为${person.fullName}新增任职：${created.departmentName}`
         }
         case 'transfer': {
+          if (revokeManualGrants && affectedManualGrants.length) {
+            await Promise.all(affectedManualGrants.map(grant => api.identityAccess.revokeAssignment(grant.id)))
+          }
           const next = requirePractitionerDetail(await api.organization.transferAssignment(assignment!.id,
             { expectedRevision: assignment!.revision, departmentId, positionId, effectiveDate: date, reason: reason.trim() }), person.id)
           if (!next.assignments.some(item => item.departmentId === departmentId && item.positionId === positionId && item.validFrom === date)) throw new Error('调岗结果未确认，请重新加载核实')
-          return `${person.fullName}已调岗，自 ${date} 生效`
+          return `${person.fullName}已调岗，自 ${date} 生效${revokeManualGrants && affectedManualGrants.length ? `；已联动撤销 ${affectedManualGrants.length} 项原科室手工角色` : ''}`
         }
         case 'end-assignment': {
+          if (revokeManualGrants && affectedManualGrants.length) {
+            await Promise.all(affectedManualGrants.map(grant => api.identityAccess.revokeAssignment(grant.id)))
+          }
           const next = requirePractitionerDetail(await api.organization.endAssignment(assignment!.id,
             { expectedRevision: assignment!.revision, lastDay: date, reason: reason.trim() }), person.id)
           if (next.assignments.find(item => item.id === assignment!.id)?.validTo !== date) throw new Error('结束任职结果未确认，请重新加载核实')
-          return `已结束${person.fullName}在${assignment!.departmentName}的任职`
+          return `已结束${person.fullName}在${assignment!.departmentName}的任职${revokeManualGrants && affectedManualGrants.length ? `；已联动撤销 ${affectedManualGrants.length} 项原科室手工角色` : ''}`
         }
         case 'leave': {
           const employment = activeEmployments.find(item => item.id === employmentId)!
@@ -94,6 +115,9 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
             disabled = account.username
             setAccountDisabled(disabled)
           }
+          if (revokeManualGrants && affectedManualGrants.length) {
+            await Promise.all(affectedManualGrants.map(grant => api.identityAccess.revokeAssignment(grant.id)))
+          }
           try {
             const next = requirePractitionerDetail(await api.organization.endEmployment(employment.id,
               { expectedRevision: employment.revision, lastDay: date, reason: reason.trim() }), person.id)
@@ -102,7 +126,7 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
             if (disabled) throw new Error(`登录账号 ${disabled} 已停用，但离职未完成：${errorMessage(error)}`)
             throw error
           }
-          return `${person.fullName}已办理离职，最后工作日 ${date}${disabled ? `；登录账号 ${disabled} 已停用` : ''}`
+          return `${person.fullName}已办理离职，最后工作日 ${date}${disabled ? `；登录账号 ${disabled} 已停用` : ''}${revokeManualGrants && affectedManualGrants.length ? `；已联动撤销 ${affectedManualGrants.length} 项手工角色` : ''}`
         }
       }
     },
@@ -123,10 +147,13 @@ export function PersonnelActionDialog({ api, action, detail, options, onClose, o
       <Button variant={action.kind === 'leave' || action.kind === 'status' && person.sdPersonnelStatus === 'ACTIVE' ? 'danger' : 'primary'}
         busy={mutation.isPending} onClick={submit}>{action.kind === 'status' ? (person.sdPersonnelStatus === 'ACTIVE' ? '确认停用' : '确认启用') : `确认${title}`}</Button></>}>
     {(validation || mutation.error) && <Alert placement="inline">{validation || `保存未完成：${errorMessage(mutation.error)}`}</Alert>}
-    {action.kind === 'leave' && <p className="personnel-hint">以最后工作日结束所选机构的聘用，并同时结束其下未结束的任职；科室默认角色随任职自动失效，手工授予的角色请在「账号与角色」中撤销。</p>}
+    {action.kind === 'leave' && <p className="personnel-hint">以最后工作日结束所选机构的聘用，并同时结束其下未结束的任职；科室默认角色随任职自动失效，手工授予的角色可一并勾选撤销。</p>}
     {action.kind === 'leave' && !accountDisabled && loginAccount && <FormField label="同时停用登录账号"
       hint={`停用 ${loginAccount.username} 后其已登录的会话立即失效${activeEmployments.length > 1 ? '；该人员仍在其他机构聘用，请确认后再停用' : ''}`}>
       <Switch aria-label="同时停用登录账号" checked={disableAccount} onChange={setDisableAccount} disabled={mutation.isPending} checkedText="是" uncheckedText="否" /></FormField>}
+    {affectedManualGrants.length > 0 && <FormField label="同时撤销手工角色"
+      hint={`检测到持有 ${affectedManualGrants.length} 项${action.kind === 'leave' ? '手工授予的角色' : '原科室手工角色'}（${affectedManualGrants.map(g => g.roleName).join('、')}），建议联动撤销，防范权限遗留`}>
+      <Switch aria-label="同时撤销手工角色" checked={revokeManualGrants} onChange={setRevokeManualGrants} disabled={mutation.isPending} checkedText="是" uncheckedText="否" /></FormField>}
     {action.kind === 'transfer' && <p className="personnel-hint">原任职在生效日前一天结束，并在同一机构内新增目标任职。</p>}
     {action.kind === 'status' && <p>{person.sdPersonnelStatus === 'ACTIVE'
       ? '停用后不能再新增任职；实际离职请使用「办理离职」结束聘用。' : '启用后可以再次新增任职。'}</p>}

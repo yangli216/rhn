@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ResetDatabaseBeforeEachTestMethod
 class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
     @Autowired com.rhn.ai.application.ClinicalAiRuntimePolicy runtimePolicy;
@@ -67,7 +68,7 @@ class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scope").value("TENANT"))
-                .andExpect(jsonPath("$.settings.length()").value(26))
+                .andExpect(jsonPath("$.settings.length()").value(30))
                 .andExpect(jsonPath("$.settings[?(@.key == 'decision-scene-chronic-refill-assessment-enabled')].effectiveValue").value(true))
                 .andExpect(jsonPath("$.encryptionAvailable").value(true));
 
@@ -144,6 +145,53 @@ class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("AI_CONFIGURATION_SCOPE_RESTRICTED"));
+    }
+
+    @Test
+    void selectsLingdtWithIndependentEncryptedCredentialsAndCanReturnToJev() throws Exception {
+        mockMvc.perform(get("/api/ai/administration/configuration").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-provider')].effectiveValue").value("JEV"))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-lingdt-model')].effectiveValue").value("lingdt-decision-1.0"));
+        String result = mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","settings":[
+                      {"key":"decision-mode","value":"SHADOW"},
+                      {"key":"decision-provider","value":"LINGDT"},
+                      {"key":"decision-api-key","secretValue":"keep-jev-key"},
+                      {"key":"decision-lingdt-api-key","secretValue":"independent-lingdt-key"}
+                    ]}
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-provider')].effectiveValue").value("LINGDT"))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-lingdt-api-key')].secretConfigured").value(true))
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(result.contains("independent-lingdt-key"));
+        assertFalse(result.contains("keep-jev-key"));
+        var settings = com.rhn.ai.application.DecisionModelSettings.current(runtimePolicy, Long.valueOf(TENANT));
+        org.junit.jupiter.api.Assertions.assertEquals("independent-lingdt-key", settings.apiKey());
+        org.junit.jupiter.api.Assertions.assertEquals("lingdt-decision-1.0", settings.model());
+        String encrypted = jdbc.queryForObject("""
+                select v.SECRET_REF from RHN_SYS_PARAM_VAL v
+                join RHN_SYS_PARAM_DEF d on d.ID_PARAM_DEF = v.ID_PARAM_DEF
+                where d.CD_PARAM_KEY = 'ai.clinical.decision-lingdt-api-key' and v.CD_SCOPE = ?
+                """, String.class, "TENANT:" + TENANT);
+        assertTrue(encrypted.startsWith("enc:v1:test-development:"));
+        assertFalse(encrypted.contains("independent-lingdt-key"));
+        mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","settings":[{"key":"decision-provider","value":"JEV","expectedRevision":0}]}
+                    """))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertEquals("keep-jev-key",
+                com.rhn.ai.application.DecisionModelSettings.current(runtimePolicy, Long.valueOf(TENANT)).apiKey());
+        org.junit.jupiter.api.Assertions.assertEquals("independent-lingdt-key",
+                runtimePolicy.secret(Long.valueOf(TENANT), "decision-lingdt-api-key", null));
+        mockMvc.perform(put("/api/ai/administration/configuration").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"scope":"TENANT","settings":[{"key":"decision-provider","value":"UNKNOWN","expectedRevision":1}]}
+                    """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

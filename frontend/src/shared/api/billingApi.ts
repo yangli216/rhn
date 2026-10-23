@@ -100,6 +100,8 @@ export type SettlementTender = RequiredWireView<components['schemas']['Settlemen
 
 export type SettlementEvent = RequiredWireView<components['schemas']['SettlementEventView'], 'id' | 'eventType' | 'statusTo' | 'commandCode' | 'occurredAt'>
 
+export type SettlementCashier = RequiredWireView<components['schemas']['SettlementCashierView'], 'userId' | 'active' | 'terminalScenes'>
+
 export type CancelledSettlement = RequiredWireView<components['schemas']['CancelledSettlementView'],
   'settlementId' | 'settlementNo' | 'netAmount' | 'chargeItemIds'>
 export type Settlement = ContractProjection<RequiredWireView<components['schemas']['SettlementView'], 'id' | 'revision' | 'patientAccountId' | 'settlementNo' | 'commandCode' | 'grossAmount' | 'discountAmount' | 'insuranceAmount' | 'patientAmount' | 'otherAmount' | 'roundingAmount' | 'netAmount' | 'tenderedAmount' | 'outstandingAmount' | 'currencyCode' | 'createdBy' | 'createdAt'>, {
@@ -485,10 +487,20 @@ export function createBillingApi(client: ApiClient) {
     cancelUnpaidSettlements: (encounterId: string, reason: string) => client.request<CancelledSettlement[]>(
       `/api/billing/encounters/${encounterId}/unpaid-settlements/cancel`, { method: 'POST', body: JSON.stringify({ reason }) },
     ),
-    settlementRecords: (limit = 200, filter?: { from: string; to: string; cashier?: string }) => {
+    settlementRecords: (limit = 200, filter?: { from: string; to: string; cashier?: string; terminalScene?: string }) => {
       const params = new URLSearchParams({ limit: String(limit) })
-      if (filter) { params.set('from', filter.from); params.set('to', filter.to); if (filter.cashier) params.set('cashier', filter.cashier) }
+      if (filter) {
+        params.set('from', filter.from); params.set('to', filter.to)
+        if (filter.cashier) params.set('cashier', filter.cashier)
+        if (filter.terminalScene) params.set('terminalScene', filter.terminalScene)
+      }
       return client.request<SettlementRecord[]>(`/api/billing/settlement-records?${params}`)
+    },
+    /** 收费查询的办理人选项：收费岗位在岗人员 + 范围内实际办理过结算的人员。 */
+    settlementCashiers: (filter: { from: string; to: string; terminalScene?: string }) => {
+      const params = new URLSearchParams({ from: filter.from, to: filter.to })
+      if (filter.terminalScene) params.set('terminalScene', filter.terminalScene)
+      return client.request<SettlementCashier[]>(`/api/billing/settlement-cashiers?${params}`)
     },
     paymentOrders: (accountId: string) => client.request<PaymentOrder[]>(
       `/api/billing/accounts/${accountId}/payment-orders`,
@@ -542,7 +554,7 @@ export function createBillingApi(client: ApiClient) {
     queryInsurancePerson: async (input: ChsPersonInfoRequest): Promise<ChsPersonInfoResponse> =>
       toChsPersonInfo(await client.request<InsurancePersonInfoView>('/api/billing/insurance/person-info', {
         method: 'POST',
-        body: JSON.stringify({ certType: input.psnCertType, certNo: input.certno, personName: input.psnName }),
+        body: JSON.stringify({ certType: input.psnCertType, certNo: input.certno, personName: input.psnName, residentId: input.residentId }),
       })),
     /** 1101 按患者档案鉴权：证件号与姓名由服务端取自档案并与医保端返回核对，浏览器不接触完整证件号。 */
     authenticateInsuranceByResident: async (residentId: string): Promise<ChsPersonInfoResponse> =>
@@ -650,6 +662,8 @@ export interface ChsPersonInfoRequest {
   psnCertType?: string
   certno: string
   psnName?: string
+  /** 传入当前就诊患者时，服务端核对读证人员与档案一致，不一致即报错并丢弃凭证。 */
+  residentId?: string
 }
 
 export interface ChsPersonInfoResponse {

@@ -72,6 +72,17 @@ class ClinicalTriageDecisionServiceTest {
         assertThat(result.department()).isNull(); assertThat(result.supplements()).isEmpty();
         assertThat(result.traceId()).isEqualTo("trace"); assertThat(result.inputHash()).hasSize(64);
     }
+    @Test void triageUsesSelectedLingdtCredentialsAndRetainsShadowBoundary() {
+        mode("SHADOW");
+        when(policy.text(1L, "decision-provider", "JEV")).thenReturn("LINGDT");
+        when(policy.secret(1L, "decision-lingdt-api-key", null)).thenReturn("lingdt-key");
+        var result = service.assess(input("咳嗽"));
+        assertThat(result.status()).isEqualTo(DecisionStatus.SHADOW);
+        assertThat(result.department()).isNull();
+        assertThat(result.supplements()).isEmpty();
+        verify(gateway).decide(any(), argThat(settings -> settings.provider() == DecisionProvider.LINGDT
+                && settings.apiKey().equals("lingdt-key") && settings.model().equals("lingdt-decision-1.0")));
+    }
     @Test void assistReturnsRealDepartmentAndSeparateCollectionPromptsWithoutUrgencyDecision() {
         mode("ASSIST");
         var result = service.assess(input("咳嗽"));

@@ -174,7 +174,7 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
                                 """.formatted(name)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.medications[0].medicationCode").value("DRUG-AML"))
-                .andExpect(jsonPath("$.medications[0].productName").value("苯磺酸氨氯地平片 5mg"))
+                .andExpect(jsonPath("$.medications[0].productName").value("苯磺酸氨氯地平片"))
                 .andExpect(jsonPath("$.medications[0].categoryCode").value("WESTERN"))
                 .andExpect(jsonPath("$.services[0].itemCode").value("SRV-CBC"))
                 .andExpect(jsonPath("$.services[0].serviceType").value("LABORATORY"));

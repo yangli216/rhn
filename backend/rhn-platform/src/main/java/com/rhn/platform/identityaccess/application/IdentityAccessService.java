@@ -51,4 +51,13 @@ class IdentityAccessService implements IdentityAccessDirectory {
                         account.username(), account.status()))
                 .orElseThrow(() -> notFound("USER_ACCOUNT_NOT_FOUND", "未找到用户账号"));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<UserAccountReference> findAccountsByPractitioners(Long tenantId, java.util.Collection<Long> practitionerIds) {
+        if (practitionerIds == null || practitionerIds.isEmpty()) return java.util.List.of();
+        return accountRepository.findByTenantIdAndPractitionerIdIn(tenantId, practitionerIds).stream()
+                .map(account -> new UserAccountReference(account.id(), account.tenantId(), account.practitionerId(),
+                        account.username(), account.status())).toList();
+    }
 }

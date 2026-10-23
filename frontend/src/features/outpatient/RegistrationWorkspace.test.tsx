@@ -883,7 +883,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     await userEvent.click(cashChip)
     expect(cashChip).toHaveClass('is-active')
 
-    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
+    expect(screen.getByText('缴款金额')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('10')).toHaveValue(10)
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
 

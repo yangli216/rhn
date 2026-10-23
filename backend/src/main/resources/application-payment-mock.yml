@@ -1,0 +1,39 @@
+# 支付 Mock 联调环境（仅限本地开发）。
+#
+# 先启动 rhn-thirdparty-mocks（默认 127.0.0.1:18090），再运行 scripts/setup-payment-mock.sh 生成演示密钥，
+# 然后以 --spring.profiles.active=oracle-local,insurance-mock,payment-mock 启动后端，并设置 RHN_PAYMENT_MOCK_KEYS。
+# 效果：支付宝/微信走“正式 SDK 客户端 -> 本机 mock 网关”，银行卡走本地模拟刷卡（直接成功，无外部回执）。
+# 安全边界：mock 地址放宽只在本 profile 生效；正式环境不得激活本 profile。
+rhn:
+  billing:
+    payment:
+      mock:
+        enabled: true
+        alipay-gateway-url: ${RHN_PAYMENT_MOCK_URL:http://127.0.0.1:18090}/alipay/gateway.do
+        wechat-api-host-url: ${RHN_PAYMENT_MOCK_URL:http://127.0.0.1:18090}/wxpay
+      direct:
+        enabled: true
+      aggregated-adapter:
+        enabled: false
+      bank-card:
+        mock-enabled: true
+      alipay:
+        enabled: true
+        merchants:
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            app-id: mock-alipay-app
+            merchant-id: "2088mock"
+            server-url: ${RHN_PAYMENT_MOCK_URL:http://127.0.0.1:18090}/alipay/gateway.do
+            private-key-path: ${RHN_PAYMENT_MOCK_KEYS}/app-private-key.pem
+            public-key-path: ${RHN_PAYMENT_MOCK_KEYS}/alipay-public-key.pem
+      wechat:
+        enabled: true
+        merchants:
+          - tenant-id: 362387869790209
+            organization-id: 362387869790211
+            app-id: wxmockappid00001
+            merchant-id: "1900000109"
+            api-key: "0123456789abcdef0123456789abcdef"
+            certificate-path: ${RHN_PAYMENT_MOCK_KEYS}/merchant.p12
+            client-ip: 127.0.0.1

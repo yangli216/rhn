@@ -141,6 +141,40 @@ class ClinicalAiAdministrationServiceTest {
     }
 
     @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void decisionProbeUsesUnsavedOrSavedLingdtChoiceAndItsOwnSavedKey(boolean explicitProvider) {
+        var provider = mock(ConfigurationValue.class);
+        when(provider.value()).thenReturn(mapper.readTree("\"LINGDT\""));
+        when(policy.resolved(1L, "decision-provider")).thenReturn(provider);
+        var credential = mock(ConfigurationValue.class);
+        when(credential.secretReference()).thenReturn("encrypted-lingdt");
+        when(policy.resolved(1L, "decision-lingdt-api-key")).thenReturn(credential);
+        when(policy.decrypt(credential)).thenReturn("lingdt-key");
+        when(decisionGateway.decide(any(), any())).thenReturn(new DecisionModelGateway.Result(
+                "trace", "lingdt-decision-1.0", Map.of("catalog_probe",
+                new DecisionModelGateway.ChoiceAnswer("MATCH", Map.of("MATCH", 1.0, "NONE", 0.0), 1.0)), 1));
+        var result = service.test(new ConfigurationTestRequest(Scope.TENANT, "DECISION", null,
+                null, null, 8, explicitProvider ? "LINGDT" : null));
+        assertTrue(result.success());
+        assertTrue(result.message().startsWith("LingDT"));
+        var settings = ArgumentCaptor.forClass(DecisionModelSettings.class);
+        verify(decisionGateway).decide(any(), settings.capture());
+        assertEquals(DecisionProvider.LINGDT, settings.getValue().provider());
+        assertEquals("lingdt-key", settings.getValue().apiKey());
+        assertEquals(DecisionProvider.LINGDT.defaultEndpoint(), settings.getValue().endpoint().toString());
+        verify(policy, never()).resolved(1L, "decision-api-key");
+        verify(administration, never()).findValue("ai.clinical.decision-api-key", "PLATFORM");
+        if (explicitProvider) verify(policy, never()).resolved(1L, "decision-provider");
+    }
+
+    @Test void unsupportedDecisionProviderHasStableErrorAndNeverCallsGateway() {
+        var error = assertThrows(BusinessException.class, () -> service.test(new ConfigurationTestRequest(
+                Scope.TENANT, "DECISION", null, null, null, 8, "UNKNOWN")));
+        assertEquals("DECISION_PROVIDER_INVALID", error.code());
+        verifyNoInteractions(decisionGateway);
+    }
+
+    @ParameterizedTest
     @CsvSource({"MODEL,0", "MODEL,4", "MODEL,121", "SPEECH,4", "SPEECH,121",
             "KNOWLEDGE,4", "KNOWLEDGE,121"})
     void rejectsInvalidTimeoutBeforeCreatingHttpClient(String target, int seconds) {
@@ -228,6 +262,6 @@ class ClinicalAiAdministrationServiceTest {
 
     private ConfigurationTestRequest request(String target, Scope scope, Integer seconds) {
         return new ConfigurationTestRequest(scope, target, "https://probe.example/test",
-                "test-model", "test-key", seconds);
+                "test-model", "test-key", seconds, "DECISION".equals(target) ? "JEV" : null);
     }
 }

@@ -676,19 +676,19 @@
   width: 100%;
 }
 .doctor-unified-order-head, .doctor-unified-order-row, .doctor-unified-inline-composer {
-  min-width: 72rem;
+  min-width: 74.5rem;
   width: 100%;
   display: grid;
-  grid-template-columns: 4.8rem minmax(12rem, 1.8fr) minmax(19.5rem, 2.6fr) 4.2rem minmax(5.5rem, 0.8fr) minmax(6rem, 1fr) 4.5rem 4.8rem minmax(6.5rem, 7.5rem);
+  grid-template-columns: 4.8rem minmax(12rem, 1.8fr) minmax(22rem, 2.6fr) 4.2rem minmax(5.5rem, 0.8fr) minmax(6rem, 1fr) 4.5rem 4.8rem minmax(6.5rem, 7.5rem);
   align-items: center;
   padding: 0 var(--space-2);
   box-sizing: border-box;
 }
 .doctor-unified-orders.is-readonly .doctor-unified-order-head,
 .doctor-unified-orders.is-readonly .doctor-unified-order-row {
-  min-width: 65rem;
+  min-width: 67.5rem;
   width: 100%;
-  grid-template-columns: 4.8rem minmax(12rem, 1.8fr) minmax(19.5rem, 2.6fr) 4.2rem minmax(5.5rem, 0.8fr) minmax(6rem, 1fr) 4.5rem 4.8rem;
+  grid-template-columns: 4.8rem minmax(12rem, 1.8fr) minmax(22rem, 2.6fr) 4.2rem minmax(5.5rem, 0.8fr) minmax(6rem, 1fr) 4.5rem 4.8rem;
   box-sizing: border-box;
 }
 .doctor-unified-order-head { min-height: 2.25rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); border-bottom: 1px solid var(--color-border); }
@@ -744,7 +744,7 @@
 .doctor-direction-empty { color: var(--color-text-secondary); }
 .doctor-inline-order-directions-group {
   display: grid;
-  grid-template-columns: minmax(6.2rem, 1.4fr) minmax(4.6rem, 1fr) minmax(4.8rem, 1fr) minmax(3.2rem, 0.7fr);
+  grid-template-columns: minmax(6.2rem, 1.4fr) minmax(4.6rem, 1fr) minmax(4.8rem, 1fr) minmax(4.6rem, 0.9fr);
   gap: calc(var(--space-1) * 1.2);
   align-items: center;
   min-width: 0;
@@ -1424,16 +1424,18 @@
 /* 诊毕确认：中性摘要、两栏表单和固定底部操作。 */
 .doctor-completion-modal { width: min(60rem, 100%); }
 /* 有待结算费用时加宽，右侧放诊间收款竖栏（与收费页收银面板一致）。 */
-.doctor-completion-modal.has-payment { width: min(84rem, 100%); }
+.doctor-completion-modal.has-payment { width: min(66rem, 100%); }
 .doctor-completion-dialog { display: grid; gap: var(--layout-section-gap); }
 /* 左右两栏等高：右侧收款面板撑满，左侧末块“诊毕核对”吸收剩余高度。 */
-.doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem); align-items: stretch; }
+.doctor-completion-dialog.has-payment { grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem); align-items: stretch;
+  /* 固定内容区高度，覆盖收款面板各状态（未预结算/已预结算/自费）的最高值，避免操作中弹窗忽大忽小。 */
+  min-height: 35rem; }
 .doctor-completion-main { min-width: 0; display: flex; flex-direction: column; gap: var(--layout-section-gap); }
 .doctor-completion-main > .doctor-completion-workflow { flex: 1 0 auto; }
 .doctor-completion-side { min-width: 0; display: flex; }
 .doctor-completion-side .doctor-completion-payment-section { margin: 0; flex: 1; }
 .doctor-completion-fee .doctor-fee-stat-content { padding: 0; }
-.doctor-completion-fee .doctor-fee-stat-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.doctor-completion-fee .doctor-fee-stat-metrics { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; gap: 0; }
 .doctor-completion-fee .doctor-fee-stat-metrics span {
   padding: var(--space-2) var(--space-3);
   flex-direction: column;
@@ -1486,22 +1488,75 @@
   font-variant-numeric: tabular-nums;
 }
 .doctor-fee-stat__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-completion-payment { padding: var(--space-3); }
+.doctor-completion-payment-section { display: flex; flex-direction: column; overflow: hidden; border-color: var(--color-border-strong, var(--color-border)); }
+.doctor-completion-payment-section > .ui-panel__head { background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border); }
+.doctor-completion-payment { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-4); overflow-y: auto; }
+.doctor-completion-payment > .settlement-payment-panel { flex: 1; display: flex; flex-direction: column; gap: var(--space-4); }
+/* 发起收款按钮固定在面板底部并占满宽度，成为明确的主操作。 */
+.doctor-completion-payment > .settlement-payment-panel > .ui-button { margin-top: auto; justify-self: stretch; width: 100%; min-height: 2.5rem; }
 .doctor-completion-confirmation {
+  flex: 1;
   padding: var(--space-3);
-  display: grid;
-  grid-template-columns: 12rem minmax(0, 1fr);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
 }
-.doctor-completion-confirmation .ui-field { min-width: 0; margin: 0; }
+.doctor-completion-confirmation .ui-field { min-width: 0; margin: 0; max-width: 16rem; }
+/* 准入核对项沉到面板底部，与上方就诊转归以分隔线隔开。 */
 .doctor-completion-checklist__items {
   min-width: 0;
-  padding-left: var(--space-4);
+  margin-top: auto;
+  padding-top: var(--space-3);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-1) var(--space-3);
-  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+}
+.doctor-fee-composition {
+  padding: var(--space-2) var(--space-3);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary); font-size: var(--font-size-small);
+}
+.doctor-fee-composition strong { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.doctor-fee-composition__title { color: var(--color-text-primary); font-weight: var(--font-weight-semibold); }
+.doctor-fee-composition__ratio { margin-left: auto; }
+.doctor-completion-main > .doctor-completion-workflow { display: flex; flex-direction: column; }
+/* 诊毕确认配色：图标徽标 + 语义色金额，克制使用柔和底色。 */
+.doctor-completion-modal .ui-panel__head { gap: var(--space-2); }
+.doctor-completion-modal .ui-panel__icon {
+  width: 1.75rem; height: 1.75rem; flex: none; display: inline-grid; place-items: center;
+  border-radius: var(--radius-md); color: var(--color-brand-primary); background: var(--color-brand-soft);
+}
+.doctor-completion-modal .ui-panel__icon .ui-icon { width: 1rem; height: 1rem; }
+.doctor-completion-modal .ui-panel__meta { margin-left: auto; }
+.doctor-completion-payment-section .ui-panel__icon { color: var(--color-success); background: var(--color-success-soft); }
+.doctor-completion-workflow .ui-panel__icon { color: var(--color-violet, var(--color-brand-primary)); background: var(--color-violet-soft, var(--color-brand-soft)); }
+.doctor-overview-stat__header { display: flex; align-items: center; gap: var(--space-2); }
+.doctor-overview-stat__icon {
+  width: 1.5rem; height: 1.5rem; display: inline-grid; place-items: center; border-radius: var(--radius-sm);
+  color: var(--color-brand-primary); background: var(--color-brand-soft);
+}
+.doctor-overview-stat__icon .ui-icon { width: 0.9rem; height: 0.9rem; }
+.doctor-overview-stat--note .doctor-overview-stat__icon { color: var(--color-info); background: var(--color-info-soft); }
+.doctor-overview-stat--orders .doctor-overview-stat__icon { color: var(--color-success); background: var(--color-success-soft); }
+.doctor-completion-fee .doctor-fee-stat-metrics span.is-settled strong { color: var(--color-success); }
+.doctor-completion-fee .doctor-fee-stat-metrics span.is-pending strong { color: var(--color-warning); }
+.doctor-completion-fee .doctor-fee-stat-metrics span.is-due { background: var(--color-brand-soft); }
+.doctor-completion-fee .doctor-fee-stat-metrics span.is-due strong { color: var(--color-brand-primary); font-size: var(--font-size-h3); }
+.doctor-completion-fee .doctor-fee-stat__status {
+  padding: 0 var(--space-2); border-radius: var(--radius-full, 999px);
+  color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-small);
+}
+.doctor-fee-composition__ratio strong {
+  padding: 0 var(--space-2); border-radius: var(--radius-full, 999px);
+  color: var(--color-info); background: var(--color-info-soft);
+}
+.doctor-checklist-chip.is-ready .ui-icon {
+  box-sizing: content-box; padding: 0.15rem; border-radius: 50%; color: var(--color-success); background: var(--color-success-soft);
+}
+.doctor-checklist-chip.is-missing .ui-icon {
+  box-sizing: content-box; padding: 0.15rem; border-radius: 50%; background: var(--color-warning-soft);
 }
 .doctor-checklist-chip {
   min-height: 2.75rem;

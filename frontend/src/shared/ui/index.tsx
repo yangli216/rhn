@@ -151,13 +151,15 @@ export function PageHeader({ eyebrow, title, description, actions, compact = fal
   </header>
 }
 
-export function PanelHead({ title, meta, actions, className = '' }: {
+export function PanelHead({ title, meta, actions, className = '', icon }: {
   title: string
+  icon?: IconName
   meta?: ReactNode
   actions?: ReactNode
   className?: string
 }) {
   return <header className={`ui-panel__head ${actions ? 'has-actions' : ''} ${className}`}>
+    {icon && <span className="ui-panel__icon" aria-hidden="true"><Icon name={icon} /></span>}
     <h2>{title}</h2>
     {meta && <span className="ui-panel__meta">{meta}</span>}
     {actions}

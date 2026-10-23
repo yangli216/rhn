@@ -2,6 +2,7 @@ package com.rhn.billing.web;
 
 import com.rhn.billing.api.BillingViews.AccountStatementView;
 import com.rhn.billing.api.BillingViews.CancelledSettlementView;
+import com.rhn.billing.api.BillingViews.SettlementCashierView;
 import com.rhn.billing.api.BillingViews.ChargeSynchronizationView;
 import com.rhn.billing.api.BillingViews.BillingWorkItemView;
 import com.rhn.billing.api.BillingViews.DailyReconciliationView;
@@ -173,9 +174,18 @@ public class BillingController {
     @GetMapping("/settlement-records")
     List<SettlementRecordView> settlementRecords(@RequestParam(defaultValue = "200") int limit,
             @RequestParam(required = false) java.time.LocalDate from, @RequestParam(required = false) java.time.LocalDate to,
-            @RequestParam(required = false) String cashier) {
-        if (from != null || to != null || cashier != null) return settlements.completedInRange(limit, from, to, cashier);
+            @RequestParam(required = false) String cashier, @RequestParam(required = false) String terminalScene) {
+        if (from != null || to != null || cashier != null || terminalScene != null) {
+            return settlements.completedInRange(limit, from, to, cashier, terminalScene);
+        }
         return settlements.recentCompleted(limit);
+    }
+
+    /** 收费查询的办理人选项：收费岗位在岗人员 + 所选日期范围内实际办理过结算的人员。 */
+    @GetMapping("/settlement-cashiers")
+    List<SettlementCashierView> settlementCashiers(@RequestParam java.time.LocalDate from, @RequestParam java.time.LocalDate to,
+            @RequestParam(required = false) String terminalScene) {
+        return settlements.settlementCashiers(from, to, terminalScene);
     }
 
     @GetMapping("/accounts/{accountId}/payment-orders")

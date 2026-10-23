@@ -70,7 +70,7 @@ public class InsuranceSimulatorService {
     }
 
     /**
-     * 与 thirdparty-mock-server 的测试人员一一对应：certNo 决定 mock 的参保场景；residentKeyword 指向本地演示库中
+     * 与 rhn-thirdparty-mocks 的测试人员一一对应：certNo 决定 mock 的参保场景；residentKeyword 指向本地演示库中
      * 预置的模拟患者（其医保个人编号为 mock 返回的 PSN-&lt;certNo&gt;，见迁移 V1_129_25）。
      */
     private static final List<Persona> PERSONAS = List.of(

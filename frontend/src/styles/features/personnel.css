@@ -1,28 +1,71 @@
 /* 人员管理（features/settings/personnel）。只用语义令牌；控件外观由 shared/ui 提供。 */
 .personnel-muted { color: var(--color-text-secondary); }
-.personnel-hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.personnel-hint { margin: var(--space-0); color: var(--color-text-secondary); font-size: var(--font-size-label); }
 
 .personnel-drawer { display: grid; gap: var(--layout-section-gap); }
+
+/* 基本档案：综合身份全貌卡片（Profile Card） */
+.personnel-section--profile { border-top: 0; }
+.personnel-profile-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) var(--space-4); background-color: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.personnel-profile-card__primary { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0; }
+.personnel-profile-card__avatar { width: 2.75rem; height: 2.75rem; border-radius: var(--radius-full); background-color: var(--color-brand-primary); color: var(--color-text-inverse); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold); flex-shrink: 0; }
+.personnel-profile-card__info { min-width: 0; display: grid; gap: var(--space-1); flex: 1; }
+.personnel-profile-card__title-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.personnel-profile-card__name { font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.personnel-profile-card__code { font-size: var(--font-size-label); color: var(--color-text-secondary); background: var(--color-surface-muted); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.personnel-profile-card__primary-badge { font-size: var(--font-size-label); color: var(--color-brand-primary); background: var(--color-brand-soft); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.personnel-profile-card__meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-size: var(--font-size-label); color: var(--color-text-secondary); }
+.personnel-profile-card__meta-item { display: inline-flex; align-items: center; gap: var(--space-1); }
+.personnel-profile-card__meta-divider { color: var(--color-border-strong); }
+.personnel-profile-card__actions { display: flex; align-items: center; gap: var(--layout-panel-gap); flex-shrink: 0; }
+
+/* 执业合规提醒卡片 */
+.personnel-compliance-alert { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4); background-color: var(--color-warning-soft); border: 1px solid var(--color-warning-border); border-radius: var(--radius-md); }
+.personnel-compliance-alert__title { font-size: var(--font-size-label); font-weight: var(--font-weight-semibold); color: var(--color-warning-strong); }
+.personnel-compliance-alert__copy { margin: var(--space-0); font-size: var(--font-size-label); color: var(--color-warning-strong); line-height: var(--line-height-body); }
+
 .personnel-section { min-width: 0; display: grid; gap: var(--layout-panel-gap); }
 .personnel-section + .personnel-section { padding-top: var(--layout-section-gap); border-top: 1px solid var(--color-border); }
 .personnel-section__head { display: flex; align-items: center; justify-content: space-between; gap: var(--layout-panel-gap); }
-.personnel-section__head h3 { margin: 0; font-size: var(--font-size-h3); }
+.personnel-section__head h3 { margin: var(--space-0); font-size: var(--font-size-h3); }
 .personnel-section__actions { display: flex; align-items: center; gap: var(--layout-panel-gap); }
 
-.personnel-facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--layout-panel-gap) var(--layout-section-gap); }
+.personnel-btn--leave { color: var(--color-danger); }
+.personnel-tag--muted { font-size: var(--font-size-label); color: var(--color-text-secondary); background: var(--color-surface-subtle); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+.personnel-tag--role { font-size: var(--font-size-label); color: var(--color-brand-primary); background-color: var(--color-brand-soft); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.personnel-assignment-row--primary { background-color: var(--color-surface-subtle); }
+
+.personnel-facts { margin: var(--space-0); display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--layout-panel-gap) var(--layout-section-gap); }
 .personnel-facts__item { min-width: 0; display: grid; gap: var(--space-1); }
 .personnel-facts__item dt { color: var(--color-text-secondary); font-size: var(--font-size-label); }
-.personnel-facts__item dd { margin: 0; overflow-wrap: anywhere; }
+.personnel-facts__item dd { margin: var(--space-0); overflow-wrap: anywhere; }
 
+/* 执业资质表单：工整规整排版 */
 .personnel-qualification { display: grid; gap: var(--layout-panel-gap); }
-.personnel-qualification__grid { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
-.personnel-qualification__grid .ui-field { margin: 0; }
-.personnel-qualification__footer { display: flex; justify-content: flex-end; }
+.personnel-qualification__body { min-width: 0; margin: var(--space-0); padding: var(--space-0); border: 0; display: grid; gap: var(--layout-section-gap); }
+.personnel-qualification__group { min-width: 0; display: grid; gap: var(--space-2); }
+.personnel-qualification__group-title { margin: var(--space-0); font-size: var(--font-size-label); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+.personnel-qualification__row-3 { min-width: 0; margin: var(--space-0); padding: var(--space-0); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.personnel-qualification__row-2 { min-width: 0; margin: var(--space-0); padding: var(--space-0); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.personnel-qualification__row-3 .ui-field,
+.personnel-qualification__row-2 .ui-field { margin: var(--space-0); }
 
-.personnel-action-form { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
-.personnel-action-form .ui-field { margin: 0; }
+/* 处方权卡片：平齐规整卡片项 */
+.personnel-qualification__prescribing-card { padding: var(--space-3) var(--space-4); background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.personnel-qualification__prescribing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.personnel-prescribing-tile { min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.personnel-prescribing-tile__head { display: flex; align-items: baseline; gap: var(--space-1); min-height: 1.25rem; }
+.personnel-prescribing-tile__title { font-size: var(--font-size-label); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.personnel-prescribing-tile__body { min-height: var(--control-height-md); display: flex; align-items: center; }
+.personnel-prescribing-tile .ui-field { margin: var(--space-0); }
+
+.personnel-qualification__footer { display: flex; align-items: center; justify-content: flex-end; gap: var(--layout-panel-gap); }
+.personnel-qualification__dirty-notice { font-size: var(--font-size-label); color: var(--color-warning-strong); margin-right: auto; }
+
+.personnel-action-form { min-width: 0; margin: var(--space-0); padding: var(--space-0); border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-section-gap); align-items: start; }
+.personnel-action-form .ui-field { margin: var(--space-0); }
 .personnel-action-form__wide { grid-column: 1 / -1; }
 
-.personnel-position-form { min-width: 0; margin: 0 0 var(--layout-section-gap); padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--layout-section-gap); align-items: end; }
-.personnel-position-form .ui-field { margin: 0; }
+.personnel-position-form { min-width: 0; margin: var(--space-0) var(--space-0) var(--layout-section-gap); padding: var(--space-0); border: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--layout-section-gap); align-items: end; }
+.personnel-position-form .ui-field { margin: var(--space-0); }
 .personnel-position-form__actions { display: flex; gap: var(--layout-panel-gap); }

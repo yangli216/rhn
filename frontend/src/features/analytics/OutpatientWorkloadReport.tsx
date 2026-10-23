@@ -7,7 +7,7 @@ import {
   offsetDays,
   type DateRange,
 } from '../../shared/utils/dateRange'
-import { Alert, Button, DataTable, DateRangePicker, EmptyState, Icon, LoadingState, PageHeader, Select, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DataTable, DateRangePicker, FormField, EmptyState, Icon, LoadingState, PageHeader, Select, tableCellClass } from '../../shared/ui'
 import { workloadData, workloadSpec } from './workloadReportData'
 import './analytics-reports.css'
 import { formatNumber } from '../../shared/utils/precision'
@@ -30,10 +30,17 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
   const { list: workloadList, totalEnc, totalPat, totalOrders, totalMedOrders } = data
   const requestVersion = useRef(0)
 
+  const rangeIncomplete = !dateRange.from || !dateRange.to
   const loadData = async () => {
     const version = ++requestVersion.current
-    setLoading(true)
     setError('')
+    // 统计周期被清空时不发起查询，提示补全日期，而不是当作服务异常。
+    if (rangeIncomplete) {
+      setData(workloadData({ series: [] }))
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     try {
       const result = await api.analytics.queryPage(workloadSpec(dateRange, scope))
       if (version !== requestVersion.current) return
@@ -75,7 +82,7 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
             <Button variant="secondary" size="sm" onClick={() => window.print()} disabled={loading || !!error || workloadList.length === 0} title="打印或导出此报表">
               <Icon name="print" /> 打印报表
             </Button>
-            <Button size="sm" onClick={() => void loadData()} busy={loading}>
+            <Button size="sm" onClick={() => void loadData()} busy={loading} disabled={rangeIncomplete}>
               <Icon name="refresh" /> 刷新统计
             </Button>
           </div>
@@ -86,20 +93,16 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
 
       {/* 筛选条 */}
       <div className="analytics-filter-strip ui-query-filters">
-        <div className="ui-query-filter ui-query-filter--date">
-          <label className="analytics-filter-label">统计周期：</label>
+        <FormField label="统计周期">
           <DateRangePicker
-            compact
             value={dateRange}
             onChange={(nextRange: DateRange) => setDateRange(nextRange)}
             presets={DEFAULT_QUERY_PRESETS}
           />
-        </div>
+        </FormField>
 
-        <div className="ui-query-filter ui-query-filter--wide">
-          <label className="analytics-filter-label">机构与科室范围：</label>
+        <FormField label="机构与科室范围" className="ui-query-filter--wide">
           <Select
-
             value={scope}
             onChange={(value) => setScope(value as 'AUTHORIZED' | 'CURRENT')}
             aria-label="科室统计范围"
@@ -107,7 +110,7 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
             options={[{ value: 'AUTHORIZED', label: '全院可访问科室（综合分析）' },
               { value: 'CURRENT', label: '当前登录科室' }]}
           />
-        </div>
+        </FormField>
       </div>
 
       {/* KPI 卡片 */}
@@ -159,7 +162,9 @@ export function OutpatientWorkloadReport({ api }: { api: RhnApi }) {
 
       {loading && <LoadingState label="正在汇总各科室就诊与医嘱数据..." />}
 
-      {!loading && !error && workloadList.length === 0 && <EmptyState icon="clinical" title="所选范围内暂无就诊或有效医嘱记录" copy="请调整统计周期或科室范围后重试。" />}
+      {!loading && !error && workloadList.length === 0 && (rangeIncomplete
+        ? <EmptyState icon="clinical" title="请选择统计周期" copy="选择开始和结束日期后自动统计。" />
+        : <EmptyState icon="clinical" title="所选范围内暂无就诊或有效医嘱记录" copy="请调整统计周期或科室范围后重试。" />)}
 
       {!loading && !error && workloadList.length > 0 && (
         <div className="analytics-report-content">

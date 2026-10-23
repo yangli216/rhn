@@ -514,7 +514,9 @@
         "com.rhn.outpatient.triage.OutpatientTriageServiceTest",
         "com.rhn.ai.application.ClinicalTriageAssessmentServiceTest",
         "com.rhn.ai.application.ClinicalTriageDecisionServiceTest",
-        "com.rhn.ai.infrastructure.JevDecisionModelGatewayTest"
+        "com.rhn.ai.infrastructure.SystemOneDecisionModelGatewayTest",
+        "com.rhn.ai.application.DecisionModelSettingsTest",
+        "com.rhn.ai.application.ClinicalAiAdministrationServiceTest"
       ]
     },
     "decision-observation": {

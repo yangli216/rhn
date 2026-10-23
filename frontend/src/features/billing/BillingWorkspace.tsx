@@ -2,9 +2,10 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
-import type { AccountStatement, InsuranceSettlementView, ReceiptView } from '../../shared/api/billingApi'
+import type { AccountStatement, InsuranceSettlementView, ReceiptView, SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
+import { useTabVisible } from '../../shared/hooks/focusLayout'
 import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner'
 import { SettlementPaymentPanel, type SettlementModeCode,
   type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
@@ -16,13 +17,14 @@ import { InsuranceCredentialDialog } from '../../shared/billing/InsuranceCredent
 import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../shared/billing/insuranceMedia'
 import { insuranceFailureText as failureText, insuranceSettlementReady, isInsuranceCredentialError, preSettleInsurance, requireClaimTarget, requireInsuranceTarget, settleInsuranceClaim } from '../../shared/billing/insuranceCheckout'
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
-import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import { Alert, Button, DataTable, SearchField, tableCellClass, PanelHead, EmptyState, LoadingState, PageHeader, Panel, StatusBadge, Tooltip } from '../../shared/ui'
 import { Icon, type IconName } from '../../shared/ui/Icon'
 import { age, formatLocaleDateTime } from '../../shared/format'
 import { chargeCategoryTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { actionableRelief, SettlementReliefPanel, type SettlementReliefPlan } from './relief/SettlementReliefPanel'
-import { cancellableSettlements, UnpaidSettlementList } from './UnpaidSettlementList'
+import { cancellableSettlements, lockedSettlementHint } from './unpaidSettlements'
+import { RecentSettlements, recentSettlementsQueryKey } from './RecentSettlements'
 import '../../styles/features/billing-settlement.css'
 
 const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
@@ -89,8 +91,10 @@ function formatItemDisplayName(itemName: string, packageSpec?: string) {
   return `${itemName} ${packageSpec}`
 }
 
-export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
+export function BillingWorkspace({ api, clinicalContext, authorities = [], username }: {
   api: RhnApi; clinicalContext: ClinicalContext; authorities?: string[]
+  /** 当前登录工号：底部“最近结算”只显示本人办理的结算。 */
+  username?: string
 }) {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -155,7 +159,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
     [worklist.data])
   const paymentMethods = useCashierPaymentMethods(api, clinicalContext)
 
-  const handleResetPatient = useCallback(() => {
+  const clearPatient = useCallback(() => {
     setEncounterId('')
     setPatientLookup('')
     setTimeout(() => {
@@ -194,9 +198,10 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
   useEffect(() => {
     if (registrationMode.data === 'MEDICAL_INSURANCE') setSettlementMode('MEDICAL_INSURANCE')
   }, [encounterId, registrationMode.data])
+  const tabVisible = useTabVisible()
   const paymentOrders = useQuery({ queryKey: ['billing-payment-orders', statement.data?.accountId],
     queryFn: () => api.billing.paymentOrders(statement.data!.accountId), enabled: Boolean(statement.data?.accountId),
-    refetchInterval: (query) => (query.state.data ?? []).some((value) =>
+    refetchInterval: (query) => tabVisible && (query.state.data ?? []).some((value) =>
       ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status)) ? 2500 : false })
   useEffect(() => {
     const completed = [...(paymentOrders.data ?? [])]
@@ -220,8 +225,28 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       queryClient.invalidateQueries({ queryKey: ['billing-payment-orders'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-workspace-receipts', encounterId] }),
       queryClient.invalidateQueries({ queryKey: ['settlement-relief'] }),
+      queryClient.invalidateQueries({ queryKey: [recentSettlementsQueryKey] }),
     ])
   }
+
+  /** 重新选择患者前，自动撤销本就诊未付款的结算单（含医保试算）；已有收款或医保已正式结算的由后端保留。 */
+  const hasDiscardableSettlement = cancellableSettlements(statement.data).length > 0
+  const resetPatient = useMutation({
+    mutationFn: async () => {
+      if (!hasDiscardableSettlement) return []
+      return api.billing.cancelUnpaidSettlements(encounterId, '收费员重新选择患者，自动取消未付款结算单')
+    },
+    onSuccess: (cancelled) => {
+      if (cancelled.length) setScanNotice({ tone: 'info', text: `已取消 ${cancelled.length} 张未付款结算单，费用回到待结算` })
+      void refresh()
+      clearPatient()
+    },
+    onError: (failure) => setScanNotice({ tone: 'warning', text: `未能取消未付款结算单，请先处理后再重新选择：${failureText(failure, '请重试')}` }),
+  })
+  const handleResetPatient = useCallback(() => {
+    if (!encounterId || !hasDiscardableSettlement) { clearPatient(); return }
+    if (!resetPatient.isPending) resetPatient.mutate()
+  }, [clearPatient, encounterId, hasDiscardableSettlement, resetPatient])
 
   const settlements = useMemo(() => statement.data?.settlements ?? [], [statement.data?.settlements])
   const receiptQueryKey = ['billing-workspace-receipts', encounterId, settlements.map((s) => s.id)]
@@ -282,6 +307,38 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       })
     }
   }
+
+  /** 底部“最近结算”的快捷操作：不依赖当前调入患者，直接按结算单查询或开具电子票据。 */
+  const openRecentReceipt = async (record: SettlementRecord) => {
+    try {
+      const existing = await api.billing.settlementReceipts(record.id)
+      if (existing.length > 0) { setActiveReceipt(existing[0]); setFiscalModalOpen(true); return }
+      setScanNotice({ tone: 'info', text: '正在向省财政电子票据平台申请开具电子票据...' })
+      const issued = await api.billing.issueSettlementReceipt(record.id, {
+        idempotencyKey: `RCPT-${crypto.randomUUID()}`, receiptType: 'MEDICAL_E_INVOICE', issueChannel: 'CASHIER',
+        fiscalAuthorityCode: '360100', payerName: record.residentName,
+      })
+      setActiveReceipt(issued)
+      setFiscalModalOpen(true)
+      setScanNotice({
+        tone: issued.status === 'ISSUED' ? 'success' : issued.status === 'REQUESTED' ? 'info' : 'warning',
+        text: issued.status === 'ISSUED' ? `财政电子票据已开具，票据号码：${issued.fiscalNumber || '未返回'}`
+          : issued.errorMessage || (issued.status === 'REQUESTED' ? '票据开具处理中，尚未确认成功。' : '票据未开具成功，请核实处理结果。'),
+      })
+    } catch (failure) {
+      setScanNotice({ tone: 'warning', text: failureText(failure, '电子票据查询或开具失败，请重试') })
+    }
+  }
+
+  // 结算完成、患者离开待收费队列后，自动回到未调入患者的界面，直接接待下一位。
+  const loadedEncounterRef = useRef('')
+  useEffect(() => {
+    if (selected) { loadedEncounterRef.current = encounterId; return }
+    if (!encounterId || loadedEncounterRef.current !== encounterId || !worklist.data || worklist.isFetching) return
+    loadedEncounterRef.current = ''
+    setScanNotice({ tone: 'success', text: '结算已完成，请接待下一位患者' })
+    clearPatient()
+  }, [clearPatient, encounterId, selected, worklist.data, worklist.isFetching])
 
   const synchronize = useMutation({
     mutationFn: () => api.billing.synchronize(encounterId, `BIL-SYNC-${encounterId}-${Date.now()}`), onSuccess: refresh,
@@ -645,6 +702,13 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
         roundingAdjustment: command.roundingAdjustment, terminalCode: 'CASHIER-WEB',
       })
     },
+    onError: (failure) => {
+      // 医保平台已丢失本次就诊登记：清掉旧试算，再点“执行医保预结算”由后端重新登记并试算。
+      if (failureText(failure, '').includes('就诊未登记')) {
+        setInsuranceClaimView(null)
+        setScanNotice({ tone: 'warning', text: '医保平台上的就诊登记已失效，请重新执行医保预结算（将自动重新登记）' })
+      }
+    },
     onSettled: async () => {
       try { await refresh() } finally { setCheckoutStage('IDLE') }
     },
@@ -780,12 +844,6 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
   })
 
   useEffect(() => {
-    if (!scanNotice) return
-    const timer = setTimeout(() => setScanNotice(null), 4000)
-    return () => clearTimeout(timer)
-  }, [scanNotice])
-
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
@@ -912,10 +970,13 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
                 className="billing-patient-reset"
                 size="sm"
                 variant="secondary"
+                disabled={checkout.isPending || isPreSettlingInsurance}
+                busy={resetPatient.isPending}
+                title={hasDiscardableSettlement ? '自动取消未付款结算单（含医保试算），费用回到待结算' : undefined}
                 onClick={handleResetPatient}
               >
                 <Icon name="refresh" />
-                <span>重新选择</span>
+                <span>{hasDiscardableSettlement ? '放弃结算并重选' : '重新选择'}</span>
               </Button>
             </div>
           ) : (
@@ -1169,6 +1230,9 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       </Panel>
       <CashierPanel className="billing-payment-panel" title="收费结算"
         amountLabel="待支付金额"
+        amountAction={hasDiscardableSettlement && <Tooltip placement="bottom" content={<div className="billing-locked-tip">{
+          lockedSettlementHint(cancellableSettlements(statement.data), currency).split('\n').map(line => <p key={line}>{line}</p>)}</div>}>
+          <span className="billing-locked-badge" tabIndex={0}><Icon name="lock" />已锁定</span></Tooltip>}
         amount={money(canInvoice ? selectedChargesAmount : statement.data?.accountBalance ?? 0, currency)}
         meta={selected ? (settlementMode === 'MEDICAL_INSURANCE' ? '医保实时结算' : '自费结算') : '待选择患者'}>
         {!selected ? (
@@ -1177,14 +1241,6 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
           <EmptyState icon="billing" title="等待生成收费事项" copy="请先在费用明细面板中同步计费以生成费用账户。" />
         ) : (
           <>
-            <UnpaidSettlementList api={api} settlements={cancellableSettlements(statement.data)}
-              disabled={checkout.isPending || isPreSettlingInsurance}
-              onCancelled={(result) => {
-                if (insuranceClaimView?.settlementId === result.settlementId) setInsuranceClaimView(null)
-                setScanNotice({ tone: 'success', text: `结算单 ${result.settlementNo} 已取消，费用回到待结算${
-                  result.insuranceNote ? `；${result.insuranceNote}` : ''}` })
-                void refresh()
-              }} />
             <div className="billing-action-form">
               <SettlementPaymentPanel key={`${encounterId}-${selected.accountId}`} settlements={settlementOptions}
                 methods={paymentMethods.options}
@@ -1216,7 +1272,6 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
                 reliefEstimate={reliefPlan && insuranceClaimView?.settlementId === reliefPlan.settlementId
                   ? reliefPlan.autoEstimate + reliefPlan.manualEstimate : 0}
                 onPreSettleInsurance={handlePreSettleInsurance}
-                onCancelInsurancePreSettle={() => setInsuranceClaimView(null)}
                 isPreSettlingInsurance={isPreSettlingInsurance}
                 submitShortcut
                 onSubmit={(command) => checkout.mutateAsync(command)} />
@@ -1271,6 +1326,12 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [] }: {
       </main>
       </div>
     </div>}
+    <RecentSettlements api={api} clinicalContext={clinicalContext} username={username} onReceipt={(record) => { void openRecentReceipt(record) }}
+      onCopy={(record) => {
+        void navigator.clipboard?.writeText(record.settlementNo).then(
+          () => setScanNotice({ tone: 'success', text: `已复制结算单号 ${record.settlementNo}` }),
+          () => setScanNotice({ tone: 'warning', text: '复制失败，请手动记录结算单号' }))
+      }} />
     <AggregatedPaymentModal
       contextKey={JSON.stringify(clinicalContext)}
       open={scanModalState.open}

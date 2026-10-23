@@ -1,6 +1,6 @@
 # 医保 Mock 联调环境（仅限本地开发）。
 #
-# 用法：先启动 thirdparty-mock-server（默认 127.0.0.1:18090），再以
+# 用法：先启动 rhn-thirdparty-mocks（默认 127.0.0.1:18090），再以
 #   --spring.profiles.active=oracle-local,insurance-mock
 # 启动后端。本文件让医保走“正式网关客户端 -> 本机 mock 服务”的真实 HTTP 链路，并打开前端的模拟读卡/电子医保码入口。
 #

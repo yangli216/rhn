@@ -740,8 +740,8 @@ describe('BillingWorkspace deep link', () => {
         }),
         dailyReconciliation: vi.fn().mockResolvedValue({}),
         paymentOrders: vi.fn().mockResolvedValue([]),
-        cancelSettlement: vi.fn().mockResolvedValue({ settlementId: 'set-unpaid', settlementNo: 'INV-UNPAID',
-          netAmount: 40, chargeItemIds: ['ch-lab-1', 'ch-lab-2'] }),
+        cancelUnpaidSettlements: vi.fn().mockResolvedValue([{ settlementId: 'set-unpaid', settlementNo: 'INV-UNPAID',
+          netAmount: 40, chargeItemIds: ['ch-lab-1', 'ch-lab-2'] }]),
       },
       dictionaries: { applicable: vi.fn().mockResolvedValue([]) },
     } as unknown as RhnApi
@@ -787,14 +787,17 @@ describe('BillingWorkspace deep link', () => {
     }
 
     // 5. 未付款结算单可以取消，费用回到待结算；已结清的挂号结算单不出现在可取消列表中。
-    const unpaidList = screen.getByLabelText('未付款结算单')
-    expect(unpaidList).toHaveTextContent('INV-UNPAID')
-    expect(unpaidList).not.toHaveTextContent('INV-PAID')
+    expect(screen.queryByLabelText('未付款结算单')).not.toBeInTheDocument()
+    await userEvent.setup().hover(screen.getByText('已锁定'))
+    const lockHint = await screen.findByRole('tooltip')
+    expect(lockHint).toHaveTextContent('结算期间费用数据不允许变更')
+    expect(lockHint).toHaveTextContent('INV-UNPAID')
+    expect(lockHint).not.toHaveTextContent('INV-PAID')
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: '取消结算单' }))
-    await user.click(await screen.findByRole('button', { name: '确认取消' }))
-    await waitFor(() => expect(api.billing.cancelSettlement).toHaveBeenCalledWith('set-unpaid', '患者暂不结算'))
-    expect(await screen.findByText(/结算单 INV-UNPAID 已取消，费用回到待结算/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '取消结算单' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '放弃结算并重选' }))
+    await waitFor(() => expect(api.billing.cancelUnpaidSettlements).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('重新选择')))
+    expect(await screen.findByText(/已取消 1 张未付款结算单/)).toBeInTheDocument()
   })
 
   it('uses server dictionary text including tenant labels and preserves unresolved codes', () => {

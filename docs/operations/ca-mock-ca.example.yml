@@ -1,4 +1,4 @@
-# CA 联调（thirdparty-mock-server 的 CA Mock）配置示例。值均为测试值，生产环境不得使用。
+# CA 联调（rhn-thirdparty-mocks 的 CA Mock）配置示例。值均为测试值，生产环境不得使用。
 # 启用前先启动 Mock（默认 127.0.0.1:18090，所有协议共用端口），并按其 README 备案测试医生。
 rhn:
   crypto:

@@ -84,7 +84,7 @@ class PaymentMockContractIntegrationTest {
 
     @BeforeAll
     static void requireMock() {
-        Assumptions.assumeTrue(mockAvailable, "本地统一三方 Mock 服务不可用（缺少 thirdparty-mock-server jar 或端口被占用），跳过联调用例");
+        Assumptions.assumeTrue(mockAvailable, "本地统一三方 Mock 服务不可用（缺少 rhn-thirdparty-mocks jar 或端口被占用），跳过联调用例");
     }
 
     @AfterAll
@@ -222,11 +222,11 @@ class PaymentMockContractIntegrationTest {
 
     private static Path mockJar() throws IOException {
         for (Path cursor = Path.of(System.getProperty("user.dir")).toAbsolutePath(); cursor != null; cursor = cursor.getParent()) {
-            Path jar = newestJar(cursor.resolve("thirdparty-mock-server").resolve("target"));
+            Path jar = newestJar(cursor.resolve("rhn-thirdparty-mocks").resolve("target"));
             if (jar != null) return jar;
             Path parent = cursor.getParent();
             if (parent != null) {
-                jar = newestJar(parent.resolve("thirdparty-mock-server").resolve("target"));
+                jar = newestJar(parent.resolve("rhn-thirdparty-mocks").resolve("target"));
                 if (jar != null) return jar;
             }
         }
@@ -237,7 +237,7 @@ class PaymentMockContractIntegrationTest {
         if (!Files.isDirectory(targetDirectory)) return null;
         try (Stream<Path> entries = Files.list(targetDirectory)) {
             List<Path> jars = entries
-                    .filter(path -> path.getFileName().toString().startsWith("thirdparty-mock-server-"))
+                    .filter(path -> path.getFileName().toString().startsWith("rhn-thirdparty-mocks-"))
                     .filter(path -> path.getFileName().toString().endsWith(".jar"))
                     .sorted(Comparator.comparing(path -> path.getFileName().toString())).toList();
             return jars.isEmpty() ? null : jars.get(jars.size() - 1);

@@ -471,12 +471,6 @@
 .billing-side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-4); }
 .billing-action-form { padding: var(--space-4); display: grid; gap: var(--space-3); }
 /* 未付款结算单：可取消回到待结算 */
-.billing-unpaid-settlements { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-warning-soft); }
-.billing-unpaid-settlements__row { display: flex; align-items: center; gap: var(--space-2); min-height: 2rem; }
-.billing-unpaid-settlements__label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.billing-unpaid-settlements__label strong { color: var(--color-text); font-weight: var(--font-weight-semibold); }
-.billing-unpaid-settlements__label small { color: var(--color-text-secondary); }
-.billing-unpaid-settlements__amount { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-semibold); }
 .billing-action-form + .billing-action-form { border-top: 1px solid var(--color-border); }
 .billing-action-form h3 { margin: 0; color: var(--color-text-primary); font-size: var(--font-size-body); }
 .billing-action-form .ui-field { min-width: 0; margin: 0; }
@@ -498,7 +492,7 @@
 .settlement-payment-panel__grid { display: grid; gap: var(--space-3); }
 .settlement-payment-panel__grid .ui-field { min-width: 0; margin: 0; }
 /* 统一规范：字段行 = 固定标签列 + 控件列；分组卡片同一外观；控件同一高度与字号。 */
-.settlement-payment-panel, .registration-pay-card { --payment-label-col: 7.5rem; --payment-control-height: var(--control-height-sm); }
+.settlement-payment-panel, .registration-pay-card { --payment-label-col: 5rem; --payment-control-height: var(--control-height-sm); }
 .settlement-payment-panel__grid .settlement-payment-panel__inline-field { display: grid; grid-template-columns: var(--payment-label-col) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
 .settlement-payment-panel__inline-field .ui-field__label-row { width: auto; min-width: 0; white-space: normal; }
 .settlement-payment-panel__inline-field .ui-field__control, .settlement-payment-panel__inline-field .ui-select__trigger { min-height: var(--payment-control-height); height: var(--payment-control-height); }
@@ -537,6 +531,23 @@
   border-radius: var(--radius-md);
   background: var(--color-surface-subtle);
 }
+/* 金额重点区：个人自付/缴款/找零紧邻，数字放大加粗；快捷面额换到输入框下一行，让金额框占满宽度。 */
+.settlement-payment-panel__pay-card { gap: var(--space-2); }
+.settlement-payment-panel__pay-card .settlement-payment-panel__inline-field:first-child { margin-bottom: var(--space-1); padding-bottom: var(--space-3); border-bottom: 1px dashed var(--color-border); }
+.settlement-payment-panel__pay-card { --payment-amount-height: 2.5rem; }
+.settlement-payment-panel__pay-card .cash-payment-calc { gap: var(--space-2); }
+.settlement-payment-panel__pay-card .cash-payment-row { grid-template-columns: var(--payment-label-col) minmax(0, 1fr); row-gap: var(--space-1); }
+.settlement-payment-panel__pay-card .cash-payment-presets { grid-column: 2; justify-self: end; }
+.settlement-payment-panel__pay-card .cash-payment-label,
+.settlement-payment-panel__pay-card .settlement-payment-panel__card-title { font-weight: var(--font-weight-semibold); }
+.settlement-payment-panel__pay-card .settlement-payment-panel__inline-field:not(:first-child) .ui-field__control { height: var(--payment-amount-height); min-height: var(--payment-amount-height); }
+.settlement-payment-panel__pay-card .cash-payment-input-wrap { --cash-control-height: var(--payment-amount-height); }
+.settlement-payment-panel__pay-card .cash-payment-input-wrap:not(.is-readonly) { border-color: var(--color-brand-primary); background: var(--color-surface); }
+.settlement-payment-panel__pay-card .cash-payment-input,
+.settlement-payment-panel__pay-card .cash-payment-value,
+.settlement-payment-panel__pay-card .cash-payment-symbol { font-size: var(--font-size-h2); font-weight: var(--font-weight-bold); }
+.settlement-payment-panel__pay-card .cash-payment-change { min-height: var(--payment-amount-height); }
+.settlement-payment-panel__pay-card .cash-payment-change > strong { font-size: var(--font-size-h2); }
 .settlement-payment-panel__chs-header {
   display: flex;
   align-items: center;
@@ -838,3 +849,17 @@
 }
 
 .billing-doc-group-row__selection-spacer { display: inline-block; width: 1rem; flex-shrink: 0; }
+.billing-locked-badge { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-warning-text, var(--color-text-secondary)); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); cursor: help; }
+.billing-locked-badge svg { width: 1rem; height: 1rem; }
+.billing-locked-tip { display: grid; gap: var(--space-1); max-width: 22rem; text-align: left; }
+.billing-locked-tip p { margin: 0; }
+.billing-recent-settlements { flex: none; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.billing-recent-settlements > summary { min-height: var(--panel-header-min-height); padding: var(--space-1) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; list-style: none; }
+.billing-recent-settlements > summary::-webkit-details-marker { display: none; }
+.billing-recent-settlements > summary strong { color: var(--color-text-primary); }
+.billing-recent-settlements__actions { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-brand-primary); white-space: nowrap; }
+.billing-recent-settlements__toggle { display: inline-flex; align-items: center; gap: var(--space-1); }
+.billing-recent-settlements__toggle .ui-icon { width: 1rem; height: 1rem; transition: transform var(--motion-fast) var(--ease-standard); }
+.billing-recent-settlements[open] .billing-recent-settlements__toggle .ui-icon { transform: rotate(180deg); }
+.billing-recent-settlements__content { border-top: 1px solid var(--color-border); overflow-x: auto; }
+.billing-recent-settlements__empty { margin: 0; padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }

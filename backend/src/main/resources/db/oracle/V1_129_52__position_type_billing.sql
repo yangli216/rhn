@@ -1,0 +1,4 @@
+-- 岗位类型新增“收费”，并预置“收费员”岗位；收费查询的收费员列表据此识别，存量人员由人事在岗位与任职维护中调整。
+insert into RHN_BD_DICT_ITEM values (362387869975001, 362387869791017, 'BILLING', '收费', '收费员等收费结算岗位', 45, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869975002, null, 362387869791017, 362387869975001, 'ADD_ITEM', 'ITEM', null, '{"code": "BILLING", "name": "收费", "sortOrder": 45, "status": "ACTIVE"}', '岗位类型新增收费类，用于识别收费员', 'v1.129.52:position-type-billing', timestamp '2026-10-22 00:00:00 +08:00', 362387869790222, 362387869840004, null);
+insert into RHN_SYS_POS values (362387869975003, 362387869790209, 'CASHIER', '收费员', 'BILLING', '承担门诊收费窗口的结算、收款、开票与日终交账', 'ACTIVE', timestamp '2026-10-22 00:00:00 +08:00', 362387869790222, timestamp '2026-10-22 00:00:00 +08:00', 362387869790222, 0);

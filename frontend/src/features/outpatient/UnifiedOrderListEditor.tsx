@@ -549,11 +549,8 @@ export function UnifiedOrderListEditor({
       setService(option as ClinicalResourceOption<ServiceCatalogItem>)
       setServiceSites([])
       setValidationError('')
-      if (srvType === 'TREATMENT') {
-        focusControlAfterSelection('doctor-unified-quantity')
-      } else {
-        focusControlAfterSelection('doctor-unified-service-note')
-      }
+      // 选中后直接定位数量；嘱托/临床说明多数情况下不填，不在默认流程中。
+      focusControlAfterSelection('doctor-unified-quantity')
       return
     }
   }

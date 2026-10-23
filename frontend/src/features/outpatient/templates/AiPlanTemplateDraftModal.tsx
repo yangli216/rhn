@@ -589,10 +589,12 @@ export function AiPlanTemplateDraftModal({
 
       try {
         const baseInput = initialIntent || naturalInput.trim() || textDraft.name
+        const { annotations: _annotations, ...noteFields } = noteContent
         const effectiveInstruction = webSearchEnabled ? `【联网检索模式】${instruction}` : instruction
         const result = await api.outpatientPlanTemplates.reviseDraftStream(
           baseInput, textDraft.narrative, effectiveInstruction, scope, controller.signal,
           (delta) => { if (!controller.signal.aborted) setStreamSource((current) => current + delta) },
+          { noteTemplateContent: noteFields, recordAnnotations: noteContent.annotations, reviewItems: textDraft.reviewItems },
         )
         setTextDraft(result)
         setNoteContent({ ...planNoteContent(result.noteTemplateContent, result.reviewItems), annotations: result.recordAnnotations })

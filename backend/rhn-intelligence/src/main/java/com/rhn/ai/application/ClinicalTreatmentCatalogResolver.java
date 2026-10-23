@@ -320,10 +320,23 @@ public class ClinicalTreatmentCatalogResolver {
                 && normalize(candidates.getFirst().name()).contains(normalize(query)))
                 || normalize(candidates.getFirst().code()).equals(normalize(query))))
             return new TreatmentMatch(key, intent, "MATCHED", "已匹配唯一可用目录", candidates);
+        // 药品意图只写通用名（缬沙坦），院内唯一可开立产品是“通用名+剂型”（缬沙坦片）：剂型后缀是同一品种的
+        // 规范写法而不是另一种药，规格不一致早已在 resolveMedication 分流，这里可以确定性匹配，不必人工确认。
+        if (candidates.size() == 1 && "MEDICATION".equals(candidates.getFirst().type())) {
+            String intentName = normalize(query);
+            String candidateName = normalize(candidates.getFirst().name());
+            String candidateStem = DOSAGE_FORM_SUFFIX.matcher(candidateName).replaceFirst("");
+            if (!intentName.isEmpty() && !candidateStem.equals(candidateName) && candidateStem.equals(intentName)
+                    && !DOSAGE_FORM_SUFFIX.matcher(intentName).find())
+                return new TreatmentMatch(key, intent, "MATCHED", "已匹配唯一可用药品（院内剂型：" + candidates.getFirst().name() + "）", candidates);
+        }
         return new TreatmentMatch(key, intent, "AMBIGUOUS", candidates.size() == 1
                 ? "名称未完全一致，请核对实际项目及规格。" : "存在多个可用项目，请选择本次需要的项目。", candidates);
     }
 
+    private static final java.util.regex.Pattern DOSAGE_FORM_SUFFIX = java.util.regex.Pattern.compile(
+            "(?:胶囊剂|胶囊|片剂|片|口服溶液|口服液|颗粒剂|颗粒|混悬滴剂|混悬液|糖浆剂|糖浆|滴剂|注射液|注射用冻干粉针|冻干粉针|注射剂"
+                    + "|软膏剂|软膏|乳膏剂|乳膏|凝胶剂|凝胶|滴眼液|滴鼻液|喷雾剂|吸入气雾剂|气雾剂|栓剂|栓|贴膏剂|贴膏|贴剂|散剂|散|洗剂)$");
     private static String text(String value) { return value == null ? "" : value.trim(); }
     static List<String> splitServiceName(String value) {
         String name = Normalizer.normalize(text(value), Normalizer.Form.NFKC);

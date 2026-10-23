@@ -19,7 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 财政电子票据 HTTP 网关客户端，协议见 thirdparty-mock-server 的 docs/fiscal-mock-protocol.md
+ * 财政电子票据 HTTP 网关客户端，协议见 rhn-thirdparty-mocks 的 docs/fiscal-mock-protocol.md
  * （字段与 {@link FiscalModels} 一一对应）。仅在 {@code rhn.billing.fiscal.gateway.enabled=true} 时装配，
  * 与进程内 Mock、拒绝执行的占位客户端互斥。
  *

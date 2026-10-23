@@ -53,9 +53,9 @@ public class ClinicalTreatmentRecommendationService {
                     : attempt != null && attempt.alerts().isEmpty() && raw == null ? "DISABLED" : "UNAVAILABLE";
             String detail = "NO_CANDIDATES".equals(status) ? "当前机构可开立目录中未找到候选，请调整名称检索或核对院内项目配置。"
                     : "COMPLETED".equals(status) ? ("NONE".equals(answer.choice())
-                        ? "Jev 未确认等价项；最高概率院内备选仅供预选核对，不代表已匹配或临床适用。"
+                        ? "决策模型未确认等价项；最高概率院内备选仅供预选核对，不代表已匹配或临床适用。"
                         : "最高概率院内候选仅供预选，仍需医生确认；目录匹配不代表临床适用性。")
-                    : "DISABLED".equals(status) ? "Jev 核查未启用。" : "Jev 核查未完成，保留人工匹配。";
+                    : "DISABLED".equals(status) ? "决策模型核查未启用。" : "决策模型核查未完成，保留人工匹配。";
             reviews.put(match.key(), new TreatmentDecisionReview(status, raw == null ? null : raw.model(),
                     attempt == null ? null : attempt.mode(), valid ? answer.confidence() : null,
                     attempt == null ? null : attempt.threshold(), valid ? suggested : null,

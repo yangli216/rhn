@@ -84,4 +84,76 @@ class InsuranceQuickCommandTest {
         verify(transactions).prepareRetryPreSettle(9L);
         verify(adapter).preSettle(instruction);
     }
+
+    @Test void reRegistersAndPreSettlesAgainWhenTheInsurerLostTheVisitBeforeFinalSettlement() {
+        var transactions=mock(InsuranceClaimTransactionService.class);
+        var context=mock(ExecutionContextProvider.class);
+        when(context.requireCurrent()).thenReturn(new ExecutionContext(1L,2L,"cashier","corr",Set.of()));
+        var failed=mock(com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView.class);
+        when(failed.status()).thenReturn("FAILED"); when(failed.currentOperation()).thenReturn("SETTLE");
+        when(failed.errorCode()).thenReturn("CHS_REJECTED_-1"); when(failed.errorMessage()).thenReturn("就诊未登记(2201)");
+        when(failed.claimNo()).thenReturn("CLM-1"); when(failed.responses()).thenReturn(List.of());
+        var done=mock(com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView.class);
+        when(transactions.existingClaimId(3L)).thenReturn(java.util.Optional.of(9L));
+        when(transactions.view(eq(9L),anyBoolean())).thenReturn(failed).thenReturn(done);
+        var instruction=mock(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction.class);
+        when(transactions.instruction(9L)).thenReturn(instruction);
+        var adapter=mock(com.rhn.billing.api.InsuranceSettlementAdapter.class);
+        when(adapter.supports(any(),any())).thenReturn(true);
+        var result=mock(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult.class);
+        when(adapter.preSettle(instruction)).thenReturn(result);
+        when(transactions.apply(eq(9L),eq("PRE_SETTLE"),eq(result),startsWith("PRE-R1-"),any(),eq(false)))
+                .thenReturn(mock(InsuranceClaimTransactionService.ApplyResult.class));
+        var service=new InsuranceClaimApplicationService(transactions,List.of(adapter),mock(ExternalMessageService.class),context,mock(NationalInsuranceClient.class));
+        assertSame(done,service.quickPreSettle(3L,null,null,null,"NEW-KEY"));
+        verify(transactions).prepareRestartPreSettleAfterVisitLost(9L);
+        verify(adapter).preSettle(instruction);
+    }
+
+    @Test void retriesPreSettlementWhenTheInsurerRejectedItAsVisitNotRegistered() {
+        var transactions=mock(InsuranceClaimTransactionService.class);
+        var context=mock(ExecutionContextProvider.class);
+        when(context.requireCurrent()).thenReturn(new ExecutionContext(1L,2L,"cashier","corr",Set.of()));
+        var pending=mock(com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView.class);
+        when(pending.status()).thenReturn("FAILED"); when(pending.currentOperation()).thenReturn("PRE_SETTLE");
+        when(pending.errorCode()).thenReturn("CHS_REJECTED_-1"); when(pending.errorMessage()).thenReturn("就诊未登记(2201)，不能上传诊断"); when(pending.claimNo()).thenReturn("CLM-1");
+        when(pending.responses()).thenReturn(List.of());
+        var done=mock(com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView.class);
+        when(transactions.existingClaimId(3L)).thenReturn(java.util.Optional.of(9L));
+        when(transactions.view(eq(9L),anyBoolean())).thenReturn(pending).thenReturn(done);
+        var instruction=mock(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction.class);
+        when(transactions.instruction(9L)).thenReturn(instruction);
+        var adapter=mock(com.rhn.billing.api.InsuranceSettlementAdapter.class);
+        when(adapter.supports(any(),any())).thenReturn(true);
+        var result=mock(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult.class);
+        when(adapter.preSettle(instruction)).thenReturn(result);
+        when(transactions.apply(eq(9L),eq("PRE_SETTLE"),eq(result),startsWith("PRE-R1-"),any(),eq(false)))
+                .thenReturn(mock(InsuranceClaimTransactionService.ApplyResult.class));
+        var service=new InsuranceClaimApplicationService(transactions,List.of(adapter),mock(ExternalMessageService.class),context,mock(NationalInsuranceClient.class));
+        assertSame(done,service.quickPreSettle(3L,null,null,null,"NEW-KEY"));
+        verify(transactions).prepareRetryPreSettle(9L);
+        verify(adapter).preSettle(instruction);
+    }
+
+    @Test void settlesWithANewResultCommandWhenTheEarlierSettleReceiptIsStaleAfterReRegistration() {
+        var transactions=mock(InsuranceClaimTransactionService.class);
+        var context=mock(ExecutionContextProvider.class);
+        var stale=mock(com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView.class);
+        when(stale.status()).thenReturn("PRE_SETTLED"); when(stale.responses()).thenReturn(List.of());
+        var settled=mock(com.rhn.billing.api.InsuranceResultDirectory.InsuranceSettlementView.class);
+        when(settled.status()).thenReturn("SETTLED");
+        when(transactions.responseApplied(eq(9L),eq("SETTLE-CHS-SETL-9"))).thenReturn(true);
+        when(transactions.view(eq(9L),anyBoolean())).thenReturn(stale,stale,settled);
+        var instruction=mock(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction.class);
+        when(transactions.instruction(9L)).thenReturn(instruction);
+        var adapter=mock(com.rhn.billing.api.InsuranceSettlementAdapter.class);
+        when(adapter.supports(any(),any())).thenReturn(true);
+        var result=mock(com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult.class);
+        when(adapter.settle(any(),any())).thenReturn(result);
+        when(transactions.apply(eq(9L),eq("SETTLE"),eq(result),startsWith("SETTLE-R1-"),any(),eq(false)))
+                .thenReturn(mock(InsuranceClaimTransactionService.ApplyResult.class));
+        var service=new InsuranceClaimApplicationService(transactions,List.of(adapter),mock(ExternalMessageService.class),context,mock(NationalInsuranceClient.class));
+        assertSame(settled,service.settle(9L,"CHS-SETL-9"));
+        verify(transactions).prepareSettlement(9L);
+    }
 }

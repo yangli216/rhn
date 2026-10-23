@@ -1107,7 +1107,7 @@ export function AppShell() {
             return <div id={`workspace-panel-${encodeURIComponent(tab.id)}`} key={tab.id}
               className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${encodeURIComponent(tab.id)}`}
               hidden={tab.id !== activeTabId}>
-              <FocusLayoutContext.Provider value={{ tabId: tab.id, setFocus: setTabFocus }}>
+              <FocusLayoutContext.Provider value={{ tabId: tab.id, visible: tab.id === activeTabId, setFocus: setTabFocus }}>
               <div className="page" key={slotKey}>
                 {!authorized ? <EmptyState icon="error" title="无权访问该功能"
                   copy={`当前工作上下文缺少权限：${requiredAuthority}`} /> :
@@ -1132,9 +1132,9 @@ export function AppShell() {
                   <Route path="/pharmacy/warehouse" element={<WarehouseManagement api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/billing" element={<BillingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} />} />
+                    clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} username={session.username} />} />
                   <Route path="/billing/settlement" element={<BillingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} />} />
+                    clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} username={session.username} />} />
                   <Route path="/billing/query" element={<BillingQueryWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/refunds" element={<RefundManagementWorkspace api={tabSlot.api}

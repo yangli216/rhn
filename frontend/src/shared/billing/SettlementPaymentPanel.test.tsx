@@ -223,8 +223,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     expect(screen.getByLabelText('结算类型')).toBeInTheDocument()
     expect(screen.queryByText('医保支付')).not.toBeInTheDocument()
-    await user.click(screen.getByLabelText('结算类型'))
-    await user.click(await screen.findByRole('option', { name: '医保结算' }))
+    await user.click(screen.getByRole('radio', { name: '医保结算' }))
 
     expect(screen.getByLabelText('支付方式')).toBeInTheDocument()
     expect(screen.getByLabelText('个人自付')).toHaveValue(6)
@@ -248,7 +247,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={onSubmit}
     />)
 
-    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
+    expect(screen.getByText('缴款金额')).toBeInTheDocument()
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
 
     const preset50 = screen.getByRole('button', { name: '¥50' })
@@ -403,7 +402,6 @@ describe('SettlementPaymentPanel payment recovery', () => {
   it('renders CHS breakdown card and allows direct settlement when cash amount is zero', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
-    const onCancelInsurancePreSettle = vi.fn()
 
     const insuranceClaimView = {
       claimId: 'claim-101',
@@ -432,7 +430,6 @@ describe('SettlementPaymentPanel payment recovery', () => {
       settlementModeCode="MEDICAL_INSURANCE"
       insuranceIntegrated
       insuranceClaimView={insuranceClaimView}
-      onCancelInsurancePreSettle={onCancelInsurancePreSettle}
       onSubmit={onSubmit}
     />)
 
@@ -453,10 +450,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
       amount: 0,
     }))
 
-    // 取消试算测试
-    const cancelBtn = screen.getByRole('button', { name: '取消试算 (改选自费)' })
-    await user.click(cancelBtn)
-    expect(onCancelInsurancePreSettle).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /取消试算/ })).not.toBeInTheDocument()
   })
 
   it('renders CHS breakdown card and supports cash checkout when cash amount > 0', async () => {
@@ -500,7 +494,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     // 自付部分支持现金收银与速算找零
     expect(screen.getByLabelText('个人自付')).toHaveValue(50)
-    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
+    expect(screen.getByText('缴款金额')).toBeInTheDocument()
 
     const preset100 = screen.getByRole('button', { name: '¥100' })
     await user.click(preset100)
@@ -652,10 +646,10 @@ describe('payment info card', () => {
     render(<SettlementPaymentPanel settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 120, currencyCode: 'CNY' }]}
       methods={methods} orders={[]} showSettlementMode settlementModeCode="MEDICAL_INSURANCE" insuranceIntegrated
       insuranceClaimView={claim} onSubmit={vi.fn()} />)
-    const card = screen.getByText('缴款金额：').closest('.settlement-payment-panel__pay-card') as HTMLElement
+    const card = screen.getByText('缴款金额').closest('.settlement-payment-panel__pay-card') as HTMLElement
     expect(card).not.toBeNull()
     expect(within(card).getByLabelText('支付方式')).toBeInTheDocument()
-    expect(within(card).getByText('找零金额：')).toBeInTheDocument()
+    expect(within(card).getByText('找零金额')).toBeInTheDocument()
     expect(screen.queryByText('个人自付支付方式')).not.toBeInTheDocument()
     expect(screen.queryByText(/包含其他基金/)).not.toBeInTheDocument()
   })
@@ -665,18 +659,18 @@ describe('payment info card', () => {
     render(<SettlementPaymentPanel settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 38.5, currencyCode: 'CNY' }]}
       methods={methods} orders={[]} showAmountInput={false} onSubmit={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: /微信支付/ }))
-    expect(screen.getByText('付款金额：')).toBeInTheDocument()
+    expect(screen.getByText('付款金额')).toBeInTheDocument()
     expect(screen.getByText('38.50')).toBeInTheDocument()
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
-    expect(screen.queryByText('找零金额：')).not.toBeInTheDocument()
-    expect(screen.queryByText('缴款金额：')).not.toBeInTheDocument()
+    expect(screen.queryByText('找零金额')).not.toBeInTheDocument()
+    expect(screen.queryByText('缴款金额')).not.toBeInTheDocument()
   })
 
   it('hides the amount rows when nothing is payable', () => {
     render(<SettlementPaymentPanel settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 0, currencyCode: 'CNY' }]}
       methods={methods} orders={[]} onSubmit={vi.fn()} />)
-    expect(screen.queryByText('付款金额：')).not.toBeInTheDocument()
-    expect(screen.queryByText('缴款金额：')).not.toBeInTheDocument()
+    expect(screen.queryByText('付款金额')).not.toBeInTheDocument()
+    expect(screen.queryByText('缴款金额')).not.toBeInTheDocument()
   })
 })
 

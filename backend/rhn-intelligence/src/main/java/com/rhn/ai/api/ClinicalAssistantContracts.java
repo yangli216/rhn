@@ -362,7 +362,15 @@ public final class ClinicalAssistantContracts {
             @Size(max = 4000) String confirmedNarrative,
             @Size(max = 1000) String revisionInstruction,
             @Size(max = 100) String confirmedName,
-            @Size(max = 30) List<@Valid PlanReviewItem> reviewItems) {
+            @Size(max = 30) List<@Valid PlanReviewItem> reviewItems,
+            @Size(max = 12) java.util.Map<@Size(max = 40) String, @Size(max = 4000) String> currentNoteTemplateContent,
+            @Size(max = 200) List<@Valid RecordAnnotation> currentRecordAnnotations,
+            @Size(max = 30) List<@Valid PlanReviewItem> currentReviewItems) {
+        public CompilePlanDraftRequest(String naturalInput, String scopeType, String confirmedNarrative,
+                                       String revisionInstruction, String confirmedName, List<PlanReviewItem> reviewItems) {
+            this(naturalInput, scopeType, confirmedNarrative, revisionInstruction, confirmedName, reviewItems,
+                    null, null, null);
+        }
         public CompilePlanDraftRequest(String naturalInput, String scopeType, String confirmedNarrative) {
             this(naturalInput, scopeType, confirmedNarrative, null, null, null);
         }

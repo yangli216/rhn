@@ -12,7 +12,7 @@
 .standard-medication__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-4);
   flex-wrap: wrap;
 }
@@ -112,8 +112,15 @@
   display: flex;
   flex-direction: column;
 }
+.standard-medication__table-head {
+  flex: none;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
 .standard-medication__table-scroll {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
   flex: 1;
   min-height: 0;
 }
@@ -133,15 +140,8 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
   box-shadow: var(--shadow-inset);
 }
-.standard-medication__list th:nth-child(1) { width: 37%; }
-.standard-medication__list th:nth-child(2) { width: 37%; }
-.standard-medication__list th:nth-child(3) { width: 11%; }
-.standard-medication__list th:nth-child(4) { width: 15%; }
 
 /* 单击行交互与高亮 */
 .standard-medication__row {
@@ -201,6 +201,8 @@
   gap: var(--space-2);
   background: var(--color-surface);
 }
+.standard-medication__detail > * { flex: none; }
+.standard-medication__detail > .standard-medication__spec-table-wrap { flex: 1 1 auto; }
 
 .standard-medication__detail-summary {
   display: flex;
@@ -324,12 +326,14 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 340px;
-  min-height: 120px;
-  scrollbar-gutter: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 160px;
 }
+/* 表头在滚动区域之外，规格行占满详情区剩余高度，内容超出才滚动。 */
+.standard-medication__spec-head { flex: none; overflow: hidden; scrollbar-gutter: stable; }
+.standard-medication__spec-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
 
 .standard-medication__spec-table {
   width: 100%;
@@ -339,9 +343,6 @@
 }
 
 .standard-medication__spec-table th {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
   padding: calc(var(--space-1) * 1.25) var(--space-2);
   background: var(--color-surface-subtle);
   border-bottom: 1px solid var(--color-border);

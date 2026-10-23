@@ -13062,6 +13062,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/settlement-cashiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settlementCashiers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -13635,7 +13651,7 @@ export interface components {
             expectedRevision?: number;
             name: string;
             /** @enum {string} */
-            sdPositionType: "CLINICAL" | "NURSING" | "PHARMACY" | "MEDICAL_TECHNOLOGY" | "ADMINISTRATIVE";
+            sdPositionType: "CLINICAL" | "NURSING" | "PHARMACY" | "MEDICAL_TECHNOLOGY" | "BILLING" | "ADMINISTRATIVE";
             dutyDescription?: string;
             /** @enum {string} */
             sdPersonnelStatus: "ACTIVE" | "INACTIVE";
@@ -19232,7 +19248,7 @@ export interface components {
             code: string;
             name: string;
             /** @enum {string} */
-            sdPositionType: "CLINICAL" | "NURSING" | "PHARMACY" | "MEDICAL_TECHNOLOGY" | "ADMINISTRATIVE";
+            sdPositionType: "CLINICAL" | "NURSING" | "PHARMACY" | "MEDICAL_TECHNOLOGY" | "BILLING" | "ADMINISTRATIVE";
             dutyDescription?: string;
         };
         LegacyOrganizationRequest: {
@@ -26151,6 +26167,11 @@ export interface components {
             secretValue?: string;
             /** Format: int32 */
             timeoutSeconds?: number;
+            /**
+             * @description 决策连接测试供应商；省略时使用当前作用域保存的选择，未配置时为 JEV
+             * @enum {string|null}
+             */
+            decisionProvider?: "JEV" | "LINGDT" | null;
         };
         ConfigurationTestResult: {
             target?: string;
@@ -30007,6 +30028,15 @@ export interface components {
             /** Format: int32 */
             maxChargeableSiteCount?: number;
             sites?: components["schemas"]["ExaminationSiteChoice"][];
+        };
+        SettlementCashierView: {
+            /** @example 824633720832983041 */
+            userId?: string;
+            name?: string;
+            username?: string;
+            active?: boolean;
+            positionName?: string;
+            terminalScenes?: string[];
         };
     };
     responses: never;
@@ -58217,6 +58247,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 cashier?: string;
+                terminalScene?: string;
             };
             header: {
                 /** @description 当前县域医共体租户标识 */
@@ -61066,6 +61097,39 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ExaminationSiteOptionsResponse"];
+                };
+            };
+        };
+    };
+    settlementCashiers: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                terminalScene?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SettlementCashierView"][];
                 };
             };
         };

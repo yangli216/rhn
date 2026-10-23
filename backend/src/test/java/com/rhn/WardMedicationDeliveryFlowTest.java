@@ -85,7 +85,7 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                 pharmacyContext(), 201);
         assertEquals("PENDING_DISPATCH", firstDelivery.get("status").asString());
         assertEquals("综合病区", firstDelivery.get("nursingUnitName").asString());
-        assertEquals("阿莫西林胶囊 0.25g", firstDelivery.at("/lines/0/medicationName").asString());
+        assertEquals("阿莫西林胶囊", firstDelivery.at("/lines/0/medicationName").asString());
         String firstDeliveryId = firstDelivery.get("id").asString();
         String firstLineId = firstDelivery.at("/lines/0/id").asString();
         String secondLineId = firstDelivery.at("/lines/1/id").asString();

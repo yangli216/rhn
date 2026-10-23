@@ -53,9 +53,13 @@ public class ClinicalAiAdministrationService {
             descriptor("suggestion-ttl-minutes", "临床治理", "建议有效期", "建议生成后允许采纳的分钟数", "NUMBER"),
             descriptor("rollout-percentage", "临床治理", "医生灰度比例", "按执业人员稳定分桶启用的百分比", "NUMBER"),
             descriptor("decision-mode", "决策公共配置", "决策总开关", "所有决策场景共用：关闭时不调用；旁路只观察；辅助匹配使用高置信度结果，失败保留原流程", "STRING"),
+            descriptor("decision-provider", "决策公共配置", "当前决策模型", "选择所有已启用场景使用的决策模型；两套连接和密钥分别保存", "STRING"),
             descriptor("decision-model", "决策公共配置", "Jev 模型标识", "固定版本以便复核与对比，不使用自动升级别名", "STRING"),
             descriptor("decision-endpoint", "决策公共配置", "Jev 服务地址", "TypeSafe systemone 完整 HTTP/HTTPS 地址", "STRING"),
             secret("decision-api-key", "决策公共配置", "Jev API Key", "独立加密存储，不继承大模型服务密钥，不回传明文"),
+            descriptor("decision-lingdt-model", "决策公共配置", "LingDT 模型标识", "蚂蚁 DTMaaS 已发布的决策模型标识", "STRING"),
+            descriptor("decision-lingdt-endpoint", "决策公共配置", "LingDT 服务地址", "蚂蚁 DTMaaS systemone 完整 HTTP/HTTPS 地址", "STRING"),
+            secret("decision-lingdt-api-key", "决策公共配置", "LingDT API Key", "独立加密存储，不继承 Jev 或临床大模型密钥"),
             descriptor("decision-timeout-seconds", "决策公共配置", "决策请求超时", "单次目录决策最多等待秒数，超时回退原流程", "NUMBER"),
             descriptor("decision-min-confidence-percent", "决策公共配置", "匹配置信度门槛", "试用门槛，仅表示分布集中程度，不代表医学正确率", "NUMBER"),
             descriptor("voice-enabled", "语音能力", "启用语音转写", "是否允许调用服务端语音转写", "BOOLEAN"),
@@ -208,20 +212,22 @@ public class ClinicalAiAdministrationService {
 
     private ConfigurationTestResult testDecision(ConfigurationTestRequest request, ExecutionContext context) {
         int timeout = probeTimeout(request, context, "decision-timeout-seconds", 1, 30);
+        var provider = DecisionProvider.parse(request.decisionProvider() == null
+                ? resolveText("decision-provider", request.scope(), context) : request.decisionProvider());
         long start = System.nanoTime();
         try {
             String endpoint = Strings.trimToNull(request.endpoint());
-            if (endpoint == null) endpoint = resolveText("decision-endpoint", request.scope(), context);
+            if (endpoint == null) endpoint = resolveText(provider.settingKey("endpoint"), request.scope(), context);
             URI uri = URI.create(endpoint);
             if (uri.getHost() == null || uri.getUserInfo() != null || uri.getFragment() != null
                     || !("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())))
                 throw new IllegalArgumentException();
             String model = Strings.trimToNull(request.model());
-            if (model == null) model = resolveText("decision-model", request.scope(), context);
+            if (model == null) model = resolveText(provider.settingKey("model"), request.scope(), context);
             String key = Strings.trimToNull(request.secretValue());
-            if (key == null) key = resolveSecret("decision-api-key", request.scope(), context);
+            if (key == null) key = resolveSecret(provider.settingKey("api-key"), request.scope(), context);
             var settings = new DecisionModelSettings(DecisionModelSettings.Mode.SHADOW, uri, model, key,
-                    Duration.ofSeconds(timeout), 0.9);
+                    Duration.ofSeconds(timeout), 0.9, provider);
             var question = new com.rhn.ai.application.DecisionModelGateway.ChoiceQuestion("catalog_probe",
                     "Select the catalog item equivalent to state.intent. If none matches, choose NONE.",
                     Map.of("MATCH", "Complete blood count (CBC)", "NONE", "No equivalent catalog item"));
@@ -229,11 +235,11 @@ public class ClinicalAiAdministrationService {
                     jsonCodec.readTree("{\"intent\":\"Complete blood count (CBC)\"}"), List.of(question)), settings);
             boolean matched = "MATCH".equals(result.answers().get("catalog_probe").choice());
             return new ConfigurationTestResult("DECISION", matched, 200, result.latencyMs(),
-                    matched ? "Jev 连接及结构化响应校验通过；模型：" + result.model() + "。测试使用虚构目录，无患者数据。"
-                            : "Jev 返回了有效响应，但虚构目录匹配测试未通过。", null);
+                    matched ? provider.label() + " 连接及结构化响应校验通过；模型：" + result.model() + "。测试使用虚构目录，无患者数据。"
+                            : provider.label() + " 返回了有效响应，但虚构目录匹配测试未通过。", null);
         } catch (RuntimeException e) {
             return new ConfigurationTestResult("DECISION", false, 0, (System.nanoTime() - start) / 1_000_000,
-                    "Jev 测试失败，请核对独立 API Key、模型、服务地址及网络。", null);
+                    provider.label() + " 测试失败，请核对该模型的独立 API Key、模型、服务地址及网络。", null);
         }
     }
 
@@ -673,8 +679,11 @@ public class ClinicalAiAdministrationService {
             case "knowledge-max-results" -> fallback.maxKnowledgeResults();
             case "knowledge-endpoint" -> fallback.knowledgeEndpoint() == null ? null : fallback.knowledgeEndpoint().toString();
             case "decision-mode" -> "DISABLED";
+            case "decision-provider" -> DecisionProvider.JEV.name();
             case "decision-model" -> DecisionModelSettings.DEFAULT_MODEL;
             case "decision-endpoint" -> DecisionModelSettings.DEFAULT_ENDPOINT;
+            case "decision-lingdt-model" -> DecisionProvider.LINGDT.defaultModel();
+            case "decision-lingdt-endpoint" -> DecisionProvider.LINGDT.defaultEndpoint();
             case "decision-timeout-seconds" -> 8;
             case "decision-min-confidence-percent" -> 90;
             default -> null;

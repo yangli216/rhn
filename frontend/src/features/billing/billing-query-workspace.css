@@ -17,6 +17,9 @@
 }
 
 .billing-query-filters {
+  /* 本页有 7 个条件，1920 宽度下为让查询、重置不换行，关键词框收窄（规范 5.5 允许按内容调整）。 */
+  --layout-query-keyword-width: clamp(14rem, 14vw, 20rem);
+  --layout-query-keyword-min-width: 14rem;
 
 
   padding: var(--space-3) var(--space-4);

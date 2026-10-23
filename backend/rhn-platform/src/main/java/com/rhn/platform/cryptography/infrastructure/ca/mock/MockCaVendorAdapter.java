@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static com.rhn.platform.cryptography.infrastructure.ca.mock.MockCaClient.text;
 
 /**
- * HTTP adapter to the thirdparty-mock-server CA protocol ({@code docs/ca-mock-protocol.md} there). It
+ * HTTP adapter to the rhn-thirdparty-mocks CA protocol ({@code docs/ca-mock-protocol.md} there). It
  * implements every vendor port but verifies everything locally: trust anchors come from {@code trust/anchors}
  * (cached), timestamps are checked against the vendor's timestamp certificate and envelopes are parsed here,
  * so a vendor verdict is never trusted. The adapter declares {@link ProviderAssurance#DEVELOPMENT_ONLY}

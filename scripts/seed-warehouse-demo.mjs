@@ -11,11 +11,11 @@ const outpatientSiteId = '362387869799502'
 const marker = 'SHOWCASE-20260830'
 
 const products = [
-  { catalogItemId: '362387869795111', packageId: '362387869795401', name: '阿莫西林胶囊 0.25g', factor: 24,
+  { catalogItemId: '362387869795111', packageId: '362387869795401', name: '阿莫西林胶囊', factor: 24,
     traceRequired: true, splitAllowed: true, coldChain: false, highAlert: false },
-  { catalogItemId: '362387869795112', packageId: '362387869795402', name: '盐酸二甲双胍片 0.5g', factor: 20,
+  { catalogItemId: '362387869795112', packageId: '362387869795402', name: '盐酸二甲双胍片', factor: 20,
     traceRequired: false, splitAllowed: true, coldChain: false, highAlert: false },
-  { catalogItemId: '362387869795113', packageId: '362387869795403', name: '苯磺酸氨氯地平片 5mg', factor: 14,
+  { catalogItemId: '362387869795113', packageId: '362387869795403', name: '苯磺酸氨氯地平片', factor: 14,
     traceRequired: false, splitAllowed: true, coldChain: false, highAlert: true },
 ]
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalAiConfigurationView, RhnApi } from '../../shared/rhnApi'
@@ -87,9 +87,87 @@ describe('AiConfigurationManagement', () => {
     await user.type(await screen.findByPlaceholderText('输入 API Key'), 'independent-test-key')
     await user.click(screen.getByRole('button', { name: '测试 Jev 连接' }))
     await waitFor(() => expect(test).toHaveBeenCalledWith({ scope: 'TENANT', target: 'DECISION',
+      decisionProvider: 'JEV',
       endpoint: 'https://api.typesafe.ai/v1/systemone', model: 'jev-1.13.0',
       secretValue: 'independent-test-key', timeoutSeconds: timeout }))
     expect(await screen.findByText(/Jev 连接通过，使用虚构目录/)).toBeInTheDocument()
+  })
+
+  function decisionConfiguration(): ClinicalAiConfigurationView {
+    return { ...configuration, settings: [...configuration.settings, ...[
+      ['decision-provider', '当前决策模型', 'JEV', false],
+      ['decision-mode', '决策总开关', 'DISABLED', false],
+      ['decision-model', 'Jev 模型标识', 'jev-1.13.0', false],
+      ['decision-endpoint', 'Jev 服务地址', 'https://api.typesafe.ai/v1/systemone', false],
+      ['decision-api-key', 'Jev API Key', null, true],
+      ['decision-lingdt-model', 'LingDT 模型标识', 'lingdt-decision-1.0', false],
+      ['decision-lingdt-endpoint', 'LingDT 服务地址', 'https://maas-api.antdigital.com/v1/systemone', false],
+      ['decision-lingdt-api-key', 'LingDT API Key', null, true],
+    ].map(([key, name, effectiveValue, secret]) => ({
+      key: String(key), name: String(name), group: '决策公共配置', description: '', valueType: 'STRING' as const,
+      secret: Boolean(secret), effectiveValue: effectiveValue as string | null, sourceScope: 'DEPLOYMENT' as const,
+      inherited: false, secretConfigured: false, overridePresent: false, overrideActive: false,
+    }))] }
+  }
+
+  it('switches providers, tests only the selected credentials and saves the choice without overwriting Jev', async () => {
+    const user = userEvent.setup()
+    const config = decisionConfiguration()
+    const test = vi.fn().mockResolvedValue({ target: 'DECISION', success: true, statusCode: 200,
+      latencyMs: 12, message: 'LingDT 虚构目录连接通过' })
+    const update = vi.fn().mockResolvedValue(config)
+    const api = { clinicalAi: { administrationConfiguration: vi.fn().mockResolvedValue(config),
+      testAdministrationConfiguration: test, updateAdministrationConfiguration: update } } as unknown as RhnApi
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AiConfigurationManagement api={api} />
+    </QueryClientProvider>)
+    const provider = await screen.findByRole('combobox', { name: '当前决策模型' })
+    await user.type(screen.getByPlaceholderText('输入 API Key'), 'jev-draft-secret')
+    await user.click(provider)
+    await user.click(screen.getByRole('option', { name: 'LingDT-Decision（蚂蚁 DTMaaS）' }))
+    expect(screen.queryByDisplayValue('jev-1.13.0')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('lingdt-decision-1.0')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('输入 API Key')).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: '测试 LingDT 连接' }))
+    await waitFor(() => expect(test).toHaveBeenLastCalledWith(expect.objectContaining({
+      decisionProvider: 'LINGDT', endpoint: 'https://maas-api.antdigital.com/v1/systemone',
+      model: 'lingdt-decision-1.0', secretValue: undefined,
+    })))
+    await user.type(screen.getByPlaceholderText('输入 API Key'), 'lingdt-draft-secret')
+    expect(screen.queryByText(/LingDT 虚构目录连接通过/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '测试 LingDT 连接' }))
+    await waitFor(() => expect(test).toHaveBeenLastCalledWith(expect.objectContaining({
+      decisionProvider: 'LINGDT', secretValue: 'lingdt-draft-secret',
+    })))
+    await user.click(provider)
+    await user.click(screen.getByRole('option', { name: 'Jev（TypeSafe）' }))
+    expect(screen.getByPlaceholderText('输入 API Key')).toHaveValue('jev-draft-secret')
+    await user.click(provider)
+    await user.click(screen.getByRole('option', { name: 'LingDT-Decision（蚂蚁 DTMaaS）' }))
+    await user.click(screen.getByRole('button', { name: '保存变更' }))
+    await waitFor(() => expect(update).toHaveBeenCalledWith('TENANT', [
+      { key: 'decision-provider', value: 'LINGDT', expectedRevision: undefined },
+      { key: 'decision-api-key', secretValue: 'jev-draft-secret', expectedRevision: undefined },
+      { key: 'decision-lingdt-api-key', secretValue: 'lingdt-draft-secret', expectedRevision: undefined },
+    ], 'AI 配置页面人工维护'))
+  })
+
+  it('does not show a late Jev test result after changing the selected provider', async () => {
+    const user = userEvent.setup()
+    const config = decisionConfiguration()
+    let finish!: (value: unknown) => void
+    const test = vi.fn().mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    const api = { clinicalAi: { administrationConfiguration: vi.fn().mockResolvedValue(config),
+      testAdministrationConfiguration: test } } as unknown as RhnApi
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AiConfigurationManagement api={api} />
+    </QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: '测试 Jev 连接' }))
+    await user.click(screen.getByRole('combobox', { name: '当前决策模型' }))
+    await user.click(screen.getByRole('option', { name: 'LingDT-Decision（蚂蚁 DTMaaS）' }))
+    await act(async () => finish({ target: 'DECISION', success: true, latencyMs: 1, message: '迟到的 Jev 结果' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '测试 LingDT 连接' })).not.toBeDisabled())
+    expect(screen.queryByText(/迟到的 Jev 结果/)).not.toBeInTheDocument()
   })
   it('saves a business scene independently while retaining the shared master configuration', async () => {
     const user = userEvent.setup()

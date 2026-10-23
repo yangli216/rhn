@@ -30,6 +30,7 @@
 | 2201 就诊登记 | `data.{psn_no,insutype,begntime,mdtrt_cert_type,mdtrt_cert_no,ipt_otp_no,atddr_no,dr_name,dept_code,dept_name,caty}` | `data.mdtrt_id`；psn_no 必须来自已成功的 1101，凭证须与 1101 一致 |
 | 2203A 诊断上传 | `mdtrtinfo.{mdtrt_id,psn_no,med_type,begntime,main_cond_dscr,dise_codg,dise_name}`（注意不是 `data`）、`diseinfo[]` | `{}`；须先有 2201；无主诊断拒绝 |
 | 2204 费用明细 | `feedetail[]`：`feedetl_sn,mdtrt_id,psn_no,chrg_bchno,fee_ocur_time,med_list_codg,medins_list_codg,det_item_fee_sumamt,cnt,pric,…` | `result[]`：每行 `feedetl_sn,chrgitm_lv`（`01`甲/`02`乙/`03`丙）；须先有 2203A；`det_item_fee_sumamt = cnt×pric` 不符则拒绝 |
+| 2205 费用明细撤销 | `data.{mdtrt_id,chrg_bchno,psn_no}` | `{}`；`mdtrt_id` 须已登记（2201）且 `psn_no` 一致；撤销该就诊已上传的 2204 费用明细，基于它的 2206 预结算一并作废；已结算且未撤销的拒绝（先 2208）；无可撤销的费用明细（含重复撤销）`infcode=-1` |
 | 2206 预结算 | `data.{mdtrt_id,psn_no,insutype,mdtrt_cert_type,mdtrt_cert_no,med_type,medfee_sumamt,psn_setlway,chrg_bchno,acct_used_flag}` | `setlinfo`，字段全集见下 |
 | 2207 结算 | `data.{mdtrt_id,psn_no,insutype,chrg_bchno,acct_used_flag}` | `setlinfo`（同上，另含 `setl_time`），须先有 2206；同 `mdtrt_id` 重复结算拒绝 |
 | 2208 结算撤销 | `data.{setl_id,mdtrt_id,psn_no}` | `setlinfo.setl_id`（撤销流水）；仅对已结算成功且未撤销的 `setl_id`；重复撤销 `infcode=-1`，`err_msg` 含“已撤销” |
@@ -102,7 +103,8 @@ rhn:
 挂号时结算不携带诊断，对 mock 有以下补充要求：
 
 - **2202 门诊挂号撤销**：`input.data.{mdtrt_id,psn_no,ipt_otp_no}`，`output` 为空对象即可；`mdtrt_id` 须已登记（2201），重复撤销 `infcode=-1`；已结算且未撤销的就诊拒绝撤销（先 2208）。
-- **2204 在未上传 2203A 时可接受**：挂号场景只做 2201 → 2204 → 2206 → 2207，建议提供开关（如 `mock.diagnosis-required`，默认 `true`），关闭后 2204 不要求先有诊断；开启时用于验证“平台要求挂号带诊断”时的拒绝提示。
+- **2204 在未上传 2203A 时可接受**：挂号场景只做 2201 → 2204 → 2206 → 2207，已实现开关 `mock.chs.diagnosis-required`（运行时 `PUT /mock/config {"diagnosisRequired":...}`），**默认 `false`**，2204 不要求先有诊断；置 `true` 时用于验证“平台要求挂号带诊断”时的拒绝提示。
+- **2205 费用明细撤销（取消未付款结算单时使用）**：收费处放弃已试算的结算单时，平台侧按 2205 撤销已上传的费用明细与预结算，再视情况 2202 撤销本申请登记的就诊；沿用挂号登记的就诊不撤销 2202。mock 已实现，行为见第 2 节表格。
 - **同一就诊的第二次结算**：诊间结算沿用挂号时的 `mdtrt_id`（不再 2201），应允许同一 `mdtrt_id` 在前一笔已结算、后一笔 2204/2206/2207 时继续（含 2203A 补传诊断）；仍应拒绝对同一笔结算的重复 2207。
 - **2208 校验**：建议核对 `mdtrt_id`、`psn_no` 与原结算一致。
 - 现有已知差异（可后续补齐）：暂停参保人员（`TEST-SUSPENDED`）在 2201/2206 仍成功；`TEST-SIGN-EXPIRE` 每次业务交易后都使签到失效。

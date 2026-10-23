@@ -1,4 +1,4 @@
-# 财政电子票据联调（thirdparty-mock-server 的 fiscal Mock）配置示例。值均为测试值，生产环境不得使用。
+# 财政电子票据联调（rhn-thirdparty-mocks 的 fiscal Mock）配置示例。值均为测试值，生产环境不得使用。
 # 启用前先启动 Mock（默认 127.0.0.1:18090，所有协议共用端口）。gateway 与进程内 Mock（rhn.billing.fiscal.mock-enabled=true）互斥，
 # 同时开启会因出现两个候选客户端而启动失败；联调时需显式关闭进程内 Mock。
 rhn:
@@ -29,4 +29,4 @@ rhn:
 #   --rhn.billing.fiscal.gateway.callback.enabled=true --rhn.billing.fiscal.gateway.callback.secret=...
 #   --rhn.billing.fiscal.gateway.callback.tenant-id=... --...organization-id=... --...department-id=...
 # 对真实 Mock 的端到端联调测试（默认跳过）：
-#   mvn -o test -Dtest=FiscalMockLiveIntegrationTest -Drhn.fiscal.mock.jar=<thirdparty-mock-server jar>
+#   mvn -o test -Dtest=FiscalMockLiveIntegrationTest -Drhn.fiscal.mock.jar=<rhn-thirdparty-mocks jar>

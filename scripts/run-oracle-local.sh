@@ -4,7 +4,8 @@ set -euo pipefail
 rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rhn_backend_dir="$rhn_project_root/backend"
 rhn_requested_server_port="${RHN_SERVER_PORT:-${RHN_PORT:-}}"
-rhn_spring_profiles="${RHN_ORACLE_PROFILES:-oracle-local}"
+# 本地开发默认带医保与支付 Mock；需要纯 oracle-local 时显式设置 RHN_ORACLE_PROFILES=oracle-local。
+rhn_spring_profiles="${RHN_ORACLE_PROFILES:-oracle-local,insurance-mock,payment-mock}"
 rhn_oracle_env_file="${RHN_ORACLE_ENV_FILE:-$rhn_project_root/.env.oracle.local}"
 
 if [[ -f "$rhn_oracle_env_file" ]]; then
@@ -39,6 +40,12 @@ rhn_runtime_artifact="$rhn_runtime_dir/rhn-application-$rhn_artifact_digest.jar"
 mkdir -p "$rhn_runtime_dir"
 if [[ ! -f "$rhn_runtime_artifact" ]]; then
   cp "$rhn_build_artifact" "$rhn_runtime_artifact"
+fi
+
+# payment-mock：确保演示密钥存在，并让 mock 放宽请求验签（幂等；mock 未启动时只警告，不阻止后端启动）。
+if [[ ",$rhn_spring_profiles," == *",payment-mock,"* ]]; then
+  export RHN_PAYMENT_MOCK_KEYS="${RHN_PAYMENT_MOCK_KEYS:-$rhn_project_root/.runtime/payment-mock/keys}"
+  "$rhn_project_root/scripts/setup-payment-mock.sh" || echo "警告：支付 Mock 准备失败，支付宝/微信/银行卡将不可用" >&2
 fi
 
 exec java -jar "$rhn_runtime_artifact" \

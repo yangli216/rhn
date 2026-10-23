@@ -319,7 +319,7 @@ export function MedicationDialog({
           {western && <Checkbox name="skinTestRequired" label="需要皮试" checked={skinTestRequired}
             onChange={setSkinTestRequired} />}
           {(western || chinesePatent) && <Checkbox name="chronicDiseaseDrug" label="慢病用药" defaultChecked={initial?.chronicDiseaseDrug} />}
-          <Checkbox name="singleOrder" label="允许单开" defaultChecked={initial?.singleOrder ?? true} />
+          <Checkbox name="singleOrder" label="单列专方（一药一方）" defaultChecked={initial?.singleOrder ?? false} />
         </Checkboxes>
       </FormGrid>
     </FormSection>

@@ -405,6 +405,40 @@ class ClinicalAiPlanCompilationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void plan_preview_revision_keeps_sections_the_instruction_did_not_touch() throws Exception {
+        when(modelGateway.compilePlan(any(), any())).thenReturn(new ClinicalAiModelGateway.PlanIntent(
+                "修订后的方案", "按医生要求修订", null,
+                List.of(
+                        new ClinicalAiModelGateway.PlanIntentItem(
+                                "DIAGNOSIS", "急性上呼吸道感染，未特指", "成人感冒方案", "EXPLICIT", null),
+                        new ClinicalAiModelGateway.PlanIntentItem(
+                                "LABORATORY", "模型重写的检验", null, "SUGGESTED", "目的：重写")),
+                null, java.util.Map.of("chiefComplaint", "模型重写的主诉", "presentIllness", "模型重写的现病史"),
+                List.of(), List.of("DIAGNOSIS")));
+
+        mockMvc.perform(post("/api/ai/clinical-assistant/plan-templates/draft")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "naturalInput":"成人感冒方案",
+                                  "confirmedNarrative":"上一版",
+                                  "revisionInstruction":"诊断设置为急性上呼吸道感染",
+                                  "scopeType":"PERSONAL",
+                                  "currentNoteTemplateContent":{"chiefComplaint":"医生确认的主诉","presentIllness":"医生确认的现病史"},
+                                  "currentReviewItems":[
+                                    {"kind":"CONDITION","text":"旧诊断","origin":"SUGGESTED"},
+                                    {"kind":"LABORATORY","text":"血常规","origin":"SUGGESTED","details":"目的：筛查"}]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noteTemplateContent.chiefComplaint").value("医生确认的主诉"))
+                .andExpect(jsonPath("$.noteTemplateContent.presentIllness").value("医生确认的现病史"))
+                .andExpect(jsonPath("$.reviewItems.length()").value(2))
+                .andExpect(jsonPath("$.reviewItems[0].text").value("急性上呼吸道感染，未特指 [J06.9]"))
+                .andExpect(jsonPath("$.reviewItems[1].text").value("血常规"));
+    }
+
+    @Test
     void plan_preview_only_marks_terminology_matched_diagnoses_as_icd10() throws Exception {
         when(modelGateway.compilePlan(any(), any())).thenReturn(new ClinicalAiModelGateway.PlanIntent(
                 "成人上感方案", "待医生审核", "诊断与评估：急性上呼吸道感染；成人风寒感冒待明确。",

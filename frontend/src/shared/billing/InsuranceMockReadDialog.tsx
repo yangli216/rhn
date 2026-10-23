@@ -41,14 +41,16 @@ export function useInsuranceSimulator(api: RhnApi) {
 }
 
 /**
- * mock 医保服务的读卡面板：选择 thirdparty-mock-server 预置的测试人员代替读卡器/扫码枪，
+ * mock 医保服务的读卡面板：选择 rhn-thirdparty-mocks 预置的测试人员代替读卡器/扫码枪，
  * 按所选介质的证件类型走真实 1101 读证；需要调入患者时再定位本地演示库中对应的模拟患者。
  */
-export function InsuranceMockReadDialog({ api, media, locateResident = false, onRead, onCancel }: {
+export function InsuranceMockReadDialog({ api, media, locateResident = false, residentId, onRead, onCancel }: {
   api: RhnApi
   media: InsuranceMedia
   /** 读证后按人员预置的档案号定位患者（调入患者）；否则只刷新鉴权凭证（resident 为空）。 */
   locateResident?: boolean
+  /** 当前就诊患者：传入后服务端核对所选模拟人员与该患者一致。 */
+  residentId?: string
   onRead: (read: { media: InsuranceMedia; person: ChsPersonInfoResponse; resident?: Resident }) => string | undefined
   onCancel: () => void
 }) {
@@ -61,7 +63,7 @@ export function InsuranceMockReadDialog({ api, media, locateResident = false, on
 
   const read = useMutation({
     mutationFn: async (target: InsuranceSimulatorPersona) => {
-      const person = await api.billing.queryInsurancePerson({ psnCertType: meta.certType, certno: target.certNo, psnName: undefined })
+      const person = await api.billing.queryInsurancePerson({ psnCertType: meta.certType, certno: target.certNo, psnName: undefined, residentId })
       if (!locateResident) return { media, person }
       const candidates = await api.residents.search(target.residentKeyword)
       const resident = candidates.find((item) => item.healthRecordNo === target.residentKeyword) ?? candidates[0]

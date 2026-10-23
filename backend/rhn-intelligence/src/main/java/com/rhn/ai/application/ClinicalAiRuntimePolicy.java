@@ -36,8 +36,11 @@ public class ClinicalAiRuntimePolicy {
                 ? text(tenantId, "speech-endpoint", uri(fallback.speechEndpoint())) : null;
         String knowledgeEndpoint = booleanValue(tenantId, "knowledge-enabled", fallback.knowledgeAvailable())
                 ? text(tenantId, "knowledge-endpoint", uri(fallback.knowledgeEndpoint())) : null;
+        String mode = text(tenantId, "mode", fallback.mode().name());
+        // 租户覆盖了运行模式时，基线 provider（如默认 disabled）已不适用，交给设置类按生效模式推导
+        String provider = fallback.mode().name().equals(mode) ? fallback.provider() : null;
         return new ClinicalAssistantSettings(
-                text(tenantId, "mode", fallback.mode().name()), fallback.provider(),
+                mode, provider,
                 text(tenantId, "model", fallback.model()),
                 Duration.ofMinutes(number(tenantId, "suggestion-ttl-minutes", fallback.suggestionTtl().toMinutes())),
                 text(tenantId, "endpoint", uri(fallback.endpoint())), apiKey,

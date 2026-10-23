@@ -27,7 +27,7 @@ export type OrganizationStatus = 'DRAFT' | 'PENDING_ACTIVE' | 'ACTIVE' | 'SUSPEN
 export type PractitionerGender = '1' | '2' | '0' | '9'
 export type PersonnelStatus = 'ACTIVE' | 'INACTIVE'
 export type EmploymentType = 'PERMANENT' | 'CONTRACT' | 'DISPATCHED' | 'TEMPORARY'
-export type PositionType = 'CLINICAL' | 'NURSING' | 'PHARMACY' | 'MEDICAL_TECHNOLOGY' | 'ADMINISTRATIVE'
+export type PositionType = 'CLINICAL' | 'NURSING' | 'PHARMACY' | 'MEDICAL_TECHNOLOGY' | 'BILLING' | 'ADMINISTRATIVE'
 export type AssignmentType = 'PRIMARY' | 'PART_TIME' | 'SECONDMENT' | 'ROTATION'
 
 export const ORGANIZATION_SYSTEM_ENUM = {

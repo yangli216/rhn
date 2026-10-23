@@ -438,7 +438,7 @@ for (const v of uniqueVarieties) {
       defaultRoute: attrs.defaultRoute,
       defaultFrequency: attrs.defaultFreq,
       chronicDiseaseDrug: attrs.chronic,
-      singleOrder: true,
+      singleOrder: false,
       status: e.spec.trim() === "每支装" ? "RETIRED" : "ACTIVE"
     });
   });
@@ -453,7 +453,7 @@ const csvHeaders = [
   "处方药", "基本药物", "抗菌药", "抗菌药等级", "抗菌药门诊可用",
   "抗菌药需会诊审批", "抗菌药允许紧急使用", "抗菌药门诊疗程上限", "需要皮试", "皮试方式",
   "皮试液配置方式", "皮试观察分钟", "皮试结果有效小时", "皮试配置说明", "默认剂量",
-  "默认剂量单位", "默认给药途径", "默认频次", "慢病用药", "允许单开",
+  "默认剂量单位", "默认给药途径", "默认频次", "慢病用药", "单列专方",
   "状态"
 ];
 

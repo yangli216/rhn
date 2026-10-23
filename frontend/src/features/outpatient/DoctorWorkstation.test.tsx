@@ -1924,9 +1924,9 @@ describe('DoctorWorkstation reception flow', () => {
 
     // Verify 4-metric fee totals grid
     expect(screen.getByText('费用合计')).toBeInTheDocument()
-    expect(screen.getByText('已支付')).toBeInTheDocument()
+    expect(screen.getByText('已结算')).toBeInTheDocument()
     expect(screen.getByText('未结算')).toBeInTheDocument()
-    expect(screen.getByText('已结算待付')).toBeInTheDocument()
+    expect(screen.getByText("本次待收")).toBeInTheDocument()
 
     const dialog = screen.getByRole('dialog', { name: '诊毕确认' })
     expect(within(dialog).getByRole('combobox', { name: '就诊转归' })).toBeInTheDocument()
@@ -2460,7 +2460,7 @@ describe('DoctorWorkstation reception flow', () => {
       const user = await openCompletionFacts(api)
       const overview = screen.getByRole('region', { name: '费用结算' })
       expect(await within(overview).findByText(failure === 'uninvoiced' ? '¥10.00 未结算'
-        : pending ? '支付处理中' : unpaid ? '¥10.00' : '结算尚未完成',
+        : pending ? '支付处理中' : unpaid ? '本次待收 ¥10.00' : '结算尚未完成',
       { selector: '.doctor-fee-stat__status' })).toBeInTheDocument()
       const button = screen.getByRole('button', { name: '签署并诊毕' })
       await waitFor(() => expect(button).toBeEnabled())

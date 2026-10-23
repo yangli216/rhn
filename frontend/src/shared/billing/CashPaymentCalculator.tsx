@@ -140,7 +140,7 @@ export function CashPresetChips({ chips, disabled = false }: { chips: CashPreset
 }
 
 /** 非现金支付方式的只读“付款金额”行：标签 + 只读金额，与缴款金额行同一网格。 */
-export function PaymentAmountReadonlyRow({ label = '付款金额：', amount, currencySymbol = '¥', className = '' }: {
+export function PaymentAmountReadonlyRow({ label = '付款金额', amount, currencySymbol = '¥', className = '' }: {
   label?: string
   amount: number
   currencySymbol?: string
@@ -161,7 +161,7 @@ export function CashPaymentCalculator({
   tendered,
   onTenderedChange,
   onEnter,
-  label = '缴款金额：',
+  label = '缴款金额',
   currencySymbol = '¥',
   disabled = false,
   inputRef,
@@ -203,7 +203,7 @@ export function CashPaymentCalculator({
       </div>
 
       <div className={`cash-payment-change ${isCashShort ? 'is-short' : 'is-sufficient'}`}>
-        <span>找零金额：</span>
+        <span>找零金额</span>
         <strong>{currencySymbol}{isCashShort ? '0.00' : cashChange.toFixed(2)}</strong>
         {isCashShort ? (
           <small className="cash-payment-short-tip">

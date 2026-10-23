@@ -64,6 +64,10 @@ public final class BillingViews {
             String errorCode, String errorMessage, List<SettlementLineView> lines,
             List<SettlementTenderView> tenders, List<SettlementEventView> events) {}
 
+    /** One selectable operator of the settlement query: a current billing-position holder or someone who settled in the range. */
+    public record SettlementCashierView(Long userId, String name, String username, boolean active, String positionName,
+                                        List<String> terminalScenes) {}
+
     public record SettlementRecordView(
             Long id, Long patientAccountId, Long residentId, Long encounterId, Long departmentId,
             String residentName, String healthRecordNo,

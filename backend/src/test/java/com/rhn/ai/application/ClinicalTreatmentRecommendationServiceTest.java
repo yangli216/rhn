@@ -346,6 +346,20 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals("AMBIGUOUS", result.matches().getFirst().status());
         assertEquals(1, result.matches().getFirst().candidates().size());
     }
+    @Test void genericNameMatchesTheSingleOrderableProductOfThatDosageFormWithoutManualConfirmation() {
+        medication("0.5g", true);
+        var definition = inventory.findOrderableMedicationCandidates(1L, 3L, 4L, "对乙酰氨基酚").getFirst();
+        when(definition.name()).thenReturn("对乙酰氨基酚片");
+        var result = service.recommend(List.of(intent("MEDICATION", "对乙酰氨基酚")), request, null);
+        assertTrue(result.matches().isEmpty());
+        assertEquals(1, result.items().size());
+        assertEquals("对乙酰氨基酚片", result.items().getFirst().name());
+        // 意图明确写了另一种剂型时，不能用院内的片剂静默替代。
+        when(inventory.findOrderableMedicationCandidates(1L, 3L, 4L, "对乙酰氨基酚胶囊")).thenReturn(List.of(definition));
+        var capsule = service.recommend(List.of(intent("MEDICATION", "对乙酰氨基酚胶囊")), request, null);
+        assertTrue(capsule.items().isEmpty());
+        assertEquals("AMBIGUOUS", capsule.matches().getFirst().status());
+    }
     @Test void unavailableMedicationIsDifferentFromAbsentDefinition() {
         var knowledge = mock(MedicationKnowledgeDirectory.Knowledge.class);
         when(medications.search("布洛芬")).thenReturn(List.of(knowledge));

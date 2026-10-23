@@ -62,4 +62,7 @@ public interface NationalInsuranceClient {
     default String cancelPreSettlement(PreSettlementCancelRequest request) {
         throw com.rhn.shared.api.BusinessErrors.conflict("CHS_PRESETTLE_CANCEL_UNSUPPORTED", "医保平台撤销费用明细尚未接入");
     }
+
+    /** 丢弃已缓存的参保人鉴权凭证：读证结果与当前就诊人员核对不一致时调用，避免错误凭证被后续试算沿用。 */
+    default void forgetCredential(String personNo) {}
 }

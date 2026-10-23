@@ -65,7 +65,8 @@ export function InsuranceCredentialDialog({ api, residentId = '', patientName, b
     return resident
   }
   const manual = useMutation({
-    mutationFn: () => api.billing.queryInsurancePerson({ psnCertType: certType, certno: certNo.trim(), psnName: undefined }),
+    mutationFn: () => api.billing.queryInsurancePerson({ psnCertType: certType, certno: certNo.trim(), psnName: undefined,
+      residentId: residentId || undefined }),
     onMutate: () => setPerson(null),
     onSuccess: (value) => { setCertNo(''); accept(value) },
   })
@@ -131,7 +132,7 @@ export function InsuranceCredentialDialog({ api, residentId = '', patientName, b
       {lookupError && <Alert tone="error">{lookupError}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
     </div>
-    {mockMedia && <InsuranceMockReadDialog api={api} media={mockMedia} locateResident={lookupMode}
+    {mockMedia && <InsuranceMockReadDialog api={api} media={mockMedia} locateResident={lookupMode} residentId={lookupMode ? undefined : residentId || undefined}
       onCancel={() => setMockMedia(null)}
       onRead={(value) => {
         if (!value.resident) {

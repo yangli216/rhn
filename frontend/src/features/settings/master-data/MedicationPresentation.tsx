@@ -233,7 +233,7 @@ export function medicationSafetyMarkers(value: MedicationKnowledge) {
       && { symbol: '急', detail: '允许紧急使用后补审批', tone: 'info' as const },
     value.skinTestRequired && { symbol: '皮', detail: skinTestDetail, tone: 'danger' as const },
     value.chronicDiseaseDrug && { symbol: '慢', detail: '慢病用药', tone: 'info' as const },
-    !value.singleOrder && { symbol: '组', detail: '仅限组合开立', tone: 'neutral' as const },
+    value.singleOrder && { symbol: '单', detail: '单列专方（一药一方）', tone: 'warning' as const },
   ].filter(Boolean) as Array<{ symbol: string; detail: string; tone: MedicationSafetyTone }>
 }
 
@@ -728,7 +728,7 @@ export function medicationSummary(value: MedicationKnowledge, routes: Medication
     { label: '安全',
       value: [value.prescriptionDrug && '处方药', value.essentialDrug && '基本药物',
         value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',
-        value.chronicDiseaseDrug && '慢病用药', !value.singleOrder && '仅组合使用'].filter(Boolean).join(' · ') || '普通' },
+        value.chronicDiseaseDrug && '慢病用药', value.singleOrder && '单列专方'].filter(Boolean).join(' · ') || '普通' },
   ]
 }
 

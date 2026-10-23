@@ -9,6 +9,7 @@ import com.rhn.platform.organization.api.OrganizationDictionaryCodes;
 import com.rhn.platform.organization.api.OrganizationProfileView;
 import com.rhn.platform.organization.api.OrganizationView;
 import com.rhn.platform.organization.api.OrganizationCatalogSourceView;
+import com.rhn.platform.organization.api.PositionStaffRef;
 import com.rhn.platform.organization.api.PositionView;
 import com.rhn.platform.organization.api.StaffAssignmentView;
 import com.rhn.platform.organization.api.StaffDetailView;
@@ -46,6 +47,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -511,6 +514,32 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     public List<StaffView> listStaff(Long tenantId) {
         requireTenant(tenantId);
         return practitionerRepository.findByTenantIdOrderByCode(tenantId).stream().map(Practitioner::toView).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PositionStaffRef> activeStaffByPositionType(Long tenantId, Long organizationId, String positionType,
+                                                            java.time.LocalDate onDate) {
+        requireTenant(tenantId);
+        PositionType type = PositionType.valueOf(positionType);
+        List<PersonnelAssignment> active = assignmentRepository
+                .findByTenantIdAndOrganizationIdOrderByValidFromDesc(tenantId, organizationId).stream()
+                .filter(value -> value.status() == PersonnelStatus.ACTIVE && !value.validFrom().isAfter(onDate)
+                        && (value.validTo() == null || !value.validTo().isBefore(onDate))).toList();
+        Map<Long, Employment> employments = new HashMap<>();
+        employmentRepository.findAllById(active.stream().map(PersonnelAssignment::employmentId).distinct().toList())
+                .forEach(value -> employments.put(value.id(), value));
+        Map<Long, PositionStaffRef> byPractitioner = new LinkedHashMap<>();
+        for (PersonnelAssignment assignment : active) {
+            Employment employment = employments.get(assignment.employmentId());
+            if (employment == null || employment.status() != PersonnelStatus.ACTIVE
+                    || employment.leaveDate() != null && employment.leaveDate().isBefore(onDate)) continue;
+            Position position = requirePosition(tenantId, assignment.positionId());
+            if (position.positionType() != type || byPractitioner.containsKey(employment.practitionerId())) continue;
+            byPractitioner.put(employment.practitionerId(), new PositionStaffRef(employment.practitionerId(),
+                    requirePractitioner(tenantId, employment.practitionerId()).fullName(), position.name()));
+        }
+        return List.copyOf(byPractitioner.values());
     }
 
     @Transactional(readOnly = true)

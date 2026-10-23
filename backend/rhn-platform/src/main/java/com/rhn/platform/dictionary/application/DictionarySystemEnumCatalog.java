@@ -242,6 +242,7 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("NURSING", "护理", "护士等护理岗位", 20),
                             item("PHARMACY", "药学", "药师等药学岗位", 30),
                             item("MEDICAL_TECHNOLOGY", "医技", "检验、检查等医技岗位", 40),
+                            item("BILLING", "收费", "收费员等收费结算岗位", 45),
                             item("ADMINISTRATIVE", "行政", "行政管理岗位", 50))),
             definition(ASSIGNMENT_TYPE, "任职类型", "人员在组织单元中的任职方式", List.of(
                             item("PRIMARY", "主任职", "当前主要工作任职", 10),

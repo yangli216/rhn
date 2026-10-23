@@ -259,7 +259,7 @@ describe('insurance credential expiry', () => {
     await user.click(screen.getByRole('button', { name: /医保电子凭证/ }))
     await user.type(screen.getByLabelText('凭证号 / 卡号'), 'CERT-1')
     await user.click(screen.getByRole('button', { name: '读取' }))
-    await waitFor(() => expect(billing.queryInsurancePerson).toHaveBeenCalledWith({ psnCertType: '02', certno: 'CERT-1', psnName: undefined }))
+    await waitFor(() => expect(billing.queryInsurancePerson).toHaveBeenCalledWith({ psnCertType: '02', certno: 'CERT-1', psnName: undefined, residentId: 'res-1' }))
     await waitFor(() => expect(billing.quickPreSettleInsurance).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(screen.getByLabelText('trial-status')).toHaveTextContent('PRE_SETTLED'))
     expect(screen.queryByText('读取医保凭证')).not.toBeInTheDocument()

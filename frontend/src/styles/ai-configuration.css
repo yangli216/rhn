@@ -501,6 +501,31 @@
   margin-top: 1px;
 }
 
+/* 决策模型连接测试结果：成功/失败用底色+左侧色条强调，避免被忽略 */
+.ai-config-decision-test-result {
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: var(--radius-md, 6px);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ai-config-decision-test-result--success {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  border-left-color: var(--color-success);
+}
+
+.ai-config-decision-test-result--error {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+  border-left-color: var(--color-danger);
+}
+
 /* 常用预设下拉菜单 */
 .ai-config-preset-dropdown-wrap {
   position: relative;

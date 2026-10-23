@@ -60,7 +60,12 @@ public interface ClinicalAiModelGateway {
 
     record PlanIntent(String name, String description, String narrative,
                       List<PlanIntentItem> items, Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent,
-                      List<com.rhn.outpatient.api.RecordAnnotation> recordAnnotations) {
+                      List<com.rhn.outpatient.api.RecordAnnotation> recordAnnotations, List<String> changedSections) {
+        public PlanIntent(String name, String description, String narrative,
+                          List<PlanIntentItem> items, Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent,
+                          List<com.rhn.outpatient.api.RecordAnnotation> recordAnnotations) {
+            this(name, description, narrative, items, referenceTemplateId, noteTemplateContent, recordAnnotations, null);
+        }
         public PlanIntent(String name, String description, String narrative, List<PlanIntentItem> items,
                           Long referenceTemplateId, java.util.Map<String, String> noteTemplateContent) {
             this(name, description, narrative, items, referenceTemplateId, noteTemplateContent, List.of());

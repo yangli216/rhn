@@ -2,6 +2,7 @@ package com.rhn.billing.application;
 
 import com.rhn.billing.api.BillingViews.SettlementEventView;
 import com.rhn.billing.api.BillingViews.SettlementLineView;
+import com.rhn.billing.api.BillingViews.SettlementCashierView;
 import com.rhn.billing.api.BillingViews.SettlementRecordView;
 import com.rhn.billing.api.BillingViews.SettlementTenderView;
 import com.rhn.billing.api.BillingViews.SettlementView;
@@ -442,7 +443,8 @@ public class SettlementApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SettlementRecordView> completedInRange(int limit, java.time.LocalDate from, java.time.LocalDate to, String cashier) {
+    public List<SettlementRecordView> completedInRange(int limit, java.time.LocalDate from, java.time.LocalDate to, String cashier,
+                                                       String terminalScene) {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext()) throw forbidden("SETTLEMENT_QUERY_CONTEXT_REQUIRED", "收费查询需要机构工作上下文");
         if (from == null || to == null || from.isAfter(to)) throw com.rhn.shared.api.BusinessErrors.badRequest("SETTLEMENT_QUERY_DATE_REQUIRED", "结算开始日期和结束日期不能为空，且开始日期不能晚于结束日期");
@@ -450,18 +452,50 @@ public class SettlementApplicationService {
         var start = from.atStartOfDay(zone).toInstant();
         var end = to.plusDays(1).atStartOfDay(zone).toInstant();
         String text = Strings.trimToNull(cashier);
+        String scene = Strings.trimToNull(terminalScene);
         List<Long> ids = new java.util.ArrayList<>();
         if (text != null) {
             var search = text.toLowerCase(java.util.Locale.ROOT);
             for (Long id : settlements.findFinalizersInRange(context.tenantId(), context.organizationId(), SettlementStatus.SETTLED, start, end)) {
                 var person = cashierResolver.resolve(context.tenantId(), id);
                 if (java.util.stream.Stream.of(person.name(), person.username(), id.toString()).filter(java.util.Objects::nonNull)
-                        .anyMatch(v -> v.toLowerCase(java.util.Locale.ROOT).contains(search))) ids.add(id);
+                        .anyMatch(v -> v.toLowerCase(java.util.Locale.ROOT).equals(search))) ids.add(id);
             }
             if (ids.isEmpty()) return List.of();
         }
         return recordViews(context, settlements.findCompletedInRange(context.tenantId(), context.organizationId(), SettlementStatus.SETTLED,
-                start, end, text != null, ids.isEmpty() ? List.of(-1L) : ids, PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
+                start, end, text != null, ids.isEmpty() ? List.of(-1L) : ids, scene != null, scene == null ? "" : scene,
+                PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
+    }
+
+    /**
+     * Operator filter options: holders of a billing position in the current organization, plus anyone who actually settled in the range
+     * (including people who have since left the position). A terminal scene narrows to operators who settled through that entry.
+     */
+    public List<SettlementCashierView> settlementCashiers(java.time.LocalDate from, java.time.LocalDate to, String terminalScene) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (!context.hasWorkContext()) throw forbidden("SETTLEMENT_QUERY_CONTEXT_REQUIRED", "收费查询需要机构工作上下文");
+        if (from == null || to == null || from.isAfter(to)) throw com.rhn.shared.api.BusinessErrors.badRequest("SETTLEMENT_QUERY_DATE_REQUIRED", "结算开始日期和结束日期不能为空，且开始日期不能晚于结束日期");
+        var zone = java.time.ZoneId.of("Asia/Shanghai");
+        String scene = Strings.trimToNull(terminalScene);
+        Map<Long, java.util.TreeSet<String>> scenes = new java.util.LinkedHashMap<>();
+        for (Object[] row : settlements.findFinalizerScenesInRange(context.tenantId(), context.organizationId(), SettlementStatus.SETTLED,
+                from.atStartOfDay(zone).toInstant(), to.plusDays(1).atStartOfDay(zone).toInstant())) {
+            scenes.computeIfAbsent((Long) row[0], key -> new java.util.TreeSet<>()).add((String) row[1]);
+        }
+        Map<Long, SettlementCashierView> result = new java.util.LinkedHashMap<>();
+        if (scene == null || "CASHIER".equals(scene)) {
+            for (var staff : cashierResolver.activeBillingStaff(context.tenantId(), context.organizationId(), java.time.LocalDate.now(zone))) {
+                result.put(staff.userId(), new SettlementCashierView(staff.userId(), staff.name(), staff.username(), true,
+                        staff.positionName(), List.copyOf(scenes.getOrDefault(staff.userId(), new java.util.TreeSet<>()))));
+            }
+        }
+        scenes.forEach((userId, used) -> {
+            if (result.containsKey(userId) || scene != null && !used.contains(scene)) return;
+            var person = cashierResolver.resolve(context.tenantId(), userId);
+            result.put(userId, new SettlementCashierView(userId, person.name(), person.username(), false, null, List.copyOf(used)));
+        });
+        return List.copyOf(result.values());
     }
 
     private List<SettlementRecordView> recordViews(ExecutionContext context, List<Settlement> values) {

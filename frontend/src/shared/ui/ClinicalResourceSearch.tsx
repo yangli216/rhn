@@ -311,7 +311,8 @@ function mapResourceOption(
         (p.packages ?? []).map((pkg) => pkg.packageSpec || (typeof pkg.quantityFactor === 'number' && Number.isFinite(pkg.quantityFactor) && pkg.quantityFactor > 0 && pkg.unitName && p.unitCode ? `${pkg.quantityFactor}${p.unitCode}/${pkg.unitName}` : ''))
       ).filter(Boolean)
     ))
-    const packageSpecText = packageSpecs.join(' / ')
+    // 价格里已带出的包装规格不再重复展示；价格待确认/无价格时才补充规格。
+    const packageSpecText = packageSpecs.filter((spec) => !priceText.includes(spec)).join(' / ')
 
     const stockText = clinicalStockText(value)
 

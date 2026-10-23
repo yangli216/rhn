@@ -1,5 +1,6 @@
 package com.rhn.billing.infrastructure.insurance.chs;
 
+import com.rhn.billing.domain.InsuranceClaim;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceInstruction;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels.*;
@@ -119,38 +120,20 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
                         "缺少与医保申请一致的已确认主诊断，不能上传就诊诊断"));
 
         // 2201 就诊登记：取得 mdtrt_id；挂号时已登记且未撤销的就诊直接沿用，避免重复登记
-        String mdtrtId = !registrationScene && input.reusableVisitId() != null && !input.reusableVisitId().isBlank()
+        String reused = !registrationScene && input.reusableVisitId() != null && !input.reusableVisitId().isBlank()
                 ? input.reusableVisitId().trim() : null;
-        if (mdtrtId == null) {
-            ObjectNode registration = JsonNodeFactory.instance.objectNode();
-            var data = registration.putObject("data");
-            data.put("psn_no", psnNo); data.put("insutype", insutype); data.put("begntime", time);
-            data.put("mdtrt_cert_type", credential.certType()); data.put("mdtrt_cert_no", credential.certNo());
-            data.put("ipt_otp_no", input.settlementNo());
-            data.put("atddr_no", operator); data.put("dr_name", operator);
-            data.put("dept_code", input.departmentCode()); data.put("dept_name", input.departmentCode());
-            data.put("caty", input.departmentCode());
-            JsonNode registered = call("2201", operator, insuplc, registration);
-            mdtrtId = required(text(first(registered, "data", "result").path("mdtrt_id")), "2201 未返回就诊 ID");
-        }
+        String mdtrtId = reused != null ? reused : registerVisit(input, psnNo, insutype, credential, operator, insuplc, time);
 
         // 2203A 门诊就诊信息（含诊断）上传：诊断必须来自与申请摘要一致的已确认诊断
         if (!registrationScene) {
-            ObjectNode visit = JsonNodeFactory.instance.objectNode();
-            var info = visit.putObject("mdtrtinfo");
-            info.put("mdtrt_id", mdtrtId); info.put("psn_no", psnNo); info.put("med_type", properties.medType());
-            info.put("begntime", time); info.put("main_cond_dscr", primary.name());
-            info.put("dise_codg", primary.code()); info.put("dise_name", primary.name());
-            var diseases = visit.putArray("diseinfo");
-            for (var diagnosis : input.diagnoses()) {
-                var row = diseases.addObject();
-                row.put("diag_type", "PRIMARY".equals(diagnosis.diagnosisTypeCode()) ? "1" : "2");
-                row.put("diag_srt_no", diagnosis.sortNo());
-                row.put("diag_code", diagnosis.code()); row.put("diag_name", diagnosis.name());
-                row.put("diag_dept", input.departmentCode()); row.put("dise_dor_no", operator); row.put("dise_dor_name", operator);
-                row.put("diag_time", time);
+            try { uploadVisit(input, primary, mdtrtId, psnNo, operator, insuplc, time); }
+            catch (ChsRejectedException rejected) {
+                // 沿用的挂号登记已在平台失效（如平台侧数据被重置），或挂号时读错凭证导致登记人员与当前参保人不一致：
+                // 重新登记就诊后再上传，不让收费员卡在试算。
+                if (reused == null || !InsuranceClaim.visitRegistrationStale(rejected.getMessage())) throw rejected;
+                mdtrtId = registerVisit(input, psnNo, insutype, credential, operator, insuplc, time);
+                uploadVisit(input, primary, mdtrtId, psnNo, operator, insuplc, time);
             }
-            call("2203A", operator, insuplc, visit);
         }
 
         // 2204 费用明细上传：回执给出每行的收费项目等级
@@ -184,6 +167,39 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
                 mdtrtId, credential.certType(), credential.certNo());
     }
 
+    private String registerVisit(InsuranceInstruction input, String psnNo, String insutype, Credential credential,
+                                 String operator, String insuplc, String time) {
+        ObjectNode registration = JsonNodeFactory.instance.objectNode();
+        var data = registration.putObject("data");
+        data.put("psn_no", psnNo); data.put("insutype", insutype); data.put("begntime", time);
+        data.put("mdtrt_cert_type", credential.certType()); data.put("mdtrt_cert_no", credential.certNo());
+        data.put("ipt_otp_no", input.settlementNo());
+        data.put("atddr_no", operator); data.put("dr_name", operator);
+        data.put("dept_code", input.departmentCode()); data.put("dept_name", input.departmentCode());
+        data.put("caty", input.departmentCode());
+        JsonNode registered = call("2201", operator, insuplc, registration);
+        return required(text(first(registered, "data", "result").path("mdtrt_id")), "2201 未返回就诊 ID");
+    }
+
+    private void uploadVisit(InsuranceInstruction input, com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceDiagnosis primary, String mdtrtId, String psnNo,
+                             String operator, String insuplc, String time) {
+        ObjectNode visit = JsonNodeFactory.instance.objectNode();
+        var info = visit.putObject("mdtrtinfo");
+        info.put("mdtrt_id", mdtrtId); info.put("psn_no", psnNo); info.put("med_type", properties.medType());
+        info.put("begntime", time); info.put("main_cond_dscr", primary.name());
+        info.put("dise_codg", primary.code()); info.put("dise_name", primary.name());
+        var diseases = visit.putArray("diseinfo");
+        for (var diagnosis : input.diagnoses()) {
+            var row = diseases.addObject();
+            row.put("diag_type", "PRIMARY".equals(diagnosis.diagnosisTypeCode()) ? "1" : "2");
+            row.put("diag_srt_no", diagnosis.sortNo());
+            row.put("diag_code", diagnosis.code()); row.put("diag_name", diagnosis.name());
+            row.put("diag_dept", input.departmentCode()); row.put("dise_dor_no", operator); row.put("dise_dor_name", operator);
+            row.put("diag_time", time);
+        }
+        call("2203A", operator, insuplc, visit);
+    }
+
     @Override
     public SettleRequest prepareSettle(InsuranceInstruction input, String preSettlementNo) {
         return new SettleRequest(preSettlementNo, requirePersonNo(input.externalPersonNo()), input.settlementNo(),
@@ -206,6 +222,11 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
     }
 
     // ==================== 1101 / 2206 / 2207 / 2208 ====================
+
+    @Override
+    public void forgetCredential(String personNo) {
+        if (personNo != null) credentials.remove(personNo.trim());
+    }
 
     @Override
     public PersonInfoResponse queryPersonInfo(PersonInfoRequest request) {

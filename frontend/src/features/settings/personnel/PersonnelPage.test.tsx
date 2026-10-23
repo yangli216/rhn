@@ -280,4 +280,45 @@ describe('PersonnelPage', () => {
     expect(await drawer.findByText('主治医师', { selector: 'dd' })).toBeInTheDocument()
     expect(drawer.queryByRole('form', { name: '执业资质表单' })).not.toBeInTheDocument()
   })
+
+  it('displays overview banner and prompts unsaved qualification changes in drawer', async () => {
+    setup()
+    const drawer = await openDrawer()
+    expect(drawer.getByText(/主任职：全科门诊 · 主治医师/)).toBeInTheDocument()
+    expect(drawer.getByText(/在岗任职：1 个科室/)).toBeInTheDocument()
+    expect(drawer.getByText('主任职', { selector: '.ui-badge' })).toBeInTheDocument()
+
+    const form = within(await drawer.findByRole('form', { name: '执业资质表单' }))
+    expect(form.queryByText(/存在未保存的修改/)).not.toBeInTheDocument()
+    await userEvent.click(form.getByRole('switch', { name: /普通处方权/ }))
+    expect(form.getByText(/存在未保存的修改/)).toBeInTheDocument()
+    expect(form.getByRole('button', { name: '放弃修改' })).toBeInTheDocument()
+    await userEvent.click(form.getByRole('button', { name: '放弃修改' }))
+    expect(form.queryByText(/存在未保存的修改/)).not.toBeInTheDocument()
+  })
+
+  it('shows compliance risk alert and penetrates roles in assignment table', async () => {
+    setup()
+    const drawer = await openDrawer()
+    expect(drawer.getByRole('status', { name: '执业合规提醒' })).toHaveTextContent(/未登记医师执业资格与处方权/)
+    const table = within(drawer.getByRole('table', { name: '任职记录' }))
+    expect(table.getByText('全科医生')).toBeInTheDocument()
+  })
+
+  it('detects manual roles when leaving and prompts to revoke them collaboratively', async () => {
+    const manualGrant = { ...defaultGrant, id: 'g-manual', roleName: '门诊操作员', grantSource: 'MANUAL' as const, staffAssignmentId: null }
+    const { organization, identityAccess } = setup({}, {}, {
+      practitionerAccess: vi.fn().mockResolvedValue({ practitionerId: 'p-1', account, assignments: [defaultGrant, manualGrant], scope }),
+    })
+    const drawer = await openDrawer()
+    await userEvent.click(drawer.getByRole('button', { name: '办理离职' }))
+    const dialog = within(screen.getByRole('dialog', { name: '办理离职' }))
+    expect(await dialog.findByRole('switch', { name: '同时撤销手工角色' })).toBeChecked()
+    expect(dialog.getByText(/检测到持有 1 项手工授予的角色（门诊操作员）/)).toBeInTheDocument()
+    await userEvent.type(dialog.getByLabelText(/原因/), '调任外院')
+    await userEvent.click(dialog.getByRole('button', { name: '确认办理离职' }))
+    await waitFor(() => expect(identityAccess.revokeAssignment).toHaveBeenCalledWith('g-manual'))
+    expect(organization.endEmployment).toHaveBeenCalled()
+    expect(await screen.findByText(/已联动撤销 1 项手工角色/)).toBeInTheDocument()
+  })
 })

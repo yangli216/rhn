@@ -90,7 +90,14 @@ public final class ClinicalAiAdministrationContracts {
             String endpoint,
             String model,
             @Size(max = 500) String secretValue,
-            Integer timeoutSeconds) {
+            Integer timeoutSeconds,
+            @io.swagger.v3.oas.annotations.media.Schema(nullable = true, allowableValues = {"JEV", "LINGDT"},
+                    description = "决策连接测试供应商；省略时使用当前作用域保存的选择，未配置时为 JEV")
+            String decisionProvider) {
+        public ConfigurationTestRequest(Scope scope, String target, String endpoint, String model,
+                                        String secretValue, Integer timeoutSeconds) {
+            this(scope, target, endpoint, model, secretValue, timeoutSeconds, null);
+        }
     }
 
     public record ConfigurationTestResult(

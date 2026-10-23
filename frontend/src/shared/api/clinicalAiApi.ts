@@ -56,6 +56,7 @@ export interface ClinicalAiConfigurationTestInput {
   model?: string
   secretValue?: string
   timeoutSeconds?: number
+  decisionProvider?: components['schemas']['ConfigurationTestRequest']['decisionProvider']
 }
 
 export interface ClinicalAiConfigurationTestResult {

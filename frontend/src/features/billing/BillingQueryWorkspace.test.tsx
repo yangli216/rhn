@@ -18,9 +18,12 @@ const record: SettlementRecord = {
   createdAt: '2026-09-08T01:30:00Z', finalizedAt: '2026-09-08T01:31:00Z',
 }
 
-function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides: Partial<Record<'settlementRecords' | 'settlement' | 'statement' | 'settlementReceipts', ReturnType<typeof vi.fn>>> = {}) {
+function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides: Partial<Record<'settlementRecords' | 'settlementCashiers' | 'settlement' | 'statement' | 'settlementReceipts', ReturnType<typeof vi.fn>>> = {}) {
   const api = { billing: {
     settlementRecords: vi.fn().mockResolvedValue(sourceRecords),
+    settlementCashiers: vi.fn().mockResolvedValue([
+      { userId: '123', name: '张收费', username: 'cashier.zhang', active: true, positionName: '收费员', terminalScenes: ['CASHIER'] },
+      { userId: '456', name: '李离岗', username: 'cashier.li', active: false, terminalScenes: ['CASHIER'] }]),
     settlement: vi.fn().mockResolvedValue({ ...(sourceRecords[0] ?? record), revision: 1, commandCode: 'SETTLE-001',
       tenderedAmount: 86, outstandingAmount: 0, createdBy: 'user-1', finalizedBy: 'user-1',
       lines: [{ id: 'line-1', chargeItemId: 'charge-1', lineNo: 1, settledQuantity: 2,
@@ -69,18 +72,33 @@ describe('BillingQueryWorkspace', () => {
     fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '' } })
     expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
     expect(screen.getByLabelText('结束日期')).toHaveValue('2026-09-08')
-    await userEvent.type(screen.getByLabelText('收费员'), '张收费')
+    await userEvent.click(screen.getByLabelText('办理人'))
+    expect(await screen.findByRole('option', { name: '李离岗（cashier.li） · 已离岗' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('option', { name: '张收费（cashier.zhang）' }))
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
-    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '张收费' }))
+    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '123', terminalScene: '' }))
     await userEvent.click(screen.getByRole('button', { name: '重置' }))
-    expect(screen.getByLabelText('收费员')).toHaveValue('')
+    expect(screen.getByLabelText('办理人')).toHaveTextContent('全部办理人')
     expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
+  })
+  it('filters by entry and disables the operator for entries without staff', async () => {
+    const api = renderWorkspace()
+    await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
+    await userEvent.click(screen.getByLabelText('收费入口'))
+    await userEvent.click(await screen.findByRole('option', { name: '自助机' }))
+    expect(screen.getByLabelText('办理人')).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: '查询' }))
+    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '', terminalScene: 'SELF_SERVICE' }))
+    await userEvent.click(screen.getByLabelText('收费入口'))
+    await userEvent.click(await screen.findByRole('option', { name: '医生站' }))
+    expect(screen.getByLabelText('办理人')).toBeEnabled()
+    await waitFor(() => expect(api.billing.settlementCashiers).toHaveBeenLastCalledWith({ from: '2026-09-08', to: '2026-09-08', terminalScene: 'DOCTOR_STATION' }))
   })
   it('shows recorded doctor source even when the physical terminal number is missing', async () => {
     renderWorkspace([{ ...record, terminalScene: 'DOCTOR_STATION', terminalSceneText: '医生站', terminalCode: undefined }])
     const row = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
     expect(row).toHaveTextContent('医生站')
-    expect(row).toHaveTextContent('未记录收费员')
+    expect(row).toHaveTextContent('未记录办理人')
   })
   it.each(['failure', 'invalid'] as const)('does not present unavailable list as no records: %s', async (state) => {
     const settlementRecords = state === 'failure' ? vi.fn().mockRejectedValue(new Error('查询失败')) : vi.fn().mockResolvedValue(null)
@@ -142,7 +160,7 @@ describe('BillingQueryWorkspace', () => {
     expect(await within(detail).findByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(within(detail).getByText('微信支付')).toBeInTheDocument()
     expect(within(detail).getByText('360100000001')).toBeInTheDocument()
-    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '' })
+    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '', terminalScene: '' })
 
     // 点击关闭按钮关闭抽屉
     const closeBtn = within(detail).getByRole('button', { name: '关闭收费记录详情' })

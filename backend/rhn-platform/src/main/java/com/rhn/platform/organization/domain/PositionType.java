@@ -5,5 +5,6 @@ public enum PositionType {
     NURSING,
     PHARMACY,
     MEDICAL_TECHNOLOGY,
+    BILLING,
     ADMINISTRATIVE
 }

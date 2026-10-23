@@ -96,13 +96,13 @@ describe('unresolved AI catalog intents', () => {
     expect(onResolved).not.toHaveBeenCalled()
   })
 
-  it('preselects the Jev candidate below threshold but requires explicit confirmation', async () => {
-    const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, model: 'jev-1.13.0', mode: 'SHADOW',
+  it.each(['jev-1.13.0', 'lingdt-decision-1.0'])('preselects the %s candidate below threshold but requires explicit confirmation', async (model) => {
+    const match = { ...ambiguous, decisionReview: { status: 'COMPLETED' as const, model, mode: 'SHADOW',
       confidence: .73, threshold: .9, suggestedItem: candidates[1], detail: '仅核查目录语义匹配，需医生确认。' } }
     const onResolved = vi.fn()
     render(<ClinicalAiCatalogReview matches={[match]} api={checkedApi()} encounterId="e1" disabled={false} onResolved={onResolved} />)
     // One meta line: the AI name repeats only when it differs from the preselected item.
-    expect(screen.getByText('AI 建议：血常规 · Jev 判断集中度 73%，低于阈值需核对')).toBeInTheDocument()
+    expect(screen.getByText('AI 建议：血常规 · 决策模型判断集中度 73%，低于阈值需核对')).toBeInTheDocument()
     const row = screen.getByRole('row')
     await userEvent.click(within(row).getByRole('button', { name: '绑定院内目录 血常规' }))
     const panel = screen.getByRole('dialog')

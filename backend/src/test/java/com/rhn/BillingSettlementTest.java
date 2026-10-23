@@ -148,6 +148,24 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         assertEquals("CASHIER", completed.get(0).get("terminalScene").asString());
         assertEquals("CASHIER-TEST", completed.get(0).get("terminalCode").asString());
         assertTrue(!completed.get(0).get("cashierName").asString().isBlank());
+        // 入口筛选：本结算来自收费处，医生站入口应查不到
+        mockMvc.perform(get("/api/billing/settlement-records").param("from", day).param("to", day)
+                .param("terminalScene", "DOCTOR_STATION").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/billing/settlement-records").param("from", day).param("to", day)
+                .param("terminalScene", "CASHIER").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        // 办理人选项：测试账号未任收费岗位，但本日办理过结算，应作为非在岗人员出现；换入口后不再出现
+        JsonNode cashiers = json(mockMvc.perform(get("/api/billing/settlement-cashiers").param("from", day).param("to", day)
+                .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode doctorOption = null;
+        for (JsonNode option : cashiers) if ("doctor".equals(option.path("username").asString())) doctorOption = option;
+        assertTrue(doctorOption != null && !doctorOption.get("active").asBoolean());
+        assertEquals(completed.get(0).get("finalizedBy").asString(), doctorOption.get("userId").asString());
+        assertEquals("CASHIER", doctorOption.get("terminalScenes").get(0).asString());
+        mockMvc.perform(get("/api/billing/settlement-cashiers").param("from", day).param("to", day)
+                .param("terminalScene", "SELF_SERVICE").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         mockMvc.perform(get("/api/billing/settlement-records").param("from", day).with(rhnWorkContext()))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/billing/settlement-records").param("from", "2020-01-01").param("to", "2020-01-01")

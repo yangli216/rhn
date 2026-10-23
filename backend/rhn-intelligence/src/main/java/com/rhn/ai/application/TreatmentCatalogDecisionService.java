@@ -143,7 +143,7 @@ public class TreatmentCatalogDecisionService {
         if (attempt.raw() == null || !attempt.shadow() || baseline.isEmpty()) return;
         var modelIds = attempt.items().stream().map(TreatmentCatalogDecisionService::key).sorted().toList();
         var baselineIds = baseline.stream().map(TreatmentCatalogDecisionService::key).distinct().sorted().toList();
-        log.info("catalog_decision_comparison tenant={} scene={} trace={} jev={} baseline={} equal={}", context.tenantId(),
+        log.info("catalog_decision_comparison tenant={} scene={} trace={} selected={} baseline={} equal={}", context.tenantId(),
                 scene, attempt.raw().traceId(), modelIds, baselineIds, modelIds.equals(baselineIds));
     }
 

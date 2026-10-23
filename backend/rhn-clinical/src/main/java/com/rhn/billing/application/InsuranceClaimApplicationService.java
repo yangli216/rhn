@@ -68,13 +68,30 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         return view;
     }
 
-    /** 1101 医保人员信息获取与鉴权（对外契约，屏蔽 CHS 专网报文模型）。 */
+    /**
+     * 1101 医保人员信息获取与鉴权（对外契约，屏蔽 CHS 专网报文模型）。
+     * 带 residentId 时，读证结果必须与该患者档案的姓名、证件号及保障信息一致，否则丢弃已缓存的凭证并终止。
+     */
     public PersonInfoView queryPersonInfo(PersonInfoQuery query) {
-        var response = nationalInsuranceClient.queryPersonInfo(
-                new ChsModels.PersonInfoRequest(query.certType(), query.certNo(), query.personName()));
-        return new PersonInfoView(response.psnNo(), response.psnCertType(), response.certno(), response.psnName(),
+        ChsModels.PersonInfoResponse response;
+        try {
+            response = nationalInsuranceClient.queryPersonInfo(
+                    new ChsModels.PersonInfoRequest(query.certType(), query.certNo(), query.personName()));
+        } catch (com.rhn.billing.infrastructure.insurance.chs.ChsRejectedException rejected) {
+            throw conflict("INSURANCE_PERSON_REJECTED", "医保鉴权未通过：" + rejected.getMessage()
+                    + (rejected.infoCode() == null ? "" : "（" + rejected.infoCode() + "）"));
+        }
+        var view = new PersonInfoView(response.psnNo(), response.psnCertType(), response.certno(), response.psnName(),
                 response.gender(), response.birthday(), response.insutype(), response.insutypeName(), response.balc(),
                 response.insuOptins(), response.insuOptinsName(), response.psnType(), response.status());
+        if (query.residentId() != null) {
+            try { verifyAgainstResident(query.residentId(), view); }
+            catch (RuntimeException mismatch) {
+                nationalInsuranceClient.forgetCredential(view.personNo());
+                throw mismatch;
+            }
+        }
+        return view;
     }
 
     /** 1101 按患者档案鉴权：以档案身份证号与姓名发起，并核对医保端返回的姓名、证件号与档案一致。 */
@@ -83,22 +100,28 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         var snapshot = residents.requireSnapshot(residentId);
         String nationalId = residents.findNationalId(residentId).orElseThrow(() -> badRequest("RESIDENT_NATIONAL_ID_MISSING",
                 "患者档案缺少身份证号，请补录证件或改用医保电子凭证/社保卡读取"));
-        var view = queryPersonInfo(new PersonInfoQuery("01", nationalId, snapshot.fullName()));
-        if (view.personName() != null && !view.personName().trim().equals(snapshot.fullName().trim())) {
+        return queryPersonInfo(new PersonInfoQuery("01", nationalId, snapshot.fullName(), residentId));
+    }
+
+    /** 读证结果必须属于当前就诊患者：姓名、证件号（档案有且医保返回时）、医保个人编号逐项核对。 */
+    private void verifyAgainstResident(Long residentId, PersonInfoView view) {
+        if (residents == null) throw badRequest("RESIDENT_DIRECTORY_UNAVAILABLE", "患者档案服务不可用，无法核对读证人员");
+        var snapshot = residents.requireSnapshot(residentId);
+        if (view.personName() == null || !view.personName().trim().equals(snapshot.fullName().trim())) {
             throw badRequest("INSURANCE_PERSON_NAME_MISMATCH",
-                    "医保登记姓名与患者档案姓名不一致（医保：" + view.personName() + "，档案：" + snapshot.fullName() + "），请核对身份");
+                    "读取的凭证不属于当前患者（医保：" + view.personName() + "，当前患者：" + snapshot.fullName() + "），请核对后重新读取");
         }
-        if (view.certNo() != null && !view.certNo().isBlank() && !view.certNo().trim().equalsIgnoreCase(nationalId.trim())) {
-            throw badRequest("INSURANCE_PERSON_CERT_MISMATCH", "医保登记证件号与患者档案不一致，请核对身份");
+        var nationalId = residents.findNationalId(residentId);
+        if (nationalId.isPresent() && view.certNo() != null && !view.certNo().isBlank()
+                && !view.certNo().trim().equalsIgnoreCase(nationalId.get().trim())) {
+            throw badRequest("INSURANCE_PERSON_CERT_MISMATCH", "读取的凭证证件号与当前患者档案不一致，请核对后重新读取");
         }
-        // 预结算按保障信息登记的个人编号取鉴权凭证；两者不一致时鉴权结果无法被使用，此处直接说明原因，
-        // 避免后续误报“凭证已失效”。
+        // 预结算按保障信息登记的个人编号取鉴权凭证；两者不一致时鉴权结果无法被使用，此处直接说明原因。
         var memberNos = coverages == null ? List.<String>of() : coverages.findActiveMemberNos(residentId, null);
         if (!memberNos.isEmpty() && (view.personNo() == null || !memberNos.contains(view.personNo().trim()))) {
             throw conflict("INSURANCE_PERSON_NO_MISMATCH", "医保返回的个人编号（" + view.personNo() + "）与患者保障信息登记的（"
                     + String.join("、", memberNos) + "）不一致，请核对保障信息中的医保个人编号，或改用医保电子凭证/社保卡读取");
         }
-        return view;
     }
 
     /** 快捷门诊医保预结算：自动组装患者保障上下文、执行范围与目录映射后转入标准预结算流程。 */
@@ -126,11 +149,19 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
      */
     private InsuranceSettlementView retryUncertainPreSettle(Long claimId) {
         var view = transactions.view(claimId, true);
-        if (!"PRE_SETTLE".equals(view.currentOperation()) || view.externalPreSettlementNo() != null) return view;
+        // 正式结算被平台以“就诊未登记”拒绝：登记与预结算流水已在平台失效，自愈为重新登记并预结算。
+        boolean visitLost = "FAILED".equals(view.status()) && "SETTLE".equals(view.currentOperation())
+                && view.externalSettlementNo() == null && view.errorCode() != null && view.errorCode().startsWith("CHS_REJECTED_")
+                && InsuranceClaim.visitRegistrationStale(view.errorMessage());
+        if (!visitLost && (!"PRE_SETTLE".equals(view.currentOperation()) || view.externalPreSettlementNo() != null)) return view;
         boolean uncertain = "PRE_SETTLEMENT_PENDING".equals(view.status()) && "INSURANCE_CHANNEL_UNCERTAIN".equals(view.errorCode());
-        boolean notSent = "FAILED".equals(view.status()) && "CHS_REQUEST_CONTEXT_UNCONFIRMED".equals(view.errorCode());
-        if (!uncertain && !notSent) return view;
-        if (notSent) transactions.prepareRetryPreSettle(claimId);
+        boolean notSent = "FAILED".equals(view.status()) && ("CHS_REQUEST_CONTEXT_UNCONFIRMED".equals(view.errorCode())
+                || view.errorCode() != null && view.errorCode().startsWith("CHS_REJECTED_")
+                && InsuranceClaim.visitRegistrationStale(view.errorMessage()));
+        if (!uncertain && !notSent && !visitLost) return view;
+        // 结算阶段登记失效（visitLost）与预结算阶段未发出（notSent）互斥：前者须回到预结算重新开始，不能按后者重试。
+        if (visitLost) transactions.prepareRestartPreSettleAfterVisitLost(claimId);
+        else if (notSent) transactions.prepareRetryPreSettle(claimId);
         InsuranceInstruction instruction = transactions.instruction(claimId);
         InsuranceSettlementAdapter adapter = adapter(instruction);
         if (adapter == null) return view;
@@ -173,7 +204,12 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
 
     public InsuranceSettlementView settle(Long claimId, String commandCode) {
         String command = operationCommand("SETTLE-", commandCode);
-        if (transactions.responseApplied(claimId, command)) return afterSettle(transactions.view(claimId, true));
+        if (transactions.responseApplied(claimId, command)) {
+            var replay = transactions.view(claimId, true);
+            if (!"PRE_SETTLED".equals(replay.status())) return afterSettle(replay);
+            // 申请因就诊登记失效重新预结算后回到“已预结算”，此前同编码的结算回执已过期，换新的结果编码重新结算。
+            command = CommandCodes.prefixed("SETTLE-R" + (replay.responses().size() + 1) + "-", required(commandCode));
+        }
         InsuranceSettlementView view = transactions.view(claimId, false);
         if ("PRE_SETTLED".equals(view.status())) transactions.prepareSettlement(claimId);
         else if (!"SETTLEMENT_PENDING".equals(view.status())) {

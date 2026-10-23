@@ -2,6 +2,7 @@ package com.rhn.ai.infrastructure;
 
 import com.rhn.ai.application.DecisionModelGateway;
 import com.rhn.ai.application.DecisionModelSettings;
+import com.rhn.ai.application.DecisionProvider;
 import com.rhn.ai.application.ClinicalAiMetrics;
 import com.rhn.shared.json.JsonCodec;
 import com.rhn.shared.api.BusinessException;
@@ -16,11 +17,12 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-class JevDecisionModelGatewayTest {
+class SystemOneDecisionModelGatewayTest {
     HttpServer server;
-    JevDecisionModelGateway gateway;
+    SystemOneDecisionModelGateway gateway;
     DecisionModelSettings settings;
     String response;
+    ClinicalAiMetrics metrics;
     int status = 200;
     final AtomicReference<String> body = new AtomicReference<>();
     final AtomicReference<String> auth = new AtomicReference<>();
@@ -30,7 +32,8 @@ class JevDecisionModelGatewayTest {
         var json = mock(JsonCodec.class);
         when(json.write(any())).thenAnswer(call -> mapper.writeValueAsString(call.getArgument(0)));
         when(json.readStrictTree(anyString())).thenAnswer(call -> mapper.readTree((String) call.getArgument(0)));
-        gateway = new JevDecisionModelGateway(json, mock(ClinicalAiMetrics.class));
+        metrics = mock(ClinicalAiMetrics.class);
+        gateway = new SystemOneDecisionModelGateway(json, metrics);
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/systemone", exchange -> {
             body.set(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
@@ -70,5 +73,45 @@ class JevDecisionModelGatewayTest {
         var error = assertThrows(BusinessException.class, () -> gateway.decide(request, settings));
         assertFalse(error.getMessage().contains("fake-jev-key"));
         assertTrue(error.getMessage().contains("401"));
+    }
+
+    private void lingdt() {
+        settings = new DecisionModelSettings(settings.mode(), settings.endpoint(), "lingdt-decision-1.0",
+                "lingdt-key", settings.timeout(), settings.minConfidence(), DecisionProvider.LINGDT);
+        response = response.replace("jev-1.13.0", "lingdt-decision-1.0");
+    }
+
+    @Test void lingdtUsesNativeChoiceProtocolAndSeparateProviderMetrics() {
+        lingdt();
+        response = response.substring(0, response.length() - 1) + ",\"errorCode\":0,\"layers\":[]}";
+        var result = gateway.decide(request, settings);
+        assertEquals("Bearer lingdt-key", auth.get());
+        assertTrue(body.get().contains("\"model\":\"lingdt-decision-1.0\""));
+        assertEquals("LAB|101", result.answers().get("q").choice());
+        assertEquals(0.95, result.answers().get("q").probabilities().get("LAB|101"));
+        verify(metrics).recordProviderTokens("lingdt", "lingdt-decision-1.0", "input", 100);
+        verify(metrics).recordProviderRequest(eq("lingdt"), eq("lingdt-decision-1.0"), eq("V1"),
+                eq("CHOICE"), eq("COMPLETED"), anyLong());
+    }
+
+    @Test void lingdtRejectsBusinessErrorEvenWithHttpSuccessAndDoesNotExposeProviderBody() {
+        lingdt();
+        response = "{\"errorCode\":12,\"message\":\"lingdt-key private detail\"}";
+        var error = assertThrows(BusinessException.class, () -> gateway.decide(request, settings));
+        assertEquals("DECISION_PROVIDER_REJECTED", error.code());
+        assertFalse(error.getMessage().contains("lingdt-key"));
+    }
+
+    @Test void lingdtRejectsTooManyQuestionsAndOversizedUtf8InputBeforeSending() {
+        lingdt();
+        var questions = java.util.stream.IntStream.range(0, 33).mapToObj(i ->
+                new DecisionModelGateway.ChoiceQuestion("q" + i, "Select", Map.of("A", "a", "NONE", "none"))).toList();
+        assertEquals("DECISION_QUESTION_LIMIT", assertThrows(BusinessException.class,
+                () -> gateway.decide(new DecisionModelGateway.Request("V1", request.state(), questions), settings)).code());
+        var mapper = JsonMapper.builder().build();
+        var state = mapper.createObjectNode().put("text", "甲".repeat(6000));
+        assertEquals("DECISION_INPUT_TOO_LARGE", assertThrows(BusinessException.class,
+                () -> gateway.decide(new DecisionModelGateway.Request("V1", state, request.questions()), settings)).code());
+        assertNull(body.get());
     }
 }

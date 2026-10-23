@@ -20,14 +20,13 @@ describe('controlled order composer fields', () => {
     expect(continueOnEnter).not.toHaveBeenCalled()
   })
 
-  it.each([{ type: 'LABORATORY' as const, next: 'doctor-unified-quantity' },
-    { type: 'TREATMENT' as const, next: undefined }])('preserves the $type note keyboard destination', ({ type, next }) => {
+  it.each(['LABORATORY' as const, 'TREATMENT' as const])('adds the order directly on Enter in the %s note', (type) => {
     const continueOnEnter = vi.fn()
     render(<OrderComposerInstruction entryType={type} isMedication={false} hasEnteredOrder
       medicationEntry={{ instruction: '' }} updateMedication={vi.fn()} serviceDescription=""
       setServiceDescription={vi.fn()} continueOnEnter={continueOnEnter} addCurrentEntry={vi.fn()} />)
     fireEvent.keyDown(screen.getByLabelText('临床说明'), { key: 'Enter' })
-    expect(continueOnEnter).toHaveBeenCalledWith(expect.anything(), next)
+    expect(continueOnEnter).toHaveBeenCalledWith(expect.anything())
   })
 
   it('passes explicit quantities to the parent when the frequency cannot be calculated', () => {

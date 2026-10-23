@@ -37,6 +37,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
               and coalesce(value.finalizedAt, value.createdAt) >= :from
               and coalesce(value.finalizedAt, value.createdAt) < :to
               and (:filterCashier = false or value.finalizedBy in :cashierIds)
+              and (:filterScene = false or value.terminalScene = :terminalScene)
               and exists (select account.id from PatientAccount account
                           where account.id = value.patientAccountId and account.tenantId = :tenantId
                             and account.organizationId = :organizationId)
@@ -44,7 +45,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
             """)
     List<Settlement> findCompletedInRange(Long tenantId, Long organizationId, SettlementStatus status,
             java.time.Instant from, java.time.Instant to, boolean filterCashier, java.util.Collection<Long> cashierIds,
-            Pageable pageable);
+            boolean filterScene, String terminalScene, Pageable pageable);
 
     @Query("""
             select distinct value.finalizedBy from Settlement value
@@ -54,6 +55,17 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
               and value.organizationId = :organizationId
             """)
     List<Long> findFinalizersInRange(Long tenantId, Long organizationId, SettlementStatus status,
+            java.time.Instant from, java.time.Instant to);
+
+    /** Rows of (finalizer, entry terminal scene) that actually settled in the range, used to build the operator filter. */
+    @Query("""
+            select distinct value.finalizedBy, value.terminalScene from Settlement value
+            where value.tenantId = :tenantId and value.status = :status and value.finalizedBy is not null
+              and coalesce(value.finalizedAt, value.createdAt) >= :from
+              and coalesce(value.finalizedAt, value.createdAt) < :to
+              and value.organizationId = :organizationId
+            """)
+    List<Object[]> findFinalizerScenesInRange(Long tenantId, Long organizationId, SettlementStatus status,
             java.time.Instant from, java.time.Instant to);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

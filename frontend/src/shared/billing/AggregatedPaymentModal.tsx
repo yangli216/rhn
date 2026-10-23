@@ -12,6 +12,9 @@ export interface AggregatedPaymentModalProps {
   settlementId: string
   settlementCode?: string
   contextKey?: string
+  /** 支付场景与终端标识；默认收费台，医生站诊间收款需传 DOCTOR_STATION。 */
+  paymentSceneCode?: string
+  terminalPrefix?: string
   onPaymentSuccess: (order: PaymentOrder) => void
   api: {
     billing: {
@@ -35,7 +38,7 @@ const waiting = (order: PaymentOrder) => ['CREATED', 'PROCESSING', 'PENDING', 'P
 
 export function AggregatedPaymentModal({
   open, onClose, paymentMethodCode, paymentMethodName, amount, currencyCode = 'CNY',
-  settlementId, settlementCode, contextKey, onPaymentSuccess, api,
+  settlementId, settlementCode, contextKey, paymentSceneCode = 'CASHIER', terminalPrefix = 'CASHIER', onPaymentSuccess, api,
 }: AggregatedPaymentModalProps) {
   const [channel, setChannel] = useState<PaymentChannelCapability | null>(null)
   const [barcode, setBarcode] = useState('')
@@ -150,8 +153,8 @@ export function AggregatedPaymentModal({
     try {
       const order = await api.billing.createPaymentOrder(settlementId, {
         idempotencyKey: idempotencyKey.current,
-        businessScene: 'OUTPATIENT', paymentSceneCode: 'CASHIER', paymentMethodCode,
-        amount, authorizationCode, terminalCode: needsCode ? 'CASHIER-BARCODE' : 'CASHIER-CHANNEL',
+        businessScene: 'OUTPATIENT', paymentSceneCode, paymentMethodCode,
+        amount, authorizationCode, terminalCode: needsCode ? `${terminalPrefix}-BARCODE` : `${terminalPrefix}-CHANNEL`,
       })
       if (version !== generation.current) return
       accept(order)
