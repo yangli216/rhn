@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -1180,7 +1180,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 106
+          "line": 118
         }
       ]
     },
@@ -2821,7 +2821,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 84
+          "line": 96
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/terminology/domain/Concept.java",
@@ -8855,7 +8855,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 130
+          "line": 142
         }
       ]
     },
@@ -13449,9 +13449,9 @@
           "size": 1,
           "scale": 0,
           "nullable": false,
-          "defaultValue": "TRUE",
+          "defaultValue": "FALSE",
           "ordinal": 24,
-          "comment": "是否single医嘱",
+          "comment": "是否单列医嘱（一药一方）",
           "logical": "single_order",
           "catalogComment": "是否single医嘱"
         },
@@ -13905,7 +13905,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 95
+          "line": 107
         },
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationSafetyCategoryStore.java",
@@ -15432,7 +15432,7 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 117
+          "line": 129
         }
       ]
     },
@@ -20305,35 +20305,23 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 81
+          "line": 93
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 85
+          "line": 97
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 92
+          "line": 104
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 96
+          "line": 108
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 103
-        },
-        {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 107
-        },
-        {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 114
-        },
-        {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 118
+          "line": 115
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
@@ -20341,15 +20329,27 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 120
+          "line": 126
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
-          "line": 127
+          "line": 130
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
           "line": 131
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
+          "line": 132
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
+          "line": 139
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/search/infrastructure/SearchEntryRepository.java",
+          "line": 143
         }
       ]
     },

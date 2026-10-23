@@ -2,13 +2,34 @@
    Pharmacy Outpatient Dispensing Workbench Styles (Design System Standard)
    ========================================================================== */
 
-.pharmacy-dispense-workbench {
-  height: calc(100dvh - var(--layout-topbar-height) - var(--space-4) - var(--space-2));
+/* Page and Shell Integration: Dense clinical workbench conforms to --layout-workspace-gutter (16px) */
+.workspace-content:has(.pharmacy-dispense-workbench) {
+  overflow: hidden;
+}
+
+.workspace-panel:has(.pharmacy-dispense-workbench),
+.workspace-panel:has(.pharmacy-dispense-workbench) > .page {
+  height: 100%;
+  min-height: 0;
+}
+
+.page:has(> .pharmacy-dispense-workbench) {
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: 0 0 var(--space-3);
+  overflow: hidden;
+  padding: var(--layout-workspace-gutter);
+}
+
+.pharmacy-dispense-workbench {
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-panel-gap);
+  padding: 0;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -522,7 +543,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(17.5rem, 19rem) minmax(0, 1fr);
-  gap: var(--space-3);
+  gap: var(--layout-panel-gap);
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -713,15 +734,36 @@
   white-space: nowrap;
 }
 
+.pharmacy-queue-item__badge,
 .pharmacy-queue-item__badge-waiting {
   padding: 1px var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.pharmacy-queue-item__badge--ready {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+}
+
+.pharmacy-queue-item__badge--waiting,
+.pharmacy-queue-item__badge-waiting {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.pharmacy-queue-item__badge--picking {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.pharmacy-queue-item__badge--partial {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 
 /* --------------------------------------------------------------------------
@@ -879,10 +921,9 @@
 .pharmacy-prescriptions-board {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0;
   background: var(--color-surface);
 }
 
@@ -910,9 +951,17 @@
 .pharmacy-prescription-card__header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  flex-wrap: nowrap;
+  gap: var(--space-3);
   min-width: 0;
   flex: 1;
+}
+
+/* Ensure prescription header spans stay inline across all contexts */
+.pharmacy-prescription-card > header.pharmacy-prescription-card__header span,
+.pharmacy-prescription-group-cell .pharmacy-prescription-card__header span,
+.pharmacy-prescription-card__header span {
+  display: inline;
 }
 
 .pharmacy-prescription-card__checkbox {
@@ -921,6 +970,7 @@
   height: 1.125rem;
   accent-color: var(--color-brand-primary);
   margin: 0;
+  flex-shrink: 0;
 }
 
 .pharmacy-prescription-card__title {
@@ -930,6 +980,7 @@
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pharmacy-prescription-card__meta {
@@ -937,6 +988,7 @@
   align-items: center;
   gap: var(--space-3);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pharmacy-prescription-card__prescriber {
@@ -944,6 +996,8 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
 }
 
 .pharmacy-prescription-card__dept {
@@ -951,32 +1005,52 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-regular);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
 }
 
 .pharmacy-prescription-card__time {
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
 }
 
 .pharmacy-prescription-card__status {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
-  padding: 3px var(--space-3);
+  padding: 2px var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
   white-space: nowrap;
-}
-
-.pharmacy-prescription-card__status.is-dispensed {
-  background: var(--color-success-soft);
-  color: var(--color-success);
+  flex-shrink: 0;
 }
 
 .pharmacy-prescription-card__status.is-ready {
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.pharmacy-prescription-card__status.is-dispensed {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+}
+
+.pharmacy-prescription-card__status.is-pending {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.pharmacy-prescription-card__status.is-returned {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
 }
 
 .pharmacy-prescription-card__header-right {
@@ -986,6 +1060,7 @@
   font-size: var(--font-size-body);
   color: var(--color-text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pharmacy-prescription-card__amount {
@@ -995,10 +1070,32 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Prescription Grouping Row in Unified Table */
+.pharmacy-prescription-group-row td.pharmacy-prescription-group-cell {
+  padding: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pharmacy-prescription-group-row:first-child td.pharmacy-prescription-group-cell {
+  border-top: none;
+}
+
+.pharmacy-prescription-group-cell .pharmacy-prescription-card__header {
+  border-bottom: none;
+  background: color-mix(in srgb, var(--color-brand-soft) 28%, var(--color-surface));
+  padding: var(--space-2) var(--space-4);
+  min-height: 2.75rem;
+}
+
 /* Prescription Table */
 .pharmacy-prescription-table-wrap {
   width: 100%;
-  overflow-x: auto;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--color-border-strong) 64%, transparent) transparent;
@@ -1006,6 +1103,7 @@
 
 .pharmacy-prescription-table-wrap::-webkit-scrollbar {
   height: 6px;
+  width: 6px;
 }
 
 .pharmacy-prescription-table-wrap::-webkit-scrollbar-track {
@@ -1043,13 +1141,17 @@
   padding-right: var(--space-4);
 }
 
-.pharmacy-prescription-table th {
+.pharmacy-prescription-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   white-space: nowrap;
   border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 1px 0 var(--color-border);
   letter-spacing: 0;
   height: 2.25rem;
   padding: var(--space-1) var(--space-3);

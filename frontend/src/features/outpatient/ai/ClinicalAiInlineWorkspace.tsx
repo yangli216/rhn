@@ -41,7 +41,7 @@ export interface InlineAiSelection {
 
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
-  generating, generatingTarget, inputBusy, preview, diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, diagnosisError, treatmentError, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
+  generating, generatingTarget, inputBusy, preview, diagnosisOnlyRun = false, diagnosisRunError = '', diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, diagnosisError, treatmentError, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
   onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading, chronicRefill }: {
   api: RhnApi
   encounter: Encounter
@@ -55,6 +55,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   generatingTarget?: ClinicalAiGeneratingTarget
   inputBusy: boolean
   preview: ClinicalAiPreview
+  /** The current suggestion came from a diagnosis-only run; its empty result must be explained, never silent. */
+  diagnosisOnlyRun?: boolean
+  diagnosisRunError?: string
   diagnosisBatchDismissed?: boolean
   treatmentBatchDismissed?: boolean
   onView: () => void
@@ -101,6 +104,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   const diagnoses = diagnosisCandidates.filter((item) =>
     !alreadyEntered(item.code))
   const selectedDiagnoses = diagnoses.filter((item) => !excludedDiagnoses.includes(item.code))
+  const [differentialPick, setDifferentialPick] = useState<{ session: string; codes: string[] }>({ session: '', codes: [] })
+  const pickedDifferentials = differentialPick.session === session ? differentialPick.codes : []
+  const differentials = (suggestion?.differentialDiagnoses ?? []).filter(item => !alreadyEntered(item.code)).slice(0, 5)
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
   const treatmentItems = !generating && treatmentBatchDismissed ? []
@@ -164,6 +170,34 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
       <GeneratingRow text="AI 正在依据病历推荐诊断，完成后可逐项核对确认。" />, surfaces.diagnoses, 'diagnoses-loading')}
     {generatingTarget === 'TREATMENTS' && planFeature && availableTreatmentItems.length === 0 && portal(
       <GeneratingRow text="AI 正在依据病历和诊断推荐医嘱，完成后可逐项核对确认。" />, surfaces.plans, 'treatments-loading')}
+
+    {diagnosisFeature && diagnosisRunError && !generating && portal(
+      <p className="doctor-ai-inline__stale" role="alert">AI 推荐诊断失败：{diagnosisRunError}</p>, surfaces.diagnoses, 'diagnoses-error')}
+
+    {current && !generating && diagnosisOnlyRun && !diagnosisBatchDismissed && suggestion && diagnosisFeature && diagnoses.length === 0 && portal(
+      <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断未给出可确认项">
+        <p className="doctor-ai-inline__stale" role="status">{diagnosisCandidates.length > 0 ? 'AI 推荐的诊断已全部在诊断列表中。'
+          : suggestion.summary?.trim() || 'AI 未给出可确认的初步诊断，请补充病史后重试。'}</p>
+        {differentials.map(item => <div className="doctor-diagnosis-row is-ai-suggestion" role="row" key={item.code}>
+          <span className="doctor-diag-col-type"><label className="doctor-ai-order-select">
+            <input type="checkbox" aria-label={`选择鉴别方向 ${item.display}`} checked={pickedDifferentials.includes(item.code)}
+              disabled={disabled || busy || !canAdopt} onChange={() => setDifferentialPick({ session,
+                codes: pickedDifferentials.includes(item.code) ? pickedDifferentials.filter(code => code !== item.code) : [...pickedDifferentials, item.code] })} />
+            <span className="doctor-ai-pending-badge">鉴别方向</span></label></span>
+          <span className="doctor-diag-col-main doctor-ai-diagnosis-main"><span className="doctor-diag-name-wrap">
+            <strong className="doctor-diag-name">{item.display}</strong><span className="doctor-diag-code-pill">{item.code}</span></span>
+            {item.rationale?.trim() && <small className="doctor-ai-diagnosis-reason">依据：{item.rationale.trim()}</small>}</span>
+          <span className="doctor-diag-col-domain"><span className="doctor-diag-badge is-secondary">待医生确认</span></span>
+          <span className="doctor-diag-col-management">—</span><span className="doctor-diag-col-actions" />
+        </div>)}
+        {differentials.length > 0 && <div className="doctor-ai-order-batch is-diagnosis" role="row"><span>鉴别方向仅供参考，勾选后可录入诊断。</span>
+          <Button size="sm" disabled={disabled || busy || !canAdopt || pickedDifferentials.length === 0}
+            onClick={() => onApply({ diagnoses: differentials.filter(item => pickedDifferentials.includes(item.code)).map(({ code, display, type }) => ({ code, display, type })) })}>
+            <Icon name="check" />确认所选诊断（{pickedDifferentials.length}）</Button></div>}
+        {(suggestion.missingInformation ?? []).length > 0 && <div className="doctor-ai-order-batch" role="group" aria-label="待补问诊">
+          <span>待补问诊：{suggestion.missingInformation.slice(0, 5).join('；')}</span></div>}
+        {diagnosisError && <p className="doctor-ai-inline__stale" role="alert">{diagnosisError}</p>}
+      </div>, surfaces.diagnoses, 'diagnoses-empty')}
 
     {(current || generating) && diagnosisFeature && diagnoses.length > 0 && portal(
       <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断待确认">

@@ -129,9 +129,14 @@ public class DirectRefundApplicationService {
         RefundPreCheckSummaryView preCheck = preCheckService.preCheck(
                 resolved.encounterId(), resolved.originalPayment().patientAccountId());
 
-        Set<Long> targetItemIds = command.chargeItemIds() != null && !command.chargeItemIds().isEmpty()
-                ? new HashSet<>(command.chargeItemIds()) : null;
-        if (targetItemIds != null) {
+        // 未指定项目 = 全部非挂号项目：挂号费必须走退号流程，既不参与核验阻断，也不会被补额度时冲销；
+        // 显式勾选挂号项仍按预检 allowed=false 以 REFUND_PRECHECK_BLOCKED 拒绝。
+        boolean explicitTargets = command.chargeItemIds() != null && !command.chargeItemIds().isEmpty();
+        Set<Long> targetItemIds = explicitTargets
+                ? new HashSet<>(command.chargeItemIds())
+                : preCheck.items().stream().filter(item -> !"REGISTRATION".equals(item.sourceType()))
+                        .map(RefundItemPreCheckView::chargeItemId).collect(java.util.stream.Collectors.toSet());
+        if (explicitTargets) {
             Set<Long> known = preCheck.items().stream().map(RefundItemPreCheckView::chargeItemId)
                     .collect(java.util.stream.Collectors.toSet());
             if (!known.containsAll(targetItemIds)) {
@@ -140,7 +145,7 @@ public class DirectRefundApplicationService {
         }
 
         List<RefundItemPreCheckView> itemsToCheck = preCheck.items().stream()
-                .filter(item -> targetItemIds == null || targetItemIds.contains(item.chargeItemId()))
+                .filter(item -> targetItemIds.contains(item.chargeItemId()))
                 .toList();
 
         assertPreCheckPasses(preCheck, itemsToCheck);

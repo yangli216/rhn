@@ -32,6 +32,7 @@ import static com.rhn.platform.dictionary.api.SystemEnumDefinition.of;
 class BillingSystemEnums implements SystemEnumContribution {
     static final String SETTLEMENT_SCENE = "BIL_SETTLEMENT_SCENE";
     static final String SETTLEMENT_TYPE = "BIL_SETTLEMENT_TYPE";
+    static final String SETTLEMENT_MODE = "BIL_SETTLEMENT_MODE";
     static final String TENDER_TYPE = "BIL_TENDER_TYPE";
     static final String RECEIPT_TYPE = "BIL_RECEIPT_TYPE";
     static final String RECEIPT_STATUS = "BIL_RECEIPT_STATUS";
@@ -52,6 +53,8 @@ class BillingSystemEnums implements SystemEnumContribution {
                 of(SETTLEMENT_TYPE, "结算类型", "结算单的业务性质", items(
                         "NORMAL", "正常结算", "首次结算", "REVERSAL", "冲正结算", "冲销原结算",
                         "SUPPLEMENT", "补充结算", "对原结算的补收")),
+                of(SETTLEMENT_MODE, "结算方式", "结算单是否走医保结算，与医保基金金额是否为零无关", items(
+                        "SELF_PAY", "自费结算", "未走医保结算", "MEDICAL_INSURANCE", "医保结算", "已走医保结算，基金支付可为零")),
                 of(TENDER_TYPE, "结算支付类别", "结算单各笔支付的资金类别", items(
                         "CASH", "现金", "现金收付", "BANK_CARD", "银行卡", "银行卡收付",
                         "DIGITAL", "移动支付", "微信、支付宝等移动支付", "INSURANCE_FUND", "医保统筹", "医保基金支付",

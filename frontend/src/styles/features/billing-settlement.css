@@ -777,12 +777,17 @@
   font-weight: 600;
 }
 
-.billing-table--payments { min-width: 42rem; }
-.billing-table--payments th:first-child { width: 28%; }
-.billing-table--payments th:nth-child(2) { width: 17%; }
-.billing-table--payments th:nth-child(3) { width: 17%; }
-.billing-table--payments th:nth-child(4) { width: 25%; }
-.billing-table--payments th:last-child { width: 13%; }
+.billing-table--payments { min-width: 0; }
+.billing-table--payments th:nth-child(1) { width: 2.5rem; }
+.billing-table--payments th:nth-child(2) { width: 32%; }
+.billing-table--payments th:nth-child(3) { width: 14%; }
+.billing-table--payments th:nth-child(4), .billing-table--payments th:nth-child(5) { width: 15%; }
+.billing-table--payments th:nth-child(6) { width: 9.5rem; }
+.billing-table--payments th, .billing-table--payments td { text-align: left; white-space: nowrap; }
+.billing-table--payments th:first-child, .billing-table--payments td:first-child { text-align: center; }
+.billing-table--payments td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
+.billing-table--payments td:nth-child(2) strong { display: block; overflow: hidden; text-overflow: ellipsis; }
+.billing-table--payments .billing-refund-sub { max-width: none; }
 .billing-table--payments tbody tr { cursor: pointer; }
 .billing-table--payments tbody tr:hover { background: var(--color-surface-subtle); }
 .billing-table--payments tbody tr.is-selected { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
@@ -863,3 +868,37 @@
 .billing-recent-settlements[open] .billing-recent-settlements__toggle .ui-icon { transform: rotate(180deg); }
 .billing-recent-settlements__content { border-top: 1px solid var(--color-border); overflow-x: auto; }
 .billing-recent-settlements__empty { margin: 0; padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
+
+/* 退费管理页 */
+.billing-refund-metrics { padding: var(--space-2) var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-5); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.billing-refund-metrics > div { display: flex; align-items: baseline; gap: var(--space-2); }
+.billing-refund-metrics span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.billing-refund-metrics strong { font-size: var(--font-size-body); font-variant-numeric: tabular-nums; }
+.billing-refund-metrics .is-open strong { color: var(--color-brand-primary); }
+.billing-collaboration-table .billing-refund-col-check, .billing-table--payments .billing-refund-col-check { width: 2.5rem; text-align: center; }
+.billing-collaboration-table .billing-refund-col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.billing-collaboration-table tr.is-disabled { color: var(--color-text-secondary); }
+.billing-collaboration-table tr.is-disabled strong { font-weight: var(--font-weight-regular, 400); }
+.billing-collaboration-table .billing-collaboration-item-code { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.billing-collaboration-table-wrap { border-bottom: 1px solid var(--color-border); }
+.billing-collaboration-notice { background: var(--color-warning-soft); color: var(--color-text-primary); }
+.billing-collaboration-notice--blocked { background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface)); color: var(--color-danger); }
+.billing-refund-sub { display: block; max-width: 16rem; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.billing-refund-action .billing-refund-sub { max-width: none; white-space: normal; margin: 0; }
+.billing-refund-origin > div { display: grid; gap: var(--space-1); }
+.billing-refund-hint { margin: 0; color: var(--color-warning); font-size: var(--font-size-small); line-height: var(--line-height-small); }
+.billing-refund-hint--required { color: var(--color-text-secondary); }
+.billing-refund-presets { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.billing-queue-pagination { border-top: 1px solid var(--color-border); }
+
+.billing-collaboration-table { table-layout: fixed; }
+.billing-collaboration-table th:nth-child(1) { width: 2.5rem; }
+.billing-collaboration-table th:nth-child(3) { width: 5rem; }
+.billing-collaboration-table th:nth-child(4) { width: 4.5rem; }
+.billing-collaboration-table th:nth-child(5) { width: 5.5rem; }
+.billing-collaboration-table th:nth-child(6) { width: 32%; }
+.billing-collaboration-table td { overflow-wrap: anywhere; }
+.billing-collaboration-table .billing-collaboration-item-code { max-width: none; }
+.billing-collaboration-guidance { white-space: normal; }
+.billing-refund-amount-input { text-align: right; font-variant-numeric: tabular-nums; }
+.billing-queue-filters { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }

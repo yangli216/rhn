@@ -22918,6 +22918,11 @@
         "comment": "结算类型"
       },
       {
+        "logical": "settlement_mode",
+        "physical": "SD_STL_MODE",
+        "comment": "结算方式"
+      },
+      {
         "logical": "settlement_scene",
         "physical": "SD_STL_SCENE",
         "comment": "结算场景",

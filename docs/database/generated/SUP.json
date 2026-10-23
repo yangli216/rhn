@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "sup.dispense_route",
@@ -11344,11 +11344,11 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 188
+          "line": 191
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 220
+          "line": 223
         }
       ]
     },
@@ -11698,11 +11698,11 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 174
+          "line": 177
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/InventoryReconciliationApplicationService.java",
-          "line": 203
+          "line": 206
         }
       ]
     },
@@ -16398,7 +16398,7 @@
         },
         {
           "name": "CK_SUP_MED_DISP_MED_DISP_TYPE",
-          "expression": "\"sd_disp_type\" IN('DISPENSE', 'RETURN', 'REDISPENSE')"
+          "expression": "\"sd_disp_type\" IN('DISPENSE', 'RETURN', 'REDISPENSE', 'CANCEL')"
         }
       ],
       "catalogComment": "药品发药；一行代表一条药品发药记录",

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -3070,11 +3070,11 @@
       "checks": [
         {
           "name": "CK_BIL_INVOICE_INVOICE_AMOUNT",
-          "expression": "((\"sd_invoice_type\" = 'STANDARD')\n    AND (\"amt_gross\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" >= CAST(0 AS NUMERIC(1))))\n    OR ((\"sd_invoice_type\" = 'CREDIT')\n    AND (\"amt_gross\" < CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" < CAST(0 AS NUMERIC(1))))"
+          "expression": "((\"sd_invoice_type\" = 'STANDARD')\n    AND (\"amt_gross\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" >= CAST(0 AS NUMERIC(1))))\n    OR ((\"sd_invoice_type\" = 'CREDIT')\n    AND (\"amt_gross\" < CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" <= CAST(0 AS NUMERIC(1))))"
         },
         {
           "name": "CK_BIL_INVOICE_INVOICE_DISCOUN",
-          "expression": "\"amt_disc\" >= CAST(0 AS NUMERIC(1))"
+          "expression": "((\"sd_invoice_type\" = 'STANDARD')\n    AND (\"amt_disc\" >= CAST(0 AS NUMERIC(1))))\n    OR ((\"sd_invoice_type\" = 'CREDIT')\n    AND (\"amt_disc\" <= CAST(0 AS NUMERIC(1))))"
         },
         {
           "name": "CK_BIL_INVOICE_INVOICE_STATUS",
@@ -4287,7 +4287,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 23
+          "line": 24
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PaymentEvent.java",
@@ -4989,7 +4989,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 24
+          "line": 25
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PaymentOrder.java",
@@ -5558,7 +5558,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 22
+          "line": 23
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Payment.java",
@@ -5890,7 +5890,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 26
+          "line": 27
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReceiptEvent.java",
@@ -6558,7 +6558,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 25
+          "line": 26
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Receipt.java",
@@ -6860,6 +6860,162 @@
           "comment": "完成时间",
           "logical": "completed_at",
           "catalogComment": "完成时间"
+        },
+        {
+          "physical": "ID_RECON_FILE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "渠道账单证据版本标识",
+          "logical": "statement_file_id",
+          "catalogComment": "渠道账单证据版本标识"
+        },
+        {
+          "physical": "ID_RECON_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "商户账单任务标识",
+          "logical": "reconciliation_task_id",
+          "catalogComment": "商户账单任务标识"
+        },
+        {
+          "physical": "NUM_EXEC",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 27,
+          "comment": "对账执行版本序号",
+          "logical": "execution_number",
+          "catalogComment": "对账执行版本序号"
+        },
+        {
+          "physical": "CD_MERCH_SCOPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'LEGACY'",
+          "ordinal": 28,
+          "comment": "商户账单范围指纹",
+          "logical": "merchant_scope",
+          "catalogComment": "商户账单范围指纹"
+        },
+        {
+          "physical": "SD_CLOSURE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'OPEN'",
+          "ordinal": 29,
+          "comment": "财务结案状态；与对平结果分开",
+          "logical": "closure",
+          "catalogComment": "财务结案状态；与对平结果分开"
+        },
+        {
+          "physical": "ID_RVWR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "复核人标识",
+          "logical": "reviewer_id",
+          "catalogComment": "复核人标识"
+        },
+        {
+          "physical": "DT_RVWD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 31,
+          "comment": "复核时间",
+          "logical": "reviewed_at",
+          "catalogComment": "复核时间"
+        },
+        {
+          "physical": "DT_SNAP",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 32,
+          "comment": "本地快照截止时间",
+          "logical": "snapshot_at",
+          "catalogComment": "本地快照截止时间"
+        },
+        {
+          "physical": "TXT_LOCAL_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 33,
+          "comment": "本地事实快照摘要",
+          "logical": "local_snapshot_hash",
+          "catalogComment": "本地事实快照摘要"
+        },
+        {
+          "physical": "AMT_EXT_PAY",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 34,
+          "comment": "渠道收款业务总额",
+          "logical": "external_payments",
+          "catalogComment": "渠道收款业务总额"
+        },
+        {
+          "physical": "AMT_REF_ACCEPT",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 35,
+          "comment": "渠道退款受理业务总额",
+          "logical": "accepted_refunds",
+          "catalogComment": "渠道退款受理业务总额"
+        },
+        {
+          "physical": "AMT_REF_FINAL",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 36,
+          "comment": "渠道最终退款业务总额",
+          "logical": "final_refunds",
+          "catalogComment": "渠道最终退款业务总额"
+        },
+        {
+          "physical": "AMT_FEE",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 37,
+          "comment": "渠道手续费合计",
+          "logical": "fees",
+          "catalogComment": "渠道手续费合计"
         }
       ],
       "kind": "BASE TABLE",
@@ -6872,17 +7028,6 @@
           "columns": [
             "ID_TNT",
             "CD_COMMAND"
-          ]
-        },
-        {
-          "name": "UK_BIL_RECON_BATC_RECON_BATC_3",
-          "columns": [
-            "ID_TNT",
-            "ID_ORG",
-            "SD_RECON_TYPE",
-            "CD_SRC",
-            "DA_BUSINESS",
-            "CD_CURRENCY"
           ]
         },
         {
@@ -6899,11 +7044,33 @@
             "ID_ORG",
             "CD_BATCH_NO"
           ]
+        },
+        {
+          "name": "UK_RECON_BATCH_FILE_ORG",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "ID_RECON_FILE"
+          ]
+        },
+        {
+          "name": "UK_RECON_BATCH_SCOPE_VER",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "SD_RECON_TYPE",
+            "CD_SRC",
+            "CD_PAY_METHOD",
+            "DA_BIZ",
+            "CD_CCY",
+            "CD_MERCH_SCOPE",
+            "NUM_EXEC"
+          ]
         }
       ],
       "indexes": [
         {
-          "name": "FK_BIL_RECON_BATC_INT_EXT_RECO_INDEX_C",
+          "name": "FK_BIL_RECON_BATC_INT_EXT_RECO_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -6919,7 +7086,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_RECON_BATC_SYS_ORG_RECO_INDEX_C",
+          "name": "FK_BIL_RECON_BATC_SYS_ORG_RECO_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -6935,11 +7102,27 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_RECON_BATC_SYS_TNT_RECO_INDEX_C",
+          "name": "FK_BIL_RECON_BATC_SYS_TNT_RECO_INDEX_2",
           "columns": [
             {
               "position": 1,
               "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_RECON_BATCH_FILE_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_FILE",
               "direction": "A"
             }
           ],
@@ -6977,7 +7160,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_C5",
+          "name": "PRIMARY_KEY_2C7",
           "columns": [
             {
               "position": 1,
@@ -6988,7 +7171,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RECON_BATCH_ORG_NO_INDEX_C",
+          "name": "UK_BIL_RECON_BATCH_ORG_NO_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -7009,7 +7192,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RECON_BATC_RECON_BATCH__INDEX_C",
+          "name": "UK_BIL_RECON_BATC_RECON_BATCH__INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -7025,7 +7208,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RECON_BATC_RECON_BATC_2_INDEX_C",
+          "name": "UK_BIL_RECON_BATC_RECON_BATC_2_INDEX_2",
           "columns": [
             {
               "position": 1,
@@ -7041,7 +7224,28 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RECON_BATC_RECON_BATC_3_INDEX_C",
+          "name": "UK_RECON_BATCH_FILE_ORG_INDEX_C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_BATCH_SCOPE_VER_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -7065,12 +7269,27 @@
             },
             {
               "position": 5,
-              "name": "DA_BIZ",
+              "name": "CD_PAY_METHOD",
               "direction": "A"
             },
             {
               "position": 6,
+              "name": "DA_BIZ",
+              "direction": "A"
+            },
+            {
+              "position": 7,
               "name": "CD_CCY",
+              "direction": "A"
+            },
+            {
+              "position": 8,
+              "name": "CD_MERCH_SCOPE",
+              "direction": "A"
+            },
+            {
+              "position": 9,
+              "name": "NUM_EXEC",
               "direction": "A"
             }
           ],
@@ -7112,7 +7331,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 27
+          "line": 35
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationBatch.java",
@@ -7246,6 +7465,18 @@
           "comment": "发生时间",
           "logical": "occurred_at",
           "catalogComment": "发生时间"
+        },
+        {
+          "physical": "TXT_INPUT_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "命令输入指纹",
+          "logical": "input_hash",
+          "catalogComment": "命令输入指纹"
         }
       ],
       "kind": "BASE TABLE",
@@ -7264,7 +7495,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_RECON_ITEM_BIL_RECO_R_1_INDEX_3",
+          "name": "FK_BIL_RECON_ITEM_BIL_RECO_R_1_INDEX_5",
           "columns": [
             {
               "position": 1,
@@ -7306,7 +7537,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_31",
+          "name": "PRIMARY_KEY_59B",
           "columns": [
             {
               "position": 1,
@@ -7317,7 +7548,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RECON_ITEM_RECON_EVENT__INDEX_3",
+          "name": "UK_BIL_RECON_ITEM_RECON_EVENT__INDEX_5",
           "columns": [
             {
               "position": 1,
@@ -7341,7 +7572,7 @@
       "checks": [
         {
           "name": "CK_BIL_RECON_ITEM_RECON_EVENT_",
-          "expression": "\"sd_evt_type\" IN('DETECT', 'RESOLVE', 'IGNORE', 'REOPEN')"
+          "expression": "\"sd_evt_type\" IN('DETECT', 'RESOLVE', 'IGNORE', 'REOPEN', 'SUBMIT', 'APPROVE', 'REJECT', 'QUERY')"
         }
       ],
       "catalogComment": "核对项目事件；一行代表一条核对项目事件记录",
@@ -7365,7 +7596,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 29
+          "line": 37
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationItemEvent.java",
@@ -7595,6 +7826,102 @@
           "comment": "处理结果",
           "logical": "resolution",
           "catalogComment": "处理结果"
+        },
+        {
+          "physical": "ID_RECON_ROW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "账单规范明细标识",
+          "logical": "statement_row_id",
+          "catalogComment": "账单规范明细标识"
+        },
+        {
+          "physical": "ID_PAY_ORDER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "可信原支付指令标识",
+          "logical": "payment_order_id",
+          "catalogComment": "可信原支付指令标识"
+        },
+        {
+          "physical": "SD_TXN_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "收款退款或撤销类型",
+          "logical": "transaction_type",
+          "catalogComment": "收款退款或撤销类型"
+        },
+        {
+          "physical": "SD_CHANNEL_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "渠道原始交易或退款状态",
+          "logical": "channel_status",
+          "catalogComment": "渠道原始交易或退款状态"
+        },
+        {
+          "physical": "DT_CHANNEL",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "渠道事件发生时间",
+          "logical": "channel_occurred_at",
+          "catalogComment": "渠道事件发生时间"
+        },
+        {
+          "physical": "DT_POSTED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "本地资金事实记账时间",
+          "logical": "local_posted_at",
+          "catalogComment": "本地资金事实记账时间"
+        },
+        {
+          "physical": "ID_RVWR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "复核人标识",
+          "logical": "reviewer_id",
+          "catalogComment": "复核人标识"
+        },
+        {
+          "physical": "DT_RVWD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "复核时间",
+          "logical": "reviewed_at",
+          "catalogComment": "复核时间"
         }
       ],
       "kind": "BASE TABLE",
@@ -7612,7 +7939,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_RECON_ITEM_BIL_CASH_REC_INDEX_8",
+          "name": "FK_BIL_RECON_ITEM_BIL_CASH_REC_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -7628,7 +7955,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_RECON_ITEM_BIL_PAY_RECO_INDEX_8",
+          "name": "FK_BIL_RECON_ITEM_BIL_PAY_RECO_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -7644,7 +7971,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_RECON_ITEM_BIL_RCPT_REC_INDEX_8",
+          "name": "FK_BIL_RECON_ITEM_BIL_RCPT_REC_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -7660,7 +7987,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_RECON_ITEM_BIL_RECO_REC_INDEX_8",
+          "name": "FK_BIL_RECON_ITEM_BIL_RECO_REC_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -7670,6 +7997,17 @@
             {
               "position": 2,
               "name": "ID_RECON_BATCH",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_RECON_ITEM_ROW_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_ROW",
               "direction": "A"
             }
           ],
@@ -7718,7 +8056,44 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_82",
+          "name": "IX_RECON_ITEM_BATCH_STATUS",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_BATCH",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_RECON_ITEM_ORDER",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAY_ORDER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_E07",
           "columns": [
             {
               "position": 1,
@@ -7729,7 +8104,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_RECON_ITEM_RECON_ITEM_T_INDEX_8",
+          "name": "UK_BIL_RECON_ITEM_RECON_ITEM_T_INDEX_E",
           "columns": [
             {
               "position": 1,
@@ -7752,11 +8127,11 @@
         },
         {
           "name": "CK_BIL_RECON_ITEM_RECON_ITEM_M",
-          "expression": "\"sd_match_type\" IN('MATCHED', 'LOCAL_ONLY', 'EXTERNAL_ONLY', 'AMOUNT_DIFFERENCE', 'STATUS_DIFFERENCE', 'DUPLICATE')"
+          "expression": "\"sd_match_type\" IN('MATCHED', 'LOCAL_ONLY', 'EXTERNAL_ONLY', 'AMOUNT_DIFFERENCE', 'STATUS_DIFFERENCE', 'DUPLICATE', 'TIME_DIFFERENCE', 'IDENTITY_DIFFERENCE', 'AWAITING_CONFIRMATION', 'LOCAL_NOT_POSTED', 'REVERSAL_REVIEW', 'LEDGER_DIFFERENCE')"
         },
         {
           "name": "CK_BIL_RECON_ITEM_RECON_ITEM_S",
-          "expression": "\"sd_status\" IN('OPEN', 'RESOLVED', 'IGNORED')"
+          "expression": "\"sd_status\" IN('OPEN', 'RESOLVED', 'IGNORED', 'REVIEW_PENDING', 'ACCEPTED_EXCEPTION')"
         }
       ],
       "catalogComment": "核对项目；一行代表一条核对项目记录",
@@ -7784,7 +8159,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 28
+          "line": 36
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationItem.java",
@@ -8684,7 +9059,7 @@
         },
         {
           "name": "CK_BIL_REG_BIL_IN_REG_BILL_FIN",
-          "expression": "((\"amt_fee\" = CAST(0 AS NUMERIC(1)))\n    AND (\"id_pat_acct\" IS NULL)\n    AND (\"id_stl\" IS NULL))\n    OR ((\"amt_fee\" > CAST(0 AS NUMERIC(1)))\n    AND (\"id_pat_acct\" IS NOT NULL)\n    AND (\"id_stl\" IS NOT NULL))"
+          "expression": "((\"amt_fee\" = CAST(0 AS NUMERIC(1)))\n    AND (\"id_pat_acct\" IS NULL)\n    AND (\"id_stl\" IS NULL))\n    OR ((\"amt_fee\" > CAST(0 AS NUMERIC(1)))\n    AND (\"id_pat_acct\" IS NOT NULL)\n    AND ((\"id_stl\" IS NOT NULL)\n    OR (\"sd_stl_mode\" = 'MEDICAL_INSURANCE')))"
         },
         {
           "name": "CK_BIL_REG_BIL_IN_REG_BILL_SET",
@@ -8720,7 +9095,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 30
+          "line": 38
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/RegistrationBillingIntent.java",
@@ -8917,7 +9292,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 32
+          "line": 49
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/SettlementCategorySummary.java",
@@ -9193,7 +9568,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 33
+          "line": 50
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/SettlementEvent.java",
@@ -9568,7 +9943,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 34
+          "line": 51
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/JpaSettlementAuthorizationDirectory.java",
@@ -9718,6 +10093,18 @@
           "comment": "币种编码",
           "logical": "currency_code",
           "catalogComment": "币种编码"
+        },
+        {
+          "physical": "ID_RELIEF_APPLY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "减免记录标识，医保后减免的资金来源",
+          "logical": "relief_application_id",
+          "catalogComment": "减免记录标识，医保后减免的资金来源"
         }
       ],
       "kind": "BASE TABLE",
@@ -9725,6 +10112,13 @@
         "ID_STL_TENDER"
       ],
       "uniqueKeys": [
+        {
+          "name": "UK_BIL_STL_TENDER_RELIEF",
+          "columns": [
+            "ID_TNT",
+            "ID_RELIEF_APPLY"
+          ]
+        },
         {
           "name": "UK_BIL_STL_TENDER_STL_TENDER_O",
           "columns": [
@@ -9743,7 +10137,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_STL_TENDER_BIL_STL_STL__INDEX_8",
+          "name": "FK_BIL_STL_TENDER_BIL_STL_STL__INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -9759,23 +10153,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_STL_TENDER_INS_CLAI_STL_INDEX_8",
-          "columns": [
-            {
-              "position": 1,
-              "name": "ID_TNT",
-              "direction": "A"
-            },
-            {
-              "position": 2,
-              "name": "ID_CLAIM_RESP",
-              "direction": "A"
-            }
-          ],
-          "unique": false
-        },
-        {
-          "name": "FK_BIL_STL_TENDER_SYS_TNT_STL__INDEX_8",
+          "name": "FK_BIL_STL_TENDER_SYS_TNT_STL__INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -9823,7 +10201,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_89",
+          "name": "PRIMARY_KEY_68B",
           "columns": [
             {
               "position": 1,
@@ -9834,7 +10212,23 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_STL_TENDER_STL_TENDER_O_INDEX_8",
+          "name": "UK_BIL_STL_TENDER_RELIEF_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RELIEF_APPLY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_STL_TENDER_STL_TENDER_O_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -9855,7 +10249,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_STL_TENDER_STL_TENDER_P_INDEX_8",
+          "name": "UK_BIL_STL_TENDER_STL_TENDER_P_INDEX_6",
           "columns": [
             {
               "position": 1,
@@ -9902,7 +10296,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 35
+          "line": 52
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/SettlementTender.java",
@@ -10264,6 +10658,30 @@
           "comment": "科室标识",
           "logical": "department_id",
           "catalogComment": "科室标识"
+        },
+        {
+          "physical": "AMT_RELIEF",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 30,
+          "comment": "医保后惠民减免与补助金额",
+          "logical": "relief_amount",
+          "catalogComment": "医保后惠民减免与补助金额"
+        },
+        {
+          "physical": "SD_STL_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'SELF_PAY'",
+          "ordinal": 31,
+          "comment": "结算方式，自费结算或医保结算；医保申请结算成功时置为医保结算，与基金金额是否为零无关",
+          "logical": "settlement_mode",
+          "catalogComment": "结算方式"
         }
       ],
       "kind": "BASE TABLE",
@@ -10303,7 +10721,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BIL_STL_BIL_PAT_SETTLEMENT__INDEX_4",
+          "name": "FK_BIL_STL_BIL_PAT_SETTLEMENT__INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10319,7 +10737,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_STL_SYS_DEPT_INDEX_C",
+          "name": "FK_BIL_STL_SYS_DEPT_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10340,7 +10758,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_STL_SYS_ORG_INDEX_C",
+          "name": "FK_BIL_STL_SYS_ORG_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10356,7 +10774,7 @@
           "unique": false
         },
         {
-          "name": "FK_BIL_STL_SYS_TNT_SETTLEMENT__INDEX_4",
+          "name": "FK_BIL_STL_SYS_TNT_SETTLEMENT__INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10430,7 +10848,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_4191",
+          "name": "PRIMARY_KEY_F0A",
           "columns": [
             {
               "position": 1,
@@ -10441,7 +10859,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_STL_ORG_NO_INDEX_C",
+          "name": "UK_BIL_STL_ORG_NO_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10462,7 +10880,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_STL_SETTLEMENT_COMMAND_INDEX_4",
+          "name": "UK_BIL_STL_SETTLEMENT_COMMAND_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10478,7 +10896,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_STL_SETTLEMENT_INVOICE_INDEX_4",
+          "name": "UK_BIL_STL_SETTLEMENT_INVOICE_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10494,7 +10912,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_STL_SETTLEMENT_TENANT_I_INDEX_4",
+          "name": "UK_BIL_STL_SETTLEMENT_TENANT_I_INDEX_F",
           "columns": [
             {
               "position": 1,
@@ -10513,7 +10931,11 @@
       "checks": [
         {
           "name": "CK_BIL_STL_SETTLEMENT_AMOUNTS",
-          "expression": "(\"amt_disc\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_ins\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_pat\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_other\" >= CAST(0 AS NUMERIC(1)))\n    AND (((\"sd_stl_type\" <> 'REVERSAL')\n    AND (\"amt_gross\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" >= CAST(0 AS NUMERIC(1))))\n    OR ((\"sd_stl_type\" = 'REVERSAL')\n    AND (\"amt_gross\" <= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" <= CAST(0 AS NUMERIC(1)))))"
+          "expression": "(\"amt_ins\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_pat\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_other\" >= CAST(0 AS NUMERIC(1)))\n    AND (((\"sd_stl_type\" <> 'REVERSAL')\n    AND (\"amt_disc\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_gross\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" >= CAST(0 AS NUMERIC(1))))\n    OR ((\"sd_stl_type\" = 'REVERSAL')\n    AND (\"amt_disc\" <= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_gross\" <= CAST(0 AS NUMERIC(1)))\n    AND (\"amt_net\" <= CAST(0 AS NUMERIC(1)))))"
+        },
+        {
+          "name": "CK_BIL_STL_SETTLEMENT_MODE",
+          "expression": "\"sd_stl_mode\" IN('SELF_PAY', 'MEDICAL_INSURANCE')"
         },
         {
           "name": "CK_BIL_STL_SETTLEMENT_SCENE",
@@ -10553,7 +10975,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
-          "line": 31
+          "line": 48
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/JpaSettlementAuthorizationDirectory.java",
@@ -10562,6 +10984,5086 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/Settlement.java",
           "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_application",
+      "legacy": "relief_application",
+      "physical": "RHN_BIL_RELIEF_APPLY",
+      "domain": "BIL",
+      "comment": "结算减免记录；一行代表一项政策对一张结算单的一次减免或冲销",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_APPLY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "减免记录主键",
+          "logical": "id",
+          "catalogComment": "减免记录主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "结算机构标识",
+          "logical": "organization_id",
+          "catalogComment": "结算机构标识"
+        },
+        {
+          "physical": "ID_STL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "结算单标识",
+          "logical": "settlement_id",
+          "catalogComment": "结算单标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "居民标识",
+          "logical": "resident_id",
+          "catalogComment": "居民标识"
+        },
+        {
+          "physical": "ID_RELIEF_POLICY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "减免政策标识",
+          "logical": "policy_id",
+          "catalogComment": "减免政策标识"
+        },
+        {
+          "physical": "ID_POLICY_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "政策版本标识",
+          "logical": "policy_version_id",
+          "catalogComment": "政策版本标识"
+        },
+        {
+          "physical": "SD_TIMING",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "减免时机",
+          "logical": "timing",
+          "catalogComment": "减免时机"
+        },
+        {
+          "physical": "SD_SPONSOR",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "减免承担主体",
+          "logical": "sponsor",
+          "catalogComment": "减免承担主体"
+        },
+        {
+          "physical": "SD_STL_SCENE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "结算场景",
+          "logical": "settlement_scene",
+          "catalogComment": "结算场景"
+        },
+        {
+          "physical": "AMT_BASE",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "计算基数",
+          "logical": "base_amount",
+          "catalogComment": "计算基数"
+        },
+        {
+          "physical": "AMT_RELIEF",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "减免金额，冲销记录为负",
+          "logical": "relief_amount",
+          "catalogComment": "减免金额，冲销记录为负"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "减免记录状态",
+          "logical": "status",
+          "catalogComment": "减免记录状态"
+        },
+        {
+          "physical": "ID_RELIEF_APPLY_RVRS",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "被冲销的原减免记录标识",
+          "logical": "reverses_application_id",
+          "catalogComment": "被冲销的原减免记录标识"
+        },
+        {
+          "physical": "ID_STL_TENDER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "医保后减免对应的结算支付标识",
+          "logical": "tender_id",
+          "catalogComment": "医保后减免对应的结算支付标识"
+        },
+        {
+          "physical": "JSON_QUALIF_EVID",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "资格认定依据快照",
+          "logical": "qualification_evidence",
+          "catalogComment": "资格认定依据快照"
+        },
+        {
+          "physical": "DES_MANUAL_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "人工核准原因",
+          "logical": "manual_reason",
+          "catalogComment": "人工核准原因"
+        },
+        {
+          "physical": "DES_MANUAL_EVID",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "人工核准依据",
+          "logical": "manual_evidence",
+          "catalogComment": "人工核准依据"
+        },
+        {
+          "physical": "ID_USER_APRVD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "人工核准人标识",
+          "logical": "approved_by",
+          "catalogComment": "人工核准人标识"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "幂等命令码",
+          "logical": "command_code",
+          "catalogComment": "幂等命令码"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_APPLY"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_APL_CMD",
+          "columns": [
+            "ID_TNT",
+            "CD_COMMAND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_APL_POL_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_APL_TNT_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_APL_VER_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_POLICY_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_APL_PAT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_APL_POL",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_APL_STL",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_STL",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_DB",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_APPLY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_APL_CMD_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_APL_SPONSOR",
+          "expression": "\"sd_sponsor\" IN('HOSPITAL', 'GOVERNMENT', 'CHARITY', 'OTHER')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_APL_STATUS",
+          "expression": "\"sd_status\" IN('APPLIED', 'REVERSED')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_APL_TIMING",
+          "expression": "\"sd_timing\" IN('PRE_INSURANCE', 'POST_INSURANCE')"
+        }
+      ],
+      "catalogComment": "结算减免记录；一行代表一项政策对一张结算单的一次减免或冲销",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 39
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefApplication.java",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_application_line",
+      "legacy": "relief_application_line",
+      "physical": "RHN_BIL_RELIEF_APPLY_LINE",
+      "domain": "BIL",
+      "comment": "结算减免分配明细；一行代表一条减免记录在一个结算行上的分配",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_APPLY_LINE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "减免分配明细主键",
+          "logical": "id",
+          "catalogComment": "减免分配明细主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RELIEF_APPLY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "减免记录标识",
+          "logical": "application_id",
+          "catalogComment": "减免记录标识"
+        },
+        {
+          "physical": "ID_STL_LINE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "结算行标识",
+          "logical": "settlement_line_id",
+          "catalogComment": "结算行标识"
+        },
+        {
+          "physical": "ID_CHARGE_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "收费事项标识",
+          "logical": "charge_item_id",
+          "catalogComment": "收费事项标识"
+        },
+        {
+          "physical": "ID_RELIEF_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "命中的减免规则标识",
+          "logical": "rule_id",
+          "catalogComment": "命中的减免规则标识"
+        },
+        {
+          "physical": "AMT_BASE",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "本行计算基数",
+          "logical": "base_amount",
+          "catalogComment": "本行计算基数"
+        },
+        {
+          "physical": "AMT_RELIEF",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "本行减免金额，冲销为负",
+          "logical": "relief_amount",
+          "catalogComment": "本行减免金额，冲销为负"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_APPLY_LINE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_APL_LN_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_RELIEF_APPLY",
+            "ID_STL_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_APL_LN_APL_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_APPLY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_APL_LN_TNT_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_APL_LN_CHG",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CHARGE_ITEM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_7C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_APPLY_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_APL_LN_LINE_INDEX_7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RELIEF_APPLY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_STL_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "结算减免分配明细；一行代表一条减免记录在一个结算行上的分配",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 40
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefApplicationLine.java",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_policy",
+      "legacy": "relief_policy",
+      "physical": "RHN_BIL_RELIEF_POLICY",
+      "domain": "BIL",
+      "comment": "惠民减免政策；一行代表一项政策，计算内容见政策版本",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_POLICY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "减免政策主键",
+          "logical": "id",
+          "catalogComment": "减免政策主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_POLICY",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "政策编码",
+          "logical": "code",
+          "catalogComment": "政策编码"
+        },
+        {
+          "physical": "NA_POLICY",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "政策名称",
+          "logical": "name",
+          "catalogComment": "政策名称"
+        },
+        {
+          "physical": "DES_POLICY",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "政策说明",
+          "logical": "description",
+          "catalogComment": "政策说明"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "政策状态",
+          "logical": "status",
+          "catalogComment": "政策状态"
+        },
+        {
+          "physical": "ID_POLICY_VER_CUR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "当前发布版本标识",
+          "logical": "current_version_id",
+          "catalogComment": "当前发布版本标识"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "最后修改人标识",
+          "logical": "updated_by",
+          "catalogComment": "最后修改人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "最后修改时间",
+          "logical": "updated_at",
+          "catalogComment": "最后修改时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_POLICY"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_POL_CODE",
+          "columns": [
+            "ID_TNT",
+            "CD_POLICY"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_POL_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_POL_CODE_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_POLICY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_POL_STATUS",
+          "expression": "\"sd_status\" IN('DRAFT', 'ACTIVE', 'SUSPENDED', 'RETIRED')"
+        }
+      ],
+      "catalogComment": "惠民减免政策；一行代表一项政策，计算内容见政策版本",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 41
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefPolicy.java",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_policy_version",
+      "legacy": "relief_policy_version",
+      "physical": "RHN_BIL_RELIEF_POLICY_VER",
+      "domain": "BIL",
+      "comment": "惠民减免政策版本；一行代表一项政策的一个版本，发布后不再修改",
+      "columns": [
+        {
+          "physical": "ID_POLICY_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "政策版本主键",
+          "logical": "id",
+          "catalogComment": "政策版本主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RELIEF_POLICY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "减免政策标识",
+          "logical": "policy_id",
+          "catalogComment": "减免政策标识"
+        },
+        {
+          "physical": "SN_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "版本序号",
+          "logical": "version_no",
+          "catalogComment": "版本序号"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "版本状态",
+          "logical": "status",
+          "catalogComment": "版本状态"
+        },
+        {
+          "physical": "SD_TIMING",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "减免时机：医保前或医保后",
+          "logical": "timing",
+          "catalogComment": "减免时机：医保前或医保后"
+        },
+        {
+          "physical": "SD_SPONSOR",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "减免承担主体",
+          "logical": "sponsor",
+          "catalogComment": "减免承担主体"
+        },
+        {
+          "physical": "CD_PAYER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "承担单位编码",
+          "logical": "payer_code",
+          "catalogComment": "承担单位编码"
+        },
+        {
+          "physical": "NA_PAYER",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "承担单位名称",
+          "logical": "payer_name",
+          "catalogComment": "承担单位名称"
+        },
+        {
+          "physical": "JSON_APPL_SCOPE",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "适用机构与结算场景",
+          "logical": "applicable_scope",
+          "catalogComment": "适用机构与结算场景"
+        },
+        {
+          "physical": "DA_EFF_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "生效日期",
+          "logical": "effective_from",
+          "catalogComment": "生效日期"
+        },
+        {
+          "physical": "DA_EFF_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "失效日期，空表示长期有效",
+          "logical": "effective_to",
+          "catalogComment": "失效日期，空表示长期有效"
+        },
+        {
+          "physical": "SN_PRI",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "执行优先级，数值小者先执行",
+          "logical": "priority",
+          "catalogComment": "执行优先级，数值小者先执行"
+        },
+        {
+          "physical": "CD_MUTEX_GROUP",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "互斥组编码，同组只执行一项",
+          "logical": "mutex_group",
+          "catalogComment": "互斥组编码，同组只执行一项"
+        },
+        {
+          "physical": "FG_STACK",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 15,
+          "comment": "是否允许与其他政策叠加",
+          "logical": "stackable",
+          "catalogComment": "是否允许与其他政策叠加"
+        },
+        {
+          "physical": "SD_QUALIF_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "资格条件组合方式",
+          "logical": "qualification_mode",
+          "catalogComment": "资格条件组合方式"
+        },
+        {
+          "physical": "FG_INS_APPL",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 17,
+          "comment": "医保结算患者是否适用",
+          "logical": "insured_applicable",
+          "catalogComment": "医保结算患者是否适用"
+        },
+        {
+          "physical": "FG_BASE_PERS_ACCT",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 18,
+          "comment": "医保后计算基数是否包含个人账户支付",
+          "logical": "base_includes_personal_account",
+          "catalogComment": "医保后计算基数是否包含个人账户支付"
+        },
+        {
+          "physical": "AMT_ONCE_MAX",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "单次减免上限",
+          "logical": "once_max_amount",
+          "catalogComment": "单次减免上限"
+        },
+        {
+          "physical": "SD_QUOTA_PERIOD",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "额度周期",
+          "logical": "quota_period",
+          "catalogComment": "额度周期"
+        },
+        {
+          "physical": "AMT_PERIOD_MAX",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "周期累计减免上限",
+          "logical": "period_max_amount",
+          "catalogComment": "周期累计减免上限"
+        },
+        {
+          "physical": "QTY_PERIOD_MAX",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "周期最多享受次数",
+          "logical": "period_max_count",
+          "catalogComment": "周期最多享受次数"
+        },
+        {
+          "physical": "FG_SHARE_SCENE",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 23,
+          "comment": "门诊与住院是否共享额度",
+          "logical": "share_across_scenes",
+          "catalogComment": "门诊与住院是否共享额度"
+        },
+        {
+          "physical": "FG_SHARE_ORG",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 24,
+          "comment": "不同机构是否共享额度",
+          "logical": "share_across_organizations",
+          "catalogComment": "不同机构是否共享额度"
+        },
+        {
+          "physical": "DES_VER_NOTE",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "版本说明",
+          "logical": "version_note",
+          "catalogComment": "版本说明"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_PUBLISD",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "发布人标识",
+          "logical": "published_by",
+          "catalogComment": "发布人标识"
+        },
+        {
+          "physical": "DT_PUBLISD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "发布时间",
+          "logical": "published_at",
+          "catalogComment": "发布时间"
+        },
+        {
+          "physical": "AMT_MANUAL_APRV",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "人工核定审批阈值",
+          "logical": "manual_approval_amount",
+          "catalogComment": "人工核定审批阈值"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_POLICY_VER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_VER_NO",
+          "columns": [
+            "ID_TNT",
+            "ID_RELIEF_POLICY",
+            "SN_VER"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_VER_POL_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_VER_TNT_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_29",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_POLICY_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_VER_NO_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_VER_EFF",
+          "expression": "(\"da_eff_to\" IS NULL)\n    OR (\"da_eff_to\" >= \"da_eff_from\")"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_LIMIT",
+          "expression": "((\"amt_once_max\" IS NULL)\n    OR (\"amt_once_max\" > CAST(0 AS NUMERIC(1))))\n    AND ((\"amt_period_max\" IS NULL)\n    OR (\"amt_period_max\" > CAST(0 AS NUMERIC(1))))\n    AND ((\"qty_period_max\" IS NULL)\n    OR (\"qty_period_max\" > 0))"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_MANUAL_APRV",
+          "expression": "(\"amt_manual_aprv\" IS NULL)\n    OR (\"amt_manual_aprv\" > CAST(0 AS NUMERIC(1)))"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_PERIOD",
+          "expression": "\"sd_quota_period\" IN('NONE', 'DAY', 'MONTH', 'QUARTER', 'YEAR', 'POLICY_TERM')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_QUALIF",
+          "expression": "\"sd_qualif_mode\" IN('ANY', 'ALL')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_SPONSOR",
+          "expression": "\"sd_sponsor\" IN('HOSPITAL', 'GOVERNMENT', 'CHARITY', 'OTHER')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_STATUS",
+          "expression": "\"sd_status\" IN('DRAFT', 'PUBLISHED', 'SUPERSEDED')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_VER_TIMING",
+          "expression": "\"sd_timing\" IN('PRE_INSURANCE', 'POST_INSURANCE')"
+        }
+      ],
+      "catalogComment": "惠民减免政策版本；一行代表一项政策的一个版本，发布后不再修改",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 42
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefPolicyVersion.java",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_qualification",
+      "legacy": "relief_qualification",
+      "physical": "RHN_BIL_RELIEF_QUALIF",
+      "domain": "BIL",
+      "comment": "惠民减免资格条件；一行代表政策版本要求的一项资格条件",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_QUALIF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "资格条件主键",
+          "logical": "id",
+          "catalogComment": "资格条件主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_POLICY_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "政策版本标识",
+          "logical": "policy_version_id",
+          "catalogComment": "政策版本标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "条件行号",
+          "logical": "line_no",
+          "catalogComment": "条件行号"
+        },
+        {
+          "physical": "SD_QUALIF_SRC",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "资格来源",
+          "logical": "source",
+          "catalogComment": "资格来源"
+        },
+        {
+          "physical": "CD_QUALIF_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "资格类别编码",
+          "logical": "qualification_type",
+          "catalogComment": "资格类别编码"
+        },
+        {
+          "physical": "JSON_COND",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "属性条件",
+          "logical": "conditions",
+          "catalogComment": "属性条件"
+        },
+        {
+          "physical": "CD_PRVDR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "外部资格接口编码",
+          "logical": "provider_code",
+          "catalogComment": "外部资格接口编码"
+        },
+        {
+          "physical": "SD_FAIL_POLICY",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "外部资格查询失败时的处理",
+          "logical": "failure_policy",
+          "catalogComment": "外部资格查询失败时的处理"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_QUALIF"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_QLF_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_POLICY_VER",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_QLF_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_QLF_VER_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_POLICY_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_QUALIF",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_QLF_LINE_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_POLICY_VER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_QLF_FAIL",
+          "expression": "\"sd_fail_policy\" IN('BLOCK', 'INELIGIBLE', 'MANUAL_CONFIRM')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_QLF_SRC",
+          "expression": "\"sd_qualif_src\" IN('ALL', 'ROSTER', 'ATTRIBUTE', 'PROVIDER')"
+        }
+      ],
+      "catalogComment": "惠民减免资格条件；一行代表政策版本要求的一项资格条件",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 43
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefQualification.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_quota",
+      "legacy": "relief_quota",
+      "physical": "RHN_BIL_RELIEF_QUOTA",
+      "domain": "BIL",
+      "comment": "惠民减免额度累计；一行代表一位居民在一个额度范围和周期内的已用金额与次数",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_QUOTA",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "额度累计主键",
+          "logical": "id",
+          "catalogComment": "额度累计主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RELIEF_POLICY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "减免政策标识",
+          "logical": "policy_id",
+          "catalogComment": "减免政策标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "居民标识",
+          "logical": "resident_id",
+          "catalogComment": "居民标识"
+        },
+        {
+          "physical": "CD_PERIOD",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "周期键，如 2026 或 2026-10",
+          "logical": "period_key",
+          "catalogComment": "周期键，如 2026 或 2026-10"
+        },
+        {
+          "physical": "CD_SHARE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "共享范围键：结算场景与机构",
+          "logical": "share_key",
+          "catalogComment": "共享范围键：结算场景与机构"
+        },
+        {
+          "physical": "CD_SCOPE",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "额度对象：整项政策或规则范围",
+          "logical": "scope_key",
+          "catalogComment": "额度对象：整项政策或规则范围"
+        },
+        {
+          "physical": "AMT_USED",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "已用减免金额",
+          "logical": "used_amount",
+          "catalogComment": "已用减免金额"
+        },
+        {
+          "physical": "QTY_USED",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "已享受次数",
+          "logical": "used_count",
+          "catalogComment": "已享受次数"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "最后变动时间",
+          "logical": "updated_at",
+          "catalogComment": "最后变动时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_QUOTA"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_QTA_KEY",
+          "columns": [
+            "ID_TNT",
+            "ID_RELIEF_POLICY",
+            "ID_PAT",
+            "CD_PERIOD",
+            "CD_SHARE",
+            "CD_SCOPE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_QTA_POL_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_QTA_TNT_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_DC8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_QUOTA",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_QTA_KEY_INDEX_D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RELIEF_POLICY",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_PERIOD",
+              "direction": "A"
+            },
+            {
+              "position": 5,
+              "name": "CD_SHARE",
+              "direction": "A"
+            },
+            {
+              "position": 6,
+              "name": "CD_SCOPE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_QTA_USED",
+          "expression": "(\"amt_used\" >= CAST(0 AS NUMERIC(1)))\n    AND (\"qty_used\" >= 0)"
+        }
+      ],
+      "catalogComment": "惠民减免额度累计；一行代表一位居民在一个额度范围和周期内的已用金额与次数",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 44
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefQuota.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_quota_transaction",
+      "legacy": "relief_quota_transaction",
+      "physical": "RHN_BIL_RELIEF_QUOTA_TXN",
+      "domain": "BIL",
+      "comment": "惠民减免额度流水；一行代表一次额度占用、确认、释放或恢复",
+      "columns": [
+        {
+          "physical": "ID_QUOTA_TXN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "额度流水主键",
+          "logical": "id",
+          "catalogComment": "额度流水主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RELIEF_QUOTA",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "额度累计标识",
+          "logical": "quota_id",
+          "catalogComment": "额度累计标识"
+        },
+        {
+          "physical": "ID_RELIEF_APPLY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "减免记录标识",
+          "logical": "application_id",
+          "catalogComment": "减免记录标识"
+        },
+        {
+          "physical": "SD_TXN_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "额度变动类型",
+          "logical": "transaction_type",
+          "catalogComment": "额度变动类型"
+        },
+        {
+          "physical": "AMT_DELTA",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "金额变动，释放与恢复为负",
+          "logical": "amount_delta",
+          "catalogComment": "金额变动，释放与恢复为负"
+        },
+        {
+          "physical": "QTY_DELTA",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "次数变动，释放与恢复为负",
+          "logical": "count_delta",
+          "catalogComment": "次数变动，释放与恢复为负"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "幂等命令码",
+          "logical": "command_code",
+          "catalogComment": "幂等命令码"
+        },
+        {
+          "physical": "ID_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "操作人标识",
+          "logical": "actor_id",
+          "catalogComment": "操作人标识"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_QUOTA_TXN"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_QTX_CMD",
+          "columns": [
+            "ID_TNT",
+            "CD_COMMAND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_QTX_APL_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_APPLY",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_QTX_QTA_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_QUOTA",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_QTX_TNT_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_QTX_QTA",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RELIEF_QUOTA",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_69",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_QUOTA_TXN",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_QTX_CMD_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_QTX_TYPE",
+          "expression": "\"sd_txn_type\" IN('RESERVE', 'CONFIRM', 'RELEASE', 'REVERSE')"
+        }
+      ],
+      "catalogComment": "惠民减免额度流水；一行代表一次额度占用、确认、释放或恢复",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 45
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefQuotaTransaction.java",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_roster",
+      "legacy": "relief_roster",
+      "physical": "RHN_BIL_RELIEF_ROSTER",
+      "domain": "BIL",
+      "comment": "惠民资格名单；一行代表一位居民的一项资格及其有效期",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_ROSTER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "资格名单主键",
+          "logical": "id",
+          "catalogComment": "资格名单主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "登记机构标识",
+          "logical": "organization_id",
+          "catalogComment": "登记机构标识"
+        },
+        {
+          "physical": "CD_QUALIF_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "资格类别编码",
+          "logical": "qualification_type",
+          "catalogComment": "资格类别编码"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "居民标识",
+          "logical": "resident_id",
+          "catalogComment": "居民标识"
+        },
+        {
+          "physical": "NA_PAT_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "居民姓名快照",
+          "logical": "resident_name_snapshot",
+          "catalogComment": "居民姓名快照"
+        },
+        {
+          "physical": "DA_EFF_FROM",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "资格生效日期",
+          "logical": "effective_from",
+          "catalogComment": "资格生效日期"
+        },
+        {
+          "physical": "DA_EFF_TO",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "资格失效日期，空表示长期有效",
+          "logical": "effective_to",
+          "catalogComment": "资格失效日期，空表示长期有效"
+        },
+        {
+          "physical": "CD_EVID_NO",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "资格证明编号",
+          "logical": "evidence_no",
+          "catalogComment": "资格证明编号"
+        },
+        {
+          "physical": "DES_EVID",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "资格依据说明",
+          "logical": "evidence",
+          "catalogComment": "资格依据说明"
+        },
+        {
+          "physical": "CD_BATCH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "导入批次",
+          "logical": "import_batch",
+          "catalogComment": "导入批次"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "名单状态",
+          "logical": "status",
+          "catalogComment": "名单状态"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 1000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "停用原因",
+          "logical": "status_reason",
+          "catalogComment": "停用原因"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "最后修改人标识",
+          "logical": "updated_by",
+          "catalogComment": "最后修改人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "最后修改时间",
+          "logical": "updated_at",
+          "catalogComment": "最后修改时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_ROSTER"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_RST_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_RST_PAT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PAT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_QUALIF_TYPE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BIL_RELIEF_RST_TYPE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_QUALIF_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B5F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_ROSTER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_RST_EFF",
+          "expression": "(\"da_eff_to\" IS NULL)\n    OR (\"da_eff_to\" >= \"da_eff_from\")"
+        },
+        {
+          "name": "CK_BIL_RELIEF_RST_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'REVOKED')"
+        }
+      ],
+      "catalogComment": "惠民资格名单；一行代表一位居民的一项资格及其有效期",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 46
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefRosterEntry.java",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "logical": "bil.relief_rule",
+      "legacy": "relief_rule",
+      "physical": "RHN_BIL_RELIEF_RULE",
+      "domain": "BIL",
+      "comment": "惠民减免规则；一行代表政策版本中的一条费用范围及其计算方式",
+      "columns": [
+        {
+          "physical": "ID_RELIEF_RULE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "减免规则主键",
+          "logical": "id",
+          "catalogComment": "减免规则主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_POLICY_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "政策版本标识",
+          "logical": "policy_version_id",
+          "catalogComment": "政策版本标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "规则行号",
+          "logical": "line_no",
+          "catalogComment": "规则行号"
+        },
+        {
+          "physical": "SD_SCOPE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "费用范围类型",
+          "logical": "scope_type",
+          "catalogComment": "费用范围类型"
+        },
+        {
+          "physical": "CD_SCOPE_VAL",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "会计大类或收费来源编码",
+          "logical": "scope_value",
+          "catalogComment": "会计大类或收费来源编码"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "收费项目标识",
+          "logical": "catalog_item_id",
+          "catalogComment": "收费项目标识"
+        },
+        {
+          "physical": "NA_SCOPE_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "范围名称快照",
+          "logical": "scope_name_snapshot",
+          "catalogComment": "范围名称快照"
+        },
+        {
+          "physical": "FG_EXCLUDE",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 9,
+          "comment": "是否为排除范围",
+          "logical": "excluded",
+          "catalogComment": "是否为排除范围"
+        },
+        {
+          "physical": "SD_METHOD",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "减免方式，排除范围为空",
+          "logical": "method",
+          "catalogComment": "减免方式，排除范围为空"
+        },
+        {
+          "physical": "VAL_RATIO",
+          "type": "DECIMAL",
+          "size": 9,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "减免比例，0 至 1",
+          "logical": "relief_ratio",
+          "catalogComment": "减免比例，0 至 1"
+        },
+        {
+          "physical": "AMT_RULE",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "固定减免、单位减免或个人限价金额",
+          "logical": "rule_amount",
+          "catalogComment": "固定减免、单位减免或个人限价金额"
+        },
+        {
+          "physical": "AMT_MANUAL_MAX",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "人工核准金额上限",
+          "logical": "manual_max_amount",
+          "catalogComment": "人工核准金额上限"
+        },
+        {
+          "physical": "QTY_PERIOD_MAX",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "本规则范围周期最多享受次数",
+          "logical": "period_max_count",
+          "catalogComment": "本规则范围周期最多享受次数"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RELIEF_RULE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_RELIEF_RULE_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_POLICY_VER",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_RELIEF_RULE_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_RELIEF_RULE_VER_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_POLICY_VER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_BCC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RELIEF_RULE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_RELIEF_RULE_LINE_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_POLICY_VER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BIL_RELIEF_RULE_METHOD",
+          "expression": "\"sd_method\" IN('RATIO', 'FREE', 'FIXED_AMOUNT', 'UNIT_AMOUNT', 'PRICE_CAP', 'MANUAL')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_RULE_SCOPE",
+          "expression": "\"sd_scope_type\" IN('ALL', 'ACCOUNTING_CATEGORY', 'CATALOG_ITEM', 'SOURCE_TYPE')"
+        },
+        {
+          "name": "CK_BIL_RELIEF_RULE_VAL",
+          "expression": "((\"amt_rule\" IS NULL)\n    OR (\"amt_rule\" >= CAST(0 AS NUMERIC(1))))\n    AND ((\"amt_manual_max\" IS NULL)\n    OR (\"amt_manual_max\" > CAST(0 AS NUMERIC(1))))\n    AND ((\"qty_period_max\" IS NULL)\n    OR (\"qty_period_max\" > 0))\n    AND ((\"val_ratio\" IS NULL)\n    OR ((\"val_ratio\" > CAST(0 AS NUMERIC(1)))\n    AND (\"val_ratio\" <= CAST(1 AS NUMERIC(1)))))"
+        }
+      ],
+      "catalogComment": "惠民减免规则；一行代表政策版本中的一条费用范围及其计算方式",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 47
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReliefRule.java",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "logical": "bil.payment_merchant_configuration",
+      "legacy": "BIL_PAYMENT_MERCHANT_CONFIG",
+      "physical": "RHN_BIL_PAY_CFG",
+      "domain": "BIL",
+      "comment": "支付渠道机构商户配置；一行代表一个租户法人机构的一种支付方式的加密商户配置",
+      "columns": [
+        {
+          "physical": "ID_PAY_CFG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "支付渠道配置主键",
+          "logical": "id",
+          "catalogComment": "支付渠道配置主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "法人机构标识",
+          "logical": "organization_id",
+          "catalogComment": "法人机构标识"
+        },
+        {
+          "physical": "CD_PAY_METHOD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "支付方式编码",
+          "logical": "payment_method_code",
+          "catalogComment": "支付方式编码"
+        },
+        {
+          "physical": "FL_ENABLED",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "是否允许新收款；停用保留原单查询退款",
+          "logical": "enabled",
+          "catalogComment": "是否允许新收款；停用保留原单查询退款"
+        },
+        {
+          "physical": "FL_ID_LOCK",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "商户身份是否已锁定",
+          "logical": "identity_locked",
+          "catalogComment": "商户身份是否已锁定"
+        },
+        {
+          "physical": "TXT_CIPHER",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "机构渠道凭证配置密文；不保存明文",
+          "logical": "encrypted_values",
+          "catalogComment": "机构渠道凭证配置密文；不保存明文"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "最后修改人标识",
+          "logical": "updated_by",
+          "catalogComment": "最后修改人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "最后修改时间",
+          "logical": "updated_at",
+          "catalogComment": "最后修改时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PAY_CFG"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BIL_PAY_CFG_SCOPE",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_PAY_METHOD"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BIL_PAY_CFG_ORG_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BIL_PAY_CFG_TNT_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_393",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PAY_CFG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BIL_PAY_CFG_SCOPE_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_PAY_METHOD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付渠道机构商户配置；一行代表一个租户法人机构的一种支付方式的加密商户配置",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 22
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/PaymentMerchantConfiguration.java",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_attempt",
+      "legacy": "BIL_RECONCILIATION_ATTEMPT",
+      "physical": "RHN_BIL_RECON_ATTEMPT",
+      "domain": "BIL",
+      "comment": "支付对账拉取尝试；一行代表一次有领取令牌的执行及脱敏结果",
+      "columns": [
+        {
+          "physical": "ID_RECON_ATTEMPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RECON_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "商户账单任务标识",
+          "logical": "task_id",
+          "catalogComment": "商户账单任务标识"
+        },
+        {
+          "physical": "NUM_ATTEMPT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "执行尝试序号",
+          "logical": "attempt",
+          "catalogComment": "执行尝试序号"
+        },
+        {
+          "physical": "NUM_CLAIM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "任务领取令牌",
+          "logical": "claim_token",
+          "catalogComment": "任务领取令牌"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "处理状态",
+          "logical": "status",
+          "catalogComment": "处理状态"
+        },
+        {
+          "physical": "DT_STARTED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "尝试开始时间",
+          "logical": "started_at",
+          "catalogComment": "尝试开始时间"
+        },
+        {
+          "physical": "DT_FINSH",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "尝试结束时间",
+          "logical": "finished_at",
+          "catalogComment": "尝试结束时间"
+        },
+        {
+          "physical": "CD_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "安全错误分类",
+          "logical": "error_code",
+          "catalogComment": "安全错误分类"
+        },
+        {
+          "physical": "DES_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 1024,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "脱敏错误说明",
+          "logical": "error_message",
+          "catalogComment": "脱敏错误说明"
+        },
+        {
+          "physical": "ID_RECON_FILE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "证据版本标识",
+          "logical": "file_id",
+          "catalogComment": "证据版本标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_ATTEMPT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_ATTEMPT_TASK",
+          "columns": [
+            "ID_TNT",
+            "ID_RECON_TASK",
+            "NUM_ATTEMPT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_RECON_ATTEMPT_TASK_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_5F7",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_ATTEMPT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_ATTEMPT_TASK_INDEX_5",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NUM_ATTEMPT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付对账拉取尝试；一行代表一次有领取令牌的执行及脱敏结果",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 28
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationAttempt.java",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_merchant_account",
+      "legacy": "BIL_RECONCILIATION_MERCHANT_ACCOUNT",
+      "physical": "RHN_BIL_RECON_ACCT",
+      "domain": "BIL",
+      "comment": "支付对账商户范围；一行代表一个租户独占的渠道商户账单覆盖范围",
+      "columns": [
+        {
+          "physical": "ID_RECON_ACCT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_MERCH_SCOPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "商户账单范围指纹",
+          "logical": "merchant_scope",
+          "catalogComment": "商户账单范围指纹"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_ACCT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_ACCT_SCOPE",
+          "columns": [
+            "CD_MERCH_SCOPE"
+          ]
+        },
+        {
+          "name": "UK_RECON_ACCT_TNT_SCOPE",
+          "columns": [
+            "ID_TNT",
+            "CD_MERCH_SCOPE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_824",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_ACCT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_ACCT_SCOPE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "CD_MERCH_SCOPE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_ACCT_TNT_SCOPE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_MERCH_SCOPE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付对账商户范围；一行代表一个租户独占的渠道商户账单覆盖范围",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 29
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationMerchantAccount.java",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_policy",
+      "legacy": "BIL_RECONCILIATION_POLICY",
+      "physical": "RHN_BIL_RECON_POLICY",
+      "domain": "BIL",
+      "comment": "支付交易对账策略；一行代表一个机构支付方式的自动拉取策略",
+      "columns": [
+        {
+          "physical": "ID_RECON_POLICY",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "归属法人机构标识",
+          "logical": "organization_id",
+          "catalogComment": "归属法人机构标识"
+        },
+        {
+          "physical": "CD_PAY_METHOD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "支付方式编码",
+          "logical": "payment_method_code",
+          "catalogComment": "支付方式编码"
+        },
+        {
+          "physical": "CD_MERCH_SCOPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "商户账单范围指纹",
+          "logical": "merchant_scope",
+          "catalogComment": "商户账单范围指纹"
+        },
+        {
+          "physical": "FL_AUTO",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "是否自动拉取核对",
+          "logical": "auto_enabled",
+          "catalogComment": "是否自动拉取核对"
+        },
+        {
+          "physical": "TM_FETCH",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "账单时区的每日拉取时刻",
+          "logical": "fetch_time",
+          "catalogComment": "账单时区的每日拉取时刻"
+        },
+        {
+          "physical": "QTY_BKFILL",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "历史补拉天数",
+          "logical": "backfill_days",
+          "catalogComment": "历史补拉天数"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "最后配置人标识",
+          "logical": "updated_by",
+          "catalogComment": "最后配置人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "最后配置时间",
+          "logical": "updated_at",
+          "catalogComment": "最后配置时间"
+        },
+        {
+          "physical": "DES_SCHED_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 1024,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "自动调度脱敏错误说明",
+          "logical": "schedule_error",
+          "catalogComment": "自动调度脱敏错误说明"
+        },
+        {
+          "physical": "DT_SCHED_ERROR",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "自动调度错误发生时间",
+          "logical": "schedule_error_at",
+          "catalogComment": "自动调度错误发生时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_POLICY"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_POLICY_ORG",
+          "columns": [
+            "ID_TNT",
+            "ID_ORG",
+            "CD_PAY_METHOD"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_RECON_POLICY_ORG_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_RECON_POLICY_SCOPE_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_MERCH_SCOPE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_110",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_POLICY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_POLICY_ORG_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_PAY_METHOD",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付交易对账策略；一行代表一个机构支付方式的自动拉取策略",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 30
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationPolicy.java",
+          "line": 6
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_task",
+      "legacy": "BIL_RECONCILIATION_TASK",
+      "physical": "RHN_BIL_RECON_TASK",
+      "domain": "BIL",
+      "comment": "支付交易账单任务；一行代表一个商户账期的可恢复拉取任务",
+      "columns": [
+        {
+          "physical": "ID_RECON_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG_CRED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "凭证所属机构标识",
+          "logical": "credential_organization_id",
+          "catalogComment": "凭证所属机构标识"
+        },
+        {
+          "physical": "CD_PAY_METHOD",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "支付方式编码",
+          "logical": "payment_method_code",
+          "catalogComment": "支付方式编码"
+        },
+        {
+          "physical": "CD_ADAPTER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "适配器编码",
+          "logical": "adapter_code",
+          "catalogComment": "适配器编码"
+        },
+        {
+          "physical": "CD_MERCH_SCOPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "商户账单范围指纹",
+          "logical": "merchant_scope",
+          "catalogComment": "商户账单范围指纹"
+        },
+        {
+          "physical": "ID_MERCH",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "渠道商户标识快照",
+          "logical": "merchant_id",
+          "catalogComment": "渠道商户标识快照"
+        },
+        {
+          "physical": "CD_ENV",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "渠道环境快照",
+          "logical": "environment",
+          "catalogComment": "渠道环境快照"
+        },
+        {
+          "physical": "ID_APP",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "凭证应用标识快照",
+          "logical": "app_id",
+          "catalogComment": "凭证应用标识快照"
+        },
+        {
+          "physical": "DA_BIZ",
+          "type": "DATE",
+          "size": 10,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "渠道账单日期",
+          "logical": "business_date",
+          "catalogComment": "渠道账单日期"
+        },
+        {
+          "physical": "CD_CCY",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "币种编码",
+          "logical": "currency_code",
+          "catalogComment": "币种编码"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "处理状态",
+          "logical": "status",
+          "catalogComment": "处理状态"
+        },
+        {
+          "physical": "QTY_ATTEMPT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "执行尝试序号",
+          "logical": "attempt",
+          "catalogComment": "执行尝试序号"
+        },
+        {
+          "physical": "NUM_CLAIM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "任务领取令牌",
+          "logical": "claim_token",
+          "catalogComment": "任务领取令牌"
+        },
+        {
+          "physical": "DT_NEXT",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "下一次尝试时间",
+          "logical": "next_attempt_at",
+          "catalogComment": "下一次尝试时间"
+        },
+        {
+          "physical": "DT_LEASE",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "租约失效时间",
+          "logical": "lease_until",
+          "catalogComment": "租约失效时间"
+        },
+        {
+          "physical": "DT_CMPLD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "最后成功处理时间",
+          "logical": "completed_at",
+          "catalogComment": "最后成功处理时间"
+        },
+        {
+          "physical": "DES_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 1024,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "脱敏错误说明",
+          "logical": "error_message",
+          "catalogComment": "脱敏错误说明"
+        },
+        {
+          "physical": "CD_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "安全错误分类",
+          "logical": "error_code",
+          "catalogComment": "安全错误分类"
+        },
+        {
+          "physical": "ID_RECON_FILE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "最新已发布证据版本标识",
+          "logical": "latest_file_id",
+          "catalogComment": "最新已发布证据版本标识"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "任务发起人标识",
+          "logical": "created_by",
+          "catalogComment": "任务发起人标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "CD_REQUEST",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "初始幂等命令编码",
+          "logical": "request_code",
+          "catalogComment": "初始幂等命令编码"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_TASK"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_TASK_COMMAND",
+          "columns": [
+            "ID_TNT",
+            "CD_REQUEST"
+          ]
+        },
+        {
+          "name": "UK_RECON_TASK_SCOPE",
+          "columns": [
+            "ID_TNT",
+            "CD_MERCH_SCOPE",
+            "DA_BIZ",
+            "CD_CCY"
+          ]
+        },
+        {
+          "name": "UK_RECON_TASK_TNT",
+          "columns": [
+            "ID_TNT",
+            "ID_RECON_TASK"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_RECON_TASK_CRED_ORG_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG_CRED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_RECON_TASK_FILE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_RECON_TASK_SCOPE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_MERCH_SCOPE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_RECON_TASK_DUE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_NEXT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_LEASE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_8249",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_TASK_COMMAND_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_REQUEST",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_TASK_SCOPE_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_MERCH_SCOPE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DA_BIZ",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "CD_CCY",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_TASK_TNT_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付交易账单任务；一行代表一个商户账期的可恢复拉取任务",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 31
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationTask.java",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_statement_file",
+      "legacy": "BIL_RECONCILIATION_STATEMENT_FILE",
+      "physical": "RHN_BIL_RECON_FILE",
+      "domain": "BIL",
+      "comment": "支付交易账单证据版本；一行代表一次取得的商户账单证据及其发布状态",
+      "columns": [
+        {
+          "physical": "ID_RECON_FILE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RECON_TASK",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "商户账单任务标识",
+          "logical": "task_id",
+          "catalogComment": "商户账单任务标识"
+        },
+        {
+          "physical": "NUM_ATTEMPT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "执行尝试序号",
+          "logical": "attempt",
+          "catalogComment": "执行尝试序号"
+        },
+        {
+          "physical": "TXT_SHA",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "原始证据内容摘要",
+          "logical": "sha256",
+          "catalogComment": "原始证据内容摘要"
+        },
+        {
+          "physical": "TXT_CIPHER",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "原始账单集合密文；不保存明文",
+          "logical": "encrypted_files",
+          "catalogComment": "原始账单集合密文；不保存明文"
+        },
+        {
+          "physical": "CD_PARSER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "账单解析器版本",
+          "logical": "parser_version",
+          "catalogComment": "账单解析器版本"
+        },
+        {
+          "physical": "CD_RULE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "匹配规则版本",
+          "logical": "rule_version",
+          "catalogComment": "匹配规则版本"
+        },
+        {
+          "physical": "TXT_LOCAL_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "本地事实快照摘要",
+          "logical": "local_snapshot_hash",
+          "catalogComment": "本地事实快照摘要"
+        },
+        {
+          "physical": "TXT_PROOF",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "渠道来源校验方式",
+          "logical": "proof",
+          "catalogComment": "渠道来源校验方式"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "FL_CMPL",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "是否完整发布",
+          "logical": "complete",
+          "catalogComment": "是否完整发布"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_FILE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_FILE_ATTEMPT",
+          "columns": [
+            "ID_TNT",
+            "ID_RECON_TASK",
+            "NUM_ATTEMPT"
+          ]
+        },
+        {
+          "name": "UK_RECON_FILE_TNT",
+          "columns": [
+            "ID_TNT",
+            "ID_RECON_FILE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_RECON_FILE_TASK_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_TASK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_8243",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_FILE_ATTEMPT_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_TASK",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NUM_ATTEMPT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_FILE_TNT_INDEX_8",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付交易账单证据版本；一行代表一次取得的商户账单证据及其发布状态",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 32
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationStatementFile.java",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_statement_row",
+      "legacy": "BIL_RECONCILIATION_STATEMENT_ROW",
+      "physical": "RHN_BIL_RECON_ROW",
+      "domain": "BIL",
+      "comment": "支付交易账单规范明细；一行代表一个证据版本中的独立收退事件",
+      "columns": [
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 1,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_RECON_ROW",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_RECON_FILE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "证据版本标识",
+          "logical": "file_id",
+          "catalogComment": "证据版本标识"
+        },
+        {
+          "physical": "NUM_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "账单规范明细行号",
+          "logical": "line_number",
+          "catalogComment": "账单规范明细行号"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "归属法人机构标识",
+          "logical": "organization_id",
+          "catalogComment": "归属法人机构标识"
+        },
+        {
+          "physical": "ID_PAY_ORDER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "可信原支付指令标识",
+          "logical": "payment_order_id",
+          "catalogComment": "可信原支付指令标识"
+        },
+        {
+          "physical": "SD_TXN_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "收款退款或撤销类型",
+          "logical": "transaction_type",
+          "catalogComment": "收款退款或撤销类型"
+        },
+        {
+          "physical": "CD_MERCH_ORDER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "商户支付订单号",
+          "logical": "merchant_order_no",
+          "catalogComment": "商户支付订单号"
+        },
+        {
+          "physical": "CD_EXT_TXN",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "渠道原交易号",
+          "logical": "external_transaction_no",
+          "catalogComment": "渠道原交易号"
+        },
+        {
+          "physical": "CD_REF_REQ",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "商户退款请求号",
+          "logical": "refund_request_no",
+          "catalogComment": "商户退款请求号"
+        },
+        {
+          "physical": "CD_EXT_REF",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "渠道退款单号",
+          "logical": "external_refund_no",
+          "catalogComment": "渠道退款单号"
+        },
+        {
+          "physical": "CD_ORIG_TXN",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "退款关联渠道原交易号",
+          "logical": "original_external_transaction_no",
+          "catalogComment": "退款关联渠道原交易号"
+        },
+        {
+          "physical": "AMT_GROSS",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "业务收退金额",
+          "logical": "amount",
+          "catalogComment": "业务收退金额"
+        },
+        {
+          "physical": "AMT_SETTLE",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "渠道应结金额；与业务金额分开保存",
+          "logical": "settlement_amount",
+          "catalogComment": "渠道应结金额；与业务金额分开保存"
+        },
+        {
+          "physical": "AMT_FEE",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "渠道手续费原始符号金额",
+          "logical": "fee",
+          "catalogComment": "渠道手续费原始符号金额"
+        },
+        {
+          "physical": "CD_CCY",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "币种编码",
+          "logical": "currency_code",
+          "catalogComment": "币种编码"
+        },
+        {
+          "physical": "SD_CHANNEL_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "渠道原始交易或退款状态",
+          "logical": "channel_status",
+          "catalogComment": "渠道原始交易或退款状态"
+        },
+        {
+          "physical": "SD_OUTCOME",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "规范化交易最终状态",
+          "logical": "outcome",
+          "catalogComment": "规范化交易最终状态"
+        },
+        {
+          "physical": "FL_FINAL",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "账单是否明确最终成功",
+          "logical": "final_success",
+          "catalogComment": "账单是否明确最终成功"
+        },
+        {
+          "physical": "DT_OCCRD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "渠道事件发生时间",
+          "logical": "occurred_at",
+          "catalogComment": "渠道事件发生时间"
+        },
+        {
+          "physical": "SD_DISPOS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "未归属明细处置状态",
+          "logical": "disposition",
+          "catalogComment": "未归属明细处置状态"
+        },
+        {
+          "physical": "ID_PRPSR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "例外提交人标识",
+          "logical": "proposer_id",
+          "catalogComment": "例外提交人标识"
+        },
+        {
+          "physical": "ID_RVWR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "复核人标识",
+          "logical": "reviewer_id",
+          "catalogComment": "复核人标识"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "处置或复核依据",
+          "logical": "reason",
+          "catalogComment": "处置或复核依据"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_ROW"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_ROW_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_RECON_FILE",
+            "NUM_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_RECON_ROW_FILE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_RECON_ROW_ORG_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_RECON_ROW_ORG",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "NUM_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_25",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_ROW",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_ROW_LINE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_RECON_FILE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "NUM_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付交易账单规范明细；一行代表一个证据版本中的独立收退事件",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 33
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationStatementRow.java",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "logical": "bil.reconciliation_action",
+      "legacy": "BIL_RECONCILIATION_ACTION",
+      "physical": "RHN_BIL_RECON_ACTION",
+      "domain": "BIL",
+      "comment": "支付对账操作凭据；一行代表一次幂等命令和审计结果",
+      "columns": [
+        {
+          "physical": "ID_RECON_ACTION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "主键",
+          "logical": "id",
+          "catalogComment": "主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "CD_COMMAND",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "幂等命令编码",
+          "logical": "command_code",
+          "catalogComment": "幂等命令编码"
+        },
+        {
+          "physical": "TXT_INPUT_HASH",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "命令输入指纹",
+          "logical": "input_hash",
+          "catalogComment": "命令输入指纹"
+        },
+        {
+          "physical": "SD_ACTION",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "审计动作类型",
+          "logical": "action",
+          "catalogComment": "审计动作类型"
+        },
+        {
+          "physical": "ID_TARGET",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "审计目标标识",
+          "logical": "target_id",
+          "catalogComment": "审计目标标识"
+        },
+        {
+          "physical": "ID_ACTOR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "实际操作人标识",
+          "logical": "actor_id",
+          "catalogComment": "实际操作人标识"
+        },
+        {
+          "physical": "DES_REASON",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "处置或复核依据",
+          "logical": "reason",
+          "catalogComment": "处置或复核依据"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "处理状态",
+          "logical": "status",
+          "catalogComment": "处理状态"
+        },
+        {
+          "physical": "TXT_RESULT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "脱敏查询结果",
+          "logical": "result",
+          "catalogComment": "脱敏查询结果"
+        },
+        {
+          "physical": "DT_LEASE",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "租约失效时间",
+          "logical": "lease_until",
+          "catalogComment": "租约失效时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_RECON_ACTION"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_RECON_ACTION_COMMAND",
+          "columns": [
+            "ID_TNT",
+            "CD_COMMAND"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_F6D",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_RECON_ACTION",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_RECON_ACTION_COMMAND_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_COMMAND",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "支付对账操作凭据；一行代表一次幂等命令和审计结果",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/application/BillingMaintenanceTables.java",
+          "line": 34
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/billing/domain/ReconciliationAction.java",
+          "line": 5
         }
       ]
     }
@@ -11449,6 +16951,42 @@
       "description": ""
     },
     {
+      "id": "FK_BIL_PAY_CFG_ORG",
+      "sourceTable": "RHN_BIL_PAY_CFG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_PAY_CFG_TNT",
+      "sourceTable": "RHN_BIL_PAY_CFG",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BIL_PAY_EVT_BIL_PAY_PAY_EVE",
       "sourceTable": "RHN_BIL_PAY_EVT",
       "sourceColumns": [
@@ -11747,6 +17285,25 @@
       "description": ""
     },
     {
+      "id": "FK_RECON_ATTEMPT_TASK",
+      "sourceTable": "RHN_BIL_RECON_ATTEMPT",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RECON_TASK"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RECON_TASK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_TASK",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BIL_RECON_BATC_INT_EXT_RECO",
       "sourceTable": "RHN_BIL_RECON_BATCH",
       "sourceColumns": [
@@ -11795,6 +17352,44 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_BATCH_FILE",
+      "sourceTable": "RHN_BIL_RECON_BATCH",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RECON_FILE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RECON_FILE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_FILE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_FILE_TASK",
+      "sourceTable": "RHN_BIL_RECON_FILE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RECON_TASK"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RECON_TASK"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_TASK",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -11878,6 +17473,23 @@
       "description": ""
     },
     {
+      "id": "FK_RECON_ITEM_ROW",
+      "sourceTable": "RHN_BIL_RECON_ITEM",
+      "sourceColumns": [
+        "ID_RECON_ROW"
+      ],
+      "targetColumns": [
+        "ID_RECON_ROW"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_ROW",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BIL_RECON_ITEM_BIL_RECO_R_1",
       "sourceTable": "RHN_BIL_RECON_ITEM_EVT",
       "sourceColumns": [
@@ -11890,6 +17502,139 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_BIL_RECON_ITEM",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_POLICY_ORG",
+      "sourceTable": "RHN_BIL_RECON_POLICY",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_POLICY_SCOPE",
+      "sourceTable": "RHN_BIL_RECON_POLICY",
+      "sourceColumns": [
+        "ID_TNT",
+        "CD_MERCH_SCOPE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "CD_MERCH_SCOPE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_ROW_FILE",
+      "sourceTable": "RHN_BIL_RECON_ROW",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RECON_FILE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RECON_FILE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_FILE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_ROW_ORG",
+      "sourceTable": "RHN_BIL_RECON_ROW",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_TASK_CRED_ORG",
+      "sourceTable": "RHN_BIL_RECON_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG_CRED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_TASK_FILE",
+      "sourceTable": "RHN_BIL_RECON_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_RECON_FILE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_RECON_FILE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_FILE",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_TASK_SCOPE",
+      "sourceTable": "RHN_BIL_RECON_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "CD_MERCH_SCOPE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "CD_MERCH_SCOPE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RECON_ACCT",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -12135,6 +17880,312 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_VIS_ENC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_POL",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY",
+      "sourceColumns": [
+        "ID_RELIEF_POLICY"
+      ],
+      "targetColumns": [
+        "ID_RELIEF_POLICY"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_POLICY",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_VER",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY",
+      "sourceColumns": [
+        "ID_POLICY_VER"
+      ],
+      "targetColumns": [
+        "ID_POLICY_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_POLICY_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_LN_APL",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY_LINE",
+      "sourceColumns": [
+        "ID_RELIEF_APPLY"
+      ],
+      "targetColumns": [
+        "ID_RELIEF_APPLY"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_APPLY",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_LN_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY_LINE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_POL_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_POLICY",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_VER_POL",
+      "sourceTable": "RHN_BIL_RELIEF_POLICY_VER",
+      "sourceColumns": [
+        "ID_RELIEF_POLICY"
+      ],
+      "targetColumns": [
+        "ID_RELIEF_POLICY"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_POLICY",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_VER_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_POLICY_VER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QLF_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_QUALIF",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QLF_VER",
+      "sourceTable": "RHN_BIL_RELIEF_QUALIF",
+      "sourceColumns": [
+        "ID_POLICY_VER"
+      ],
+      "targetColumns": [
+        "ID_POLICY_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_POLICY_VER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTA_POL",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA",
+      "sourceColumns": [
+        "ID_RELIEF_POLICY"
+      ],
+      "targetColumns": [
+        "ID_RELIEF_POLICY"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_POLICY",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTA_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTX_APL",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA_TXN",
+      "sourceColumns": [
+        "ID_RELIEF_APPLY"
+      ],
+      "targetColumns": [
+        "ID_RELIEF_APPLY"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_APPLY",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTX_QTA",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA_TXN",
+      "sourceColumns": [
+        "ID_RELIEF_QUOTA"
+      ],
+      "targetColumns": [
+        "ID_RELIEF_QUOTA"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_QUOTA",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTX_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA_TXN",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_RST_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_ROSTER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_RULE_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_RULE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_RULE_VER",
+      "sourceTable": "RHN_BIL_RELIEF_RULE",
+      "sourceColumns": [
+        "ID_POLICY_VER"
+      ],
+      "targetColumns": [
+        "ID_POLICY_VER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BIL_RELIEF_POLICY_VER",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

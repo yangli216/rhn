@@ -328,6 +328,28 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void diagnosisRecommendationPromotesPrimaryDifferentialWhenCandidatesEmpty() throws Exception {
+        String encounterId = createStartedEncounter();
+        when(modelGateway.analyzeStreaming(any(), any(), any())).thenReturn(new SuggestionContent("依据不足",
+                new RecordDraft(null, null, null, null, null), List.of(),
+                List.of(new DiagnosisCandidate("R50.9", "模型改名", "SECONDARY", 0.2, "备选"),
+                        new DiagnosisCandidate("I10", "模型改名", "PRIMARY", 0.4, "最可能")),
+                List.of(), List.of(), List.of(), "待核对", List.of()));
+        String stream = mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"DX-EMPTY","intent":"DIAGNOSIS_RECOMMENDATION",
+                                 "draft":{"chiefComplaint":"头晕2天","diagnoses":[]}}
+                                """))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode complete = json(stream.substring(stream.indexOf("data:", stream.indexOf("event: complete")) + 5).trim());
+        org.junit.jupiter.api.Assertions.assertEquals(1, complete.get("diagnosisCandidates").size());
+        org.junit.jupiter.api.Assertions.assertEquals("PRIMARY", complete.at("/diagnosisCandidates/0/type").asString());
+        org.junit.jupiter.api.Assertions.assertEquals("最可能", complete.at("/diagnosisCandidates/0/rationale").asString());
+        org.junit.jupiter.api.Assertions.assertEquals(1, complete.get("differentialDiagnoses").size());
+        org.junit.jupiter.api.Assertions.assertEquals("备选", complete.at("/differentialDiagnoses/0/rationale").asString());
+    }
+
+    @Test
     void treatmentRecommendationNeedsConfirmedDiagnosisAndReturnsOnlyOrders() throws Exception {
         String encounterId = createStartedEncounter();
         mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)

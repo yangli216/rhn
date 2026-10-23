@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -7017,6 +7017,531 @@
       ]
     },
     {
+      "logical": "ex.service_document",
+      "legacy": "service_documents",
+      "physical": "RHN_EX_SVC_DOC",
+      "domain": "EX",
+      "comment": "门诊服务申请单；一行代表一张检验、检查或治疗申请单，包含一条或多条服务请求",
+      "columns": [
+        {
+          "physical": "ID_SVC_DOC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "申请单主键",
+          "logical": "id",
+          "catalogComment": "申请单主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PAT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "患者标识",
+          "logical": "resident_id",
+          "catalogComment": "患者标识"
+        },
+        {
+          "physical": "ID_ENC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "就诊标识",
+          "logical": "encounter_id",
+          "catalogComment": "就诊标识"
+        },
+        {
+          "physical": "CD_DOC_NO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "申请单号",
+          "logical": "document_no",
+          "catalogComment": "申请单号"
+        },
+        {
+          "physical": "SD_SVC_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "服务类型：LABORATORY、EXAMINATION、TREATMENT 等",
+          "logical": "service_type",
+          "catalogComment": "服务类型：LABORATORY、EXAMINATION、TREATMENT 等"
+        },
+        {
+          "physical": "ID_ORG_EXEC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "执行机构标识",
+          "logical": "performer_organization_id",
+          "catalogComment": "执行机构标识"
+        },
+        {
+          "physical": "ID_DEPT_EXEC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "执行科室标识",
+          "logical": "performer_department_id",
+          "catalogComment": "执行科室标识"
+        },
+        {
+          "physical": "SD_GRP_RULE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "开立时采用的合单规则",
+          "logical": "grouping_rule",
+          "catalogComment": "开立时采用的合单规则"
+        },
+        {
+          "physical": "CD_GRP_VAL",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "合单依据值：标本类型或检查类型；按科室合单时为空",
+          "logical": "grouping_value",
+          "catalogComment": "合单依据值：标本类型或检查类型；按科室合单时为空"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "开立人标识",
+          "logical": "created_by",
+          "catalogComment": "开立人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SVC_DOC"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_SVC_DOC_TNT",
+          "columns": [
+            "ID_TNT",
+            "ID_SVC_DOC"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "IDX_EX_SVC_DOC_ENC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ENC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_9376",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SVC_DOC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SVC_DOC_TNT_INDEX_9",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SVC_DOC",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_EX_SVC_DOC_GRP_RULE",
+          "expression": "\"sd_grp_rule\" IN('PER_ITEM', 'BY_DEPT', 'BY_DEPT_SPECIMEN', 'BY_DEPT_EXAM_TYPE')"
+        }
+      ],
+      "catalogComment": "门诊服务申请单；一行代表一张检验、检查或治疗申请单，包含一条或多条服务请求",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ServiceDocument.java",
+          "line": 14
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "ex.service_request_site",
+      "legacy": "service_request_sites",
+      "physical": "RHN_EX_SVC_REQ_SITE",
+      "domain": "EX",
+      "comment": "检查申请部位；一行代表一条服务请求开立时选择的一个检查部位快照",
+      "columns": [
+        {
+          "physical": "ID_SVC_REQ_SITE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "申请部位主键",
+          "logical": "id",
+          "catalogComment": "申请部位主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_CARE_REQ",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "服务请求标识",
+          "logical": "service_request_id",
+          "catalogComment": "服务请求标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "部位顺序号，从 1 开始",
+          "logical": "line_no",
+          "catalogComment": "部位顺序号，从 1 开始"
+        },
+        {
+          "physical": "ID_SVC_VAR",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "开立时选择的检查部位方式标识",
+          "logical": "service_variant_id",
+          "catalogComment": "开立时选择的检查部位方式标识"
+        },
+        {
+          "physical": "CD_BODY_SITE",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "部位编码快照，取检查部位方式编码",
+          "logical": "body_site_code",
+          "catalogComment": "部位编码快照，取检查部位方式编码"
+        },
+        {
+          "physical": "NA_BODY_SITE",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "部位名称快照",
+          "logical": "body_site_name",
+          "catalogComment": "部位名称快照"
+        },
+        {
+          "physical": "ID_CONCEPT_BODY_SITE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "标准部位概念标识快照，未映射时为空",
+          "logical": "body_site_concept_id",
+          "catalogComment": "标准部位概念标识快照，未映射时为空"
+        },
+        {
+          "physical": "SD_METHOD_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "检查方式快照",
+          "logical": "method_type",
+          "catalogComment": "检查方式快照"
+        },
+        {
+          "physical": "CD_MUTUAL_RECOG",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "检查结果互认编码快照",
+          "logical": "mutual_recognition_code",
+          "catalogComment": "检查结果互认编码快照"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SVC_REQ_SITE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_SVC_REQ_SITE_CODE",
+          "columns": [
+            "ID_TNT",
+            "ID_CARE_REQ",
+            "CD_BODY_SITE"
+          ]
+        },
+        {
+          "name": "UK_EX_SVC_REQ_SITE_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_CARE_REQ",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_EX_SVC_REQ_SITE_REQ_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_REQ",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_20C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SVC_REQ_SITE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SVC_REQ_SITE_CODE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_REQ",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_BODY_SITE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SVC_REQ_SITE_LINE_INDEX_2",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_REQ",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_EX_SVC_REQ_SITE_LINE",
+          "expression": "\"sn_line\" > 0"
+        }
+      ],
+      "catalogComment": "检查申请部位；一行代表一条服务请求开立时选择的一个检查部位快照",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ServiceRequestSite.java",
+          "line": 14
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
+          "line": 18
+        }
+      ]
+    },
+    {
       "logical": "ex.service_request",
       "legacy": "service_requests",
       "physical": "RHN_EX_SVC_REQ",
@@ -7106,6 +7631,18 @@
           "comment": "检查类型快照",
           "logical": "examination_type_snapshot",
           "catalogComment": "检查类型快照"
+        },
+        {
+          "physical": "ID_SVC_DOC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "所属申请单标识；为空表示一项一单",
+          "logical": "service_document_id",
+          "catalogComment": "所属申请单标识；为空表示一项一单"
         }
       ],
       "kind": "BASE TABLE",
@@ -7123,7 +7660,39 @@
       ],
       "indexes": [
         {
-          "name": "PRIMARY_KEY_937",
+          "name": "FK_EX_SVC_REQ_SVC_DOC_INDEX_9",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SVC_DOC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_EX_SVC_REQ_SVC_DOC",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_SVC_DOC",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_7DD",
           "columns": [
             {
               "position": 1,
@@ -7134,7 +7703,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_SVC_REQ_SERVICE_REQUEST__INDEX_9",
+          "name": "UK_EX_SVC_REQ_SERVICE_REQUEST__INDEX_7",
           "columns": [
             {
               "position": 1,
@@ -7212,8 +7781,12 @@
           "line": 72
         },
         {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ServiceRequest.java",
+          "line": 75
+        },
+        {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 16
+          "line": 17
         }
       ]
     },
@@ -12617,6 +13190,44 @@
       "targetTable": "RHN_EX_CARE_REQ",
       "deleteRule": "NO ACTION",
       "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SVC_REQ_SVC_DOC",
+      "sourceTable": "RHN_EX_SVC_REQ",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_SVC_DOC"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_SVC_DOC"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_SVC_DOC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SVC_REQ_SITE_REQ",
+      "sourceTable": "RHN_EX_SVC_REQ_SITE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CARE_REQ"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CARE_REQ"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_SVC_REQ",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
       "evidence": "迁移验证库外键",
       "description": ""

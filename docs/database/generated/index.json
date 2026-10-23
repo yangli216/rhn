@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -21,7 +21,7 @@
     {
       "code": "AUD",
       "name": "审计与质量",
-      "count": 26
+      "count": 28
     },
     {
       "code": "BD",
@@ -31,12 +31,12 @@
     {
       "code": "BIL",
       "name": "收费与结算",
-      "count": 25
+      "count": 42
     },
     {
       "code": "EX",
       "name": "医疗请求与执行",
-      "count": 24
+      "count": 26
     },
     {
       "code": "HPL",
@@ -81,7 +81,7 @@
     {
       "code": "SYS",
       "name": "平台与组织",
-      "count": 52
+      "count": 55
     },
     {
       "code": "VIS",
@@ -333,7 +333,7 @@
       "logical": "aud.cryptographic_evidence",
       "domain": "AUD",
       "comment": "密码学证据；一行代表一条密码学证据记录",
-      "columns": 32
+      "columns": 37
     },
     {
       "physical": "RHN_SYS_DEPT_CAP",
@@ -1393,6 +1393,20 @@
       "columns": 12
     },
     {
+      "physical": "RHN_SYS_PRACT_QUALIF",
+      "logical": "sys.practitioner_qualification",
+      "domain": "SYS",
+      "comment": "人员执业资质；一行代表一名医务人员当前的职称、执业注册与处方权",
+      "columns": 16
+    },
+    {
+      "physical": "RHN_SYS_DEPT_DFLT_ROLE",
+      "logical": "sys.department_default_role",
+      "domain": "SYS",
+      "comment": "科室默认角色；一行代表一个科室的一个默认角色，人员在该科室任职且已开通账号时自动授予",
+      "columns": 7
+    },
+    {
       "physical": "RHN_ANL_PRES_METRIC_SAMPLE",
       "logical": "anl.presence_metric_sample",
       "domain": "ANL",
@@ -1530,21 +1544,21 @@
       "logical": "bil.reconciliation_batch",
       "domain": "BIL",
       "comment": "核对批次；一行代表一条核对批次记录",
-      "columns": 24
+      "columns": 37
     },
     {
       "physical": "RHN_BIL_RECON_ITEM_EVT",
       "logical": "bil.reconciliation_item_event",
       "domain": "BIL",
       "comment": "核对项目事件；一行代表一条核对项目事件记录",
-      "columns": 10
+      "columns": 11
     },
     {
       "physical": "RHN_BIL_RECON_ITEM",
       "logical": "bil.reconciliation_item",
       "domain": "BIL",
       "comment": "核对项目；一行代表一条核对项目记录",
-      "columns": 18
+      "columns": 26
     },
     {
       "physical": "RHN_BIL_REG_BIL_INTENT",
@@ -1701,11 +1715,25 @@
       "columns": 17
     },
     {
+      "physical": "RHN_EX_SVC_DOC",
+      "logical": "ex.service_document",
+      "domain": "EX",
+      "comment": "门诊服务申请单；一行代表一张检验、检查或治疗申请单，包含一条或多条服务请求",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_EX_SVC_REQ_SITE",
+      "logical": "ex.service_request_site",
+      "domain": "EX",
+      "comment": "检查申请部位；一行代表一条服务请求开立时选择的一个检查部位快照",
+      "columns": 11
+    },
+    {
       "physical": "RHN_EX_SVC_REQ",
       "logical": "ex.service_request",
       "domain": "EX",
       "comment": "服务请求；一行代表一条服务请求记录",
-      "columns": 7
+      "columns": 8
     },
     {
       "physical": "RHN_SYS_SVC_RSRC",
@@ -1761,14 +1789,77 @@
       "logical": "bil.settlement_tender",
       "domain": "BIL",
       "comment": "结算收款方式；一行代表一条结算收款方式记录",
-      "columns": 11
+      "columns": 12
     },
     {
       "physical": "RHN_BIL_STL",
       "logical": "bil.settlement",
       "domain": "BIL",
       "comment": "结算；一行代表一条结算记录",
-      "columns": 29
+      "columns": 31
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_APPLY",
+      "logical": "bil.relief_application",
+      "domain": "BIL",
+      "comment": "结算减免记录；一行代表一项政策对一张结算单的一次减免或冲销",
+      "columns": 22
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_APPLY_LINE",
+      "logical": "bil.relief_application_line",
+      "domain": "BIL",
+      "comment": "结算减免分配明细；一行代表一条减免记录在一个结算行上的分配",
+      "columns": 8
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_POLICY",
+      "logical": "bil.relief_policy",
+      "domain": "BIL",
+      "comment": "惠民减免政策；一行代表一项政策，计算内容见政策版本",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_POLICY_VER",
+      "logical": "bil.relief_policy_version",
+      "domain": "BIL",
+      "comment": "惠民减免政策版本；一行代表一项政策的一个版本，发布后不再修改",
+      "columns": 30
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_QUALIF",
+      "logical": "bil.relief_qualification",
+      "domain": "BIL",
+      "comment": "惠民减免资格条件；一行代表政策版本要求的一项资格条件",
+      "columns": 9
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_QUOTA",
+      "logical": "bil.relief_quota",
+      "domain": "BIL",
+      "comment": "惠民减免额度累计；一行代表一位居民在一个额度范围和周期内的已用金额与次数",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_QUOTA_TXN",
+      "logical": "bil.relief_quota_transaction",
+      "domain": "BIL",
+      "comment": "惠民减免额度流水；一行代表一次额度占用、确认、释放或恢复",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_ROSTER",
+      "logical": "bil.relief_roster",
+      "domain": "BIL",
+      "comment": "惠民资格名单；一行代表一位居民的一项资格及其有效期",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_BIL_RELIEF_RULE",
+      "logical": "bil.relief_rule",
+      "domain": "BIL",
+      "comment": "惠民减免规则；一行代表政策版本中的一条费用范围及其计算方式",
+      "columns": 14
     },
     {
       "physical": "RHN_EX_SKIN_TEST_EVT",
@@ -1964,7 +2055,7 @@
       "logical": "sys.user_role_assignment",
       "domain": "SYS",
       "comment": "用户角色任职；一行代表一条用户角色任职记录",
-      "columns": 11
+      "columns": 13
     },
     {
       "physical": "RHN_BD_VAL_SET_MEMBER",
@@ -2069,7 +2160,7 @@
       "logical": "sys.print_delivery",
       "domain": "SYS",
       "comment": "打印投递；一行代表批次输出向浏览器或本地桥的一次投递",
-      "columns": 15
+      "columns": 18
     },
     {
       "physical": "RHN_AN_AUDIT_EVT",
@@ -2490,6 +2581,83 @@
       "domain": "SYS",
       "comment": "组织与人员变更记录；一行代表一次追加式维护事件",
       "columns": 11
+    },
+    {
+      "physical": "RHN_BIL_PAY_CFG",
+      "logical": "bil.payment_merchant_configuration",
+      "domain": "BIL",
+      "comment": "支付渠道机构商户配置；一行代表一个租户法人机构的一种支付方式的加密商户配置",
+      "columns": 10
+    },
+    {
+      "physical": "RHN_SYS_CA_SIGNER",
+      "logical": "sys.ca_signer",
+      "domain": "SYS",
+      "comment": "CA签名人绑定；一行代表一个账号在一家CA厂商的签名身份",
+      "columns": 18
+    },
+    {
+      "physical": "RHN_AUD_CRYPTO_CERT",
+      "logical": "aud.cryptographic_certificate",
+      "domain": "AUD",
+      "comment": "签名证书材料；一行代表一张按指纹只追加保存的证书",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_AUD_CA_SIGN_ORDER",
+      "logical": "aud.ca_signing_order",
+      "domain": "AUD",
+      "comment": "个人CA签名任务；一行代表一次对签署行为证据的个人签名请求",
+      "columns": 34
+    },
+    {
+      "physical": "RHN_BIL_RECON_ATTEMPT",
+      "logical": "bil.reconciliation_attempt",
+      "domain": "BIL",
+      "comment": "支付对账拉取尝试；一行代表一次有领取令牌的执行及脱敏结果",
+      "columns": 11
+    },
+    {
+      "physical": "RHN_BIL_RECON_ACCT",
+      "logical": "bil.reconciliation_merchant_account",
+      "domain": "BIL",
+      "comment": "支付对账商户范围；一行代表一个租户独占的渠道商户账单覆盖范围",
+      "columns": 3
+    },
+    {
+      "physical": "RHN_BIL_RECON_POLICY",
+      "logical": "bil.reconciliation_policy",
+      "domain": "BIL",
+      "comment": "支付交易对账策略；一行代表一个机构支付方式的自动拉取策略",
+      "columns": 13
+    },
+    {
+      "physical": "RHN_BIL_RECON_TASK",
+      "logical": "bil.reconciliation_task",
+      "domain": "BIL",
+      "comment": "支付交易账单任务；一行代表一个商户账期的可恢复拉取任务",
+      "columns": 24
+    },
+    {
+      "physical": "RHN_BIL_RECON_FILE",
+      "logical": "bil.reconciliation_statement_file",
+      "domain": "BIL",
+      "comment": "支付交易账单证据版本；一行代表一次取得的商户账单证据及其发布状态",
+      "columns": 12
+    },
+    {
+      "physical": "RHN_BIL_RECON_ROW",
+      "logical": "bil.reconciliation_statement_row",
+      "domain": "BIL",
+      "comment": "支付交易账单规范明细；一行代表一个证据版本中的独立收退事件",
+      "columns": 25
+    },
+    {
+      "physical": "RHN_BIL_RECON_ACTION",
+      "logical": "bil.reconciliation_action",
+      "domain": "BIL",
+      "comment": "支付对账操作凭据；一行代表一次幂等命令和审计结果",
+      "columns": 12
     }
   ]
 }

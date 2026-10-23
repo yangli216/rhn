@@ -56,6 +56,9 @@ export function BillingQueue({
   showSearch = true,
   action,
   openOnDoubleClick = false,
+  serverFiltered = false,
+  toolbar,
+  footer,
 }: {
   title: string
   items: BillingWorkItem[]
@@ -70,6 +73,12 @@ export function BillingQueue({
   action?: ReactNode
   /** 单击仅高亮，双击或高亮后按 Enter 才调用 onSelect 载入；方向键只移动高亮。默认保持单击即选。 */
   openOnDoubleClick?: boolean
+  /** 关键字由服务端过滤：不再本地过滤，且无结果时仍保留搜索框。默认 false，保持本地过滤。 */
+  serverFiltered?: boolean
+  /** 标题与搜索框之间的筛选区（如日期范围）。 */
+  toolbar?: ReactNode
+  /** 列表下方固定区域（如分页）。 */
+  footer?: ReactNode
 }) {
   const [highlightedId, setHighlightedId] = useState('')
   const [previousSelectedId, setPreviousSelectedId] = useState(selectedId)
@@ -84,7 +93,7 @@ export function BillingQueue({
 
   const filteredItems = useMemo(() => {
     const q = keyword.trim().toLowerCase()
-    if (!q) return items
+    if (!q || serverFiltered) return items
     return items.filter((item) => {
       const name = (item.residentName || '').toLowerCase()
       const encNo = (item.encounterNo || '').toLowerCase()
@@ -92,7 +101,7 @@ export function BillingQueue({
       const resId = (item.residentId || '').toLowerCase()
       return name.includes(q) || encNo.includes(q) || healthNo.includes(q) || resId.includes(q)
     })
-  }, [items, keyword])
+  }, [items, keyword, serverFiltered])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!filteredItems.length) return
@@ -136,7 +145,8 @@ export function BillingQueue({
 
   return <Panel className="billing-queue">
     <PanelHead title={title} actions={action} />
-    {showSearch && items.length > 0 && (
+    {toolbar}
+    {showSearch && (items.length > 0 || serverFiltered) && (
       <div className="billing-queue-search">
         <SearchField inputRef={searchInputRef} label="收费队列" placeholder="搜索姓名/就诊号/档案号 (F1)"
           value={keyword} onChange={setKeyword} onKeyDown={handleKeyDown} />
@@ -174,6 +184,7 @@ export function BillingQueue({
       </div>
       </>
     )}
+    {footer}
   </Panel>
 }
 

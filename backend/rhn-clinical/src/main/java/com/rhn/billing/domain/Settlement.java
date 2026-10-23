@@ -15,6 +15,9 @@ import java.util.List;
 @Entity
 @Table(name = "RHN_BIL_STL")
 public class Settlement {
+    public static final String SELF_PAY = "SELF_PAY";
+    public static final String MEDICAL_INSURANCE = "MEDICAL_INSURANCE";
+
     @Id @Column(name = "ID_STL") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
@@ -26,6 +29,7 @@ public class Settlement {
     @Column(name = "CD_STL_NO", nullable = false) private String settlementNo;
     @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
     @Column(name = "SD_STL_TYPE", nullable = false) private String settlementType;
+    @Column(name = "SD_STL_MODE", nullable = false) private String settlementMode = SELF_PAY;
     @Column(name = "SD_STL_SCENE", nullable = false) private String settlementScene;
     @Column(name = "SD_TRMNL_SCENE", nullable = false) private String terminalScene;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private SettlementStatus status;
@@ -104,6 +108,19 @@ public class Settlement {
         if (total.compareTo(netAmount) != 0) throw new IllegalStateException("医保资金分摊合计与结算净额不一致");
         this.insuranceAmount = insuranceFund; this.patientAmount = personalAccount.add(patientCash);
         this.otherAmount = otherFund;
+        // 结算方式以是否走医保结算为准，与基金金额是否为零无关；医保冲正后不回退（医保申请已存在，不能再次发起）。
+        this.settlementMode = MEDICAL_INSURANCE;
+    }
+
+    /** 冲正结算继承其所冲销原结算的结算方式。 */
+    public void inheritSettlementMode(String originalMode) {
+        if (!"REVERSAL".equals(settlementType) || status != SettlementStatus.PRICED) {
+            throw new IllegalStateException("只有新生成的冲正结算可以继承结算方式");
+        }
+        if (!SELF_PAY.equals(originalMode) && !MEDICAL_INSURANCE.equals(originalMode)) {
+            throw new IllegalArgumentException("结算方式不正确");
+        }
+        this.settlementMode = originalMode;
     }
 
     public void reverseInsuranceAllocation() {
@@ -194,6 +211,7 @@ public class Settlement {
     public String settlementNo() { return settlementNo; }
     public String commandCode() { return commandCode; }
     public String settlementType() { return settlementType; }
+    public String settlementMode() { return settlementMode; }
     public String settlementScene() { return settlementScene; }
     public String terminalScene() { return terminalScene; }
     public SettlementStatus status() { return status; }

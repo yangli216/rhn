@@ -55,6 +55,7 @@ public final class BillingViews {
             Long id, long revision, Long patientAccountId, Long reversesSettlementId,
             Long legacyInvoiceId, String settlementNo, String commandCode,
             @DictionaryBinding("BIL_SETTLEMENT_TYPE") String settlementType,
+            @DictionaryBinding("BIL_SETTLEMENT_MODE") String settlementMode,
             @DictionaryBinding("BIL_SETTLEMENT_SCENE") String settlementScene,
             @DictionaryBinding("PAY_USE_SCENE") String terminalScene, @DictionaryBinding("BIL_SETTLEMENT_STATUS") String status, BigDecimal grossAmount,
             BigDecimal discountAmount, BigDecimal insuranceAmount, BigDecimal patientAmount,
@@ -75,6 +76,7 @@ public final class BillingViews {
             LocalDate birthDate,
             String encounterNo, String departmentName,
             String settlementNo, @DictionaryBinding("BIL_SETTLEMENT_TYPE") String settlementType,
+            @DictionaryBinding("BIL_SETTLEMENT_MODE") String settlementMode,
             @DictionaryBinding("BIL_SETTLEMENT_SCENE") String settlementScene,
             @DictionaryBinding("PAY_USE_SCENE") String terminalScene,
             @DictionaryBinding("BIL_SETTLEMENT_STATUS") String status, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
@@ -126,4 +128,14 @@ public final class BillingViews {
             BigDecimal chargeAmount, BigDecimal paymentAmount, BigDecimal refundAmount,
             BigDecimal ledgerDebit, BigDecimal ledgerCredit, BigDecimal ledgerBalance,
             List<ReconciliationLineView> lines) {}
+
+    /**
+     * 异常结算（含单边账）：由结算单、医保申请与支付指令的实时状态推导，问题解决后自动消失。
+     * exceptionType：PAID_NOT_COMPLETED、INSURANCE_SETTLED_UNPAID、INSURANCE_SETTLE_UNCERTAIN、
+     * PAYMENT_RESULT_UNKNOWN、UNPAID_TIMEOUT；severity：CRITICAL 为资金已一边落地的单边账，WARNING 为超时待处理。
+     */
+    public record SettlementExceptionView(
+            SettlementRecordView settlement, String exceptionType, String exceptionText, String severity,
+            BigDecimal outstandingAmount, long ageMinutes, Long claimId, String claimStatus,
+            Long paymentOrderId, String paymentOrderStatus, java.util.List<String> actions, String suggestion) {}
 }

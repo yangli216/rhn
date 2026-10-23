@@ -305,4 +305,42 @@ describe('ClinicalAiAssistantPanel focused next-step results', () => {
     expect(screen.queryByText('正在共写…')).not.toBeInTheDocument()
     expect(onFieldStream).not.toHaveBeenCalledWith(expect.objectContaining({ encounterId: encounter.id }))
   })
+  async function runDiagnosisOnly(generate: ReturnType<typeof vi.fn>) {
+    const api = assistantApi({ generate })
+    const slots = render(<div><div data-testid="s" /><div data-testid="n" /><div data-testid="d" /><div data-testid="p" /></div>)
+    const surfaces = { summary: slots.getByTestId('s') as HTMLDivElement, note: slots.getByTestId('n') as HTMLDivElement,
+      diagnoses: slots.getByTestId('d') as HTMLDivElement, plans: slots.getByTestId('p') as HTMLDivElement, detail: null }
+    const written = { ...context, chiefComplaint: '咳嗽3天', presentIllness: '咳嗽3天，无发热。',
+      medicationDraftFingerprint: stableClinicalAiFingerprint('medications', []),
+      serviceDraftFingerprint: stableClinicalAiFingerprint('services', []) }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><ClinicalAiAssistantPanel surfaces={surfaces} encounter={encounter}
+      currentContext={written} allergies={[]} allergyState="READY" api={api} disabled={false}
+      onAdoptionBusyChange={vi.fn()} onApply={vi.fn()} /></QueryClientProvider>)
+    await userEvent.click(await screen.findByRole('button', { name: 'AI 推荐诊断' }))
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1))
+    return surfaces
+  }
+
+  it('explains an empty diagnosis result with the reason, differentials and missing information', async () => {
+    const generate = vi.fn().mockImplementation((_id: string, input: GenerateClinicalAiSuggestionInput) => Promise.resolve({
+      id: 'sugg-empty', status: 'GENERATED' as const, contextHash: 'sha256:e',
+      clientContextFingerprint: input.clientContextFingerprint, provider: 'test', promptVersion: 'V1',
+      generatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      summary: '诊断依据不足，需补充定位定性信息', recordDraft: {}, diagnosisCandidates: [],
+      differentialDiagnoses: [{ code: 'R05', display: '咳嗽', type: 'PRIMARY' as const, confidence: 0.4, rationale: '主诉咳嗽3天' }],
+      missingInformation: ['是否有咳痰？', '是否伴胸痛？'], safetyAlerts: [], recommendedPlans: [], disclaimer: '仅供医生参考',
+    }))
+    const surfaces = await runDiagnosisOnly(generate)
+    const area = within(surfaces.diagnoses)
+    expect(await area.findByText('诊断依据不足，需补充定位定性信息')).toBeInTheDocument()
+    expect(area.getByText('咳嗽')).toBeInTheDocument()
+    expect(area.getByText('鉴别方向')).toBeInTheDocument()
+    expect(area.getByText(/待补问诊：是否有咳痰？；是否伴胸痛？/)).toBeInTheDocument()
+  })
+
+  it('shows the failure of a diagnosis-only run next to the diagnosis section', async () => {
+    const surfaces = await runDiagnosisOnly(vi.fn().mockRejectedValue(new Error('模型服务暂不可用')))
+    expect(await within(surfaces.diagnoses).findByRole('alert')).toHaveTextContent('模型服务暂不可用')
+  })
 })

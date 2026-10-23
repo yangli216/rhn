@@ -316,7 +316,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             writingDraft 中来源未确认的模板/AI 预设只用于书写，不得作为本次症状、查体或诊断的证据。draft.diagnoses 是医生已录入的诊断，属于已知事实；不要原样重复为候选，仅在有独立事实依据时补充相关或并存的诊断方向。
             本次明确事实优先于历史资料；历史诊断、历史处方及历史检查不自动成为本次确诊。关键依据缺失时写入 missingInformation，不得用常识补成患者事实。
             """ + DIAGNOSIS_RULES + REPORT_RULES + """
-            diagnosisCandidates 为待医生确认的初步诊断，依据不足可推荐有已知事实支持的症状诊断或留空；rationale 用一句简短中文（建议60字以内）说明支持该条诊断的已知患者事实及尚待确认的边界，不能编造结果、用通用病种介绍替代依据，或以 ICD-10 目录匹配证明诊断成立。
+            diagnosisCandidates 为待医生确认的初步诊断，至少 1 项，不得为空；依据不足时给出已知事实最能支持的症状/体征诊断（ICD-10 R 章，如腹痛 R10.4）作为 PRIMARY，并在 rationale 说明尚缺的依据，缺失事实同时写入 missingInformation；differentialDiagnoses 仅放备选方向，不得与 diagnosisCandidates 重复；rationale 用一句简短中文（建议60字以内）说明支持该条诊断的已知患者事实及尚待确认的边界，不能编造结果、用通用病种介绍替代依据，或以 ICD-10 目录匹配证明诊断成立。
             missingInformation 按对诊断影响排序，使用医生可直接提问的短句，最多 5 项。safetyAlerts 仅表达需要医生核对的风险，不得声称已经完成处置；level 仅允许 INFO、WARNING、CRITICAL。
 
             必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。JSON 字段为：

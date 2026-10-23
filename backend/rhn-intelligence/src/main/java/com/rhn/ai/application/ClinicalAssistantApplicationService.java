@@ -706,7 +706,16 @@ public class ClinicalAssistantApplicationService {
     /** Diagnoses only: no record draft, orders or plans, whatever the model returned. */
     private Analysis diagnosisRecommendationAnalysis(SuggestionContent raw, List<SafetyAlert> alerts) {
         List<DiagnosisCandidate> candidates = validatedDiagnosisCandidates(raw.diagnosisCandidates(), 3);
-        List<DiagnosisCandidate> differentials = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
+        List<DiagnosisCandidate> validated = validatedDiagnosisCandidates(raw.differentialDiagnoses(), 5);
+        List<DiagnosisCandidate> differentials = validated;
+        if (candidates.isEmpty() && !validated.isEmpty()) {
+            // The model may put every direction under differentials; promote one so the doctor always sees a candidate.
+            DiagnosisCandidate promoted = validated.stream().filter(value -> "PRIMARY".equals(value.type())).findFirst()
+                    .orElseGet(() -> validated.stream().max(java.util.Comparator.comparingDouble(DiagnosisCandidate::confidence)).orElseThrow());
+            candidates = List.of(new DiagnosisCandidate(promoted.code(), promoted.display(), "PRIMARY",
+                    promoted.confidence(), promoted.rationale()));
+            differentials = validated.stream().filter(value -> value != promoted).toList();
+        }
         List<String> missing = distinctStrings(raw.missingInformation(), 5, 300);
         String summary = clipped(raw.summary(), 1000);
         if (blank(summary)) summary = "已依据当前病历给出诊断方向与鉴别诊断，请医生核对后确认。";

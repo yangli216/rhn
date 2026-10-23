@@ -216,8 +216,10 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     // 4. Verify Prescription Card & Table with merged columns and dosage calculation
     expect(screen.getByText('处方一')).toBeInTheDocument()
     expect(screen.getByText('三江镇中心卫生院 / 全科医疗科 / 范贺欣')).toBeInTheDocument()
+    expect(screen.getByText(/开单时间:/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '病史摘要' })).toBeInTheDocument()
     expect(screen.getByText('药品名称/规格')).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader', { name: '药品名称/规格' })).toHaveLength(1)
     expect(screen.getByText('护肝片')).toBeInTheDocument()
     expect(screen.getByText('200片/盒')).toBeInTheDocument()
     expect(screen.getByText('云南制药有限公司')).toBeInTheDocument()
@@ -448,7 +450,168 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(screen.queryByText('云南制药有限公司')).not.toBeInTheDocument()
     expect(screen.queryByText('范贺欣')).not.toBeInTheDocument()
     expect(screen.getByText(/开单时间:/)).toHaveTextContent('开单时间: 未记录')
+  })
 
+  it('renders a single unified table header without duplicate headers across multiple prescriptions', async () => {
+    const multiRxInboxItems: PharmacyInboxItem[] = [
+      {
+        request: {
+          id: 'req-multi-1',
+          revision: 1,
+          residentId: 'res-multi',
+          encounterId: 'enc-1',
+          requestNo: 'REQ-M-01',
+          status: 'ACTIVE',
+          prescriptionId: 'rx-multi-1',
+          catalogItemId: 'cat-1',
+          medicationId: 'med-1',
+          itemCode: 'ITEM001',
+          itemName: '对乙酰氨基酚 0.5g*20片/盒',
+          medicationName: '对乙酰氨基酚',
+          medicationType: 'WESTERN',
+          skinTestRequired: false,
+          antimicrobial: false,
+          doseValue: 0.5,
+          doseUnit: 'G',
+          routeCode: '口服',
+          frequencyName: '必要时',
+          quantity: 1,
+          quantityUnit: 'BOX',
+          baseQuantity: 20,
+          baseUnit: 'TAB',
+          packageFactor: 20,
+          packageUnitName: '盒',
+          packageSpec: '0.5g*20片/盒',
+          substitutionAllowed: true,
+          selfProvided: false,
+          unitPrice: 8.6,
+          totalAmount: 8.6,
+          itemAttributeSnapshot: {},
+          itemAttributeHash: 'hash-m1',
+          medicationSnapshot: {
+            residentName: '多方患者',
+            gender: '1',
+            birthDate: '1975-01-01',
+            manufacturerName: '安康制药有限公司',
+          },
+          standardMappings: [],
+          authoredAt: '2026-10-20T20:30:00.000Z',
+        },
+        clinicalContext: {
+          encounterId: 'enc-1',
+          encounterNo: 'ENC20261020001',
+          clinicianId: '张医生',
+          chiefComplaint: '发热头痛。',
+          diagnoses: [{ code: 'R50.9', display: '发热', type: 'PRIMARY' }],
+        },
+      },
+      {
+        request: {
+          id: 'req-multi-2',
+          revision: 1,
+          residentId: 'res-multi',
+          encounterId: 'enc-1',
+          requestNo: 'REQ-M-02',
+          status: 'ACTIVE',
+          prescriptionId: 'rx-multi-2',
+          catalogItemId: 'cat-2',
+          medicationId: 'med-2',
+          itemCode: 'ITEM002',
+          itemName: '氨氯地平 5mg*14片/盒',
+          medicationName: '氨氯地平',
+          medicationType: 'WESTERN',
+          skinTestRequired: false,
+          antimicrobial: false,
+          doseValue: 5,
+          doseUnit: 'MG',
+          routeCode: '口服',
+          frequencyName: '每日一次',
+          quantity: 3,
+          quantityUnit: 'BOX',
+          baseQuantity: 42,
+          baseUnit: 'TAB',
+          packageFactor: 14,
+          packageUnitName: '盒',
+          packageSpec: '5mg*14片/盒',
+          substitutionAllowed: true,
+          selfProvided: false,
+          unitPrice: 18.6,
+          totalAmount: 55.8,
+          durationValue: 30,
+          durationUnit: 'DAY',
+          itemAttributeSnapshot: {},
+          itemAttributeHash: 'hash-m2',
+          medicationSnapshot: {
+            residentName: '多方患者',
+            gender: '1',
+            birthDate: '1975-01-01',
+            manufacturerName: '示范制药有限公司',
+          },
+          standardMappings: [],
+          authoredAt: '2026-10-22T23:28:00.000Z',
+        },
+        clinicalContext: {
+          encounterId: 'enc-1',
+          encounterNo: 'ENC20261020001',
+          clinicianId: '张医生',
+          chiefComplaint: '高血压随访。',
+          diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+        },
+      },
+    ]
+
+    const api = {
+      dictionaries: { systemEnum: vi.fn(async (code: string) => pharmacySystemEnums[code]) },
+      pharmacy: {
+        sites: vi.fn().mockResolvedValue([
+          { id: 'site-1', name: '门诊药房', code: 'W-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
+        ]),
+        inbox: vi.fn().mockResolvedValue(multiRxInboxItems),
+        stockItems: vi.fn().mockResolvedValue([]),
+        task: vi.fn().mockResolvedValue({ id: 'task-m', taskNo: 'TASK-M', status: 'READY_TO_DISPENSE', stockSiteId: 'site-1', lines: [] }),
+        balances: vi.fn().mockResolvedValue([]),
+        reservations: vi.fn().mockResolvedValue({ allocations: [] }),
+        trace: vi.fn().mockResolvedValue({ events: [] }),
+      },
+      organization: {
+        practitioners: vi.fn().mockResolvedValue([]),
+        assignments: vi.fn().mockResolvedValue([]),
+        practitioner: vi.fn().mockResolvedValue({ assignments: [] }),
+      },
+      residents: {
+        page: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+        get: vi.fn().mockResolvedValue({ id: 'res-multi', fullName: '多方患者' }),
+        profile: vi.fn().mockResolvedValue({ resident: { id: 'res-multi', fullName: '多方患者' } }),
+        allergies: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as RhnApi
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PharmacyWorkspace api={api} clinicalContext={clinicalContext} mode="dispensing" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    // 1. Both prescriptions are displayed
+    expect(await screen.findByText('处方一')).toBeInTheDocument()
+    expect(screen.getByText('处方二')).toBeInTheDocument()
+
+    // 2. Table column header must NOT be duplicated: exactly 1 header for "药品名称/规格"
+    const headers = screen.getAllByRole('columnheader', { name: '药品名称/规格' })
+    expect(headers).toHaveLength(1)
+
+    // 3. Authorship times are rendered on each prescription group line
+    expect(screen.getAllByText(/开单时间:/)).toHaveLength(2)
+
+    // 4. Medication items are present under the unified table
+    expect(screen.getByText('对乙酰氨基酚')).toBeInTheDocument()
+    expect(screen.getByText('氨氯地平')).toBeInTheDocument()
   })
 
   it('uses the top pharmacy context and omits the duplicated site toolbar in review mode', async () => {

@@ -751,6 +751,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         JsonNode settlement = json(mockMvc.perform(get("/api/billing/settlements/{id}", credit.get("id").asString())
                         .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertEquals("REVERSAL", settlement.get("settlementType").asString());
+        assertEquals("SELF_PAY", settlement.get("settlementMode").asString());
         assertEquals(0, reversed.negate().compareTo(settlement.get("reliefAmount").decimalValue()));
         assertEquals(0, half.subtract(reversed).compareTo(settlement.get("patientAmount").decimalValue()));
         assertEquals("SUBSIDY", settlement.at("/tenders/0/tenderType").asString());

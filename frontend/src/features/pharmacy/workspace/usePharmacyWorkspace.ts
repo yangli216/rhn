@@ -455,6 +455,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
         authoredAt: first.request.authoredAt,
         statusLabel,
         isDispensed,
+        isReady,
         isFullyReturned,
         isPartiallyReturned,
         returnedTotalAmount,

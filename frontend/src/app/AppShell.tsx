@@ -14,6 +14,7 @@ import type { Department, Session } from '../shared/model'
 import { createRhnApi, createRhnSessionApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
 import { useWorkspaceUnsavedPrompt } from './useWorkspaceUnsavedPrompt'
+import { BillingExceptionMonitor, BillingExceptionNavBadge } from '../features/billing/settlementExceptions'
 import { SESSION_ENDED_EVENT, type SessionEndedDetail } from '../shared/api/httpClient'
 import { formatTime } from '../shared/format'
 import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
@@ -1031,6 +1032,8 @@ export function AppShell() {
 
   return (
     <div className={`app-shell ${collapsedNavigation ? 'is-sidebar-collapsed' : ''}`}>
+      <BillingExceptionMonitor api={activeSlot.api} contextKey={activeContextKey}
+        enabled={activeContextType === 'CLINICAL' && activeAuthorities.has('BILLING.ACCESS')} />
       <RealtimeBridge api={activeSlot.api} contextKey={activeContextKey}
         organizationId={activeSlot.option.organizationId} onSessionTerminated={endTerminatedSession} />
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="关闭主导航"
@@ -2095,6 +2098,7 @@ function NavigationTree({ nodes, pathname, collapsed, expandedDirectories, onTog
         const content = <>
           <NavigationGlyph node={node} />
           <span className="nav-label">{node.label}</span>
+          {(node.id === 'billing-settlement' || node.id === 'billing-query') && <BillingExceptionNavBadge />}
         </>
         return <div className="nav-node" key={node.id}>
           {node.fullPageNavigation

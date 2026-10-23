@@ -1,10 +1,11 @@
+import { Fragment } from 'react'
 import { DataTable as UiDataTable } from '../../../shared/ui'
 import { formatDoseWithMinimumUnit, formatFrequencyName, recordedMedicationAmount, displayRecordedAmount, formatRecordedDuration } from "../medicationDisplay";
 import { formatTime } from "../../../shared/format";
 import { errorMessage } from "../../../shared/rhnApi";
 import { ActionMenu, Alert, Button, Dialog, EmptyState, FormField, Icon, Select } from "../../../shared/ui";
 import { usePharmacyWorkspace } from './usePharmacyWorkspace'
-import { parseTraceCodeBatch, genderText, ageText, requestPackageUnit } from './pharmacyShared'
+import { parseTraceCodeBatch, genderText, ageText, requestPackageUnit, patientQueueStatus } from './pharmacyShared'
 
 export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof usePharmacyWorkspace> }) {
  const { actionNotice, setActionNotice, error, selectedWindow, setSelectedWindow, autoCall, setAutoCall, scanInputRef, scanKeyword, setScanKeyword, scanPending, queuedTraceCount, enqueueTraceCodes, handleScanOrSearch, setShowQueueScreenModal, batchDispensing, handleBatchDispenseF4, batchPicking, handleBatchPicking, showActionNotice, setShowSettingsModal, expiryDaysFilter, setExpiryDaysFilter, refresh, filteredPatientGroups, appliedSearchKeyword, activePatient, setSelectedResidentId, handleCallPatient, pFullName, pGender, pAge, pEthnicity, pCoverage, pNationalId, pPhone, pAddress, activeDrugAllergies, setShowAllergyModal, prescriptionCards, checkedPrescriptionKeys, togglePrescriptionCheck, setActiveHistorySummary, itemRequiresTrace, getItemScannedCount, lastScannedRequestId, clearItemScans, westernAmount, chineseAmount, selectedTotalAmount, patientTotalAmount, activeHistorySummary, showAllergyModal, hasNoKnownDrugAllergy, showQueueScreenModal, showSettingsModal } = model
@@ -194,7 +195,14 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
                       <span className="pharmacy-queue-item__meta">
                         {genderText(p.gender)} · {ageText(p.birthDate)}
                       </span>
-                      <span className="pharmacy-queue-item__badge-waiting">待发药</span>
+                      {(() => {
+                        const status = patientQueueStatus(p)
+                        return (
+                          <span className={`pharmacy-queue-item__badge pharmacy-queue-item__badge--${status.tone}`}>
+                            {status.label}
+                          </span>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -247,69 +255,71 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
               </div>
             </section>
 
-            {/* Prescriptions Board */}
+            {/* Prescriptions Board: Unified table with sticky header and grouped prescriptions */}
             <div className="pharmacy-prescriptions-board">
-              {prescriptionCards.map((card) => (
-                <article key={card.key} className="pharmacy-prescription-card">
-                    {/* Prescription Header */}
-                  <header className="pharmacy-prescription-card__header">
-                    <div className="pharmacy-prescription-card__header-left">
-                      <input
-                        type="checkbox"
-                        className="pharmacy-prescription-card__checkbox"
-                        checked={checkedPrescriptionKeys.has(card.key)}
-                        onChange={() => togglePrescriptionCheck(card.key)}
-                      />
-                      <h3 className="pharmacy-prescription-card__title">{card.title}</h3>
-                      <span className="pharmacy-prescription-card__meta">
-                        <span className="pharmacy-prescription-card__prescriber">
-                          {card.orgName} / {card.deptName} / {card.doctorName}
-                        </span>
-                        <span className="pharmacy-prescription-card__time">
-                          开单时间: {formatTime(card.authoredAt) || '未记录'}
-                        </span>
-                      </span>
-                      <span className={`pharmacy-prescription-card__status ${card.isDispensed ? 'is-dispensed' : ''}`}>
-                        {card.statusLabel}
-                      </span>
-                      <Button variant="text" size="sm"
-                        onClick={() => setActiveHistorySummary({
-                          title: card.title,
-                          encounterNo: card.clinicalContext?.encounterNo,
-                          clinicianId: card.clinicalContext?.clinicianId,
-                          chiefComplaint: card.clinicalContext?.chiefComplaint,
-                          diagnoses: card.clinicalContext?.diagnoses || [],
-                        })}
-                      >
-                        病史摘要
-                      </Button>
-                    </div>
-                    <div className="pharmacy-prescription-card__header-right">
-                      <span>处方金额:</span>
-                      <strong className="pharmacy-prescription-card__amount">{displayRecordedAmount(card.totalAmount)}</strong>
-                    </div>
-                  </header>
-
-                  {/* Prescription Table */}
-                  <div className="pharmacy-prescription-table-wrap">
-                    <UiDataTable className="pharmacy-prescription-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '3rem' }}>序号</th>
-                          <th style={{ minWidth: '12rem' }}>药品名称/规格</th>
-                          <th style={{ minWidth: '9rem' }}>厂家</th>
-                          <th style={{ minWidth: '7.5rem' }}>每次剂量</th>
-                          <th style={{ minWidth: '5rem' }}>频次</th>
-                          <th style={{ minWidth: '5rem' }}>药品用法</th>
-                          <th style={{ minWidth: '4.5rem' }}>总量</th>
-                          <th style={{ minWidth: '4.5rem' }}>单价</th>
-                          <th style={{ minWidth: '4.5rem' }}>金额</th>
-                          <th style={{ minWidth: '4rem' }}>疗程</th>
-                          <th style={{ minWidth: '6.5rem' }}>已扫数量</th>
-                          <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
+              <div className="pharmacy-prescription-table-wrap">
+                <UiDataTable className="pharmacy-prescription-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '3.5rem' }}>序号</th>
+                      <th style={{ minWidth: '12rem' }}>药品名称/规格</th>
+                      <th style={{ minWidth: '9rem' }}>厂家</th>
+                      <th style={{ minWidth: '7.5rem' }}>每次剂量</th>
+                      <th style={{ minWidth: '5rem' }}>频次</th>
+                      <th style={{ minWidth: '5rem' }}>药品用法</th>
+                      <th style={{ minWidth: '4.5rem' }}>总量</th>
+                      <th style={{ minWidth: '4.5rem' }}>单价</th>
+                      <th style={{ minWidth: '4.5rem' }}>金额</th>
+                      <th style={{ minWidth: '4rem' }}>疗程</th>
+                      <th style={{ minWidth: '6.5rem' }}>已扫数量</th>
+                      <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prescriptionCards.map((card) => (
+                      <Fragment key={card.key}>
+                        <tr className="pharmacy-prescription-group-row">
+                          <td colSpan={12} className="pharmacy-prescription-group-cell">
+                            <header className="pharmacy-prescription-card__header">
+                              <div className="pharmacy-prescription-card__header-left">
+                                <input
+                                  type="checkbox"
+                                  className="pharmacy-prescription-card__checkbox"
+                                  checked={checkedPrescriptionKeys.has(card.key)}
+                                  onChange={() => togglePrescriptionCheck(card.key)}
+                                  aria-label={`勾选${card.title}`}
+                                />
+                                <h3 className="pharmacy-prescription-card__title">{card.title}</h3>
+                                <span className="pharmacy-prescription-card__meta">
+                                  <span className="pharmacy-prescription-card__prescriber">
+                                    {card.orgName} / {card.deptName} / {card.doctorName}
+                                  </span>
+                                  <span className="pharmacy-prescription-card__time">
+                                    开单时间: {formatTime(card.authoredAt) || '未记录'}
+                                  </span>
+                                </span>
+                                <span className={`pharmacy-prescription-card__status ${card.isDispensed ? 'is-dispensed' : card.isReady ? 'is-ready' : 'is-pending'}`}>
+                                  {card.statusLabel}
+                                </span>
+                                <Button variant="text" size="sm"
+                                  onClick={() => setActiveHistorySummary({
+                                    title: card.title,
+                                    encounterNo: card.clinicalContext?.encounterNo,
+                                    clinicianId: card.clinicalContext?.clinicianId,
+                                    chiefComplaint: card.clinicalContext?.chiefComplaint,
+                                    diagnoses: card.clinicalContext?.diagnoses || [],
+                                  })}
+                                >
+                                  病史摘要
+                                </Button>
+                              </div>
+                              <div className="pharmacy-prescription-card__header-right">
+                                <span>处方金额:</span>
+                                <strong className="pharmacy-prescription-card__amount">{displayRecordedAmount(card.totalAmount)}</strong>
+                              </div>
+                            </header>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
                         {card.items.map((it, idx) => {
                           const req = it.request
                           const requiresTrace = itemRequiresTrace(it)
@@ -383,11 +393,11 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
                             </tr>
                           )
                         })}
-                      </tbody>
-                    </UiDataTable>
-                  </div>
-                </article>
-              ))}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </UiDataTable>
+              </div>
             </div>
 
             {/* Bottom Summary Footer */}

@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { SettlementExceptionBanner, useSettlementExceptions } from './settlementExceptions'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { AccountStatement, InsuranceSettlementView, ReceiptView, SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -158,6 +159,8 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [], usern
   const settlementItems = useMemo(() => (worklist.data ?? []).filter((item) => settlementStatuses.has(item.status)),
     [worklist.data])
   const paymentMethods = useCashierPaymentMethods(api, clinicalContext)
+  const settlementExceptions = useSettlementExceptions(api, true, `${clinicalContext.organization.id}:${clinicalContext.department.id}`)
+  const navigate = useNavigate()
 
   const clearPatient = useCallback(() => {
     setEncounterId('')
@@ -918,6 +921,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [], usern
         setScanNotice({ tone: 'info', text: '未读取医保凭证，未执行试算' })
       }} />}
     {insuranceReader.dialog}
+    <SettlementExceptionBanner items={settlementExceptions.data ?? []} onOpen={() => navigate('/billing/query')} />
     {scanNotice && <Alert tone={scanNotice.tone} onDismiss={() => setScanNotice(null)}>{scanNotice.text}</Alert>}
     {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
       <div className="billing-workspace">

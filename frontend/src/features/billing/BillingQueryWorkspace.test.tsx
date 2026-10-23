@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { SettlementRecord } from '../../shared/api/billingApi'
@@ -11,7 +12,7 @@ const record: SettlementRecord = {
   id: 'settlement-1', patientAccountId: 'account-1', residentId: 'resident-1', encounterId: 'encounter-1',
   departmentId: 'department-1', residentName: '王建国', healthRecordNo: 'JMD-0001', gender: '1',
   birthDate: '1976-03-12', encounterNo: 'MZ20260908001', departmentName: '全科门诊',
-  settlementNo: 'STL-20260908-001', settlementType: 'NORMAL', settlementTypeText: '正常结算',
+  settlementNo: 'STL-20260908-001', settlementType: 'NORMAL', settlementTypeText: '正常结算', settlementMode: 'MEDICAL_INSURANCE', settlementModeText: '医保结算',
   settlementScene: 'OUTPATIENT', settlementSceneText: '门诊收费', terminalScene: 'CASHIER', terminalSceneText: '收费处', status: 'SETTLED', grossAmount: 86,
   discountAmount: 0, insuranceAmount: 50, patientAmount: 36, otherAmount: 0, roundingAmount: 0,
   netAmount: 86, currencyCode: 'CNY', terminalCode: 'CASHIER-01',
@@ -21,6 +22,7 @@ const record: SettlementRecord = {
 function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides: Partial<Record<'settlementRecords' | 'settlementCashiers' | 'settlement' | 'statement' | 'settlementReceipts', ReturnType<typeof vi.fn>>> = {}) {
   const api = { billing: {
     settlementRecords: vi.fn().mockResolvedValue(sourceRecords),
+    settlementExceptions: vi.fn().mockResolvedValue([]),
     settlementCashiers: vi.fn().mockResolvedValue([
       { userId: '123', name: '张收费', username: 'cashier.zhang', active: true, positionName: '收费员', terminalScenes: ['CASHIER'] },
       { userId: '456', name: '李离岗', username: 'cashier.li', active: false, terminalScenes: ['CASHIER'] }]),
@@ -53,9 +55,9 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides
     department: { id: 'department-1', name: '全科门诊' },
   } as ClinicalContext
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(<QueryClientProvider client={client}>
+  render(<QueryClientProvider client={client}><MemoryRouter>
     <BillingQueryWorkspace api={api} clinicalContext={clinicalContext} />
-  </QueryClientProvider>)
+  </MemoryRouter></QueryClientProvider>)
   return api
 }
 
@@ -66,7 +68,8 @@ describe('BillingQueryWorkspace', () => {
     const api = renderWorkspace([{ ...record, cashierName: '张收费', cashierUsername: 'cashier.zhang', finalizedBy: '123' }])
     const row = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
     expect(row).toHaveTextContent('张收费')
-    expect(row).toHaveTextContent('收费处 · CASHIER-01')
+    expect(row).toHaveTextContent('收费处')
+    expect(row).not.toHaveTextContent('CASHIER-01')
     expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
     fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '' } })
     fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '' } })
@@ -76,10 +79,50 @@ describe('BillingQueryWorkspace', () => {
     expect(await screen.findByRole('option', { name: '李离岗（cashier.li） · 已离岗' })).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('option', { name: '张收费（cashier.zhang）' }))
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
-    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '123', terminalScene: '' }))
+    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '123', terminalScene: '', includeOpen: true }))
     await userEvent.click(screen.getByRole('button', { name: '重置' }))
     expect(screen.getByLabelText('办理人')).toHaveTextContent('全部办理人')
     expect(screen.getByLabelText('开始日期')).toHaveValue('2026-09-08')
+  })
+  it('shows fee category and filters self-pay versus insurance settlements', async () => {
+    renderWorkspace([record, { ...record, id: 'stl-2', settlementNo: 'STL-20260908-002', insuranceAmount: 0, patientAmount: 86, settlementMode: 'SELF_PAY', settlementModeText: '自费结算' }])
+    const insured = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
+    const selfPay = screen.getByRole('button', { name: '结算记录 STL-20260908-002' })
+    expect(insured).toHaveTextContent('医保')
+    expect(selfPay).toHaveTextContent('自费')
+    await userEvent.click(screen.getByLabelText('费用类别'))
+    await userEvent.click(await screen.findByRole('option', { name: '自费' }))
+    expect(screen.queryByRole('button', { name: '结算记录 STL-20260908-001' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '结算记录 STL-20260908-002' })).toBeInTheDocument()
+  })
+  it('treats an insurance settlement with zero fund payment as insurance, not self-pay', async () => {
+    renderWorkspace([
+      { ...record, id: 'stl-zero', settlementNo: 'STL-ZERO-FUND', insuranceAmount: 0, patientAmount: 86 },
+      { ...record, id: 'stl-self', settlementNo: 'STL-SELF-PAY', insuranceAmount: 0, patientAmount: 86, settlementMode: 'SELF_PAY', settlementModeText: '自费结算' }])
+    const zeroFund = await screen.findByRole('button', { name: '结算记录 STL-ZERO-FUND' })
+    const selfPay = screen.getByRole('button', { name: '结算记录 STL-SELF-PAY' })
+    expect(zeroFund).toHaveTextContent('医保')
+    expect(zeroFund).not.toHaveTextContent('自费')
+    expect(selfPay).toHaveTextContent('自费')
+    await userEvent.click(screen.getByLabelText('费用类别'))
+    await userEvent.click(await screen.findByRole('option', { name: '医保' }))
+    expect(screen.getByRole('button', { name: '结算记录 STL-ZERO-FUND' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '结算记录 STL-SELF-PAY' })).not.toBeInTheDocument()
+  })
+  it('shows settlement status and surfaces one-sided accounts in the exception view with a banner', async () => {
+    const api = renderWorkspace([record, { ...record, id: 'stl-2', settlementNo: 'STL-20260908-002', status: 'PRICED', statusText: '待收款' }], {
+      settlementExceptions: vi.fn().mockResolvedValue([{
+        settlement: { ...record, id: 'stl-2', settlementNo: 'STL-20260908-002', status: 'PRICED' },
+        exceptionType: 'INSURANCE_SETTLED_UNPAID', exceptionText: '医保已结算，自付未收（单边账）', severity: 'CRITICAL',
+        outstandingAmount: 24, ageMinutes: 6, claimId: 'claim-1', claimStatus: 'SETTLED',
+        actions: ['COLLECT', 'CANCEL_AND_REVERSE'], suggestion: '医保基金已扣，患者自付未收齐' }]),
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('1 笔单边账待处理')
+    expect(await screen.findByRole('button', { name: '结算记录 STL-20260908-002' })).toHaveTextContent('待收款')
+    await userEvent.click(screen.getByRole('tab', { name: /异常待处理/ }))
+    expect(await screen.findByText('医保已结算，自付未收（单边账）')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '撤销医保结算' })).toBeInTheDocument()
+    expect(api.billing.settlementExceptions).toHaveBeenCalled()
   })
   it('filters by entry and disables the operator for entries without staff', async () => {
     const api = renderWorkspace()
@@ -88,7 +131,7 @@ describe('BillingQueryWorkspace', () => {
     await userEvent.click(await screen.findByRole('option', { name: '自助机' }))
     expect(screen.getByLabelText('办理人')).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
-    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '', terminalScene: 'SELF_SERVICE' }))
+    await waitFor(() => expect(api.billing.settlementRecords).toHaveBeenLastCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '', terminalScene: 'SELF_SERVICE', includeOpen: true }))
     await userEvent.click(screen.getByLabelText('收费入口'))
     await userEvent.click(await screen.findByRole('option', { name: '医生站' }))
     expect(screen.getByLabelText('办理人')).toBeEnabled()
@@ -160,7 +203,7 @@ describe('BillingQueryWorkspace', () => {
     expect(await within(detail).findByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(within(detail).getByText('微信支付')).toBeInTheDocument()
     expect(within(detail).getByText('360100000001')).toBeInTheDocument()
-    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '', terminalScene: '' })
+    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500, { from: '2026-09-08', to: '2026-09-08', cashier: '', terminalScene: '', includeOpen: true })
 
     // 点击关闭按钮关闭抽屉
     const closeBtn = within(detail).getByRole('button', { name: '关闭收费记录详情' })

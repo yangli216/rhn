@@ -11,6 +11,8 @@ import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.billing.api.RefundDiagnosticDirectory;
 import com.rhn.pharmacy.api.RefundPharmacyDirectory;
+import com.rhn.outpatient.api.EncounterDirectory;
+import com.rhn.outpatient.api.EncounterDirectory.EncounterSnapshot;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.billing.api.RefundTreatmentDirectory;
@@ -43,6 +45,7 @@ public class RefundPreCheckService {
     private final RefundDiagnosticDirectory diagnostics;
     private final RefundTreatmentDirectory treatment;
     private final RefundPolicy refundPolicy;
+    private final EncounterDirectory encounterDirectory;
     private final ExecutionContextProvider contextProvider;
 
     public RefundPreCheckService(PatientAccountRepository accounts,
@@ -52,6 +55,7 @@ public class RefundPreCheckService {
                                  RefundDiagnosticDirectory diagnostics,
                                  RefundTreatmentDirectory treatment,
                                  RefundPolicy refundPolicy,
+                                 EncounterDirectory encounterDirectory,
                                  ExecutionContextProvider contextProvider) {
         this.accounts = accounts;
         this.charges = charges;
@@ -60,6 +64,7 @@ public class RefundPreCheckService {
         this.diagnostics = diagnostics;
         this.treatment = treatment;
         this.refundPolicy = refundPolicy;
+        this.encounterDirectory = encounterDirectory;
         this.contextProvider = contextProvider;
     }
 
@@ -189,25 +194,32 @@ public class RefundPreCheckService {
             }
         }
 
-        boolean allAllowed = !items.isEmpty() && items.stream().allMatch(RefundItemPreCheckView::allowed);
-        boolean anyAllowed = items.stream().anyMatch(RefundItemPreCheckView::allowed);
-        boolean hasItems = !items.isEmpty();
+        // 挂号费项始终阻断（需走退号流程），不参与整单判定，避免把整单误导成"部分可退"。
+        List<RefundItemPreCheckView> orderItems = items.stream()
+                .filter(item -> !"REGISTRATION".equals(item.sourceType())).toList();
+        boolean hasRegistration = orderItems.size() != items.size();
+        boolean allAllowed = !orderItems.isEmpty() && orderItems.stream().allMatch(RefundItemPreCheckView::allowed);
+        boolean anyAllowed = orderItems.stream().anyMatch(RefundItemPreCheckView::allowed);
 
         String overallDecision;
         String summaryNotice;
 
-        if (!hasItems) {
+        if (items.isEmpty()) {
             overallDecision = "BLOCKED";
             summaryNotice = "当前就诊暂无可退费的收费项目。";
+        } else if (orderItems.isEmpty()) {
+            overallDecision = "BLOCKED";
+            summaryNotice = "当前就诊仅有挂号费，挂号费请走退号流程。";
         } else if (allAllowed) {
             overallDecision = "ALLOWED";
-            summaryNotice = "所有收费项目均满足退费防损与协同校验要求，允许办理退款。";
+            summaryNotice = hasRegistration ? "医嘱费用均可直接退费；挂号费不在此退还。"
+                    : "所有收费项目均满足退费防损与协同校验要求，允许办理退款。";
         } else if (anyAllowed) {
             overallDecision = "PARTIAL";
-            summaryNotice = "部分项目已发药或已出报告，受协同防损策略阻断；未发药未执行项目允许直接退款。";
+            summaryNotice = "部分项目已发药、已执行或已出报告，仅未发药/未执行项目可直接退费。";
         } else {
             overallDecision = "BLOCKED";
-            summaryNotice = "所有收费项目均受协同防损策略阻断（药房已发药或医技已出具报告），禁止直接退款。";
+            summaryNotice = "医嘱费用均已发药、已执行或已出报告，不能直接退费；已发药请先到药房退药。";
         }
 
         // 可退金额与支付剩余金额在退款指令中分别校验，这里不再要求必须先有账户支付候选。
@@ -239,6 +251,10 @@ public class RefundPreCheckService {
                     "已实物退药 · 允许退款", "info", null);
         }
 
+        if ("REGISTRATION".equals(sourceType)) {
+            return evaluateRegistration(charge, sourceType, sourceId);
+        }
+
         if ("MEDICATION_REQUEST".equals(sourceType)) {
             return evaluateMedicationRequest(context, charge, sourceType, sourceId, unexecutedDirectRefundAllowed);
         }
@@ -253,6 +269,23 @@ public class RefundPreCheckService {
 
         return refundItem(charge, sourceType, sourceId,
                 "OTHER", "就诊服务", true, "允许直接退款", "success", null);
+    }
+
+    /** 挂号费不在收费处直接退：未接诊走退号流程（返还号源），已接诊不予退还。 */
+    private RefundItemPreCheckView evaluateRegistration(ChargeItem charge, String sourceType, Long sourceId) {
+        String status = charge.encounterId() == null ? null
+                : encounterDirectory.findOrganizationAccessible(List.of(charge.encounterId())).stream()
+                        .findFirst().map(EncounterSnapshot::status).orElse(null);
+        if ("REGISTERED".equals(status)) {
+            return refundItem(charge, sourceType, sourceId,
+                    "REGISTRATION_WITHDRAW", "未接诊", false,
+                    "挂号费 · 请走退号", "warning",
+                    "患者尚未接诊，挂号费请在挂号处办理退号（同时返还号源），不在收费处直接退费。");
+        }
+        return refundItem(charge, sourceType, sourceId,
+                "REGISTRATION_IN_SERVICE", "已接诊", false,
+                "已接诊 · 不可退号", "danger",
+                "就诊已接诊或已开立医嘱，挂号费不予退还。");
     }
 
     private RefundItemPreCheckView evaluateMedicationRequest(ExecutionContext context, ChargeItem charge,

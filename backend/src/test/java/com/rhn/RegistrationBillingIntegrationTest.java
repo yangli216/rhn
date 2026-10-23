@@ -324,6 +324,86 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void settled_encounters_page_returns_only_settled_with_keyword_filter_and_stable_date_errors() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        String scheduleId = createTodaySchedule(suffix, 2);
+        jdbc.update("update RHN_SC_SVC_SCHED set ID_DEPT = ? where ID_SVC_SCHED = ?",
+                Long.valueOf(INTERNAL_MEDICINE_DEPARTMENT), Long.valueOf(scheduleId));
+        JsonNode intent = createIntent(residentId, scheduleId, INTERNAL_MEDICINE_DEPARTMENT, "REG-SETTLED-" + suffix);
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "idempotencyKey":"REG-SETTLED-PAY-%s","businessScene":"REGISTRATION",
+                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH","amount":10.00,
+                                  "terminalCode":"CENTRAL-REGISTRATION"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated());
+        JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
+                        intent.get("id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String encounterId = completed.get("encounterId").asString();
+        JsonNode worklist = json(mockMvc.perform(get("/api/billing/worklist").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String status = null;
+        String encounterNo = null;
+        for (JsonNode item : worklist) {
+            if (encounterId.equals(item.get("encounterId").asString())) {
+                status = item.get("status").asString();
+                encounterNo = item.get("encounterNo").asString();
+            }
+        }
+        // Only SETTLED rows may appear on the settled page; everything else must be excluded.
+        JsonNode page = json(mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(5))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.first").value(true))
+                .andReturn().getResponse().getContentAsString());
+        for (JsonNode item : page.get("content")) assertEquals("SETTLED", item.get("status").asString());
+        assertEquals("SETTLED", status);
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("query", encounterNo.toLowerCase()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.last").value(true))
+                .andExpect(jsonPath("$.content[0].encounterId").value(Long.valueOf(encounterId)));
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("encounterId", encounterId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("query", encounterNo).queryParam("size", "1").queryParam("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content.length()").value(0));
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("dateFrom", LocalDate.now().minusDays(30).toString())
+                        .queryParam("dateTo", LocalDate.now().minusDays(10).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("query", "no-such-keyword-" + suffix))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("dateFrom", LocalDate.now().toString())
+                        .queryParam("dateTo", LocalDate.now().minusDays(1).toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BILLING_DATE_RANGE_INVALID"));
+        mockMvc.perform(get("/api/billing/settled-encounters").with(rhnWorkContext())
+                        .queryParam("dateFrom", LocalDate.now().minusDays(120).toString())
+                        .queryParam("dateTo", LocalDate.now().toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BILLING_DATE_RANGE_TOO_LONG"));
+    }
+
+    @Test
     void department_schedule_completes_paid_registration_without_a_practitioner_snapshot() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);
@@ -938,6 +1018,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         JsonNode settlement = json(mockMvc.perform(get("/api/billing/settlements/{settlementId}",
                                 intent.get("settlementId").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals("SELF_PAY", settlement.get("settlementMode").asString());
         long settlementLineId = settlement.at("/lines/0/id").asLong();
         String preSettleBody = """
                 {
@@ -1063,6 +1144,8 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.tenderedAmount").value(10.0))
                 .andExpect(jsonPath("$.outstandingAmount").value(0.0))
                 .andExpect(jsonPath("$.tenders.length()").value(3));
+        assertEquals("MEDICAL_INSURANCE", jdbc.queryForObject("select SD_STL_MODE from RHN_BIL_STL where ID_STL = ?",
+                String.class, intent.get("settlementId").asLong()));
         JsonNode fundingReceipt = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/receipts", intent.get("settlementId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"FUNDING-%s","receiptType":"PAPER_INVOICE","issueChannel":"CASHIER",
@@ -1111,6 +1194,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/billing/settlements/{settlementId}", intent.get("settlementId").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PARTIAL"))
+                .andExpect(jsonPath("$.settlementMode").value("MEDICAL_INSURANCE"))
                 .andExpect(jsonPath("$.insuranceAmount").value(0.0))
                 .andExpect(jsonPath("$.patientAmount").value(10.0))
                 .andExpect(jsonPath("$.tenderedAmount").value(3.0))

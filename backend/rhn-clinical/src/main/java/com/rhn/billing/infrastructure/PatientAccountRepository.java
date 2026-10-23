@@ -18,6 +18,8 @@ public interface PatientAccountRepository extends JpaRepository<PatientAccount, 
     List<PatientAccount> findByTenantIdAndOrganizationId(Long tenantId, Long organizationId);
     List<PatientAccount> findTop200ByTenantIdAndOrganizationIdAndEncounterIdIsNotNullOrderByOpenedAtDesc(
             Long tenantId, Long organizationId);
+    List<PatientAccount> findByTenantIdAndOrganizationIdAndEncounterIdIsNotNullAndOpenedAtGreaterThanEqualAndOpenedAtLessThanOrderByOpenedAtDesc(
+            Long tenantId, Long organizationId, java.time.Instant from, java.time.Instant to);
     List<PatientAccount> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
     List<PatientAccount> findByTenantIdAndIdIn(Long tenantId, Collection<Long> accountIds);
 

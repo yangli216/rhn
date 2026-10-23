@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "vis.allergy_intolerance",
@@ -3159,7 +3159,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 38
+          "line": 40
         }
       ]
     },
@@ -3349,7 +3349,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 39
+          "line": 41
         }
       ]
     },
@@ -4010,7 +4010,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 40
+          "line": 42
         }
       ]
     },
@@ -4477,7 +4477,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 41
+          "line": 43
         }
       ]
     },
@@ -4812,7 +4812,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 42
+          "line": 44
         }
       ]
     },
@@ -5455,7 +5455,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 43
+          "line": 45
         }
       ]
     },
@@ -5749,7 +5749,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 44
+          "line": 46
         }
       ]
     },
@@ -6459,7 +6459,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/diagnostics/application/ClinicalObservationService.java",
-          "line": 46
+          "line": 47
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/application/JpaWardMedicationSupplyCandidateDirectory.java",
@@ -6539,7 +6539,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 37
+          "line": 39
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/pharmacy/application/WardDeliveryApplicationService.java",

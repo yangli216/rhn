@@ -985,6 +985,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       onDiscardTreatments={() => { if (currentSuggestion) setDismissedTreatmentBatchId(currentSuggestion.id) }}
       busy={actionPending} inputBusy={inputBusy} generating={generate.isPending} generatingTarget={generatingTarget}
       preview={preview}
+      diagnosisOnlyRun={generate.isSuccess && generate.variables?.intent === 'DIAGNOSIS_RECOMMENDATION' && generate.data?.value.id === currentSuggestion?.id}
+      diagnosisRunError={generate.isError && generate.variables?.intent === 'DIAGNOSIS_RECOMMENDATION' && (generate.error as Error)?.name !== 'AbortError' ? errorMessage(generate.error) : ''}
       onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}
       diagnosisError={inlineError?.target === 'diagnosis' ? inlineError.message : undefined}
       treatmentError={inlineError?.target === 'treatment' ? inlineError.message : undefined}

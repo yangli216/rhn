@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "legacy": "op_triage_rec",
@@ -700,7 +700,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 23
+          "line": 25
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/triage/OutpatientTriageRecord.java",

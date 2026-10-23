@@ -6,6 +6,7 @@ import com.rhn.billing.api.BillingViews.AccountStatementView;
 import com.rhn.billing.api.BillingViews.ChargeItemView;
 import com.rhn.billing.api.BillingViews.ChargeSynchronizationView;
 import com.rhn.billing.api.BillingViews.BillingWorkItemView;
+import com.rhn.billing.api.BillingWorkItemPageView;
 import com.rhn.billing.api.BillingViews.DailyReconciliationView;
 import com.rhn.billing.api.BillingViews.InvoiceLineView;
 import com.rhn.billing.api.BillingViews.InvoiceView;
@@ -55,6 +56,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -73,6 +75,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class BillingApplicationService {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
     private final BusinessNumberGenerator numbers;
     private final PatientAccountRepository accountRepository;
     private final ChargeItemRepository chargeRepository;
@@ -222,6 +225,82 @@ public class BillingApplicationService {
             if (!"OUTPATIENT".equals(account.accountType())) continue;
             accountByEncounter.putIfAbsent(account.encounterId(), account);
         }
+        return buildWorkItems(context, eventsByEncounter, accountByEncounter, true).stream()
+                .sorted(Comparator.comparing(BillingWorkItemView::latestOccurredAt).reversed())
+                .limit(100).toList();
+    }
+
+    /** 已结算就诊分页：状态口径与 worklist 共用 buildWorkItems，只返回 SETTLED。 */
+    @Transactional(readOnly = true)
+    public BillingWorkItemPageView settledEncounters(LocalDate dateFrom, LocalDate dateTo, String query,
+                                                     Long encounterId, int page, int size) {
+        ExecutionContext context = requireWorkContext();
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        Map<Long, PatientAccount> accountByEncounter = new LinkedHashMap<>();
+        List<PatientAccount> accounts;
+        if (encounterId != null) {
+            accounts = accountRepository.findByTenantIdAndEncounterIdIn(context.tenantId(), List.of(encounterId))
+                    .stream().filter(value -> Objects.equals(value.organizationId(), context.organizationId()))
+                    .sorted(Comparator.comparing(PatientAccount::openedAt).reversed()).toList();
+        } else {
+            LocalDate end = dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo;
+            LocalDate start = dateFrom == null ? end.minusDays(6) : dateFrom;
+            if (start.isAfter(end)) {
+                throw badRequest("BILLING_DATE_RANGE_INVALID", "开始日期不能晚于结束日期");
+            }
+            if (end.isAfter(start.plusDays(92))) {
+                throw badRequest("BILLING_DATE_RANGE_TOO_LONG", "单次最多查询 93 天已结算就诊");
+            }
+            accounts = accountRepository
+                    .findByTenantIdAndOrganizationIdAndEncounterIdIsNotNullAndOpenedAtGreaterThanEqualAndOpenedAtLessThanOrderByOpenedAtDesc(
+                            context.tenantId(), context.organizationId(),
+                            start.atStartOfDay(BUSINESS_ZONE).toInstant(),
+                            end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant());
+        }
+        for (PatientAccount account : accounts) {
+            if (!"OUTPATIENT".equals(account.accountType())) continue;
+            accountByEncounter.putIfAbsent(account.encounterId(), account);
+        }
+        String keyword = Strings.trimToNull(query);
+        String matchQuery = keyword == null || encounterId != null ? null : keyword.toLowerCase(Locale.ROOT);
+        List<BillingWorkItemView> filtered = List.of();
+        if (!accountByEncounter.isEmpty()) {
+            Map<Long, List<DispenseBillingFact>> eventsByEncounter = new LinkedHashMap<>();
+            for (DispenseBillingFact event : dispenseDirectory.findWorklist(context.tenantId(),
+                    context.organizationId())) {
+                if (accountByEncounter.containsKey(event.encounterId())) {
+                    eventsByEncounter.computeIfAbsent(event.encounterId(), ignored -> new ArrayList<>()).add(event);
+                }
+            }
+            filtered = buildWorkItems(context, eventsByEncounter, accountByEncounter, false).stream()
+                    .filter(item -> "SETTLED".equals(item.status()))
+                    .filter(item -> matchQuery == null || containsIgnoreCase(item.residentName(), matchQuery)
+                            || containsIgnoreCase(item.encounterNo(), matchQuery)
+                            || containsIgnoreCase(item.healthRecordNo(), matchQuery))
+                    .sorted(Comparator.comparing(BillingWorkItemView::latestOccurredAt).reversed())
+                    .toList();
+        }
+        long totalElements = filtered.size();
+        int totalPages = (int) Math.ceil((double) totalElements / safeSize);
+        int fromIndex = (int) Math.min(totalElements, (long) safePage * safeSize);
+        int toIndex = (int) Math.min(totalElements, (long) fromIndex + safeSize);
+        return new BillingWorkItemPageView(filtered.subList(fromIndex, toIndex), safePage, safeSize,
+                totalElements, totalPages, safePage == 0, safePage + 1 >= totalPages);
+    }
+
+    private static boolean containsIgnoreCase(String value, String lowerQuery) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(lowerQuery);
+    }
+
+    /**
+     * 按就诊组装收费工作项并判定状态（worklist 与已结算分页共用，保证口径一致）。
+     * includeChargePending 为 true 时包含只有发药事件、尚无账户的 PENDING_CHARGE 项。
+     */
+    private List<BillingWorkItemView> buildWorkItems(ExecutionContext context,
+                                                     Map<Long, List<DispenseBillingFact>> eventsByEncounter,
+                                                     Map<Long, PatientAccount> accountByEncounter,
+                                                     boolean includeChargePending) {
         List<Long> accountIds = accountByEncounter.values().stream().map(PatientAccount::id).toList();
         Map<Long, List<ChargeItem>> chargesByAccount = new LinkedHashMap<>();
         Set<Long> uninvoicedChargeIds = new HashSet<>();
@@ -243,19 +322,21 @@ public class BillingApplicationService {
         for (EncounterSnapshot encounter : encounterDirectory.findOrganizationAccessible(encounterIds)) {
             accessibleEncounters.put(encounter.id(), encounter);
         }
-        Map<Long, ResidentSnapshot> residents = new LinkedHashMap<>();
+        Map<Long, ResidentSnapshot> residents = residentDirectory.requireSnapshots(context.tenantId(),
+                accessibleEncounters.values().stream().map(EncounterSnapshot::residentId).distinct().toList());
         List<BillingWorkItemView> result = new ArrayList<>();
         for (Long encounterId : encounterIds) {
             EncounterSnapshot encounter = accessibleEncounters.get(encounterId);
             if (encounter == null) continue;
-            ResidentSnapshot resident = residents.computeIfAbsent(encounter.residentId(),
-                    residentId -> residentDirectory.requireSnapshot(context.tenantId(), residentId));
+            ResidentSnapshot resident = residents.get(encounter.residentId());
+            if (resident == null) resident = residentDirectory.requireSnapshot(context.tenantId(), encounter.residentId());
             List<DispenseBillingFact> events = eventsByEncounter.getOrDefault(encounterId, List.of());
             PatientAccount account = accountByEncounter.get(encounterId);
             List<ChargeItem> charges = account == null ? List.of()
                     : chargesByAccount.getOrDefault(account.id(), List.of());
             int unmatchedEvents = (int) events.stream().filter(event -> !hasCharge(event, charges)).count();
             if (account == null) {
+                if (!includeChargePending) continue;
                 DispenseBillingFact latest = events.stream().max(Comparator.comparing(DispenseBillingFact::occurredAt))
                         .orElse(null);
                 if (latest != null) result.add(new BillingWorkItemView(encounterId, resident.id(),
@@ -283,9 +364,9 @@ public class BillingApplicationService {
                     latest.sourceNo(), latest.occurredAt(), chargeAmount, balance,
                     encounter.departmentName(), encounter.registeredAt()));
         }
-        return result.stream().sorted(Comparator.comparing(BillingWorkItemView::latestOccurredAt).reversed())
-                .limit(100).toList();
+        return result;
     }
+
 
     private boolean hasCharge(DispenseBillingFact event, List<ChargeItem> charges) {
         String directType = sourceType(event);

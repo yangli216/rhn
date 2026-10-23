@@ -6,6 +6,9 @@ import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { RhnApi } from '../../shared/rhnApi'
 import { RefundManagementWorkspace } from './RefundManagementWorkspace'
 
+const settledPage = (content: unknown[]) => ({ content, page: 0, size: 20, totalElements: content.length,
+  totalPages: content.length ? 1 : 0, first: true, last: true })
+
 describe('RefundManagementWorkspace', () => {
   const clinicalContext = {
     organization: { id: 'org-1', name: '基层医疗机构' },
@@ -27,7 +30,7 @@ describe('RefundManagementWorkspace', () => {
     </QueryClientProvider>)
 
     expect(await screen.findByText('暂无符合就诊')).toBeInTheDocument()
-    expect(screen.queryByText('正在进行临床-药房-医技协同退费前置检查…')).not.toBeInTheDocument()
+    expect(screen.queryByText('正在核验退费资料…')).not.toBeInTheDocument()
     expect(screen.getAllByText('请选择就诊患者').length).toBeGreaterThan(0)
     expect(screen.getByText('请先选择就诊')).toBeInTheDocument()
   })
@@ -62,13 +65,14 @@ describe('RefundManagementWorkspace', () => {
 
     await waitFor(() => expect(refundPreCheck).toHaveBeenCalledWith('enc-refund-1', undefined))
     expect(screen.queryByText('暂无费用账户')).not.toBeInTheDocument()
-    expect(screen.queryByText('正在进行临床-药房-医技协同退费前置检查…')).not.toBeInTheDocument()
+    expect(screen.queryByText('正在核验退费资料…')).not.toBeInTheDocument()
   })
 
   it('renders collaboration pre-check card and blocks direct refund when item is dispensed', async () => {
     const api = {
       billing: {
-        worklist: vi.fn().mockResolvedValue([{
+        worklist: vi.fn().mockResolvedValue([]),
+        settledEncounters: vi.fn().mockResolvedValue(settledPage([{
           encounterId: 'enc-1',
           accountId: 'acc-1',
           residentId: 'res-1',
@@ -82,7 +86,7 @@ describe('RefundManagementWorkspace', () => {
           accountBalance: 0,
           currencyCode: 'CNY',
           latestOccurredAt: '2026-09-01T02:00:00Z',
-        }]),
+        }])),
         statement: vi.fn().mockResolvedValue({
           accountId: 'acc-1',
           encounterId: 'enc-1',
@@ -143,13 +147,13 @@ describe('RefundManagementWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    expect(await screen.findByText('协同审批防损门禁')).toBeInTheDocument()
-    expect(screen.getByText('⛔ 协同校验阻断 · 严禁直接退费')).toBeInTheDocument()
+    expect(await screen.findByText('原收费总额')).toBeInTheDocument()
+    expect(await screen.findByText('不可退')).toBeInTheDocument()
     expect(screen.getByText('已发药 · 阻断(需药房退药)')).toBeInTheDocument()
     expect(screen.getAllByText(/药房已发药出库，严禁直接退款/).length).toBeGreaterThan(0)
 
     // 确认直接退款按钮为禁用状态
-    const refundBtn = screen.getByRole('button', { name: /确认未发药直接退款/ })
+    const refundBtn = screen.getByRole('button', { name: /确认退费/ })
     expect(refundBtn).toBeDisabled()
   })
 
@@ -161,7 +165,8 @@ describe('RefundManagementWorkspace', () => {
     })
     const api = {
       billing: {
-        worklist: vi.fn().mockResolvedValue([{
+        worklist: vi.fn().mockResolvedValue([]),
+        settledEncounters: vi.fn().mockResolvedValue(settledPage([{
           encounterId: 'enc-2',
           accountId: 'acc-2',
           residentId: 'res-2',
@@ -175,7 +180,7 @@ describe('RefundManagementWorkspace', () => {
           accountBalance: 0,
           currencyCode: 'CNY',
           latestOccurredAt: '2026-09-01T03:00:00Z',
-        }]),
+        }])),
         statement: vi.fn().mockResolvedValue({
           accountId: 'acc-2',
           encounterId: 'enc-2',
@@ -237,13 +242,13 @@ describe('RefundManagementWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    expect(await screen.findByText('协同审批防损门禁')).toBeInTheDocument()
-    expect(screen.getByText('✅ 协同校验通过 · 允许直接退费')).toBeInTheDocument()
+    expect(await screen.findByText('可退')).toBeInTheDocument()
+    expect(screen.queryByText('未发药直接退款')).not.toBeInTheDocument()
     expect(screen.getByText('未发药 · 允许直接退款')).toBeInTheDocument()
     expect((await screen.findAllByText('PAY20260901002')).length).toBeGreaterThan(0)
 
     // 确认直接退款按钮可用并能触发点击
-    const refundBtn = await screen.findByRole('button', { name: /确认未发药直接退款/ })
+    const refundBtn = await screen.findByRole('button', { name: /确认退费/ })
     expect(refundBtn).toBeDisabled()
     expect(screen.getByLabelText('退款原因')).toHaveValue('')
     fireEvent.change(screen.getByLabelText('退款原因'), { target: { value: '患者取消未执行项目' } })

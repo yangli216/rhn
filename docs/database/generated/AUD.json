@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "aud.audit_log",
@@ -566,6 +566,66 @@
           "comment": "记录时间",
           "logical": "recorded_at",
           "catalogComment": "记录时间"
+        },
+        {
+          "physical": "SD_SIGN_CHANNEL",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 33,
+          "comment": "签名私钥所在通道",
+          "logical": "signature_channel",
+          "catalogComment": "签名私钥所在通道"
+        },
+        {
+          "physical": "SD_SIGN_FMT",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 34,
+          "comment": "个人签名值格式",
+          "logical": "signature_format",
+          "catalogComment": "个人签名值格式"
+        },
+        {
+          "physical": "HASH_SIGNER_CERT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 35,
+          "comment": "签名证书SM3指纹",
+          "logical": "signer_certificate_fingerprint",
+          "catalogComment": "签名证书SM3指纹"
+        },
+        {
+          "physical": "ID_SIGN_ORDER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 36,
+          "comment": "个人签名任务标识",
+          "logical": "signing_order_id",
+          "catalogComment": "个人签名任务标识"
+        },
+        {
+          "physical": "DES_SIGNED_ENVLP",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 37,
+          "comment": "厂商签名原文封装",
+          "logical": "signed_envelope",
+          "catalogComment": "厂商签名原文封装"
         }
       ],
       "kind": "BASE TABLE",
@@ -683,7 +743,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_992",
+          "name": "PRIMARY_KEY_9",
           "columns": [
             {
               "position": 1,
@@ -717,7 +777,15 @@
         },
         {
           "name": "CK_AUD_CRYPTO_EVI_CRYPTO_EVIDE",
-          "expression": "\"sd_prot_purpose\" IN('INTEGRITY', 'NON_REPUDIATION')"
+          "expression": "\"sd_prot_purpose\" IN('INTEGRITY', 'ATTESTATION', 'NON_REPUDIATION')"
+        },
+        {
+          "name": "CK_AUD_CRYPTO_EVID_CHANNEL",
+          "expression": "(\"sd_sign_channel\" IN('SYSTEM', 'CLIENT_TOKEN', 'MOBILE_COSIGN'))\n    OR (\"sd_sign_channel\" IS NULL)"
+        },
+        {
+          "name": "CK_AUD_CRYPTO_EVID_FMT",
+          "expression": "(\"sd_sign_fmt\" IN('SM2_STATEMENT', 'SM2_ENVELOPE'))\n    OR (\"sd_sign_fmt\" IS NULL)"
         }
       ],
       "catalogComment": "密码学证据；一行代表一条密码学证据记录",
@@ -941,8 +1009,16 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 412
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/api/AuthenticationAuditLog.java",
+          "line": 4
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/AuthenticationAuditService.java",
+          "line": 35
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 129
         }
       ]
     },
@@ -5877,6 +5953,835 @@
           "line": 76
         }
       ]
+    },
+    {
+      "logical": "aud.cryptographic_certificate",
+      "legacy": "cryptographic_certificate",
+      "physical": "RHN_AUD_CRYPTO_CERT",
+      "domain": "AUD",
+      "comment": "签名证书材料；一行代表一张按指纹只追加保存的证书",
+      "columns": [
+        {
+          "physical": "ID_CRYPTO_CERT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "证书材料主键",
+          "logical": "id",
+          "catalogComment": "证书材料主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "HASH_CERT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "证书SM3指纹",
+          "logical": "fingerprint",
+          "catalogComment": "证书SM3指纹"
+        },
+        {
+          "physical": "CD_CA_VENDOR",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "CA厂商适配器编码",
+          "logical": "vendor_code",
+          "catalogComment": "CA厂商适配器编码"
+        },
+        {
+          "physical": "CD_CERT_SERIAL",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "证书序列号",
+          "logical": "serial_number",
+          "catalogComment": "证书序列号"
+        },
+        {
+          "physical": "CERT_ISSUER",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "证书签发者",
+          "logical": "issuer",
+          "catalogComment": "证书签发者"
+        },
+        {
+          "physical": "DES_CERT_SUBJ",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "证书主体",
+          "logical": "subject",
+          "catalogComment": "证书主体"
+        },
+        {
+          "physical": "DT_CERT_FROM",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "证书生效时间",
+          "logical": "not_before",
+          "catalogComment": "证书生效时间"
+        },
+        {
+          "physical": "DT_CERT_TO",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "证书失效时间",
+          "logical": "not_after",
+          "catalogComment": "证书失效时间"
+        },
+        {
+          "physical": "DES_CERT_DER",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "证书DER编码Base64",
+          "logical": "der_base64",
+          "catalogComment": "证书DER编码Base64"
+        },
+        {
+          "physical": "DT_RECDD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "首次记录时间",
+          "logical": "recorded_at",
+          "catalogComment": "首次记录时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CRYPTO_CERT"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_AUD_CRYPTO_CERT_HASH",
+          "columns": [
+            "ID_TNT",
+            "HASH_CERT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AUD_CRYPTO_CERT_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_BB0",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CRYPTO_CERT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AUD_CRYPTO_CERT_HASH_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "HASH_CERT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "签名证书材料；一行代表一张按指纹只追加保存的证书",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/cryptography/domain/CertificateMaterial.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "aud.ca_signing_order",
+      "legacy": "ca_signing_order",
+      "physical": "RHN_AUD_CA_SIGN_ORDER",
+      "domain": "AUD",
+      "comment": "个人CA签名任务；一行代表一次对签署行为证据的个人签名请求",
+      "columns": [
+        {
+          "physical": "ID_SIGN_ORDER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "签名任务主键",
+          "logical": "id",
+          "catalogComment": "签名任务主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "发起机构标识",
+          "logical": "organization_id",
+          "catalogComment": "发起机构标识"
+        },
+        {
+          "physical": "ID_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "签名人账号标识",
+          "logical": "user_id",
+          "catalogComment": "签名人账号标识"
+        },
+        {
+          "physical": "NA_ACTOR",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "签名人账号名称快照",
+          "logical": "actor",
+          "catalogComment": "签名人账号名称快照"
+        },
+        {
+          "physical": "ID_CA_SIGNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "CA签名人绑定标识",
+          "logical": "signer_id",
+          "catalogComment": "CA签名人绑定标识"
+        },
+        {
+          "physical": "ID_CRYPTO_EVID_ATTEST",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "被签名的签署行为证据标识",
+          "logical": "attestation_evidence_id",
+          "catalogComment": "被签名的签署行为证据标识"
+        },
+        {
+          "physical": "ID_CRYPTO_EVID_RESULT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "预分配的个人签名证据标识",
+          "logical": "result_evidence_id",
+          "catalogComment": "预分配的个人签名证据标识"
+        },
+        {
+          "physical": "CD_SCENE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "业务签名场景编码",
+          "logical": "scene_code",
+          "catalogComment": "业务签名场景编码"
+        },
+        {
+          "physical": "CD_CA_VENDOR",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "CA厂商适配器编码",
+          "logical": "vendor_code",
+          "catalogComment": "CA厂商适配器编码"
+        },
+        {
+          "physical": "PRVDR_ASSUR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "厂商适配器可信等级",
+          "logical": "vendor_assurance",
+          "catalogComment": "厂商适配器可信等级"
+        },
+        {
+          "physical": "SD_SIGN_MODE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "签名方式",
+          "logical": "signing_mode",
+          "catalogComment": "签名方式"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "签名任务状态",
+          "logical": "status",
+          "catalogComment": "签名任务状态"
+        },
+        {
+          "physical": "SN_STMT_VER",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "待签声明版本",
+          "logical": "statement_version",
+          "catalogComment": "待签声明版本"
+        },
+        {
+          "physical": "JSON_STMT",
+          "type": "CHARACTER LARGE OBJECT",
+          "size": 2147483647,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "冻结的待签声明JSON",
+          "logical": "statement_json",
+          "catalogComment": "冻结的待签声明JSON"
+        },
+        {
+          "physical": "STMT_DIGEST_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "声明摘要算法",
+          "logical": "statement_digest_algorithm",
+          "catalogComment": "声明摘要算法"
+        },
+        {
+          "physical": "HASH_STMT",
+          "type": "CHARACTER VARYING",
+          "size": 512,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "声明摘要",
+          "logical": "statement_digest",
+          "catalogComment": "声明摘要"
+        },
+        {
+          "physical": "CONTENT_DIGEST_ALGO",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "被签内容摘要算法",
+          "logical": "content_digest_algorithm",
+          "catalogComment": "被签内容摘要算法"
+        },
+        {
+          "physical": "HASH_CONTENT",
+          "type": "CHARACTER VARYING",
+          "size": 512,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "被签内容摘要",
+          "logical": "content_digest",
+          "catalogComment": "被签内容摘要"
+        },
+        {
+          "physical": "ID_CRYPTO_EVID_PREV",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "声明引用的上一证据标识",
+          "logical": "previous_evidence_id",
+          "catalogComment": "声明引用的上一证据标识"
+        },
+        {
+          "physical": "ID_CORR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 22,
+          "comment": "关联标识",
+          "logical": "correlation_id",
+          "catalogComment": "关联标识"
+        },
+        {
+          "physical": "DES_SUBJECT",
+          "type": "CHARACTER VARYING",
+          "size": 200,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 23,
+          "comment": "签名人端展示主题",
+          "logical": "subject",
+          "catalogComment": "签名人端展示主题"
+        },
+        {
+          "physical": "DES_PAT_DISP",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 24,
+          "comment": "已脱敏的患者展示名",
+          "logical": "patient_display",
+          "catalogComment": "已脱敏的患者展示名"
+        },
+        {
+          "physical": "ID_EXT_ORDER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 25,
+          "comment": "厂商签名任务号",
+          "logical": "external_order_id",
+          "catalogComment": "厂商签名任务号"
+        },
+        {
+          "physical": "DES_CLAIM",
+          "type": "CHARACTER VARYING",
+          "size": 2000,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 26,
+          "comment": "扫码认领内容",
+          "logical": "claim_content",
+          "catalogComment": "扫码认领内容"
+        },
+        {
+          "physical": "SN_ATMPTS",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 27,
+          "comment": "厂商调用次数",
+          "logical": "attempts",
+          "catalogComment": "厂商调用次数"
+        },
+        {
+          "physical": "DT_NEXT_CHECK",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 28,
+          "comment": "下次处理时间",
+          "logical": "next_check_at",
+          "catalogComment": "下次处理时间"
+        },
+        {
+          "physical": "CD_ERROR",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 29,
+          "comment": "最近错误编码",
+          "logical": "error_code",
+          "catalogComment": "最近错误编码"
+        },
+        {
+          "physical": "DES_ERROR_MSG",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "最近错误说明",
+          "logical": "error_message",
+          "catalogComment": "最近错误说明"
+        },
+        {
+          "physical": "DT_EXPIRES",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 31,
+          "comment": "任务过期时间",
+          "logical": "expires_at",
+          "catalogComment": "任务过期时间"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 32,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 33,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "DT_CMPLD",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 34,
+          "comment": "进入终态时间",
+          "logical": "completed_at",
+          "catalogComment": "进入终态时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SIGN_ORDER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_AUD_CA_SIGN_ORDER_RESULT",
+          "columns": [
+            "ID_TNT",
+            "ID_CRYPTO_EVID_RESULT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_AUD_CA_SIGN_ORDER_ATTEST_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CRYPTO_EVID_ATTEST",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AUD_CA_SIGN_ORDER_SIGNER_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CA_SIGNER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_AUD_CA_SIGN_ORDER_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AUD_CA_SIGN_ORDER_ATTEST",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CRYPTO_EVID_ATTEST",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AUD_CA_SIGN_ORDER_DUE",
+          "columns": [
+            {
+              "position": 1,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "DT_NEXT_CHECK",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AUD_CA_SIGN_ORDER_EXT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "CD_CA_VENDOR",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_EXT_ORDER",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_AUD_CA_SIGN_ORDER_USER",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "DT_CREATED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_BE1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SIGN_ORDER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_AUD_CA_SIGN_ORDER_RESULT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CRYPTO_EVID_RESULT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_AUD_CA_SIGN_ORDER_MODE",
+          "expression": "\"sd_sign_mode\" IN('CLIENT_TOKEN', 'PUSH', 'QR_CLAIM', 'AUTO')"
+        },
+        {
+          "name": "CK_AUD_CA_SIGN_ORDER_STATUS",
+          "expression": "\"sd_status\" IN('PENDING', 'AWAITING_SIGNER', 'SIGNED', 'VERIFIED', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'VOIDED_BY_SIGNER')"
+        }
+      ],
+      "catalogComment": "个人CA签名任务；一行代表一次对签署行为证据的个人签名请求",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/cryptography/domain/SigningOrder.java",
+          "line": 23
+        }
+      ]
     }
   ],
   "relations": [
@@ -5893,6 +6798,76 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_AUD_AI_DCSN_RUN",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CA_SIGN_ORDER_ATTEST",
+      "sourceTable": "RHN_AUD_CA_SIGN_ORDER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID_ATTEST"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CRYPTO_EVID"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_AUD_CRYPTO_EVID",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CA_SIGN_ORDER_SIGNER",
+      "sourceTable": "RHN_AUD_CA_SIGN_ORDER",
+      "sourceColumns": [
+        "ID_CA_SIGNER"
+      ],
+      "targetColumns": [
+        "ID_CA_SIGNER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_CA_SIGNER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CA_SIGN_ORDER_TNT",
+      "sourceTable": "RHN_AUD_CA_SIGN_ORDER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CRYPTO_CERT_TNT",
+      "sourceTable": "RHN_AUD_CRYPTO_CERT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

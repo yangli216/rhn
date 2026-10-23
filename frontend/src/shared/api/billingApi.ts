@@ -1,6 +1,6 @@
 import { createPaymentReconciliationApi } from './paymentReconciliationApi'
 import type { ApiClient } from './httpClient'
-import type { components } from './generated'
+import type { components, operations } from './generated'
 // Explicit business projections inherit primitive wire fields from the generated contract.
 type ContractProjection<Wire, Overrides extends Partial<Wire>> = Omit<Wire, keyof Overrides> & Overrides
 type RequiredWireView<Wire, Keys extends keyof Wire> = Omit<Wire, Keys> & { [Key in Keys]-?: NonNullable<Wire[Key]> }
@@ -81,6 +81,11 @@ export interface BillingWorkItem {
   accountBalance: number
 }
 
+/** 已结算就诊分页（GET /api/billing/settled-encounters）。 */
+export type BillingWorkItemPage = ContractProjection<RequiredWireView<components['schemas']['BillingWorkItemPageView'],
+  'page' | 'size' | 'totalElements' | 'totalPages' | 'first' | 'last'>, { content: BillingWorkItem[] }>
+export type SettledEncountersParams = NonNullable<operations['settledEncounters']['parameters']['query']>
+
 export type ChargeItem = ContractProjection<RequiredWireView<components['schemas']['ChargeItemView'], 'id' | 'patientAccountId' | 'residentId' | 'encounterId' | 'catalogItemId' | 'sourceId' | 'requestCode' | 'status' | 'quantity' | 'unitCode' | 'unitPrice' | 'totalAmount' | 'currencyCode' | 'itemCode' | 'itemName' | 'occurredAt'>, {
   sourceType: 'REGISTRATION' | 'DIRECT_VISIT_SERVICE' | 'SERVICE_REQUEST' | 'SERVICE_REQUEST_REVERSAL'
     | 'MEDICATION_REQUEST' | 'MEDICATION_REQUEST_REVERSAL' | 'MEDICATION_DISPENSE' | 'MEDICATION_RETURN'
@@ -106,6 +111,7 @@ export type CancelledSettlement = RequiredWireView<components['schemas']['Cancel
   'settlementId' | 'settlementNo' | 'netAmount' | 'chargeItemIds'>
 export type Settlement = ContractProjection<RequiredWireView<components['schemas']['SettlementView'], 'id' | 'revision' | 'patientAccountId' | 'settlementNo' | 'commandCode' | 'grossAmount' | 'discountAmount' | 'insuranceAmount' | 'patientAmount' | 'otherAmount' | 'roundingAmount' | 'netAmount' | 'tenderedAmount' | 'outstandingAmount' | 'currencyCode' | 'createdBy' | 'createdAt'>, {
   settlementType: 'NORMAL' | 'REVERSAL' | 'SUPPLEMENT'
+  settlementMode?: 'SELF_PAY' | 'MEDICAL_INSURANCE'
   settlementScene: 'REGISTRATION' | 'OUTPATIENT' | 'INPATIENT' | 'HOME_BED' | 'PHARMACY'
   terminalScene: 'CASHIER' | 'DOCTOR_STATION' | 'SELF_SERVICE' | 'MOBILE' | 'ONLINE'
   status: 'DRAFT' | 'PRICED' | 'PAYMENT_PENDING' | 'PARTIAL' | 'SETTLED' | 'REVERSING' | 'REVERSED' | 'FAILED'
@@ -113,6 +119,26 @@ export type Settlement = ContractProjection<RequiredWireView<components['schemas
   tenders: SettlementTender[]
   events: SettlementEvent[]
 }>
+
+export type SettlementExceptionType = 'PAID_NOT_COMPLETED' | 'INSURANCE_SETTLED_UNPAID' | 'INSURANCE_SETTLE_UNCERTAIN'
+  | 'PAYMENT_RESULT_UNKNOWN' | 'UNPAID_TIMEOUT'
+export type SettlementExceptionAction = 'COLLECT' | 'QUERY_PAYMENT' | 'RETRY_COMPLETION' | 'QUERY_INSURANCE'
+  | 'CANCEL' | 'CANCEL_AND_REVERSE'
+
+export interface SettlementException {
+  settlement: SettlementRecord
+  exceptionType: SettlementExceptionType
+  exceptionText: string
+  severity: 'CRITICAL' | 'WARNING'
+  outstandingAmount: number
+  ageMinutes: number
+  claimId?: string
+  claimStatus?: string
+  paymentOrderId?: string
+  paymentOrderStatus?: string
+  actions: SettlementExceptionAction[]
+  suggestion: string
+}
 
 export interface SettlementRecord {
   id: string
@@ -130,11 +156,14 @@ export interface SettlementRecord {
   settlementNo: string
   settlementType: Settlement['settlementType']
   settlementTypeText?: string
+  settlementMode: NonNullable<Settlement['settlementMode']>
+  settlementModeText?: string
   settlementScene: Settlement['settlementScene']
   settlementSceneText?: string
   terminalScene: Settlement['terminalScene']
   terminalSceneText?: string
   status: Settlement['status']
+  statusText?: string
   grossAmount: number
   discountAmount: number
   insuranceAmount: number
@@ -379,6 +408,17 @@ export function createBillingApi(client: ApiClient) {
   return {
     ...createPaymentReconciliationApi(client),
     worklist: () => client.request<BillingWorkItem[]>('/api/billing/worklist'),
+    settledEncounters: (params: SettledEncountersParams = {}) => {
+      const query = new URLSearchParams()
+      if (params.dateFrom) query.set('dateFrom', params.dateFrom)
+      if (params.dateTo) query.set('dateTo', params.dateTo)
+      if (params.query) query.set('query', params.query)
+      if (params.encounterId) query.set('encounterId', params.encounterId)
+      if (params.page !== undefined) query.set('page', String(params.page))
+      if (params.size !== undefined) query.set('size', String(params.size))
+      const text = query.toString()
+      return client.request<BillingWorkItemPage>(`/api/billing/settled-encounters${text ? `?${text}` : ''}`)
+    },
     statement: (encounterId: string, currencyCode = 'CNY') => client.request<AccountStatement>(
       `/api/billing/encounters/${encounterId}/statement?currencyCode=${encodeURIComponent(currencyCode)}`,
     ),
@@ -487,8 +527,9 @@ export function createBillingApi(client: ApiClient) {
     cancelUnpaidSettlements: (encounterId: string, reason: string) => client.request<CancelledSettlement[]>(
       `/api/billing/encounters/${encounterId}/unpaid-settlements/cancel`, { method: 'POST', body: JSON.stringify({ reason }) },
     ),
-    settlementRecords: (limit = 200, filter?: { from: string; to: string; cashier?: string; terminalScene?: string }) => {
+    settlementRecords: (limit = 200, filter?: { from: string; to: string; cashier?: string; terminalScene?: string; includeOpen?: boolean }) => {
       const params = new URLSearchParams({ limit: String(limit) })
+      if (filter?.includeOpen) params.set('includeOpen', 'true')
       if (filter) {
         params.set('from', filter.from); params.set('to', filter.to)
         if (filter.cashier) params.set('cashier', filter.cashier)
@@ -496,6 +537,8 @@ export function createBillingApi(client: ApiClient) {
       }
       return client.request<SettlementRecord[]>(`/api/billing/settlement-records?${params}`)
     },
+    /** 异常结算（含单边账）待办：实时推导，付清/取消/冲正后自动消失。 */
+    settlementExceptions: (limit = 100) => client.request<SettlementException[]>(`/api/billing/settlement-exceptions?limit=${limit}`),
     /** 收费查询的办理人选项：收费岗位在岗人员 + 范围内实际办理过结算的人员。 */
     settlementCashiers: (filter: { from: string; to: string; terminalScene?: string }) => {
       const params = new URLSearchParams({ from: filter.from, to: filter.to })
@@ -577,6 +620,10 @@ export function createBillingApi(client: ApiClient) {
       `/api/billing/insurance-claims/${claimId}/settle`, {
         method: 'POST', body: JSON.stringify({ commandCode }),
       },
+    ),
+    /** 向医保平台查询正式结算结果（结果不确定时使用）。 */
+    queryInsurance: (claimId: string, commandCode: string) => client.request<InsuranceSettlementView>(
+      `/api/billing/insurance-claims/${claimId}/query`, { method: 'POST', body: JSON.stringify({ commandCode }) },
     ),
     reverseInsurance: (claimId: string, input: { commandCode: string; reason: string }) =>
       client.request<InsuranceSettlementView>(`/api/billing/insurance-claims/${claimId}/reverse`, {

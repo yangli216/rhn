@@ -13,6 +13,7 @@ import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.billing.api.RefundTreatmentDirectory;
+import com.rhn.outpatient.api.EncounterDirectory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,7 @@ class RefundPreCheckServiceTest {
     private RefundDiagnosticDirectory diagnostics;
     private RefundTreatmentDirectory treatment;
     private RefundPolicy refundPolicy;
+    private EncounterDirectory encounterDirectory;
     private ExecutionContextProvider contextProvider;
 
     private RefundPreCheckService service;
@@ -56,10 +58,11 @@ class RefundPreCheckServiceTest {
         diagnostics = mock(RefundDiagnosticDirectory.class);
         treatment = mock(RefundTreatmentDirectory.class);
         refundPolicy = mock(RefundPolicy.class);
+        encounterDirectory = mock(EncounterDirectory.class);
         contextProvider = mock(ExecutionContextProvider.class);
         when(contextProvider.requireCurrent()).thenReturn(context);
         service = new RefundPreCheckService(
-                accounts, charges, payments, pharmacy, diagnostics, treatment, refundPolicy, contextProvider);
+                accounts, charges, payments, pharmacy, diagnostics, treatment, refundPolicy, encounterDirectory, contextProvider);
     }
 
     @Test
@@ -257,6 +260,53 @@ class RefundPreCheckServiceTest {
         when(contextProvider.requireCurrent()).thenReturn(new ExecutionContext(1L, 2L, "operator", "corr",
                 Set.of(), 2001L, 2002L, "ORGANIZATION", Set.of(1001L), Set.of()));
         whenUnexecutedAndPolicyEnabled_shouldAllowDirectRefund();
+    }
+
+    private void registrationScenario(String encounterStatus, ChargeItem... extra) {
+        PatientAccount account = account(100L, 10L);
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(100L))).thenReturn(List.of(account));
+        ChargeItem reg = charge(600L, "REGISTRATION", 9000L, "普通门诊挂号费", "5.00");
+        when(reg.encounterId()).thenReturn(100L);
+        List<ChargeItem> all = new java.util.ArrayList<>(List.of(reg));
+        all.addAll(List.of(extra));
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L)).thenReturn(all);
+        when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(true);
+        EncounterDirectory.EncounterSnapshot snapshot = new EncounterDirectory.EncounterSnapshot(
+                100L, 1L, 5L, 1001L, 1L, "E100", "c1", encounterStatus, 0L, "内科", Instant.now());
+        when(encounterDirectory.findOrganizationAccessible(List.of(100L))).thenReturn(List.of(snapshot));
+    }
+
+    @Test
+    void registration_fee_of_unvisited_encounter_is_blocked_and_directs_to_withdrawal() {
+        registrationScenario("REGISTERED");
+        RefundPreCheckSummaryView result = service.preCheck(100L);
+        RefundItemPreCheckView item = result.items().get(0);
+        assertFalse(item.allowed());
+        assertEquals("REGISTRATION_WITHDRAW", item.executionStatusCode());
+        assertEquals("BLOCKED", result.overallDecision());
+        assertEquals("当前就诊仅有挂号费，挂号费请走退号流程。", result.summaryNotice());
+        assertFalse(result.eligibleForRefund());
+    }
+
+    @Test
+    void registration_fee_of_visited_encounter_is_not_refundable() {
+        registrationScenario("IN_PROGRESS");
+        RefundItemPreCheckView item = service.preCheck(100L).items().get(0);
+        assertFalse(item.allowed());
+        assertEquals("REGISTRATION_IN_SERVICE", item.executionStatusCode());
+    }
+
+    @Test
+    void registration_fee_does_not_turn_refundable_orders_into_partial() {
+        ChargeItem med = charge(601L, "MEDICATION_REQUEST", 8101L, "感冒清热颗粒", "30.00");
+        registrationScenario("IN_PROGRESS", med);
+        when(pharmacy.statusForRequest(1L, 8101L)).thenReturn(RefundPharmacyDirectory.RefundFulfillmentStatus.undispensed("PENDING"));
+        RefundPreCheckSummaryView result = service.preCheck(100L);
+        assertEquals("ALLOWED", result.overallDecision());
+        assertEquals(2, result.items().size());
+        assertEquals(new BigDecimal("30.00"), result.refundableAmount());
+        assertTrue(result.eligibleForRefund());
+        assertEquals("医嘱费用均可直接退费；挂号费不在此退还。", result.summaryNotice());
     }
 
     private PatientAccount account(Long encounterId, Long accountId) {

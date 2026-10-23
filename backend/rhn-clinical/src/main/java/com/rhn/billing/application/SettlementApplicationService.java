@@ -136,6 +136,7 @@ public class SettlementApplicationService {
                 context.tenantId(), value.id(), category.code(), category.name(), money(amount), invoice.issuedAt())));
         events.save(new SettlementEvent(context.tenantId(), value.id(), "CREATE", null, value.status().name(),
                 "CREATE-" + invoice.invoiceNo(), context.subjectId(), invoice.issuedAt()));
+        if ("REVERSAL".equals(type)) value.inheritSettlementMode(originalSettlementMode(context, chargeItems));
         if ("NORMAL".equals(type)) relief.applyPreInsurance(context, account, value, invoice, settlementMode);
         else relief.reverseForChargeReversals(context, account, chargeItems, value, invoice);
         if ("NORMAL".equals(type) && value.netAmount().signum() == 0) {
@@ -204,6 +205,19 @@ public class SettlementApplicationService {
         events.save(new SettlementEvent(context.tenantId(), value.id(), eventType, previous, value.status().name(),
                 "PAYMENT-" + payment.id(), context.subjectId(), payment.paidAt()));
         publishStatusTransition(context, value, invoice.id(), previous, payment.paidAt());
+    }
+
+    /** 冲正结算的结算方式：沿冲销的收费事项找到原结算，任一原结算为医保结算即为医保结算。 */
+    private String originalSettlementMode(ExecutionContext context, List<ChargeItem> reversalCharges) {
+        List<Long> originalChargeIds = reversalCharges.stream().map(ChargeItem::reversesChargeItemId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        if (originalChargeIds.isEmpty()) return Settlement.SELF_PAY;
+        boolean insured = lines.findByTenantIdAndChargeItemIdIn(context.tenantId(), originalChargeIds).stream()
+                .map(SettlementLine::settlementId).distinct()
+                .map(id -> settlements.findByIdAndTenantId(id, context.tenantId()).orElse(null))
+                .anyMatch(original -> original != null && !"REVERSAL".equals(original.settlementType())
+                        && Settlement.MEDICAL_INSURANCE.equals(original.settlementMode()));
+        return insured ? Settlement.MEDICAL_INSURANCE : Settlement.SELF_PAY;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -445,6 +459,13 @@ public class SettlementApplicationService {
     @Transactional(readOnly = true)
     public List<SettlementRecordView> completedInRange(int limit, java.time.LocalDate from, java.time.LocalDate to, String cashier,
                                                        String terminalScene) {
+        return completedInRange(limit, from, to, cashier, terminalScene, false);
+    }
+
+    /** includeOpen=true 时同时返回未收款完成（待收款/支付中/部分付款）与已冲正的结算单，便于核对状态。 */
+    @Transactional(readOnly = true)
+    public List<SettlementRecordView> completedInRange(int limit, java.time.LocalDate from, java.time.LocalDate to, String cashier,
+                                                       String terminalScene, boolean includeOpen) {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext()) throw forbidden("SETTLEMENT_QUERY_CONTEXT_REQUIRED", "收费查询需要机构工作上下文");
         if (from == null || to == null || from.isAfter(to)) throw com.rhn.shared.api.BusinessErrors.badRequest("SETTLEMENT_QUERY_DATE_REQUIRED", "结算开始日期和结束日期不能为空，且开始日期不能晚于结束日期");
@@ -463,7 +484,9 @@ public class SettlementApplicationService {
             }
             if (ids.isEmpty()) return List.of();
         }
-        return recordViews(context, settlements.findCompletedInRange(context.tenantId(), context.organizationId(), SettlementStatus.SETTLED,
+        return recordViews(context, settlements.findCompletedInRange(context.tenantId(), context.organizationId(),
+                includeOpen ? List.of(SettlementStatus.SETTLED, SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING,
+                        SettlementStatus.PARTIAL, SettlementStatus.REVERSED) : List.of(SettlementStatus.SETTLED),
                 start, end, text != null, ids.isEmpty() ? List.of(-1L) : ids, scene != null, scene == null ? "" : scene,
                 PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
     }
@@ -498,7 +521,7 @@ public class SettlementApplicationService {
         return List.copyOf(result.values());
     }
 
-    private List<SettlementRecordView> recordViews(ExecutionContext context, List<Settlement> values) {
+    List<SettlementRecordView> recordViews(ExecutionContext context, List<Settlement> values) {
         Map<Long, BillingCashierResolver.Cashier> cashiers = new HashMap<>();
         Collection<Long> accountIds = values.stream().map(Settlement::patientAccountId).collect(Collectors.toSet());
         Map<Long, PatientAccount> accountById = accountIds.isEmpty() ? Map.of() : accounts
@@ -521,7 +544,7 @@ public class SettlementApplicationService {
                     account.departmentId(), resident.fullName(), resident.healthRecordNo(), resident.gender(),
                     resident.birthDate(), encounter == null ? null : encounter.encounterNo(),
                     encounter == null ? null : encounter.departmentName(),
-                    value.settlementNo(), value.settlementType(), value.settlementScene(),
+                    value.settlementNo(), value.settlementType(), value.settlementMode(), value.settlementScene(),
                     value.terminalScene(), value.status().name(), value.grossAmount(), value.discountAmount(),
                     value.insuranceAmount(), value.patientAmount(), value.otherAmount(), value.roundingAmount(),
                     value.netAmount(), value.currencyCode(), value.terminalCode(), value.createdAt(), value.finalizedAt(), value.finalizedBy(), cashier.name(), cashier.username());
@@ -569,7 +592,7 @@ public class SettlementApplicationService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
         return new SettlementView(value.id(), value.revision(), value.patientAccountId(), value.reversesSettlementId(),
                 value.legacyInvoiceId(), value.settlementNo(), value.commandCode(), value.settlementType(),
-                value.settlementScene(), value.terminalScene(), value.status().name(), value.grossAmount(),
+                value.settlementMode(), value.settlementScene(), value.terminalScene(), value.status().name(), value.grossAmount(),
                 value.discountAmount(), value.insuranceAmount(), value.patientAmount(), value.otherAmount(),
                 value.reliefAmount(), value.roundingAmount(), value.netAmount(), tendered, money(value.netAmount().subtract(tendered)),
                 value.currencyCode(), value.terminalCode(), value.createdBy(), value.createdAt(),

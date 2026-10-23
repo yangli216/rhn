@@ -33,7 +33,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
     @Query("""
             select value from Settlement value
-            where value.tenantId = :tenantId and value.status = :status
+            where value.tenantId = :tenantId and value.status in :statuses
               and coalesce(value.finalizedAt, value.createdAt) >= :from
               and coalesce(value.finalizedAt, value.createdAt) < :to
               and (:filterCashier = false or value.finalizedBy in :cashierIds)
@@ -43,7 +43,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
                             and account.organizationId = :organizationId)
             order by value.finalizedAt desc, value.createdAt desc, value.id desc
             """)
-    List<Settlement> findCompletedInRange(Long tenantId, Long organizationId, SettlementStatus status,
+    List<Settlement> findCompletedInRange(Long tenantId, Long organizationId, java.util.Collection<SettlementStatus> statuses,
             java.time.Instant from, java.time.Instant to, boolean filterCashier, java.util.Collection<Long> cashierIds,
             boolean filterScene, String terminalScene, Pageable pageable);
 
@@ -71,4 +71,17 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from Settlement value where value.id = :id and value.tenantId = :tenantId")
     Optional<Settlement> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
+    /** 尚未收款完成的正常结算单（异常结算扫描用）：按创建时间从早到晚。 */
+    @Query("""
+            select value from Settlement value
+            where value.tenantId = :tenantId and value.settlementType = 'NORMAL' and value.status in :statuses
+              and value.createdAt >= :since
+              and exists (select account.id from PatientAccount account
+                          where account.id = value.patientAccountId and account.tenantId = :tenantId
+                            and account.organizationId = :organizationId)
+            order by value.createdAt, value.id
+            """)
+    List<Settlement> findOpenSince(Long tenantId, Long organizationId, java.util.Collection<SettlementStatus> statuses,
+            java.time.Instant since, Pageable pageable);
 }

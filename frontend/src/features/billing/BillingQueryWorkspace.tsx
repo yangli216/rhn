@@ -15,6 +15,7 @@ import { Icon } from '../../shared/ui/Icon'
 import { money } from './BillingShared'
 import './billing-query-workspace.css'
 import { formatDateTimeParts } from '../../shared/format'
+import { SettlementExceptionBanner, SettlementExceptionList, useSettlementExceptions } from './settlementExceptions'
 
 /** 收费入口（字典 PAY_USE_SCENE，库表约束固定这五项）。 */
 const TERMINAL_SCENE_OPTIONS = [
@@ -26,8 +27,33 @@ const TERMINAL_SCENE_OPTIONS = [
   { value: 'ONLINE', label: '线上缴费' },
 ]
 /** 这些入口由患者或设备、系统完成，没有员工办理人。 */
+/** 结算状态：已完成之外的状态都是尚未收款完成的单子，需要收费员跟进。 */
+const STATUS_OPTIONS = [
+  { value: 'ALL', label: '全部结算状态' },
+  { value: 'SETTLED', label: '已完成' },
+  { value: 'OPEN', label: '未收款完成' },
+  { value: 'REVERSED', label: '已冲正' },
+]
+const OPEN_STATUSES = new Set(['PRICED', 'PAYMENT_PENDING', 'PARTIAL'])
+const STATUS_TONE: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
+  SETTLED: 'success', PRICED: 'warning', PAYMENT_PENDING: 'info', PARTIAL: 'warning', REVERSED: 'neutral',
+}
+const STATUS_TEXT: Record<string, string> = {
+  SETTLED: '已完成', PRICED: '待收款', PAYMENT_PENDING: '支付中', PARTIAL: '部分付款', REVERSED: '已冲正',
+}
 const NON_STAFF_SCENES = new Set(['SELF_SERVICE', 'MOBILE', 'ONLINE'])
 const NON_STAFF_OPERATOR: Record<string, string> = { SELF_SERVICE: '自助机', MOBILE: '移动端（患者本人）', ONLINE: '线上缴费（系统）' }
+/** 费用类别：按结算单持久化的结算方式判断；医保结算基金支付为 0 元（全部自付）时仍是医保，冲正单继承原结算方式。 */
+function feeCategory(record: Pick<SettlementRecord, 'settlementMode'>) {
+  return record.settlementMode === 'MEDICAL_INSURANCE' ? 'INSURANCE' : 'SELF'
+}
+
+const FEE_CATEGORY_OPTIONS = [
+  { value: 'ALL', label: '全部费用类别' },
+  { value: 'SELF', label: '自费' },
+  { value: 'INSURANCE', label: '医保' },
+]
+
 function operatorLabel(record: Pick<SettlementRecord, 'cashierName' | 'cashierUsername' | 'finalizedBy' | 'terminalScene'>, unrecorded: string) {
   return record.cashierName ?? record.cashierUsername ?? (record.finalizedBy ? `人员 ${record.finalizedBy}`
     : NON_STAFF_OPERATOR[record.terminalScene ?? ''] ?? unrecorded)
@@ -52,6 +78,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
   const [submittedTerminalScene, setSubmittedTerminalScene] = useState('ALL')
   const [scene, setScene] = useState('ALL')
   const [settlementType, setSettlementType] = useState('ALL')
+  const [feeType, setFeeType] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [view, setView] = useState<'RECORDS' | 'EXCEPTIONS'>('RECORDS')
   const [selectedId, setSelectedId] = useState('')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -60,13 +89,15 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
 
   const loadRecords = async () => {
     const data = await api.billing.settlementRecords(500, { ...dateRange, cashier: submittedCashier === 'ALL' ? '' : submittedCashier,
-      terminalScene: submittedTerminalScene === 'ALL' ? '' : submittedTerminalScene })
-    if (!Array.isArray(data) || data.some((record) => !record || !record.id || !record.createdAt
+      terminalScene: submittedTerminalScene === 'ALL' ? '' : submittedTerminalScene, includeOpen: true })
+    if (!Array.isArray(data) || data.some((record) => !record || !record.id || !record.createdAt || !record.settlementMode
       || ![record.netAmount, record.patientAmount, record.insuranceAmount].every(Number.isFinite))) {
       throw new Error('收费记录返回不完整，无法确认查询结果')
     }
     return data
   }
+  const exceptions = useSettlementExceptions(api, true, `${clinicalContext.organization.id}:${clinicalContext.department.id}`)
+  const exceptionItems = exceptions.data ?? []
   const records = useQuery({
     queryKey: ['billing-settlement-records', clinicalContext.organization.id, clinicalContext.department.id, dateRange.from, dateRange.to,
       submittedCashier, submittedTerminalScene],
@@ -94,12 +125,14 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
       if (dateRange.to && occurredDate > dateRange.to) return false
       if (scene !== 'ALL' && record.settlementScene !== scene) return false
       if (settlementType !== 'ALL' && record.settlementType !== settlementType) return false
+      if (feeType !== 'ALL' && feeCategory(record) !== feeType) return false
+      if (statusFilter === 'OPEN' ? !OPEN_STATUSES.has(record.status) : statusFilter !== 'ALL' && record.status !== statusFilter) return false
       if (!normalized) return true
       return [record.settlementNo, record.id, record.residentName, record.healthRecordNo,
         record.encounterNo, record.residentId, record.encounterId]
         .some((value) => String(value ?? '').toLowerCase().includes(normalized))
     })
-  }, [dateRange.from, dateRange.to, records.data, scene, settlementType, submittedKeyword])
+  }, [dateRange.from, dateRange.to, feeType, records.data, scene, settlementType, statusFilter, submittedKeyword])
 
   // 财务指标统计
   const summary = useMemo(() => {
@@ -108,8 +141,11 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
     let insuranceAmount = 0
     let reversalCount = 0
     let reversalAmount = 0
+    let openCount = 0
 
     for (const r of filteredRecords) {
+      // 未收款完成的单子金额尚未实收，不计入实收/自付/医保合计，单独计数提示。
+      if (OPEN_STATUSES.has(r.status)) { openCount += 1; continue }
       totalAmount += r.netAmount
       patientAmount += r.patientAmount
       insuranceAmount += r.insuranceAmount
@@ -120,6 +156,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
     }
     return {
       count: filteredRecords.length,
+      openCount,
       totalAmount,
       patientAmount,
       insuranceAmount,
@@ -201,7 +238,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
 
   const error = records.error || settlement.error || statement.error || receipts.error
   
-  const hasFilters = Boolean(submittedKeyword || keyword || cashier !== 'ALL' || submittedCashier !== 'ALL' || terminalScene !== 'ALL' || submittedTerminalScene !== 'ALL' || dateRange.from !== getTodayRange().from || dateRange.to !== getTodayRange().to || scene !== 'ALL' || settlementType !== 'ALL')
+  const hasFilters = Boolean(submittedKeyword || keyword || cashier !== 'ALL' || submittedCashier !== 'ALL' || terminalScene !== 'ALL' || submittedTerminalScene !== 'ALL' || dateRange.from !== getTodayRange().from || dateRange.to !== getTodayRange().to || scene !== 'ALL' || settlementType !== 'ALL' || feeType !== 'ALL' || statusFilter !== 'ALL')
 
   const refresh = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: ['billing-settlement-records'] }),
@@ -228,6 +265,8 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
     setSubmittedTerminalScene('ALL')
     setScene('ALL')
     setSettlementType('ALL')
+    setFeeType('ALL')
+    setStatusFilter('ALL')
     setPageIndex(0)
   }
 
@@ -259,6 +298,17 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
       }
     />
     {error && <Alert>{errorMessage(error)}</Alert>}
+    <SettlementExceptionBanner items={exceptionItems} onOpen={view === 'RECORDS' ? () => setView('EXCEPTIONS') : undefined} />
+    <div className="billing-query-view-switch" role="tablist" aria-label="查询视图">
+      <Button variant={view === 'RECORDS' ? 'primary' : 'secondary'} role="tab" aria-selected={view === 'RECORDS'}
+        onClick={() => setView('RECORDS')}>结算流水</Button>
+      <Button variant={view === 'EXCEPTIONS' ? 'primary' : 'secondary'} role="tab" aria-selected={view === 'EXCEPTIONS'}
+        onClick={() => setView('EXCEPTIONS')}>异常待处理（{exceptionItems.length}）</Button>
+    </div>
+    {view === 'EXCEPTIONS' && <Panel className="billing-query-main-panel" aria-label="异常结算待处理">
+      <SettlementExceptionList api={api} items={exceptionItems} loading={exceptions.isPending && !exceptions.data}
+        error={exceptions.isError ? exceptions.error : undefined} onChanged={() => void exceptions.refetch()} />
+    </Panel>}
 
     {/* 检索区：关键词有限伸缩，其他条件保持内容宽度，操作紧随条件 */}
     <form className="billing-query-filters ui-query-filters" onSubmit={handleSearch} aria-label="收费查询条件">
@@ -279,6 +329,12 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
       </FormField>
       <FormField label="结算类型" className="billing-filter-field--type">
         <Select value={settlementType} options={typeOptions} onChange={setSettlementType} />
+      </FormField>
+      <FormField label="结算状态" className="billing-filter-field--type">
+        <Select value={statusFilter} options={STATUS_OPTIONS} aria-label="结算状态" onChange={setStatusFilter} />
+      </FormField>
+      <FormField label="费用类别" className="billing-filter-field--type">
+        <Select value={feeType} options={FEE_CATEGORY_OPTIONS} onChange={setFeeType} />
       </FormField>
 
       <FormField label="收费入口" className="billing-filter-field--scene">
@@ -303,6 +359,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
 
     {records.data && records.data.length >= 500 && <Alert>当前范围记录较多，仅展示最近 500 条；请缩小日期或按办理人、收费入口查询后核对金额。</Alert>}
     {/* 主体卡片：全宽财务流水台账表格 */}
+    <div style={{ display: view === 'EXCEPTIONS' ? 'none' : 'contents' }}>
     <Panel className="billing-query-main-panel" aria-label="已结算收费记录">
       {records.isPending ? (
         <LoadingState label="正在加载已结算收费记录…" />
@@ -319,7 +376,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         <>
           <div className="billing-query-table-scroll">
             <table className="billing-query-grid-table">
-              <colgroup><col className="billing-query-col--number" /><col className="billing-query-col--time" /><col className="billing-query-col--patient" /><col className="billing-query-col--encounter" /><col className="billing-query-col--cashier" /><col className="billing-query-col--type" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--actions" /></colgroup>
+              <colgroup><col className="billing-query-col--number" /><col className="billing-query-col--time" /><col className="billing-query-col--patient" /><col className="billing-query-col--encounter" /><col className="billing-query-col--cashier" /><col className="billing-query-col--type" /><col className="billing-query-col--type" /><col className="billing-query-col--type" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--actions" /></colgroup>
               <thead>
                 <tr>
                   <th>结算单号 / 场景</th>
@@ -328,6 +385,8 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                   <th>门诊号 / 科室</th>
                   <th>办理人</th>
                   <th>结算类型</th>
+                  <th>结算状态</th>
+                  <th>费用类别</th>
                   <th className={tableCellClass('numeric')}>结算金额</th>
                   <th className={tableCellClass('numeric')}>医保支付</th>
                   <th className={tableCellClass('numeric')}>个人支付</th>
@@ -376,7 +435,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                           {formatDateTime(record.finalizedAt ?? record.createdAt)}
                         </span>
                         <small className="billing-grid-terminal">
-                          {record.terminalScene ? record.terminalSceneText ?? record.terminalScene : '来源未记录'}{record.terminalCode ? ` · ${record.terminalCode}` : ''}
+                          {record.terminalScene ? record.terminalSceneText ?? record.terminalScene : '来源未记录'}
                         </small>
                       </td>
                       <td>
@@ -397,6 +456,16 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                       <td>
                         <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
                           {record.settlementTypeText ?? record.settlementType}
+                        </StatusBadge>
+                      </td>
+                      <td>
+                        <StatusBadge tone={STATUS_TONE[record.status] ?? 'neutral'}>
+                          {record.statusText ?? STATUS_TEXT[record.status] ?? record.status}
+                        </StatusBadge>
+                      </td>
+                      <td>
+                        <StatusBadge tone={feeCategory(record) === 'INSURANCE' ? 'info' : 'neutral'}>
+                          {feeCategory(record) === 'INSURANCE' ? '医保' : '自费'}
                         </StatusBadge>
                       </td>
                       <td className={tableCellClass('numeric')}>
@@ -440,6 +509,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
               <span className="billing-footer-item is-primary">实收总额 <strong>{money(summary.totalAmount)}</strong></span>
               <span className="billing-footer-item">自付 <strong>{money(summary.patientAmount)}</strong></span>
               <span className="billing-footer-item">医保 <strong>{money(summary.insuranceAmount)}</strong></span>
+              {summary.openCount > 0 && (
+                <span className="billing-footer-item is-reversal">未收款完成 <strong>{summary.openCount}</strong> 笔（未计入上列金额）</span>
+              )}
               {summary.reversalCount > 0 && (
                 <span className="billing-footer-item is-reversal">
                   冲正 <strong>{summary.reversalCount}</strong> 笔 ({money(summary.reversalAmount)})
@@ -465,6 +537,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         </>
       )}
     </Panel>
+    </div>
 
     {/* 侧滑详情抽屉 Slide-over Detail Drawer */}
     {isDrawerOpen && selected && (
@@ -492,7 +565,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
               </div>
               <h2>{selected.settlementNo}</h2>
               <p>
-                办理人：{operatorLabel(selected, '未记录')} · {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {selected.terminalScene ? selected.terminalSceneText ?? selected.terminalScene : '来源未记录'}{selected.terminalCode ? ` · ${selected.terminalCode}` : ''}
+                办理人：{operatorLabel(selected, '未记录')} · {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {selected.terminalScene ? selected.terminalSceneText ?? selected.terminalScene : '来源未记录'}
               </p>
             </div>
             <button

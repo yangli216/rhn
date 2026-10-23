@@ -1,5 +1,5 @@
 {
-  "fingerprint": "daccd054be8bf94866d015bba60811716a7d3a5b98c3c8ad5f2d86a1a3db7d51",
+  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -268,16 +268,24 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 62
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 88
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 294
+          "line": 84
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 358
+          "line": 440
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 472
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 105
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/infrastructure/AuthorityProjectionRepository.java",
@@ -502,32 +510,48 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 47
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 80
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 213
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 229
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 126
+          "line": 69
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 156
+          "line": 246
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 162
+          "line": 252
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 178
+          "line": 268
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 198
+          "line": 287
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 307
+          "line": 453
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 101
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 33
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/infrastructure/AuthorityProjectionRepository.java",
@@ -3092,12 +3116,28 @@
           "line": 251
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 130
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 68
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 240
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 380
+          "line": 495
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 129
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 162
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 37
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/infrastructure/WorkContextProjectionRepository.java",
@@ -3491,12 +3531,12 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 85
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 142
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 331
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 78
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/Employment.java",
@@ -3802,7 +3842,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 63
+          "line": 85
         }
       ]
     },
@@ -6011,11 +6051,15 @@
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 128
+          "line": 489
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 374
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 126
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 35
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/infrastructure/WorkContextProjectionRepository.java",
@@ -8530,6 +8574,34 @@
       },
       "codeReferences": [
         {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 114
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 158
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 205
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 377
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 400
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 138
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 39
+        },
+        {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/Practitioner.java",
           "line": 17
         },
@@ -8540,6 +8612,494 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/infrastructure/OrganizationProfileStore.java",
           "line": 92
+        }
+      ]
+    },
+    {
+      "logical": "sys.practitioner_qualification",
+      "legacy": "practitioner_qualifications",
+      "physical": "RHN_SYS_PRACT_QUALIF",
+      "domain": "SYS",
+      "comment": "人员执业资质；一行代表一名医务人员当前的职称、执业注册与处方权",
+      "columns": [
+        {
+          "physical": "ID_PRACT_QUALIF",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "人员执业资质主键",
+          "logical": "id",
+          "catalogComment": "人员执业资质主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_PRACT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "医务人员标识",
+          "logical": "practitioner_id",
+          "catalogComment": "医务人员标识"
+        },
+        {
+          "physical": "SD_PROF_TITLE",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "职称，字典 PRACT_PROF_TITLE",
+          "logical": "professional_title",
+          "catalogComment": "职称，字典 PRACT_PROF_TITLE"
+        },
+        {
+          "physical": "SD_PRACT_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "执业类别，字典 PRACT_CATEGORY",
+          "logical": "practice_category",
+          "catalogComment": "执业类别，字典 PRACT_CATEGORY"
+        },
+        {
+          "physical": "CD_PRACT_CERT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "执业证书编码",
+          "logical": "practice_certificate_code",
+          "catalogComment": "执业证书编码"
+        },
+        {
+          "physical": "CD_QUALIF_CERT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "资格证书编码",
+          "logical": "qualification_certificate_code",
+          "catalogComment": "资格证书编码"
+        },
+        {
+          "physical": "CD_INSUR_PRACT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "医保医师（护士、药师）编码",
+          "logical": "insurance_practitioner_code",
+          "catalogComment": "医保医师（护士、药师）编码"
+        },
+        {
+          "physical": "FG_RX",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 9,
+          "comment": "是否具有普通处方权",
+          "logical": "prescribing",
+          "catalogComment": "是否具有普通处方权"
+        },
+        {
+          "physical": "FG_NARC_RX",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 10,
+          "comment": "是否具有麻醉药品和第一类精神药品处方权",
+          "logical": "narcotic_prescribing",
+          "catalogComment": "是否具有麻醉药品和第一类精神药品处方权"
+        },
+        {
+          "physical": "SD_ANTIMIC_RX_LEVEL",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "抗菌药物处方权级别，字典 BD_ANTIMICROBIAL_LEVEL，空表示无权限",
+          "logical": "antimicrobial_level",
+          "catalogComment": "抗菌药物处方权级别，字典 BD_ANTIMICROBIAL_LEVEL，空表示无权限"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 16,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_PRACT_QUALIF"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_SYS_PRACT_QUALIF_PRACT",
+          "columns": [
+            "ID_TNT",
+            "ID_PRACT"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "PRIMARY_KEY_EC4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_PRACT_QUALIF",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_SYS_PRACT_QUALIF_PRACT_INDEX_E",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_PRACT",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_SYS_PRACT_QUALIF_RX",
+          "expression": "(\"fg_rx\" = TRUE)\n    OR ((\"fg_narc_rx\" = FALSE)\n    AND (\"sd_antimic_rx_level\" IS NULL))"
+        }
+      ],
+      "catalogComment": "人员执业资质；一行代表一名医务人员当前的职称、执业注册与处方权",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/PractitionerQualification.java",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "logical": "sys.department_default_role",
+      "legacy": "department_default_roles",
+      "physical": "RHN_SYS_DEPT_DFLT_ROLE",
+      "domain": "SYS",
+      "comment": "科室默认角色；一行代表一个科室的一个默认角色，人员在该科室任职且已开通账号时自动授予",
+      "columns": [
+        {
+          "physical": "ID_DEPT_DFLT_ROLE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "科室默认角色主键",
+          "logical": "id",
+          "catalogComment": "科室默认角色主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_ORG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "机构标识",
+          "logical": "organization_id",
+          "catalogComment": "机构标识"
+        },
+        {
+          "physical": "ID_DEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "科室标识",
+          "logical": "department_id",
+          "catalogComment": "科室标识"
+        },
+        {
+          "physical": "ID_ACC_ROLE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "默认授予的角色标识",
+          "logical": "role_id",
+          "catalogComment": "默认授予的角色标识"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_DEPT_DFLT_ROLE"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_SYS_DEPT_DFLT_ROLE",
+          "columns": [
+            "ID_TNT",
+            "ID_DEPT",
+            "ID_ACC_ROLE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_SYS_DEPT_DFLT_ROLE_DEPT_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_DEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_SYS_DEPT_DFLT_ROLE_ROLE_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ACC_ROLE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_362",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_DEPT_DFLT_ROLE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_SYS_DEPT_DFLT_ROLE_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_DEPT",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_ACC_ROLE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "catalogComment": "科室默认角色；一行代表一个科室的一个默认角色，人员在该科室任职且已开通账号时自动授予",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 100
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 105
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 212
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 228
         }
       ]
     },
@@ -9708,20 +10268,28 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 205
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 87
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 212
+          "line": 294
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 220
+          "line": 301
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 293
+          "line": 309
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 439
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 103
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/infrastructure/AuthorityProjectionRepository.java",
@@ -10285,7 +10853,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/OutpatientMaintenanceTables.java",
-          "line": 36
+          "line": 38
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
@@ -10762,12 +11330,12 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 88
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 143
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 334
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 79
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/organization/domain/PersonnelAssignment.java",
@@ -11733,24 +12301,44 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 79
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 135
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 84
+          "line": 113
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 124
+          "line": 169
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 321
+          "line": 176
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 330
+          "line": 211
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 229
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 376
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
+          "line": 399
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 149
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 31
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/domain/UserAccount.java",
@@ -11896,6 +12484,30 @@
           "comment": "创建时间",
           "logical": "created_at",
           "catalogComment": "创建时间"
+        },
+        {
+          "physical": "SD_GRANT_SRC",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'MANUAL'",
+          "ordinal": 12,
+          "comment": "授权来源：MANUAL 手工授予，DEPT_DEFAULT 按科室默认角色自动授予",
+          "logical": "grant_source",
+          "catalogComment": "授权来源：MANUAL 手工授予，DEPT_DEFAULT 按科室默认角色自动授予"
+        },
+        {
+          "physical": "ID_STAFF_ASSIGN",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "自动授权对应的人员任职标识；手工授权为空",
+          "logical": "staff_assignment_id",
+          "catalogComment": "自动授权对应的人员任职标识；手工授权为空"
         }
       ],
       "kind": "BASE TABLE",
@@ -11916,6 +12528,22 @@
         }
       ],
       "indexes": [
+        {
+          "name": "FK_SYS_USER_ROLE_STAFF_ASSIGN_INDEX_9",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_STAFF_ASSIGN",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
         {
           "name": "FK_SYS_USER_ROLE_SYS_ACC_USER__INDEX_9",
           "columns": [
@@ -11981,6 +12609,43 @@
           "unique": false
         },
         {
+          "name": "IDX_SYS_USER_ROLE_ROLE_VALID",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ACC_ROLE",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "DT_VALID_TO",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IDX_SYS_USER_ROLE_STAFF_ASSIGN",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_STAFF_ASSIGN",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
           "name": "IDX_SYS_USER_ROLE_USER_ROLE_CU",
           "columns": [
             {
@@ -12007,7 +12672,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_9C5",
+          "name": "PRIMARY_KEY_983",
           "columns": [
             {
               "position": 1,
@@ -12056,6 +12721,10 @@
       ],
       "checks": [
         {
+          "name": "CK_SYS_USER_ROLE_GRANT_SRC",
+          "expression": "\"sd_grant_src\" IN('MANUAL', 'DEPT_DEFAULT')"
+        },
+        {
           "name": "CK_SYS_USER_ROLE_USER_ROLE_DAT",
           "expression": "((\"sd_data_scope_type\" = 'TENANT')\n    AND (\"id_org\" IS NULL)\n    AND (\"id_dept\" IS NULL))\n    OR ((\"sd_data_scope_type\" = 'ORGANIZATION')\n    AND (\"id_org\" IS NOT NULL)\n    AND (\"id_dept\" IS NULL))\n    OR ((\"sd_data_scope_type\" = 'DEPARTMENT')\n    AND (\"id_org\" IS NOT NULL)\n    AND (\"id_dept\" IS NOT NULL))"
         },
@@ -12084,24 +12753,28 @@
       },
       "codeReferences": [
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 123
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/DepartmentDefaultRoleService.java",
+          "line": 163
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 252
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/ManagementScopes.java",
+          "line": 100
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 267
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 30
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 281
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 82
         },
         {
-          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/IdentityAccessAdministrationService.java",
-          "line": 401
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 104
+        },
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/application/RoleGrantStore.java",
+          "line": 119
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/identityaccess/infrastructure/AuthorityProjectionRepository.java",
@@ -14095,6 +14768,42 @@
           "comment": "更新时间",
           "logical": "updated_at",
           "catalogComment": "更新时间"
+        },
+        {
+          "physical": "CD_DESKTOP_OPER",
+          "type": "CHARACTER VARYING",
+          "size": 36,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "工作站持久调用操作编码",
+          "logical": "desktop_operation_code",
+          "catalogComment": "工作站持久调用操作编码"
+        },
+        {
+          "physical": "NA_DESKTOP_PRINTER",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "工作站实际打印机名称",
+          "logical": "desktop_printer_name",
+          "catalogComment": "工作站实际打印机名称"
+        },
+        {
+          "physical": "CD_EXT_PRINT_JOB_NO",
+          "type": "CHARACTER VARYING",
+          "size": 20,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "工作站系统打印队列作业号",
+          "logical": "external_print_job_no",
+          "catalogComment": "工作站系统打印队列作业号"
         }
       ],
       "kind": "BASE TABLE",
@@ -14104,7 +14813,7 @@
       "uniqueKeys": [],
       "indexes": [
         {
-          "name": "FK_SYS_PRINT_DELIVERY_BATCH_INDEX_B",
+          "name": "FK_SYS_PRINT_DELIVERY_BATCH_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -14115,7 +14824,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PRINT_DELIVERY_DEVICE_INDEX_B",
+          "name": "FK_SYS_PRINT_DELIVERY_DEVICE_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -14126,7 +14835,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PRINT_DELIVERY_JOB_INDEX_B",
+          "name": "FK_SYS_PRINT_DELIVERY_JOB_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -14142,7 +14851,7 @@
           "unique": false
         },
         {
-          "name": "FK_SYS_PRINT_DELIVERY_TNT_INDEX_B",
+          "name": "FK_SYS_PRINT_DELIVERY_TNT_INDEX_A",
           "columns": [
             {
               "position": 1,
@@ -14179,7 +14888,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_B7",
+          "name": "PRIMARY_KEY_A0D",
           "columns": [
             {
               "position": 1,
@@ -14197,14 +14906,14 @@
         },
         {
           "name": "CK_SYS_PRINT_DELIVERY_CHANNEL",
-          "expression": "\"sd_channel\" IN('BROWSER_PDF', 'LOCAL_BRIDGE')"
+          "expression": "\"sd_channel\" IN('BROWSER_PDF', 'LOCAL_BRIDGE', 'DESKTOP_LINK')"
         },
         {
           "name": "CK_SYS_PRINT_DELIVERY_STATUS",
-          "expression": "\"sd_status\" IN('GENERATED', 'QUEUED', 'SENT', 'DEVICE_CONFIRMED', 'FAILED', 'CANCELLED')"
+          "expression": "\"sd_status\" IN('GENERATED', 'QUEUED', 'DISPATCHED', 'SENT', 'UNCERTAIN', 'DEVICE_CONFIRMED', 'FAILED', 'CANCELLED')"
         }
       ],
-      "catalogComment": "打印投递；一行代表批次输出向浏览器或本地桥的一次投递",
+      "catalogComment": "打印投递；一行代表一份输出向浏览器、本地桥或 RHN Link 工作站的一次投递",
       "catalogAvailable": true,
       "structureAvailable": true,
       "catalogMissingColumns": [],
@@ -16162,6 +16871,371 @@
           "line": 33
         }
       ]
+    },
+    {
+      "logical": "sys.ca_signer",
+      "legacy": "ca_signer",
+      "physical": "RHN_SYS_CA_SIGNER",
+      "domain": "SYS",
+      "comment": "CA签名人绑定；一行代表一个账号在一家CA厂商的签名身份",
+      "columns": [
+        {
+          "physical": "ID_CA_SIGNER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "CA签名人绑定主键",
+          "logical": "id",
+          "catalogComment": "CA签名人绑定主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "乐观锁版本",
+          "logical": "revision",
+          "catalogComment": "乐观锁版本"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_USER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "绑定账号标识",
+          "logical": "user_id",
+          "catalogComment": "绑定账号标识"
+        },
+        {
+          "physical": "ID_PRACT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "执业人员标识",
+          "logical": "practitioner_id",
+          "catalogComment": "执业人员标识"
+        },
+        {
+          "physical": "CD_CA_VENDOR",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "CA厂商适配器编码",
+          "logical": "vendor_code",
+          "catalogComment": "CA厂商适配器编码"
+        },
+        {
+          "physical": "ID_EXT_SIGNER",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "厂商侧签名人标识",
+          "logical": "external_signer_id",
+          "catalogComment": "厂商侧签名人标识"
+        },
+        {
+          "physical": "SD_MEDIUM",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "证书介质",
+          "logical": "medium",
+          "catalogComment": "证书介质"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "绑定状态",
+          "logical": "status",
+          "catalogComment": "绑定状态"
+        },
+        {
+          "physical": "HASH_CERT",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "当前证书SM3指纹",
+          "logical": "certificate_fingerprint",
+          "catalogComment": "当前证书SM3指纹"
+        },
+        {
+          "physical": "CD_CERT_SERIAL",
+          "type": "CHARACTER VARYING",
+          "size": 256,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "当前证书序列号",
+          "logical": "certificate_serial",
+          "catalogComment": "当前证书序列号"
+        },
+        {
+          "physical": "CERT_ISSUER",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "当前证书签发者",
+          "logical": "certificate_issuer",
+          "catalogComment": "当前证书签发者"
+        },
+        {
+          "physical": "DES_CERT_SUBJ",
+          "type": "CHARACTER VARYING",
+          "size": 500,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "当前证书主体",
+          "logical": "certificate_subject",
+          "catalogComment": "当前证书主体"
+        },
+        {
+          "physical": "DT_CERT_FROM",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "证书生效时间",
+          "logical": "certificate_not_before",
+          "catalogComment": "证书生效时间"
+        },
+        {
+          "physical": "DT_CERT_TO",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "证书失效时间",
+          "logical": "certificate_not_after",
+          "catalogComment": "证书失效时间"
+        },
+        {
+          "physical": "ID_USER_BOUND",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "绑定操作账号标识",
+          "logical": "bound_by_user_id",
+          "catalogComment": "绑定操作账号标识"
+        },
+        {
+          "physical": "DT_BOUND",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "绑定时间",
+          "logical": "bound_at",
+          "catalogComment": "绑定时间"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CA_SIGNER"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_SYS_CA_SIGNER_EXT",
+          "columns": [
+            "ID_TNT",
+            "CD_CA_VENDOR",
+            "ID_EXT_SIGNER"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_SYS_CA_SIGNER_TNT_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_SYS_CA_SIGNER_CERT",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CA_VENDOR",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "HASH_CERT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_SYS_CA_SIGNER_USER",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_USER",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "CD_CA_VENDOR",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_6C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CA_SIGNER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_SYS_CA_SIGNER_EXT_INDEX_6",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "CD_CA_VENDOR",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "ID_EXT_SIGNER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_SYS_CA_SIGNER_MEDIUM",
+          "expression": "\"sd_medium\" IN('MOBILE', 'UKEY')"
+        },
+        {
+          "name": "CK_SYS_CA_SIGNER_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'SUSPENDED', 'REVOKED', 'UNBOUND')"
+        }
+      ],
+      "catalogComment": "CA签名人绑定；一行代表一个账号在一家CA厂商的签名身份",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/cryptography/domain/CaSigner.java",
+          "line": 15
+        }
+      ]
     }
   ],
   "relations": [
@@ -16318,6 +17392,57 @@
     {
       "id": "FK_ANL_PRES_METRI_SYS_TNT_PRES",
       "sourceTable": "RHN_ANL_PRES_METRIC_SAMPLE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CA_SIGN_ORDER_SIGNER",
+      "sourceTable": "RHN_AUD_CA_SIGN_ORDER",
+      "sourceColumns": [
+        "ID_CA_SIGNER"
+      ],
+      "targetColumns": [
+        "ID_CA_SIGNER"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_CA_SIGNER",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CA_SIGN_ORDER_TNT",
+      "sourceTable": "RHN_AUD_CA_SIGN_ORDER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_AUD_CRYPTO_CERT_TNT",
+      "sourceTable": "RHN_AUD_CRYPTO_CERT",
       "sourceColumns": [
         "ID_TNT"
       ],
@@ -17602,6 +18727,42 @@
       "description": ""
     },
     {
+      "id": "FK_BIL_PAY_CFG_ORG",
+      "sourceTable": "RHN_BIL_PAY_CFG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_PAY_CFG_TNT",
+      "sourceTable": "RHN_BIL_PAY_CFG",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BIL_PAY_EVT_SYS_TNT_PAY_EVE",
       "sourceTable": "RHN_BIL_PAY_EVT",
       "sourceColumns": [
@@ -17765,6 +18926,63 @@
       "description": ""
     },
     {
+      "id": "FK_RECON_POLICY_ORG",
+      "sourceTable": "RHN_BIL_RECON_POLICY",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_ROW_ORG",
+      "sourceTable": "RHN_BIL_RECON_ROW",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_RECON_TASK_CRED_ORG",
+      "sourceTable": "RHN_BIL_RECON_TASK",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG_CRED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ORG",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BIL_REG_BIL_IN_SYS_DEPT_REG",
       "sourceTable": "RHN_BIL_REG_BIL_INTENT",
       "sourceColumns": [
@@ -17805,6 +19023,159 @@
     {
       "id": "FK_BIL_REG_BIL_IN_SYS_TNT_REG_",
       "sourceTable": "RHN_BIL_REG_BIL_INTENT",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_APL_LN_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_APPLY_LINE",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_POL_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_POLICY",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_VER_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_POLICY_VER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QLF_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_QUALIF",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTA_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_QTX_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_QUOTA_TXN",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_RST_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_ROSTER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BIL_RELIEF_RULE_TNT",
+      "sourceTable": "RHN_BIL_RELIEF_RULE",
       "sourceColumns": [
         "ID_TNT"
       ],
@@ -22277,6 +23648,23 @@
       "description": ""
     },
     {
+      "id": "FK_SYS_CA_SIGNER_TNT",
+      "sourceTable": "RHN_SYS_CA_SIGNER",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_SYS_CFG_REV_SYS_CFG_CONFIGU",
       "sourceTable": "RHN_SYS_CFG_REV",
       "sourceColumns": [
@@ -22454,6 +23842,46 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_DEPT_DFLT_ROLE_DEPT",
+      "sourceTable": "RHN_SYS_DEPT_DFLT_ROLE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ORG",
+        "ID_DEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_DEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_DEPT_DFLT_ROLE_ROLE",
+      "sourceTable": "RHN_SYS_DEPT_DFLT_ROLE",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_ACC_ROLE"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_ACC_ROLE"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_ACC_ROLE",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -23339,6 +24767,25 @@
       "description": ""
     },
     {
+      "id": "FK_SYS_PRACT_QUALIF_PRACT",
+      "sourceTable": "RHN_SYS_PRACT_QUALIF",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_PRACT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_PRACT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "ONE_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_SYS_PRINT_BATCH_DEPT",
       "sourceTable": "RHN_SYS_PRINT_BATCH",
       "sourceColumns": [
@@ -24189,6 +25636,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_SYS_USER_ROLE_STAFF_ASSIGN",
+      "sourceTable": "RHN_SYS_USER_ROLE_ASSIGN",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_STAFF_ASSIGN"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_STAFF_ASSIGN"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_STAFF_ASSIGN",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",

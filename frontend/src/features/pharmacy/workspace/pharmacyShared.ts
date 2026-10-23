@@ -268,3 +268,20 @@ export function ageText(birthDate?: string) {
     || today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate()) age -= 1
   return `${Math.max(age, 0)}岁`
 }
+
+export function patientQueueStatus(patient: DispensingPatientGroup): {
+  label: string
+  tone: 'ready' | 'picking' | 'waiting' | 'partial'
+} {
+  const items = patient.items
+  if (!items.length) return { label: '待配药', tone: 'waiting' }
+  const allReady = items.every((it) => it.taskStatus === 'READY_TO_DISPENSE')
+  if (allReady) return { label: '已配药', tone: 'ready' }
+  const anyDispensed = items.some((it) => it.taskStatus === 'COMPLETED' || it.taskStatus === 'PARTIALLY_DISPENSED')
+  if (anyDispensed) return { label: '部分发药', tone: 'partial' }
+  const anyPicking = items.some((it) => it.taskStatus === 'PICKING')
+  if (anyPicking) return { label: '配药中', tone: 'picking' }
+  const anyReady = items.some((it) => it.taskStatus === 'READY_TO_DISPENSE')
+  if (anyReady) return { label: '部分已配', tone: 'ready' }
+  return { label: '待配药', tone: 'waiting' }
+}

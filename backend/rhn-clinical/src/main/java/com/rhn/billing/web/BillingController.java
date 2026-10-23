@@ -5,6 +5,7 @@ import com.rhn.billing.api.BillingViews.CancelledSettlementView;
 import com.rhn.billing.api.BillingViews.SettlementCashierView;
 import com.rhn.billing.api.BillingViews.ChargeSynchronizationView;
 import com.rhn.billing.api.BillingViews.BillingWorkItemView;
+import com.rhn.billing.api.BillingWorkItemPageView;
 import com.rhn.billing.api.BillingViews.DailyReconciliationView;
 import com.rhn.billing.api.BillingViews.InvoiceView;
 import com.rhn.billing.api.BillingViews.PaymentView;
@@ -33,6 +34,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,16 +59,19 @@ public class BillingController {
     private final RefundPreCheckService refundPreCheckService;
     private final DirectRefundApplicationService directRefundService;
     private final SettlementCancellationService cancellations;
+    private final com.rhn.billing.application.SettlementExceptionService settlementExceptions;
 
     public BillingController(BillingApplicationService service, PaymentOrchestrationService payments,
                              SettlementApplicationService settlements,
                              RefundPreCheckService refundPreCheckService,
                              DirectRefundApplicationService directRefundService,
-                             SettlementCancellationService cancellations) {
+                             SettlementCancellationService cancellations,
+                             com.rhn.billing.application.SettlementExceptionService settlementExceptions) {
         this.service = service; this.payments = payments; this.settlements = settlements;
         this.refundPreCheckService = refundPreCheckService;
         this.directRefundService = directRefundService;
         this.cancellations = cancellations;
+        this.settlementExceptions = settlementExceptions;
     }
 
     @PostMapping("/encounters/{encounterId}/charges/synchronize")
@@ -77,6 +82,19 @@ public class BillingController {
 
     @GetMapping("/worklist")
     List<BillingWorkItemView> worklist() { return service.worklist(); }
+
+    @GetMapping("/settled-encounters")
+    BillingWorkItemPageView settledEncounters(
+            @RequestParam(required = false) @DateTimeFormat(
+                    iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(
+                    iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Long encounterId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return service.settledEncounters(dateFrom, dateTo, query, encounterId, page, size);
+    }
 
     @GetMapping("/encounters/{encounterId}/statement")
     AccountStatementView statement(@PathVariable Long encounterId,
@@ -171,12 +189,20 @@ public class BillingController {
         return settlements.get(settlementId);
     }
 
+    /** 异常结算（含单边账）待办：实时推导，处理完成后自动消失。 */
+    @GetMapping("/settlement-exceptions")
+    List<com.rhn.billing.api.BillingViews.SettlementExceptionView> settlementExceptions(
+            @RequestParam(defaultValue = "100") int limit) {
+        return settlementExceptions.exceptions(limit);
+    }
+
     @GetMapping("/settlement-records")
     List<SettlementRecordView> settlementRecords(@RequestParam(defaultValue = "200") int limit,
             @RequestParam(required = false) java.time.LocalDate from, @RequestParam(required = false) java.time.LocalDate to,
-            @RequestParam(required = false) String cashier, @RequestParam(required = false) String terminalScene) {
-        if (from != null || to != null || cashier != null || terminalScene != null) {
-            return settlements.completedInRange(limit, from, to, cashier, terminalScene);
+            @RequestParam(required = false) String cashier, @RequestParam(required = false) String terminalScene,
+            @RequestParam(defaultValue = "false") boolean includeOpen) {
+        if (from != null || to != null || cashier != null || terminalScene != null || includeOpen) {
+            return settlements.completedInRange(limit, from, to, cashier, terminalScene, includeOpen);
         }
         return settlements.recentCompleted(limit);
     }
