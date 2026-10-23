@@ -255,13 +255,13 @@ export function formatQuantityWithUnit(value: number, unit: string) {
 }
 
 export function genderText(value?: string) {
-  return genderLabel(value)
+  return value ? genderLabel(value) : '性别未记录'
 }
 
 export function ageText(birthDate?: string) {
-  if (!birthDate) return '81岁'
+  if (!birthDate) return '年龄未记录'
   const birth = new Date(`${birthDate}T00:00:00`)
-  if (Number.isNaN(birth.getTime())) return '81岁'
+  if (Number.isNaN(birth.getTime())) return '年龄未记录'
   const today = new Date()
   let age = today.getFullYear() - birth.getFullYear()
   if (today.getMonth() < birth.getMonth()

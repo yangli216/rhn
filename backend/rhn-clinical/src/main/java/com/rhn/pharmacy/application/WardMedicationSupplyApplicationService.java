@@ -168,13 +168,13 @@ public class WardMedicationSupplyApplicationService {
                 "INPATIENT_SUPPLY_COMMAND_REQUIRED", "供药业务请求号不能为空");
         ZoneId zone = organizationZone(tenantId, site.organizationId());
         SupplyWindow window = window(businessDate, shiftCode, zone);
-        String payloadHash = hash(site.id() + "|" + departmentId + "|" + businessDate + "|" + shiftCode
-                + "|" + defaultText(routingDimension, "ALL"));
+        String windowKey = site.id() + "|" + departmentId + "|" + businessDate + "|" + shiftCode
+                + "|" + defaultText(routingDimension, "ALL");
 
         InpatientMedicationSupplyBatch replay = batches
                 .findByTenantIdAndGenerationCommandCode(tenantId, commandCode).orElse(null);
         if (replay != null) {
-            if (!payloadHash.equals(replay.generationPayloadHash())) {
+            if (!sameWindow(replay, site.id(), departmentId, window, routingDimension)) {
                 throw conflict("INPATIENT_SUPPLY_COMMAND_REUSED", "同一供药业务请求号不能用于不同窗口");
             }
             return new GenerationOutcome(replay, false, true);
@@ -188,6 +188,7 @@ public class WardMedicationSupplyApplicationService {
                         && value.status() != InpatientMedicationSupplyBatchStatus.CANCELLED)
                 .findFirst().orElse(null);
         if (existing != null) return new GenerationOutcome(existing, false, true);
+        String payloadHash = generationPayloadHash(tenantId, windowKey);
 
         List<SupplyCandidate> eligible = routingDimension == null
                 ? candidates.eligibleOccurrences(tenantId, site.organizationId(), departmentId,
@@ -204,7 +205,6 @@ public class WardMedicationSupplyApplicationService {
         // IDs are assigned by the application, so Spring Data persists a new aggregate through merge.
         // Continue the lifecycle on the managed instance returned by saveAndFlush; mutating the
         // original detached object would make SUBMITTED visible only in this response, not in storage.
-        batch = batches.saveAndFlush(batch);
         Map<Long, List<SupplyCandidate>> byRequest = new LinkedHashMap<>();
         eligible.forEach(value -> byRequest.computeIfAbsent(value.requestId(), ignored -> new ArrayList<>()).add(value));
         List<InpatientMedicationSupplyLine> savedLines = new ArrayList<>();
@@ -230,6 +230,7 @@ public class WardMedicationSupplyApplicationService {
             }
         }
         try {
+            batch = batches.saveAndFlush(batch);
             lines.saveAll(savedLines);
             supplyTasks.saveAll(savedTasks);
             batch.submit(batch.revision(), commandCode, payloadHash, actorId);
@@ -834,6 +835,34 @@ public class WardMedicationSupplyApplicationService {
     }
 
 
+
+    private boolean sameWindow(InpatientMedicationSupplyBatch batch, Long stockSiteId, Long departmentId,
+                               SupplyWindow window, String routingDimension) {
+        return stockSiteId.equals(batch.stockSiteId())
+                && departmentId.equals(batch.nursingUnitDepartmentId())
+                && window.from().equals(batch.windowStart())
+                && window.to().equals(batch.windowEnd())
+                && Objects.equals(routingDimension, batch.routingDimension());
+    }
+
+    /**
+     * The window hash is unique per tenant. A cancelled batch keeps its immutable hash, so a slot
+     * derived from the cancelled batch id is used instead of failing the unique constraint; deriving
+     * it deterministically keeps replays idempotent while still blocking concurrent duplicates.
+     */
+    private String generationPayloadHash(Long tenantId, String windowKey) {
+        String base = hash(windowKey);
+        String candidate = base;
+        for (int attempt = 0; attempt < 16; attempt++) {
+            InpatientMedicationSupplyBatch occupant = batches
+                    .findByTenantIdAndGenerationPayloadHash(tenantId, candidate).orElse(null);
+            if (occupant == null || occupant.status() != InpatientMedicationSupplyBatchStatus.CANCELLED) {
+                return candidate;
+            }
+            candidate = hash(base + "#" + occupant.id());
+        }
+        throw conflict("INPATIENT_SUPPLY_GENERATION_CONFLICT", "供药窗口已被其他用户生成，请刷新后重试");
+    }
 
     private String hash(String value) {
         try {

@@ -66,25 +66,61 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     enabled: Boolean(encounterId && selected?.accountId),
   })
 
-  // 2. 跨科室退费防损与协同审批前置检查查询
+  // 2. 跨科室退费防损与协同审批前置检查查询（不依赖费用账户是否存在）
   const preCheck = useQuery({
-    queryKey: ['refund-precheck', encounterId, clinicalContext.organization.id, clinicalContext.department.id],
-    queryFn: async () => requireRefundPreCheck(await api.billing.refundPreCheck(encounterId), encounterId, selected!.accountId!),
-    enabled: Boolean(encounterId && selected?.accountId),
+    queryKey: ['refund-precheck', encounterId, clinicalContext.organization.id, clinicalContext.department.id, selected?.accountId],
+    queryFn: async () => requireRefundPreCheck(
+      await api.billing.refundPreCheck(encounterId, selected?.accountId), encounterId, selected?.accountId),
+    enabled: Boolean(encounterId),
   })
 
   const verifiedStatement = statement.isSuccess ? statement.data : undefined
   const verifiedPreCheck = preCheck.isSuccess ? preCheck.data : undefined
-  const verificationReady = Boolean(selected?.accountId && verifiedStatement && verifiedPreCheck
-    && !worklist.isFetching && !statement.isFetching && !preCheck.isFetching
-    && verifiedStatement.currencyCode === verifiedPreCheck.currencyCode)
+  const statementRequired = Boolean(selected?.accountId)
+  const verificationReady = Boolean(verifiedPreCheck
+    && !worklist.isFetching && !preCheck.isFetching && !statement.isFetching
+    && (!statementRequired || verifiedStatement)
+    && (!verifiedStatement || verifiedStatement.currencyCode === verifiedPreCheck.currencyCode))
 
   useEffect(() => { setReason(''); setSelectedChargeItemIds([]); setPaymentId('') },
     [encounterId, clinicalContext.organization.id, clinicalContext.department.id])
 
-  const refundablePayments = useMemo(() => {
-    return verifiedStatement?.payments.filter((item) => item.paymentType === 'PAYMENT'
-      && verifiedPreCheck?.refundablePayments.some((payment) => payment.paymentId === item.id && payment.refundableAmount > 0)) ?? []
+  const refundablePayments = useMemo<{
+    id: string
+    paymentNo: string
+    paymentMethodCode: string
+    paymentMethodCodeText?: string
+    amount: number
+    currencyCode: string
+    paidAt: string
+    externalTransactionNo?: string
+  }[]>(() => {
+    const candidates = verifiedPreCheck?.refundablePayments.filter((payment) => payment.refundableAmount > 0) ?? []
+    if (verifiedStatement) {
+      return verifiedStatement.payments
+        .filter((item) => item.paymentType === 'PAYMENT'
+          && candidates.some((payment) => payment.paymentId === item.id))
+        .map((item) => ({
+          id: item.id,
+          paymentNo: item.paymentNo,
+          paymentMethodCode: item.paymentMethodCode,
+          paymentMethodCodeText: item.paymentMethodCodeText,
+          amount: item.amount,
+          currencyCode: item.currencyCode,
+          paidAt: item.paidAt,
+          externalTransactionNo: item.externalTransactionNo,
+        }))
+    }
+    // 无费用账户时以退费核验返回的原支付候选为准，账户不再是退款前置条件。
+    return candidates.map((payment) => ({
+      id: payment.paymentId,
+      paymentNo: payment.paymentNo,
+      paymentMethodCode: payment.paymentMethodCode,
+      paymentMethodCodeText: payment.paymentMethodCodeText,
+      amount: payment.amount,
+      currencyCode: payment.currencyCode,
+      paidAt: payment.paidAt,
+    }))
   }, [verifiedStatement, verifiedPreCheck])
 
   useEffect(() => {
@@ -112,6 +148,16 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
       .filter((item) => selectedChargeItemIds.includes(String(item.chargeItemId)))
       .reduce((sum, item) => sum + item.totalAmount, 0)
   }, [verifiedPreCheck, selectedChargeItemIds])
+
+  // 无费用账单时退费核验是唯一口径：原收费总额取全部收费项，而不是只累加允许退费的项。
+  const verifiedChargeTotal = useMemo(
+    () => verifiedPreCheck?.items.reduce((sum, item) => sum + item.totalAmount, 0) ?? 0,
+    [verifiedPreCheck],
+  )
+  const verifiedRefundedTotal = useMemo(
+    () => verifiedPreCheck?.refundablePayments.reduce((sum, payment) => sum + payment.refundedAmount, 0) ?? 0,
+    [verifiedPreCheck],
+  )
 
   useEffect(() => {
     if (refundMode === 'DIRECT') {
@@ -188,7 +234,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
   })
 
   const error = worklist.error || statement.error || preCheck.error || refund.error || directRefund.error
-  const currency = verifiedStatement?.currencyCode ?? selected?.currencyCode ?? 'CNY'
+  const currency = verifiedStatement?.currencyCode ?? verifiedPreCheck?.currencyCode ?? selected?.currencyCode ?? 'CNY'
   const selectedPayment = refundablePayments.find((item) => item.id === paymentId)
 
   const refundableBalance = verifiedPreCheck?.refundablePayments.find((item) => item.paymentId === paymentId)?.refundableAmount
@@ -283,8 +329,6 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
         {!selected ? (
           <EmptyState icon="billing" title="请选择就诊患者" copy="在左侧队列中选择就诊以进行跨科室协同审批检查与退款办理。" />
-        ) : !selected.accountId ? (
-          <EmptyState icon="billing" title="暂无费用账户" copy="当前就诊未形成费用账户。" />
         ) : statement.isFetching || preCheck.isFetching ? (
           <LoadingState label="正在进行临床-药房-医技协同退费前置检查…" />
         ) : !verificationReady ? (
@@ -393,9 +437,9 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
             {/* 2. 费用账务数据 */}
             <div className="billing-metrics">
-              <div><span>原收费总额</span><strong>{money(verifiedStatement?.chargeAmount ?? 0, currency)}</strong></div>
-              <div><span>实收总额</span><strong>{money(verifiedStatement?.paymentAmount ?? 0, currency)}</strong></div>
-              <div><span>已退款</span><strong>{money(verifiedStatement?.refundAmount ?? 0, currency)}</strong></div>
+              <div><span>原收费总额</span><strong>{money(verifiedStatement?.chargeAmount ?? verifiedChargeTotal, currency)}</strong></div>
+              <div><span>实收总额</span><strong>{money(verifiedStatement?.paymentAmount ?? verifiedPreCheck?.totalPaidAmount ?? 0, currency)}</strong></div>
+              <div><span>已退款</span><strong>{money(verifiedStatement?.refundAmount ?? verifiedRefundedTotal, currency)}</strong></div>
               <div className="is-open">
                 <span>选中项退款金额</span>
                 <strong>{money(selectedItemsTotalAmount, currency)}</strong>

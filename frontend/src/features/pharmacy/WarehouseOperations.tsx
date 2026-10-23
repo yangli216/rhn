@@ -1783,7 +1783,8 @@ export function GoodsInspectionDialog({ api, receipt, items, onClose, onDone }: 
   })
   const valid = receipt.lines.every(line => {
     const acceptedQuantity = Number(accepted[line.id]); const rejectedQuantity = Number(rejected[line.id])
-    return acceptedQuantity >= 0 && rejectedQuantity >= 0 && acceptedQuantity + rejectedQuantity === line.deliveredQuantity
+    return acceptedQuantity >= 0 && rejectedQuantity >= 0
+      && Math.abs(acceptedQuantity + rejectedQuantity - line.deliveredQuantity) < 1e-8
       && (rejectedQuantity === 0 || Boolean(reasons[line.id]?.trim()))
   })
   return <Dialog title="到货质量验收" eyebrow={receipt.receiptNo} size="xwide" className="warehouse-purchase-dialog" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button busy={mutation.isPending} disabled={!valid} onClick={() => mutation.mutate()}>确认验收结果</Button></>}>

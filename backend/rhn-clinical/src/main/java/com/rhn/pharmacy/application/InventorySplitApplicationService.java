@@ -69,9 +69,15 @@ public class InventorySplitApplicationService {
     public OpenPackageView open(OpenPackageCommand input) {
         ExecutionContext context = requireContext(); String requestCode = required(input.requestCode(),
                 "SPLIT_REQUEST_CODE_REQUIRED", "拆零请求编码不能为空");
+        StockSite site = requireSite(context, input.stockSiteId());
         InventoryOpenPackage replay = openRepository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
-        if (replay != null) return view(replay);
-        StockSite site = requireSite(context, input.stockSiteId()); StockItem item = requireItem(context, input.stockItemId());
+        if (replay != null) {
+            if (!site.id().equals(replay.stockSiteId())) {
+                throw conflict("SPLIT_REQUEST_REUSED", "拆零请求编码已被其他业务使用");
+            }
+            return view(replay);
+        }
+        StockItem item = requireItem(context, input.stockItemId());
         StockBin bin = requireBin(context, input.stockBinId()); StockLot lot = requireLot(context, input.stockLotId());
         validateDimension(site, item, bin, lot);
         InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), bin.id(), item.id(), lot.id(), "AVAILABLE")
@@ -91,6 +97,10 @@ public class InventorySplitApplicationService {
     @Transactional(readOnly = true)
     public List<SplitEventView> events(Long openPackageId) {
         ExecutionContext context = requireContext();
+        InventoryOpenPackage openPackage = openRepository.findById(openPackageId)
+                .filter(value -> context.tenantId().equals(value.tenantId()))
+                .orElseThrow(() -> notFound("OPEN_PACKAGE_NOT_FOUND", "未找到拆零包装"));
+        requireSite(context, openPackage.stockSiteId());
         return eventRepository.findByTenantIdAndOpenPackageIdOrderByOccurredAtAscIdAsc(context.tenantId(), openPackageId)
                 .stream().map(this::view).toList();
     }
@@ -111,8 +121,17 @@ public class InventorySplitApplicationService {
         if (openRemaining.compareTo(requiredQuantity) < 0) {
             BigDecimal factor = packageFactor(context, site, item, occurredAt);
             BigDecimal shortage = requiredQuantity.subtract(openRemaining);
-            int count = shortage.divide(factor, 0, RoundingMode.CEILING).intValueExact();
-            for (int index = 1; index <= count; index++) {
+            BigDecimal count = shortage.divide(factor, 0, RoundingMode.CEILING);
+            // Open exactly the packages needed and verify sealed stock up front: opening one by one
+            // would otherwise create partial packages and trace records before failing mid-loop.
+            if (count.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
+                throw conflict("SPLIT_OPEN_QUANTITY_TOO_LARGE", "拆零开包数量超出系统支持范围");
+            }
+            if (balance.quantityOnHand().subtract(openRemaining).compareTo(factor.multiply(count)) < 0) {
+                throw conflict("SEALED_PACKAGE_BALANCE_INSUFFICIENT", "整包装库存不足，无法拆零满足本次发药数量");
+            }
+            int opens = count.intValueExact();
+            for (int index = 1; index <= opens; index++) {
                 packages.add(createOpen(context, site, item, binId, lotId, balance,
                         "AUTO-SPLIT-" + documentNo + "-" + binId + "-" + lotId + "-" + index,
                         "MEDICATION_DISPENSE", documentId,

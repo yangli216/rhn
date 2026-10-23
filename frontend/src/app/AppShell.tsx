@@ -14,6 +14,7 @@ import type { Department, Session } from '../shared/model'
 import { createRhnApi, createRhnSessionApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
 import { useWorkspaceUnsavedPrompt } from './useWorkspaceUnsavedPrompt'
+import { SESSION_ENDED_EVENT, type SessionEndedDetail } from '../shared/api/httpClient'
 import { formatTime } from '../shared/format'
 import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
 import { CriticalValueCenter } from '../shared/realtime/CriticalValueCenter'
@@ -626,13 +627,16 @@ export function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
-  const clearAuthentication = useCallback(() => {
+  const clearAuthentication = useCallback((notice = '') => {
     localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY)
     queryClient.clear()
     setTabs([HOME_TAB])
     setAuthenticated(null)
+    setLoginError(notice)
     navigate('/')
   }, [navigate, queryClient])
+  const endTerminatedSession = useCallback(() => clearAuthentication('当前会话已被管理员下线，请重新登录'),
+    [clearAuthentication])
 
   const logout = useCallback(() => {
     if (authenticated?.session.refreshLoginEnabled) {
@@ -641,11 +645,20 @@ export function AppShell() {
     clearAuthentication()
   }, [authenticated, clearAuthentication])
 
+  // Only a signed-in workspace reacts; a rejected login attempt reports its own error on the login screen.
+  const signedIn = authenticated !== null
   useEffect(() => {
-    const handleTermination = () => clearAuthentication()
-    window.addEventListener('rhn:session-terminated', handleTermination)
-    return () => window.removeEventListener('rhn:session-terminated', handleTermination)
-  }, [clearAuthentication])
+    if (!signedIn) return
+    let ended = false
+    const handleSessionEnded = (event: Event) => {
+      if (ended) return
+      ended = true
+      const { code, message } = (event as CustomEvent<SessionEndedDetail>).detail
+      clearAuthentication(code === 'AUTHENTICATION_REQUIRED' ? '登录已超时或失效，请重新登录' : message)
+    }
+    window.addEventListener(SESSION_ENDED_EVENT, handleSessionEnded)
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, handleSessionEnded)
+  }, [clearAuthentication, signedIn])
 
   useEffect(() => {
     const tenantId = localStorage.getItem(REFRESH_LOGIN_TENANT_KEY)
@@ -1019,7 +1032,7 @@ export function AppShell() {
   return (
     <div className={`app-shell ${collapsedNavigation ? 'is-sidebar-collapsed' : ''}`}>
       <RealtimeBridge api={activeSlot.api} contextKey={activeContextKey}
-        organizationId={activeSlot.option.organizationId} onSessionTerminated={clearAuthentication} />
+        organizationId={activeSlot.option.organizationId} onSessionTerminated={endTerminatedSession} />
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="关闭主导航"
         onClick={() => setSidebarOpen(false)} />}
       <aside id="primary-navigation" aria-label="主导航" aria-hidden={mobileLayout && !sidebarOpen || undefined}

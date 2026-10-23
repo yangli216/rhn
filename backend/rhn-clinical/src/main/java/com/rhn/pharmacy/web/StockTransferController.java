@@ -36,11 +36,13 @@ public class StockTransferController {
     TransferView submit(@PathVariable Long id) { return service.submit(id); }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize(PharmacyPermissions.WAREHOUSE_ADJUST)
     TransferView approve(@PathVariable Long id, @Valid @RequestBody ApproveRequest input) {
         return service.approve(id, input.command());
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize(PharmacyPermissions.WAREHOUSE_ADJUST)
     TransferView reject(@PathVariable Long id, @Valid @RequestBody DecisionRequest input) {
         return service.reject(id, new DecisionCommand(input.reason()));
     }
@@ -52,6 +54,7 @@ public class StockTransferController {
     TransferView dispatch(@PathVariable Long id) { return service.dispatch(id); }
 
     @PostMapping("/{id}/receive")
+    @PreAuthorize(PharmacyPermissions.WAREHOUSE_RECEIVE)
     TransferView receive(@PathVariable Long id, @Valid @RequestBody StockTransferReceiptRequest input) {
         return service.receive(id, input.command());
     }

@@ -32,6 +32,8 @@ class StockDocumentOwnershipTest {
     @Mock StockTransferRepository transfers;
     @Mock StockTransferLineRepository transferLines;
     @Mock DispenseTaskRepository tasks;
+    @Mock DispenseTaskLineRepository taskLines;
+    @Mock MedicationDispenseConsumptionRepository consumptions;
     @Mock MedicationDispenseRepository dispenses;
     @Mock InventoryDocumentEventRepository events;
     @InjectMocks StockCountApplicationService countService;
@@ -87,5 +89,24 @@ class StockDocumentOwnershipTest {
         when(tasks.lockByIdAndTenantId(50L, 10L)).thenReturn(Optional.of(task));
         rejectsMissingOwnership(() -> dispenseService.dispense(50L, new DispenseApplicationService.DispenseCommand(
                 "DISPENSE-1", BigDecimal.ONE, null, 60L, 61L, null, null, null)));
+    }
+    @Test void cancel_dispense_is_rejected_after_the_ward_administered_the_medication() {
+        context(23L);
+        StockSite owned = site(23L);
+        DispenseTask task = mock(DispenseTask.class);
+        when(task.id()).thenReturn(50L);
+        when(task.stockSiteId()).thenReturn(owned.id());
+        when(task.status()).thenReturn(com.rhn.pharmacy.domain.DispenseTaskStatus.COMPLETED);
+        when(tasks.lockByIdAndTenantId(50L, 10L)).thenReturn(Optional.of(task));
+        com.rhn.pharmacy.domain.DispenseTaskLine line = mock(com.rhn.pharmacy.domain.DispenseTaskLine.class);
+        when(line.id()).thenReturn(70L);
+        when(taskLines.findByTenantIdAndTaskId(10L, 50L)).thenReturn(Optional.of(line));
+        when(consumptions.consumedBaseQuantityForTaskLine(10L, 70L)).thenReturn(new BigDecimal("0.5"));
+
+        assertThatThrownBy(() -> dispenseService.cancelDispense(50L,
+                new DispenseApplicationService.CancelDispenseCommand("CANCEL-1", 60L, 61L, null, null, null)))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.code()).isEqualTo("DISPENSE_ALREADY_CONSUMED"));
+        verify(dispenses, never()).save(any());
     }
 }

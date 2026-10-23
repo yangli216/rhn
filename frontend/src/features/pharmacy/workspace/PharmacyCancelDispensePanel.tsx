@@ -122,9 +122,15 @@ export function PharmacyCancelDispensePanel({ model }: { model: ReturnType<typeo
                 )
                 const latestDispensedAt = p.items.find((it) => it.dispensedAt)?.dispensedAt
                 const resInfo = residentMap.get(p.residentId)
-                const displayName = (isSelected && pFullName !== '患者') ? pFullName : (resInfo?.fullName || p.residentName)
-                const displayGender = genderLabel(resInfo?.gender || p.gender)
-                const displayAge = ageText(resInfo?.birthDate || p.birthDate)
+                const displayName = isSelected
+                  ? pFullName
+                  : (resInfo?.fullName || p.residentName || '未获取到患者姓名')
+                const displayGender = (resInfo?.gender || p.gender)
+                  ? genderLabel(resInfo?.gender || p.gender)
+                  : (isSelected && pGender ? pGender : '性别未记录')
+                const displayAge = (resInfo?.birthDate || p.birthDate)
+                  ? ageText(resInfo?.birthDate || p.birthDate)
+                  : (isSelected && pAge ? pAge : '年龄未记录')
 
                 return (
                   <div
@@ -390,18 +396,18 @@ export function PharmacyCancelDispensePanel({ model }: { model: ReturnType<typeo
             </div>
             <div>
               <dt>开单医生</dt>
-              <dd>{activeHistorySummary.clinicianId || '未记录'}</dd>
+              <dd>{activeHistorySummary.clinicianId || '开单医生未记录'}</dd>
             </div>
             <div className="pharmacy-modal-grid__full">
               <dt>主诉</dt>
-              <dd>{activeHistorySummary.chiefComplaint || '患者自述无特殊不适，常规门诊开药。'}</dd>
+              <dd>{activeHistorySummary.chiefComplaint || '暂无主诉记录'}</dd>
             </div>
             <div className="pharmacy-modal-grid__full">
               <dt>临床诊断</dt>
               <dd>
                 {activeHistorySummary.diagnoses.length > 0
                   ? activeHistorySummary.diagnoses.map((d) => `${d.display}（${d.code}）`).join('；')
-                  : '门诊开单随诊'}
+                  : '暂无诊断记录'}
               </dd>
             </div>
           </dl>
@@ -419,8 +425,8 @@ export function PharmacyCancelDispensePanel({ model }: { model: ReturnType<typeo
             <div className="pharmacy-allergy-modal-list">
               {activeDrugAllergies.map((a) => (
                 <Alert key={a.id} tone="error">
-                  <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应'}
-                  （严重程度：{a.reactionSeverity || '中度'}，核实状态：{a.verificationStatus}）
+                  <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应未记录'}
+                  （严重程度：{a.reactionSeverity || '未评定'}，核实状态：{a.verificationStatus || '未核实'}）
                 </Alert>
               ))}
             </div>

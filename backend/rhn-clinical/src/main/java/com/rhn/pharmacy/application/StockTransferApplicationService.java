@@ -91,10 +91,15 @@ public class StockTransferApplicationService {
     public TransferView create(CreateTransferCommand input) {
         ExecutionContext context = requireContext();
         String requestCode = required(input.requestCode(), "TRANSFER_REQUEST_REQUIRED", "调拨请求编码不能为空");
-        StockTransfer existing = repository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
-        if (existing != null) return view(context, existing);
         StockSite source = requireSite(context, input.sourceSiteId(), true);
         StockSite destination = requireSite(context, input.destinationSiteId(), false);
+        StockTransfer existing = repository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
+        if (existing != null) {
+            if (!source.id().equals(existing.sourceSiteId()) || !destination.id().equals(existing.destinationSiteId())) {
+                throw conflict("TRANSFER_REQUEST_REUSED", "调拨请求编码已被其他业务使用");
+            }
+            return view(context, existing);
+        }
         if (source.id().equals(destination.id())) throw badRequest("TRANSFER_SITE_SAME", "调出和调入站点不能相同");
         if (!source.organizationId().equals(destination.organizationId()))
             throw badRequest("TRANSFER_ORGANIZATION_MISMATCH", "当前仅支持同一机构内库间调拨");

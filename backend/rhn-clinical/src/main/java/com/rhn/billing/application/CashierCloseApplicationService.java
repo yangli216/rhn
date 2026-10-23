@@ -167,7 +167,15 @@ public class CashierCloseApplicationService {
         ExecutionContext context = requireContext();
         CashierClose close = lock(closeId, context);
         String commandCode = required(input.commandCode(), "CASHIER_CLOSE_CONFIRM_COMMAND_REQUIRED", "确认命令不能为空");
-        if (close.status() == CashierCloseStatus.CONFIRMED) return view(close, true);
+        CashierCloseEvent usedCommand = events.findByTenantIdAndCommandCodeAndEventType(
+                context.tenantId(), commandCode, "CONFIRM").orElse(null);
+        if (usedCommand != null && !Objects.equals(usedCommand.cashierCloseId(), close.id())) {
+            throw conflict("CASHIER_CLOSE_COMMAND_REUSED", "日结确认幂等命令已被其他日结使用");
+        }
+        if (close.status() == CashierCloseStatus.CONFIRMED) {
+            // 已确认日结的重复提交按幂等成功返回；命令码只用于阻止被其他日结复用。
+            return view(close, true);
+        }
         if (close.status() != CashierCloseStatus.CALCULATED) throw conflict("CASHIER_CLOSE_STATUS_INVALID", "只有已计算日结可以确认");
         String reason = Strings.trimToNull(input.differenceReason());
         if (lines.findByTenantIdAndCashierCloseIdOrderByLineNo(context.tenantId(), close.id()).stream()

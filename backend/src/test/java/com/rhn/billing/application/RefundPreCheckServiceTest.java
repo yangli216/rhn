@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.rhn.shared.api.BusinessException;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -62,16 +63,66 @@ class RefundPreCheckServiceTest {
     }
 
     @Test
-    void whenNoAccountFound_shouldReturnBlockedSummary() {
+    void whenNoAccountFound_shouldStillVerifyEncounterChargesWithoutBlockingOnAccount() {
         Long encounterId = 100L;
         when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId))).thenReturn(List.of());
+        when(charges.findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(1L, encounterId)).thenReturn(List.of());
 
         RefundPreCheckSummaryView result = service.preCheck(encounterId);
 
         assertNotNull(result);
         assertFalse(result.eligibleForRefund());
         assertEquals("BLOCKED", result.overallDecision());
-        assertTrue(result.summaryNotice().contains("未检索到该就诊对应的有效费用账户"));
+        assertTrue(result.summaryNotice().contains("暂无可退费的收费项目"));
+        assertNull(result.accountId());
+    }
+
+    @Test
+    void aggregates_charges_and_payments_across_all_accounts_of_the_encounter() {
+        Long encounterId = 100L;
+        PatientAccount first = account(encounterId, 10L);
+        PatientAccount second = account(encounterId, 11L);
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId))).thenReturn(List.of(first, second));
+        ChargeItem firstCharge = charge(505L, "OTHER", 1L, "项目一", "10.00");
+        ChargeItem secondCharge = charge(506L, "OTHER", 2L, "项目二", "20.00");
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L)).thenReturn(List.of(firstCharge));
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 11L)).thenReturn(List.of(secondCharge));
+
+        RefundPreCheckSummaryView result = service.preCheck(encounterId);
+
+        assertTrue(result.eligibleForRefund());
+        assertEquals(2, result.items().size());
+        assertEquals(new BigDecimal("30.00"), result.refundableAmount());
+        assertNull(result.accountId());
+    }
+
+    @Test
+    void charges_by_encounter_are_checked_without_any_patient_account() {
+        Long encounterId = 100L;
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId))).thenReturn(List.of());
+        ChargeItem charge = charge(507L, "OTHER", 3L, "项目三", "15.00");
+        when(charges.findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(1L, encounterId)).thenReturn(List.of(charge));
+
+        RefundPreCheckSummaryView result = service.preCheck(encounterId);
+
+        assertTrue(result.eligibleForRefund());
+        assertEquals(1, result.items().size());
+        assertNull(result.accountId());
+    }
+
+    @Test
+    void resolves_encounter_from_the_payment_account_when_encounter_is_absent() {
+        PatientAccount account = account(100L, 10L);
+        when(accounts.findByIdAndTenantId(10L, 1L)).thenReturn(java.util.Optional.of(account));
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(100L))).thenReturn(List.of(account));
+        ChargeItem charge = charge(508L, "OTHER", 4L, "项目四", "5.00");
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L))
+                .thenReturn(List.of(charge));
+
+        RefundPreCheckSummaryView result = service.preCheck(null, 10L);
+
+        assertEquals(100L, result.encounterId());
+        assertEquals(10L, result.accountId());
     }
 
     @Test
@@ -164,6 +215,33 @@ class RefundPreCheckServiceTest {
         assertEquals("BILLING_ACCOUNT_SCOPE_INVALID", assertThrows(BusinessException.class,
                 () -> service.preCheck(100L)).code());
         verifyNoInteractions(charges, payments, pharmacy, diagnostics, treatment, refundPolicy);
+    }
+
+    @Test
+    void rejects_an_account_that_belongs_to_another_encounter() {
+        PatientAccount otherVisit = account(200L, 10L);
+        when(accounts.findByIdAndTenantId(10L, 1L)).thenReturn(java.util.Optional.of(otherVisit));
+        assertEquals("BILLING_ACCOUNT_ENCOUNTER_MISMATCH", assertThrows(BusinessException.class,
+                () -> service.preCheck(100L, 10L)).code());
+        verifyNoInteractions(charges, payments, pharmacy, diagnostics, treatment, refundPolicy);
+    }
+
+    @Test
+    void rejects_an_explicit_account_from_an_inaccessible_organization() {
+        PatientAccount foreign = account(100L, 10L);
+        when(foreign.organizationId()).thenReturn(2001L);
+        when(accounts.findByIdAndTenantId(10L, 1L)).thenReturn(java.util.Optional.of(foreign));
+        assertEquals("BILLING_ACCOUNT_SCOPE_INVALID", assertThrows(BusinessException.class,
+                () -> service.preCheck(100L, 10L)).code());
+        verifyNoInteractions(charges, payments, pharmacy, diagnostics, treatment, refundPolicy);
+    }
+
+    @Test
+    void rejects_an_unknown_explicit_account() {
+        when(accounts.findByIdAndTenantId(10L, 1L)).thenReturn(java.util.Optional.empty());
+        assertEquals("PATIENT_ACCOUNT_NOT_FOUND", assertThrows(BusinessException.class,
+                () -> service.preCheck(100L, 10L)).code());
+        verifyNoInteractions(charges, payments);
     }
 
     @Test

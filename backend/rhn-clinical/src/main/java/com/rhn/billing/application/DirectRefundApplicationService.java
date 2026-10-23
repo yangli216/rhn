@@ -113,9 +113,10 @@ public class DirectRefundApplicationService {
         PaymentOrderView refundOrder = paymentOrchestration.refund(
                 new PaymentOrchestrationService.CreateRefundOrderCommand(
                         paymentId, command.idempotencyKey(), resolved.refundAmount(), command.reason(),
-                        "DIRECT-REFUND-" + resolved.account().encounterId(), command.terminalCode()));
+                        "DIRECT-REFUND-" + resolved.encounterId(), command.terminalCode()));
         if (REFUND_SUCCEEDED.equals(refundOrder.status())) {
-            tryRedFlushFiscalReceipts(context.tenantId(), resolved.originalPayment(), command.idempotencyKey(), command.reason());
+            tryRedFlushFiscalReceipts(context.tenantId(), resolved.originalPayment(), resolved.refundAmount(),
+                    command.idempotencyKey(), command.reason());
         }
         return refundOrder;
     }
@@ -124,7 +125,9 @@ public class DirectRefundApplicationService {
         ResolvedRefund resolved = resolveRefundTarget(context, paymentId, command);
         PatientAccount account = resolved.account();
 
-        RefundPreCheckSummaryView preCheck = preCheckService.preCheck(account.encounterId());
+        // 账户不是退费前置条件：有账户时按其精确核验，无账户时由收费项/就诊聚合核验。
+        RefundPreCheckSummaryView preCheck = preCheckService.preCheck(
+                resolved.encounterId(), resolved.originalPayment().patientAccountId());
 
         Set<Long> targetItemIds = command.chargeItemIds() != null && !command.chargeItemIds().isEmpty()
                 ? new HashSet<>(command.chargeItemIds()) : null;
@@ -151,7 +154,9 @@ public class DirectRefundApplicationService {
                 log.info("Direct refund requested pharmacy cancellation for request {}", item.sourceId());
             }
         }
-        ensureSufficientCredit(context, account, resolved.refundAmount(), targetItemIds);
+        if (account != null) {
+            ensureSufficientCredit(context, account, resolved.refundAmount(), targetItemIds);
+        }
         return resolved;
     }
 
@@ -167,10 +172,20 @@ public class DirectRefundApplicationService {
         }
 
         PatientAccount account = accounts.findByIdAndTenantId(originalPayment.patientAccountId(), context.tenantId())
-                .orElseThrow(() -> new BusinessException("ACCOUNT_NOT_FOUND", "未找到关联费用账户", HttpStatus.NOT_FOUND));
+                .orElse(null);
 
-        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())) {
+        if (!context.hasWorkContext() || !context.canAccessOrganization(
+                account == null ? originalPayment.organizationId() : account.organizationId())) {
             throw new BusinessException("BILLING_ACCOUNT_SCOPE_INVALID", "当前工作上下文不能访问该费用账户", HttpStatus.FORBIDDEN);
+        }
+        Long encounterId = account == null ? null : account.encounterId();
+        if (encounterId == null) {
+            encounterId = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
+                            context.tenantId(), originalPayment.patientAccountId()).stream()
+                    .map(ChargeItem::encounterId).filter(Objects::nonNull).findFirst().orElse(null);
+        }
+        if (encounterId == null) {
+            throw new BusinessException("REFUND_ENCOUNTER_REQUIRED", "原支付未关联就诊，无法办理直接退费", HttpStatus.CONFLICT);
         }
         BigDecimal refunded = payments.refundedForPayment(context.tenantId(), originalPayment.id());
         BigDecimal remainingRefundable = originalPayment.amount().subtract(refunded == null ? BigDecimal.ZERO : refunded);
@@ -182,7 +197,7 @@ public class DirectRefundApplicationService {
         if (refundAmount.compareTo(remainingRefundable) > 0) {
             throw new BusinessException("REFUND_AMOUNT_EXCEEDED", "退款金额不能超过原支付记录剩余可退金额", HttpStatus.CONFLICT);
         }
-        return new ResolvedRefund(account, refundAmount, originalPayment);
+        return new ResolvedRefund(account, refundAmount, originalPayment, encounterId);
     }
 
     private void assertPreCheckPasses(RefundPreCheckSummaryView preCheck, List<RefundItemPreCheckView> itemsToCheck) {
@@ -279,14 +294,28 @@ public class DirectRefundApplicationService {
         return original.totalAmount().subtract(relieved);
     }
 
-    private void tryRedFlushFiscalReceipts(Long tenantId, Payment originalPayment, String idempotencyKey, String reason) {
+    private void tryRedFlushFiscalReceipts(Long tenantId, Payment originalPayment, BigDecimal refundAmount,
+                                           String idempotencyKey, String reason) {
         // Legacy payments without an invoice have no unambiguous receipt target. Never fall back to the whole account.
         if (originalPayment.invoiceId() == null) return;
         var settlement = settlements.findByTenantIdAndLegacyInvoiceId(tenantId, originalPayment.invoiceId())
                 .filter(value -> Objects.equals(value.patientAccountId(), originalPayment.patientAccountId()));
         if (settlement.isEmpty()) return;
+        // 红冲会整张冲销票据，只有本次退款覆盖结算净额全额时才自动执行，部分退款转人工处理。
+        BigDecimal settlementNet = settlement.get().netAmount();
+        if (settlementNet == null || refundAmount.compareTo(settlementNet.abs()) < 0) {
+            log.warn("Skip fiscal receipt red-flush for invoice {}: refund {} is partial against settlement net {}; manual handling required",
+                    originalPayment.invoiceId(), refundAmount, settlementNet);
+            return;
+        }
         for (Receipt receipt : receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(tenantId, settlement.get().id())) {
             if (!"ISSUED".equals(receipt.status()) || "RED_FLUSH".equals(receipt.receiptType())) continue;
+            BigDecimal receiptAmount = receipt.receiptAmount();
+            if (receiptAmount == null || refundAmount.compareTo(receiptAmount.abs()) < 0) {
+                log.warn("Skip fiscal receipt red-flush for receipt {}: refund {} does not cover receipt amount {}; manual handling required",
+                        receipt.id(), refundAmount, receiptAmount);
+                continue;
+            }
             try {
                 Optional<Receipt> red = receipts.findByTenantIdAndReversesReceiptId(tenantId, receipt.id());
                 if (red.isEmpty()) {
@@ -300,6 +329,7 @@ public class DirectRefundApplicationService {
         }
     }
 
-    private record ResolvedRefund(PatientAccount account, BigDecimal refundAmount, Payment originalPayment) {
+    private record ResolvedRefund(PatientAccount account, BigDecimal refundAmount, Payment originalPayment,
+                                  Long encounterId) {
     }
 }

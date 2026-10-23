@@ -115,6 +115,31 @@ class CashierCloseActualAmountsTest {
                         error -> assertThat(error.code()).isEqualTo("CASHIER_CLOSE_FORBIDDEN"));
     }
 
+    @Test void confirm_replay_is_idempotent_but_a_command_used_by_another_close_is_rejected() {
+        eligible(payment("WECHAT", "PAYMENT", "100"));
+        var value = service.calculate(command(actual("WECHAT", "PAYMENT", "100")));
+        when(closes.lockByIdAndTenantId(value.id(), 10L)).thenReturn(Optional.of(saved));
+        clearInvocations(events);
+
+        var first = service.confirm(value.id(), new CashierCloseApplicationService.ConfirmCommand("CONFIRM-1", null));
+        assertThat(first.duplicate()).isFalse();
+        assertThat(first.status()).isEqualTo("CONFIRMED");
+
+        var replay = service.confirm(value.id(), new CashierCloseApplicationService.ConfirmCommand("CONFIRM-1", null));
+        assertThat(replay.duplicate()).isTrue();
+
+        // 前端每次点击都会生成新的命令码，提交超时后的重试必须按幂等成功返回。
+        var retry = service.confirm(value.id(), new CashierCloseApplicationService.ConfirmCommand("CONFIRM-2", null));
+        assertThat(retry.duplicate()).isTrue();
+
+        when(events.findByTenantIdAndCommandCodeAndEventType(10L, "CONFIRM-3", "CONFIRM"))
+                .thenReturn(Optional.of(new CashierCloseEvent(10L, 999L, "CONFIRM", "CALCULATED", "CONFIRMED",
+                        "CONFIRM-3", 11L, null)));
+        assertThatThrownBy(() -> service.confirm(value.id(), new CashierCloseApplicationService.ConfirmCommand("CONFIRM-3", null)))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.code()).isEqualTo("CASHIER_CLOSE_COMMAND_REUSED"));
+    }
+
     @Test void replay_cannot_replace_or_omit_declared_amounts() {
         eligible(payment("WECHAT", "PAYMENT", "100"));
         service.calculate(command(actual("WECHAT", "PAYMENT", "95")));

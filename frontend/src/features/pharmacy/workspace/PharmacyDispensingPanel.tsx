@@ -430,18 +430,18 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
           </div>
           <div>
             <dt>开单医生</dt>
-            <dd>{activeHistorySummary.clinicianId || '未记录'}</dd>
+            <dd>{activeHistorySummary.clinicianId || '开单医生未记录'}</dd>
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
             <dt>主诉</dt>
-            <dd>{activeHistorySummary.chiefComplaint || '患者自述无特殊不适，定期复查开药。'}</dd>
+            <dd>{activeHistorySummary.chiefComplaint || '暂无主诉记录'}</dd>
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
             <dt>临床诊断</dt>
             <dd>
               {activeHistorySummary.diagnoses.length > 0
                 ? activeHistorySummary.diagnoses.map((d) => `${d.display}（${d.code}）`).join('；')
-                : '慢性病毒性肝炎 / 随诊开药'}
+                : '暂无诊断记录'}
             </dd>
           </div>
         </dl>
@@ -459,8 +459,8 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {activeDrugAllergies.map((a) => (
               <Alert key={a.id} tone="error">
-                <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应'}
-                （严重程度：{a.reactionSeverity || '中度'}，核实状态：{a.verificationStatus}）
+                <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应未记录'}
+                （严重程度：{a.reactionSeverity || '未评定'}，核实状态：{a.verificationStatus || '未核实'}）
               </Alert>
             ))}
           </div>

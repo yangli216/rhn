@@ -67,7 +67,13 @@ public class JpaDispenseBillingDirectory implements DispenseBillingDirectory {
     }
 
     private List<DispenseBillingFact> facts(Long tenantId, List<MedicationDispense> values) {
-        return values.stream().map(value -> fact(tenantId, value)).toList();
+        return values.stream().filter(value -> billable(value.dispenseType()))
+                .map(value -> fact(tenantId, value)).toList();
+    }
+
+    /** Cancellation events only reverse stock; they carry no actual lines and must not become charge facts. */
+    private static boolean billable(String dispenseType) {
+        return "DISPENSE".equals(dispenseType) || "REDISPENSE".equals(dispenseType) || "RETURN".equals(dispenseType);
     }
 
     private DispenseBillingFact fact(Long tenantId, MedicationDispense value) {

@@ -19,6 +19,11 @@ class InMemoryRefreshLoginSessionStore implements RefreshLoginSessionStore {
     }
 
     @Override
+    public boolean renew(String token, RefreshLoginSession session, Duration ttl) {
+        return sessions.computeIfPresent(new Key(session.tenantId(), token), (key, current) -> session) != null;
+    }
+
+    @Override
     public Optional<RefreshLoginSession> find(Long tenantId, String token) {
         Key key = new Key(tenantId, token);
         RefreshLoginSession session = sessions.get(key);
@@ -31,6 +36,11 @@ class InMemoryRefreshLoginSessionStore implements RefreshLoginSessionStore {
     @Override
     public void delete(Long tenantId, String token) {
         sessions.remove(new Key(tenantId, token));
+    }
+
+    @Override
+    public boolean deleteIfUnchanged(Long tenantId, String token, RefreshLoginSession expected) {
+        return sessions.remove(new Key(tenantId, token), expected);
     }
 
     @Override

@@ -23,11 +23,20 @@ public interface RegistrationBillingIntentRepository extends JpaRepository<Regis
     Optional<RegistrationBillingIntent> findFirstByTenantIdAndAppointmentIdAndStatusIn(
             Long tenantId, Long appointmentId, Collection<RegistrationBillingIntentStatus> statuses);
 
-    java.util.List<RegistrationBillingIntent> findByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusAndExpiresAtBefore(
-            Long tenantId, Long residentId, Long organizationId, Long departmentId,
-            RegistrationBillingIntentStatus status, java.time.Instant before);
-    java.util.List<RegistrationBillingIntent> findByTenantIdAndAppointmentIdAndStatusAndExpiresAtBefore(
-            Long tenantId, Long appointmentId, RegistrationBillingIntentStatus status, java.time.Instant before);
+    // 只返回 ID：若候选实体先被载入持久化上下文，后续加悲观锁不会刷新其内存状态，会基于旧状态/旧版本号处理。
+    @Query("select value.id from RegistrationBillingIntent value where value.tenantId = :tenantId"
+            + " and value.residentId = :residentId and value.organizationId = :organizationId"
+            + " and value.departmentId = :departmentId and value.status = :status and value.expiresAt < :before")
+    java.util.List<Long> findStalePaymentPendingIdsForResident(@Param("tenantId") Long tenantId,
+            @Param("residentId") Long residentId, @Param("organizationId") Long organizationId,
+            @Param("departmentId") Long departmentId, @Param("status") RegistrationBillingIntentStatus status,
+            @Param("before") java.time.Instant before);
+
+    @Query("select value.id from RegistrationBillingIntent value where value.tenantId = :tenantId"
+            + " and value.appointmentId = :appointmentId and value.status = :status and value.expiresAt < :before")
+    java.util.List<Long> findStalePaymentPendingIdsForAppointment(@Param("tenantId") Long tenantId,
+            @Param("appointmentId") Long appointmentId, @Param("status") RegistrationBillingIntentStatus status,
+            @Param("before") java.time.Instant before);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from RegistrationBillingIntent value where value.id = :id and value.tenantId = :tenantId")

@@ -12,6 +12,7 @@ import com.rhn.billing.api.PaymentResultDirectory;
 import com.rhn.billing.domain.PaymentOrder;
 import com.rhn.billing.domain.Payment;
 import com.rhn.platform.integration.api.ExternalMessageService;
+import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
@@ -57,7 +58,14 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
                 input.settlementId(), input.idempotencyKey(), input.businessScene(), input.paymentSceneCode(),
                 input.paymentMethodCode(), input.amount(), input.roundingAdjustment(), input.correlationId(), input.terminalCode(), input.expiresAt()));
         PaymentOrder order = created.order();
-        notifyPaymentRequested(order);
+        try {
+            notifyPaymentRequested(order);
+        } catch (RuntimeException exception) {
+            failSceneLinkage(order, exception);
+            if (created.duplicate() || terminal(order.status())) return transactions.view(order.id(), created.duplicate());
+            throw exception instanceof BusinessException business ? business
+                    : conflict("PAYMENT_SCENE_LINKAGE_FAILED", "支付指令未能绑定业务场景，已终止本次支付");
+        }
         if (created.duplicate() || terminal(order.status())) {
             if ("SUCCEEDED".equals(order.status()) && "SETTLEMENT_PAY".equals(order.orderType())) completeBusiness(order);
             return transactions.view(order.id(), created.duplicate());
@@ -397,12 +405,19 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         BillingSceneCompletionHandler handler = completionHandlers.stream()
                 .filter(value -> value.supports(order.businessScene())).findFirst().orElse(null);
         if (handler == null) return;
-        try {
-            handler.paymentRequested(new BillingSceneCompletionHandler.PaymentRequested(order.id(), order.invoiceId(),
-                    order.patientAccountId(), order.businessScene(), "PAYMENT-REQUEST-" + order.orderNo()));
-        } catch (RuntimeException exception) {
-            log.error("Payment {} created but {} scene linkage failed", order.orderNo(), order.businessScene(), exception);
-        }
+        handler.paymentRequested(new BillingSceneCompletionHandler.PaymentRequested(order.id(), order.invoiceId(),
+                order.patientAccountId(), order.businessScene(), "PAYMENT-REQUEST-" + order.orderNo()));
+    }
+
+    /**
+     * 业务场景拒绝本次支付指令（如挂号意向已关闭）时立即终止尚未提交渠道的订单：
+     * 既不继续扣款，也不让 CREATED 订单长期占用结算凭证的在途支付额度。
+     */
+    private void failSceneLinkage(PaymentOrder order, RuntimeException exception) {
+        if (!"CREATED".equals(order.status())) return;
+        transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
+                "LINK", "FAILED", "LINK-" + order.orderNo(), null, null, null, null, null,
+                "PAYMENT_SCENE_LINKAGE_FAILED", message(exception)));
     }
 
     private void completeRefund(PaymentOrder order, Payment original, String reason, String commandCode,

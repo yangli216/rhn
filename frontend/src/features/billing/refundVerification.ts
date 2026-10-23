@@ -15,8 +15,9 @@ export function requireRefundStatement(value: AccountStatement, encounterId: str
   return value
 }
 
-export function requireRefundPreCheck(value: RefundPreCheckSummaryView, encounterId: string, accountId: string) {
-  if (!value || value.encounterId !== encounterId || value.accountId !== accountId
+export function requireRefundPreCheck(value: RefundPreCheckSummaryView, encounterId: string, accountId?: string) {
+  if (!value || value.encounterId !== encounterId
+    || (value.accountId != null && accountId != null && value.accountId !== accountId)
     || !['ALLOWED', 'PARTIAL', 'BLOCKED'].includes(value.overallDecision)
     || typeof value.eligibleForRefund !== 'boolean' || !value.currencyCode
     || !nonnegativeAmount(value.totalPaidAmount) || !nonnegativeAmount(value.refundableAmount)

@@ -19,21 +19,32 @@ import java.util.regex.Pattern;
 @Service
 public class RefreshLoginSessionService {
     private static final Pattern VALID_TOKEN = Pattern.compile("[A-Za-z0-9_-]{43}");
+    /** Upper bound on how stale the stored last access may get, so busy sessions are not rewritten every request. */
+    private static final Duration MAX_RENEWAL_INTERVAL = Duration.ofMinutes(1);
     private final RefreshLoginSessionStore sessions;
     private final SecureRandom secureRandom = new SecureRandom();
     private final boolean enabled;
-    private final Duration ttl;
+    private final Duration idleTimeout;
+    private final Duration maxLifetime;
+    private final Duration renewalInterval;
     private final String cookieName;
     private final boolean cookieSecure;
 
     RefreshLoginSessionService(RefreshLoginSessionStore sessions,
                                @Value("${rhn.security.refresh-login.enabled:false}") boolean enabled,
-                               @Value("${rhn.security.refresh-login.ttl:PT8H}") Duration ttl,
+                               @Value("${rhn.security.refresh-login.idle-timeout:PT30M}") Duration idleTimeout,
+                               @Value("${rhn.security.refresh-login.max-lifetime:PT12H}") Duration maxLifetime,
                                @Value("${rhn.security.refresh-login.cookie-name:RHN_LOGIN}") String cookieName,
                                @Value("${rhn.security.refresh-login.cookie-secure:true}") boolean cookieSecure) {
         this.sessions = sessions;
         this.enabled = enabled;
-        this.ttl = ttl;
+        if (idleTimeout.isNegative() || idleTimeout.isZero() || maxLifetime.compareTo(idleTimeout) < 0) {
+            throw new IllegalArgumentException("Refresh login needs 0 < idle-timeout <= max-lifetime");
+        }
+        this.idleTimeout = idleTimeout;
+        this.maxLifetime = maxLifetime;
+        Duration fraction = idleTimeout.dividedBy(10);
+        this.renewalInterval = fraction.compareTo(MAX_RENEWAL_INTERVAL) < 0 ? fraction : MAX_RENEWAL_INTERVAL;
         this.cookieName = cookieName;
         this.cookieSecure = cookieSecure;
     }
@@ -47,7 +58,7 @@ public class RefreshLoginSessionService {
         if (!enabled || context.subjectId() == null) return false;
         String currentToken = token(request).orElse(null);
         if (currentToken != null) {
-            Optional<RefreshLoginSession> current = sessions.find(context.tenantId(), currentToken);
+            Optional<RefreshLoginSession> current = active(context.tenantId(), currentToken);
             if (current.filter(value -> context.subjectId().equals(value.userId())).isPresent()) return false;
         }
         issue(request, response, context.tenantId(), context.subjectId(), context.actor(), LoginMethods.PASSWORD);
@@ -63,9 +74,10 @@ public class RefreshLoginSessionService {
         secureRandom.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         Instant now = Instant.now();
-        sessions.save(token, new RefreshLoginSession(tenantId, userId, username, now, now.plus(ttl),
-                authenticationMethod), ttl);
-        writeCookie(response, token, ttl);
+        sessions.save(token, new RefreshLoginSession(tenantId, userId, username, now, now.plus(maxLifetime),
+                authenticationMethod, now), idleTimeout);
+        // The cookie lives for the absolute limit; the server ends the session earlier once it sits idle.
+        writeCookie(response, token, maxLifetime);
     }
 
     boolean cookieSecure() {
@@ -74,7 +86,31 @@ public class RefreshLoginSessionService {
 
     Optional<RefreshLoginSession> find(HttpServletRequest request, Long tenantId) {
         if (!enabled) return Optional.empty();
-        return token(request).flatMap(value -> sessions.find(tenantId, value));
+        return token(request).flatMap(value -> active(tenantId, value));
+    }
+
+    /**
+     * Returns the session while it is within both the idle timeout and the absolute lifetime, renewing its idle
+     * window; a session past either limit is deleted.
+     */
+    private Optional<RefreshLoginSession> active(Long tenantId, String token) {
+        Optional<RefreshLoginSession> saved = sessions.find(tenantId, token);
+        if (saved.isEmpty()) return saved;
+        RefreshLoginSession session = saved.get();
+        Instant now = Instant.now();
+        if (!session.expiresAt().isAfter(now) || !session.lastActivity().plus(idleTimeout).isAfter(now)) {
+            // 只删除判定时读到的快照，避免并发续期后把刚续期的会话误删。
+            sessions.deleteIfUnchanged(tenantId, token, session);
+            return Optional.empty();
+        }
+        if (Duration.between(session.lastActivity(), now).compareTo(renewalInterval) < 0) return saved;
+        RefreshLoginSession renewed = session.accessedAt(now);
+        Duration remaining = Duration.between(now, session.expiresAt());
+        // Renew only a session that still exists, so a concurrent logout or forced sign-out is never undone.
+        if (!sessions.renew(token, renewed, remaining.compareTo(idleTimeout) < 0 ? remaining : idleTimeout)) {
+            return Optional.empty();
+        }
+        return Optional.of(renewed);
     }
 
     void invalidateCurrent(HttpServletRequest request, HttpServletResponse response, Long tenantId) {

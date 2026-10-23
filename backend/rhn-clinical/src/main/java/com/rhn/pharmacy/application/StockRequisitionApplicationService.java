@@ -80,14 +80,19 @@ public class StockRequisitionApplicationService {
     public RequisitionView create(CreateRequisitionCommand input) {
         ExecutionContext context = requireWorkContext();
         String requestCode = required(input.requestCode(), "REQUISITION_REQUEST_CODE_REQUIRED", "请领请求编码不能为空");
+        StockSite source = requireSite(context, input.sourceSiteId(), false);
         StockRequisition existing = repository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
-        if (existing != null) return view(context, existing);
+        if (existing != null) {
+            if (!source.id().equals(existing.sourceSiteId())) {
+                throw conflict("REQUISITION_REQUEST_REUSED", "请领请求编码已被其他业务使用");
+            }
+            return view(context, existing);
+        }
         Long requestingDepartmentId = input.requestingDepartmentId() == null
                 ? context.departmentId() : input.requestingDepartmentId();
         if (!requestingDepartmentId.equals(context.departmentId())) {
             throw badRequest("REQUISITION_REQUESTER_SCOPE_INVALID", "只能以当前工作科室发起请领");
         }
-        StockSite source = requireSite(context, input.sourceSiteId(), false);
         organizationDirectory.requireDepartment(context.tenantId(), source.organizationId(), requestingDepartmentId);
         if (input.destinationSiteId() != null) {
             throw badRequest("REQUISITION_DESTINATION_USE_TRANSFER", "库存站点之间的物资移动请使用库间调拨");

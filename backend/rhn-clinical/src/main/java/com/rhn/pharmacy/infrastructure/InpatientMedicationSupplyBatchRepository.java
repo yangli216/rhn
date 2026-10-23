@@ -16,6 +16,8 @@ public interface InpatientMedicationSupplyBatchRepository
         extends JpaRepository<InpatientMedicationSupplyBatch, Long> {
     Optional<InpatientMedicationSupplyBatch> findByTenantIdAndGenerationCommandCode(
             Long tenantId, String generationCommandCode);
+    Optional<InpatientMedicationSupplyBatch> findByTenantIdAndGenerationPayloadHash(
+            Long tenantId, String generationPayloadHash);
     List<InpatientMedicationSupplyBatch> findByTenantIdAndStockSiteIdAndStatusOrderByWindowStart(
             Long tenantId, Long stockSiteId, InpatientMedicationSupplyBatchStatus status);
     List<InpatientMedicationSupplyBatch>

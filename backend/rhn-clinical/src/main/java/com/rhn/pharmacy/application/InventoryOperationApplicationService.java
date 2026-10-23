@@ -185,6 +185,7 @@ public class InventoryOperationApplicationService {
     public PurchaseOrderView createPurchaseOrder(CreatePurchaseOrderCommand input) {
         ExecutionContext context = requireWorkContext();
         String requestCode = required(input.requestCode(), "PURCHASE_REQUEST_CODE_REQUIRED", "采购请求编码不能为空");
+        StockSite site = requireSite(context, input.stockSiteId());
         PurchaseOrder existing = orderRepository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
         if (existing != null) {
             if (!existing.stockSiteId().equals(input.stockSiteId()) || !existing.supplierId().equals(input.supplierId())) {
@@ -192,7 +193,7 @@ public class InventoryOperationApplicationService {
             }
             return orderView(context, existing);
         }
-        StockSite site = requireSite(context, input.stockSiteId()); Supplier supplier = requireSupplier(context, input.supplierId());
+        Supplier supplier = requireSupplier(context, input.supplierId());
         if (!site.organizationId().equals(supplier.organizationId())) {
             throw badRequest("PURCHASE_SUPPLIER_ORG_MISMATCH", "供应商与采购库房不属于同一机构");
         }
@@ -284,6 +285,7 @@ public class InventoryOperationApplicationService {
             if (!existing.purchaseOrderId().equals(input.purchaseOrderId())) {
                 throw conflict("GOODS_RECEIPT_REQUEST_REUSED", "到货请求编码已被其他采购单使用");
             }
+            requireSite(context, existing.stockSiteId());
             return receiptView(context, existing);
         }
         PurchaseOrder order = lockOrder(context, input.purchaseOrderId());
@@ -448,11 +450,14 @@ public class InventoryOperationApplicationService {
     public GoodsReceiptView directGoodsReceipt(DirectGoodsReceiptCommand input) {
         ExecutionContext context = requireWorkContext();
         String requestCode = required(input.requestCode(), "GOODS_RECEIPT_REQUEST_REQUIRED", "到货请求编码不能为空");
+        StockSite site = requireSite(context, input.stockSiteId());
         GoodsReceipt existing = receiptRepository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
         if (existing != null) {
+            if (!site.id().equals(existing.stockSiteId())) {
+                throw conflict("GOODS_RECEIPT_REQUEST_REUSED", "到货请求编码已被其他业务使用");
+            }
             return receiptView(context, existing);
         }
-        StockSite site = requireSite(context, input.stockSiteId());
         Supplier supplier = requireSupplier(context, input.supplierId());
         if (!site.organizationId().equals(supplier.organizationId())) {
             throw badRequest("PURCHASE_SUPPLIER_ORG_MISMATCH", "供应商与采购库房不属于同一机构");

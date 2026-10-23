@@ -32,7 +32,8 @@ describe('RefundManagementWorkspace', () => {
     expect(screen.getByText('请先选择就诊')).toBeInTheDocument()
   })
 
-  it('shows no account empty state when selected patient has no account', async () => {
+  it('does not require a patient account before running refund pre-check', async () => {
+    const refundPreCheck = vi.fn().mockResolvedValue(null)
     const api = {
       billing: {
         worklist: vi.fn().mockResolvedValue([{
@@ -50,7 +51,7 @@ describe('RefundManagementWorkspace', () => {
           latestOccurredAt: '2026-09-01T01:00:00Z',
         }]),
         statement: vi.fn(),
-        refundPreCheck: vi.fn().mockResolvedValue(null),
+        refundPreCheck,
       },
     } as unknown as RhnApi
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -59,7 +60,8 @@ describe('RefundManagementWorkspace', () => {
       <MemoryRouter><RefundManagementWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
-    expect(await screen.findByText('暂无费用账户')).toBeInTheDocument()
+    await waitFor(() => expect(refundPreCheck).toHaveBeenCalledWith('enc-refund-1', undefined))
+    expect(screen.queryByText('暂无费用账户')).not.toBeInTheDocument()
     expect(screen.queryByText('正在进行临床-药房-医技协同退费前置检查…')).not.toBeInTheDocument()
   })
 

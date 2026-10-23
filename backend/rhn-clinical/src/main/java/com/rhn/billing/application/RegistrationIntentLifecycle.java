@@ -67,20 +67,20 @@ class RegistrationIntentLifecycle {
 
     @Transactional
     int expireStaleForResident(Long tenantId, Long residentId, Long organizationId, Long departmentId) {
-        return expire(tenantId, intents.findByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusAndExpiresAtBefore(
+        return expire(tenantId, intents.findStalePaymentPendingIdsForResident(
                 tenantId, residentId, organizationId, departmentId, RegistrationBillingIntentStatus.PAYMENT_PENDING, Instant.now()));
     }
 
     @Transactional
     int expireStaleForAppointment(Long tenantId, Long appointmentId) {
-        return expire(tenantId, intents.findByTenantIdAndAppointmentIdAndStatusAndExpiresAtBefore(
+        return expire(tenantId, intents.findStalePaymentPendingIdsForAppointment(
                 tenantId, appointmentId, RegistrationBillingIntentStatus.PAYMENT_PENDING, Instant.now()));
     }
 
-    private int expire(Long tenantId, List<RegistrationBillingIntent> candidates) {
+    private int expire(Long tenantId, List<Long> candidateIds) {
         int closed = 0;
-        for (RegistrationBillingIntent candidate : candidates) {
-            RegistrationBillingIntent value = intents.lockByIdAndTenantId(candidate.id(), tenantId).orElse(null);
+        for (Long candidateId : candidateIds) {
+            RegistrationBillingIntent value = intents.lockByIdAndTenantId(candidateId, tenantId).orElse(null);
             if (value == null || value.status() != RegistrationBillingIntentStatus.PAYMENT_PENDING
                     || value.expiresAt() == null || value.expiresAt().isAfter(Instant.now())) continue;
             if (value.paymentOrderId() != null && !linkedOrderFailed(tenantId, value)) continue;

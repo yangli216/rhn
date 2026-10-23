@@ -115,7 +115,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
         lotNo: input.lotNo, expiryDate: input.expiryDate, qualityStatus: 'QUALIFIED',
       })
       return api.pharmacy.receive({
-        requestCode: `WH-RCP-${Date.now()}`, sourceCode: input.sourceCode,
+        requestCode: `WH-RCP-${crypto.randomUUID()}`, sourceCode: input.sourceCode,
         stockItemId: input.stockItemId, stockBinId: input.stockBinId, stockLotId: lot.id,
         operationQuantity: input.operationQuantity, unitCost: input.unitCost,
         occurredAt: new Date().toISOString(), description: input.description,

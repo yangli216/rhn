@@ -92,7 +92,9 @@ rhn:
     revocation-ttl: ${RHN_SESSION_REVOCATION_TTL:PT12H}
     refresh-login:
       enabled: ${RHN_REFRESH_LOGIN_ENABLED:false}
-      ttl: ${RHN_REFRESH_LOGIN_TTL:PT8H}
+      # Sliding renewal: each request extends the session by idle-timeout, never past max-lifetime from login.
+      idle-timeout: ${RHN_REFRESH_LOGIN_IDLE_TIMEOUT:PT30M}
+      max-lifetime: ${RHN_REFRESH_LOGIN_MAX_LIFETIME:${RHN_REFRESH_LOGIN_TTL:PT12H}}
       cookie-name: ${RHN_REFRESH_LOGIN_COOKIE_NAME:RHN_LOGIN}
       cookie-secure: ${RHN_REFRESH_LOGIN_COOKIE_SECURE:true}
       key-prefix: ${RHN_REFRESH_LOGIN_KEY_PREFIX:rhn:login-sessions}

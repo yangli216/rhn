@@ -42,8 +42,8 @@ class RegistrationIntentLifecycleTest {
     }
 
     private int expire(RegistrationBillingIntent value) {
-        when(intents.findByTenantIdAndAppointmentIdAndStatusAndExpiresAtBefore(eq(TENANT), eq(40L),
-                eq(RegistrationBillingIntentStatus.PAYMENT_PENDING), any())).thenReturn(List.of(value));
+        when(intents.findStalePaymentPendingIdsForAppointment(eq(TENANT), eq(40L),
+                eq(RegistrationBillingIntentStatus.PAYMENT_PENDING), any())).thenReturn(List.of(value.id()));
         when(intents.lockByIdAndTenantId(value.id(), TENANT)).thenReturn(Optional.of(value));
         return lifecycle.expireStaleForAppointment(TENANT, 40L);
     }

@@ -204,8 +204,9 @@ public class BillingController {
     }
 
     @GetMapping("/encounters/{encounterId}/refund-precheck")
-    public RefundPreCheckSummaryView getRefundPreCheck(@PathVariable Long encounterId) {
-        return refundPreCheckService.preCheck(encounterId);
+    public RefundPreCheckSummaryView getRefundPreCheck(@PathVariable Long encounterId,
+                                                       @RequestParam(required = false) Long accountId) {
+        return refundPreCheckService.preCheck(encounterId, accountId);
     }
 
     @PostMapping("/payments/{paymentId}/direct-refund")

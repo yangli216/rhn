@@ -21,6 +21,7 @@ public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
     List<ChargeItem> findByTenantIdAndReversesChargeItemIdOrderByOccurredAtAscIdAsc(Long tenantId,
                                                                                      Long reversesChargeItemId);
     List<ChargeItem> findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(Long tenantId, Long accountId);
+    List<ChargeItem> findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(Long tenantId, Long encounterId);
     List<ChargeItem> findByTenantIdAndPatientAccountIdInOrderByOccurredAtDescIdDesc(
             Long tenantId, Collection<Long> accountIds);
 

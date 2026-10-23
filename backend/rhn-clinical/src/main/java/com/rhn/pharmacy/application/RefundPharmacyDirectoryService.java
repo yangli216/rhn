@@ -2,6 +2,7 @@ package com.rhn.pharmacy.application;
 
 import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
+import com.rhn.pharmacy.domain.DispenseTaskLine;
 import com.rhn.pharmacy.domain.DispenseTaskStatus;
 import com.rhn.pharmacy.domain.InventoryReservation;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
@@ -12,7 +13,9 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.List;
 
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
@@ -56,6 +59,11 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
         if ("RETURNED".equals(status) || "PARTIALLY_RETURNED".equals(status)) {
             return new RefundFulfillmentStatus("RETURNED", status);
         }
+        // A stopped order (CANCELLED) keeps its dispensed lines as immutable facts; report them instead of
+        // pretending the medication was never dispensed, which would allow an unreviewed direct refund.
+        if ("CANCELLED".equals(status) && outstandingQuantity(lines).signum() > 0) {
+            return new RefundFulfillmentStatus("DISPENSED", status);
+        }
         return RefundFulfillmentStatus.undispensed(status);
     }
 
@@ -85,11 +93,13 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
         for (Long taskId : taskLines.findTaskIdsForRequest(tenantId, medicationRequestId)) {
             DispenseTask task = tasks.lockByIdAndTenantId(taskId, tenantId)
                     .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "退费对应发药任务不存在"));
-            if (rejectDispensed && task.status() != DispenseTaskStatus.RETURNED && dispensedOrPartlyReturned(task)) {
+            List<DispenseTaskLine> taskLineList = taskLines.findByTenantIdAndTaskIdOrderById(tenantId, taskId);
+            if (rejectDispensed && task.status() != DispenseTaskStatus.RETURNED
+                    && (dispensedOrPartlyReturned(task) || outstandingQuantity(taskLineList).signum() > 0)) {
                 throw conflict(dispensedCode, dispensedMessage);
             }
             if (task.status() == DispenseTaskStatus.COMPLETED || task.status() == DispenseTaskStatus.RETURNED) continue;
-            for (var line : taskLines.findByTenantIdAndTaskIdOrderById(tenantId, taskId)) {
+            for (var line : taskLineList) {
                 var active = reservations.lockActiveByDispenseTaskLine(tenantId, line.id()).stream()
                         .sorted(Comparator.comparing(InventoryReservation::stockBinId)
                                 .thenComparing(InventoryReservation::stockItemId)
@@ -115,6 +125,12 @@ public class RefundPharmacyDirectoryService implements RefundPharmacyDirectory {
         reservations.flush();
         taskLines.flush();
         tasks.flush();
+    }
+
+    private static BigDecimal outstandingQuantity(List<DispenseTaskLine> lines) {
+        return lines.stream()
+                .map(line -> line.dispensedQuantity().subtract(line.returnedQuantity()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private static boolean dispensedOrPartlyReturned(DispenseTask task) {

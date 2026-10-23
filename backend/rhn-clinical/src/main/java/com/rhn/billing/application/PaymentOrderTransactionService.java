@@ -192,12 +192,15 @@ class PaymentOrderTransactionService {
         BigDecimal refunded = money(paymentRepository.refundedForPayment(context.tenantId(), original.id()));
         BigDecimal reserved = money(orderRepository.activeRefundRequestedForPayment(context.tenantId(), original.id()));
         BigDecimal paymentAvailable = money(original.amount().subtract(refunded).subtract(reserved));
-        BigDecimal accountBalance = money(ledgerRepository.balance(context.tenantId(), account.id()));
-        BigDecimal accountAvailable = accountBalance.signum() < 0
-                ? money(accountBalance.abs().subtract(reserved)) : BigDecimal.ZERO.setScale(6);
         if (amount.compareTo(paymentAvailable) > 0) {
             throw conflict("REFUND_ORDER_EXCEEDS_PAYMENT", "退款金额超过原支付扣除已退及在途退款后的余额");
         }
+        // 退款必须有账户作为记账载体：账户缺失时在写入退款指令前明确失败，避免留下无法完成的在途退款。
+        BigDecimal accountReserved = money(orderRepository.activeRefundRequestedForAccount(
+                context.tenantId(), account.id()));
+        BigDecimal accountBalance = money(ledgerRepository.balance(context.tenantId(), account.id()));
+        BigDecimal accountCredit = accountBalance.signum() < 0 ? money(accountBalance.abs()) : BigDecimal.ZERO.setScale(6);
+        BigDecimal accountAvailable = accountCredit.subtract(accountReserved).max(BigDecimal.ZERO.setScale(6));
         if (amount.compareTo(accountAvailable) > 0) {
             throw conflict("REFUND_ORDER_EXCEEDS_ACCOUNT_CREDIT", "退款金额超过退费事项形成并扣除在途退款后的账户可退余额");
         }
@@ -210,9 +213,11 @@ class PaymentOrderTransactionService {
                 ? BillingCodes.DEFAULT_PAYMENT_SCENE : sourceOrder.paymentSceneCode();
         String methodName = sourceOrder == null ? original.paymentMethodCode() : sourceOrder.paymentMethodNameSnapshot();
         PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(),
-                account.organizationId(), account.departmentId(), account.id(),
+                account.organizationId(), account.departmentId(),
+                original.patientAccountId(),
                 original.invoiceId(), original.id(), orderNo, idempotencyKey, businessScene, scene,
-                original.paymentMethodCode(), methodName, "REFUND", amount, account.currencyCode(),
+                original.paymentMethodCode(), methodName, "REFUND", amount,
+                account.currencyCode(),
                 Strings.trimToNull(input.correlationId()) == null ? context.correlationId() : Strings.trimToNull(input.correlationId()),
                 Strings.trimToNull(input.terminalCode()), null, context.subjectId()));
         eventRepository.save(new PaymentEvent(context.tenantId(), value.id(), null, "CREATE", null, "CREATED",

@@ -109,8 +109,10 @@ npm run dev
 
 顶部“搜索模块”支持按名称或所属分类查找当前可访问的模块，快捷键为 `Ctrl / ⌘ K`，回车进入首项。统计体验入口位于左侧菜单顶部；启动前端时设置 `VITE_ANALYTICS_ENABLED=true`，后端通过 `./scripts/run-analytics-preview.sh` 启动，使用当前 Oracle 业务数据。
 
-刷新后保持登录默认关闭。需要启用基础版本时设置 `RHN_REFRESH_LOGIN_ENABLED=true`；登录有效期默认 8 小时，
-可通过 `RHN_REFRESH_LOGIN_TTL` 调整（例如 `PT4H`）。正式集群使用共享 Redis 保存登录令牌，并要求通过 HTTPS
+刷新后保持登录默认关闭。需要启用基础版本时设置 `RHN_REFRESH_LOGIN_ENABLED=true`；登录采用滑动续期：
+每次请求都会顺延空闲期，空闲超过 `RHN_REFRESH_LOGIN_IDLE_TIMEOUT`（默认 `PT30M`）即失效，且自登录起
+最长不超过 `RHN_REFRESH_LOGIN_MAX_LIFETIME`（默认 `PT12H`，兼容旧变量 `RHN_REFRESH_LOGIN_TTL`）。
+工作台打开且可见时每分钟上报在线状态，也会顺延空闲期。登录失效后前端回到登录页并提示重新登录。正式集群使用共享 Redis 保存登录令牌，并要求通过 HTTPS
 访问；本地 `dev`、`local` 和 `oracle-local` 配置允许在 HTTP 环境验证。
 
 需要把本地迭代数据长期保存在 Oracle 时，通过环境变量提供连接信息后启用 `oracle-local`，密码不会写入项目文件：

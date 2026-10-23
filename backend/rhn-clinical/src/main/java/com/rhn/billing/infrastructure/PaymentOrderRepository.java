@@ -58,4 +58,13 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long
             """)
     BigDecimal activeRefundRequestedForPayment(@Param("tenantId") Long tenantId,
                                                 @Param("paymentId") Long paymentId);
+
+    @Query("""
+            select coalesce(sum(value.requestedAmount - value.refundedAmount), 0) from PaymentOrder value
+             where value.tenantId = :tenantId and value.patientAccountId = :patientAccountId
+               and value.orderType = 'REFUND'
+               and value.status in ('CREATED', 'PENDING', 'PROCESSING', 'REFUNDING', 'PARTIAL')
+            """)
+    BigDecimal activeRefundRequestedForAccount(@Param("tenantId") Long tenantId,
+                                               @Param("patientAccountId") Long patientAccountId);
 }

@@ -142,15 +142,18 @@ public class InventoryReconciliationApplicationService {
                  and l.stock_bin_id = b.ID_STOCK_BIN and l.stock_item_id = b.ID_STOCK_ITEM
                  and l.stock_lot_id = b.ID_STOCK_LOT and l.stock_status = b.SD_STOCK_STATUS
                 left join reservation_totals r
-                  on r.tenant_id = b.ID_TNT and r.stock_site_id = b.ID_STOCK_SITE
+                  on b.SD_STOCK_STATUS = 'AVAILABLE' and r.tenant_id = b.ID_TNT
+                 and r.stock_site_id = b.ID_STOCK_SITE
                  and r.stock_bin_id = b.ID_STOCK_BIN and r.stock_item_id = b.ID_STOCK_ITEM
                  and r.stock_lot_id = b.ID_STOCK_LOT
                 left join open_package_totals p
-                  on p.tenant_id = b.ID_TNT and p.stock_site_id = b.ID_STOCK_SITE
+                  on b.SD_STOCK_STATUS = 'AVAILABLE' and p.tenant_id = b.ID_TNT
+                 and p.stock_site_id = b.ID_STOCK_SITE
                  and p.stock_bin_id = b.ID_STOCK_BIN and p.stock_item_id = b.ID_STOCK_ITEM
                  and p.stock_lot_id = b.ID_STOCK_LOT
                 left join trace_totals t
-                  on t.tenant_id = b.ID_TNT and t.stock_site_id = b.ID_STOCK_SITE
+                  on b.SD_STOCK_STATUS = 'AVAILABLE' and t.tenant_id = b.ID_TNT
+                 and t.stock_site_id = b.ID_STOCK_SITE
                  and t.stock_bin_id = b.ID_STOCK_BIN and t.stock_item_id = b.ID_STOCK_ITEM
                  and t.stock_lot_id = b.ID_STOCK_LOT
                 where b.ID_TNT = ? and b.ID_STOCK_SITE = ?

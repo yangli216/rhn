@@ -318,10 +318,10 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       const resInfo = residentMap.get(resId)
       const reqSnapshot = item.request.medicationSnapshot as Record<string, unknown> | undefined
       const snapName = resInfo?.fullName
+        || item.residentName
         || (reqSnapshot?.fullName as string)
         || (reqSnapshot?.residentName as string)
-        || (item.request as unknown as { residentName?: string }).residentName
-        || (resId !== 'unknown' && resId.length > 8 ? `患者 (${resId.slice(-4)})` : '患者')
+        || (resId && resId !== 'unknown' ? `姓名未获取(尾号${resId.slice(-4)})` : '未获取到患者姓名')
       const snapGender = resInfo?.gender || (reqSnapshot?.gender as string | undefined)
       const snapBirth = resInfo?.birthDate || (reqSnapshot?.birthDate as string | undefined)
       const snapId = resInfo?.maskedNationalId || (reqSnapshot?.nationalId as string | undefined)
@@ -431,9 +431,11 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       const snap = (first.request.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
       const hasClinicalContext = Boolean(first.clinicalContext)
       const orgName = (snap.organizationName as string)
-        || (hasClinicalContext ? (clinicalContext.organization?.name || '本院') : '开立机构未记录')
+        || (hasClinicalContext ? clinicalContext.organization?.name : undefined)
+        || '开立机构未记录'
       const deptName = (snap.departmentName as string)
-        || (hasClinicalContext ? (clinicalContext.department?.name || '门诊') : '开立科室未记录')
+        || (hasClinicalContext ? clinicalContext.department?.name : undefined)
+        || '开立科室未记录'
       const matchedPractitioner = practitioners.data?.find(
         (p) => p.id === first.clinicalContext?.clinicianId || p.code === first.clinicalContext?.clinicianId
       )
@@ -441,7 +443,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
         || (snap.clinicianName as string)
         || matchedPractitioner?.fullName
         || (first.clinicalContext?.clinicianId
-          ? (first.clinicalContext.clinicianId === 'doctor' ? '门诊医师' : `医生标识 ${first.clinicalContext.clinicianId}`)
+          ? `医师(${first.clinicalContext.clinicianId})`
           : '开立医生未记录')
 
       cards.push({
@@ -634,7 +636,10 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       showActionNotice('info', '所选处方均已完成发药，无需重复处理')
       return
     }
-    const invalidQuantity = pendingItems.find((item) => !Number.isFinite(item.request.quantity) || item.request.quantity <= 0)
+    // Partial dispense keeps the already issued quantity; only the remaining plan may be submitted.
+    const remainingQuantityOf = (item: PharmacyInboxItem) =>
+      roundQuantity((item.plannedQuantity ?? item.request.quantity) - (item.dispensedQuantity ?? 0))
+    const invalidQuantity = pendingItems.find((item) => !Number.isFinite(remainingQuantityOf(item)) || remainingQuantityOf(item) <= 0)
     if (invalidQuantity) {
       showActionNotice('warning', `药品“${invalidQuantity.request.medicationName}”缺少有效的发药数量，请核实处方`)
       return
@@ -646,7 +651,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       return
     }
     const missingTraceScan = pendingItems.find((item) => itemRequiresTrace(item)
-      && getItemScannedCount(item.request) < item.request.quantity)
+      && getItemScannedCount(item.request) < remainingQuantityOf(item))
     if (missingTraceScan) {
       setLastScannedRequestId(missingTraceScan.request.id)
       showActionNotice('warning', `请先扫齐“${missingTraceScan.request.medicationName}”的追溯码`)
@@ -697,8 +702,8 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
               ?? currentTaskStatus ?? '未知'}，暂不能发药`)
           }
           await api.pharmacy.dispense(currentTaskId, {
-            requestCode: `DSP-BATCH-${item.request.id}-${Date.now()}`,
-            operationQuantity: item.request.quantity,
+            requestCode: `DSP-BATCH-${currentTaskId}-${crypto.randomUUID()}`,
+            operationQuantity: remainingQuantityOf(item),
             dispenserPractitionerId: practitionerId,
             dispenserAssignmentId: assignmentId,
             description: '已核对处方与患者身份一键发药',
@@ -861,7 +866,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
     setCancellingTaskId(taskIdToCancel)
     try {
       const res = await api.pharmacy.cancelDispense(taskIdToCancel, {
-        cancelNo: `CNC-${taskIdToCancel}-${Date.now()}`,
+        cancelNo: `CNC-${taskIdToCancel}-${crypto.randomUUID()}`,
         operatorPractitionerId: practitionerId,
         operatorAssignmentId: assignmentId,
         reasonCode: cancelReasonCode,
@@ -870,7 +875,11 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       const cancelIdentifier = res?.cancelNo || res?.taskNo || taskIdToCancel
       showActionNotice('success', `取消发药成功：任务已撤销发药并恢复为待发药状态（单号：${cancelIdentifier}）`)
       setCancelDescription('')
-      await refresh(res.taskId)
+      try {
+        await refresh(res.taskId)
+      } catch (refreshError) {
+        showActionNotice('warning', `取消发药已完成，但列表刷新失败：${errorMessage(refreshError)}`)
+      }
     } catch (err) {
       showActionNotice('error', `取消发药失败：${errorMessage(err)}`)
     } finally {
@@ -968,9 +977,9 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       return
     }
     setReturningTaskId('batch')
+    let successCount = 0
+    let totalRefundAmount = 0
     try {
-      let successCount = 0
-      let totalRefundAmount = 0
       for (const { item, quantity, disposition } of itemsToReturn) {
         if (!item.taskId || quantity <= 0) continue
         const traceData = await api.pharmacy.trace(item.taskId)
@@ -1025,7 +1034,14 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       setReturnQuantities({})
       await refresh()
     } catch (err) {
-      showActionNotice('error', `退药办理失败：${errorMessage(err)}`)
+      if (successCount > 0) {
+        showActionNotice(
+          'warning',
+          `部分退药完成：已完成 ${successCount} 项，退药金额 ¥${totalRefundAmount.toFixed(2)}；其余未完成原因：${errorMessage(err)}`,
+        )
+      } else {
+        showActionNotice('error', `退药办理失败：${errorMessage(err)}`)
+      }
       await refresh().catch(() => undefined)
     } finally {
       setReturningTaskId(null)
@@ -1434,7 +1450,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   const pResident = resident.data || pProfile?.resident
 
-  const pFullName = pResident?.fullName || activePatient?.residentName || '患者'
+  const pFullName = pResident?.fullName || activePatient?.residentName || '未获取到患者姓名'
 
   const pGender = genderText(pResident?.gender || activePatient?.gender)
 
@@ -1442,7 +1458,7 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
 
   const pEthnicity = pProfile?.demographicProfile?.ethnicityCodeText || '民族未维护'
 
-  const pCoverage = pProfile?.coverages?.[0]?.sdCoverageTypeText || pProfile?.coverages?.[0]?.sdCoverageType || '费用类别未知'
+  const pCoverage = pProfile?.coverages?.[0]?.sdCoverageTypeText || pProfile?.coverages?.[0]?.sdCoverageType || '费用类别未维护'
 
   const pNationalId = pResident?.maskedNationalId || activePatient?.nationalId || '未维护'
 

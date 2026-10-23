@@ -36,6 +36,7 @@ import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.InventoryReservationRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseLineRepository;
+import com.rhn.pharmacy.infrastructure.MedicationDispenseConsumptionRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseRepository;
 import com.rhn.pharmacy.infrastructure.StockBinRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
@@ -90,6 +91,7 @@ public class DispenseApplicationService {
     private final InventoryReservationRepository reservationRepository;
     private final MedicationDispenseRepository dispenseRepository;
     private final MedicationDispenseLineRepository dispenseLineRepository;
+    private final MedicationDispenseConsumptionRepository consumptionRepository;
     private final MedicationFulfillmentDirectory medicationFulfillment;
     private final StockReturnRepository returnRepository;
     private final StockReturnLineRepository returnLineRepository;
@@ -109,6 +111,7 @@ public class DispenseApplicationService {
             InventoryReservationRepository reservationRepository,
             MedicationDispenseRepository dispenseRepository,
             MedicationDispenseLineRepository dispenseLineRepository,
+            MedicationDispenseConsumptionRepository consumptionRepository,
             MedicationFulfillmentDirectory medicationFulfillment,
             StockReturnRepository returnRepository, StockReturnLineRepository returnLineRepository,
             OrganizationDirectory organizationDirectory, InventoryTraceApplicationService traceService,
@@ -122,7 +125,9 @@ public class DispenseApplicationService {
         this.transactionLineRepository = transactionLineRepository; this.availabilityService = availabilityService;
         this.inventoryLedger = inventoryLedger;
         this.reservationRepository = reservationRepository; this.dispenseRepository = dispenseRepository;
-        this.dispenseLineRepository = dispenseLineRepository; this.medicationFulfillment = medicationFulfillment;
+        this.dispenseLineRepository = dispenseLineRepository;
+        this.consumptionRepository = consumptionRepository;
+        this.medicationFulfillment = medicationFulfillment;
         this.returnRepository = returnRepository;
         this.returnLineRepository = returnLineRepository; this.organizationDirectory = organizationDirectory;
         this.traceService = traceService; this.quantityPolicy = quantityPolicy; this.splitService = splitService;
@@ -164,7 +169,13 @@ public class DispenseApplicationService {
                 context.tenantId(), requestCode).orElse(null);
         if (existing != null) return verifyIdempotentDispense(existing, taskId, input);
 
-        DispenseTask task = lockTask(context, taskId); StockSite site = requireSite(context, task.stockSiteId());
+        DispenseTask task = lockTask(context, taskId);
+        // A concurrent retry with the same request code may have committed while this call waited for the
+        // task lock; re-check after locking so the duplicate is replayed instead of hitting the unique key.
+        MedicationDispense replayed = dispenseRepository.findByTenantIdAndDispenseNo(
+                context.tenantId(), requestCode).orElse(null);
+        if (replayed != null) return verifyIdempotentDispense(replayed, taskId, input);
+        StockSite site = requireSite(context, task.stockSiteId());
         Long deptId = StockSiteRequirements.requireDepartment(site);
         requireOrganizationAccess(context, site.organizationId()); DispenseTaskLine taskLine = requireTaskLine(context, task.id());
         StockItem item = requireItem(context, taskLine.stockItemId());
@@ -329,8 +340,12 @@ public class DispenseApplicationService {
         }
         StockSite site = requireSite(context, task.stockSiteId());
         requireOrganizationAccess(context, site.organizationId());
-        validatePractitioner(context, site, input.operatorPractitionerId(), input.operatorAssignmentId(), "取消发药");
         DispenseTaskLine taskLine = requireTaskLine(context, task.id());
+        // A dispensed-and-administered medication cannot be pulled back to stock; the ward must return it instead.
+        if (consumptionRepository.consumedBaseQuantityForTaskLine(context.tenantId(), taskLine.id()).signum() > 0) {
+            throw conflict("DISPENSE_ALREADY_CONSUMED", "当前发药已被病区核销给药，不能取消发药；请办理退药");
+        }
+        validatePractitioner(context, site, input.operatorPractitionerId(), input.operatorAssignmentId(), "取消发药");
 
         if (taskLine.returnedQuantity().signum() > 0) {
             throw conflict("DISPENSE_ALREADY_RETURNED", "当前发药任务已存在退药记录，不能直接撤销发药");

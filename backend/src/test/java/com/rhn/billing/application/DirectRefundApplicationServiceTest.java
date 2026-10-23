@@ -119,7 +119,7 @@ class DirectRefundApplicationServiceTest {
         RefundPreCheckSummaryView blockedCheck = new RefundPreCheckSummaryView(
                 200L, 10L, false, "BLOCKED", "处方已发药，禁止直接退款",
                 new BigDecimal("50.00"), BigDecimal.ZERO, "CNY", List.of(blockedItem), List.of());
-        when(preCheckService.preCheck(200L)).thenReturn(blockedCheck);
+        when(preCheckService.preCheck(200L, 10L)).thenReturn(blockedCheck);
 
         DirectRefundCommand command = new DirectRefundCommand(
                 "IDEMP-1", new BigDecimal("50.00"), "患者要求退费", "CASHIER", List.of(501L));
@@ -145,12 +145,32 @@ class DirectRefundApplicationServiceTest {
         verify(receiptService, times(1)).redFlush(eq(888L), any(), eq("患者退费"), any());
     }
     @Test
+    void partial_refund_does_not_red_flush_the_whole_fiscal_receipt() {
+        prepareRefund();
+        PaymentOrderView partialOrder = new PaymentOrderView(
+                2001L, 1L, 10L, null, 100L, "RPO-PARTIAL",
+                "IDEMP-PARTIAL", "OUTPATIENT", "CASHIER",
+                "WECHAT", "微信支付", "REFUND", "REFUNDED",
+                new BigDecimal("30.00"), new BigDecimal("30.00"), BigDecimal.ZERO,
+                "CNY", "EXT-REF-P", "CORR-1", "CASHIER",
+                null, Instant.now(), Instant.now(), null, null, false, List.of());
+        when(paymentOrchestration.refund(any())).thenReturn(partialOrder);
+
+        PaymentOrderView result = service.directRefund(100L, new DirectRefundCommand(
+                "IDEMP-PARTIAL", new BigDecimal("30.00"), "部分退费", "CASHIER", List.of(501L)));
+
+        assertEquals("REFUNDED", result.status());
+        verifyNoInteractions(receiptService);
+    }
+
+    @Test
     void red_flush_is_limited_to_the_original_payments_settlement_with_a_key_per_receipt() {
         prepareRefund();
         Receipt second = mock(Receipt.class);
         when(second.id()).thenReturn(889L);
         when(second.status()).thenReturn("ISSUED");
         when(second.receiptType()).thenReturn("STANDARD");
+        when(second.receiptAmount()).thenReturn(new BigDecimal("60.00"));
         Receipt first = receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(1L, 999L).get(0);
         when(receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(1L, 999L)).thenReturn(List.of(first, second));
         refund();
@@ -266,7 +286,7 @@ class DirectRefundApplicationServiceTest {
                 encounterId, accountId, true, "READY", "允许退款",
                 new BigDecimal("60.00"), new BigDecimal("60.00"), "CNY",
                 List.of(allowedItem), List.of(candidatePayment));
-        when(preCheckService.preCheck(encounterId)).thenReturn(preCheck);
+        when(preCheckService.preCheck(encounterId, accountId)).thenReturn(preCheck);
 
         ChargeItem originalCharge = mock(ChargeItem.class);
         when(originalCharge.id()).thenReturn(501L);
@@ -301,11 +321,13 @@ class DirectRefundApplicationServiceTest {
         Settlement settlement = mock(Settlement.class);
         when(settlement.id()).thenReturn(999L);
         when(settlement.patientAccountId()).thenReturn(accountId);
+        when(settlement.netAmount()).thenReturn(new BigDecimal("60.00"));
         when(settlements.findByTenantIdAndLegacyInvoiceId(1L, 500L)).thenReturn(Optional.of(settlement));
         Receipt receipt = mock(Receipt.class);
         when(receipt.id()).thenReturn(888L);
         when(receipt.receiptType()).thenReturn("STANDARD");
         when(receipt.status()).thenReturn("ISSUED");
+        when(receipt.receiptAmount()).thenReturn(new BigDecimal("60.00"));
         when(receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(1L, 999L))
                 .thenReturn(List.of(receipt));
         when(receipts.findByTenantIdAndReversesReceiptId(1L, 888L)).thenReturn(Optional.empty());

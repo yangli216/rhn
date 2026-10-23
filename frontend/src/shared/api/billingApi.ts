@@ -507,8 +507,8 @@ export function createBillingApi(client: ApiClient) {
     }) => client.request<Payment>(`/api/billing/payments/${paymentId}/refunds`, {
       method: 'POST', body: JSON.stringify(input),
     }),
-    refundPreCheck: (encounterId: string) => client.request<RefundPreCheckSummaryView>(
-      `/api/billing/encounters/${encounterId}/refund-precheck`,
+    refundPreCheck: (encounterId: string, accountId?: string) => client.request<RefundPreCheckSummaryView>(
+      `/api/billing/encounters/${encounterId}/refund-precheck${accountId ? `?accountId=${encodeURIComponent(accountId)}` : ''}`,
     ),
     directRefund: (paymentId: string, input: DirectRefundRequest) => client.request<PaymentOrder>(
       `/api/billing/payments/${paymentId}/direct-refund`, {
@@ -809,8 +809,8 @@ export interface RefundPaymentCandidateView {
 }
 
 export interface RefundPreCheckSummaryView {
-  encounterId: string
-  accountId?: string
+  encounterId: string | null
+  accountId?: string | null
   eligibleForRefund: boolean
   overallDecision: 'ALLOWED' | 'BLOCKED' | string
   summaryNotice?: string

@@ -58779,7 +58779,9 @@ export interface operations {
     };
     getRefundPreCheck: {
         parameters: {
-            query?: never;
+            query?: {
+                accountId?: string;
+            };
             header: {
                 /** @description 当前县域医共体租户标识 */
                 "X-Tenant-Id": string;

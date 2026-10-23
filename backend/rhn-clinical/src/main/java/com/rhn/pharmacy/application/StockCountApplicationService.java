@@ -52,11 +52,14 @@ public class StockCountApplicationService {
     public CountView create(CreateCountCommand input) {
         ExecutionContext c = context();
         String request = required(input.requestCode(), "COUNT_REQUEST_REQUIRED", "盘点请求编码不能为空");
+        StockSite site = requireSite(c, input.stockSiteId());
         StockCount existing = repository.findByTenantIdAndRequestCode(c.tenantId(), request).orElse(null);
         if (existing != null) {
+            if (!site.id().equals(existing.stockSiteId())) {
+                throw conflict("COUNT_REQUEST_REUSED", "盘点请求编码已被其他业务使用");
+            }
             return view(c, existing);
         }
-        StockSite site = requireSite(c, input.stockSiteId());
         Long departmentId = StockSiteRequirements.requireDepartment(site);
         String type = upper(input.countType());
         if (!TYPES.contains(type)) {

@@ -30,4 +30,14 @@ public class CashierCloseEvent {
         this.commandCode = commandCode; this.actorId = actorId; this.reason = reason;
         this.occurredAt = Instant.now();
     }
+
+    public Long tenantId() { return tenantId; }
+    public Long cashierCloseId() { return cashierCloseId; }
+    public String eventType() { return eventType; }
+    public String statusFrom() { return statusFrom; }
+    public String statusTo() { return statusTo; }
+    public String commandCode() { return commandCode; }
+    public Long actorId() { return actorId; }
+    public String reason() { return reason; }
+    public Instant occurredAt() { return occurredAt; }
 }

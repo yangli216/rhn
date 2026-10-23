@@ -5,6 +5,7 @@ import { formatTime, genderLabel } from '../../../shared/format'
 import { errorMessage } from '../../../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, Select, StatusBadge } from '../../../shared/ui'
 import { usePharmacyWorkspace } from './usePharmacyWorkspace'
+import type { PharmacyInboxItem } from '../../../shared/api/pharmacyApi'
 import { ageText, requestPackageUnit } from './pharmacyShared'
 import { WardMedicationReturnInbox } from '../WardMedicationReturnInbox'
 
@@ -48,7 +49,7 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
     max: number
     unitPrice: number
     disposition: string
-    item: any
+    item: PharmacyInboxItem
   } | null>(null)
 
   const isWardSupported = selectedSite?.serviceScope === 'INPATIENT' || selectedSite?.serviceScope === 'MIXED'
@@ -284,13 +285,15 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
                 filteredPatientGroups.map((group) => {
                   const isSelected = activePatient?.residentId === group.residentId
                   const resInfo = residentMap.get(group.residentId)
-                  const displayName = (isSelected && pFullName !== '患者') ? pFullName : (resInfo?.fullName || group.residentName)
+                  const displayName = isSelected
+                    ? pFullName
+                    : (resInfo?.fullName || group.residentName || '未获取到患者姓名')
                   const displayGender = (resInfo?.gender || group.gender)
                     ? genderLabel(resInfo?.gender || group.gender)
-                    : (isSelected && pGender ? pGender : '性别未知')
+                    : (isSelected && pGender ? pGender : '性别未记录')
                   const displayAge = (resInfo?.birthDate || group.birthDate)
                     ? ageText(resInfo?.birthDate || group.birthDate)
-                    : (isSelected && pAge ? pAge : '年龄未知')
+                    : (isSelected && pAge ? pAge : '年龄未记录')
 
                   const totalDispensed = group.items.reduce((sum, it) => {
                     const price = it.request.unitPrice ?? (it.plannedQuantity ? ((recordedMedicationAmount(it.request) || 0) / it.plannedQuantity) : 0)
@@ -840,12 +843,12 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
         >
           <dl className="pharmacy-modal-grid">
             <dt>门诊就诊号</dt>
-            <dd>{activeHistorySummary.encounterNo || '未关联'}</dd>
+            <dd>{activeHistorySummary.encounterNo || '未关联就诊'}</dd>
             <dt>接诊医生</dt>
-            <dd>{activeHistorySummary.clinicianId || '医生未记录'}</dd>
+            <dd>{activeHistorySummary.clinicianId || '开单医生未记录'}</dd>
             <dt className="pharmacy-modal-grid__full">主诉</dt>
             <dd className="pharmacy-modal-grid__full">
-              {activeHistorySummary.chiefComplaint || '无主诉记录'}
+              {activeHistorySummary.chiefComplaint || '暂无主诉记录'}
             </dd>
             <dt className="pharmacy-modal-grid__full">临床诊断</dt>
             <dd className="pharmacy-modal-grid__full">
@@ -882,8 +885,8 @@ export function PharmacyReturnMedicationPanel({ model }: { model: ReturnType<typ
             <div className="pharmacy-allergy-modal-list">
               {activeDrugAllergies.map((a) => (
                 <Alert key={a.id} tone="error">
-                  <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应'}
-                  （严重程度：{a.reactionSeverity || '中度'}，核实状态：{a.verificationStatus}）
+                  <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应未记录'}
+                  （严重程度：{a.reactionSeverity || '未评定'}，核实状态：{a.verificationStatus || '未核实'}）
                 </Alert>
               ))}
             </div>

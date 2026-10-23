@@ -16,6 +16,9 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class RegistrationSlotHoldService implements OutpatientScheduleDirectory {
     private static final java.time.Duration HOLD_WINDOW = java.time.Duration.ofMinutes(15);
+    /** 支付在途时的暂占上限：渠道卡单时不能让号源一直被占到排班结束；应配置为不小于支付渠道的超时/补单窗口。 */
+    @org.springframework.beans.factory.annotation.Value("${rhn.registration.slot-hold.pin-window:30m}")
+    private java.time.Duration pinWindow = java.time.Duration.ofMinutes(30);
     private final ServiceScheduleRepository schedules;
     private final ScheduleSlotPoolRepository pools;
     private final ScheduleSlotHoldRepository holds;
@@ -101,7 +104,9 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         ScheduleSlotHold hold = holds.findWithLockByIdAndTenantId(holdId, context.tenantId())
                 .orElseThrow(() -> notFound("SCHEDULE_SLOT_HOLD_NOT_FOUND", "未找到号源暂占记录"));
         ServiceSchedule schedule = schedule(hold.scheduleId(), context.tenantId());
-        hold.extendTo(schedule.endAt());
+        Instant now = Instant.now();
+        Instant until = now.plus(pinWindow);
+        hold.extendTo(until.isBefore(schedule.endAt()) ? until : schedule.endAt());
         return snapshot(hold, schedule);
     }
 

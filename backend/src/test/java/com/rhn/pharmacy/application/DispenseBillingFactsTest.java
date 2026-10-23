@@ -44,6 +44,18 @@ class DispenseBillingFactsTest {
     @Test void changed_site_organization_cannot_rewrite_historical_execution_identity() {
         actual(List.of(line("2","EA","1"))); when(site.organizationId()).thenReturn(99L); rejected();
     }
+    @Test void cancelled_dispense_events_are_not_billing_facts() {
+        actual(List.of(line("1","EA","1"),line("1","EA","1")));
+        MedicationDispense cancel = new MedicationDispense(1L,2L,3L,4L,5L,6L,7L,dispense.id(),
+                "CANCEL-1","CANCEL",Instant.parse("2026-10-03T09:00:00Z"),8L,9L,10L,null,null,null,
+                new BigDecimal("2"),"EA",null);
+        when(dispenses.findWorklist(1L,2L)).thenReturn(List.of(dispense,cancel));
+        when(dispenses.findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(1L,6L)).thenReturn(List.of(cancel));
+        var facts = directory.findWorklist(1L,2L);
+        assertEquals(1,facts.size());
+        assertEquals(dispense.id(),facts.getFirst().id());
+        assertTrue(directory.findByEncounter(1L,6L).isEmpty());
+    }
     private MedicationDispenseLine line(String qty,String unit,String factor) {
         return new MedicationDispenseLine(1L,dispense.id(),11L,null,1,15L,12L,16L,17L,new BigDecimal(qty),unit,new BigDecimal(factor));
     }

@@ -43,10 +43,12 @@ public class StockRequisitionController {
     List<RequisitionView> list(@RequestParam Long sourceSiteId) { return service.list(sourceSiteId); }
     @PostMapping("/{id}/submit") RequisitionView submit(@PathVariable Long id) { return service.submit(id); }
     @PostMapping("/{id}/approve")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     RequisitionView approve(@PathVariable Long id, @Valid @RequestBody ApproveRequest input) {
         return service.approve(id, input.command());
     }
     @PostMapping("/{id}/reject")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     RequisitionView reject(@PathVariable Long id, @Valid @RequestBody DecisionRequest input) {
         return service.reject(id, new DecisionCommand(input.reason()));
     }

@@ -10,7 +10,7 @@ public interface OutpatientScheduleDirectory {
 
     SlotHoldSnapshot consume(Long holdId, Long residentId, Long scheduleId, String commandCode);
 
-    /** 支付指令在途时钉住暂占：有效期延长到排班结束，避免被其他患者的预占清理；非 ACTIVE 暂占原样返回。 */
+    /** 支付指令在途时钉住暂占：有效期延长到 min(排班结束, 当前时间+30 分钟)，避免被其他患者的预占清理；非 ACTIVE 暂占原样返回。 */
     SlotHoldSnapshot pinHold(Long holdId);
 
     /** 支付指令已失败：暂占有效期恢复为常规窗口（当前时间起算，不延长），之后由常规清理释放；非 ACTIVE 或不存在时忽略。 */

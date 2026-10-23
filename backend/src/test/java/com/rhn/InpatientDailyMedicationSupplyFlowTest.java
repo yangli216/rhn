@@ -317,6 +317,27 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         assertSingleActiveSupply(fourthTaskId);
     }
 
+    @Test
+    void cancelled_supply_window_can_be_generated_again_with_a_new_command() throws Exception {
+        LocalDate date = LocalDate.now(ORGANIZATION_ZONE).plusDays(2);
+        JsonNode cancelled = generate(date, INPATIENT_PHARMACY_DEPARTMENT, "IP-SUPPLY-CANCEL-1");
+        long cancelledId = cancelled.get("id").asLong();
+        Long actor = jdbc.queryForObject("""
+                select ID_USER_CREATED from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?
+                """, Long.class, cancelledId);
+        jdbc.update("""
+                update RHN_SUP_INP_MED_SUPPLY_BATCH
+                   set SD_STATUS = 'CANCELLED', DT_CNCLD = ?, ID_USER_CNCLD = ?,
+                       CD_CANCEL_COMMAND = 'IP-SUPPLY-CANCEL-CMD', DES_CANCEL_REASON = '窗口重新生成测试'
+                 where ID_INP_MED_SUPPLY_BATCH = ?
+                """, Instant.now(), actor, cancelledId);
+
+        JsonNode regenerated = generate(date, INPATIENT_PHARMACY_DEPARTMENT, "IP-SUPPLY-CANCEL-2");
+        assertNotEquals(cancelled.get("id").asString(), regenerated.get("id").asString());
+        JsonNode replay = generate(date, INPATIENT_PHARMACY_DEPARTMENT, "IP-SUPPLY-CANCEL-2");
+        assertEquals(regenerated.get("id").asString(), replay.get("id").asString());
+    }
+
     private JsonNode plan(String requestId, long expectedRevision, LocalDate date, String commandCode)
             throws Exception {
         Instant morning = date.atTime(LocalTime.of(9, 0)).atZone(ORGANIZATION_ZONE).toInstant();

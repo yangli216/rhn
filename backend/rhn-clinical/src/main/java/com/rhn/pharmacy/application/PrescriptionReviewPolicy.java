@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Locale;
 
+import static com.rhn.shared.api.BusinessErrors.conflict;
+
 @Service
 public class PrescriptionReviewPolicy {
     public static final String PARAMETER_KEY = "pharmacy.prescription-review.mode";
@@ -29,10 +31,14 @@ public class PrescriptionReviewPolicy {
     }
 
     private Mode parse(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (normalized.isEmpty()) return Mode.DISABLED;
         try {
-            return Mode.valueOf(value == null ? "DISABLED" : value.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return Mode.DISABLED;
+            return Mode.valueOf(normalized);
+        } catch (IllegalArgumentException invalid) {
+            // Silently disabling review on a typo would let prescriptions bypass pharmacist review.
+            throw conflict("PRESCRIPTION_REVIEW_MODE_INVALID",
+                    "审方模式配置无效，请维护为 DISABLED、PRE_DISPENSE 或 POST_DISPENSE");
         }
     }
 

@@ -56,16 +56,19 @@ public class StockCountController {
     CountView submit(@PathVariable Long id) { return service.submit(id); }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize(PharmacyPermissions.WAREHOUSE_ADJUST)
     CountView approve(@PathVariable Long id, @Valid @RequestBody(required = false) DecisionRequest input) {
         return service.approve(id, new DecisionCommand(input == null ? null : input.reason()));
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize(PharmacyPermissions.WAREHOUSE_ADJUST)
     CountView reject(@PathVariable Long id, @Valid @RequestBody DecisionRequest input) {
         return service.reject(id, new DecisionCommand(input.reason()));
     }
 
     @PostMapping("/{id}/post")
+    @PreAuthorize(PharmacyPermissions.WAREHOUSE_ADJUST)
     CountView post(@PathVariable Long id) { return service.post(id); }
 
     record CreateRequest(

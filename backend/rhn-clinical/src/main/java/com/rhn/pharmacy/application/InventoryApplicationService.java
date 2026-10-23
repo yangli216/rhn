@@ -211,6 +211,9 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         ExecutionContext context = requireWorkContext();
         String receiptSourceType = required(sourceType, "INVENTORY_SOURCE_TYPE_REQUIRED", "入库来源类型不能为空");
         String requestCode = required(input.requestCode(), "INVENTORY_REQUEST_CODE_REQUIRED", "库存入账请求编码不能为空");
+        StockItem item = requireItem(context, input.stockItemId());
+        StockSite site = requireSite(context, item.stockSiteId());
+        requireOrganizationAccess(context, site.organizationId());
         InventoryTransaction existing = transactionRepository.findByTenantIdAndRequestCode(
                 context.tenantId(), requestCode).orElse(null);
         if (existing != null) return verifyIdempotentReceipt(existing, receiptSourceType, input);
@@ -220,8 +223,6 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (input.unitCost() != null && input.unitCost().signum() < 0) {
             throw badRequest("INVENTORY_RECEIPT_COST_INVALID", "入库单位成本不能小于零");
         }
-        StockItem item = requireItem(context, input.stockItemId()); StockSite site = requireSite(context, item.stockSiteId());
-        requireOrganizationAccess(context, site.organizationId());
         StockBin bin = binResolver.receive(context, site.id(), input.stockBinId()); StockLot lot = requireLot(context, input.stockLotId());
         if (!bin.stockSiteId().equals(site.id()) || !bin.active() || !bin.receiveAllowed()) {
             throw conflict("STOCK_BIN_NOT_RECEIVABLE", "所选货位不属于经营项目站点或未开放收货");
@@ -278,10 +279,12 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (input.lines() == null || input.lines().isEmpty()) {
             throw badRequest("INVENTORY_RECEIPT_LINES_REQUIRED", "批量入库至少需要一条明细");
         }
+        StockSite site = requireSite(context, input.stockSiteId());
         InventoryTransaction existing = transactionRepository.findByTenantIdAndRequestCode(
                 context.tenantId(), requestCode).orElse(null);
         if (existing != null) {
-            if (!receiptSourceType.equals(existing.sourceType()) || !sourceCode.equals(existing.sourceCode())) {
+            if (!receiptSourceType.equals(existing.sourceType()) || !sourceCode.equals(existing.sourceCode())
+                    || !site.id().equals(transactionSiteId(context, existing))) {
                 throw conflict("INVENTORY_REQUEST_REUSED", "库存入账请求编码已被其他业务使用");
             }
             return transactionView(existing, transactionLineRepository
@@ -289,7 +292,6 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         }
         Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
         LocalDate businessDate = occurredAt.atZone(ZoneOffset.UTC).toLocalDate();
-        StockSite site = requireSite(context, input.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
                 period.id(), null, requestCode, "RECEIPT", receiptSourceType, sourceCode,
@@ -377,14 +379,19 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
         if (input.lines() == null || input.lines().isEmpty()) {
             throw badRequest("INVENTORY_POSTING_LINES_REQUIRED", "库存业务记账至少需要一条明细");
         }
-        InventoryTransaction existing = transactionRepository.findByTenantIdAndRequestCode(
-                context.tenantId(), requestCode).orElse(null);
-        if (existing != null) return verifyIdempotentDocument(existing, transactionType, sourceType, sourceCode, input.lines());
-        Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
-        LocalDate businessDate = occurredAt.atZone(ZoneOffset.UTC).toLocalDate();
         StockSite site = siteRepository.findByIdAndTenantId(input.stockSiteId(), context.tenantId())
                 .orElseThrow(() -> notFound("STOCK_SITE_NOT_FOUND", "未找到库存站点"));
         requireOrganizationAccess(context, site.organizationId());
+        InventoryTransaction existing = transactionRepository.findByTenantIdAndRequestCode(
+                context.tenantId(), requestCode).orElse(null);
+        if (existing != null) {
+            if (!site.id().equals(transactionSiteId(context, existing))) {
+                throw conflict("INVENTORY_REQUEST_REUSED", "库存记账请求编码已被其他业务使用");
+            }
+            return verifyIdempotentDocument(existing, transactionType, sourceType, sourceCode, input.lines());
+        }
+        Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
+        LocalDate businessDate = occurredAt.atZone(ZoneOffset.UTC).toLocalDate();
         InventoryPeriod period = requireOpenPeriod(context, site.id(), businessDate);
         InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
                 period.id(), null, requestCode, transactionType, sourceType, sourceCode,
@@ -772,6 +779,12 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             }
         }
         return transactionView(existing, lines);
+    }
+
+    private Long transactionSiteId(ExecutionContext context, InventoryTransaction transaction) {
+        return periodRepository.findById(transaction.inventoryPeriodId())
+                .filter(value -> context.tenantId().equals(value.tenantId()))
+                .map(InventoryPeriod::stockSiteId).orElse(null);
     }
 
     private InventoryPeriod requireOpenPeriod(ExecutionContext context, Long siteId, LocalDate date) {

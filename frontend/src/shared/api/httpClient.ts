@@ -12,6 +12,14 @@ export interface WorkContextSelection {
   departmentId?: string | null
 }
 
+/** Fired when the server says the login is gone: expired, revoked, or no longer accepted. */
+export const SESSION_ENDED_EVENT = 'rhn:session-ended'
+
+export interface SessionEndedDetail {
+  code: 'SESSION_TERMINATED' | 'AUTHENTICATION_REQUIRED'
+  message: string
+}
+
 export class ApiClient {
   constructor(private readonly credentials: Credentials | null,
     private readonly tenantId: string,
@@ -98,7 +106,11 @@ export class ApiClient {
   private async readError(response: Response): Promise<ApiError> {
     try {
       const error = await response.json() as ApiError
-      if (error.code === 'SESSION_TERMINATED') window.dispatchEvent(new CustomEvent('rhn:session-terminated'))
+      if (error.code === 'SESSION_TERMINATED' || error.code === 'AUTHENTICATION_REQUIRED') {
+        window.dispatchEvent(new CustomEvent<SessionEndedDetail>(SESSION_ENDED_EVENT, {
+          detail: { code: error.code, message: error.message },
+        }))
+      }
       return error
     } catch {
       return {

@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
+import static com.rhn.shared.api.BusinessErrors.notFound;
 
 /**
  * 门诊退费防损与协同审批前置检查服务。
@@ -63,25 +64,84 @@ public class RefundPreCheckService {
     }
 
     public RefundPreCheckSummaryView preCheck(Long encounterId) {
+        return preCheck(encounterId, null);
+    }
+
+    /**
+     * 退费前置核验。账户仅作为收费项的记账载体：无账户、多个账户或账户未启用储值都不再阻断核验，
+     * 传入 accountId 时优先按该账户精确核验；encounterId 缺失时先从账户/收费项反查就诊。
+     */
+    public RefundPreCheckSummaryView preCheck(Long encounterId, Long accountId) {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext()) {
             throw badRequest("BILLING_WORK_CONTEXT_REQUIRED", "收费操作必须选择工作机构");
         }
-        List<PatientAccount> matchingAccounts = accounts.findByTenantIdAndEncounterIdIn(
-                context.tenantId(), List.of(encounterId));
-        if (matchingAccounts.isEmpty()) {
-            return new RefundPreCheckSummaryView(
-                    encounterId, null, false, "BLOCKED",
-                    "未检索到该就诊对应的有效费用账户", BigDecimal.ZERO, BigDecimal.ZERO,
-                    "CNY", List.of(), List.of());
+        PatientAccount requestedAccount = accountId == null ? null
+                : accounts.findByIdAndTenantId(accountId, context.tenantId()).orElse(null);
+        if (accountId != null && requestedAccount == null) {
+            throw notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户");
         }
-
-        PatientAccount account = matchingAccounts.get(0);
-        if (!context.canAccessOrganization(account.organizationId())) {
+        if (requestedAccount != null && !context.canAccessOrganization(requestedAccount.organizationId())) {
             throw forbidden("BILLING_ACCOUNT_SCOPE_INVALID", "当前工作上下文不能访问该费用账户");
         }
-        List<ChargeItem> allCharges = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
-                context.tenantId(), account.id());
+        if (requestedAccount != null && encounterId != null && requestedAccount.encounterId() != null
+                && !Objects.equals(requestedAccount.encounterId(), encounterId)) {
+            throw badRequest("BILLING_ACCOUNT_ENCOUNTER_MISMATCH", "费用账户不属于当前就诊");
+        }
+        List<ChargeItem> requestedCharges = accountId == null ? List.of()
+                : charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(context.tenantId(), accountId);
+        Long resolvedEncounterId = encounterId;
+        if (resolvedEncounterId == null && requestedAccount != null) resolvedEncounterId = requestedAccount.encounterId();
+        if (resolvedEncounterId == null) {
+            resolvedEncounterId = requestedCharges.stream().map(ChargeItem::encounterId)
+                    .filter(Objects::nonNull).findFirst().orElse(null);
+        }
+        if (resolvedEncounterId == null) {
+            return new RefundPreCheckSummaryView(
+                    null, accountId, false, "BLOCKED",
+                    "原支付未关联就诊，无法核验退费项目", BigDecimal.ZERO, BigDecimal.ZERO,
+                    requestedAccount == null || requestedAccount.currencyCode() == null
+                            ? "CNY" : requestedAccount.currencyCode(), List.of(), List.of());
+        }
+
+        List<PatientAccount> matchingAccounts = accounts.findByTenantIdAndEncounterIdIn(
+                context.tenantId(), List.of(resolvedEncounterId));
+        List<PatientAccount> scopedAccounts;
+        if (accountId == null) {
+            scopedAccounts = requestedAccount == null ? matchingAccounts : List.of(requestedAccount);
+        } else {
+            scopedAccounts = matchingAccounts.stream().filter(value -> Objects.equals(value.id(), accountId)).toList();
+            if (scopedAccounts.isEmpty() && requestedAccount != null
+                    && Objects.equals(requestedAccount.encounterId(), resolvedEncounterId)) {
+                scopedAccounts = List.of(requestedAccount);
+            }
+        }
+        List<PatientAccount> accessibleAccounts = scopedAccounts.stream()
+                .filter(account -> context.canAccessOrganization(account.organizationId())).toList();
+        if (!scopedAccounts.isEmpty() && accessibleAccounts.isEmpty()) {
+            throw forbidden("BILLING_ACCOUNT_SCOPE_INVALID", "当前工作上下文不能访问该费用账户");
+        }
+
+        List<ChargeItem> allCharges;
+        List<Payment> paymentList;
+        if (!scopedAccounts.isEmpty()) {
+            allCharges = scopedAccounts.stream()
+                    .flatMap(account -> charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
+                            context.tenantId(), account.id()).stream())
+                    .toList();
+            paymentList = scopedAccounts.stream()
+                    .flatMap(account -> payments.findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(
+                            context.tenantId(), account.id()).stream())
+                    .toList();
+        } else {
+            Long encounterFilter = resolvedEncounterId;
+            allCharges = accountId == null
+                    ? charges.findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(context.tenantId(), resolvedEncounterId)
+                    : requestedCharges.stream()
+                            .filter(charge -> Objects.equals(charge.encounterId(), encounterFilter))
+                            .toList();
+            paymentList = List.of();
+        }
 
         List<ChargeItem> positiveCharges = allCharges.stream()
                 .filter(c -> c.totalAmount() != null && c.totalAmount().signum() > 0)
@@ -95,8 +155,10 @@ public class RefundPreCheckService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
+        Long policyOrganizationId = accessibleAccounts.isEmpty()
+                ? context.organizationId() : accessibleAccounts.get(0).organizationId();
         boolean unexecutedDirectRefundAllowed = refundPolicy.isUnexecutedDirectRefundAllowed(
-                context, account.organizationId(), null);
+                context, policyOrganizationId, null);
 
         List<RefundItemPreCheckView> items = new ArrayList<>();
         BigDecimal totalRefundable = BigDecimal.ZERO;
@@ -110,8 +172,6 @@ public class RefundPreCheckService {
             }
         }
 
-        List<Payment> paymentList = payments.findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(
-                context.tenantId(), account.id());
         List<RefundPaymentCandidateView> candidatePayments = new ArrayList<>();
         BigDecimal totalPaid = BigDecimal.ZERO;
 
@@ -150,11 +210,20 @@ public class RefundPreCheckService {
             summaryNotice = "所有收费项目均受协同防损策略阻断（药房已发药或医技已出具报告），禁止直接退款。";
         }
 
-        boolean eligibleForRefund = anyAllowed && !candidatePayments.isEmpty();
+        // 可退金额与支付剩余金额在退款指令中分别校验，这里不再要求必须先有账户支付候选。
+        boolean eligibleForRefund = anyAllowed;
+        Long resultAccountId = accountId != null ? accountId
+                : (accessibleAccounts.size() == 1 ? accessibleAccounts.get(0).id() : null);
+        String currency = accessibleAccounts.stream().map(PatientAccount::currencyCode).filter(Objects::nonNull)
+                .findFirst()
+                .orElseGet(() -> allCharges.stream().map(ChargeItem::currencyCode).filter(Objects::nonNull)
+                        .findFirst()
+                        .orElseGet(() -> paymentList.stream().map(Payment::currencyCode).filter(Objects::nonNull)
+                                .findFirst().orElse("CNY")));
 
         return new RefundPreCheckSummaryView(
-                encounterId, account.id(), eligibleForRefund, overallDecision, summaryNotice,
-                totalPaid, totalRefundable, account.currencyCode(), items, candidatePayments);
+                resolvedEncounterId, resultAccountId, eligibleForRefund, overallDecision, summaryNotice,
+                totalPaid, totalRefundable, currency, items, candidatePayments);
     }
 
     private RefundItemPreCheckView evaluateChargeItem(ExecutionContext context,
