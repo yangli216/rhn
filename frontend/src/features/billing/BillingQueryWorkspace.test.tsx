@@ -64,6 +64,14 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides
 describe('BillingQueryWorkspace', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-08T04:00:00Z')) })
   afterEach(() => vi.useRealTimers())
+  it('shows the settlement type badge in the settlement-no cell only for non-normal settlements', async () => {
+    const reversal = { ...record, id: 'settlement-2', settlementNo: 'STL-20260908-002', settlementType: 'REVERSAL', settlementTypeText: '冲正结算' } as SettlementRecord
+    renderWorkspace([record, reversal])
+    const reversalRow = await screen.findByRole('button', { name: '结算记录 STL-20260908-002' })
+    const normalRow = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
+    expect(within(reversalRow.querySelector('td') as HTMLElement).getByText('冲正结算')).toBeInTheDocument()
+    expect(normalRow).not.toHaveTextContent('正常结算')
+  })
   it('starts today, preserves required dates, and submits cashier selection to the server', async () => {
     const api = renderWorkspace([{ ...record, cashierName: '张收费', cashierUsername: 'cashier.zhang', finalizedBy: '123' }])
     const row = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })

@@ -376,15 +376,14 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         <>
           <div className="billing-query-table-scroll">
             <table className="billing-query-grid-table">
-              <colgroup><col className="billing-query-col--number" /><col className="billing-query-col--time" /><col className="billing-query-col--patient" /><col className="billing-query-col--encounter" /><col className="billing-query-col--cashier" /><col className="billing-query-col--type" /><col className="billing-query-col--type" /><col className="billing-query-col--type" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--actions" /></colgroup>
+              <colgroup><col className="billing-query-col--number" /><col className="billing-query-col--time" /><col className="billing-query-col--patient" /><col className="billing-query-col--encounter" /><col className="billing-query-col--cashier" /><col className="billing-query-col--type" /><col className="billing-query-col--type" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--amount" /><col className="billing-query-col--actions" /></colgroup>
               <thead>
                 <tr>
-                  <th>结算单号 / 场景</th>
+                  <th>结算单号 / 场景·类型</th>
                   <th>结算时间 / 终端</th>
                   <th>患者姓名 / 档案号</th>
                   <th>门诊号 / 科室</th>
                   <th>办理人</th>
-                  <th>结算类型</th>
                   <th>结算状态</th>
                   <th>费用类别</th>
                   <th className={tableCellClass('numeric')}>结算金额</th>
@@ -418,6 +417,11 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                             <span className="billing-scene-tag">
                               {record.settlementSceneText ?? record.settlementScene}
                             </span>
+                            {record.settlementType !== 'NORMAL' && (
+                              <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'danger' : 'warning'}>
+                                {record.settlementTypeText ?? record.settlementType}
+                              </StatusBadge>
+                            )}
                             <button
                               type="button"
                               className="billing-copy-btn"
@@ -440,7 +444,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                       </td>
                       <td>
                         <div className="billing-grid-patient">
-                          <strong>{record.residentName}</strong>
+                          <strong title={record.residentName}>{record.residentName}</strong>
                           <span>{record.healthRecordNo}</span>
                         </div>
                       </td>
@@ -453,11 +457,6 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                         </div>
                       </td>
                       <td>{operatorLabel(record, '未记录办理人')}</td>
-                      <td>
-                        <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
-                          {record.settlementTypeText ?? record.settlementType}
-                        </StatusBadge>
-                      </td>
                       <td>
                         <StatusBadge tone={STATUS_TONE[record.status] ?? 'neutral'}>
                           {record.statusText ?? STATUS_TEXT[record.status] ?? record.status}
