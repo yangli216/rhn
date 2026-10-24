@@ -45,6 +45,15 @@ public class TreatmentExecutionController {
                 input.adverseReaction(), input.adverseReactionDetail());
     }
 
+    @PostMapping("/tasks/{taskId}/resolve")
+    TreatmentExecutionTaskView resolveException(@PathVariable Long taskId, @Valid @RequestBody ResolveExceptionRequest input) {
+        return service.resolve(taskId, input.expectedRevision(), input.resolution(), input.note());
+    }
+
+    record ResolveExceptionRequest(@NotNull Long expectedRevision,
+                                   @NotBlank @Pattern(regexp = "REQUEUE|CLOSE") String resolution,
+                                   @NotBlank @Size(max = 1000) String note) {}
+
     record StartRequest(@NotNull Long expectedRevision, @NotNull Boolean identityVerified,
                         @NotBlank @Pattern(regexp = "NAME_AND_IDENTIFIER|CARD|MANUAL") String verificationMethod,
                         @Size(max = 128) String executionSite, @Size(max = 1000) String note) {}

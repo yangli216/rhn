@@ -2,7 +2,7 @@ package com.rhn.treatment.application;
 
 import com.rhn.billing.api.RefundTreatmentDirectory;
 import com.rhn.treatment.domain.TreatmentExecutionItem;
-import com.rhn.treatment.domain.TreatmentExecutionTaskStatus;
+import com.rhn.treatment.domain.TreatmentExecutionTask;
 import com.rhn.treatment.infrastructure.TreatmentExecutionItemRepository;
 import com.rhn.treatment.infrastructure.TreatmentExecutionTaskRepository;
 import org.springframework.stereotype.Service;
@@ -20,14 +20,15 @@ public class RefundTreatmentDirectoryService implements RefundTreatmentDirectory
         this.treatmentTasks = treatmentTasks;
     }
 
+    /** 与撤销医嘱保护同一口径：执行项未取消，且任务曾开始执行（含执行后异常、已处置、重新执行前）。 */
     @Override
-    public boolean isExecutedOrInProgress(Long tenantId, Long treatmentSourceId) {
-        if (treatmentSourceId == null) return false;
-        return treatmentItems.findByTenantIdAndSourceTypeAndSourceId(tenantId, "TREATMENT", treatmentSourceId)
+    public boolean isExecutedOrInProgress(Long tenantId, String sourceType, Long sourceId) {
+        if (tenantId == null || sourceType == null || sourceId == null) return false;
+        return treatmentItems.findByTenantIdAndSourceTypeAndSourceId(tenantId, sourceType, sourceId)
+                .filter(item -> !item.cancelled())
                 .map(TreatmentExecutionItem::taskId)
                 .flatMap(treatmentTasks::findById)
-                .map(task -> task.status() == TreatmentExecutionTaskStatus.COMPLETED
-                        || task.status() == TreatmentExecutionTaskStatus.IN_PROGRESS)
+                .map(TreatmentExecutionTask::hasStarted)
                 .orElse(false);
     }
 }

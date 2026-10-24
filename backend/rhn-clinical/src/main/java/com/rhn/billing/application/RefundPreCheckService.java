@@ -263,10 +263,6 @@ public class RefundPreCheckService {
             return evaluateServiceRequest(context, charge, sourceType, sourceId, unexecutedDirectRefundAllowed);
         }
 
-        if ("TREATMENT".equals(sourceType)) {
-            return evaluateTreatment(context, charge, sourceType, sourceId);
-        }
-
         return refundItem(charge, sourceType, sourceId,
                 "OTHER", "就诊服务", true, "允许直接退款", "success", null);
     }
@@ -299,6 +295,9 @@ public class RefundPreCheckService {
                     "已发药 · 阻断(需药房退药)", "danger",
                     "药房已发药出库，严禁直接退款！请先指引患者前往药房办理实物退药核收。");
         }
+        // 已发药阻断优先；其余仍可退的用药再叠加治疗执行（注射/输液先发药后治疗）阻断。
+        RefundItemPreCheckView executed = treatmentStartedBlock(context, charge, sourceType, sourceId);
+        if (executed != null) return executed;
         if (fulfillment.returned()) {
             return refundItem(charge, sourceType, sourceId,
                     "RETURNED", "已退药", true,
@@ -329,6 +328,8 @@ public class RefundPreCheckService {
             return refundItem(charge, sourceType, sourceId, "EXECUTED", "已采集或已执行", false,
                     "已执行 · 需医技核对", "danger", "该申请已有实际采集或执行记录，不能作为未执行医嘱直接退费。");
         }
+        RefundItemPreCheckView executed = treatmentStartedBlock(context, charge, sourceType, sourceId);
+        if (executed != null) return executed;
 
         if (unexecutedDirectRefundAllowed) {
             return refundItem(charge, sourceType, sourceId,
@@ -341,18 +342,14 @@ public class RefundPreCheckService {
                 "根据系统策略配置，未执行检查申请单需先由开单医生作废后方可退费。");
     }
 
-    private RefundItemPreCheckView evaluateTreatment(ExecutionContext context, ChargeItem charge,
-                                                     String sourceType, Long sourceId) {
-        if (treatment.isExecutedOrInProgress(context.tenantId(), sourceId)) {
-            return refundItem(charge, sourceType, sourceId,
-                    "EXECUTED", "已执行", false,
-                    "已执行 · 阻断", "danger",
-                    "治疗处置已在执行或已完成，严禁直接退款！需由处置科室处理。");
-        }
-
+    /** 治疗执行已开始（含执行后异常、已处置）的医嘱不能在收费处直接退费，需由治疗科室处理。 */
+    private RefundItemPreCheckView treatmentStartedBlock(ExecutionContext context, ChargeItem charge,
+                                                         String sourceType, Long sourceId) {
+        if (sourceId == null || !treatment.isExecutedOrInProgress(context.tenantId(), sourceType, sourceId)) return null;
         return refundItem(charge, sourceType, sourceId,
-                "UNEXECUTED", "未执行", true,
-                "未执行 · 允许直接退款", "success", null);
+                "EXECUTED", "已执行", false,
+                "已执行 · 阻断", "danger",
+                "治疗已开始执行或已完成，严禁直接退款！需由治疗科室处理。");
     }
 
     private RefundItemPreCheckView refundItem(ChargeItem charge, String sourceType, Long sourceId,

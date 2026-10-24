@@ -13,6 +13,7 @@ import jakarta.persistence.Version;
 import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
+import java.util.List;
 
 @Entity
 @Table(name = "RHN_EX_TREAT_EXEC_TASK")
@@ -54,9 +55,18 @@ public class TreatmentExecutionTask {
         this.createdAt = createdAt;
     }
 
+    public static final String SKIN_TEST_MARKER = "[SKIN_TEST]";
+    /** 处置说明写入 DES_EXCEPT_NOTE（varchar 1000），与该字段上限一致。 */
+    public static final int RESOLVE_NOTE_MAX_LENGTH = 1000;
+
+    /** 处置前的异常事实，供处置事件留痕；重新执行会清除这些当前轮字段。 */
+    public record ExceptionSnapshot(String status, String resultCode, Boolean adverseReaction,
+                                    String adverseReactionDetail, String completionNote, String exceptionNote,
+                                    Instant completedAt, Long completedBy) {}
+
     public void synchronize(boolean anyActive, boolean allSettled, boolean allFulfilled,
                             boolean allSkinTestsPassed, boolean skinTestPositive, String gateNote) {
-        if (status == TreatmentExecutionTaskStatus.COMPLETED || status == TreatmentExecutionTaskStatus.CANCELLED) return;
+        if (status.terminal()) return;
         if (!anyActive) { status = TreatmentExecutionTaskStatus.CANCELLED; return; }
         if (status == TreatmentExecutionTaskStatus.IN_PROGRESS) {
             if (!allSettled || !allFulfilled) {
@@ -65,10 +75,10 @@ public class TreatmentExecutionTask {
             }
             return;
         }
-        if (status == TreatmentExecutionTaskStatus.EXCEPTION && (exceptionNote == null || !exceptionNote.startsWith("[SKIN_TEST]"))) return;
+        if (status == TreatmentExecutionTaskStatus.EXCEPTION && !skinTestException()) return;
         if (skinTestPositive) {
             status = TreatmentExecutionTaskStatus.EXCEPTION;
-            exceptionNote = "[SKIN_TEST] 皮试阳性，当前用药禁止执行，请医生调整医嘱";
+            exceptionNote = SKIN_TEST_MARKER + " 皮试阳性，当前用药禁止执行，请医生调整医嘱";
             return;
         }
         status = !allSettled ? TreatmentExecutionTaskStatus.WAITING_SETTLEMENT : !allFulfilled ? TreatmentExecutionTaskStatus.WAITING_DISPENSE
@@ -116,6 +126,61 @@ public class TreatmentExecutionTask {
             this.exceptionNote = adverseReaction ? "治疗过程中记录不良反应，需继续随访处置"
                     : "治疗未正常完成：" + result;
         }
+    }
+
+    /** 皮试阳性类异常只能由医生调整医嘱，不进入处置闭环。 */
+    public boolean skinTestException() {
+        return exceptionNote != null && exceptionNote.startsWith(SKIN_TEST_MARKER);
+    }
+
+    /** 已开始过执行（含执行后异常/已处置/重新执行前）；退费与撤销医嘱保护以此为准。 */
+    public boolean hasStarted() {
+        return status != TreatmentExecutionTaskStatus.CANCELLED
+                && (startedAt != null || status == TreatmentExecutionTaskStatus.IN_PROGRESS
+                || status == TreatmentExecutionTaskStatus.COMPLETED);
+    }
+
+    /** 当前可用的处置方式；仅异常任务有值。已记录不良反应的异常和皮试阳性异常不能重新执行。 */
+    public List<String> allowedResolutions() {
+        if (status != TreatmentExecutionTaskStatus.EXCEPTION || skinTestException()) return List.of();
+        return Boolean.TRUE.equals(adverseReaction) ? List.of("CLOSE") : List.of("REQUEUE", "CLOSE");
+    }
+
+    /**
+     * 处置异常任务。REQUEUE 把任务放回待执行链路（保留 startedAt，清除当前轮结果），调用方必须随后用门禁事实
+     * 执行 synchronize 推导真实状态；CLOSE 直接进入终态 CLOSED，completedAt/completedBy 记录处置时间与处置人，
+     * 处置说明写入 exceptionNote，处置前的结果由事件留痕。
+     */
+    public ExceptionSnapshot resolve(long expectedRevision, String resolutionCode, String note,
+                                     Long actorId, Instant occurredAt) {
+        requireRevision(expectedRevision);
+        if (status != TreatmentExecutionTaskStatus.EXCEPTION) throw conflict(
+                "TREATMENT_RESOLVE_STATE_INVALID", "只有异常状态的治疗任务可以处置");
+        String resolution = Strings.trimToNull(resolutionCode);
+        if (resolution == null || !List.of("REQUEUE", "CLOSE").contains(resolution.toUpperCase(java.util.Locale.ROOT))) {
+            throw conflict("TREATMENT_RESOLUTION_INVALID", "处置方式不正确");
+        }
+        resolution = resolution.toUpperCase(java.util.Locale.ROOT);
+        String text = Strings.trimToNull(note);
+        if (text == null) throw conflict("TREATMENT_RESOLVE_NOTE_REQUIRED", "处置必须填写处置说明");
+        if (text.length() > RESOLVE_NOTE_MAX_LENGTH) throw conflict(
+                "TREATMENT_RESOLVE_NOTE_TOO_LONG", "处置说明不能超过 " + RESOLVE_NOTE_MAX_LENGTH + " 字");
+        if (skinTestException()) throw conflict(
+                "REQUEUE".equals(resolution) ? "TREATMENT_REQUEUE_NOT_ALLOWED" : "TREATMENT_CLOSE_NOT_ALLOWED",
+                "皮试阳性异常不能在此处置，请医生调整医嘱");
+        if ("REQUEUE".equals(resolution) && Boolean.TRUE.equals(adverseReaction)) throw conflict(
+                "TREATMENT_REQUEUE_NOT_ALLOWED", "已记录不良反应的异常不能重新执行，请关闭处置");
+        ExceptionSnapshot previous = new ExceptionSnapshot(status.name(), resultCode, adverseReaction,
+                adverseReactionDetail, completionNote, exceptionNote, completedAt, completedBy);
+        if ("REQUEUE".equals(resolution)) {
+            this.status = TreatmentExecutionTaskStatus.WAITING_SETTLEMENT;
+            this.completedAt = null; this.completedBy = null; this.resultCode = null; this.completionNote = null;
+            this.adverseReaction = null; this.adverseReactionDetail = null; this.exceptionNote = null;
+        } else {
+            this.status = TreatmentExecutionTaskStatus.CLOSED;
+            this.completedAt = occurredAt; this.completedBy = actorId; this.exceptionNote = text;
+        }
+        return previous;
     }
 
     /** A historical status flag alone cannot prove successful, assessed treatment. */

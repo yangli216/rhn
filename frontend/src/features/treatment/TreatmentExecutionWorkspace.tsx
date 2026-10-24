@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
-import type { TreatmentExecutionItem, TreatmentExecutionTask, TreatmentTaskStatus, TreatmentTaskType } from '../../shared/api/treatmentApi'
+import type { TreatmentExecutionItem, TreatmentExecutionTask, TreatmentResolution, TreatmentTaskStatus, TreatmentTaskType } from '../../shared/api/treatmentApi'
 import { formatTime } from '../../shared/format'
 import { treatmentFulfillmentPresentation } from '../../shared/presentation'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -12,8 +12,11 @@ import '../../styles/features/treatment-skintest.css'
 
 const statusText: Record<TreatmentTaskStatus, string> = {
   WAITING_SETTLEMENT: '待结算', WAITING_DISPENSE: '待发药', WAITING_SKIN_TEST: '待皮试', READY: '待执行', IN_PROGRESS: '执行中',
-  COMPLETED: '已完成', CANCELLED: '已取消', EXCEPTION: '异常待处理',
+  COMPLETED: '已完成', CANCELLED: '已取消', EXCEPTION: '异常待处理', CLOSED: '已处置',
 }
+
+const waitingStatuses: TreatmentTaskStatus[] = ['WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'WAITING_SKIN_TEST']
+const finishedStatuses: TreatmentTaskStatus[] = ['COMPLETED', 'CLOSED']
 
 function tone(status: TreatmentTaskStatus) {
   if (status === 'COMPLETED') return 'success' as const
@@ -23,6 +26,7 @@ function tone(status: TreatmentTaskStatus) {
 }
 
 type VerificationMethod = 'NAME_AND_IDENTIFIER' | 'CARD' | 'MANUAL' | ''
+type ResolutionChoice = TreatmentResolution | ''
 type CompletionResult = 'COMPLETED' | 'INTERRUPTED' | 'NOT_COMPLETED' | ''
 
 type TypeFilter = 'ALL' | TreatmentTaskType
@@ -47,6 +51,8 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
   const [completionNote, setCompletionNote] = useState('')
   const [adverseReaction, setAdverseReaction] = useState<boolean | null>(null)
   const [adverseReactionDetail, setAdverseReactionDetail] = useState('')
+  const [resolution, setResolution] = useState<ResolutionChoice>('')
+  const [resolveNote, setResolveNote] = useState('')
 
   const worklist = useQuery({
     queryKey: ['treatment-worklist', clinicalContext.organization.id, clinicalContext.department.id],
@@ -61,9 +67,9 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
     const normalized = keyword.trim().toLowerCase()
     return allTasks.filter((task) => {
       if (typeFilter !== 'ALL' && task.taskType !== typeFilter) return false
-      if (statusFilter === 'WAITING' && !['WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'WAITING_SKIN_TEST'].includes(task.status)) return false
+      if (statusFilter === 'WAITING' && !waitingStatuses.includes(task.status)) return false
       if (statusFilter === 'ACTIONABLE' && !['READY', 'IN_PROGRESS', 'EXCEPTION'].includes(task.status)) return false
-      if (statusFilter === 'COMPLETED' && task.status !== 'COMPLETED') return false
+      if (statusFilter === 'COMPLETED' && !finishedStatuses.includes(task.status)) return false
       if (!normalized) return true
       return [task.residentName, task.healthRecordNo, task.taskNo, ...task.items.flatMap((item) => [item.itemName, item.requestNo])]
         .some((value) => value?.toLowerCase().includes(normalized))
@@ -75,8 +81,8 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
     const target = worklist.data.find((item) => linkedEncounterId
       ? item.encounterId === linkedEncounterId : item.residentId === linkedResidentId)
     if (target) {
-      if (target.status === 'COMPLETED') setStatusFilter('COMPLETED')
-      else if (['WAITING_SETTLEMENT', 'WAITING_DISPENSE', 'WAITING_SKIN_TEST'].includes(target.status)) setStatusFilter('WAITING')
+      if (finishedStatuses.includes(target.status)) setStatusFilter('COMPLETED')
+      else if (waitingStatuses.includes(target.status)) setStatusFilter('WAITING')
       else setStatusFilter('ACTIONABLE')
       setTypeFilter('ALL')
       setKeyword('')
@@ -103,6 +109,8 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
     setCompletionNote('')
     setAdverseReaction(null)
     setAdverseReactionDetail('')
+    setResolution('')
+    setResolveNote('')
   }, [clinicalContext.organization.id, clinicalContext.department.id, selected?.id])
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['treatment-worklist'] })
@@ -130,7 +138,20 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
     },
     onSuccess: refresh,
   })
-  const error = worklist.error || start.error || complete.error
+  const resolve = useMutation({
+    mutationFn: () => {
+      if (!worklist.isSuccess || worklist.isFetching || !selected || selected.status !== 'EXCEPTION'
+        || !resolution || !selected.allowedResolutions?.includes(resolution) || !resolveNote.trim()) {
+        throw new Error('请选择处置方式并填写处置说明')
+      }
+      return api.treatments.resolve(selected.id, {
+        expectedRevision: selected.revision, resolution, note: resolveNote.trim(),
+      })
+    },
+    onSuccess: refresh,
+  })
+  const error = worklist.error || start.error || complete.error || resolve.error
+  // 后端队列只返回当日完成/处置的终态任务；「今日已完成」只统计 COMPLETED，已处置（CLOSED）不计入。
   const metrics = useMemo(() => ({
     settlement: allTasks.filter((value) => value.status === 'WAITING_SETTLEMENT').length,
     dispense: allTasks.filter((value) => value.status === 'WAITING_DISPENSE').length,
@@ -200,6 +221,18 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
             setAdverseReaction={(value) => { setAdverseReaction(value); if (value !== true) setAdverseReactionDetail('') }} adverseReactionDetail={adverseReactionDetail}
             setAdverseReactionDetail={setAdverseReactionDetail} busy={complete.isPending || worklist.isFetching} onSubmit={() => complete.mutate()} />}
           {selected.status === 'EXCEPTION' && <Alert>{selected.exceptionNote || selected.adverseReactionDetail || '该任务需要人工核对和后续处置。'}</Alert>}
+          {selected.status === 'EXCEPTION' && (selected.allowedResolutions?.length
+            ? <ResolveForm allowed={selected.allowedResolutions} resolution={resolution} setResolution={setResolution}
+              note={resolveNote} setNote={setResolveNote} busy={resolve.isPending || worklist.isFetching}
+              onSubmit={() => resolve.mutate()} />
+            : <Alert tone="info">该异常不能在治疗执行内处置，请联系开单医生调整医嘱，条件解除后任务会自动更新。</Alert>)}
+          {selected.status === 'CLOSED' && <section className="treatment-completion-summary">
+            <header><div><span>异常处置</span><h3>异常已处置并关闭</h3></div>
+              <StatusBadge tone="info">{selected.completedAt ? formatTime(selected.completedAt) : '未记录处置时间'}</StatusBadge></header>
+            <dl><div><dt>原执行结果</dt><dd>{resultText(selected.resultCode)}</dd></div>
+              <div><dt>不良反应评估</dt><dd>{selected.adverseReaction == null ? '未评估' : selected.adverseReaction ? '有' : '无'}</dd></div></dl>
+            <p>{selected.exceptionNote || '未记录处置说明'}</p>
+          </section>}
           {selected.status === 'COMPLETED' && <section className="treatment-completion-summary">
             <header><div><span>执行结果</span><h3>{selected.resultCode === 'COMPLETED' ? '治疗已完成' : selected.resultCode ? '治疗未正常完成' : '未记录执行结果'}</h3></div>
               <StatusBadge tone="success">{selected.completedAt ? formatTime(selected.completedAt) : '未记录结束时间'}</StatusBadge></header>
@@ -292,6 +325,30 @@ function CompleteForm(props: {
     <div className="ui-form-actions"><Button disabled={!props.resultCode || props.adverseReaction === null || (props.adverseReaction && !props.adverseReactionDetail.trim())}
       busy={props.busy} onClick={props.onSubmit}>确认完成</Button></div>
   </section>
+}
+
+function ResolveForm(props: {
+  allowed: TreatmentResolution[]; resolution: ResolutionChoice; setResolution: (value: ResolutionChoice) => void
+  note: string; setNote: (value: string) => void; busy: boolean; onSubmit: () => void
+}) {
+  const options = ([
+    { value: 'REQUEUE', label: '重新执行' }, { value: 'CLOSE', label: '关闭处置' },
+  ] as { value: TreatmentResolution; label: string }[]).filter((option) => props.allowed.includes(option.value))
+  return <section className="treatment-action-card"><h3>异常处置</h3>
+    <FormField label="处置方式" required><Select value={props.resolution} searchable={false} placeholder="请选择处置方式"
+      onChange={(value) => props.setResolution(value as ResolutionChoice)} options={options} /></FormField>
+    <FormField label="处置说明" required><textarea rows={2} maxLength={1000} value={props.note}
+      placeholder={props.resolution === 'CLOSE' ? '记录随访、处置结果及不再执行的原因' : '记录重新执行的原因与安排'}
+      onChange={(event) => props.setNote(event.target.value)} /></FormField>
+    <div className="ui-form-actions"><Button disabled={!props.resolution || !props.note.trim()} busy={props.busy}
+      onClick={props.onSubmit}>确认处置</Button></div>
+  </section>
+}
+
+function resultText(value?: TreatmentExecutionTask['resultCode']) {
+  if (value === 'COMPLETED') return '顺利完成'
+  if (value === 'INTERRUPTED') return '中途停止'
+  return value === 'NOT_COMPLETED' ? '未完成' : '未记录'
 }
 
 function verificationText(value?: TreatmentExecutionTask['verificationMethod']) {

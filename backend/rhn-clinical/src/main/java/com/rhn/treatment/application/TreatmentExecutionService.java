@@ -26,11 +26,14 @@ import com.rhn.treatment.domain.TreatmentExecutionTaskStatus;
 import com.rhn.treatment.infrastructure.TreatmentExecutionItemRepository;
 import com.rhn.treatment.infrastructure.TreatmentExecutionTaskRepository;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -44,6 +47,13 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class TreatmentExecutionService {
     private final BusinessNumberGenerator numbers;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final int OPEN_TASK_LIMIT = 500;
+    private static final int FINISHED_TODAY_LIMIT = 100;
+    private static final List<TreatmentExecutionTaskStatus> OPEN_STATUSES = java.util.Arrays.stream(
+            TreatmentExecutionTaskStatus.values()).filter(value -> !value.terminal()).toList();
+    private static final List<TreatmentExecutionTaskStatus> FINISHED_STATUSES = List.of(
+            TreatmentExecutionTaskStatus.COMPLETED, TreatmentExecutionTaskStatus.CLOSED);
     private static final String CONSUMER = "treatment-execution-projection-v1";
     private static final Set<String> PROJECTED_EVENTS = Set.of(
             "SERVICE_REQUEST_AUTHORED", "SERVICE_REQUEST_CANCELLED",
@@ -91,12 +101,23 @@ public class TreatmentExecutionService {
     public List<TreatmentExecutionTaskView> worklist(String taskType, String status, String keyword) {
         ExecutionContext context = requireWorkContext();
         backfill(context);
-        List<TreatmentExecutionTask> values = tasks
-                .findTop100ByTenantIdAndOrganizationIdAndDepartmentIdOrderByCreatedAtDesc(
-                        context.tenantId(), context.organizationId(), context.departmentId());
-        // COMPLETED/CANCELLED 的 synchronize 本就直接返回，30s 轮询不再对终态任务逐个对账
-        values.stream().filter(value -> value.status() != TreatmentExecutionTaskStatus.COMPLETED
-                && value.status() != TreatmentExecutionTaskStatus.CANCELLED).forEach(this::reconcile);
+        // 窗口一：全部非终态任务（待放行/待执行/执行中/异常），不被已完成任务挤出；窗口二：当日完成或已处置的终态任务。
+        List<TreatmentExecutionTask> open = tasks.findByScopeAndStatuses(
+                context.tenantId(), context.organizationId(), context.departmentId(), OPEN_STATUSES,
+                PageRequest.of(0, OPEN_TASK_LIMIT));
+        // 终态任务的 synchronize 本就直接返回，30s 轮询只对非终态任务对账
+        open.forEach(this::reconcile);
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        List<TreatmentExecutionTask> finishedToday = tasks.findFinishedBetween(
+                context.tenantId(), context.organizationId(), context.departmentId(), FINISHED_STATUSES,
+                today.atStartOfDay(BUSINESS_ZONE).toInstant(), today.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant(),
+                PageRequest.of(0, FINISHED_TODAY_LIMIT));
+        // reconcile 可能把失去全部有效项目的任务置为 CANCELLED，已取消任务不进入队列
+        List<TreatmentExecutionTask> values = java.util.stream.Stream.concat(open.stream(), finishedToday.stream())
+                .filter(value -> value.status() != TreatmentExecutionTaskStatus.CANCELLED)
+                .sorted(java.util.Comparator.comparing(TreatmentExecutionTask::createdAt).reversed()
+                        .thenComparing(java.util.Comparator.comparing(TreatmentExecutionTask::id).reversed()))
+                .toList();
         Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
         String typeFilter = upper(taskType); String statusFilter = upper(status); String term = upper(keyword);
         List<TreatmentExecutionTask> visible = values.stream()
@@ -134,6 +155,32 @@ public class TreatmentExecutionService {
         publish(context, task, task.status() == TreatmentExecutionTaskStatus.COMPLETED
                         ? "TREATMENT_EXECUTION_COMPLETED" : "TREATMENT_EXECUTION_EXCEPTION",
                 task.status() == TreatmentExecutionTaskStatus.COMPLETED ? "治疗执行已完成" : "治疗执行需后续处置");
+        return view(task);
+    }
+
+    /** 处置异常任务：REQUEUE 回到按门禁推导的状态重新执行，CLOSE 记录处置说明后终结。 */
+    @Transactional
+    public TreatmentExecutionTaskView resolve(Long taskId, long expectedRevision, String resolution, String note) {
+        ExecutionContext context = requireWorkContext();
+        TreatmentExecutionTask task = requireAccessible(taskId, context); reconcile(task);
+        TreatmentExecutionTask.ExceptionSnapshot previous = task.resolve(expectedRevision, resolution,
+                Strings.trimToNull(note), context.subjectId(), Instant.now());
+        boolean requeued = task.status() != TreatmentExecutionTaskStatus.CLOSED;
+        if (requeued) reconcile(task);
+        tasks.flush();
+        Map<String, Object> extra = new LinkedHashMap<>();
+        // 事件载荷由不可变 Map 承载，不能含 null：只记录处置前实际有值的事实
+        extra.put("resolution", upper(resolution)); extra.put("note", Strings.trimToNull(note));
+        extra.put("previousStatus", previous.status());
+        putPresent(extra, "previousResultCode", previous.resultCode());
+        putPresent(extra, "previousAdverseReaction", previous.adverseReaction());
+        putPresent(extra, "previousAdverseReactionDetail", previous.adverseReactionDetail());
+        putPresent(extra, "previousCompletionNote", previous.completionNote());
+        putPresent(extra, "previousExceptionNote", previous.exceptionNote());
+        putPresent(extra, "previousCompletedAt", previous.completedAt() == null ? null : previous.completedAt().toString());
+        putPresent(extra, "previousCompletedBy", previous.completedBy());
+        publish(context, task, "TREATMENT_EXECUTION_EXCEPTION_RESOLVED",
+                requeued ? "治疗异常已处置，任务重新执行" : "治疗异常已处置并关闭", extra);
         return view(task);
     }
 
@@ -394,14 +441,25 @@ public class TreatmentExecutionService {
                 task.startedBy(), task.verificationMethod(), task.executionSite(), task.startNote(), task.completedAt(),
                 task.completedBy(), task.resultCode(), task.completionNote(), task.adverseReaction(),
                 task.adverseReactionDetail(), task.verifiedStatus() != task.status()
-                        ? "治疗完成标记缺少有效执行或评估记录，请核对原始记录" : task.exceptionNote(), itemViews);
+                        ? "治疗完成标记缺少有效执行或评估记录，请核对原始记录" : task.exceptionNote(), itemViews,
+                task.allowedResolutions());
+    }
+
+    private static void putPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null) target.put(key, value);
     }
 
     private void publish(ExecutionContext context, TreatmentExecutionTask task, String eventType, String summary) {
+        publish(context, task, eventType, summary, Map.of());
+    }
+
+    private void publish(ExecutionContext context, TreatmentExecutionTask task, String eventType, String summary,
+                         Map<String, Object> extra) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("encounterId", task.encounterId()); payload.put("departmentId", task.departmentId());
         payload.put("taskType", task.taskType()); payload.put("status", task.status().name());
         payload.put("summary", summary); payload.put("actorId", context.subjectId());
+        payload.putAll(extra);
         eventPublisher.publish(task.tenantId(), task.organizationId(), eventType, 1, "TreatmentExecutionTask",
                 task.id(), task.revision(), task.residentId(), Instant.now(), payload);
     }

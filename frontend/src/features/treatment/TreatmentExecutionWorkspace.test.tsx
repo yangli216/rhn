@@ -13,7 +13,8 @@ const task: TreatmentExecutionTask = { id: 'task1', revision: 1, taskNo: 'TX001'
   status: 'IN_PROGRESS', residentId: 'res1', residentName: '患者甲', healthRecordNo: 'H001', encounterId: 'enc1',
   organizationId: 'org1', departmentId: 'dept1', createdAt: '2026-10-03T01:00:00Z', adverseReaction: null, items: [] }
 function setup(tasks: TreatmentExecutionTask[] = [task], load = vi.fn().mockResolvedValue(tasks)) {
-  const treatments = { worklist: load, start: vi.fn().mockResolvedValue(task), complete: vi.fn().mockResolvedValue(task) }
+  const treatments = { worklist: load, start: vi.fn().mockResolvedValue(task), complete: vi.fn().mockResolvedValue(task),
+    resolve: vi.fn().mockResolvedValue(task) }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/treatment?encounterId=enc1']}>
     <TreatmentExecutionWorkspace api={{ treatments } as unknown as RhnApi} clinicalContext={context} onNavigate={vi.fn()} />
@@ -116,5 +117,56 @@ describe('explicit treatment assessment', () => {
     expect(screen.queryByRole('button', { name: '确认完成' })).not.toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: '治疗任务摘要' })).getAllByText('—')).toHaveLength(5)
     expect(treatments.complete).not.toHaveBeenCalled()
+  })
+
+  describe('exception resolution', () => {
+    const exception: TreatmentExecutionTask = { ...task, status: 'EXCEPTION', revision: 4, resultCode: 'INTERRUPTED',
+      adverseReaction: false, exceptionNote: '治疗未正常完成：INTERRUPTED', allowedResolutions: ['REQUEUE', 'CLOSE'] }
+
+    it('requires a resolution and a note, then submits the requeue with the task revision', async () => {
+      const { treatments } = setup([exception])
+      await screen.findByText('异常处置')
+      expect(screen.getByRole('button', { name: '确认处置' })).toBeDisabled()
+      await choose(/处置方式/, '重新执行')
+      expect(screen.getByRole('button', { name: '确认处置' })).toBeDisabled()
+      fireEvent.change(screen.getByLabelText(/处置说明/), { target: { value: '  患者同意择时重做  ' } })
+      fireEvent.click(screen.getByRole('button', { name: '确认处置' }))
+      await waitFor(() => expect(treatments.resolve).toHaveBeenCalledWith('task1', {
+        expectedRevision: 4, resolution: 'REQUEUE', note: '患者同意择时重做',
+      }))
+    })
+
+    it('offers only the resolutions the backend allows, such as close after an adverse reaction', async () => {
+      const { treatments } = setup([{ ...exception, adverseReaction: true, adverseReactionDetail: '出现皮疹',
+        allowedResolutions: ['CLOSE'] }])
+      await screen.findByText('异常处置')
+      await userEvent.click(screen.getByLabelText(/处置方式/))
+      expect(screen.queryByRole('option', { name: '重新执行' })).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('option', { name: '关闭处置' }))
+      fireEvent.change(screen.getByLabelText(/处置说明/), { target: { value: '已随访，不再执行' } })
+      fireEvent.click(screen.getByRole('button', { name: '确认处置' }))
+      await waitFor(() => expect(treatments.resolve).toHaveBeenCalledWith('task1', expect.objectContaining({
+        resolution: 'CLOSE', note: '已随访，不再执行',
+      })))
+    })
+
+    it('does not offer resolution when the backend allows none, for example a skin test exception', async () => {
+      setup([{ ...exception, exceptionNote: '[SKIN_TEST] 皮试阳性', allowedResolutions: [] }])
+      await screen.findByText(/请联系开单医生调整医嘱/)
+      expect(screen.queryByRole('button', { name: '确认处置' })).not.toBeInTheDocument()
+    })
+
+    it('shows a closed task with its resolution note and keeps it in the finished group', async () => {
+      setup([{ ...task, status: 'CLOSED', resultCode: 'INTERRUPTED', adverseReaction: false,
+        completedAt: '2026-10-03T02:00:00Z', exceptionNote: '确认不再执行', allowedResolutions: [] }])
+      await screen.findByText('异常已处置并关闭')
+      expect(screen.getByText('确认不再执行')).toBeInTheDocument()
+      expect(screen.getByText('中途停止')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '已完成' })).toHaveClass('is-active')
+      expect(screen.queryByRole('button', { name: '确认处置' })).not.toBeInTheDocument()
+      // 已处置不计入「今日已完成」
+      expect(within(screen.getByRole('region', { name: '治疗任务摘要' })).getByText('今日已完成').parentElement)
+        .toHaveTextContent('0')
+    })
   })
 })

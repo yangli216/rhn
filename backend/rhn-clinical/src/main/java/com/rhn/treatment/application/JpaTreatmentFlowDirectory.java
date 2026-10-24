@@ -50,7 +50,7 @@ public class JpaTreatmentFlowDirectory implements TreatmentFlowDirectory {
                 case READY, WAITING_SKIN_TEST -> waiting++;
                 case IN_PROGRESS -> inProgress++;
                 case EXCEPTION -> exception++;
-                case COMPLETED -> completed++;
+                case COMPLETED, CLOSED -> completed++; // 已处置的异常不再阻塞门诊流程
                 case CANCELLED -> throw new IllegalArgumentException("Cancelled tasks are excluded from execution totals");
                 default -> throw new IllegalStateException("Unsupported treatment status: " + status);
             }

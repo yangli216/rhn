@@ -37,7 +37,9 @@ class TreatmentFlowTruthTest {
         if (status == TreatmentExecutionTaskStatus.CANCELLED) { assertTrue(result.isEmpty()); return; }
         var summary = result.get(5L);
         assertEquals(1, summary.totalCount());
-        assertEquals(status == TreatmentExecutionTaskStatus.COMPLETED ? 1 : 0, summary.completedCount());
+        // CLOSED（异常已处置）不再阻塞门诊流程，与 COMPLETED 一并计入已结束
+        assertEquals(status == TreatmentExecutionTaskStatus.COMPLETED || status == TreatmentExecutionTaskStatus.CLOSED ? 1 : 0,
+                summary.completedCount());
         assertEquals(status == TreatmentExecutionTaskStatus.WAITING_SKIN_TEST || status == TreatmentExecutionTaskStatus.READY ? 1 : 0,
                 summary.waitingCount());
         assertEquals(status == TreatmentExecutionTaskStatus.WAITING_SETTLEMENT ? 1 : 0, summary.settlementBlockedCount());

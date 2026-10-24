@@ -12,7 +12,9 @@ public record TreatmentExecutionTaskView(
         String verificationMethod, String executionSite, String startNote,
         Instant completedAt, Long completedBy, String resultCode, String completionNote,
         @io.swagger.v3.oas.annotations.media.Schema(types = {"boolean", "null"}) Boolean adverseReaction, String adverseReactionDetail, String exceptionNote,
-        List<TreatmentExecutionItemView> items) {
+        List<TreatmentExecutionItemView> items,
+        /** 当前可用的异常处置方式（REQUEUE/CLOSE），非异常或皮试阳性异常为空；终态 CLOSED 任务的 completedAt/completedBy 为处置时间/处置人，exceptionNote 为处置说明。 */
+        List<String> allowedResolutions) {
 
     public record TreatmentExecutionItemView(
             Long id, String sourceType, Long sourceId, Long parentSourceId, String requestNo,

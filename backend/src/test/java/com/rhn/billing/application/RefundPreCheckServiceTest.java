@@ -309,6 +309,102 @@ class RefundPreCheckServiceTest {
         assertEquals("医嘱费用均可直接退费；挂号费不在此退还。", result.summaryNotice());
     }
 
+    private void treatmentScenario(ChargeItem charge) {
+        PatientAccount account = account(100L, 10L);
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(100L))).thenReturn(List.of(account));
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L)).thenReturn(List.of(charge));
+        when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(true);
+    }
+
+    @Test
+    void treatment_service_already_started_blocks_refund_and_points_to_the_treatment_department() {
+        treatmentScenario(charge(801L, "SERVICE_REQUEST", 9001L, "静脉输液治疗", "40.00"));
+        when(treatment.isExecutedOrInProgress(1L, "SERVICE_REQUEST", 9001L)).thenReturn(true);
+
+        RefundPreCheckSummaryView result = service.preCheck(100L);
+
+        assertFalse(result.eligibleForRefund());
+        assertEquals("BLOCKED", result.overallDecision());
+        RefundItemPreCheckView item = result.items().get(0);
+        assertFalse(item.allowed());
+        assertEquals("EXECUTED", item.executionStatusCode());
+        assertEquals("已执行 · 阻断", item.statusBadgeText());
+        assertTrue(item.blockReason().contains("治疗科室"));
+        assertEquals(BigDecimal.ZERO, result.refundableAmount());
+    }
+
+    @Test
+    void treatment_service_not_started_is_still_refundable() {
+        treatmentScenario(charge(802L, "SERVICE_REQUEST", 9002L, "雾化治疗", "25.00"));
+        when(treatment.isExecutedOrInProgress(1L, "SERVICE_REQUEST", 9002L)).thenReturn(false);
+
+        RefundPreCheckSummaryView result = service.preCheck(100L);
+
+        assertTrue(result.eligibleForRefund());
+        assertEquals("ALLOWED", result.overallDecision());
+        assertEquals("UNEXECUTED", result.items().get(0).executionStatusCode());
+        assertEquals(new BigDecimal("25.00"), result.refundableAmount());
+    }
+
+    @Test
+    void diagnostics_report_block_keeps_priority_over_the_treatment_lookup() {
+        treatmentScenario(charge(803L, "SERVICE_REQUEST", 9003L, "检查加治疗", "30.00"));
+        when(diagnostics.hasReportForRequest(1L, 9003L)).thenReturn(true);
+
+        RefundPreCheckSummaryView result = service.preCheck(100L);
+
+        assertEquals("REPORTED", result.items().get(0).executionStatusCode());
+        verifyNoInteractions(treatment);
+    }
+
+    @Test
+    void injected_medication_not_dispensed_but_treatment_started_is_blocked() {
+        treatmentScenario(charge(804L, "MEDICATION_REQUEST", 9004L, "头孢曲松针", "18.00"));
+        when(pharmacy.statusForRequest(1L, 9004L)).thenReturn(RefundPharmacyDirectory.RefundFulfillmentStatus.undispensed("PENDING"));
+        when(treatment.isExecutedOrInProgress(1L, "MEDICATION_REQUEST", 9004L)).thenReturn(true);
+
+        RefundItemPreCheckView item = service.preCheck(100L).items().get(0);
+
+        assertFalse(item.allowed());
+        assertEquals("EXECUTED", item.executionStatusCode());
+        assertEquals("已执行 · 阻断", item.statusBadgeText());
+    }
+
+    @Test
+    void injected_medication_not_dispensed_and_not_started_is_refundable() {
+        treatmentScenario(charge(805L, "MEDICATION_REQUEST", 9005L, "头孢曲松针", "18.00"));
+        when(pharmacy.statusForRequest(1L, 9005L)).thenReturn(RefundPharmacyDirectory.RefundFulfillmentStatus.undispensed("PENDING"));
+        when(treatment.isExecutedOrInProgress(1L, "MEDICATION_REQUEST", 9005L)).thenReturn(false);
+
+        RefundItemPreCheckView item = service.preCheck(100L).items().get(0);
+
+        assertTrue(item.allowed());
+        assertEquals("UNDISPENSED", item.executionStatusCode());
+    }
+
+    @Test
+    void dispensed_block_keeps_priority_over_the_treatment_lookup() {
+        treatmentScenario(charge(806L, "MEDICATION_REQUEST", 9006L, "头孢曲松针", "18.00"));
+        when(pharmacy.statusForRequest(1L, 9006L))
+                .thenReturn(new RefundPharmacyDirectory.RefundFulfillmentStatus("DISPENSED", "COMPLETED"));
+        when(treatment.isExecutedOrInProgress(1L, "MEDICATION_REQUEST", 9006L)).thenReturn(true);
+
+        RefundItemPreCheckView item = service.preCheck(100L).items().get(0);
+
+        assertEquals("DISPENSED", item.executionStatusCode());
+        assertEquals("已发药 · 阻断(需药房退药)", item.statusBadgeText());
+    }
+
+    @Test
+    void legacy_treatment_source_type_is_no_longer_a_dead_branch() {
+        treatmentScenario(charge(807L, "TREATMENT", 9007L, "未知来源", "10.00"));
+
+        RefundItemPreCheckView item = service.preCheck(100L).items().get(0);
+
+        assertEquals("OTHER", item.executionStatusCode());
+        verifyNoInteractions(treatment);
+    }
+
     private PatientAccount account(Long encounterId, Long accountId) {
         PatientAccount account = mock(PatientAccount.class);
         when(account.id()).thenReturn(accountId);

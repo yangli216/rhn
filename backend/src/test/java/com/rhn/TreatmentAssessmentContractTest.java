@@ -15,6 +15,9 @@ class TreatmentAssessmentContractTest extends RhnIntegrationTestSupport {
         assertThat(schemas.path("CompleteRequest").path("required").toString()).contains("resultCode", "adverseReaction");
         assertThat(schemas.path("StartRequest").path("required").toString()).contains("verificationMethod");
         assertThat(schemas.path("TreatmentExecutionTaskView").path("properties").path("adverseReaction").path("type").toString()).contains("null", "boolean");
+        assertThat(schemas.path("ResolveExceptionRequest").path("required").toString())
+                .contains("expectedRevision", "resolution", "note");
+        assertThat(schemas.path("TreatmentExecutionTaskView").path("properties").has("allowedResolutions")).isTrue();
         String export = System.getProperty("rhn.test.openapi-export");
         if (export != null) Files.writeString(Path.of(export), body);
     }

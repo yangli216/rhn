@@ -2,7 +2,9 @@ import type { ApiClient } from './httpClient'
 
 export type TreatmentTaskType = 'SERVICE' | 'MEDICATION'
 export type TreatmentTaskStatus = 'WAITING_SETTLEMENT' | 'WAITING_DISPENSE' | 'READY' | 'IN_PROGRESS'
-  | 'WAITING_SKIN_TEST' | 'COMPLETED' | 'CANCELLED' | 'EXCEPTION'
+  | 'WAITING_SKIN_TEST' | 'COMPLETED' | 'CANCELLED' | 'EXCEPTION' | 'CLOSED'
+/** 异常处置方式：REQUEUE 重新执行；CLOSE 关闭处置（终态 CLOSED）。 */
+export type TreatmentResolution = 'REQUEUE' | 'CLOSE'
 
 export type SkinTestStatus = 'CONFIGURATION_REQUIRED' | 'WAITING_SETTLEMENT' | 'WAITING_DISPENSE' | 'PENDING' | 'IN_PROGRESS'
   | 'NEGATIVE' | 'POSITIVE' | 'UNCERTAIN' | 'INVALID'
@@ -64,8 +66,11 @@ export interface TreatmentExecutionTask {
   completionNote?: string
   adverseReaction?: boolean | null
   adverseReactionDetail?: string
+  /** CLOSED 任务：exceptionNote 为处置说明，completedAt/completedBy 为处置时间/处置人。 */
   exceptionNote?: string
   items: TreatmentExecutionItem[]
+  /** 后端判定的当前可用处置方式；非异常或皮试阳性异常为空。 */
+  allowedResolutions?: TreatmentResolution[]
 }
 
 export interface StartTreatmentInput {
@@ -82,6 +87,12 @@ export interface CompleteTreatmentInput {
   note?: string
   adverseReaction: boolean
   adverseReactionDetail?: string
+}
+
+export interface ResolveTreatmentExceptionInput {
+  expectedRevision: number
+  resolution: TreatmentResolution
+  note: string
 }
 
 export interface SkinTestWorkItem {
@@ -186,6 +197,10 @@ export function createTreatmentApi(client: ApiClient) {
       }),
     complete: (taskId: string, input: CompleteTreatmentInput) =>
       client.request<TreatmentExecutionTask>(`/api/treatments/tasks/${taskId}/complete`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    resolve: (taskId: string, input: ResolveTreatmentExceptionInput) =>
+      client.request<TreatmentExecutionTask>(`/api/treatments/tasks/${taskId}/resolve`, {
         method: 'POST', body: JSON.stringify(input),
       }),
     skinTestWorklist: (status?: SkinTestStatus, keyword?: string, encounterId?: string) => {

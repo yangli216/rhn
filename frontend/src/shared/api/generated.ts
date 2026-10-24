@@ -1252,6 +1252,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treatments/tasks/{taskId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolveException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treatments/tasks/{taskId}/complete": {
         parameters: {
             query?: never;
@@ -17726,6 +17742,13 @@ export interface components {
             adverseReactionDetail?: string;
             exceptionNote?: string;
             items?: components["schemas"]["TreatmentExecutionItemView"][];
+            allowedResolutions?: string[];
+        };
+        ResolveExceptionRequest: {
+            /** @example 824633720832983041 */
+            expectedRevision: string;
+            resolution: string;
+            note: string;
         };
         CompleteRequest: {
             /** @example 824633720832983041 */
@@ -33469,6 +33492,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["StartRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TreatmentExecutionTaskView"];
+                };
+            };
+        };
+    };
+    resolveException: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveExceptionRequest"];
             };
         };
         responses: {
