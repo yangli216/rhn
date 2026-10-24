@@ -1026,6 +1026,8 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
         reservations: vi.fn().mockResolvedValue({ allocations: [] }),
         trace: vi.fn().mockResolvedValue({ events: [] }),
         cancelDispense: vi.fn().mockResolvedValue({ taskId: 'task-cancel-1', taskNo: 'TASK-CANCEL-001', cancelNo: 'CNC-001', taskStatus: 'READY_TO_DISPENSE' }),
+        cancelDispenses: vi.fn().mockImplementation((taskIds: string[]) => Promise.resolve(taskIds.map(taskId =>
+          ({ taskId, taskNo: 'TASK-CANCEL-001', cancelNo: `CNC-${taskId}`, taskStatus: 'READY_TO_DISPENSE' })))),
       },
       organization: {
         practitioners: vi.fn().mockResolvedValue([
@@ -1087,7 +1089,8 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     await userEvent.click(screen.getByRole('button', { name: '确定撤销发药' }))
 
     await waitFor(() => {
-      expect(api.pharmacy.cancelDispense).toHaveBeenCalledWith('task-cancel-1', expect.objectContaining({
+      expect(api.pharmacy.cancelDispenses).toHaveBeenCalledTimes(1)
+      expect(api.pharmacy.cancelDispenses).toHaveBeenCalledWith(['task-cancel-1'], expect.objectContaining({
         reasonCode: 'MISTAKEN_CLICK',
       }))
     })
@@ -1182,16 +1185,18 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
         }),
         balances: vi.fn().mockResolvedValue([]),
         reservations: vi.fn().mockResolvedValue({ allocations: [] }),
-        trace: vi.fn().mockResolvedValue({
-          taskId: 'task-ret-1',
-          events: [
-            {
-              id: 'dispense-event-1',
-              dispenseType: 'DISPENSE',
-              lines: [{ id: 'dispense-line-1', quantityDispensed: 2, dispenseUnitCode: 'BOX' }],
-            },
-          ],
-        }),
+        traces: vi.fn().mockResolvedValue([
+          {
+            taskId: 'task-ret-1',
+            events: [
+              {
+                id: 'dispense-event-1',
+                dispenseType: 'DISPENSE',
+                lines: [{ id: 'dispense-line-1', quantityDispensed: 2, dispenseUnitCode: 'BOX' }],
+              },
+            ],
+          },
+        ]),
         returnMedication: vi.fn().mockResolvedValue({ id: 'ret-event-1', returnNo: 'RET-001' }),
       },
       organization: {
@@ -1268,6 +1273,8 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     await userEvent.click(screen.getByRole('button', { name: '确认退药出库冲回' }))
 
     await waitFor(() => {
+      expect(api.pharmacy.traces).toHaveBeenCalledTimes(1)
+      expect(api.pharmacy.traces).toHaveBeenCalledWith(['task-ret-1'])
       expect(api.pharmacy.returnMedication).toHaveBeenCalledWith(
         'dispense-event-1',
         expect.objectContaining({

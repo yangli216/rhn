@@ -14,6 +14,8 @@ import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientNoteFormDirectory;
 import com.rhn.outpatient.api.RegistrationValidityPolicy;
+import com.rhn.outpatient.api.RegistrationCancellationGate;
+import com.rhn.outpatient.api.RegistrationBillingGate;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -75,6 +77,8 @@ public class EncounterService implements EncounterDirectory {
     private final com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory;
     private final RegistrationValidityPolicy validityPolicy;
     private final OutpatientBloodPressurePolicy bloodPressurePolicy;
+    private final RegistrationCancellationGate cancellationGate;
+    private final RegistrationBillingGate registrationBillingGate;
 
     public EncounterService(EncounterRepository encounterRepository,
                             EncounterDiagnosisRepository diagnosisRepository,
@@ -100,8 +104,12 @@ public class EncounterService implements EncounterDirectory {
                             com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                             RegistrationValidityPolicy validityPolicy, BusinessNumberGenerator numbers,
                             OutpatientBloodPressurePolicy bloodPressurePolicy,
-                            com.rhn.outpatient.api.OrderSigningDirectory orderSigningDirectory) {
+                            com.rhn.outpatient.api.OrderSigningDirectory orderSigningDirectory,
+                            RegistrationCancellationGate cancellationGate,
+                            RegistrationBillingGate registrationBillingGate) {
         this.orderSigningDirectory = orderSigningDirectory;
+        this.cancellationGate = cancellationGate;
+        this.registrationBillingGate = registrationBillingGate;
         this.bloodPressurePolicy = bloodPressurePolicy;
         this.numbers = numbers;
         this.encounterRepository = encounterRepository;
@@ -143,6 +151,9 @@ public class EncounterService implements EncounterDirectory {
         if (replay.isPresent()) return get(replay.get().encounterId());
         Long tenantId = TenantContext.requireTenantId();
         ExecutionContext context = executionContextProvider.requireCurrent();
+        // 直接挂号不得绕过该居民已发起的挂号收费意向，避免窗口/自助重复挂号或漏收费。
+        registrationBillingGate.requireRegistrationAllowed(residentId, request.organizationId(), request.departmentId(),
+                request.appointmentId(), request.scheduleId(), request.slotHoldId());
         Encounter encounter = encounterRepository.saveAndFlush(new Encounter(tenantId, residentId,
                 numbers.next("outpatient-encounter", new BusinessNumberContext(tenantId,
                         request.organizationId(), request.departmentId())), request.organizationId(), request.departmentId()));
@@ -213,9 +224,6 @@ public class EncounterService implements EncounterDirectory {
     @Transactional
     public EncounterResponse start(Long encounterId, StartEncounterRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
-        if (encounter.status() == EncounterStatus.IN_PROGRESS) {
-            return toResponse(encounter);
-        }
         ExecutionContext context = executionContextProvider.requireCurrent();
         Map<String, Boolean> factors = Map.copyOf(request.factorResults());
         if (factors.isEmpty() || factors.values().stream().anyMatch(value -> !Boolean.TRUE.equals(value))) {
@@ -226,6 +234,13 @@ public class EncounterService implements EncounterDirectory {
                 && Boolean.TRUE.equals(entry.getValue())))) {
             throw badRequest("ENCOUNTER_IDENTITY_FACTOR_INSUFFICIENT", "请核对患者姓名和至少一项附加身份因子");
         }
+        // 身份核验先于“已开始接诊”的幂等返回：重放请求同样必须满足身份核验要求，不能凭状态直接成功。
+        if (encounter.status() == EncounterStatus.IN_PROGRESS) {
+            return toResponse(encounter);
+        }
+        // 已持有就诊行锁后再读退号门禁：退号准备会在同一事务内锁定就诊并把意向置为退号中，
+        // 二者互斥，避免退款完成后就诊又被开始接诊。
+        cancellationGate.requireStartAllowed(encounterId);
         long expectedRevision = encounter.version();
         String commandCode = request.commandCode() == null || request.commandCode().isBlank()
                 ? "START-" + encounterId + "-" + expectedRevision : request.commandCode().trim();
@@ -576,15 +591,16 @@ public class EncounterService implements EncounterDirectory {
     @Transactional
     public EncounterResponse cancelCompletion(Long encounterId, CancelEncounterCompletionRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        // 归属校验必须先于“已在接诊中”的幂等返回，否则非原接诊医生也可拿到成功响应。
+        if (encounter.clinicianId() == null || !encounter.clinicianId().equals(context.actor())) {
+            throw forbidden("ENCOUNTER_COMPLETION_CANCEL_FORBIDDEN", "只有原接诊医生可以取消诊毕");
+        }
         if (encounter.status() == EncounterStatus.IN_PROGRESS) {
             return toResponse(encounter);
         }
-        ExecutionContext context = executionContextProvider.requireCurrent();
         if (encounter.status() != EncounterStatus.COMPLETED || !"OUTPATIENT".equals(encounter.encounterClass())) {
             throw conflict("ENCOUNTER_COMPLETION_CANCEL_STATE_INVALID", "只有已诊毕的门诊就诊可以取消诊毕");
-        }
-        if (encounter.clinicianId() == null || !encounter.clinicianId().equals(context.actor())) {
-            throw forbidden("ENCOUNTER_COMPLETION_CANCEL_FORBIDDEN", "只有原接诊医生可以取消诊毕");
         }
         String reason = Strings.trimToNull(request.reason());
         if (reason == null) throw badRequest("ENCOUNTER_COMPLETION_CANCEL_REASON_REQUIRED", "取消诊毕必须填写原因");
@@ -640,10 +656,19 @@ public class EncounterService implements EncounterDirectory {
         return orderableSnapshot(requireEncounter(encounterId));
     }
 
-    @Override
     @Transactional
+    @Override
     public EncounterSnapshot lockActiveForOrdering(Long encounterId) {
         return orderableSnapshot(requireEncounterWithLock(encounterId));
+    }
+
+    @Override
+    public EncounterSnapshot lockRegistrationCancellable(Long encounterId) {
+        Encounter encounter = requireEncounterWithLock(encounterId);
+        if (encounter.status() != EncounterStatus.REGISTERED && encounter.status() != EncounterStatus.CANCELLED) {
+            throw conflict("ENCOUNTER_ALREADY_IN_SERVICE", "该就诊已经开始接诊，不能退号");
+        }
+        return snapshot(encounter);
     }
 
     private EncounterSnapshot orderableSnapshot(Encounter encounter) {
@@ -732,6 +757,33 @@ public class EncounterService implements EncounterDirectory {
                         tenantId, encounterId, "ENCOUNTER", "ACTIVE")
                 .stream().map(value -> new DiagnosisSnapshot(
                         value.code(), value.display(), value.diagnosisType().name())).toList();
+        return pharmacySnapshot(encounter, diagnoses);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, PharmacyClinicalSnapshot> pharmacySnapshots(Long tenantId, Collection<Long> encounterIds) {
+        Map<Long, PharmacyClinicalSnapshot> result = new LinkedHashMap<>();
+        if (tenantId == null || encounterIds == null) return result;
+        List<Long> ids = encounterIds.stream().distinct().toList();
+        if (ids.isEmpty()) return result;
+        Map<Long, Encounter> encounterById = new LinkedHashMap<>();
+        for (Encounter value : encounterRepository.findByTenantIdAndIdIn(tenantId, ids)) {
+            encounterById.putIfAbsent(value.id(), value);
+        }
+        if (encounterById.isEmpty()) return result;
+        Map<Long, List<DiagnosisSnapshot>> diagnosesByEncounter = diagnosisRepository
+                .findByTenantIdAndEncounterIdInAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
+                        tenantId, encounterById.keySet(), "ENCOUNTER", "ACTIVE").stream()
+                .collect(Collectors.groupingBy(EncounterDiagnosis::encounterId,
+                        Collectors.mapping(value -> new DiagnosisSnapshot(
+                                value.code(), value.display(), value.diagnosisType().name()), Collectors.toList())));
+        encounterById.forEach((encounterId, encounter) -> result.put(encounterId,
+                pharmacySnapshot(encounter, diagnosesByEncounter.getOrDefault(encounterId, List.of()))));
+        return result;
+    }
+
+    private PharmacyClinicalSnapshot pharmacySnapshot(Encounter encounter, List<DiagnosisSnapshot> diagnoses) {
         return new PharmacyClinicalSnapshot(encounter.id(), encounter.residentId(), encounter.encounterNo(),
                 encounter.clinicianId(), encounter.chiefComplaint(), diagnoses);
     }
@@ -767,8 +819,8 @@ public class EncounterService implements EncounterDirectory {
                         encounterId, TenantContext.requireTenantId())
                 .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
         ExecutionContext context = executionContextProvider.requireCurrent();
-        if (context.hasWorkContext() && (!context.canAccessOrganization(encounter.organizationId())
-                || !context.canAccessDepartment(encounter.departmentId()))) {
+        if (!context.hasWorkContext() || !context.canAccessOrganization(encounter.organizationId())
+                || !context.canAccessDepartment(encounter.departmentId())) {
             throw forbidden("ENCOUNTER_FORBIDDEN", "无权访问当前工作上下文之外的就诊");
         }
         return encounter;
@@ -868,6 +920,22 @@ public class EncounterService implements EncounterDirectory {
         );
     }
 
+    /**
+     * 模板/历史导入等多药品场景：一次请求返回全部关键词结果，复用同一次库存与目录扫描。
+     * 每个关键词的结果与 {@link #searchOrderableMedications} 一致。
+     */
+    @Transactional(readOnly = true)
+    public Map<String, List<com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.OrderableMedicationView>>
+            searchOrderableMedicationsBatch(Long encounterId, List<String> queries) {
+        var encounter = requireActiveForOrdering(encounterId);
+        return inventoryDirectory.findOrderableMedicationsBatch(
+                encounter.tenantId(),
+                encounter.organizationId(),
+                encounter.departmentId(),
+                queries
+        );
+    }
+
 
     private static final long MAX_QUERY_RANGE_DAYS = 92;
     private static final int IN_CHUNK = 500;
@@ -944,8 +1012,10 @@ public class EncounterService implements EncounterDirectory {
         EncounterPageSlice pageSlice = pageOf(filtered, safePage, safeSize);
         List<Encounter> slice = pageSlice.slice();
         if (matchQuery == null) {
-            // 无关键字时只为当前页加载详情与诊断
+            // 无关键字时只为当前页加载详情与诊断；居民快照同样按页批量取，避免逐行查询
             loadDetails(context.tenantId(), slice, registrationDetails, diagnosisMap);
+            residentCache.putAll(residentDirectory.requireSnapshots(context.tenantId(),
+                    slice.stream().map(Encounter::residentId).toList()));
         }
         long totalElements = pageSlice.totalElements();
         int totalPages = pageSlice.totalPages();

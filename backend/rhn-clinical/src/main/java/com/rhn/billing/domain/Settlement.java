@@ -80,6 +80,9 @@ public class Settlement {
 
     public String applyPaidAmount(BigDecimal paidAmount, Long actorId, Instant occurredAt) {
         if ("REVERSAL".equals(settlementType) || status == SettlementStatus.REVERSED) return status.name();
+        if (paidAmount.compareTo(netAmount) > 0) {
+            throw new IllegalStateException("结算资金合计 %s 超过结算净额 %s".formatted(paidAmount.toPlainString(), netAmount.toPlainString()));
+        }
         String previous = status.name();
         if (netAmount.signum() == 0) {
             status = SettlementStatus.SETTLED; finalizedBy = actorId; finalizedAt = occurredAt;
@@ -197,6 +200,21 @@ public class Settlement {
         this.roundingAmount = adjustment.setScale(6, java.math.RoundingMode.HALF_UP);
         this.netAmount = this.grossAmount.add(this.roundingAmount).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
         this.patientAmount = patientShare();
+    }
+
+    /**
+     * 回退尚未被成功收款确认的舍入：舍入只允许搭配一次付清调整后全部待付金额的支付，
+     * 所以未结清结算单上的舍入一定来自已失败/取消/过期的支付指令。幂等，舍入为零时返回 false。
+     */
+    public boolean revertRounding() {
+        if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL).contains(status)) {
+            throw new IllegalStateException("当前结算状态不能回退货币舍入调整");
+        }
+        if (roundingAmount.signum() == 0) return false;
+        this.roundingAmount = zero();
+        this.netAmount = this.grossAmount.subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = patientShare();
+        return true;
     }
 
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }

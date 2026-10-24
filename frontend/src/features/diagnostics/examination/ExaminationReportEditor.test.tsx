@@ -13,7 +13,7 @@ describe('ExaminationReportEditor (WS 445.11 Structured Reporting)', () => {
       />
     )
 
-    expect(screen.getByText('结构化影像报告书写 (WS 445.11)')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '检查报告录入' })).toBeInTheDocument()
     expect(screen.getByLabelText('选择国家标准检查报告模板')).toBeInTheDocument()
     expect(screen.getByText('套用模板')).toBeInTheDocument()
     expect(screen.getByText('胸部常见征象')).toBeInTheDocument()

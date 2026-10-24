@@ -1,3 +1,5 @@
+import { RecordQualityControl } from "./RecordQualityControl";
+import { useRecordQualityDecision, recordQualityInput } from "./useRecordQualityDecision";
 import { AnnotatedRecordField } from "./AnnotatedRecordField";
 import { RecordAnnotationLegend } from "./RecordAnnotationLegend";
 import { RecordColumnSplitter, useRecordColumnWidth } from "./RecordColumnSplitter";
@@ -43,6 +45,7 @@ import { type HistoryCopyDraft, type EncounterDraftState, medicationDraftKey } f
 import { OrdersPanel, type OrderIssueOutcome } from '../orders/OrdersPanel'
 import { PlanTemplatePanel } from '../templates/PlanTemplatePanel'
 import { ControlledPrintDialog } from '../printing/EncounterPrintPanel'
+import { templateApiScope } from '../templates/templateApplicationReceipt'
 
 export type AmendmentDraft = Pick<RecordForm,
   'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'allergyHistory' | 'medicationHistory' | 'auxiliaryExaminations' | 'healthEducation' | 'followUp'>
@@ -153,6 +156,14 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   const captureDraftSession = useClinicalDraftSession(api, JSON.stringify([encounter.id, encounter.residentId,
     encounter.organizationId, encounter.departmentId]), canEdit && editing && encounter.status === 'IN_PROGRESS', form,
   { diagnoses, medicationDrafts, serviceDrafts, selectedNoteFormId, structuredValues })
+  const aiCapabilities = useQuery({
+    queryKey: ['clinical-ai-capabilities', templateApiScope(api), encounter.organizationId, encounter.departmentId,
+      encounter.clinicianId ?? 'UNASSIGNED'], queryFn: api.clinicalAi.capabilities, staleTime: 5 * 60 * 1000, retry: false,
+  })
+  const recordQualityAvailable = Boolean(aiCapabilities.data?.available && aiCapabilities.data.features.includes('RECORD_QUALITY_REVIEW'))
+  const recordQuality = useRecordQualityDecision(api, encounter.id,
+    JSON.stringify([encounter.id, encounter.residentId, encounter.organizationId, encounter.departmentId, encounter.clinicianId]),
+    canEdit && editing && encounter.status === 'IN_PROGRESS', getValues, captureDraftSession)
   const save = useMutation({
     mutationFn: async ({ form, session }: { form: RecordForm; session: ClinicalDraftSession }) => {
       session.assertUnchanged()
@@ -238,6 +249,7 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
       onSaveDraftNotice?.(bloodPressureMissing(bloodPressureRequirement, form)
         ? { message: `门诊病历、诊断与医嘱草稿已保存；${bloodPressureRequirement?.message ?? '请填写血压'}，诊毕前需补录`, tone: 'warning' }
         : { message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
+      void recordQuality.confirmSaved(savedDocument)
     },
     onError: (error, { session }) => {
       if (!session.isCurrent()) return
@@ -441,7 +453,7 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   }
   const highlighted = highlightedAnnotations(recordValues, recordValues.annotations)
   const annotatedField = (field: RecordTextField, label: string) => ({
-    field, 'aria-label': label, value: watch(field) ?? '', annotations: getValues('annotations') ?? [],
+    field, name: field, 'aria-label': label, value: watch(field) ?? '', annotations: getValues('annotations') ?? [],
     showAnnotations: true,
     onValueChange: (value: string) => {
       form.setValue('annotations', rebaseAnnotations(field, getValues(field) ?? '', value, getValues('annotations') ?? []), { shouldDirty: true })
@@ -482,6 +494,7 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
 
   // While a signed note is amended in place or its change trace is shown, the document uses its reading layout even in edit mode.
   const formMode = editing && !amendmentOpen && !tracing
+  const recordQualityDisabled = !canEdit || signed || Boolean(aiFieldStream) || businessBusy || documents.isPending || Boolean(documents.error)
   const amendmentEditing: RecordAmendmentEditing | undefined = amendmentOpen ? {
     values: amendmentDraft, disabled: amend.isPending,
     onChange: (field: TraceableRecordField, value: string) => setAmendmentDraft((current) => ({ ...current, [field]: value })),
@@ -510,6 +523,14 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
             title={readOnlyReason || `${editActionLabel}后可修改病历`}
             onClick={onRequestEditing}>{editActionLabel}</Button>}
           <IconActionGroup className="doctor-record-head-tools">
+            {formMode && recordQualityAvailable && <RecordQualityControl
+              key={JSON.stringify([templateApiScope(api), encounter.id, encounter.organizationId, encounter.departmentId, encounter.clinicianId])}
+              decision={recordQuality} disabled={recordQualityDisabled} document={document} onLocate={field => {
+                if (field in recordQualityInput(getValues())) {
+                  const control = recordFormRef.current?.querySelector<HTMLElement>(`[name="${field}"]`)
+                  control?.focus(); control?.scrollIntoView?.({ block: 'nearest' })
+                }
+              }} />}
             {document && signed && canEdit && !amendmentOpen && (
               <IconActionButton label="发起更正" title="发起更正：在原病历上修改，保留原签署版本和修改痕迹"
                 icon={<IconEdit />} onClick={openAmendment} />

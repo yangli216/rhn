@@ -1,4 +1,4 @@
-import type { InventoryBalance, InventoryTransactionPage } from '../../shared/api'
+import type { InventoryBalance, InventoryBalanceSummary, InventoryTransactionPage } from '../../shared/api'
 
 export const knownInventoryNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined
@@ -15,6 +15,18 @@ export function requireInventoryBalances(value: InventoryBalance[]): InventoryBa
   if (value.some(row => [row.quantityOnHand, row.quantityAvailable, row.quantityReserved, row.quantityFrozen]
     .some(quantity => knownInventoryNumber(quantity) === undefined))) {
     throw new Error('库存数量未完整返回，无法确认当前库存。')
+  }
+  return value
+}
+
+export function requireInventoryBalanceSummary(value: InventoryBalanceSummary): InventoryBalanceSummary {
+  if (!value || !Array.isArray(value.items)
+    || [value.inStockItemCount, value.activeRowCount, value.expiringLotCount]
+      .some(count => !Number.isSafeInteger(count) || count < 0)
+    || value.items.some(row => !row || !row.stockItemId || !Array.isArray(row.lotNos)
+      || [row.quantityOnHand, row.quantityAvailable, row.quantityReserved, row.quantityFrozen]
+        .some(quantity => knownInventoryNumber(quantity) === undefined))) {
+    throw new Error('库存汇总返回不完整，无法确认当前库存。')
   }
   return value
 }

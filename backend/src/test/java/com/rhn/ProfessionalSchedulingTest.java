@@ -88,7 +88,12 @@ class ProfessionalSchedulingTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/outpatient/scheduling/professional/templates").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '%s')].templateName".formatted(templateId))
-                        .value("全科分时预约模板"));
+                        .value("全科分时预约模板"))
+                // 列表批量装配后，作息时段与例外日期仍需完整带出
+                .andExpect(jsonPath("$[?(@.id == '%s')].periods.length()".formatted(templateId)).value(3))
+                .andExpect(jsonPath("$[?(@.id == '%s')].exceptions.length()".formatted(templateId)).value(2))
+                .andExpect(jsonPath("$[?(@.id == '%s')].periods[0].sdSlotMode".formatted(templateId))
+                        .value("TIMED"));
 
         assertEquals(2, jdbc.queryForObject(
                 "select count(*) from RHN_SC_SCHED_EXCEPT where ID_SCHED_TMPL = ?", Integer.class,

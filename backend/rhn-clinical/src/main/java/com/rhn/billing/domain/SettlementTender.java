@@ -50,6 +50,7 @@ public class SettlementTender {
     }
 
     public Long reliefApplicationId() { return reliefApplicationId; }
+    public Long settlementId() { return settlementId; }
     public Long id() { return id; } public Long paymentId() { return paymentId; } public Long claimResponseId() { return claimResponseId; }
     public int lineNo() { return lineNo; } public String tenderType() { return tenderType; }
     public String payerCode() { return payerCode; } public String payerNameSnapshot() { return payerNameSnapshot; }

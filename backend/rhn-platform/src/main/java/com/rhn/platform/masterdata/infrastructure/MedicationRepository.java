@@ -17,6 +17,7 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
 
     List<Medication> findByTenantIdOrderByName(Long tenantId);
     List<Medication> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
+    List<Medication> findByTenantIdAndCodeIn(Long tenantId, java.util.Collection<String> codes);
     Optional<Medication> findByIdAndTenantId(Long id, Long tenantId);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
 

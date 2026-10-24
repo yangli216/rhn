@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 public interface StockTransferLineRepository extends JpaRepository<StockTransferLine, Long> {
     List<StockTransferLine> findByTenantIdAndStockTransferIdOrderBySortOrder(Long tenantId, Long transferId);
+    List<StockTransferLine> findByTenantIdAndStockTransferIdInOrderByStockTransferIdAscSortOrderAsc(
+            Long tenantId, java.util.Collection<Long> transferIds);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from StockTransferLine value where value.tenantId=:tenantId and value.stockTransferId=:transferId order by value.sortOrder")
     List<StockTransferLine> lockByTransfer(@Param("tenantId") Long tenantId, @Param("transferId") Long transferId);

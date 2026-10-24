@@ -23,9 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -307,6 +312,49 @@ class ServiceRequestService implements ServiceRequestDirectory {
         return response(value);
     }
 
+    @Transactional
+    List<ServiceRequestResponse> updateDocumentInfoBatch(Long encounterId, UpdateOrderDocumentInfoBatch input) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        var memberIds = input.members().stream().map(UpdateOrderDocumentInfoBatch.Member::id).toList();
+        if (new HashSet<>(memberIds).size() != memberIds.size()) {
+            throw badRequest("ORDER_DOCUMENT_TARGET_DUPLICATED", "申请单项目重复，请重新选择");
+        }
+        // 先整体校验归属、类型与可修改状态，全部通过后再写入；任一版本冲突都会回滚整批。
+        // 一次装载本批全部单据，避免逐条回查。
+        Map<Long, ServiceRequest> valuesById = new HashMap<>();
+        repository.findByTenantIdAndIdIn(encounter.tenantId(), memberIds)
+                .forEach(value -> valuesById.put(value.id(), value));
+        List<ServiceRequest> values = new ArrayList<>(memberIds.size());
+        for (Long id : memberIds) {
+            ServiceRequest value = valuesById.get(id);
+            if (value == null || !value.encounterId().equals(encounterId)) {
+                throw notFound("ORDER_DOCUMENT_NOT_FOUND", "未找到本次就诊的单据");
+            }
+            if (!List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())) {
+                throw conflict("ORDER_DOCUMENT_TYPE_INVALID", "当前仅支持检验检查申请单信息修改");
+            }
+            diagnosticDocuments.requireAmendable(encounter.tenantId(), id);
+            values.add(value);
+        }
+        String json = documentInfoSupport.validateAndWrite(encounter.tenantId(), encounterId, input.documentInfo(), false);
+        var actorId = contextProvider.requireCurrent().subjectId();
+        List<OrderDocumentInfo> previousInfos = new ArrayList<>(values.size());
+        for (int index = 0; index < values.size(); index++) {
+            var value = values.get(index);
+            previousInfos.add(documentInfoSupport.read(value.documentInfoJson()));
+            value.updateDocumentInfo(input.members().get(index).expectedRevision(), json);
+        }
+        repository.flush();
+        List<ServiceRequestResponse> results = new ArrayList<>(values.size());
+        for (int index = 0; index < values.size(); index++) {
+            var value = values.get(index);
+            results.add(response(value));
+            publish(value, "ORDER_DOCUMENT_INFO_UPDATED", "修改单据信息", Map.of("updatedBy", actorId,
+                    "before", previousInfos.get(index), "after", documentInfoSupport.read(json)));
+        }
+        return results;
+    }
+
     @Transactional(readOnly = true)
     ExaminationSiteOptionsResponse examinationSites(Long encounterId, Long catalogItemId) {
         encounterDirectory.requireActiveForOrdering(encounterId);
@@ -471,6 +519,48 @@ class ServiceRequestService implements ServiceRequestDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public Map<Long, ServiceRequestSnapshot> forDiagnosticExchange(Collection<Long> requestIds) {
+        Map<Long, ServiceRequestSnapshot> result = new LinkedHashMap<>();
+        if (requestIds == null || requestIds.isEmpty()) return result;
+        ExecutionContext context = contextProvider.requireCurrent();
+        List<Long> ids = requestIds.stream().filter(Objects::nonNull).distinct().toList();
+        // 一次批量装载诊疗请求与部位行，避免逐请求回查；缺失或不可见的请求仍走单条以保持 404/403 语义。
+        Map<Long, ServiceRequest> byId = new HashMap<>();
+        List<ServiceRequest> values = new ArrayList<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            repository.findByTenantIdAndIdIn(context.tenantId(), ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> byId.putIfAbsent(value.id(), value));
+        }
+        List<Long> issuedIds = new ArrayList<>();
+        for (Long id : ids) {
+            ServiceRequest value = byId.get(id);
+            if (value == null || !issued(value)) {
+                requireForDiagnosticExchange(id);
+                continue;
+            }
+            if (!context.canAccessOrganization(value.performerOrganizationId())
+                    || !context.canAccessDepartment(value.performerDepartmentId())) {
+                throw com.rhn.shared.api.BusinessErrors.forbidden(
+                        "SERVICE_REQUEST_FORBIDDEN", "无权访问当前工作上下文之外的诊疗请求");
+            }
+            values.add(value);
+            issuedIds.add(id);
+        }
+        Map<Long, List<ServiceRequestSite>> sitesByRequest = new HashMap<>();
+        for (int from = 0; from < issuedIds.size(); from += 500) {
+            siteRepository.findByTenantIdAndRequestIdInOrderByRequestIdAscLineNoAsc(context.tenantId(),
+                            issuedIds.subList(from, Math.min(from + 500, issuedIds.size())))
+                    .forEach(value -> sitesByRequest.computeIfAbsent(value.requestId(),
+                            ignored -> new ArrayList<>()).add(value));
+        }
+        for (ServiceRequest value : values) {
+            result.put(value.id(), snapshot(value, sitesByRequest.getOrDefault(value.id(), List.of())));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ServiceRequestSnapshot> activeForExecution(Long organizationId, Long departmentId) {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.canAccessOrganization(organizationId) || !context.canAccessDepartment(departmentId)) {
@@ -482,6 +572,11 @@ class ServiceRequestService implements ServiceRequestDirectory {
     }
 
     private ServiceRequestSnapshot snapshot(ServiceRequest value) {
+        return snapshot(value,
+                siteRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()));
+    }
+
+    private ServiceRequestSnapshot snapshot(ServiceRequest value, List<ServiceRequestSite> sites) {
         return new ServiceRequestSnapshot(value.id(), value.revision(), value.tenantId(), value.residentId(),
                 value.encounterId(), value.requestNo(), value.status().name(), value.serviceTypeSnapshot(),
                 value.catalogItemId(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
@@ -492,7 +587,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.totalAmount(), value.currencyCode(),
                 value.itemAttributeHash(), value.itemAttributeSnapshot(), value.standardMappingSnapshot(),
                 documentInfoSupport.read(value.documentInfoJson()).examinationPurpose(),
-                Strings.trimToNull(siteRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()).stream()
+                Strings.trimToNull(sites.stream()
                         .map(ServiceRequestSite::name).collect(java.util.stream.Collectors.joining("、"))));
     }
 

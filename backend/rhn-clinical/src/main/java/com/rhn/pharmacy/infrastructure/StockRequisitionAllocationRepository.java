@@ -8,4 +8,6 @@ import java.util.List;
 public interface StockRequisitionAllocationRepository extends JpaRepository<StockRequisitionAllocation, Long> {
     List<StockRequisitionAllocation> findByTenantIdAndStockRequisitionLineIdOrderByCreatedAt(
             Long tenantId, Long requisitionLineId);
+    List<StockRequisitionAllocation> findByTenantIdAndStockRequisitionLineIdInOrderByStockRequisitionLineIdAscCreatedAtAsc(
+            Long tenantId, java.util.Collection<Long> requisitionLineIds);
 }

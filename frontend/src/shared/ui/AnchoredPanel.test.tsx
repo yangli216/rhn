@@ -4,6 +4,18 @@ import { AnchoredPanel } from './AnchoredPanel'
 
 afterEach(() => vi.useRealTimers())
 
+it('lets the anchor handle its own toggle while retaining outside dismissal', () => {
+  vi.useFakeTimers()
+  render(<button>触发器</button>)
+  const anchor = screen.getByRole('button', { name: '触发器' }), close = vi.fn()
+  render(<AnchoredPanel label="参考内容" anchorRect={null} anchorElement={anchor} onClose={close} />)
+  act(() => vi.runOnlyPendingTimers())
+  fireEvent.mouseDown(anchor)
+  expect(close).not.toHaveBeenCalled()
+  fireEvent.mouseDown(document.body)
+  expect(close).toHaveBeenCalledOnce()
+})
+
 it('keeps inner interactions open, closes outside and uses the latest close handler', () => {
   vi.useFakeTimers()
   const previous = vi.fn(), close = vi.fn()

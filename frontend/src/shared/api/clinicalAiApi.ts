@@ -4,6 +4,10 @@ import type { ApiClient } from './httpClient'
 import { consumeClinicalAiStream, type ClinicalAiStreamStage } from './clinicalAiStream'
 import type { components } from './generated'
 
+export type RecordQualityResult = components['schemas']['RecordQualityResult']
+export type RecordQualityFeedback = components['schemas']['RecordQualityFeedback']
+export type RecordQualityFeedbackRequest = components['schemas']['RecordQualityFeedbackRequest']
+
 export type ClinicalAiMode = 'DISABLED' | 'LOCAL_ASSIST' | 'MODEL'
 export type ClinicalAiConfigurationScope = 'PLATFORM' | 'TENANT'
 
@@ -380,6 +384,17 @@ export function createClinicalAiApi(client: ApiClient) {
     history: (encounterId: string) => client.request<ClinicalAiSuggestion[]>(
       `/api/ai/clinical-assistant/encounters/${encounterId}/suggestions`,
     ),
+    assessRecordQuality: (encounterId: string, fields: Record<string, string>) => client.request<RecordQualityResult>(
+      `/api/ai/clinical-assistant/encounters/${encounterId}/record-quality`,
+      { method: 'POST', body: JSON.stringify({ fields }) },
+    ),
+    latestRecordQuality: (encounterId: string) => client.request<RecordQualityResult | null>(
+      `/api/ai/clinical-assistant/encounters/${encounterId}/record-quality`,
+    ),
+    recordQualityFeedback: (encounterId: string, runId: string, input: RecordQualityFeedbackRequest) => client.request<RecordQualityFeedback[]>(
+      `/api/ai/clinical-assistant/encounters/${encounterId}/record-quality/${runId}/feedback`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
     recordEvent: (suggestionId: string, input: RecordClinicalAiSuggestionEventInput) =>
       client.request<void>(`/api/ai/clinical-assistant/suggestions/${suggestionId}/events`, {
         method: 'POST', body: JSON.stringify(input),
@@ -437,6 +452,18 @@ export interface ClinicalAiEvidenceChainQuery {
   vitals?: Record<string, unknown>
 }
 
+export interface DrugDosageFormInfo {
+  formName: string
+  formCode?: string
+  displayName?: string
+  specs: string[]
+  appearance?: string
+  administration?: string
+  specialNotes?: string
+  storage?: string
+  catalogStdCodes?: string[]
+}
+
 export interface ClinicalAiWikiDocResult {
   id: string
   title: string
@@ -448,6 +475,8 @@ export interface ClinicalAiWikiDocResult {
   approvalCategory?: string
   tradeNames?: string[]
   formsAndSpecs?: string[]
+  dosageForms?: DrugDosageFormInfo[]
+  activeForm?: string
   maxDailyDose?: string
   standardMaintenanceDose?: string
   keyContraindications?: string[]

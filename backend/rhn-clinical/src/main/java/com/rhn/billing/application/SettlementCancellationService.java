@@ -43,6 +43,23 @@ public class SettlementCancellationService {
         return result;
     }
 
+    /**
+     * 按明确列出的结算单批量取消：诊毕页放弃收款时一次请求完成多张未付款结算单，避免逐单往返。
+     * 每张仍按逐单取消的规则校验；中途某张不可取消时抛出，此前已取消的保持不变。
+     */
+    public List<CancelledSettlementView> cancelSeveral(List<Long> settlementIds, String reason) {
+        ExecutionContext context = requireWorkContext();
+        String normalized = requiredReason(reason);
+        List<Long> ids = settlementIds == null ? List.of() : settlementIds.stream()
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) throw badRequest("SETTLEMENT_CANCEL_TARGET_REQUIRED", "请选择要取消的结算单");
+        List<CancelledSettlementView> result = new ArrayList<>(ids.size());
+        for (Long settlementId : ids) {
+            result.add(cancel(context, settlementId, normalized));
+        }
+        return result;
+    }
+
     private CancelledSettlementView cancel(ExecutionContext context, Long settlementId, String reason) {
         Long preSettledClaimId = transactions.prepare(context, settlementId);
         String insuranceNote = preSettledClaimId == null ? null : insurance.cancelPreSettlement(preSettledClaimId);

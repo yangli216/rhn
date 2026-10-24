@@ -155,8 +155,14 @@ public class ClinicalAssistantApplicationService {
     public Capabilities capabilities() {
         ExecutionContext context = contextProvider.requireCurrent();
         ClinicalAssistantSettings runtime = runtimePolicy.current(context);
+        var features = new java.util.ArrayList<>(runtime.featuresFor(context));
+        if (runtime.availableFor(context)
+                && runtimePolicy.booleanValue(context.tenantId(), DecisionScene.RECORD_QUALITY.settingKey(), false)) {
+            var decision = DecisionModelSettings.current(runtimePolicy, context.tenantId());
+            if (decision.mode() != DecisionModelSettings.Mode.DISABLED && decision.ready()) features.add("RECORD_QUALITY_REVIEW");
+        }
         return new Capabilities(runtime.mode().name(), runtime.availableFor(context), runtime.provider(), runtime.model(),
-                runtime.messageFor(context), runtime.featuresFor(context));
+                runtime.messageFor(context), features);
     }
 
     public Transcription transcribe(Long encounterId, String contentType, byte[] audio) {
@@ -528,11 +534,6 @@ public class ClinicalAssistantApplicationService {
             eventType = "EXPIRED";
             expiredAdoption = "ADOPTED".equals(input.eventType());
         } else {
-            if ("ADOPTED".equals(eventType)
-                    && !value.serverContextHash().equals(contextAssembler.load(access.context(), access.encounter(), true).hash())) {
-                metrics.recordSuggestionEvent(eventType, "REJECTED_SERVER_CONTEXT_CHANGED");
-                return EventRecordingOutcome.ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED;
-            }
             try {
                 if ("ADOPTED".equals(eventType)) value.adopt(Strings.trimToNull(input.sectionCode()));
                 if ("IGNORED".equals(eventType)) value.ignore();
@@ -1343,6 +1344,6 @@ public class ClinicalAssistantApplicationService {
     private record Access(ExecutionContext context, EncounterDirectory.EncounterSnapshot encounter) {}
     private record Analysis(SuggestionContent content, String riskLevel) {}
     public enum EventRecordingOutcome {
-        RECORDED, ADOPTION_REJECTED_EXPIRED, ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED
+        RECORDED, ADOPTION_REJECTED_EXPIRED
     }
 }

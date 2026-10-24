@@ -30,10 +30,14 @@ interface ScheduleTemplateRepository extends JpaRepository<ScheduleTemplate, Lon
 
 interface ScheduleTemplatePeriodRepository extends JpaRepository<ScheduleTemplatePeriod, Long> {
     List<ScheduleTemplatePeriod> findByTenantIdAndTemplateIdOrderByDayOfWeek(Long tenantId, Long templateId);
+    List<ScheduleTemplatePeriod> findByTenantIdAndTemplateIdInOrderByTemplateIdAscDayOfWeekAsc(
+            Long tenantId, java.util.Collection<Long> templateIds);
 }
 
 interface ScheduleExceptionRepository extends JpaRepository<ScheduleException, Long> {
     List<ScheduleException> findByTenantIdAndTemplateIdOrderByExceptionDate(Long tenantId, Long templateId);
+    List<ScheduleException> findByTenantIdAndTemplateIdInOrderByTemplateIdAscExceptionDateAscIdAsc(
+            Long tenantId, java.util.Collection<Long> templateIds);
 }
 
 interface ScheduleGenerationRunRepository extends JpaRepository<ScheduleGenerationRun, Long> {
@@ -108,8 +112,14 @@ interface ScheduleSlotHoldRepository extends JpaRepository<ScheduleSlotHold, Lon
 
 interface ServiceScheduleEventRepository extends JpaRepository<ServiceScheduleEvent, Long> {
     boolean existsByTenantIdAndScheduleIdAndCommandCode(Long tenantId, Long scheduleId, String commandCode);
+
+    boolean existsByTenantIdAndScheduleIdAndCommandCodeAndEventType(
+            Long tenantId, Long scheduleId, String commandCode, String eventType);
 }
 
 interface SlotEventRepository extends JpaRepository<SlotEvent, Long> {
     Optional<SlotEvent> findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(Long tenantId, Long poolId);
+
+    @Query("select max(value.sequenceNo) from SlotEvent value where value.tenantId = :tenantId and value.poolId = :poolId")
+    Optional<Integer> findMaxSequenceNo(@Param("tenantId") Long tenantId, @Param("poolId") Long poolId);
 }

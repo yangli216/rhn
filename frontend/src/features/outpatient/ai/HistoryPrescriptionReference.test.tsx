@@ -34,7 +34,7 @@ describe('historical prescription reference', () => {
   })
   it('retains the selection and a persistent error after failure, then allows an explicit retry', async () => {
     const f = setup()
-    f.orderableMedications.mockRejectedValueOnce(new Error('目录暂不可用'))
+    f.orderableMedicationsBatch.mockRejectedValueOnce(new Error('目录暂不可用'))
     await f.select(); f.click()
     expect(await screen.findByRole('alert')).toHaveTextContent('目录暂不可用')
     expect(f.onStage).not.toHaveBeenCalled()
@@ -47,9 +47,9 @@ describe('historical prescription reference', () => {
     'discards a late result after %s changes', async change => {
       const f = setup()
       let resolve!: (value: unknown) => void
-      f.orderableMedications.mockImplementation(() => new Promise(done => { resolve = done }))
+      f.orderableMedicationsBatch.mockImplementation(() => new Promise(done => { resolve = done }))
       await f.select(); f.click()
-      await waitFor(() => expect(f.orderableMedications).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(f.orderableMedicationsBatch).toHaveBeenCalledTimes(1))
       if (change === 'unmount') f.view.unmount()
       else f.rerender({
         ...(change === 'disabled' ? { disabled: true } : {}),
@@ -62,7 +62,7 @@ describe('historical prescription reference', () => {
           ...(change === 'signed' ? { status: 'COMPLETED' } : {}),
         },
       })
-      await act(async () => { resolve([f.medication]) })
+      await act(async () => { resolve({ TEST: [f.medication] }) })
       expect(f.onStage).not.toHaveBeenCalled()
     })
   it.each(['unfinished-visit', 'inactive-prescription', 'read-only'])(

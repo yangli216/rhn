@@ -39,11 +39,13 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
@@ -413,10 +415,65 @@ class InsuranceClaimTransactionService {
     @Transactional(readOnly = true)
     List<InsuranceSettlementView> recoveryWorklist(int limit) {
         ExecutionContext context = requireContext();
-        return claims.findRecoveryWorklist(context.tenantId(), context.organizationId(),
-                        List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING"),
-                        PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
-                .stream().map(value -> view(value.id(), false)).toList();
+        List<InsuranceClaim> values = claims.findRecoveryWorklist(context.tenantId(), context.organizationId(),
+                List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING"),
+                PageRequest.of(0, Math.max(1, Math.min(limit, 100))));
+        if (values.isEmpty()) return List.of();
+        Map<Long, Settlement> settlementById = settlementsById(context.tenantId(), values);
+        Map<Long, List<InsuranceClaimLine>> linesByClaim = claimLinesByClaim(context.tenantId(), values);
+        Map<Long, List<InsuranceClaimResponse>> responsesByClaim = responsesByClaim(context.tenantId(), values);
+        Map<Long, PatientAccount> accountById = accountsById(context.tenantId(), values);
+        List<InsuranceSettlementView> result = new ArrayList<>(values.size());
+        for (InsuranceClaim value : values) {
+            requireAccountAccess(context, accountById.get(value.patientAccountId()));
+            Settlement settlement = Optional.ofNullable(settlementById.get(value.settlementId())).orElseThrow();
+            result.add(claimView(value, settlement, false,
+                    linesByClaim.getOrDefault(value.id(), List.of()),
+                    responsesByClaim.getOrDefault(value.id(), List.of())));
+        }
+        return List.copyOf(result);
+    }
+
+    private Map<Long, Settlement> settlementsById(Long tenantId, List<InsuranceClaim> values) {
+        List<Long> ids = values.stream().map(InsuranceClaim::settlementId).distinct().toList();
+        Map<Long, Settlement> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            settlements.findByTenantIdAndIdIn(tenantId, ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.put(value.id(), value));
+        }
+        return result;
+    }
+
+    private Map<Long, List<InsuranceClaimLine>> claimLinesByClaim(Long tenantId, List<InsuranceClaim> values) {
+        List<Long> ids = values.stream().map(InsuranceClaim::id).toList();
+        Map<Long, List<InsuranceClaimLine>> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            claimLines.findByTenantIdAndClaimIdInOrderByClaimIdAscLineNoAsc(tenantId,
+                            ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.computeIfAbsent(value.claimId(), ignored -> new ArrayList<>()).add(value));
+        }
+        return result;
+    }
+
+    private Map<Long, List<InsuranceClaimResponse>> responsesByClaim(Long tenantId, List<InsuranceClaim> values) {
+        List<Long> ids = values.stream().map(InsuranceClaim::id).toList();
+        Map<Long, List<InsuranceClaimResponse>> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            responses.findByTenantIdAndClaimIdInOrderByClaimIdAscRespondedAtAscIdAsc(tenantId,
+                            ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.computeIfAbsent(value.claimId(), ignored -> new ArrayList<>()).add(value));
+        }
+        return result;
+    }
+
+    private Map<Long, PatientAccount> accountsById(Long tenantId, List<InsuranceClaim> values) {
+        List<Long> ids = values.stream().map(InsuranceClaim::patientAccountId).distinct().toList();
+        Map<Long, PatientAccount> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            accounts.findByTenantIdAndIdIn(tenantId, ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.put(value.id(), value));
+        }
+        return result;
     }
 
     /** 结算单已有医保申请时返回其标识；调用方据此幂等复用，而不是再创建第二份申请。 */
@@ -434,16 +491,23 @@ class InsuranceClaimTransactionService {
         ExecutionContext context = requireContext();
         InsuranceClaim value = require(claimId, context);
         Settlement settlement = settlements.findByIdAndTenantId(value.settlementId(), context.tenantId()).orElseThrow();
-        List<InsuranceClaimLineView> lineViews = claimLines.findByTenantIdAndClaimIdOrderByLineNoAsc(context.tenantId(), value.id())
+        return claimView(value, settlement, duplicate,
+                claimLines.findByTenantIdAndClaimIdOrderByLineNoAsc(context.tenantId(), value.id()),
+                responses.findByTenantIdAndClaimIdOrderByRespondedAtAscIdAsc(context.tenantId(), value.id()));
+    }
+
+    private InsuranceSettlementView claimView(InsuranceClaim value, Settlement settlement, boolean duplicate,
+                                              List<InsuranceClaimLine> lines,
+                                              List<InsuranceClaimResponse> claimResponses) {
+        List<InsuranceClaimLineView> lineViews = lines
                 .stream().map(line -> new InsuranceClaimLineView(line.id(), line.settlementLineId(), line.lineNo(),
                         line.itemCode(), line.insuranceItemCode(), line.itemName(), line.categoryCode(), line.quantity(),
                         line.unitPrice(), line.claimedAmount(), line.approvedAmount(), line.rejectionCode())).toList();
-        List<InsuranceClaimResponseView> responseViews = responses.findByTenantIdAndClaimIdOrderByRespondedAtAscIdAsc(
-                        context.tenantId(), value.id()).stream().map(response -> new InsuranceClaimResponseView(response.id(),
-                        response.externalMessageId(), response.responseNo(), response.commandCode(), response.operation(),
-                        response.status(), response.externalSettlementNo(), response.insuranceFundAmount(),
-                        response.personalAccountAmount(), response.patientCashAmount(), response.otherFundAmount(),
-                        response.errorCode(), response.errorMessage(), response.respondedAt(), response.amountSource())).toList();
+        List<InsuranceClaimResponseView> responseViews = claimResponses.stream().map(response -> new InsuranceClaimResponseView(response.id(),
+                response.externalMessageId(), response.responseNo(), response.commandCode(), response.operation(),
+                response.status(), response.externalSettlementNo(), response.insuranceFundAmount(),
+                response.personalAccountAmount(), response.patientCashAmount(), response.otherFundAmount(),
+                response.errorCode(), response.errorMessage(), response.respondedAt(), response.amountSource())).toList();
         return new InsuranceSettlementView(value.id(), value.revision(), settlement.id(), value.patientAccountId(),
                 value.coverageId(), value.claimNo(), settlement.settlementNo(), value.status(), value.currentOperation(),
                 value.regionCode(), value.insuranceTypeCode(), value.externalPreSettlementNo(), value.externalSettlementNo(),
@@ -499,10 +563,14 @@ class InsuranceClaimTransactionService {
     private PatientAccount requireAccount(ExecutionContext context, Long id) {
         PatientAccount account = accounts.findByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
+        requireAccountAccess(context, account);
+        return account;
+    }
+    private void requireAccountAccess(ExecutionContext context, PatientAccount account) {
+        if (account == null) throw notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户");
         if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())) {
             throw forbidden("INSURANCE_CLAIM_FORBIDDEN", "当前工作上下文不能访问该医保申请");
         }
-        return account;
     }
     private Map<Long, LineMapping> mapping(List<LineMapping> values, int expected) {
         if (values == null || values.size() != expected) throw badRequest("INSURANCE_LINE_MAPPING_INCOMPLETE", "医保目录映射数量与结算明细不一致");

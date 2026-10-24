@@ -135,7 +135,7 @@ export function SettlementExceptionList({ api, items, loading, error, onChanged 
           disabled={run.isPending} onClick={() => act(item, action)}>{ACTION_LABEL[action]}</Button>)}
       </footer>
     </article>)}
-    {confirm && <Dialog title={confirm.action === 'CANCEL_AND_REVERSE' ? '撤销医保结算' : '取消结算单'} size="small"
+    {confirm && <Dialog title={confirm.action === 'CANCEL_AND_REVERSE' ? '撤销医保结算' : '取消结算单'}
       onClose={() => { if (!run.isPending) setConfirm(null) }}
       footer={<><Button variant="secondary" disabled={run.isPending} onClick={() => setConfirm(null)}>返回</Button>
         <Button disabled={!reason.trim() || run.isPending} busy={run.isPending}

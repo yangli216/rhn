@@ -43,7 +43,7 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
     public PrescriptionSafetySnapshot requireSnapshot(Long encounterId, Long prescriptionId) {
         var evaluationZone=java.time.ZoneId.systemDefault();
         var evaluationDate=java.time.LocalDate.now(evaluationZone);
-        var encounter = encounters.requireAccessible(encounterId);
+        var encounter = fact("encounter:" + encounterId, () -> encounters.requireAccessible(encounterId));
         var prescription = prescriptions.findByIdAndTenantId(prescriptionId, encounter.tenantId())
                 .filter(value -> encounterId.equals(value.encounterId()))
                 .orElseThrow(() -> notFound("PRESCRIPTION_NOT_FOUND", "未找到当前就诊的处方"));
@@ -61,7 +61,8 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
         String gender = null;
         if (residents != null && encounter.residentId() != null) {
             try {
-                var resident = residents.requireSnapshot(encounter.tenantId(), encounter.residentId());
+                var resident = fact("resident:" + encounter.tenantId() + ':' + encounter.residentId(),
+                        () -> residents.requireSnapshot(encounter.tenantId(), encounter.residentId()));
                 if (resident != null) {
                     gender = resident.gender();
                     if (resident.birthDate() != null) {
@@ -75,7 +76,8 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
 
         PrescriptionSafetySnapshot.PatientSafetyContext patientContext = null;
         if (allergies != null && encounter.residentId() != null) {
-            var active = allergies.activeForResident(encounter.residentId());
+            var active = fact("allergies:" + encounter.tenantId() + ':' + encounter.residentId(),
+                    () -> allergies.activeForResident(encounter.residentId()));
             boolean recorded = active.stream().anyMatch(a ->
                     "NO_KNOWN_ALLERGY".equals(a.assertionType()) || "NO_KNOWN_DRUG_ALLERGY".equals(a.assertionType()))
                     || active.stream().anyMatch(AllergyDirectory.AllergySnapshot::isDrugAllergy);
@@ -95,6 +97,12 @@ class PrescriptionSafetySnapshotService implements PrescriptionSafetySnapshotDir
                 encounter.organizationId(), encounter.departmentId(), prescription.status().name(), items, patientContext,
                 new PrescriptionSafetySnapshot.EvaluationTiming(evaluationDate,evaluationZone.getId()));
     }
+
+    /** 同一事务内复用就诊、居民与过敏事实；事务外调用保持逐次读取，不做跨请求缓存。 */
+    private <T> T fact(String key, java.util.function.Supplier<T> loader) {
+        return TransactionScopedFacts.reuse(key, loader);
+    }
+
     private String semanticStatus(String saved) {
         if (saved == null) return "LEGACY";
         try {

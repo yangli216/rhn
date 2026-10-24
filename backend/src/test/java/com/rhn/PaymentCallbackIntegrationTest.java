@@ -34,6 +34,10 @@ class PaymentCallbackIntegrationTest extends RhnIntegrationTestSupport {
     @Autowired PaymentOrderRepository orders;
     @Autowired PaymentRepository payments;
     @Autowired JdbcTemplate jdbc;
+    @Autowired ChargeItemRepository charges;
+    @Autowired LedgerEntryRepository ledgerEntries;
+    @Autowired InvoiceLineRepository invoiceLines;
+    @Autowired SettlementLineRepository settlementLines;
     @MockitoSpyBean ExternalMessageApplicationService messages;
 
     @Test void incompleteSuccessNeverPostsRequestedMoney() throws Exception {
@@ -104,6 +108,9 @@ class PaymentCallbackIntegrationTest extends RhnIntegrationTestSupport {
         if(refund) {
             callback(body(paymentOrder,"PAID","PAID","SUCCEEDED","10")).andExpect(status().isOk());
             var payment=payments.findByTenantIdAndCommandCode(Long.valueOf(TENANT),"PAY-"+paymentOrder.orderNo()).orElseThrow();
+            // 退款需要账户有可退余额（如退药冲销形成的贷方）；夹具已有真实收费借方，这里补一笔等额冲销贷方。
+            ledgerEntries.saveAndFlush(new LedgerEntry(Long.valueOf(TENANT),paymentOrder.patientAccountId(),"CHARGE_REVERSAL","CREDIT",
+                    BigDecimal.TEN,"CNY",null,null,null,null,Instant.now(),362387869790222L));
             order=orders.saveAndFlush(new PaymentOrder(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),
                     paymentOrder.patientAccountId(),paymentOrder.invoiceId(),payment.id(),"REFUND-"+UUID.randomUUID(),UUID.randomUUID().toString(),
                     "OUTPATIENT","CASHIER","CASH","现金","REFUND",BigDecimal.TEN,"CNY","test",null,null,362387869790222L));
@@ -166,6 +173,13 @@ class PaymentCallbackIntegrationTest extends RhnIntegrationTestSupport {
         var account=accounts.saveAndFlush(new PatientAccount(Long.valueOf(TENANT),residentId,null,Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),"CNY"));
         var invoice=invoices.saveAndFlush(new Invoice(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),"INV-"+key,"CNY",BigDecimal.TEN,Instant.now(),362387869790222L));
         settlements.saveAndFlush(new Settlement(invoice.id(),Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),invoice.id(),"STL-"+key,key,"NORMAL","OUTPATIENT","CASHIER",BigDecimal.TEN,"CNY","TEST",362387869790222L,Instant.now()));
+        // 结清平衡校验需要真实的收费事项、CHARGE 借方分录与结算行。
+        Long catalogId=jdbc.queryForObject("select min(ID_CATALOG_ITEM) from RHN_BD_CATALOG_ITEM where ID_TNT=?",Long.class,Long.valueOf(TENANT));
+        var charge=charges.saveAndFlush(new ChargeItem(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),residentId,null,null,catalogId,
+                "SERVICE_REQUEST",invoice.id(),"CB-"+invoice.id(),BigDecimal.ONE,"EA",BigDecimal.TEN,BigDecimal.TEN,"CNY",null,null,"SALE","CB-LAB","回执校验项目",Instant.now(),362387869790222L,null,"LABORATORY"));
+        ledgerEntries.saveAndFlush(new LedgerEntry(Long.valueOf(TENANT),account.id(),"CHARGE","DEBIT",BigDecimal.TEN,"CNY",charge.id(),null,null,null,Instant.now(),362387869790222L));
+        var invoiceLine=invoiceLines.saveAndFlush(new InvoiceLine(Long.valueOf(TENANT),invoice.id(),charge.id(),1,BigDecimal.TEN));
+        settlementLines.saveAndFlush(new SettlementLine(Long.valueOf(TENANT),invoice.id(),charge.id(),invoiceLine.id(),1,BigDecimal.ONE,BigDecimal.TEN));
         return orders.saveAndFlush(new PaymentOrder(Long.valueOf(TENANT),Long.valueOf(ORGANIZATION),Long.valueOf(DEPARTMENT),account.id(),invoice.id(),null,"ORDER-"+key,key,"OUTPATIENT","CASHIER","CASH","现金","SETTLEMENT_PAY",BigDecimal.TEN,"CNY","test",null,null,362387869790222L));
     }
     /** Test-only bridge to the authenticated adapter boundary; absent from production. */

@@ -84,6 +84,18 @@ public interface ClinicalKnowledgeGateway {
         ) {}
     }
 
+    record DosageFormInfo(
+            String formName,
+            String formCode,
+            String displayName,
+            List<String> specs,
+            String appearance,
+            String administration,
+            String specialNotes,
+            String storage,
+            List<String> catalogStdCodes
+    ) {}
+
     record WikiDocResult(
             String id,
             String title,
@@ -95,6 +107,8 @@ public interface ClinicalKnowledgeGateway {
             String approvalCategory,
             List<String> tradeNames,
             List<String> formsAndSpecs,
+            List<DosageFormInfo> dosageForms,
+            String activeForm,
             String maxDailyDose,
             String standardMaintenanceDose,
             List<String> keyContraindications,
@@ -105,7 +119,34 @@ public interface ClinicalKnowledgeGateway {
             String relPath,
             String markdown,
             String html
-    ) {}
+    ) {
+        public WikiDocResult(
+                String id,
+                String title,
+                String type,
+                String category,
+                String genericName,
+                String englishName,
+                String atcCode,
+                String approvalCategory,
+                List<String> tradeNames,
+                List<String> formsAndSpecs,
+                String maxDailyDose,
+                String standardMaintenanceDose,
+                List<String> keyContraindications,
+                Map<String, Object> specialPopulations,
+                String storage,
+                List<String> sources,
+                List<String> tags,
+                String relPath,
+                String markdown,
+                String html
+        ) {
+            this(id, title, type, category, genericName, englishName, atcCode, approvalCategory,
+                    tradeNames, formsAndSpecs, List.of(), null, maxDailyDose, standardMaintenanceDose,
+                    keyContraindications, specialPopulations, storage, sources, tags, relPath, markdown, html);
+        }
+    }
 
     record PreflightSafetyRequest(
             List<MedicationItem> medications,

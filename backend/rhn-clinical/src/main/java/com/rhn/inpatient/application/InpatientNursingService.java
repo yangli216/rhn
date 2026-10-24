@@ -252,11 +252,26 @@ public class InpatientNursingService {
         if (status != null && !Set.of("DRAFT", "SUBMITTED", "ACCEPTED").contains(status)) {
             throw badRequest("INPATIENT_HANDOFF_STATUS_INVALID", "交接班状态不合法");
         }
-        return handoffs
+        List<InpatientShiftHandoff> values = handoffs
                 .findByTenantIdAndOrganizationIdAndDepartmentIdAndShiftFromLessThanAndShiftToGreaterThanOrderByShiftFromDescIdDesc(
                         context.tenantId(), context.organizationId(), context.departmentId(), to, from)
-                .stream().filter(value -> status == null || status.equals(value.status().name()))
-                .map(this::handoffView).toList();
+                .stream().filter(value -> status == null || status.equals(value.status().name())).toList();
+        if (values.isEmpty()) return List.of();
+        // 交接班列表一次批量装载患者事项与签署记录，避免逐交接班两次回查。
+        List<Long> handoffIds = values.stream().map(InpatientShiftHandoff::id).toList();
+        Map<Long, List<InpatientShiftHandoffItem>> itemsByHandoff = new java.util.LinkedHashMap<>();
+        Map<Long, List<InpatientShiftHandoffSignature>> signaturesByHandoff = new java.util.LinkedHashMap<>();
+        handoffItems.findByTenantIdAndHandoffIdInOrderByHandoffIdAscSortOrderAscIdAsc(
+                        context.tenantId(), handoffIds)
+                .forEach(value -> itemsByHandoff.computeIfAbsent(value.handoffId(),
+                        ignored -> new ArrayList<>()).add(value));
+        handoffSignatures.findByTenantIdAndHandoffIdInOrderByHandoffIdAscSignedAtAscIdAsc(
+                        context.tenantId(), handoffIds)
+                .forEach(value -> signaturesByHandoff.computeIfAbsent(value.handoffId(),
+                        ignored -> new ArrayList<>()).add(value));
+        return values.stream().map(value -> handoffView(value,
+                itemsByHandoff.getOrDefault(value.id(), List.of()),
+                signaturesByHandoff.getOrDefault(value.id(), List.of()))).toList();
     }
 
     @Transactional(readOnly = true)

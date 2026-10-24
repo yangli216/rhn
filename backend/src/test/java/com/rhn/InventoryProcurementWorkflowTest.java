@@ -67,6 +67,13 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TRACE_CODE_DUPLICATE"));
         registerTraceCodes(receiptId, receiptLine1, List.of("TRACE-A-" + fixture.suffix()),
                 receiptLine2, List.of("TRACE-B1-" + fixture.suffix(), "TRACE-B2-" + fixture.suffix()));
+        mockMvc.perform(get("/api/pharmacy/goods-receipts/{id}/trace-codes/summary", receiptId)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requiredCount").value(3))
+                .andExpect(jsonPath("$.registeredCount").value(3))
+                .andExpect(jsonPath("$.complete").value(true))
+                .andExpect(jsonPath("$.lines.length()").value(2));
 
         JsonNode posted = json(mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/post", receiptId)
                         .with(rhnWorkContext()))
@@ -110,6 +117,24 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                         .param("stockSiteId", fixture.siteId()).param("query", "TRACE-A"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
                 .andReturn().getResponse().getContentAsString()).get(0);
+        mockMvc.perform(get("/api/pharmacy/inventory/trace-codes/page").with(rhnWorkContext())
+                        .param("stockSiteId", fixture.siteId()).param("page", "0").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(false))
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].lotExpiryDate").value("2028-06-01"))
+                .andExpect(jsonPath("$.metrics.total").value(3))
+                .andExpect(jsonPath("$.metrics.available").value(3))
+                .andExpect(jsonPath("$.metrics.transit").value(0))
+                .andExpect(jsonPath("$.metrics.exceptions").value(0));
+        mockMvc.perform(get("/api/pharmacy/inventory/trace-codes/page").with(rhnWorkContext())
+                        .param("stockSiteId", fixture.siteId()).param("page", "1").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.last").value(true));
         mockMvc.perform(post("/api/pharmacy/dispense/trace-codes/scan").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"stockSiteId":"%s","traceCodes":["%s","%s","NOT-FOUND-%s"]}
@@ -291,10 +316,14 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
         assertCost(fixture.item2Id(), transactionId, "0.325000", "19.50");
         assertCloseValues(fixture.siteId(), "45.10", "-0.000016", "45.099984");
 
-        // 验证生成的采购单状态为 COMPLETED
+        // 验证生成的采购单状态为 COMPLETED，且列表批量装配仍带出采购明细
         mockMvc.perform(get("/api/pharmacy/purchase-orders").param("stockSiteId", fixture.siteId()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == '" + purchaseOrderId + "')].status").value("COMPLETED"));
+                .andExpect(jsonPath("$[?(@.id == '" + purchaseOrderId + "')].status").value("COMPLETED"))
+                .andExpect(jsonPath("$[?(@.id == '" + purchaseOrderId + "')].lines").isNotEmpty());
+        mockMvc.perform(get("/api/pharmacy/goods-receipts").param("stockSiteId", fixture.siteId()).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + receiptId + "')].lines").isNotEmpty());
 
         // 验证库存余额已真实增加
         assertEquals(48, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +

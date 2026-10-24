@@ -55,6 +55,17 @@ public final class PharmacyViews {
             BigDecimal quantityReserved, BigDecimal quantityFrozen, BigDecimal quantityAvailable,
             BigDecimal averageUnitCost, Instant projectedAt) {}
 
+    /** 仓库库存页按库存项聚合的余额摘要；批次/库位/临期口径与明细行一致。 */
+    public record InventoryItemSummaryView(
+            Long stockItemId, BigDecimal quantityOnHand, BigDecimal quantityAvailable,
+            BigDecimal quantityReserved, BigDecimal quantityFrozen, long activeRows, long activeLots,
+            long binCount, long expiringLots, LocalDate earliestExpiry, BigDecimal averageUnitCost,
+            Instant latestProjectedAt, List<String> lotNos) {}
+
+    public record InventoryBalanceSummaryView(
+            List<InventoryItemSummaryView> items, long inStockItemCount, long activeRowCount,
+            long expiringLotCount) {}
+
     public record InventoryTransactionLineView(
             Long id, int sortOrder, Long stockSiteId, Long stockBinId, Long stockItemId,
             Long stockLotId, Long packageId, @DictionaryBinding("SUP_STOCK_STATUS") String stockStatus, BigDecimal operationQuantity,

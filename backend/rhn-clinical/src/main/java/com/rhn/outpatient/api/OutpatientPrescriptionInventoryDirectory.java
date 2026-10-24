@@ -27,6 +27,14 @@ public interface OutpatientPrescriptionInventoryDirectory {
     List<OrderableMedicationView> findOrderableMedicationCandidates(Long tenantId, Long organizationId,
                                                                    Long departmentId, String query);
 
+    /**
+     * 批量关键词检索：模板/历史导入等多药品场景一次请求，复用同一次库存与目录扫描。
+     * 每个关键词的结果与 {@link #findOrderableMedications} 完全一致（含界面条数上限）。
+     */
+    java.util.Map<String, List<OrderableMedicationView>> findOrderableMedicationsBatch(Long tenantId, Long organizationId,
+                                                                                       Long departmentId,
+                                                                                       java.util.List<String> queries);
+
     /** Exact, read-only availability at the pharmacy selected by the current outpatient routing rules. */
     MedicationAvailabilityView inspectMedicationAvailability(Long tenantId, Long organizationId, Long departmentId,
                                                               Long catalogItemId, Long packageId);

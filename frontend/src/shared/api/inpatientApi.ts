@@ -889,6 +889,14 @@ export function createInpatientApi(client: ApiClient) {
         `/api/inpatient/order-tasks/${taskId}/execute`, {
           method: 'POST', body: JSON.stringify({ expectedRevision, outcomeCode, note, commandCode }),
         }),
+    /** 批量执行医嘱任务：一次请求处理多项，服务端逐任务独立事务并返回逐项失败原因。 */
+    executeOrderTasksBatch: (items: { taskId: string; expectedRevision: number }[], outcomeCode: string | undefined,
+      note: string | undefined, batchCommandCode: string) => client.request<{
+        succeededTaskIds: string[]
+        failures: { taskId: string; code: string; message: string }[]
+      }>('/api/inpatient/order-tasks/execute-batch', {
+        method: 'POST', body: JSON.stringify({ items, outcomeCode, note, batchCommandCode }),
+      }),
     skipOrderTask: (taskId: string, expectedRevision: number, outcomeCode: string,
       note: string | undefined, commandCode: string) => client.request<InpatientOrderTask>(
         `/api/inpatient/order-tasks/${taskId}/skip`, {

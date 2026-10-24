@@ -4,6 +4,8 @@ import com.rhn.platform.maintenance.api.MaintenanceWriteGuard;
 import com.rhn.shared.api.BusinessException;
 
 import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceSummaryView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryItemSummaryView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryReservationView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionLineView;
@@ -28,6 +30,7 @@ import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.InventoryPeriodRepository;
+import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
 import com.rhn.pharmacy.infrastructure.InventoryReservationRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTransactionRepository;
@@ -495,6 +498,39 @@ public class InventoryApplicationService implements InventoryLedgerPostingServic
             values = availabilityService.findByItem(context.tenantId(), siteId, stockItemId, request);
         }
         return pageView(values, balanceViews(context, values.getContent()));
+    }
+
+    @Transactional(readOnly = true)
+    public InventoryBalanceSummaryView balanceSummary(Long siteId) {
+        ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
+        requireOrganizationAccess(context, site.organizationId());
+        LocalDate today = LocalDate.now();
+        Map<Long, List<String>> lotNos = availabilityService.lotNosByStockItem(context.tenantId(), siteId);
+        List<InventoryItemSummaryView> items = availabilityService
+                .summarizeByStockItem(context.tenantId(), siteId, today, today.plusDays(90)).stream()
+                .map(value -> balanceSummaryView(value, lotNos.getOrDefault(value.getStockItemId(), List.of())))
+                .toList();
+        return new InventoryBalanceSummaryView(items,
+                items.stream().filter(value -> value.quantityOnHand().signum() != 0).count(),
+                items.stream().mapToLong(InventoryItemSummaryView::activeRows).sum(),
+                items.stream().mapToLong(InventoryItemSummaryView::expiringLots).sum());
+    }
+
+    private InventoryItemSummaryView balanceSummaryView(InventoryBalanceRepository.StockItemBalanceSummary value,
+                                                         List<String> lotNos) {
+        long activeRows = value.getActiveRows() == null ? 0 : value.getActiveRows();
+        long costedRows = value.getCostedRows() == null ? 0 : value.getCostedRows();
+        BigDecimal costedQuantity = value.getCostedQuantity();
+        BigDecimal averageUnitCost = activeRows > 0 && costedRows == activeRows
+                && costedQuantity != null && costedQuantity.signum() != 0
+                ? value.getCostedAmount().divide(costedQuantity, java.math.MathContext.DECIMAL64) : null;
+        return new InventoryItemSummaryView(value.getStockItemId(),
+                value.getQuantityOnHand(), value.getQuantityAvailable(), value.getQuantityReserved(),
+                value.getQuantityFrozen(), activeRows,
+                value.getActiveLots() == null ? 0 : value.getActiveLots(),
+                value.getBinCount() == null ? 0 : value.getBinCount(),
+                value.getExpiringLots() == null ? 0 : value.getExpiringLots(),
+                value.getEarliestExpiry(), averageUnitCost, value.getLatestProjectedAt(), lotNos);
     }
 
     @Transactional(readOnly = true)

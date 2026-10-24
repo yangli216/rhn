@@ -331,6 +331,8 @@ class RegistrationBillingIntentTransactionService {
                 .orElse(null);
         if (value == null) return CancellationPlan.notApplicable();
         requireOrganizationContext(value.organizationId());
+        // 与接诊开始共用就诊行锁：退款前确认就诊仍可退号，避免退款完成后就诊已被开始接诊。
+        encounters.lockRegistrationCancellable(encounterId);
         if (value.status() == RegistrationBillingIntentStatus.CANCELLED) {
             return new CancellationPlan(value.id(), value.status().name(), value.feeAmount(), value.currencyCode(),
                     null, true);

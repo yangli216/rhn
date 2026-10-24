@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   CBC_5PART_INDICATORS,
+  LABORATORY_RESULT_PRESETS,
+  matchPresetTemplateByTask,
   GLUCOSE_INDICATORS,
   LIVER_PANEL_INDICATORS,
   NATIONAL_STANDARD_LAB_TEMPLATES,
@@ -77,7 +79,7 @@ describe('nationalStandardLabCatalog (WS/T 404/405 & WS 445.10)', () => {
     expect(cbc?.specimenTubeCode).toBe('TUBE_PURPLE_EDTA')
 
     expect(matchNationalLabTemplateByItemName('血常规五分类')?.templateCode).toBe('TPL_LAB_CBC_5PART')
-    expect(matchNationalLabTemplateByItemName('尿常规分析')?.templateCode).toBe('TPL_LAB_URINALYSIS')
+    expect(matchNationalLabTemplateByItemName('尿常规分析')?.templateCode).toBe('TPL_LAB_ITEM_25010200100')
     expect(matchNationalLabTemplateByItemName('肝功能检查')?.templateCode).toBe('TPL_LAB_LIVER')
     expect(matchNationalLabTemplateByItemName('肾功能三项')?.templateCode).toBe('TPL_LAB_RENAL')
     expect(matchNationalLabTemplateByItemName('空腹静脉血糖测定')?.templateCode).toBe('TPL_LAB_GLUCOSE')
@@ -128,4 +130,44 @@ describe('nationalStandardLabCatalog (WS/T 404/405 & WS 445.10)', () => {
     expect(criticalKet.interpretationCode).toBe('CRITICAL')
     expect(criticalKet.isCritical).toBe(true)
   })
+  it('maps standard codes before names and keeps three-part, single-test and add-on semantics', () => {
+    const cbc3 = matchPresetTemplateByTask({ itemCode: '25010101501', itemName: '肝功能检查' })!
+    expect(cbc3.content.indicators.map((i) => i.code)).toEqual(expect.arrayContaining(['MID_NUM', 'GRAN_PCT']))
+    expect(cbc3.content.indicators.some((i) => ['ALT', 'MONO_NUM', 'EO_NUM'].includes(i.code))).toBe(false)
+    const cbc5 = matchPresetTemplateByTask({ itemCode: '25010101500' })!
+    expect(cbc5.content.indicators.map((i) => i.code)).toContain('BASO_PCT')
+    expect(matchPresetTemplateByTask({ itemCode: '25030500700' })?.content.indicators.map((i) => i.code)).toEqual(['ALT'])
+    expect(matchPresetTemplateByTask({ itemCode: '25030700200' })?.content.indicators.map((i) => i.code)).toEqual(['CREA'])
+    expect(matchPresetTemplateByTask({ itemCode: '26000000000', itemName: '血常规五分类' })).toBeUndefined()
+    expect(matchPresetTemplateByTask({ itemCode: '99999999999', itemName: '血常规五分类' })).toBeUndefined()
+    expect(matchNationalLabTemplateByItemName('肾功能四项')).toBeUndefined()
+    expect(matchNationalLabTemplateByItemName('尿沉渣专项检查')).toBeUndefined()
+  })
+
+  it('does not infer normality from unconfirmed or inapplicable rules', () => {
+    const alt = matchPresetTemplateByTask({ itemCode: '25030500700' })!.content.indicators[0]
+    expect(evaluateIndicatorValue(alt, '32').interpretationCode).toBeUndefined()
+    const rbc = CBC_5PART_INDICATORS.find((i) => i.code === 'RBC')!
+    expect(matchApplicableReferenceRule(rbc.rules, { ageDays: 10, gender: '1' })).toBeUndefined()
+    expect(matchApplicableReferenceRule(rbc.rules, { ageDays: 10000 })).toBeUndefined()
+    for (const template of LABORATORY_RESULT_PRESETS) {
+      expect(template.content.indicators.every((indicator) => indicator.rules.every((rule) => rule.criticalLow == null && rule.criticalHigh == null && rule.criticalCodes.length === 0))).toBe(true)
+    }
+  })
+
+  it('provides sourced adult CBC intervals for three/five-part panels with sex and age conditions', () => {
+    const three = matchPresetTemplateByTask({ itemCode: '25010101501' })!
+    const rule = (code: string, gender: '1' | '2') => matchApplicableReferenceRule(three.content.indicators.find((i) => i.code === code)!.rules, { gender, ageDays: 51 * 365 })
+    expect(rule('WBC', '1')).toMatchObject({ referenceLow: 3.5, referenceHigh: 9.5 })
+    expect(rule('HGB', '1')).toMatchObject({ referenceLow: 130, referenceHigh: 175 })
+    expect(rule('HGB', '2')).toMatchObject({ referenceLow: 115, referenceHigh: 150 })
+    expect(rule('HCT', '1')).toMatchObject({ referenceLow: 40, referenceHigh: 50 })
+    expect(rule('HCT', '2')).toMatchObject({ referenceLow: 35, referenceHigh: 45 })
+    expect(rule('RDW_CV', '1')).toBeUndefined()
+    expect(rule('MID_NUM', '1')).toBeUndefined()
+    expect(matchApplicableReferenceRule(three.content.indicators[0].rules, { ageDays: 3650 })).toBeUndefined()
+    const single = matchPresetTemplateByTask({ itemCode: '25010100100' })!
+    expect(single.content.indicators[0].rules).toEqual(three.content.indicators.find((i) => i.code === 'HGB')!.rules)
+  })
+
 })

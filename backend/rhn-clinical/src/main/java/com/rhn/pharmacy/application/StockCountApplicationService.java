@@ -235,8 +235,20 @@ public class StockCountApplicationService {
     public List<CountView> list(Long siteId) {
         ExecutionContext c = context();
         requireSite(c, siteId);
-        return repository.findByTenantIdAndStockSiteIdOrderBySnapshotAtDesc(c.tenantId(), siteId).stream()
-                .map(v -> view(c, v)).toList();
+        return views(c, repository.findByTenantIdAndStockSiteIdOrderBySnapshotAtDesc(c.tenantId(), siteId));
+    }
+
+    private List<CountView> views(ExecutionContext c, List<StockCount> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, List<StockCountLine>> linesByCount = new HashMap<>();
+        List<Long> ids = values.stream().map(StockCount::id).toList();
+        for (int from = 0; from < ids.size(); from += 500) {
+            lineRepository.findByTenantIdAndStockCountIdInOrderByStockCountIdAscSortOrderAsc(c.tenantId(),
+                            ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(line -> linesByCount.computeIfAbsent(line.stockCountId(),
+                            ignored -> new ArrayList<>()).add(line));
+        }
+        return values.stream().map(v -> view(v, linesByCount.getOrDefault(v.id(), List.of()))).toList();
     }
 
     private StockCount lock(ExecutionContext c, Long id) {
@@ -264,8 +276,11 @@ public class StockCountApplicationService {
     }
 
     private CountView view(ExecutionContext c, StockCount v) {
-        List<CountLineView> lines = lineRepository.findByTenantIdAndStockCountIdOrderBySortOrder(c.tenantId(), v.id())
-                .stream()
+        return view(v, lineRepository.findByTenantIdAndStockCountIdOrderBySortOrder(c.tenantId(), v.id()));
+    }
+
+    private CountView view(StockCount v, List<StockCountLine> storedLines) {
+        List<CountLineView> lines = storedLines.stream()
                 .map(l -> new CountLineView(l.id(), l.revision(), l.sortOrder(), l.inventoryBalanceId(),
                         l.inventoryBalanceRevision(), l.stockBinId(), l.stockItemId(), l.stockLotId(), l.stockStatus(),
                         l.bookQuantity(), l.countedQuantity(), l.varianceQuantity(), l.countResult(), l.countedAt(),

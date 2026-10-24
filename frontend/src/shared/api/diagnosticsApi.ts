@@ -198,7 +198,21 @@ export interface DiagnosticWorklistPage {
   size: number
 }
 
+export interface DiagnosticReportQueryRow {
+  id: string; taskId?: string; residentId: string; residentName?: string; healthRecordNo?: string
+  encounterId: string; requestId: string; requestNo?: string; itemCode?: string; itemName?: string; specimenNo?: string
+  reportCode: string; reportName: string; reportVersion: number; replacesReportId?: string
+  reportType: 'LABORATORY' | 'IMAGING'; status: DiagnosticReportStatus; issuedAt: string; signerName?: string; current: boolean
+}
+export interface DiagnosticReportQueryFilters {
+  keyword: string; status?: DiagnosticReportStatus; issuedFrom?: string; issuedBefore?: string
+}
+export interface DiagnosticReportQueryPage {
+  content: DiagnosticReportQueryRow[]; totalElements: number; totalPages: number; page: number; size: number
+}
+
 export interface DiagnosticWorklistFilters {
+  activeAndRecent?: boolean
   status?: DiagnosticTaskStatus
   createdFrom?: string
   createdBefore?: string
@@ -267,6 +281,7 @@ export function createDiagnosticsApi(client: ApiClient) {
       const query = new URLSearchParams({ requestType, keyword, page: String(page), size: String(size) })
       if (encounterId) query.set('encounterId', encounterId)
       if (residentId) query.set('residentId', residentId)
+      if (filters?.activeAndRecent) query.set('activeAndRecent', 'true')
       if (filters?.status) query.set('status', filters.status)
       if (filters?.createdFrom) query.set('createdFrom', filters.createdFrom)
       if (filters?.createdBefore) query.set('createdBefore', filters.createdBefore)
@@ -300,6 +315,14 @@ export function createDiagnosticsApi(client: ApiClient) {
     outbound: (endpointCode: 'LIS' | 'PACS') => client.request<ExternalMessageReceipt[]>(
       `/api/integration/diagnostics/outbound-messages?endpointCode=${endpointCode}`,
     ),
+    queryReports: (requestType: 'LABORATORY' | 'EXAMINATION', filters: DiagnosticReportQueryFilters, page: number, size = 20) => {
+      const query = new URLSearchParams({ requestType, keyword: filters.keyword, page: String(page), size: String(size) })
+      if (filters.status) query.set('status', filters.status)
+      if (filters.issuedFrom) query.set('issuedFrom', filters.issuedFrom)
+      if (filters.issuedBefore) query.set('issuedBefore', filters.issuedBefore)
+      return client.request<DiagnosticReportQueryPage>(`/api/diagnostics/reports?${query}`)
+    },
+    reportHistory: (reportId: string) => client.request<DiagnosticReport[]>(`/api/diagnostics/reports/${reportId}/history`),
     reportsByEncounter: (encounterId: string) => client.request<DiagnosticReport[]>(
       `/api/encounters/${encounterId}/diagnostic-reports`,
     ),

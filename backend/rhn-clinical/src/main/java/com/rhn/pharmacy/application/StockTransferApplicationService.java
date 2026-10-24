@@ -353,7 +353,24 @@ public class StockTransferApplicationService {
         List<StockTransfer> values = "DESTINATION".equals(r)
                 ? repository.findByTenantIdAndDestinationSiteIdOrderByRequestedAtDesc(c.tenantId(), siteId)
                 : repository.findByTenantIdAndSourceSiteIdOrderByRequestedAtDesc(c.tenantId(), siteId);
-        return values.stream().map(v -> view(c, v)).toList();
+        return views(c, values);
+    }
+
+    private List<TransferView> views(ExecutionContext c, List<StockTransfer> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, List<StockTransferLine>> linesByTransfer = new HashMap<>();
+        List<Long> transferIds = values.stream().map(StockTransfer::id).toList();
+        for (int from = 0; from < transferIds.size(); from += 500) {
+            lineRepository.findByTenantIdAndStockTransferIdInOrderByStockTransferIdAscSortOrderAsc(c.tenantId(),
+                            transferIds.subList(from, Math.min(from + 500, transferIds.size())))
+                    .forEach(line -> linesByTransfer.computeIfAbsent(line.stockTransferId(),
+                            ignored -> new ArrayList<>()).add(line));
+        }
+        List<Long> lineIds = linesByTransfer.values().stream().flatMap(List::stream)
+                .map(StockTransferLine::id).toList();
+        Map<Long, List<TransferAllocationView>> allocationsByLine = allocationsByLine(c.tenantId(), lineIds);
+        return values.stream().map(v -> transferView(v, linesByTransfer.getOrDefault(v.id(), List.of()),
+                allocationsByLine)).toList();
     }
 
     private StockTransfer lock(ExecutionContext c, Long id, String role) {
@@ -388,24 +405,43 @@ public class StockTransferApplicationService {
     }
 
     private TransferView view(ExecutionContext c, StockTransfer v) {
-        List<TransferLineView> lines = lineRepository
-                .findByTenantIdAndStockTransferIdOrderBySortOrder(c.tenantId(), v.id()).stream()
+        List<StockTransferLine> lines = lineRepository
+                .findByTenantIdAndStockTransferIdOrderBySortOrder(c.tenantId(), v.id());
+        return transferView(v, lines, allocationsByLine(c.tenantId(),
+                lines.stream().map(StockTransferLine::id).toList()));
+    }
+
+    private Map<Long, List<TransferAllocationView>> allocationsByLine(Long tenantId, List<Long> lineIds) {
+        Map<Long, List<TransferAllocationView>> result = new HashMap<>();
+        for (int from = 0; from < lineIds.size(); from += 500) {
+            allocationRepository.findByTenantIdAndStockTransferLineIdInOrderByStockTransferLineIdAscIdAsc(tenantId,
+                            lineIds.subList(from, Math.min(from + 500, lineIds.size())))
+                    .forEach(value -> result.computeIfAbsent(value.stockTransferLineId(),
+                            ignored -> new ArrayList<>()).add(allocationView(value)));
+        }
+        return result;
+    }
+
+    private TransferAllocationView allocationView(StockTransferAllocation a) {
+        return new TransferAllocationView(a.id(), a.stockTransferLineId(), a.sourceBinId(),
+                a.destinationBinId(), a.stockLotId(), a.stockStatus(), a.dispatchedQuantity(),
+                a.receivedQuantity(), a.damagedQuantity(), a.status().name());
+    }
+
+    private TransferView transferView(StockTransfer v, List<StockTransferLine> lines,
+                                      Map<Long, List<TransferAllocationView>> allocationsByLine) {
+        List<TransferLineView> lineViews = lines.stream()
                 .map(line -> new TransferLineView(line.id(), line.revision(), line.sortOrder(),
                         line.sourceStockItemId(), line.destinationStockItemId(), line.requestedQuantity(),
                         line.requestedOperationQuantity(), line.operationUnitCode(), line.baseQuantityFactor(),
                         line.approvedQuantity(), line.dispatchedQuantity(), line.receivedQuantity(),
                         line.damagedQuantity(), line.baseUnitCode(), line.lineStatus(), line.discrepancyReason(),
-                        allocationRepository.findByTenantIdAndStockTransferLineIdOrderById(c.tenantId(), line.id())
-                                .stream()
-                                .map(a -> new TransferAllocationView(a.id(), a.stockTransferLineId(), a.sourceBinId(),
-                                        a.destinationBinId(), a.stockLotId(), a.stockStatus(), a.dispatchedQuantity(),
-                                        a.receivedQuantity(), a.damagedQuantity(), a.status().name()))
-                                .toList()))
+                        allocationsByLine.getOrDefault(line.id(), List.of())))
                 .toList();
         return new TransferView(v.id(), v.revision(), v.organizationId(), v.sourceSiteId(), v.destinationSiteId(),
                 v.transferNo(), v.requestCode(), v.status().name(), v.requestedAt(), v.requestedBy(), v.approvedAt(),
                 v.approvedBy(), v.dispatchedAt(), v.dispatchedBy(), v.receivedAt(), v.receivedBy(), v.reason(),
-                v.description(), v.outboundTransactionId(), v.inboundTransactionId(), lines);
+                v.description(), v.outboundTransactionId(), v.inboundTransactionId(), lineViews);
     }
 
     private TransferQuantity transferQuantity(ExecutionContext c, StockSite site, StockItem item,

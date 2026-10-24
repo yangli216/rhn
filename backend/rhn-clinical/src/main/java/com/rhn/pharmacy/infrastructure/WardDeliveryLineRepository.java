@@ -13,4 +13,5 @@ public interface WardDeliveryLineRepository extends JpaRepository<WardDeliveryLi
             Long tenantId, Collection<Long> deliveryIds);
     boolean existsByTenantIdAndDispenseId(Long tenantId, Long dispenseId);
     Optional<WardDeliveryLine> findByTenantIdAndDispenseId(Long tenantId, Long dispenseId);
+    List<WardDeliveryLine> findByTenantIdAndDispenseIdIn(Long tenantId, Collection<Long> dispenseIds);
 }

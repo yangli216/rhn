@@ -11,6 +11,18 @@ public interface ServiceRequestDirectory {
     ServiceRequestSnapshot requireForDiagnosticExchange(String requestNo);
     List<ServiceRequestSnapshot> activeForExecution(Long organizationId, Long departmentId);
 
+    /**
+     * Batch form of {@link #requireForDiagnosticExchange(Long)} for list assembly: same 404/403 semantics, any
+     * missing or inaccessible id throws.
+     */
+    default java.util.Map<Long, ServiceRequestSnapshot> forDiagnosticExchange(java.util.Collection<Long> requestIds) {
+        java.util.Map<Long, ServiceRequestSnapshot> result = new java.util.LinkedHashMap<>();
+        for (Long id : requestIds) {
+            if (id != null && !result.containsKey(id)) result.put(id, requireForDiagnosticExchange(id));
+        }
+        return result;
+    }
+
     record ServiceRequestSnapshot(
             Long id, long revision, Long tenantId, Long residentId, Long encounterId,
             String requestNo, String status, String serviceType, Long catalogItemId,

@@ -1,7 +1,9 @@
 package com.rhn.outpatient.ordering;
 
+import com.rhn.outpatient.api.OutpatientPermissions;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/encounters/{encounterId}/service-requests")
+@PreAuthorize(OutpatientPermissions.ORDERING_ACCESS)
 class ServiceRequestController {
     private final ServiceRequestService service;
     private final ServiceRequestPrintService printService;
@@ -41,6 +44,13 @@ class ServiceRequestController {
     ServiceRequestResponse updateDocumentInfo(@PathVariable Long encounterId, @PathVariable Long id,
                                              @Valid @RequestBody UpdateOrderDocumentInfo input) {
         return service.updateDocumentInfo(encounterId, id, input);
+    }
+
+    /** 一张申请单内的多个项目共用单据信息，一次请求批量写入。 */
+    @org.springframework.web.bind.annotation.PutMapping("/document-info")
+    List<ServiceRequestResponse> updateDocumentInfoBatch(@PathVariable Long encounterId,
+                                                         @Valid @RequestBody UpdateOrderDocumentInfoBatch input) {
+        return service.updateDocumentInfoBatch(encounterId, input);
     }
 
     @GetMapping("/examination-sites")

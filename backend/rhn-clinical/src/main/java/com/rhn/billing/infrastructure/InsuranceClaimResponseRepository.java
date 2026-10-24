@@ -10,4 +10,6 @@ public interface InsuranceClaimResponseRepository extends JpaRepository<Insuranc
     Optional<InsuranceClaimResponse> findByTenantIdAndClaimIdAndCommandCode(Long tenantId, Long claimId, String commandCode);
     Optional<InsuranceClaimResponse> findByTenantIdAndClaimIdAndResponseNo(Long tenantId, Long claimId, String responseNo);
     List<InsuranceClaimResponse> findByTenantIdAndClaimIdOrderByRespondedAtAscIdAsc(Long tenantId, Long claimId);
+    List<InsuranceClaimResponse> findByTenantIdAndClaimIdInOrderByClaimIdAscRespondedAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> claimIds);
 }

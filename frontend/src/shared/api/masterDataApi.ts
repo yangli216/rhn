@@ -1323,6 +1323,13 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<MasterDataPage<ServiceCatalogItem>>(`/api/platform/master-data/services/search${queryString({
         query, serviceType, status, organizationId, page: String(page), size: String(size),
       })}`),
+    servicesByCodes: (codes: string[], status = '', organizationId = '') => {
+      const params = new URLSearchParams()
+      for (const code of codes) params.append('codes', code)
+      if (status) params.set('status', status)
+      if (organizationId) params.set('organizationId', organizationId)
+      return client.request<ServiceCatalogItem[]>(`/api/platform/master-data/services/batch?${params.toString()}`)
+    },
     createService: (input: ServiceInput, organizationId = '') => client.request<ServiceCatalogItem>(
       `/api/platform/master-data/services${queryString({ organizationId })}`, {
         method: 'POST', body: JSON.stringify(input),
@@ -1352,6 +1359,13 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
         query, medicationType, status, organizationId,
       })}`),
+    medicationsByCodes: (codes: string[], status = '', organizationId = '') => {
+      const params = new URLSearchParams()
+      for (const code of codes) params.append('codes', code)
+      if (status) params.set('status', status)
+      if (organizationId) params.set('organizationId', organizationId)
+      return client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications/batch?${params.toString()}`)
+    },
     standardMedicationCategories: (query = '') => client.request<{ key: string; major: string; sub: string; label: string; entryIds: string[] }[]>(`/api/platform/master-data/medication-standard-catalog/categories?query=${encodeURIComponent(query)}`),
     standardMedicationSummary: () => client.request<StandardMedicationSummary>('/api/platform/master-data/medication-standard-catalog/summary'),
     standardCatalogSourceReview: (historyPage = 0) => client.request<StandardCatalogSourceReview>(

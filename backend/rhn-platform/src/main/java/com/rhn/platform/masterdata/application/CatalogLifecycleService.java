@@ -19,7 +19,12 @@ import com.rhn.platform.masterdata.domain.CatalogChangeBatch;
 import com.rhn.platform.masterdata.domain.CatalogChangeBatchRow;
 import com.rhn.platform.masterdata.domain.CatalogPrice;
 import com.rhn.platform.masterdata.domain.ItemPackage;
+import com.rhn.platform.masterdata.domain.Manufacturer;
+import com.rhn.platform.masterdata.domain.Medication;
+import com.rhn.platform.masterdata.domain.MedicationProduct;
 import com.rhn.platform.masterdata.domain.OrganizationCatalogItem;
+import com.rhn.platform.masterdata.domain.ServiceCatalogItem;
+import com.rhn.platform.masterdata.domain.SupplyItem;
 import com.rhn.platform.masterdata.infrastructure.CatalogChangeBatchRepository;
 import com.rhn.platform.masterdata.infrastructure.CatalogChangeBatchRowRepository;
 import com.rhn.platform.masterdata.infrastructure.CatalogPriceRepository;
@@ -206,8 +211,107 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         MedicationSnapshot medication = item.medicationId() == null ? null : medicationSnapshot(tenantId, item.medicationId());
         OrganizationCatalogItem adoption = organizationId == null ? null
                 : resolvedAdoption(tenantId, organizationId, catalogItemId, at);
-        CatalogPrice price = priceRepository.findByTenantIdAndCatalogItemIdOrderByValidFromDesc(
-                        tenantId, catalogItemId).stream()
+        CatalogPrice price = selectPrice(priceRepository.findByTenantIdAndCatalogItemIdOrderByValidFromDesc(
+                tenantId, catalogItemId), organizationId, packageId, priceType, at);
+        return new CatalogOperationalSnapshot(catalogItemId, organizationId, packageId, priceType, at,
+                item, itemPackage, medication, adoptionView(adoption, organizationId),
+                price == null ? null : priceView(price));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, CatalogOperationalSnapshot> resolveAll(Long tenantId, Long organizationId, String priceType,
+                                                            Map<Long, Long> packageIdByCatalogItemId,
+                                                            LocalDate businessDate) {
+        if (packageIdByCatalogItemId.isEmpty()) return Map.of();
+        LocalDate at = businessDate == null ? LocalDate.now() : businessDate;
+        Set<Long> ids = packageIdByCatalogItemId.keySet();
+        Map<Long, ServiceCatalogItem> services = byId(
+                serviceRepository.findByTenantIdAndItemTypeAndIdIn(tenantId, "SERVICE", ids),
+                ServiceCatalogItem::id);
+        Map<Long, MedicationProduct> products = byId(
+                productRepository.findProductsByTenantIdAndIdIn(tenantId, ids), MedicationProduct::id);
+        Map<Long, SupplyItem> supplies = byId(supplyRepository.findByTenantIdAndIdIn(tenantId, ids), SupplyItem::id);
+        Map<Long, String> manufacturerNames = manufacturerNames(tenantId, products.values(), supplies.values());
+        Set<Long> packageIds = packageIdByCatalogItemId.values().stream().filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, ItemPackage> packages = packageIds.isEmpty() ? Map.of()
+                : byId(packageRepository.findByTenantIdAndIdIn(tenantId, packageIds), ItemPackage::id);
+        Set<Long> medicationIds = products.values().stream().map(MedicationProduct::medicationId)
+                .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        Map<Long, MedicationSnapshot> medications = medicationIds.isEmpty() ? Map.of()
+                : byId(medicationRepository.findByTenantIdAndIdIn(tenantId, medicationIds), Medication::id).entrySet()
+                        .stream().collect(java.util.stream.Collectors.toMap(Map.Entry::getKey,
+                                entry -> MedicationSemanticsService.snapshot(entry.getValue())));
+        Map<Long, List<OrganizationCatalogItem>> adoptionHistory = adoptionHistory(tenantId, organizationId, ids);
+        Long sourceOrganizationId = organizationId == null ? null
+                : organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
+        Map<Long, List<OrganizationCatalogItem>> sourceAdoptions = adoptionHistory(
+                tenantId, sourceOrganizationId, ids);
+        Map<Long, List<CatalogPrice>> prices = priceRepository
+                .findByTenantIdAndCatalogItemIdInOrderByValidFromDesc(tenantId, ids).stream()
+                .collect(java.util.stream.Collectors.groupingBy(CatalogPrice::catalogItemId));
+
+        Map<Long, CatalogOperationalSnapshot> result = new java.util.LinkedHashMap<>();
+        for (var entry : packageIdByCatalogItemId.entrySet()) {
+            Long catalogItemId = entry.getKey();
+            Long packageId = entry.getValue();
+            CatalogItemSnapshot item = itemSnapshot(services.get(catalogItemId), products.get(catalogItemId),
+                    supplies.get(catalogItemId), manufacturerNames);
+            PackageSnapshot itemPackage = packageId == null ? null
+                    : packageSnapshot(catalogItemId, packages.get(packageId));
+            MedicationSnapshot medication = item.medicationId() == null ? null : medications.get(item.medicationId());
+            OrganizationCatalogItem adoption = organizationId == null ? null
+                    : resolveAdoption(adoptionHistory.get(catalogItemId), sourceAdoptions.get(catalogItemId), at);
+            CatalogPrice price = selectPrice(prices.getOrDefault(catalogItemId, List.of()),
+                    organizationId, packageId, priceType, at);
+            result.put(catalogItemId, new CatalogOperationalSnapshot(catalogItemId, organizationId, packageId,
+                    priceType, at, item, itemPackage, medication, adoptionView(adoption, organizationId),
+                    price == null ? null : priceView(price)));
+        }
+        return result;
+    }
+
+    private <T> Map<Long, T> byId(List<T> values, java.util.function.Function<T, Long> id) {
+        return values.stream().collect(java.util.stream.Collectors.toMap(id, java.util.function.Function.identity()));
+    }
+
+    private Map<Long, String> manufacturerNames(Long tenantId, java.util.Collection<MedicationProduct> products,
+                                                java.util.Collection<SupplyItem> supplies) {
+        Set<Long> ids = new java.util.HashSet<>();
+        products.stream().map(MedicationProduct::manufacturerId).filter(Objects::nonNull).forEach(ids::add);
+        supplies.stream().map(SupplyItem::manufacturerId).filter(Objects::nonNull).forEach(ids::add);
+        return ids.isEmpty() ? Map.of()
+                : byId(manufacturerRepository.findByTenantIdAndIdIn(tenantId, ids), Manufacturer::id).entrySet().stream()
+                        .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().name()));
+    }
+
+    private Map<Long, List<OrganizationCatalogItem>> adoptionHistory(Long tenantId, Long organizationId,
+                                                                   Set<Long> catalogItemIds) {
+        if (organizationId == null) return Map.of();
+        return adoptionRepository.findByTenantIdAndOrganizationIdAndCatalogItemIdIn(
+                        tenantId, organizationId, catalogItemIds).stream()
+                .collect(java.util.stream.Collectors.groupingBy(OrganizationCatalogItem::catalogItemId));
+    }
+
+    /** 与 resolvedAdoption 相同的优先顺序：本机构历史优先，缺失时才回落到目录来源机构。 */
+    private OrganizationCatalogItem resolveAdoption(List<OrganizationCatalogItem> localHistory,
+                                                    List<OrganizationCatalogItem> sourceHistory, LocalDate at) {
+        OrganizationCatalogItem localRule = orderedHistory(localHistory).stream()
+                .filter(value -> value.overlaps(at, at)).findFirst().orElse(null);
+        if (localRule != null) return localRule.effectiveAt(at) ? localRule : null;
+        return orderedHistory(sourceHistory).stream().filter(value -> value.effectiveAt(at)).findFirst().orElse(null);
+    }
+
+    private List<OrganizationCatalogItem> orderedHistory(List<OrganizationCatalogItem> values) {
+        if (values == null) return List.of();
+        return values.stream().sorted(Comparator.comparing(OrganizationCatalogItem::validFrom,
+                Comparator.reverseOrder())).toList();
+    }
+
+    private CatalogPrice selectPrice(List<CatalogPrice> prices, Long organizationId, Long packageId,
+                                     String priceType, LocalDate at) {
+        return prices.stream()
                 .filter(value -> value.effectiveAt(at) && value.priceType().equals(priceType))
                 .filter(value -> value.organizationId() == null || value.organizationId().equals(organizationId))
                 .filter(value -> value.packageId() == null || value.packageId().equals(packageId))
@@ -215,48 +319,65 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                         .thenComparing(value -> value.packageId() != null, Comparator.reverseOrder())
                         .thenComparing(CatalogPrice::validFrom, Comparator.reverseOrder()))
                 .findFirst().orElse(null);
-        return new CatalogOperationalSnapshot(catalogItemId, organizationId, packageId, priceType, at,
-                item, itemPackage, medication, adoptionView(adoption, organizationId),
-                price == null ? null : priceView(price));
     }
 
     private CatalogItemSnapshot catalogItemSnapshot(Long tenantId, Long catalogItemId) {
         var service = serviceRepository.findByIdAndTenantIdAndItemType(catalogItemId, tenantId, "SERVICE").orElse(null);
-        if (service != null) {
-            return new CatalogItemSnapshot(service.id(), service.itemTypeId(), "SERVICE", null,
-                    service.code(), service.name(), service.unitCode(), service.orderable(), service.chargeable(),
-                    false, service.status(), service.validFrom(), service.validTo(), service.serviceType(),
-                    service.specimenType(), service.examinationType(), null, null, service.accountingCategory());
-        }
+        if (service != null) return itemSnapshot(service);
         var product = productRepository.findByIdAndTenantIdAndItemType(catalogItemId, tenantId, "MED_PRODUCT").orElse(null);
-        if (product != null) {
-            String manufacturerName = product.manufacturerId() == null ? null
-                    : manufacturerRepository.findByIdAndTenantId(product.manufacturerId(), tenantId)
-                            .map(com.rhn.platform.masterdata.domain.Manufacturer::name).orElse(null);
-            return new CatalogItemSnapshot(product.id(), product.itemTypeId(), "MED_PRODUCT", product.medicationId(),
-                    product.code(), product.name(), product.unitCode(), product.orderable(), product.chargeable(),
-                    product.stocked(), product.status(), product.validFrom(), product.validTo(), null, null, null,
-                    product.manufacturerId(), manufacturerName);
-        }
+        if (product != null) return itemSnapshot(product, manufacturerName(tenantId, product.manufacturerId()));
         var supply = supplyRepository.findByIdAndTenantId(catalogItemId, tenantId)
                 .orElseThrow(() -> notFound("CATALOG_ITEM_NOT_FOUND", "未找到目录项目"));
-        String manufacturerName = supply.manufacturerId() == null ? null
-                : manufacturerRepository.findByIdAndTenantId(supply.manufacturerId(), tenantId)
-                        .map(com.rhn.platform.masterdata.domain.Manufacturer::name).orElse(null);
+        return itemSnapshot(supply, manufacturerName(tenantId, supply.manufacturerId()));
+    }
+
+    private String manufacturerName(Long tenantId, Long manufacturerId) {
+        return manufacturerId == null ? null : manufacturerRepository.findByIdAndTenantId(manufacturerId, tenantId)
+                .map(Manufacturer::name).orElse(null);
+    }
+
+    private CatalogItemSnapshot itemSnapshot(ServiceCatalogItem service) {
+        return new CatalogItemSnapshot(service.id(), service.itemTypeId(), "SERVICE", null,
+                service.code(), service.name(), service.unitCode(), service.orderable(), service.chargeable(),
+                false, service.status(), service.validFrom(), service.validTo(), service.serviceType(),
+                service.specimenType(), service.examinationType(), null, null, service.accountingCategory());
+    }
+
+    private CatalogItemSnapshot itemSnapshot(MedicationProduct product, String manufacturerName) {
+        return new CatalogItemSnapshot(product.id(), product.itemTypeId(), "MED_PRODUCT", product.medicationId(),
+                product.code(), product.name(), product.unitCode(), product.orderable(), product.chargeable(),
+                product.stocked(), product.status(), product.validFrom(), product.validTo(), null, null, null,
+                product.manufacturerId(), manufacturerName);
+    }
+
+    private CatalogItemSnapshot itemSnapshot(SupplyItem supply, String manufacturerName) {
         return new CatalogItemSnapshot(supply.id(), supply.itemTypeId(), "SUPPLY", null,
                 supply.code(), supply.name(), supply.unitCode(), supply.orderable(), supply.chargeable(),
                 supply.stocked(), supply.status(), supply.validFrom(), supply.validTo(), null, null, null,
                 supply.manufacturerId(), manufacturerName);
     }
 
-    private PackageSnapshot packageSnapshot(Long tenantId, Long catalogItemId, Long packageId) {
-        ItemPackage value = packageRepository.findByIdAndTenantId(packageId, tenantId)
-                .orElseThrow(() -> notFound("ITEM_PACKAGE_NOT_FOUND", "未找到项目包装"));
+    private CatalogItemSnapshot itemSnapshot(ServiceCatalogItem service, MedicationProduct product, SupplyItem supply,
+                                             Map<Long, String> manufacturerNames) {
+        if (service != null) return itemSnapshot(service);
+        if (product != null) return itemSnapshot(product, manufacturerNames.get(product.manufacturerId()));
+        if (supply != null) return itemSnapshot(supply, manufacturerNames.get(supply.manufacturerId()));
+        throw notFound("CATALOG_ITEM_NOT_FOUND", "未找到目录项目");
+    }
+
+    private PackageSnapshot packageSnapshot(Long catalogItemId, ItemPackage value) {
+        if (value == null) throw notFound("ITEM_PACKAGE_NOT_FOUND", "未找到项目包装");
         if (!value.catalogItemId().equals(catalogItemId)) {
             throw badRequest("ITEM_PACKAGE_CATALOG_MISMATCH", "项目包装不属于当前目录项目");
         }
         return new PackageSnapshot(value.id(), value.unitCode(), value.unitName(), value.packageSpec(),
                 value.quantityFactor(), value.usageType(), value.status(), value.validFrom(), value.validTo());
+    }
+
+    private PackageSnapshot packageSnapshot(Long tenantId, Long catalogItemId, Long packageId) {
+        ItemPackage value = packageRepository.findByIdAndTenantId(packageId, tenantId)
+                .orElseThrow(() -> notFound("ITEM_PACKAGE_NOT_FOUND", "未找到项目包装"));
+        return packageSnapshot(catalogItemId, value);
     }
 
     @Override

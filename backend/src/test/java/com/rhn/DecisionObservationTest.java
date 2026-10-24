@@ -52,6 +52,20 @@ class DecisionObservationTest extends RhnIntegrationTestSupport {
                 true,true,false,comparison,equal,codec.readTree("{\"state\":{\"chiefComplaint\":\"合成主诉\"}}"),codec.readTree("{}"),List.of("A"),List.of("A"),null);
     }
     private DecisionObservation list(int page,int size){return observations.list(null,null,null,null,null,page,size);}
+    @Test void recordSnapshotsRequireClinicalAccessInAdditionToConfigurationPermission() {
+        store.append(context(t,o,d),run(899,"RECORD_QUALITY","MANUAL_REVIEW",null,10));
+        assertThatThrownBy(()->observations.detail(899L)).isInstanceOf(BusinessException.class)
+                .extracting("code").isEqualTo("DECISION_OBSERVATION_RECORD_ACCESS");
+        assertThatThrownBy(()->observations.review(899L,new DecisionReviewRequest("APPROPRIATE","合成研判")))
+                .isInstanceOf(BusinessException.class).extracting("code").isEqualTo("DECISION_OBSERVATION_RECORD_ACCESS");
+        when(contexts.requireCurrent()).thenReturn(new ExecutionContext(t,7L,"observer","c",Set.of("AI_CONFIGURATION.MANAGE","OUTPATIENT_RECEPTION.ACCESS"),o,d,"DEPARTMENT",Set.of(),Set.of()));
+        assertThat(observations.detail(899L).run().input().toString()).contains("合成主诉");
+        observations.review(899L,new DecisionReviewRequest("APPROPRIATE","包含临床资料的研判原因"));
+        when(contexts.requireCurrent()).thenReturn(context(t,o,d));
+        var row=list(0,20).records().content().stream().filter(r->r.id().equals(899L)).findFirst().orElseThrow();
+        assertThat(row.review().verdict()).isEqualTo("APPROPRIATE");
+        assertThat(row.review().reason()).isEmpty();
+    }
     @Test void paginatesScopedRunsAndCountsOnlyComparableSamplesAndLatestReview() {
         store.append(context(t,o,d),run(801,"OUTPATIENT_TRIAGE","COMPARABLE",true,10));
         store.append(context(t,o,d),run(802,"PLAN_COMPILATION","MANUAL_REVIEW",null,30));

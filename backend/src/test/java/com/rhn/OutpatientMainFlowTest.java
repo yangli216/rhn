@@ -179,6 +179,13 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.charges[?(@.sourceType == 'SERVICE_REQUEST')]").exists())
                 .andExpect(jsonPath("$.charges[?(@.sourceType == 'MEDICATION_REQUEST')]").exists())
                 .andReturn().getResponse().getContentAsString());
+        // 药品计费项的包装与厂商来自批量路由快照，必须与处方快照一致。
+        JsonNode medicationCharge = null;
+        for (JsonNode charge : statement.path("charges")) {
+            if ("MEDICATION_REQUEST".equals(charge.path("sourceType").asText())) medicationCharge = charge;
+        }
+        assertEquals("5mg*14片/盒", medicationCharge.path("packageSpec").asText());
+        assertEquals("示范制药有限公司", medicationCharge.path("manufacturerName").asText());
 
         mockMvc.perform(get("/api/billing/worklist").with(rhnWorkContext()))
                 .andExpect(status().isOk())

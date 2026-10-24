@@ -54,6 +54,11 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("POSTED"))
                 .andReturn().getResponse().getContentAsString());
+        mockMvc.perform(get("/api/pharmacy/stock-counts").with(rhnWorkContext())
+                        .param("stockSiteId", site.get("id").asString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '%s')].lines.length()".formatted(id)).isNotEmpty())
+                .andExpect(jsonPath("$[?(@.id == '%s')].lines[0].countResult".formatted(id)).value("SHORTAGE"));
         mockMvc.perform(post("/api/pharmacy/stock-counts/{id}/post", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.inventoryTransactionId")
                         .value(posted.get("inventoryTransactionId").asString()));

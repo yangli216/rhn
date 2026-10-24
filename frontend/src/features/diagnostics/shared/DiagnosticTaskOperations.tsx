@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { DiagnosticExecutionTask } from '../../../shared/api/diagnosticsApi'
 import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
-import { Alert, Button, EmptyState, LoadingState, StatusBadge } from '../../../shared/ui'
+import { Alert, Button, EmptyState, LoadingState } from '../../../shared/ui'
 import { SpecimenPanel, loadDiagnosticSpecimens } from '../laboratory/SpecimenPanel'
 import { ReportComposer } from './ReportComposer'
 import type { DiagnosticForm, DiagnosticView } from './diagnosticWorkbenchModel'
@@ -36,7 +36,6 @@ export function DiagnosticTaskOperations({ api, task, view, refreshing, onRefres
                 <h3>标本全生命周期台账与运维</h3>
                 <p>集中查看本申请所有标本条码、采血管规格及流转记录，支持标本拒收、重新采样及热敏条码补打。</p>
               </div>
-              <StatusBadge tone="neutral">标本台账</StatusBadge>
             </div>
           </section>
           <SpecimenPanel api={api} task={task} candidates={candidates} onRefresh={onRefresh} refreshing={refreshing} canExecute={canExecute} />
@@ -71,7 +70,6 @@ export function DiagnosticTaskOperations({ api, task, view, refreshing, onRefres
             <h3>当前作业阶段：1. 标本采集与核对</h3>
             <p>核对患者身份信息及检验项目，采集标本后确认送检。</p>
           </div>
-          <StatusBadge tone="warning">待采集</StatusBadge>
         </div>
       </section>
     )}
@@ -83,7 +81,6 @@ export function DiagnosticTaskOperations({ api, task, view, refreshing, onRefres
             <h3>当前作业阶段：2. 标本核收与检验流转</h3>
             <p>送检标本已送达实验室，核对合格后核收并开始检测。</p>
           </div>
-          <StatusBadge tone="info">待接收</StatusBadge>
         </div>
       </section>
     )}

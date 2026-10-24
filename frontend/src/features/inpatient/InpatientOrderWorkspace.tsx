@@ -95,15 +95,18 @@ export function InpatientOrderWorkspace({ api, episode, fixedWorkbench, nurseAre
     task.id, task.revision, 'COMPLETED', note, `ORDER-TASK-EXECUTE-${crypto.randomUUID()}`), onSuccess: refresh })
   const executeMany = useMutation({
     mutationFn: async ({ tasks: selectedTasks, note }: { tasks: InpatientOrderTask[]; note?: string }) => {
-      const result: BatchExecutionResult = { succeeded: [], failed: [] }
-      for (const task of selectedTasks) {
-        try {
-          await api.inpatient.executeOrderTask(task.id, task.revision, 'COMPLETED', note,
-            `ORDER-TASK-BATCH-${task.id}-${crypto.randomUUID()}`)
-          result.succeeded.push(task.id)
-        } catch (error) {
-          result.failed.push({ taskId: task.id, itemName: task.itemName, message: errorMessage(error) })
-        }
+      // 一次请求批量执行，服务端逐任务独立事务并回传逐项失败原因，保留部分成功语义。
+      const response = await api.inpatient.executeOrderTasksBatch(
+        selectedTasks.map((task) => ({ taskId: task.id, expectedRevision: task.revision })),
+        'COMPLETED', note, `ORDER-TASK-BATCH-${crypto.randomUUID()}`)
+      const taskById = new Map(selectedTasks.map((task) => [task.id, task]))
+      const result: BatchExecutionResult = {
+        succeeded: response.succeededTaskIds,
+        failed: response.failures.map((failure) => ({
+          taskId: failure.taskId,
+          itemName: taskById.get(failure.taskId)?.itemName ?? '',
+          message: failure.message,
+        })),
       }
       return result
     },

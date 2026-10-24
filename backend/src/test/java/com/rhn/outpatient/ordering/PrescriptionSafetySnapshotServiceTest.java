@@ -86,6 +86,34 @@ class PrescriptionSafetySnapshotServiceTest {
         verifyNoInteractions(medications);
     }
 
+    @Test
+    void reusesPatientFactsForPrescriptionsEvaluatedInOneTransaction() {
+        when(encounters.requireAccessible(3L)).thenReturn(new EncounterDirectory.EncounterSnapshot(
+                3L, 1L, 4L, 5L, 6L, "ENC", "7", "IN_PROGRESS", 1, "科室", null));
+        when(allergies.activeForResident(4L)).thenReturn(List.of());
+        when(residents.requireSnapshot(1L, 4L)).thenReturn(
+                new com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot(
+                        4L, "R", "患者", "1", java.time.LocalDate.now().minusYears(30), null, false));
+        var first = new Prescription(1L, 4L, 3L, "RX1", "WESTERN", 5L, 6L, 7L, null);
+        var second = new Prescription(1L, 4L, 3L, "RX2", "WESTERN", 5L, 6L, 7L, null);
+        when(prescriptions.findByIdAndTenantId(first.id(), 1L)).thenReturn(Optional.of(first));
+        when(prescriptions.findByIdAndTenantId(second.id(), 1L)).thenReturn(Optional.of(second));
+        when(medications.findSafetyContext(1L, 3L, first.id())).thenReturn(List.of());
+        when(medications.findSafetyContext(1L, 3L, second.id())).thenReturn(List.of());
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            snapshots.requireSnapshot(3L, first.id());
+            snapshots.requireSnapshot(3L, second.id());
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clear();
+        }
+
+        verify(encounters, times(1)).requireAccessible(3L);
+        verify(residents, times(1)).requireSnapshot(1L, 4L);
+        verify(allergies, times(1)).activeForResident(4L);
+    }
+
     private MedicationRequest request(Long id, MedicationRequestStatus status) {
         var item = mock(MedicationRequest.class);
         when(item.id()).thenReturn(id);

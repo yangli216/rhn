@@ -158,6 +158,29 @@ export interface InventoryBalance {
   projectedAt: string
 }
 
+export interface InventoryItemSummary {
+  stockItemId: string
+  quantityOnHand: number
+  quantityAvailable: number
+  quantityReserved: number
+  quantityFrozen: number
+  activeRows: number
+  activeLots: number
+  binCount: number
+  expiringLots: number
+  earliestExpiry?: string
+  averageUnitCost?: number
+  latestProjectedAt?: string
+  lotNos: string[]
+}
+
+export interface InventoryBalanceSummary {
+  items: InventoryItemSummary[]
+  inStockItemCount: number
+  activeRowCount: number
+  expiringLotCount: number
+}
+
 export interface InventoryTransactionLine {
   id: string
   sortOrder: number
@@ -270,6 +293,13 @@ export interface InventoryTraceEvent {
   occurredAt: string; occurredBy: string
 }
 export interface InventoryTraceDetail { code: InventoryTraceCode; events: InventoryTraceEvent[] }
+export interface InventoryTraceCodeLedgerRow { code: InventoryTraceCode; lotExpiryDate?: string }
+export interface InventoryTraceCodePage {
+  content: InventoryTraceCodeLedgerRow[]
+  page: number; size: number; totalElements: number; totalPages: number
+  first: boolean; last: boolean
+  metrics: { total: number; available: number; transit: number; exceptions: number }
+}
 export interface ReceiptTraceSummary {
   goodsReceiptId: string; requiredCount: number; registeredCount: number; complete: boolean
   lines: Array<{ goodsReceiptLineId: string; stockItemId: string; traceRequired: boolean
@@ -468,6 +498,14 @@ export interface PrescriptionSafetyReview {
   doctorReason?: string | null
   evaluation: import('./encountersApi').MedicationSafetyDecision
   medications: Array<{ requestId: string; name: string }>
+}
+
+export interface DispenseCancelResult {
+  taskId: string
+  taskNo: string
+  taskStatus: DispenseTaskStatus
+  cancelDispenseId: string
+  cancelNo: string
 }
 
 export interface DispenseTask {
@@ -871,6 +909,9 @@ export function createPharmacyApi(client: ApiClient) {
       `/api/pharmacy/inventory/balances?stockSiteId=${encodeURIComponent(stockSiteId)}`
         + (stockItemId ? `&stockItemId=${encodeURIComponent(stockItemId)}` : ''),
     ),
+    balanceSummary: (stockSiteId: string) => client.request<InventoryBalanceSummary>(
+      `/api/pharmacy/inventory/balances/summary?stockSiteId=${encodeURIComponent(stockSiteId)}`,
+    ),
     transactions: (stockSiteId: string, options: {
       periodCode?: string; stockItemId?: string; allPeriods?: boolean
     } = {}) => {
@@ -980,6 +1021,13 @@ export function createPharmacyApi(client: ApiClient) {
         + (status ? `&status=${encodeURIComponent(status)}` : '')
         + (query ? `&query=${encodeURIComponent(query)}` : ''),
     ),
+    traceCodePage: (stockSiteId: string, params: { status?: string; query?: string; page: number; size: number }) =>
+      client.request<InventoryTraceCodePage>(
+        `/api/pharmacy/inventory/trace-codes/page?stockSiteId=${encodeURIComponent(stockSiteId)}`
+          + `&page=${params.page}&size=${params.size}`
+          + (params.status ? `&status=${encodeURIComponent(params.status)}` : '')
+          + (params.query ? `&query=${encodeURIComponent(params.query)}` : ''),
+      ),
     traceCode: (id: string) => client.request<InventoryTraceDetail>(`/api/pharmacy/inventory/trace-codes/${id}`),
     scanTraceCode: (stockSiteId: string, traceCode: string) => client.request<InventoryTraceCode>(
       `/api/pharmacy/dispense/trace-code?stockSiteId=${encodeURIComponent(stockSiteId)}`
@@ -1138,18 +1186,27 @@ export function createPharmacyApi(client: ApiClient) {
       reasonCode?: string
       description?: string
       occurredAt?: string
-    }) => client.request<{
-      taskId: string
-      taskNo: string
-      taskStatus: DispenseTaskStatus
-      cancelDispenseId: string
-      cancelNo: string
-    }>(`/api/pharmacy/dispense-tasks/${taskId}/cancel-dispense`, {
+    }) => client.request<DispenseCancelResult>(`/api/pharmacy/dispense-tasks/${taskId}/cancel-dispense`, {
       method: 'POST', body: JSON.stringify(input),
+    }),
+    /** 整批取消发药：一次请求撤销多张处方任务的发药，取消编码由服务端按任务生成。 */
+    cancelDispenses: (taskIds: string[], input: {
+      operatorPractitionerId: string
+      operatorAssignmentId: string
+      reasonCode?: string
+      description?: string
+    }) => client.request<DispenseCancelResult[]>('/api/pharmacy/dispense-tasks/cancel-dispense', {
+      method: 'POST', body: JSON.stringify({ taskIds, ...input }),
     }),
     trace: (taskId: string) => client.request<DispenseTrace>(
       `/api/pharmacy/dispense-tasks/${taskId}/trace`,
     ),
+    /** 批量读取发药轨迹：退药勾选多项时一次取回全部轨迹，避免逐项请求。 */
+    traces: (taskIds: string[]) => {
+      const params = new URLSearchParams()
+      for (const taskId of taskIds) params.append('taskIds', taskId)
+      return client.request<DispenseTrace[]>(`/api/pharmacy/dispense-tasks/traces?${params.toString()}`)
+    },
     wardSupplyBatches: (options: WardSupplyBatchQuery) => {
       const params = new URLSearchParams({
         stockSiteId: options.stockSiteId,

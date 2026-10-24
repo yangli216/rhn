@@ -244,7 +244,9 @@ export function createOutpatientTriageApi(client: ApiClient): OutpatientTriageAp
       body: JSON.stringify(input),
     }),
     get: (id) => client.request<TriageRecord>(`/api/outpatient/triage/${id}`),
-    getByEncounter: (encounterId) => client.request<TriageRecord | null>(`/api/outpatient/triage/by-encounter/${encounterId}`),
+    // 后端对无分诊记录返回空体，httpClient 会转成 undefined；规整为 null 以满足 React Query 不允许 undefined 数据的约束。
+    getByEncounter: async (encounterId) => (await client.request<TriageRecord | null | undefined>(
+      `/api/outpatient/triage/by-encounter/${encounterId}`)) ?? null,
     search: (filter) => {
       const params = new URLSearchParams()
       if (filter?.organizationId) params.set('organizationId', filter.organizationId)

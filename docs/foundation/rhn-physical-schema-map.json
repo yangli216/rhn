@@ -32163,5 +32163,98 @@
         "comment": "租约失效时间"
       }
     ]
+  },
+  {
+    "logical": "aud.ai_record_decision",
+    "legacy": "ai_record_decision_bindings",
+    "physical": "RHN_AUD_AI_REC_DCSN",
+    "domain": "AUD",
+    "comment": "病历决策反馈关联；一行代表一次可采纳核查与原就诊、医生及字段指纹的绑定",
+    "columns": [
+      {
+        "logical": "run_id",
+        "physical": "ID_RUN",
+        "comment": "关联共用决策运行主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "encounter_id",
+        "physical": "ID_ENC",
+        "comment": "就诊标识"
+      },
+      {
+        "logical": "actor",
+        "physical": "ID_USER_ACTOR",
+        "comment": "核查医生身份"
+      },
+      {
+        "logical": "binding_json",
+        "physical": "JSON_BINDING",
+        "comment": "原医生、执业人员、病历版本与字段指纹；不重复保存病历原文"
+      }
+    ]
+  },
+  {
+    "logical": "aud.ai_record_feedback",
+    "legacy": "ai_record_feedback",
+    "physical": "RHN_AUD_AI_REC_FB",
+    "domain": "AUD",
+    "comment": "病历决策医生反馈；一行代表一条提示的一次追加操作或保存核实结果，不代表问题已经解决",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_FB",
+        "comment": "反馈记录主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "run_id",
+        "physical": "ID_RUN",
+        "comment": "关联病历核查运行"
+      },
+      {
+        "logical": "finding_code",
+        "physical": "CD_FINDING",
+        "comment": "有限提示编码"
+      },
+      {
+        "logical": "command_code",
+        "physical": "CD_COMMAND",
+        "comment": "客户端幂等命令编码"
+      },
+      {
+        "logical": "request_hash",
+        "physical": "CD_REQUEST_HASH",
+        "comment": "反馈请求内容指纹，拒绝相同命令不同内容"
+      },
+      {
+        "logical": "action",
+        "physical": "SD_ACTION",
+        "comment": "采纳、忽略、相关字段已修改保存或保存未修改"
+      },
+      {
+        "logical": "feedback_json",
+        "physical": "JSON_FB",
+        "comment": "医生与时间、真实文档版本及变化字段指纹，不复制病历原文"
+      }
+    ]
   }
 ]

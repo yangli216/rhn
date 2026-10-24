@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.notFound;
@@ -134,6 +135,57 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
         DispenseTaskLine first = requestLines.getFirst();
         DispenseTask firstTask = tasks.findByIdAndTenantId(first.taskId(), tenantId)
                 .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "住院停嘱对应的药房任务不存在"));
+        return stoppedClosure(requestLines, firstTask, consumedQuantities(tenantId, requestLines),
+                latestDeliveries(tenantId, requestLines));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, StopClosure> closures(Long tenantId, java.util.Collection<Long> medicationRequestIds) {
+        Map<Long, StopClosure> result = new java.util.LinkedHashMap<>();
+        if (tenantId == null || medicationRequestIds == null) return result;
+        List<Long> ids = medicationRequestIds.stream().distinct().toList();
+        if (ids.isEmpty()) return result;
+        Map<Long, MedicationRequestDirectory.MedicationRequestSnapshot> routing =
+                requests.routingSnapshots(tenantId, ids);
+        if (routing == null || routing.isEmpty()) return result;
+        Map<Long, List<DispenseTaskLine>> linesByRequest = new java.util.LinkedHashMap<>();
+        for (DispenseTaskLine line : lines.findByTenantIdAndRequestIdIn(tenantId, ids).stream()
+                .sorted(Comparator.comparing(DispenseTaskLine::id)).toList()) {
+            linesByRequest.computeIfAbsent(line.requestId(), ignored -> new java.util.ArrayList<>()).add(line);
+        }
+        List<DispenseTaskLine> allLines = linesByRequest.values().stream().flatMap(List::stream).toList();
+        List<Long> taskIds = allLines.stream().map(DispenseTaskLine::taskId).distinct().toList();
+        Map<Long, DispenseTask> taskById = new java.util.LinkedHashMap<>();
+        if (!taskIds.isEmpty()) {
+            for (DispenseTask task : tasks.findByTenantIdAndIdIn(tenantId, taskIds)) {
+                taskById.putIfAbsent(task.id(), task);
+            }
+        }
+        Map<Long, BigDecimal> consumedByLine = consumedQuantities(tenantId, allLines);
+        Map<Long, Delivery> deliveryByLine = latestDeliveries(tenantId, allLines);
+        for (Long id : ids) {
+            MedicationRequestDirectory.MedicationRequestSnapshot request = routing.get(id);
+            if (request == null) continue;
+            if (!"CANCELLED".equals(request.status())) {
+                result.put(id, StopClosure.notStopped(request.quantityUnit()));
+                continue;
+            }
+            List<DispenseTaskLine> requestLines = linesByRequest.getOrDefault(id, List.of());
+            if (requestLines.isEmpty()) {
+                result.put(id, cancelled(null, request.quantityUnit()));
+                continue;
+            }
+            result.put(id, stoppedClosure(requestLines, taskById.get(requestLines.getFirst().taskId()),
+                    consumedByLine, deliveryByLine));
+        }
+        return result;
+    }
+
+    private StopClosure stoppedClosure(List<DispenseTaskLine> requestLines, DispenseTask firstTask,
+                                       Map<Long, BigDecimal> consumedByLine, Map<Long, Delivery> deliveryByLine) {
+        if (firstTask == null) throw notFound("DISPENSE_TASK_NOT_FOUND", "住院停嘱对应的药房任务不存在");
+        DispenseTaskLine first = requestLines.getFirst();
         BigDecimal dispensed = BigDecimal.ZERO;
         BigDecimal returned = BigDecimal.ZERO;
         BigDecimal consumed = BigDecimal.ZERO;
@@ -143,13 +195,13 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
             BigDecimal factor = line.baseQuantityFactor();
             BigDecimal lineDispensed = line.dispensedQuantity().multiply(factor);
             BigDecimal lineReturned = line.returnedQuantity().multiply(factor);
-            BigDecimal lineConsumed = consumptions.consumedBaseQuantityForTaskLine(tenantId, line.id());
+            BigDecimal lineConsumed = consumedByLine.getOrDefault(line.id(), BigDecimal.ZERO);
             dispensed = dispensed.add(lineDispensed);
             returned = returned.add(lineReturned);
             consumed = consumed.add(lineConsumed);
             returnable = returnable.add(lineDispensed.subtract(lineReturned).subtract(lineConsumed)
                     .max(BigDecimal.ZERO));
-            Delivery candidate = latestDelivery(tenantId, line.taskId());
+            Delivery candidate = deliveryByLine.getOrDefault(line.id(), new Delivery(null, null));
             if (candidate.id() != null) latest = candidate;
         }
         BigDecimal factor = first.baseQuantityFactor();
@@ -162,21 +214,36 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
                 first.dispenseUnitCode(), latest.id(), latest.status(), action);
     }
 
-    private StopClosure stoppedClosure(Long tenantId, DispenseTask task, DispenseTaskLine line) {
-        BigDecimal factor = line.baseQuantityFactor();
-        BigDecimal dispensed = line.dispensedQuantity().multiply(factor);
-        BigDecimal returned = line.returnedQuantity().multiply(factor);
-        BigDecimal consumed = consumptions.consumedBaseQuantityForTaskLine(tenantId, line.id());
-        BigDecimal returnable = dispensed.subtract(returned).subtract(consumed).max(BigDecimal.ZERO);
-        if (dispensed.signum() == 0) return cancelled(task, line.dispenseUnitCode());
+    private Map<Long, BigDecimal> consumedQuantities(Long tenantId, List<DispenseTaskLine> requestLines) {
+        Map<Long, BigDecimal> consumedByLine = new java.util.HashMap<>();
+        if (requestLines.isEmpty()) return consumedByLine;
+        for (var value : consumptions.consumedBaseQuantityByTaskLineIds(tenantId, requestLines.stream()
+                .map(DispenseTaskLine::id).distinct().toList())) {
+            consumedByLine.put(value.getTaskLineId(), value.getConsumedQuantity());
+        }
+        return consumedByLine;
+    }
 
-        Delivery delivery = latestDelivery(tenantId, task.id());
-        String status = returnable.signum() > 0 ? "RETURN_REQUIRED" : "STOPPED";
-        String action = action(status, delivery.status());
-        return new StopClosure(status, task.id(), task.status().name(),
-                line.dispensedQuantity(), operationQuantity(consumed, factor), line.returnedQuantity(),
-                operationQuantity(returnable, factor), line.dispenseUnitCode(),
-                delivery.id(), delivery.status(), action);
+    /** 一次装载各发药行的最近发药与配送闸门；语义与逐行 {@code latestDelivery} 一致。 */
+    private Map<Long, Delivery> latestDeliveries(Long tenantId, List<DispenseTaskLine> requestLines) {
+        List<Long> taskIds = requestLines.stream().map(DispenseTaskLine::taskId).distinct().toList();
+        Map<Long, Long> latestDispenseByTask = new java.util.HashMap<>();
+        for (MedicationDispense value : dispenses.findByTenantIdAndTaskIdInOrderByOccurredAtAscIdAsc(tenantId,
+                taskIds)) {
+            if ("DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType())) {
+                latestDispenseByTask.put(value.taskId(), value.id());
+            }
+        }
+        Map<Long, WardDeliveryDirectory.DeliveryGate> gates = latestDispenseByTask.isEmpty() ? Map.of()
+                : wardDeliveries.deliveryGates(tenantId, latestDispenseByTask.values());
+        Map<Long, Delivery> result = new java.util.HashMap<>();
+        for (DispenseTaskLine line : requestLines) {
+            Long dispenseId = latestDispenseByTask.get(line.taskId());
+            WardDeliveryDirectory.DeliveryGate gate = dispenseId == null ? null : gates.get(dispenseId);
+            result.put(line.id(), gate == null || gate.deliveryId() == null ? new Delivery(null, null)
+                    : new Delivery(gate.deliveryId(), gate.status()));
+        }
+        return result;
     }
 
     private StopClosure cancelled(DispenseTask task, String unitCode) {
@@ -187,16 +254,6 @@ public class InpatientMedicationStopApplicationService implements InpatientMedic
 
     private BigDecimal operationQuantity(BigDecimal baseQuantity, BigDecimal factor) {
         return baseQuantity.divide(factor, 8, RoundingMode.HALF_UP).stripTrailingZeros();
-    }
-
-    private Delivery latestDelivery(Long tenantId, Long taskId) {
-        MedicationDispense latest = dispenses.findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(tenantId, taskId)
-                .stream().filter(value -> "DISPENSE".equals(value.dispenseType())
-                        || "REDISPENSE".equals(value.dispenseType()))
-                .reduce((first, second) -> second).orElse(null);
-        if (latest == null) return new Delivery(null, null);
-        var gate = wardDeliveries.deliveryGate(tenantId, latest.id());
-        return new Delivery(gate.deliveryId(), gate.status());
     }
 
     private String action(String status, String deliveryStatus) {

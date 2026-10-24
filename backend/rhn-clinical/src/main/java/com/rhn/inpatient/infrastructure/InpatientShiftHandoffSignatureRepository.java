@@ -11,4 +11,6 @@ public interface InpatientShiftHandoffSignatureRepository
     Optional<InpatientShiftHandoffSignature> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
     List<InpatientShiftHandoffSignature> findByTenantIdAndHandoffIdOrderBySignedAtAscIdAsc(
             Long tenantId, Long handoffId);
+    List<InpatientShiftHandoffSignature> findByTenantIdAndHandoffIdInOrderByHandoffIdAscSignedAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> handoffIds);
 }

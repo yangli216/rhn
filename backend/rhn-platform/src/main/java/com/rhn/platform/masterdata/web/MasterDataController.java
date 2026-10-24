@@ -82,6 +82,14 @@ public class MasterDataController {
         return service.searchServices(query, serviceType, status, organizationId, page, size);
     }
 
+    /** 按编码批量读取服务项目，供模板一键开立时一次请求完成目录核对。 */
+    @GetMapping("/services/batch")
+    List<ServiceView> servicesByCodes(@RequestParam List<String> codes,
+                                      @RequestParam(required = false) String status,
+                                      @RequestParam(required = false) Long organizationId) {
+        return service.servicesByCodes(codes, status, organizationId);
+    }
+
     @PostMapping("/services")
     @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
@@ -110,6 +118,14 @@ public class MasterDataController {
                                      @RequestParam(required = false) String status,
                                      @RequestParam(required = false) Long organizationId) {
         return service.listMedications(query, medicationType, status, organizationId);
+    }
+
+    /** 按编码批量读取药品，供模板/历史导入一次请求完成目录核对。 */
+    @GetMapping("/medications/batch")
+    List<MedicationView> medicationsByCodes(@RequestParam List<String> codes,
+                                            @RequestParam(required = false) String status,
+                                            @RequestParam(required = false) Long organizationId) {
+        return service.medicationsByCodes(codes, status, organizationId);
     }
 
     @GetMapping("/medications/search")

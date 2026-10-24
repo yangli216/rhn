@@ -77,7 +77,7 @@ public class InsuranceClaimResponse {
     public boolean hasReportedAmounts() { return "REPORTED".equals(amountSource); }
     public String amountSource() { return hasReportedAmounts() ? "REPORTED" : "LEGACY_UNVERIFIED"; }
     private String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    public Long id() { return id; } public Long externalMessageId() { return externalMessageId; }
+    public Long id() { return id; } public Long claimId() { return claimId; } public Long externalMessageId() { return externalMessageId; }
     public String responseNo() { return responseNo; } public String commandCode() { return commandCode; }
     public String operation() { return operation; } public String status() { return status; }
     public String externalSettlementNo() { return externalSettlementNo; } public BigDecimal insuranceFundAmount() { return hasReportedAmounts() ? insuranceFundAmount : null; }

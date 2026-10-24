@@ -34,14 +34,16 @@ export function historicalImportFixture() {
   } as unknown as OrderableMedicationKnowledge
   const prescriptions = vi.fn().mockResolvedValue([rx])
   const orderableMedications = vi.fn().mockResolvedValue([medication])
+  const orderableMedicationsBatch = vi.fn().mockImplementation(async (_id: string, codes: string[]) =>
+    Object.fromEntries(codes.map(code => [code, [medication]])))
   const routes = [{ id: 'route', code: 'PO', name: '口服', executionType: 'NONE' }]
   const frequencies = [{ ...frequencyRule }]
   const activeMedicationRoutes = vi.fn().mockResolvedValue(routes)
   const activeOrderFrequencies = vi.fn().mockResolvedValue(frequencies)
-  const api = { encounters: { prescriptions, orderableMedications }, masterData: {
+  const api = { encounters: { prescriptions, orderableMedications, orderableMedicationsBatch }, masterData: {
     activeMedicationRoutes, activeOrderFrequencies,
   } } as unknown as RhnApi
   const input = { source, target, viewed: [rx], selectedIds: ['med'], api, allergyOverrideReason: '' }
-  return { input, rx, medication, api, source, target, prescriptions, orderableMedications, routes, frequencies,
-    activeMedicationRoutes, activeOrderFrequencies }
+  return { input, rx, medication, api, source, target, prescriptions, orderableMedications, orderableMedicationsBatch,
+    routes, frequencies, activeMedicationRoutes, activeOrderFrequencies }
 }

@@ -11,6 +11,18 @@ public interface WardDeliveryDirectory {
 
     DeliveryGate deliveryGate(Long tenantId, Long dispenseId);
 
+    /**
+     * 批量形式：一次取回多条发药的配送闸门，供停嘱闭环等批量装配使用；
+     * 默认实现退化为逐条调用 {@link #deliveryGate}。
+     */
+    default Map<Long, DeliveryGate> deliveryGates(Long tenantId, Collection<Long> dispenseIds) {
+        Map<Long, DeliveryGate> result = new java.util.LinkedHashMap<>();
+        for (Long dispenseId : dispenseIds) {
+            result.put(dispenseId, deliveryGate(tenantId, dispenseId));
+        }
+        return result;
+    }
+
     record WardDeliveryProgress(int pendingDispatchCount, int inTransitCount,
                                 int discrepancyCount) {
         public int openCount() {

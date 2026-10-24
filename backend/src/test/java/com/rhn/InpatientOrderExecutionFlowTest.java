@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ResetDatabaseBeforeEachTestMethod
 class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
     private static final String RESIDENT = "362387869790213";
     private static final String BED = "362387869898514";
@@ -212,6 +213,44 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                         .content(plan(4, "IP-ORDER-PLAN-AFTER-DISCHARGE", now.plusSeconds(7200))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INPATIENT_EPISODE_NOT_ADMITTED"));
+    }
+
+    @Test
+    void batch_execution_completes_each_task_independently_and_reports_per_task_failures() throws Exception {
+        String episodeId = admit();
+        JsonNode created = postJson("/api/inpatient/orders", """
+                {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
+                 "catalogItemId":"%s","instructions":"批量执行测试","commandCode":"IP-BATCH-CREATE-SRV"}
+                """.formatted(episodeId, SERVICE_ITEM), 201);
+        String orderId = created.get("id").asString();
+        postJson("/api/inpatient/orders/" + orderId + "/sign", revision(0, "IP-BATCH-SIGN-SRV"), 200);
+        postJson("/api/inpatient/orders/" + orderId + "/verify", revision(1, "IP-BATCH-VERIFY-SRV"), 200);
+        JsonNode planned = postJson("/api/inpatient/orders/" + orderId + "/plans",
+                plan(2, "IP-BATCH-PLAN-SRV", Instant.now().minusSeconds(120), Instant.now().minusSeconds(60)), 200);
+        String first = planned.get("tasks").get(0).get("id").asString();
+        String second = planned.get("tasks").get(1).get("id").asString();
+        postJson("/api/inpatient/order-tasks/" + first + "/execute", """
+                {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-BATCH-EXEC-FIRST"}
+                """, 200);
+
+        String body = """
+                {"items":[{"taskId":"%s","expectedRevision":0},{"taskId":"%s","expectedRevision":0}],
+                 "outcomeCode":"COMPLETED","note":"批量执行","batchCommandCode":"IP-BATCH-EXEC"}
+                """.formatted(first, second);
+        JsonNode result = postJson("/api/inpatient/order-tasks/execute-batch", body, 200);
+        assertEquals(1, result.get("succeededTaskIds").size());
+        assertEquals(second, result.get("succeededTaskIds").get(0).asString());
+        assertEquals(1, result.get("failures").size());
+        assertEquals(first, result.at("/failures/0/taskId").asString());
+        assertEquals("INPATIENT_TASK_REVISION_CONFLICT", result.at("/failures/0/code").asString());
+        assertEquals("EXECUTED", jdbcTemplate.queryForObject(
+                "select SD_STATUS as status from RHN_EX_INP_ORDER_TASK where ID_INP_ORDER_TASK = ?",
+                String.class, Long.valueOf(second)));
+
+        JsonNode replay = postJson("/api/inpatient/order-tasks/execute-batch", body, 200);
+        assertEquals(1, replay.get("succeededTaskIds").size());
+        assertEquals(second, replay.get("succeededTaskIds").get(0).asString());
+        assertEquals(1, replay.get("failures").size());
     }
 
     private String createAndCompleteService(String episodeId, Instant plannedAt) throws Exception {

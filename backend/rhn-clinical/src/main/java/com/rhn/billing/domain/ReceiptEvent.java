@@ -42,6 +42,7 @@ public class ReceiptEvent {
         this.occurredAt = Instant.now();
     }
     public Long id() { return id; }
+    public Long receiptId() { return receiptId; }
     public Long externalMessageId() { return externalMessageId; }
     public String eventType() { return eventType; }
     public String statusFrom() { return statusFrom; }

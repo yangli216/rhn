@@ -10,4 +10,6 @@ public interface SettlementEventRepository extends JpaRepository<SettlementEvent
     Optional<SettlementEvent> findByTenantIdAndSettlementIdAndCommandCode(
             Long tenantId, Long settlementId, String commandCode);
     List<SettlementEvent> findByTenantIdAndSettlementIdOrderByIdAsc(Long tenantId, Long settlementId);
+    List<SettlementEvent> findByTenantIdAndSettlementIdInOrderBySettlementIdAscIdAsc(
+            Long tenantId, java.util.Collection<Long> settlementIds);
 }

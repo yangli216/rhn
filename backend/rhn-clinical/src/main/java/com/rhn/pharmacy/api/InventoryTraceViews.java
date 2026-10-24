@@ -4,6 +4,7 @@ import com.rhn.platform.dictionary.api.DictionaryBinding;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public final class InventoryTraceViews {
@@ -30,6 +31,12 @@ public final class InventoryTraceViews {
                                  Instant occurredAt, Long occurredBy) {}
 
     public record TraceDetailView(TraceCodeView code, List<TraceEventView> events) {}
+    /** 追溯码台账行：随行返回批号效期，前端不再按经营项目逐个拉取批次。 */
+    public record TraceCodeLedgerRowView(TraceCodeView code, LocalDate lotExpiryDate) {}
+    public record TraceCodeMetricsView(long total, long available, long transit, long exceptions) {}
+    public record TraceCodePageView(List<TraceCodeLedgerRowView> content, int page, int size, long totalElements,
+                                    int totalPages, boolean first, boolean last,
+                                    TraceCodeMetricsView metrics) {}
     public record ReceiptTraceLineView(Long goodsReceiptLineId, Long stockItemId, boolean traceRequired,
                                        BigDecimal acceptedQuantity, int registeredCount, boolean complete) {}
     public record ReceiptTraceSummaryView(Long goodsReceiptId, int requiredCount, int registeredCount,

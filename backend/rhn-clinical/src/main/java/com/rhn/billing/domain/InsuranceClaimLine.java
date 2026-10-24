@@ -36,7 +36,7 @@ public class InsuranceClaimLine {
         this.itemNameSnapshot = itemName; this.categoryCode = categoryCode; this.quantity = quantity;
         this.unitPrice = unitPrice; this.claimedAmount = claimedAmount; this.traceAttributesJson = traceAttributesJson;
     }
-    public Long id() { return id; } public Long settlementLineId() { return settlementLineId; } public int lineNo() { return lineNo; }
+    public Long id() { return id; } public Long claimId() { return claimId; } public Long settlementLineId() { return settlementLineId; } public int lineNo() { return lineNo; }
     public String itemCode() { return itemCode; } public String insuranceItemCode() { return insuranceItemCode; }
     public String itemName() { return itemNameSnapshot; } public String categoryCode() { return categoryCode; }
     public BigDecimal quantity() { return quantity; } public BigDecimal unitPrice() { return unitPrice; }

@@ -10,6 +10,7 @@ import com.rhn.pharmacy.domain.MedicationDispenseConsumption;
 import com.rhn.pharmacy.domain.MedicationDispenseLine;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
 import com.rhn.pharmacy.domain.DispenseTaskLineStatus;
+import com.rhn.pharmacy.domain.InpatientMedicationSupplyLine;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseConsumptionRepository;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -75,10 +77,46 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         List<DispenseTaskLine> requestLines = lines.findByTenantIdAndRequestIdOrderById(
                 tenantId, medicationRequestId);
         if (requestLines.isEmpty()) return FulfillmentSnapshot.pending();
-        BigDecimal net = requestLines.stream().map(DispenseTaskLine::netDispensedQuantity)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
         List<FulfillmentSnapshot> snapshots = requestLines.stream()
                 .map(line -> snapshotForLine(tenantId, line)).toList();
+        return aggregate(requestLines, snapshots);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, FulfillmentSnapshot> fulfillmentsForRequests(Long tenantId,
+                                                                  java.util.Collection<Long> medicationRequestIds) {
+        Map<Long, FulfillmentSnapshot> result = new LinkedHashMap<>();
+        if (tenantId == null || medicationRequestIds == null) return result;
+        List<Long> ids = medicationRequestIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return result;
+        // 一次批量装载各医嘱的发药行与最近发药行，避免逐请求重复查询。
+        Map<Long, List<DispenseTaskLine>> linesByRequest = new LinkedHashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            lines.findByTenantIdAndRequestIdIn(tenantId, ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(line -> linesByRequest.computeIfAbsent(line.requestId(),
+                            ignored -> new java.util.ArrayList<>()).add(line));
+        }
+        List<Long> allLineIds = linesByRequest.values().stream().flatMap(List::stream)
+                .map(DispenseTaskLine::id).distinct().toList();
+        Map<Long, Long> latestDispenseByLine = latestIssuedDispenseByLine(tenantId, allLineIds);
+        for (Long id : ids) {
+            List<DispenseTaskLine> requestLines = linesByRequest.getOrDefault(id, List.of());
+            if (requestLines.isEmpty()) {
+                result.put(id, FulfillmentSnapshot.pending());
+                continue;
+            }
+            List<FulfillmentSnapshot> snapshots = requestLines.stream()
+                    .map(line -> snapshotForLine(line, latestDispenseByLine.get(line.id()))).toList();
+            result.put(id, aggregate(requestLines, snapshots));
+        }
+        return result;
+    }
+
+    private FulfillmentSnapshot aggregate(List<DispenseTaskLine> requestLines,
+                                          List<FulfillmentSnapshot> snapshots) {
+        BigDecimal net = requestLines.stream().map(DispenseTaskLine::netDispensedQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         boolean completed = snapshots.stream().allMatch(FulfillmentSnapshot::completed);
         Long dispenseId = snapshots.stream().map(FulfillmentSnapshot::dispenseId)
                 .filter(java.util.Objects::nonNull).reduce((first, second) -> second).orElse(null);
@@ -95,10 +133,87 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         return line == null ? FulfillmentSnapshot.pending() : snapshotForLine(tenantId, line);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, FulfillmentSnapshot> fulfillmentsForConsumers(Long tenantId, String consumerType,
+                                                                  Map<Long, Long> requestIdByConsumerId) {
+        Map<Long, FulfillmentSnapshot> result = new LinkedHashMap<>();
+        if (tenantId == null || requestIdByConsumerId == null || requestIdByConsumerId.isEmpty()) return result;
+        if (!"INPATIENT_ORDER_TASK".equals(consumerType)) {
+            return MedicationFulfillmentDirectory.super.fulfillmentsForConsumers(
+                    tenantId, consumerType, requestIdByConsumerId);
+        }
+        Map<Long, DispenseTaskLine> lineByConsumer = taskLinesForConsumers(tenantId, requestIdByConsumerId);
+        Map<Long, Long> latestDispenseByLine = latestIssuedDispenseByLine(tenantId, lineByConsumer.values()
+                .stream().map(DispenseTaskLine::id).distinct().toList());
+        requestIdByConsumerId.keySet().forEach(consumerId -> {
+            DispenseTaskLine line = lineByConsumer.get(consumerId);
+            if (line == null) {
+                result.put(consumerId, FulfillmentSnapshot.pending());
+                return;
+            }
+            Long latestDispenseId = latestDispenseByLine.get(line.id());
+            boolean completed = line.status() == DispenseTaskLineStatus.COMPLETED
+                    && line.netDispensedQuantity().signum() > 0 && latestDispenseId != null;
+            result.put(consumerId, new FulfillmentSnapshot(completed, latestDispenseId,
+                    line.netDispensedQuantity(), line.status().name()));
+        });
+        return result;
+    }
+
+    /** 一次装载给药任务对应的供药任务、供药行与发药任务明细，过滤语义与单条路径一致。 */
+    private Map<Long, DispenseTaskLine> taskLinesForConsumers(Long tenantId,
+                                                              Map<Long, Long> requestIdByConsumerId) {
+        Map<Long, Long> supplyLineIdByConsumer = new LinkedHashMap<>();
+        supplyTasks.findByTenantIdAndOrderTaskIdInAndStatus(tenantId, requestIdByConsumerId.keySet(),
+                        InpatientMedicationSupplyTaskStatus.ACTIVE)
+                .forEach(value -> supplyLineIdByConsumer.putIfAbsent(value.orderTaskId(), value.supplyLineId()));
+        if (supplyLineIdByConsumer.isEmpty()) return Map.of();
+        Map<Long, InpatientMedicationSupplyLine> supplyLineById = new LinkedHashMap<>();
+        supplyLines.findByTenantIdAndIdIn(tenantId,
+                        supplyLineIdByConsumer.values().stream().distinct().toList())
+                .forEach(value -> supplyLineById.putIfAbsent(value.id(), value));
+        Map<Long, Long> taskLineIdByConsumer = new LinkedHashMap<>();
+        supplyLineIdByConsumer.forEach((consumerId, supplyLineId) -> {
+            InpatientMedicationSupplyLine line = supplyLineById.get(supplyLineId);
+            if (line != null && line.status() == InpatientMedicationSupplyLineStatus.INTAKEN
+                    && line.dispenseTaskLineId() != null) {
+                taskLineIdByConsumer.put(consumerId, line.dispenseTaskLineId());
+            }
+        });
+        if (taskLineIdByConsumer.isEmpty()) return Map.of();
+        Map<Long, DispenseTaskLine> taskLineById = new LinkedHashMap<>();
+        lines.findByTenantIdAndIdIn(tenantId, taskLineIdByConsumer.values().stream().distinct().toList())
+                .forEach(value -> taskLineById.putIfAbsent(value.id(), value));
+        Map<Long, DispenseTaskLine> result = new LinkedHashMap<>();
+        taskLineIdByConsumer.forEach((consumerId, taskLineId) -> {
+            DispenseTaskLine line = taskLineById.get(taskLineId);
+            if (line != null && requestIdByConsumerId.get(consumerId).equals(line.requestId())) {
+                result.put(consumerId, line);
+            }
+        });
+        return result;
+    }
+
+    private Map<Long, Long> latestIssuedDispenseByLine(Long tenantId, List<Long> taskLineIds) {
+        Map<Long, Long> result = new LinkedHashMap<>();
+        if (taskLineIds.isEmpty()) return result;
+        for (MedicationDispenseLine line : dispenseLines.findIssuedLinesByTaskLineIds(tenantId, taskLineIds)) {
+            if (line.quantityDispensed().signum() > 0) {
+                result.put(line.taskLineId(), line.medicationDispenseId());
+            }
+        }
+        return result;
+    }
+
     private FulfillmentSnapshot snapshotForLine(Long tenantId, DispenseTaskLine line) {
         Long latestDispenseId = dispenseLines.findIssuedLines(tenantId, line.id()).stream()
                 .filter(value -> value.quantityDispensed().signum() > 0)
                 .reduce((first, second) -> second).map(MedicationDispenseLine::medicationDispenseId).orElse(null);
+        return snapshotForLine(line, latestDispenseId);
+    }
+
+    private FulfillmentSnapshot snapshotForLine(DispenseTaskLine line, Long latestDispenseId) {
         boolean completed = line.status() == DispenseTaskLineStatus.COMPLETED
                 && line.netDispensedQuantity().signum() > 0 && latestDispenseId != null;
         return new FulfillmentSnapshot(completed, latestDispenseId, line.netDispensedQuantity(), line.status().name());
@@ -149,12 +264,14 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         for (MedicationDispenseLine line : dispenseLines.findIssuedLines(values.tenantId(), taskLine.id())) {
             issuedByDispense.computeIfAbsent(line.medicationDispenseId(), ignored -> new ArrayList<>()).add(line);
         }
+        // 一次批量装载发药头、库存项目单位、退药量、核销量与待退量，避免逐发药行回查。
+        IssueFacts facts = loadIssueFacts(values.tenantId(), task, issuedByDispense);
         List<AvailableIssueLine> available = new ArrayList<>();
         BigDecimal totalAvailableBase = BigDecimal.ZERO;
         BigDecimal totalPhysicalBase = BigDecimal.ZERO;
         boolean unitMismatch = false;
         for (Map.Entry<Long, List<MedicationDispenseLine>> entry : issuedByDispense.entrySet()) {
-            DispenseIssues dispense = collectDispenseIssues(values, task, entry.getKey(), entry.getValue());
+            DispenseIssues dispense = collectDispenseIssues(values, task, entry.getKey(), entry.getValue(), facts);
             totalPhysicalBase = totalPhysicalBase.add(dispense.physicalBase());
             totalAvailableBase = totalAvailableBase.add(dispense.availableTotalBase());
             unitMismatch = unitMismatch || dispense.unitMismatch();
@@ -163,28 +280,74 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         return new AvailableIssues(available, totalAvailableBase, totalPhysicalBase, unitMismatch);
     }
 
+    /** 发药核销所需的全部事实：按 500 一批装载，缺失项在逐行判定时仍按原顺序报错。 */
+    private IssueFacts loadIssueFacts(Long tenantId, DispenseTask task,
+                                      Map<Long, List<MedicationDispenseLine>> issuedByDispense) {
+        List<Long> dispenseIds = issuedByDispense.keySet().stream().toList();
+        Map<Long, MedicationDispense> headerById = new HashMap<>();
+        forEachBatch(dispenseIds, chunk -> dispenses.findByTenantIdAndIdIn(tenantId, chunk)
+                .forEach(value -> headerById.put(value.id(), value)));
+        List<MedicationDispenseLine> allLines = issuedByDispense.values().stream()
+                .flatMap(List::stream).toList();
+        Map<Long, String> baseUnitByStockItem = new HashMap<>();
+        forEachBatch(allLines.stream().map(MedicationDispenseLine::stockItemId).distinct().toList(),
+                chunk -> stockItems.findByTenantIdAndIdIn(tenantId, chunk)
+                        .forEach(value -> baseUnitByStockItem.put(value.id(), value.baseUnitCode())));
+        List<Long> lineIds = allLines.stream().map(MedicationDispenseLine::id).distinct().toList();
+        Map<Long, BigDecimal> returnedBaseByLine = new HashMap<>();
+        forEachBatch(lineIds, chunk -> dispenseLines.returnedQuantities(tenantId, chunk)
+                .forEach(value -> returnedBaseByLine.put(value.getDispenseLineId(), value.getReturnedQuantity())));
+        Map<Long, BigDecimal> consumedBaseByLine = new HashMap<>();
+        forEachBatch(lineIds, chunk -> consumptions.consumedBaseQuantitiesByDispenseLineIds(tenantId, chunk)
+                .forEach(value -> consumedBaseByLine.put(value.getDispenseLineId(), value.getConsumedBaseQuantity())));
+        Map<Long, BigDecimal> pendingReturnBaseByLine = new HashMap<>();
+        forEachBatch(lineIds, chunk -> wardReturns.pendingBaseQuantities(tenantId, chunk)
+                .forEach(value -> pendingReturnBaseByLine.put(value.getDispenseLineId(),
+                        value.getPendingBaseQuantity())));
+        Map<Long, WardDeliveryDirectory.DeliveryGate> gateById = "INPATIENT".equals(task.taskType())
+                ? wardDeliveries.deliveryGates(tenantId, dispenseIds) : Map.of();
+        return new IssueFacts(headerById, baseUnitByStockItem, returnedBaseByLine, consumedBaseByLine,
+                pendingReturnBaseByLine, gateById);
+    }
+
+    private static <T> void forEachBatch(List<T> ids, java.util.function.Consumer<List<T>> action) {
+        for (int from = 0; from < ids.size(); from += 500) {
+            action.accept(ids.subList(from, Math.min(from + 500, ids.size())));
+        }
+    }
+
+    private record IssueFacts(Map<Long, MedicationDispense> headerById,
+                              Map<Long, String> baseUnitByStockItem,
+                              Map<Long, BigDecimal> returnedBaseByLine,
+                              Map<Long, BigDecimal> consumedBaseByLine,
+                              Map<Long, BigDecimal> pendingReturnBaseByLine,
+                              Map<Long, WardDeliveryDirectory.DeliveryGate> gateById) {
+    }
+
     private DispenseIssues collectDispenseIssues(ConsumptionInput values, DispenseTask task, Long dispenseId,
-                                                 List<MedicationDispenseLine> issuedLines) {
-        MedicationDispense header = dispenses.findByIdAndTenantId(dispenseId, values.tenantId())
-                .orElseThrow(() -> conflict("MEDICATION_DISPENSE_NOT_FOUND", "发药事件不存在"));
+                                                 List<MedicationDispenseLine> issuedLines, IssueFacts facts) {
+        MedicationDispense header = facts.headerById().get(dispenseId);
+        if (header == null) {
+            throw conflict("MEDICATION_DISPENSE_NOT_FOUND", "发药事件不存在");
+        }
         List<IssueBalance> balances = new ArrayList<>();
         BigDecimal headerReturnedBase = BigDecimal.ZERO;
         BigDecimal headerConsumedBase = BigDecimal.ZERO;
         BigDecimal headerPhysicalBase = BigDecimal.ZERO;
         boolean unitMismatch = false;
         for (MedicationDispenseLine line : issuedLines) {
-            String lineBaseUnit = stockItems.findByIdAndTenantId(line.stockItemId(), values.tenantId())
-                    .orElseThrow(() -> conflict("MEDICATION_DISPENSE_STOCK_ITEM_MISSING",
-                            "发药批次对应库存项目不存在"))
-                    .baseUnitCode();
+            String lineBaseUnit = facts.baseUnitByStockItem().get(line.stockItemId());
+            if (lineBaseUnit == null) {
+                throw conflict("MEDICATION_DISPENSE_STOCK_ITEM_MISSING", "发药批次对应库存项目不存在");
+            }
             if (!values.baseUnit().equalsIgnoreCase(lineBaseUnit)) {
                 unitMismatch = true;
                 continue;
             }
-            BigDecimal returnedBase = dispenseLines.returnedQuantity(values.tenantId(), line.id())
+            BigDecimal returnedBase = facts.returnedBaseByLine().getOrDefault(line.id(), BigDecimal.ZERO)
                     .multiply(line.baseQuantityFactor());
-            BigDecimal consumedBase = consumptions.consumedBaseQuantity(values.tenantId(), line.id());
-            BigDecimal pendingReturnBase = wardReturns.pendingBaseQuantity(values.tenantId(), line.id());
+            BigDecimal consumedBase = facts.consumedBaseByLine().getOrDefault(line.id(), BigDecimal.ZERO);
+            BigDecimal pendingReturnBase = facts.pendingReturnBaseByLine().getOrDefault(line.id(), BigDecimal.ZERO);
             BigDecimal physicalBase = line.quantityDispensed().multiply(line.baseQuantityFactor())
                     .subtract(returnedBase).subtract(consumedBase).subtract(pendingReturnBase)
                     .max(BigDecimal.ZERO);
@@ -195,7 +358,7 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         }
         BigDecimal headerAvailableBase = headerPhysicalBase;
         if ("INPATIENT".equals(task.taskType())) {
-            var gate = wardDeliveries.deliveryGate(values.tenantId(), header.id());
+            var gate = facts.gateById().get(header.id());
             if (!gate.deliveryRequired() || !gate.ready() || gate.receivedQuantity() == null
                     || gate.receivedQuantity().signum() <= 0) {
                 return new DispenseIssues(headerPhysicalBase, BigDecimal.ZERO, unitMismatch, List.of());
@@ -297,6 +460,24 @@ public class JpaMedicationFulfillmentDirectory implements MedicationFulfillmentD
         return consumptions.findByTenantIdAndConsumerTypeAndConsumerIdOrderById(
                         tenantId, consumerType.trim().toUpperCase(Locale.ROOT), consumerId).stream()
                 .map(this::allocation).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, List<ConsumptionAllocation>> consumptionsForConsumers(Long tenantId, String consumerType,
+                                                                         java.util.Collection<Long> consumerIds) {
+        Map<Long, List<ConsumptionAllocation>> result = new LinkedHashMap<>();
+        if (tenantId == null || consumerType == null || consumerType.isBlank() || consumerIds == null) return result;
+        List<Long> ids = consumerIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return result;
+        Map<Long, List<ConsumptionAllocation>> grouped = new LinkedHashMap<>();
+        for (MedicationDispenseConsumption value : consumptions
+                .findByTenantIdAndConsumerTypeAndConsumerIdInOrderById(
+                        tenantId, consumerType.trim().toUpperCase(Locale.ROOT), ids)) {
+            grouped.computeIfAbsent(value.consumerId(), ignored -> new ArrayList<>()).add(allocation(value));
+        }
+        ids.forEach(id -> result.put(id, List.copyOf(grouped.getOrDefault(id, List.of()))));
+        return result;
     }
 
     @Override

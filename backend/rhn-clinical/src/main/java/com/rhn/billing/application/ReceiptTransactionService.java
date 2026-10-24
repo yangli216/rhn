@@ -26,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -343,8 +345,8 @@ class ReceiptTransactionService {
         Settlement settlement = settlements.findByIdAndTenantId(settlementId, context.tenantId())
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
         requireAccess(context, settlement.patientAccountId());
-        return receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(context.tenantId(), settlementId)
-                .stream().map(value -> view(context, value, false)).toList();
+        return views(context, receipts.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(
+                context.tenantId(), settlementId));
     }
 
     @Transactional(readOnly = true)
@@ -352,9 +354,27 @@ class ReceiptTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext()) throw forbidden(
                 "BILLING_WORK_CONTEXT_REQUIRED", "票据恢复前必须选择工作机构");
-        return receipts.findRecoveryWorklist(context.tenantId(), context.organizationId(),
-                        List.of("REQUESTED", "FAILED"), PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
-                .stream().map(value -> view(context, value, false)).toList();
+        return views(context, receipts.findRecoveryWorklist(context.tenantId(), context.organizationId(),
+                List.of("REQUESTED", "FAILED"), PageRequest.of(0, Math.max(1, Math.min(limit, 100)))));
+    }
+
+    private List<ReceiptView> views(ExecutionContext context, List<Receipt> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, List<ReceiptEventView>> eventsByReceipt = eventsByReceipt(context.tenantId(), values);
+        return values.stream().map(value -> receiptView(value,
+                eventsByReceipt.getOrDefault(value.id(), List.of()), false)).toList();
+    }
+
+    private Map<Long, List<ReceiptEventView>> eventsByReceipt(Long tenantId, List<Receipt> values) {
+        List<Long> ids = values.stream().map(Receipt::id).toList();
+        Map<Long, List<ReceiptEventView>> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            events.findByTenantIdAndReceiptIdInOrderByReceiptIdAscOccurredAtAscIdAsc(tenantId,
+                            ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.computeIfAbsent(value.receiptId(), ignored -> new ArrayList<>())
+                            .add(eventView(value)));
+        }
+        return result;
     }
 
     @Transactional
@@ -408,12 +428,17 @@ class ReceiptTransactionService {
     }
 
     private ReceiptView view(ExecutionContext context, Receipt value, boolean duplicate) {
-        List<ReceiptEventView> eventViews = events.findByTenantIdAndReceiptIdOrderByOccurredAtAscIdAsc(
-                        context.tenantId(), value.id()).stream().map(event -> new ReceiptEventView(event.id(),
-                        event.externalMessageId(), event.eventType(), event.statusFrom(), event.statusTo(),
-                        event.commandCode(), event.actorId(), event.errorCode(), event.actionReason(),
-                        event.errorMessage(), event.occurredAt()))
-                .toList();
+        return receiptView(value, events.findByTenantIdAndReceiptIdOrderByOccurredAtAscIdAsc(
+                        context.tenantId(), value.id()).stream().map(this::eventView).toList(), duplicate);
+    }
+
+    private ReceiptEventView eventView(ReceiptEvent event) {
+        return new ReceiptEventView(event.id(), event.externalMessageId(), event.eventType(), event.statusFrom(),
+                event.statusTo(), event.commandCode(), event.actorId(), event.errorCode(), event.actionReason(),
+                event.errorMessage(), event.occurredAt());
+    }
+
+    private ReceiptView receiptView(Receipt value, List<ReceiptEventView> eventViews, boolean duplicate) {
         return new ReceiptView(value.id(), value.revision(), value.settlementId(), value.reversesReceiptId(),
                 value.receiptNo(), value.commandCode(), value.receiptType(), value.status(), value.fiscalAuthorityCode(),
                 value.externalReceiptNo(), value.fiscalCode(), value.fiscalNumber(), value.verificationCode(), value.controlledObjectReference(),

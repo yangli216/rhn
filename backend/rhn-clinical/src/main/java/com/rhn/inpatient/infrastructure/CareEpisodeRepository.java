@@ -18,6 +18,7 @@ public interface CareEpisodeRepository extends JpaRepository<CareEpisode, Long> 
     boolean existsByTenantIdAndResidentIdAndEpisodeTypeAndStatusIn(
             Long tenantId, Long residentId, String episodeType, Collection<CareEpisodeStatus> statuses);
     Optional<CareEpisode> findByIdAndTenantId(Long id, Long tenantId);
+    List<CareEpisode> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from CareEpisode value where value.tenantId = :tenantId and value.id = :episodeId")

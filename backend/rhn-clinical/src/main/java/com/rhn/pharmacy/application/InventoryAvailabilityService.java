@@ -6,9 +6,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * The only application-level gateway allowed to access the mutable inventory balance projection.
@@ -49,6 +52,27 @@ public class InventoryAvailabilityService {
     public List<InventoryBalance> findBySite(Long tenantId, Long siteId) {
         return repository.findByTenantIdAndStockSiteIdOrderByStockBinIdAscStockItemIdAscStockLotIdAsc(
                 tenantId, siteId);
+    }
+
+    /** 按库存项汇总可用数量，供目录检索使用；口径与明细过滤一致（AVAILABLE 且数量>0）。 */
+    public Map<Long, BigDecimal> availableQuantitiesByStockItem(Long tenantId, Long siteId) {
+        return repository.availableQuantitiesByStockItem(tenantId, siteId).stream()
+                .collect(Collectors.toMap(InventoryBalanceRepository.ItemAvailability::getStockItemId,
+                        InventoryBalanceRepository.ItemAvailability::getQuantity));
+    }
+
+    /** 仓库库存页按库存项聚合：一次 SQL 汇总全部批次×库位明细，替代整表明细回传后的前端汇总。 */
+    public List<InventoryBalanceRepository.StockItemBalanceSummary> summarizeByStockItem(
+            Long tenantId, Long siteId, LocalDate today, LocalDate expiryLimit) {
+        return repository.summarizeByStockItem(tenantId, siteId, today, expiryLimit);
+    }
+
+    /** 每个库存项涉及的批号（去重），供库存页按批号搜索保持原有筛选能力。 */
+    public Map<Long, List<String>> lotNosByStockItem(Long tenantId, Long siteId) {
+        return repository.distinctLotNosByStockItem(tenantId, siteId).stream()
+                .collect(Collectors.groupingBy(InventoryBalanceRepository.StockItemLotNo::getStockItemId,
+                        Collectors.mapping(InventoryBalanceRepository.StockItemLotNo::getLotNo,
+                                Collectors.toList())));
     }
 
     public List<InventoryBalance> findByTenantIdAndStockSiteIdOrderByStockBinIdAscStockItemIdAscStockLotIdAsc(

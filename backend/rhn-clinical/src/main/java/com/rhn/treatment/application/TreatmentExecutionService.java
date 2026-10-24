@@ -9,6 +9,7 @@ import com.rhn.outpatient.api.MedicationRequestDirectory.MedicationRequestSnapsh
 import com.rhn.outpatient.api.ServiceRequestDirectory;
 import com.rhn.outpatient.api.ServiceRequestDirectory.ServiceRequestSnapshot;
 import com.rhn.pharmacy.api.MedicationFulfillmentDirectory;
+import com.rhn.pharmacy.api.MedicationFulfillmentDirectory.FulfillmentSnapshot;
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
@@ -105,13 +106,13 @@ public class TreatmentExecutionService {
         List<TreatmentExecutionTask> open = tasks.findByScopeAndStatuses(
                 context.tenantId(), context.organizationId(), context.departmentId(), OPEN_STATUSES,
                 PageRequest.of(0, OPEN_TASK_LIMIT));
-        // 终态任务的 synchronize 本就直接返回，30s 轮询只对非终态任务对账
-        open.forEach(this::reconcile);
         LocalDate today = LocalDate.now(BUSINESS_ZONE);
         List<TreatmentExecutionTask> finishedToday = tasks.findFinishedBetween(
                 context.tenantId(), context.organizationId(), context.departmentId(), FINISHED_STATUSES,
                 today.atStartOfDay(BUSINESS_ZONE).toInstant(), today.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant(),
                 PageRequest.of(0, FINISHED_TODAY_LIMIT));
+        // 终态任务的 synchronize 本就直接返回，30s 轮询只对非终态任务对账；执行项与皮试事实一次装载供两个窗口的视图复用
+        WorklistFacts facts = reconcileAll(context.tenantId(), open, finishedToday);
         // reconcile 可能把失去全部有效项目的任务置为 CANCELLED，已取消任务不进入队列
         List<TreatmentExecutionTask> values = java.util.stream.Stream.concat(open.stream(), finishedToday.stream())
                 .filter(value -> value.status() != TreatmentExecutionTaskStatus.CANCELLED)
@@ -126,7 +127,8 @@ public class TreatmentExecutionService {
                 .toList();
         residentCache.putAll(residents.requireSnapshots(visible.stream().map(TreatmentExecutionTask::residentId).toList()));
         return visible.stream()
-                .map(value -> view(value, residentCache))
+                .map(value -> view(value, residentCache, facts.itemsByTask().getOrDefault(value.id(), List.of()),
+                        facts.skinTestFacts()))
                 .filter(value -> term == null || searchable(value).contains(term))
                 .toList();
     }
@@ -363,15 +365,90 @@ public class TreatmentExecutionService {
     private void reconcile(TreatmentExecutionTask task) {
         List<TreatmentExecutionItem> taskItems = items
                 .findByTenantIdAndTaskIdOrderByCreatedAtAscIdAsc(task.tenantId(), task.id());
+        reconcile(task, taskItems, Map.of(), Map.of(), skinTestFacts(task.tenantId(), taskItems));
+    }
+
+    /**
+     * 工作台批量装载：一次取回两个窗口全部任务的执行项与皮试事实，再按任务顺序对非终态任务推导状态。
+     * 结算授权与供药事实只需对非终态任务的执行项求值，避免为当日已终态任务发起多余查询。
+     */
+    private WorklistFacts reconcileAll(Long tenantId, List<TreatmentExecutionTask> open,
+                                       List<TreatmentExecutionTask> alsoLoaded) {
+        List<Long> taskIds = java.util.stream.Stream.concat(open.stream(), alsoLoaded.stream())
+                .map(TreatmentExecutionTask::id).distinct().toList();
+        if (taskIds.isEmpty()) return new WorklistFacts(Map.of(), Map.of());
+        Map<Long, List<TreatmentExecutionItem>> itemsByTask = new LinkedHashMap<>();
+        for (int from = 0; from < taskIds.size(); from += 500) {
+            items.findByTenantIdAndTaskIdInOrderByTaskIdAscCreatedAtAscIdAsc(
+                            tenantId, taskIds.subList(from, Math.min(from + 500, taskIds.size())))
+                    .forEach(value -> itemsByTask.computeIfAbsent(value.taskId(),
+                            ignored -> new java.util.ArrayList<>()).add(value));
+        }
+        List<TreatmentExecutionItem> allItems = itemsByTask.values().stream()
+                .flatMap(List::stream).toList();
+        List<TreatmentExecutionItem> openActiveItems = open.stream()
+                .flatMap(task -> itemsByTask.getOrDefault(task.id(), List.of()).stream())
+                .filter(value -> !value.cancelled()).toList();
+        Map<String, Map<Long, Long>> settledBySourceType = settledBySourceType(tenantId, openActiveItems);
+        Map<Long, FulfillmentSnapshot> fulfillmentByRequest = fulfillmentByRequest(tenantId, openActiveItems);
+        Map<Long, SkinTestSnapshot> skinTestFacts = skinTestFacts(tenantId, allItems);
+        open.forEach(task -> reconcile(task, itemsByTask.getOrDefault(task.id(), List.of()),
+                settledBySourceType, fulfillmentByRequest, skinTestFacts));
+        return new WorklistFacts(itemsByTask, skinTestFacts);
+    }
+
+    /** 结算结果按来源类型分组，服务申请与药品申请的主键来自不同表，不能共用同一个扁平键空间。 */
+    private Map<String, Map<Long, Long>> settledBySourceType(Long tenantId,
+                                                             List<TreatmentExecutionItem> active) {
+        Map<String, List<Long>> idsBySourceType = new LinkedHashMap<>();
+        active.stream().filter(TreatmentExecutionItem::settlementRequired)
+                .forEach(value -> idsBySourceType.computeIfAbsent(value.sourceType(),
+                        ignored -> new java.util.ArrayList<>()).add(value.sourceId()));
+        Map<String, Map<Long, Long>> result = new java.util.HashMap<>();
+        idsBySourceType.forEach((sourceType, ids) -> result.put(sourceType,
+                settlements.finalizedSettlementsForRequests(tenantId, ids.stream().distinct().toList(), sourceType)));
+        return result;
+    }
+
+    private Map<Long, FulfillmentSnapshot> fulfillmentByRequest(Long tenantId,
+                                                                List<TreatmentExecutionItem> active) {
+        List<Long> ids = active.stream().filter(TreatmentExecutionItem::fulfillmentRequired)
+                .map(TreatmentExecutionItem::sourceId).distinct().toList();
+        return ids.isEmpty() ? Map.of() : fulfillment.fulfillmentsForRequests(tenantId, ids);
+    }
+
+    private Map<Long, SkinTestSnapshot> skinTestFacts(Long tenantId, List<TreatmentExecutionItem> allItems) {
+        List<Long> ids = allItems.stream().filter(value -> !value.cancelled() && value.skinTestRequired())
+                .map(TreatmentExecutionItem::sourceId).distinct().toList();
+        Map<Long, SkinTestSnapshot> result = new java.util.HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            result.putAll(skinTests.latestForMedicationRequests(tenantId,
+                    ids.subList(from, Math.min(from + 500, ids.size()))));
+        }
+        return result;
+    }
+
+    private record WorklistFacts(Map<Long, List<TreatmentExecutionItem>> itemsByTask,
+                                 Map<Long, SkinTestSnapshot> skinTestFacts) {}
+
+    private void reconcile(TreatmentExecutionTask task, List<TreatmentExecutionItem> taskItems,
+                           Map<String, Map<Long, Long>> settledBySourceType,
+                           Map<Long, FulfillmentSnapshot> fulfillmentByRequest,
+                           Map<Long, SkinTestSnapshot> skinTestFacts) {
         for (TreatmentExecutionItem item : taskItems) {
             if (item.cancelled()) continue;
             if (item.settlementRequired()) {
-                Long settlementId = settlements.finalizedSettlementForRequest(
-                        task.tenantId(), item.sourceId(), item.sourceType()).orElse(null);
+                Map<Long, Long> settled = settledBySourceType.getOrDefault(item.sourceType(), Map.of());
+                Long settlementId = settled.containsKey(item.sourceId())
+                        ? settled.get(item.sourceId())
+                        : settlements.finalizedSettlementForRequest(
+                                task.tenantId(), item.sourceId(), item.sourceType()).orElse(null);
                 if (settlementId == null) item.reverseAuthorization(); else item.authorize(settlementId);
             }
             if (item.fulfillmentRequired()) {
-                var fact = fulfillment.fulfillmentForRequest(task.tenantId(), item.sourceId());
+                var fact = fulfillmentByRequest.containsKey(item.sourceId())
+                        ? fulfillmentByRequest.get(item.sourceId())
+                        : fulfillment.fulfillmentForRequest(task.tenantId(), item.sourceId());
                 if (fact.completed()) item.fulfill(fact.dispenseId(), fact.status());
                 else item.reverseFulfillment(fact.status());
             }
@@ -379,9 +456,6 @@ public class TreatmentExecutionService {
         List<TreatmentExecutionItem> active = taskItems.stream().filter(value -> !value.cancelled()).toList();
         boolean allSettled = active.stream().allMatch(TreatmentExecutionItem::settled);
         boolean allFulfilled = active.stream().allMatch(TreatmentExecutionItem::fulfilled);
-        Map<Long, SkinTestSnapshot> skinTestFacts = skinTests.latestForMedicationRequests(task.tenantId(),
-                active.stream().filter(TreatmentExecutionItem::skinTestRequired)
-                        .map(TreatmentExecutionItem::sourceId).toList());
         boolean allSkinTestsPassed = active.stream().allMatch(value -> !value.skinTestRequired()
                 || java.util.Optional.ofNullable(skinTestFacts.get(value.sourceId()))
                 .map(SkinTestSnapshot::passed).orElse(false));
@@ -411,13 +485,17 @@ public class TreatmentExecutionService {
 
     private TreatmentExecutionTaskView view(TreatmentExecutionTask task,
                                             Map<Long, ResidentDirectory.ResidentSnapshot> residentCache) {
-        ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(
-                task.residentId(), residents::requireSnapshot);
         List<TreatmentExecutionItem> taskItems = items
                 .findByTenantIdAndTaskIdOrderByCreatedAtAscIdAsc(task.tenantId(), task.id());
-        Map<Long, SkinTestSnapshot> skinTestFacts = skinTests.latestForMedicationRequests(task.tenantId(),
-                taskItems.stream().filter(TreatmentExecutionItem::skinTestRequired)
-                        .map(TreatmentExecutionItem::sourceId).toList());
+        return view(task, residentCache, taskItems, skinTestFacts(task.tenantId(), taskItems));
+    }
+
+    private TreatmentExecutionTaskView view(TreatmentExecutionTask task,
+                                            Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
+                                            List<TreatmentExecutionItem> taskItems,
+                                            Map<Long, SkinTestSnapshot> skinTestFacts) {
+        ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(
+                task.residentId(), residents::requireSnapshot);
         List<TreatmentExecutionItemView> itemViews = taskItems.stream()
                 .map(value -> {
                     SkinTestSnapshot skinTest = skinTestFacts.get(value.sourceId());

@@ -74,7 +74,7 @@ class StockTransferWorkflowTest extends RhnIntegrationTestSupport {
         JsonNode picked=json(mockMvc.perform(post("/api/pharmacy/stock-transfers/{id}/pick",id).with(source)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PICKING")).andReturn().getResponse().getContentAsString());
         String allocationId=picked.at("/lines/0/allocations/0/id").asString();
         JsonNode dispatched=json(mockMvc.perform(post("/api/pharmacy/stock-transfers/{id}/dispatch",id).with(source)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_TRANSIT")).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(get("/api/pharmacy/stock-transfers").with(destination).param("stockSiteId",DESTINATION_SITE).param("role","DESTINATION")).andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(id)).value("IN_TRANSIT"));
+        mockMvc.perform(get("/api/pharmacy/stock-transfers").with(destination).param("stockSiteId",DESTINATION_SITE).param("role","DESTINATION")).andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(id)).value("IN_TRANSIT")).andExpect(jsonPath("$[?(@.id == '%s')].lines[0].allocations[0].id".formatted(id)).value(allocationId));
         // Later source valuation must not replace the cost recorded at dispatch.
         jdbc.update("update RHN_SUP_INV_BAL set PRICE_AVERAGE_UNIT_COST = 99 where ID_STOCK_BIN = ? and ID_STOCK_LOT = ?",
                 sourceBin.get("id").asString(), lot.get("id").asString());

@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface InsuranceClaimLineRepository extends JpaRepository<InsuranceClaimLine, Long> {
     List<InsuranceClaimLine> findByTenantIdAndClaimIdOrderByLineNoAsc(Long tenantId, Long claimId);
+    List<InsuranceClaimLine> findByTenantIdAndClaimIdInOrderByClaimIdAscLineNoAsc(
+            Long tenantId, java.util.Collection<Long> claimIds);
 }

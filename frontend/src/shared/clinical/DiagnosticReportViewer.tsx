@@ -1,3 +1,4 @@
+import { savedReferenceGuidance } from './nationalStandardLabCatalog'
 import type { DiagnosticObservation, DiagnosticReport } from '../api/diagnosticsApi'
 import { formatTime } from '../format'
 import { diagnosticReportStatusPresentation } from '../presentation'
@@ -118,7 +119,7 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
         <td>{value.observationName}{value.observationCode && <small>{value.observationCode}</small>}</td>
         <td className={`${tableCellClass('numeric')} ${valueCellClass ?? ''}`.trim()}>{diagnosticObservationValue(value)}</td>
         <td className={tableCellClass('status')}>{renderReportObservationFlag(value)}</td>
-        <td className={tableCellClass('numeric')}>{value.referenceRangeLow ?? '—'}～{value.referenceRangeHigh ?? '—'}</td>
+        <td className={tableCellClass('numeric')}>{value.referenceRangeLow == null && value.referenceRangeHigh == null ? savedReferenceGuidance(value.ruleSnapshot) ?? '—' : `${value.referenceRangeLow ?? '—'}～${value.referenceRangeHigh ?? '—'}`}</td>
         <td>{value.unitCode || '—'}</td>
       </tr>
     })}</tbody></DataTable></div>}

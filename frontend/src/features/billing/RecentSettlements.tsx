@@ -4,17 +4,22 @@ import type { SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, DataTable, LoadingState, StatusBadge, tableCellClass } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
-import { formatDate } from '../../shared/utils/dateRange'
+import { formatDateTimeParts } from '../../shared/format'
+import { formatDateKey } from '../../shared/utils/dateRange'
 import { money } from './BillingShared'
 
 const RECENT_COUNT = 3
+/** 后端按机构业务时区（Asia/Shanghai）解释结算日期范围，“今日”与展示时间必须用同一时区，不能取浏览器本地日期。 */
+const BUSINESS_TIME_ZONE = 'Asia/Shanghai'
 
 export const recentSettlementsQueryKey = 'billing-recent-settlements'
 
 function clockTime(value?: string) {
   if (!value) return '—'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : `${formatDate(date)} ${date.toTimeString().slice(0, 5)}`
+  if (Number.isNaN(date.getTime())) return '—'
+  const time = formatDateTimeParts(date, { timeZone: BUSINESS_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  return `${formatDateKey(date, BUSINESS_TIME_ZONE)} ${time}`
 }
 
 /** 收费台底部：今日最近几笔已完成的结算及快捷操作，便于结算后补开票据或核对单号。 */
@@ -26,7 +31,7 @@ export function RecentSettlements({ api, clinicalContext, username, onReceipt, o
   onReceipt: (record: SettlementRecord) => void
   onCopy: (record: SettlementRecord) => void
 }) {
-  const today = formatDate(new Date())
+  const today = formatDateKey(new Date(), BUSINESS_TIME_ZONE)
   const records = useQuery({
     queryKey: [recentSettlementsQueryKey, clinicalContext.organization.id, clinicalContext.department.id, today, username],
     queryFn: () => api.billing.settlementRecords(100, { from: today, to: today, cashier: username }),

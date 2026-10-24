@@ -2,15 +2,18 @@ import { useEffect, useRef, type PropsWithChildren, type CSSProperties } from 'r
 import { createPortal } from 'react-dom'
 
 /** Nonmodal reference surface. Business content owns its heading and close action. */
-export function AnchoredPanel({ label, anchorRect, onClose, className = '', children }: PropsWithChildren<{
-  label: string; anchorRect: DOMRect | null; onClose: () => void; className?: string
+export function AnchoredPanel({ label, anchorRect, anchorElement, onClose, className = '', children }: PropsWithChildren<{
+  label: string; anchorRect: DOMRect | null; anchorElement?: HTMLElement | null; onClose: () => void; className?: string
 }>) {
   const surface = useRef<HTMLDivElement>(null)
   const close = useRef(onClose)
+  const anchor = useRef(anchorElement)
+  useEffect(() => { anchor.current = anchorElement }, [anchorElement])
   useEffect(() => { close.current = onClose }, [onClose])
   useEffect(() => {
     const outside = (event: MouseEvent) => {
-      if (surface.current && !surface.current.contains(event.target as Node)) close.current()
+      if (surface.current && !surface.current.contains(event.target as Node)
+        && !anchor.current?.contains(event.target as Node)) close.current()
     }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close.current()

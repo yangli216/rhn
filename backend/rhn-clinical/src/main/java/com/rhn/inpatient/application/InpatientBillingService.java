@@ -47,6 +47,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -317,6 +318,9 @@ public class InpatientBillingService {
         var postedDates = bedDays.findByTenantIdAndEpisodeIdOrderByBusinessDateAscIdAsc(
                 context.tenantId(), inpatient.episode().id()).stream()
                 .map(InpatientBedDayFact::businessDate).collect(java.util.stream.Collectors.toSet());
+        // 一次装载本次床日涉及的床位计费配置与床位位置，避免逐日回查。
+        Map<Long, InpatientBedProfile> profileByLocation = bedProfiles(context.tenantId(), histories);
+        Map<Long, ServiceLocation> locationById = serviceLocationsById(context.tenantId(), histories);
         LocalDate first = businessDate(inpatient.episode().startAt());
         LocalDate last = lastBillableDate(inpatient.episode());
         List<CostLineView> result = new ArrayList<>();
@@ -326,9 +330,11 @@ public class InpatientBillingService {
             if (history == null) {
                 throw conflict("INPATIENT_BED_DAY_LOCATION_MISSING", date + " 缺少有效床位占用记录");
             }
-            var pricing = requireBedPricing(context, inpatient, history, date, currency);
-            ServiceLocation location = serviceLocations.findByIdAndTenantId(history.locationId(), context.tenantId())
-                    .orElseThrow(() -> conflict("INPATIENT_BED_DAY_LOCATION_MISSING", "床位占用记录关联的位置不存在"));
+            var pricing = requireBedPricing(context, inpatient, history, date, currency, profileByLocation);
+            ServiceLocation location = locationById.get(history.locationId());
+            if (location == null) {
+                throw conflict("INPATIENT_BED_DAY_LOCATION_MISSING", "床位占用记录关联的位置不存在");
+            }
             BigDecimal rate = money(pricing.price().price());
             result.add(new CostLineView("BED", "INPATIENT_BED_ESTIMATE", history.id(),
                     location.code(), location.name() + "床位费",
@@ -336,6 +342,33 @@ public class InpatientBillingService {
                     date.atStartOfDay(BUSINESS_ZONE).toInstant(), false));
         }
         return List.copyOf(result);
+    }
+
+    /** 一次装载床位占用涉及的全部床位计费配置，按位置 id 索引。 */
+    private Map<Long, InpatientBedProfile> bedProfiles(Long tenantId, List<EncounterLocationHistory> histories) {
+        List<Long> locationIds = histories.stream().map(EncounterLocationHistory::locationId)
+                .distinct().toList();
+        Map<Long, InpatientBedProfile> result = new HashMap<>();
+        for (int from = 0; from < locationIds.size(); from += 500) {
+            beds.findByTenantIdAndBedLocationIdIn(tenantId,
+                            locationIds.subList(from, Math.min(from + 500, locationIds.size())))
+                    .forEach(value -> result.put(value.bedLocationId(), value));
+        }
+        return result;
+    }
+
+    /** 一次装载床位占用涉及的全部床位位置，按位置 id 索引。 */
+    private Map<Long, ServiceLocation> serviceLocationsById(Long tenantId,
+                                                            List<EncounterLocationHistory> histories) {
+        List<Long> locationIds = histories.stream().map(EncounterLocationHistory::locationId)
+                .distinct().toList();
+        Map<Long, ServiceLocation> result = new HashMap<>();
+        for (int from = 0; from < locationIds.size(); from += 500) {
+            serviceLocations.findByTenantIdAndIdIn(tenantId,
+                            locationIds.subList(from, Math.min(from + 500, locationIds.size())))
+                    .forEach(value -> result.put(value.id(), value));
+        }
+        return result;
     }
 
     private PostingStats postBedDays(ExecutionContext context, EpisodeContext inpatient,
@@ -354,12 +387,16 @@ public class InpatientBillingService {
         LocalDate through = requestedThroughDate.isAfter(maximum) ? maximum : requestedThroughDate;
         List<EncounterLocationHistory> histories = locations.findByTenantIdAndEncounterIdOrderByStartAtAscIdAsc(
                 context.tenantId(), inpatient.encounter().id());
+        // 一次装载已记账日期、床位计费配置与床位位置，避免逐日回查。
+        java.util.Set<LocalDate> postedDates = bedDays
+                .findByTenantIdAndEpisodeIdOrderByBusinessDateAscIdAsc(context.tenantId(), inpatient.episode().id())
+                .stream().map(InpatientBedDayFact::businessDate).collect(java.util.stream.Collectors.toSet());
+        Map<Long, InpatientBedProfile> profileByLocation = bedProfiles(context.tenantId(), histories);
         int created = 0;
         int existing = 0;
         BigDecimal amount = BigDecimal.ZERO;
         for (LocalDate date = first; !date.isAfter(through); date = date.plusDays(1)) {
-            if (bedDays.findByTenantIdAndEpisodeIdAndBusinessDate(
-                    context.tenantId(), inpatient.episode().id(), date).isPresent()) {
+            if (postedDates.contains(date)) {
                 existing++;
                 continue;
             }
@@ -367,7 +404,7 @@ public class InpatientBillingService {
             if (history == null) {
                 throw conflict("INPATIENT_BED_DAY_LOCATION_MISSING", date + " 缺少有效床位占用记录");
             }
-            var pricing = requireBedPricing(context, inpatient, history, date, currency);
+            var pricing = requireBedPricing(context, inpatient, history, date, currency, profileByLocation);
             String dayCommand = commandCode + "-" + date;
             InpatientBedDayFact replay = bedDays.findByTenantIdAndCommandCode(context.tenantId(), dayCommand)
                     .orElse(null);
@@ -409,8 +446,17 @@ public class InpatientBillingService {
     private CatalogLifecycleDirectory.CatalogOperationalSnapshot requireBedPricing(
             ExecutionContext context, EpisodeContext inpatient, EncounterLocationHistory history,
             LocalDate date, String currency) {
-        InpatientBedProfile profile = beds.findById(history.locationId())
-                .filter(value -> context.tenantId().equals(value.tenantId())).orElse(null);
+        return requireBedPricing(context, inpatient, history, date, currency, null);
+    }
+
+    /** profileByLocation 非空时复用批量装载的床位配置；为空则回退单条查询。 */
+    private CatalogLifecycleDirectory.CatalogOperationalSnapshot requireBedPricing(
+            ExecutionContext context, EpisodeContext inpatient, EncounterLocationHistory history,
+            LocalDate date, String currency, Map<Long, InpatientBedProfile> profileByLocation) {
+        InpatientBedProfile profile = profileByLocation == null
+                ? beds.findById(history.locationId())
+                        .filter(value -> context.tenantId().equals(value.tenantId())).orElse(null)
+                : profileByLocation.get(history.locationId());
         if (profile == null) {
             throw conflict("INPATIENT_BED_DAY_PROFILE_MISSING", date + " 缺少床位计费配置");
         }

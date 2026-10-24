@@ -376,7 +376,8 @@ class PrescriptionSplitEngineTest {
                 createItem(3L, "感冒清热颗粒", "CHINESE_PATENT", "PO", "NONE", null, 10L, "真实药房10")));
 
         assertThat(plans).hasSize(1);
-        assertThat(plans.getFirst().categoryCode()).isEqualTo("WESTERN");
+        // 同一处方内混有西药与中成药时使用通用的门诊处方大类，否则回写药品时会撞上单选题式的大类校验。
+        assertThat(plans.getFirst().categoryCode()).isEqualTo("OUTPATIENT");
         assertThat(plans.getFirst().title()).isEqualTo("门诊西药/中成药处方");
         assertThat(plans.getFirst().ruleReasons()).contains("西药与中成药合方（机构参数）");
     }

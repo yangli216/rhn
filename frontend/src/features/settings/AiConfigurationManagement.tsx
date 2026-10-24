@@ -258,7 +258,10 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       setOperationError('')
       setSecrets({})
       setResetKeys(new Set())
-      await queryClient.invalidateQueries({ queryKey: ['clinical-ai-administration'] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['clinical-ai-administration'] }),
+        queryClient.invalidateQueries({ queryKey: ['clinical-ai-capabilities'] }),
+      ])
     },
     onError: (error) => setOperationError(errorMessage(error)),
   })

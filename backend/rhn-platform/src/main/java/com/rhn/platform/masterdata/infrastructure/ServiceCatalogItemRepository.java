@@ -33,6 +33,8 @@ public interface ServiceCatalogItemRepository extends JpaRepository<ServiceCatal
     List<ServiceCatalogItem> findByTenantIdAndItemTypeOrderByName(Long tenantId, String itemType);
     Optional<ServiceCatalogItem> findByIdAndTenantIdAndItemType(Long id, Long tenantId, String itemType);
     List<ServiceCatalogItem> findByTenantIdAndItemTypeAndIdIn(Long tenantId, String itemType, java.util.Collection<Long> ids);
+    List<ServiceCatalogItem> findByTenantIdAndItemTypeAndCodeIn(Long tenantId, String itemType,
+                                                               java.util.Collection<String> codes);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
 
     @Query("""

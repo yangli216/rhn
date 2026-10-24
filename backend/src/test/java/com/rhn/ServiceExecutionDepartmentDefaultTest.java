@@ -31,6 +31,15 @@ class ServiceExecutionDepartmentDefaultTest extends RhnIntegrationTestSupport {
             jdbc.update("update RHN_BD_ORG_CATALOG_ITEM set ID_DEPT_DEFAULT=null where ID_TNT=? and ID_ORG=? and ID_CATALOG_ITEM=362387869795101", Long.valueOf(TENANT), Long.valueOf(ORGANIZATION));
         }
     }
+    @Test void batchLookupByExactCodeReturnsTheSameCatalogViewAndSkipsUnknownCodes() throws Exception {
+        mockMvc.perform(get("/api/platform/master-data/services/batch").with(rhnWorkContext())
+                        .param("codes", "SRV-CBC").param("codes", "SRV-NOT-EXIST")
+                        .param("status", "ACTIVE").param("organizationId", ORGANIZATION))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].code").value("SRV-CBC"))
+                .andExpect(jsonPath("$[0].defaultExecutionDepartment.departmentName").value("医学检验科"));
+    }
+
     @Test void physicianCanOrderAtOwnOrganizationsLabWhileRequestingDepartmentIsPreserved() throws Exception {
         String encounter = encounter();
         var request = json(mockMvc.perform(post("/api/encounters/{id}/service-requests", encounter).with(rhnWorkContext())

@@ -14,6 +14,7 @@ import java.util.List;
 
 public interface InpatientCareRequestRepository extends JpaRepository<InpatientCareRequest, Long> {
     Optional<InpatientCareRequest> findByIdAndTenantId(Long id, Long tenantId);
+    List<InpatientCareRequest> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
     List<InpatientCareRequest> findByTenantIdAndEncounterIdAndStatusInOrderByAuthoredAtAscIdAsc(
             Long tenantId, Long encounterId, Collection<InpatientCareRequestStatus> statuses);
 

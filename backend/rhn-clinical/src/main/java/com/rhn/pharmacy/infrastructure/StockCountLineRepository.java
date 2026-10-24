@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface StockCountLineRepository extends JpaRepository<StockCountLine, Long> {
     List<StockCountLine> findByTenantIdAndStockCountIdOrderBySortOrder(Long tenantId, Long countId);
+    List<StockCountLine> findByTenantIdAndStockCountIdInOrderByStockCountIdAscSortOrderAsc(
+            Long tenantId, java.util.Collection<Long> countIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from StockCountLine v where v.tenantId=:tenantId and v.stockCountId=:countId"

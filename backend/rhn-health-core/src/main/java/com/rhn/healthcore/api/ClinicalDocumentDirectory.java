@@ -16,4 +16,10 @@ public interface ClinicalDocumentDirectory {
     Optional<EncounterDocumentAnchor> findEncounterDocumentAnchor(Long encounterId, String documentType);
 
     record EncounterDocumentAnchor(Long id, int version, String status) {}
+
+    /** Current persisted content, scoped like the anchor; used to verify feedback against a real saved version. */
+    Optional<EncounterDocumentSnapshot> findEncounterDocumentSnapshot(Long encounterId, String documentType);
+
+    record EncounterDocumentSnapshot(Long id, int version, String status, String author,
+                                     java.time.Instant createdAt, tools.jackson.databind.JsonNode content) {}
 }

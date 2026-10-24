@@ -14,6 +14,7 @@ import com.rhn.pharmacy.api.WardMedicationSupplyViews.SupplyOccurrenceView;
 import com.rhn.pharmacy.api.WardMedicationSupplyViews.SupplyFulfillmentView;
 import com.rhn.pharmacy.api.WardMedicationSupplyViews.SupplySummaryView;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
+import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
 import com.rhn.pharmacy.domain.DispenseTaskLineStatus;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyBatch;
@@ -21,6 +22,7 @@ import com.rhn.pharmacy.domain.InpatientMedicationSupplyBatchStatus;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyLine;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyLineStatus;
 import com.rhn.pharmacy.domain.InpatientMedicationSupplyTask;
+import com.rhn.pharmacy.domain.MedicationDispense;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
@@ -257,11 +259,10 @@ public class WardMedicationSupplyApplicationService {
                 context.tenantId(), site.organizationId())) : businessDate;
         String shift = normalizeShift(shiftCode);
         SupplyWindow window = window(date, shift, organizationZone(context.tenantId(), site.organizationId()));
-        return batches
+        return views(context.tenantId(), batches
                 .findByTenantIdAndNursingUnitDepartmentIdAndWindowStartLessThanAndWindowEndGreaterThanOrderByWindowStart(
                         context.tenantId(), departmentId, window.to(), window.from()).stream()
-                .filter(value -> site.id().equals(value.stockSiteId()))
-                .map(value -> view(context.tenantId(), value)).toList();
+                .filter(value -> site.id().equals(value.stockSiteId())).toList());
     }
 
     @Transactional(readOnly = true)
@@ -647,54 +648,133 @@ public class WardMedicationSupplyApplicationService {
     }
 
     private SupplyBatchView view(Long tenantId, InpatientMedicationSupplyBatch batch) {
-        ZoneId zone = organizationZone(tenantId, batch.organizationId());
-        LocalDate businessDate = batch.windowStart().atZone(zone).toLocalDate();
-        String shiftCode = shiftFor(batch.windowStart().atZone(zone).toLocalTime());
-        List<SupplyLineView> lineViews = lines.findByTenantIdAndSupplyBatchIdOrderById(tenantId, batch.id()).stream()
-                .map(value -> lineView(tenantId, value)).toList();
-        int covered = countStatus(lineViews, "COVERED");
-        int gap = countStatus(lineViews, "PENDING_INTAKE") + countStatus(lineViews, "GAP");
-        int issued = countStatus(lineViews, "ISSUED");
-        int pendingReturn = countStatus(lineViews, "RETURN_PENDING");
-        int exceptions = countStatus(lineViews, "EXCEPTION");
-        String displayStatus = batchStatus(batch, lineViews);
-        var department = organizations.requireDepartment(tenantId, batch.organizationId(),
-                batch.nursingUnitDepartmentId());
-        return new SupplyBatchView(batch.id(), batch.revision(), batch.batchNo(), batch.organizationId(),
-                batch.stockSiteId(), batch.nursingUnitDepartmentId(), department.name(),
-                businessDate, shiftCode, zone.getId(), batch.windowStart(), batch.windowEnd(), batch.cutoffAt(),
-                batch.batchType(), batch.supplyMode(), displayStatus,
-                new SupplySummaryView(lineViews.size(), covered, gap, issued, pendingReturn, exceptions), lineViews,
-                batch.createdAt(), batch.closedAt() != null ? batch.closedAt()
-                        : batch.cancelledAt() != null ? batch.cancelledAt()
-                        : batch.submittedAt() != null ? batch.submittedAt() : batch.createdAt());
+        return views(tenantId, List.of(batch)).getFirst();
+    }
+
+    /** 列表装配时一次批量装载供药明细、给药节点、发药明细、发药任务、发药事件、配送闸门与路由快照。 */
+    private List<SupplyBatchView> views(Long tenantId, List<InpatientMedicationSupplyBatch> batches) {
+        if (batches.isEmpty()) return List.of();
+        Map<Long, List<InpatientMedicationSupplyLine>> linesByBatch = new LinkedHashMap<>();
+        List<Long> batchIds = batches.stream().map(InpatientMedicationSupplyBatch::id).distinct().toList();
+        for (int from = 0; from < batchIds.size(); from += 500) {
+            for (InpatientMedicationSupplyLine line : lines
+                    .findByTenantIdAndSupplyBatchIdInOrderBySupplyBatchIdAscIdAsc(tenantId,
+                            batchIds.subList(from, Math.min(from + 500, batchIds.size())))) {
+                linesByBatch.computeIfAbsent(line.supplyBatchId(), key -> new ArrayList<>()).add(line);
+            }
+        }
+        List<InpatientMedicationSupplyLine> allLines = linesByBatch.values().stream()
+                .flatMap(List::stream).toList();
+        Map<Long, List<InpatientMedicationSupplyTask>> occurrencesByLine = new LinkedHashMap<>();
+        List<Long> lineIds = allLines.stream().map(InpatientMedicationSupplyLine::id).distinct().toList();
+        for (int from = 0; from < lineIds.size(); from += 500) {
+            for (InpatientMedicationSupplyTask task : supplyTasks
+                    .findByTenantIdAndSupplyLineIdInOrderBySupplyLineIdAscScheduledAtAscIdAsc(tenantId,
+                            lineIds.subList(from, Math.min(from + 500, lineIds.size())))) {
+                occurrencesByLine.computeIfAbsent(task.supplyLineId(), key -> new ArrayList<>()).add(task);
+            }
+        }
+        SupplyFacts facts = supplyFacts(tenantId, allLines);
+        Map<Long, String> departmentNames = new LinkedHashMap<>();
+        List<SupplyBatchView> result = new ArrayList<>(batches.size());
+        for (InpatientMedicationSupplyBatch batch : batches) {
+            List<SupplyLineView> lineViews = linesByBatch.getOrDefault(batch.id(), List.of()).stream()
+                    .map(line -> lineView(tenantId, line, occurrencesByLine.getOrDefault(line.id(), List.of()), facts))
+                    .toList();
+            int covered = countStatus(lineViews, "COVERED");
+            int gap = countStatus(lineViews, "PENDING_INTAKE") + countStatus(lineViews, "GAP");
+            int issued = countStatus(lineViews, "ISSUED");
+            int pendingReturn = countStatus(lineViews, "RETURN_PENDING");
+            int exceptions = countStatus(lineViews, "EXCEPTION");
+            String displayStatus = batchStatus(batch, lineViews);
+            String departmentName = departmentNames.computeIfAbsent(batch.nursingUnitDepartmentId(),
+                    id -> organizations.requireDepartment(tenantId, batch.organizationId(), id).name());
+            ZoneId zone = organizationZone(tenantId, batch.organizationId());
+            result.add(new SupplyBatchView(batch.id(), batch.revision(), batch.batchNo(), batch.organizationId(),
+                    batch.stockSiteId(), batch.nursingUnitDepartmentId(), departmentName,
+                    batch.windowStart().atZone(zone).toLocalDate(), shiftFor(batch.windowStart().atZone(zone).toLocalTime()),
+                    zone.getId(), batch.windowStart(), batch.windowEnd(), batch.cutoffAt(),
+                    batch.batchType(), batch.supplyMode(), displayStatus,
+                    new SupplySummaryView(lineViews.size(), covered, gap, issued, pendingReturn, exceptions), lineViews,
+                    batch.createdAt(), batch.closedAt() != null ? batch.closedAt()
+                            : batch.cancelledAt() != null ? batch.cancelledAt()
+                            : batch.submittedAt() != null ? batch.submittedAt() : batch.createdAt()));
+        }
+        return result;
+    }
+
+    /** 一次装载供药行关联的发药明细、发药任务、发药事件、配送闸门与药品请求路由快照。 */
+    private SupplyFacts supplyFacts(Long tenantId, List<InpatientMedicationSupplyLine> allLines) {
+        Map<Long, DispenseTaskLine> dispenseLineById = new LinkedHashMap<>();
+        List<Long> dispenseLineIds = allLines.stream().map(InpatientMedicationSupplyLine::dispenseTaskLineId)
+                .filter(Objects::nonNull).distinct().toList();
+        for (int from = 0; from < dispenseLineIds.size(); from += 500) {
+            dispenseLines.findByTenantIdAndIdIn(tenantId,
+                            dispenseLineIds.subList(from, Math.min(from + 500, dispenseLineIds.size())))
+                    .forEach(value -> dispenseLineById.put(value.id(), value));
+        }
+        Map<Long, DispenseTask> dispenseTaskById = new LinkedHashMap<>();
+        List<Long> dispenseTaskIds = dispenseLineById.values().stream().map(DispenseTaskLine::taskId)
+                .distinct().toList();
+        for (int from = 0; from < dispenseTaskIds.size(); from += 500) {
+            dispenseTasks.findByTenantIdAndIdIn(tenantId,
+                            dispenseTaskIds.subList(from, Math.min(from + 500, dispenseTaskIds.size())))
+                    .forEach(value -> dispenseTaskById.put(value.id(), value));
+        }
+        Map<Long, List<MedicationDispense>> dispensesByTask = new LinkedHashMap<>();
+        for (int from = 0; from < dispenseTaskIds.size(); from += 500) {
+            for (MedicationDispense dispense : medicationDispenses
+                    .findByTenantIdAndTaskIdInOrderByOccurredAtAscIdAsc(tenantId,
+                            dispenseTaskIds.subList(from, Math.min(from + 500, dispenseTaskIds.size())))) {
+                dispensesByTask.computeIfAbsent(dispense.taskId(), key -> new ArrayList<>()).add(dispense);
+            }
+        }
+        Map<Long, WardDeliveryDirectory.DeliveryGate> gates = wardDeliveries.deliveryGates(tenantId,
+                dispensesByTask.values().stream().flatMap(List::stream)
+                        .map(MedicationDispense::id).distinct().toList());
+        Map<Long, MedicationRequestDirectory.MedicationRequestSnapshot> loaded = medicationRequests.routingSnapshots(
+                tenantId, allLines.stream().map(InpatientMedicationSupplyLine::requestId).distinct().toList());
+        return new SupplyFacts(dispenseLineById, dispenseTaskById, dispensesByTask,
+                gates == null ? Map.of() : gates, loaded == null ? Map.of() : loaded);
+    }
+
+    private record SupplyFacts(Map<Long, DispenseTaskLine> dispenseLineById,
+                               Map<Long, DispenseTask> dispenseTaskById,
+                               Map<Long, List<MedicationDispense>> dispensesByTask,
+                               Map<Long, WardDeliveryDirectory.DeliveryGate> gates,
+                               Map<Long, MedicationRequestDirectory.MedicationRequestSnapshot> requests) {
     }
 
     private SupplyLineView lineView(Long tenantId, InpatientMedicationSupplyLine line) {
-        List<SupplyOccurrenceView> occurrences = supplyTasks
-                .findByTenantIdAndSupplyLineIdOrderByScheduledAt(tenantId, line.id()).stream()
+        return lineView(tenantId, line,
+                supplyTasks.findByTenantIdAndSupplyLineIdOrderByScheduledAt(tenantId, line.id()),
+                supplyFacts(tenantId, List.of(line)));
+    }
+
+    private SupplyLineView lineView(Long tenantId, InpatientMedicationSupplyLine line,
+                                    List<InpatientMedicationSupplyTask> occurrences, SupplyFacts facts) {
+        List<SupplyOccurrenceView> occurrenceViews = occurrences.stream()
                 .map(value -> new SupplyOccurrenceView(value.id(), value.revision(), value.orderTaskId(),
                         value.scheduledAt(), value.requiredQuantity(), value.quantityUnitCode(),
                         value.requiredBaseQuantity(), value.baseUnitCode(), value.status().name()))
                 .toList();
         DispenseTaskLine dispenseLine = line.dispenseTaskLineId() == null ? null
-                : dispenseLines.findById(line.dispenseTaskLineId())
-                .filter(value -> tenantId.equals(value.tenantId())).orElse(null);
+                : facts.dispenseLineById().get(line.dispenseTaskLineId());
         Long dispenseTaskId = dispenseLine == null ? null : dispenseLine.taskId();
-        String dispenseTaskStatus = dispenseTaskId == null ? null : dispenseTasks
-                .findByIdAndTenantId(dispenseTaskId, tenantId)
-                .map(value -> value.status().name()).orElse(null);
+        DispenseTask dispenseTask = dispenseTaskId == null ? null : facts.dispenseTaskById().get(dispenseTaskId);
+        String dispenseTaskStatus = dispenseTask == null ? null : dispenseTask.status().name();
         BigDecimal requested = dispenseLine == null ? line.requestedQuantity() : dispenseLine.plannedQuantity();
         BigDecimal issued = dispenseLine == null ? BigDecimal.ZERO : dispenseLine.netDispensedQuantity();
         String unit = dispenseLine == null ? line.quantityUnitCode() : dispenseLine.dispenseUnitCode();
         BigDecimal covered = BigDecimal.ZERO;
         if (dispenseTaskId != null) {
-            for (var dispense : medicationDispenses
-                    .findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(tenantId, dispenseTaskId)) {
-                if (!"DISPENSE".equals(dispense.dispenseType()) && !"REDISPENSE".equals(dispense.dispenseType())) {
+            for (MedicationDispense dispense : facts.dispensesByTask().getOrDefault(dispenseTaskId, List.of())) {
+                if (!"DISPENSE".equals(dispense.dispenseType())
+                        && !"REDISPENSE".equals(dispense.dispenseType())) {
                     continue;
                 }
-                var gate = wardDeliveries.deliveryGate(tenantId, dispense.id());
+                WardDeliveryDirectory.DeliveryGate gate = facts.gates().get(dispense.id());
+                if (gate == null) gate = wardDeliveries.deliveryGate(tenantId, dispense.id());
                 if (gate.ready() && gate.receivedQuantity() != null
                         && unit.equalsIgnoreCase(gate.unitCode())) {
                     covered = covered.add(gate.receivedQuantity());
@@ -703,15 +783,16 @@ public class WardMedicationSupplyApplicationService {
         }
         covered = covered.min(issued).max(BigDecimal.ZERO);
         String status = lineStatus(line, dispenseLine, requested, issued, covered);
-        var request = medicationRequests.requireForRouting(tenantId, line.requestId());
-        Instant scheduledAt = occurrences.isEmpty() ? null : occurrences.getFirst().scheduledAt();
+        var request = facts.requests().get(line.requestId());
+        if (request == null) request = medicationRequests.requireForRouting(tenantId, line.requestId());
+        Instant scheduledAt = occurrenceViews.isEmpty() ? null : occurrenceViews.getFirst().scheduledAt();
         return new SupplyLineView(line.id(), line.revision(), line.supplyBatchId(), line.requestId(),
                 line.encounterId(), line.residentId(), line.bedNoSnapshot(), line.residentNameSnapshot(),
                 request.catalogItemId(), request.medicationId(), line.medicationCodeSnapshot(),
                 line.medicationNameSnapshot(), scheduledAt, requested, covered, issued,
                 BigDecimal.ZERO, unit, line.occurrenceCount(), status,
                 dispenseLine == null ? null : dispenseLine.stockItemId(), line.dispenseTaskLineId(),
-                dispenseTaskId, dispenseTaskStatus, null, occurrences);
+                dispenseTaskId, dispenseTaskStatus, null, occurrenceViews);
     }
 
     private int countStatus(List<SupplyLineView> lines, String status) {

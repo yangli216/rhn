@@ -62,6 +62,35 @@ public class JpaWardDeliveryDirectory implements WardDeliveryDirectory {
         WardDeliveryLine line = lines.findByTenantIdAndDispenseId(tenantId, dispenseId).orElse(null);
         if (line == null) return DeliveryGate.notRequired();
         WardDelivery delivery = deliveries.findByIdAndTenantId(line.deliveryId(), tenantId).orElse(null);
+        return gateFor(line, delivery);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, DeliveryGate> deliveryGates(Long tenantId, Collection<Long> dispenseIds) {
+        Map<Long, DeliveryGate> result = new LinkedHashMap<>();
+        if (tenantId == null || dispenseIds == null) return result;
+        List<Long> ids = dispenseIds.stream().distinct().toList();
+        if (ids.isEmpty()) return result;
+        Map<Long, WardDeliveryLine> lineByDispense = new LinkedHashMap<>();
+        lines.findByTenantIdAndDispenseIdIn(tenantId, ids)
+                .forEach(value -> lineByDispense.putIfAbsent(value.dispenseId(), value));
+        List<Long> deliveryIds = lineByDispense.values().stream().map(WardDeliveryLine::deliveryId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, WardDelivery> deliveryById = new LinkedHashMap<>();
+        if (!deliveryIds.isEmpty()) {
+            deliveries.findByTenantIdAndIdIn(tenantId, deliveryIds)
+                    .forEach(value -> deliveryById.putIfAbsent(value.id(), value));
+        }
+        for (Long dispenseId : ids) {
+            WardDeliveryLine line = lineByDispense.get(dispenseId);
+            result.put(dispenseId, line == null ? DeliveryGate.notRequired()
+                    : gateFor(line, deliveryById.get(line.deliveryId())));
+        }
+        return result;
+    }
+
+    private DeliveryGate gateFor(WardDeliveryLine line, WardDelivery delivery) {
         if (delivery == null) return new DeliveryGate(true, false, line.deliveryId(), "MISSING",
                 line.receivedQuantity(), line.unitCode());
         boolean ready = delivery.status() == WardDeliveryStatus.RECEIVED

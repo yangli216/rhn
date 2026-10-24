@@ -249,8 +249,26 @@ public class StockRequisitionApplicationService {
     @Transactional(readOnly = true)
     public List<RequisitionView> list(Long sourceSiteId) {
         ExecutionContext context = requireWorkContext(); requireSite(context, sourceSiteId, true);
-        return repository.findByTenantIdAndSourceSiteIdOrderByRequestedAtDesc(context.tenantId(), sourceSiteId)
-                .stream().map(value -> view(context, value)).toList();
+        return views(context, repository.findByTenantIdAndSourceSiteIdOrderByRequestedAtDesc(
+                context.tenantId(), sourceSiteId));
+    }
+
+    private List<RequisitionView> views(ExecutionContext context, List<StockRequisition> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, List<StockRequisitionLine>> linesByRequisition = new HashMap<>();
+        List<Long> requisitionIds = values.stream().map(StockRequisition::id).toList();
+        for (int from = 0; from < requisitionIds.size(); from += 500) {
+            lineRepository.findByTenantIdAndStockRequisitionIdInOrderByStockRequisitionIdAscSortOrderAsc(
+                            context.tenantId(),
+                            requisitionIds.subList(from, Math.min(from + 500, requisitionIds.size())))
+                    .forEach(line -> linesByRequisition.computeIfAbsent(line.stockRequisitionId(),
+                            ignored -> new ArrayList<>()).add(line));
+        }
+        List<Long> lineIds = linesByRequisition.values().stream().flatMap(List::stream)
+                .map(StockRequisitionLine::id).toList();
+        Map<Long, List<RequisitionAllocationView>> allocationsByLine = allocationsByLine(context.tenantId(), lineIds);
+        return values.stream().map(value -> requisitionView(value,
+                linesByRequisition.getOrDefault(value.id(), List.of()), allocationsByLine)).toList();
     }
 
     private StockRequisition lock(ExecutionContext context, Long id, boolean sourceOperator) {
@@ -279,20 +297,41 @@ public class StockRequisitionApplicationService {
                 value.id(), value.requisitionNo(), type, from, to, context.subjectId(), reason, value.requestCode()));
     }
     private RequisitionView view(ExecutionContext context, StockRequisition value) {
-        List<RequisitionLineView> lines = lineRepository.findByTenantIdAndStockRequisitionIdOrderBySortOrder(
-                context.tenantId(), value.id()).stream().map(line -> new RequisitionLineView(line.id(), line.revision(),
+        List<StockRequisitionLine> lines = lineRepository.findByTenantIdAndStockRequisitionIdOrderBySortOrder(
+                context.tenantId(), value.id());
+        return requisitionView(value, lines, allocationsByLine(context.tenantId(),
+                lines.stream().map(StockRequisitionLine::id).toList()));
+    }
+
+    private Map<Long, List<RequisitionAllocationView>> allocationsByLine(Long tenantId, List<Long> lineIds) {
+        Map<Long, List<RequisitionAllocationView>> result = new HashMap<>();
+        for (int from = 0; from < lineIds.size(); from += 500) {
+            allocationRepository
+                    .findByTenantIdAndStockRequisitionLineIdInOrderByStockRequisitionLineIdAscCreatedAtAsc(tenantId,
+                            lineIds.subList(from, Math.min(from + 500, lineIds.size())))
+                    .forEach(value -> result.computeIfAbsent(value.stockRequisitionLineId(),
+                            ignored -> new ArrayList<>()).add(allocationView(value)));
+        }
+        return result;
+    }
+
+    private RequisitionAllocationView allocationView(StockRequisitionAllocation allocation) {
+        return new RequisitionAllocationView(allocation.id(), allocation.stockRequisitionLineId(),
+                allocation.stockBinId(), allocation.stockLotId(), allocation.stockStatus(),
+                allocation.allocatedQuantity(), allocation.issuedQuantity(), allocation.status().name());
+    }
+
+    private RequisitionView requisitionView(StockRequisition value, List<StockRequisitionLine> lines,
+                                            Map<Long, List<RequisitionAllocationView>> allocationsByLine) {
+        List<RequisitionLineView> lineViews = lines.stream().map(line -> new RequisitionLineView(line.id(), line.revision(),
                 line.sortOrder(), line.stockItemId(), line.requestedQuantity(), line.approvedQuantity(),
                 line.issuedQuantity(), line.baseUnitCode(), line.lineStatus(), line.description(),
-                allocationRepository.findByTenantIdAndStockRequisitionLineIdOrderByCreatedAt(context.tenantId(), line.id())
-                        .stream().map(allocation -> new RequisitionAllocationView(allocation.id(),
-                                allocation.stockRequisitionLineId(), allocation.stockBinId(), allocation.stockLotId(),
-                                allocation.stockStatus(), allocation.allocatedQuantity(), allocation.issuedQuantity(),
-                                allocation.status().name())).toList())).toList();
+                allocationsByLine.getOrDefault(line.id(), List.of()))).toList();
         return new RequisitionView(value.id(), value.revision(), value.organizationId(), value.sourceSiteId(),
                 value.requestingDepartmentId(), value.destinationSiteId(), value.requisitionNo(), value.requestCode(),
                 value.status().name(), value.requestedAt(), value.requestedBy(), value.approvedAt(), value.approvedBy(),
                 value.pickedAt(), value.pickedBy(), value.issuedAt(), value.issuedBy(), value.reason(),
-                value.description(), value.inventoryTransactionId(), lines);
+                value.description(), value.inventoryTransactionId(), lineViews);
     }
     private ExecutionContext requireWorkContext() {
         ExecutionContext context = contextProvider.requireCurrent();

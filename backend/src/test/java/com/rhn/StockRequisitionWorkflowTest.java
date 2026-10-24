@@ -57,6 +57,11 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/pharmacy/stock-requisitions/{id}/issue", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.inventoryTransactionId")
                         .value(issued.get("inventoryTransactionId").asString()));
+        mockMvc.perform(get("/api/pharmacy/stock-requisitions").with(rhnWorkContext()).param("sourceSiteId", siteId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '%s')].lines[0].allocations.length()".formatted(id)).value(2))
+                .andExpect(jsonPath("$[?(@.id == '%s')].lines[0].allocations[0].stockLotId".formatted(id))
+                        .value(early.get("id").asString()));
         mockMvc.perform(get("/api/pharmacy/inventory/transactions").with(rhnWorkContext())
                         .param("stockSiteId", siteId))
                 .andExpect(status().isOk())

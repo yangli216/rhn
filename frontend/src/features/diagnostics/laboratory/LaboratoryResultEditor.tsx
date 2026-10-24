@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import type { DiagnosticTemplateVersion } from '../../../shared/api/diagnosticTemplateTypes'
 import type { LocalDiagnosticObservationInput } from '../../../shared/api/diagnosticsApi'
-import { Alert, Button, EditableCell, EditableRow, EditableTable, FormField, Select, StatusBadge, tableCellClass } from '../../../shared/ui'
+import { Alert, Button, Dialog, EditableCell, EditableRow, EditableTable, FormField, Select, StatusBadge, tableCellClass } from '../../../shared/ui'
 import {
   NATIONAL_STANDARD_LAB_TEMPLATES,
   evaluateIndicatorValue,
   extractPatientConditions,
   findNationalIndicatorDefinition,
+  findReferenceGuidance,
+  referenceConditionLabel,
   matchApplicableReferenceRule,
   type NationalStandardLabTemplate,
 } from '../../../shared/clinical/nationalStandardLabCatalog'
@@ -29,6 +31,7 @@ export function LaboratoryResultEditor({
   template,
   patient,
   onApplyTemplate,
+  presetTemplates = NATIONAL_STANDARD_LAB_TEMPLATES,
   title,
   dirty,
   draftAuthor,
@@ -38,6 +41,7 @@ export function LaboratoryResultEditor({
   disabled: boolean
   template?: DiagnosticTemplateVersion
   patient?: { gender?: string; birthDate?: string; ageDays?: number }
+  presetTemplates?: readonly NationalStandardLabTemplate[]
   onApplyTemplate?: (template: NationalStandardLabTemplate) => void
   title?: string
   dirty?: boolean
@@ -45,19 +49,21 @@ export function LaboratoryResultEditor({
 }) {
   const patientConditions = extractPatientConditions(patient)
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
+  const [pendingTemplate, setPendingTemplate] = useState<NationalStandardLabTemplate | null>(null)
 
   const update = (index: number, patch: Partial<Row>, isBlur = false) => {
     const targetRow = rows[index]
     const updatedValue = patch.observationValue !== undefined ? patch.observationValue : targetRow.observationValue
 
     let dynamicRulePatch: Partial<Row> = {}
-    if (patch.observationValue !== undefined) {
+    if (patch.observationValue !== undefined || 'instrumentCode' in patch || 'populationCode' in patch) {
       const def =
         template?.content.indicators.find((item) => item.code === targetRow.observationCode) ??
         findNationalIndicatorDefinition(targetRow.observationCode)
       if (def) {
-        const evalResult = evaluateIndicatorValue(def, updatedValue, patientConditions)
-        const rule = evalResult.rule ?? matchApplicableReferenceRule(def.rules, patientConditions)
+        const conditions = { ...patientConditions, instrumentCode: targetRow.instrumentCode, populationCode: targetRow.populationCode, ...patch }
+        const evalResult = evaluateIndicatorValue(def, updatedValue, conditions)
+        const rule = evalResult.rule ?? matchApplicableReferenceRule(def.rules, conditions)
         const isCriticalCode = ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(evalResult.interpretationCode || '')
 
         // 录入过程中若命中危急值生命线，暂不标记为危急值（降级为常规偏高偏低），避免输入中间值频繁误触；在失去焦点时才正式生效
@@ -72,7 +78,7 @@ export function LaboratoryResultEditor({
           referenceRangeLow: rule?.referenceLow,
           referenceRangeHigh: rule?.referenceHigh,
           interpretationCode: finalInterpretation,
-          ruleStatus: rule ? 'MATCHED' : undefined,
+          ruleStatus: rule ? rule.referenceLow == null && rule.referenceHigh == null ? 'NO_RANGE' : 'MATCHED' : 'NO_RULE',
         }
       }
     }
@@ -134,12 +140,17 @@ export function LaboratoryResultEditor({
 
   return (
     <section aria-label="检验指标录入" className="diagnostic-result-editor-section">
+      {pendingTemplate && <Dialog title="载入项目模板并清空现有指标结果？" onClose={() => setPendingTemplate(null)}
+        footer={<><Button variant="secondary" onClick={() => setPendingTemplate(null)}>保留当前内容</Button>
+          <Button disabled={disabled} onClick={() => { applyNationalTemplate(pendingTemplate); setPendingTemplate(null) }}>载入并清空指标结果</Button></>}>
+        <p>当前已填写的指标结果将被替换，请核对当前申请项目后再载入。</p>
+      </Dialog>}
       <div className="diagnostic-editor-head diagnostic-toolbar-unified">
         <div className="diagnostic-toolbar-left">
           <h3>{title || '检验结果'}</h3>
           {template && (
             <span className="diagnostic-template-badge" title={template.publicationBasis || template.id}>
-              {template.id.startsWith('TPL_LAB_') ? '国标预设' : `机构 V${template.version}`} · {template.publicationBasis || template.id}
+              {template.id.startsWith('TPL_LAB_') ? '项目预置' : `机构 V${template.version}`} · {template.publicationBasis || template.id}
             </span>
           )}
           <span className="diagnostic-draft-status">
@@ -151,18 +162,20 @@ export function LaboratoryResultEditor({
             {rows.filter((row) => row.observationValue.trim()).length} / {rows.length} 项已录入
             {abnormal > 0 && <span className="diagnostic-abnormal-text"> · 异常 {abnormal} 项</span>}
           </span>
-          {(!template || template.id.startsWith('TPL_LAB_')) && onApplyTemplate && (
+          {(!template || template.id.startsWith('TPL_LAB_')) && onApplyTemplate && presetTemplates.length > 0 && (
             <div className="diagnostic-toolbar-select-wrap">
               <Select
                 id="quick-national-template-select"
-                aria-label="套用国家标准模板"
+                aria-label="套用项目结果模板"
                 value=""
-                placeholder={template?.id.startsWith('TPL_LAB_') ? '更换其他标准模板' : '套用国家标准模板 (WS/T 404/405)'}
+                placeholder={template?.id.startsWith('TPL_LAB_') ? '重新载入项目模板' : '载入项目结果模板'}
                 disabled={disabled}
-                options={NATIONAL_STANDARD_LAB_TEMPLATES.map((t) => ({ value: t.templateCode, label: t.templateName }))}
+                options={presetTemplates.map((t) => ({ value: t.templateCode, label: t.templateName }))}
                 onChange={(code) => {
-                  const found = NATIONAL_STANDARD_LAB_TEMPLATES.find((t) => t.templateCode === code)
-                  if (found) applyNationalTemplate(found)
+                  const found = presetTemplates.find((t) => t.templateCode === code)
+                  if (!found) return
+                  if (rows.some((row) => row.observationValue.trim())) setPendingTemplate(found)
+                  else applyNationalTemplate(found)
                 }}
               />
             </div>
@@ -199,9 +212,10 @@ export function LaboratoryResultEditor({
               const def =
                 template?.content.indicators.find((item) => item.code === row.observationCode) ??
                 findNationalIndicatorDefinition(row.observationCode)
-              const matchedRule = def ? matchApplicableReferenceRule(def.rules, patientConditions) : undefined
+              const matchedRule = def ? matchApplicableReferenceRule(def.rules, { ...patientConditions, instrumentCode: row.instrumentCode, populationCode: row.populationCode }) : undefined
               const displayRefLow = row.referenceRangeLow ?? matchedRule?.referenceLow
               const displayRefHigh = row.referenceRangeHigh ?? matchedRule?.referenceHigh
+              const guidance = findReferenceGuidance(matchedRule?.code)
               const isAbnormal = row.interpretationCode && row.interpretationCode !== 'N'
               const isCriticalRow = ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(row.interpretationCode || '')
 
@@ -300,8 +314,8 @@ export function LaboratoryResultEditor({
                   {template ? (
                     <td className={tableCellClass('numeric')}>
                       {displayRefLow == null && displayRefHigh == null
-                        ? '—'
-                        : `${displayRefLow ?? '—'} ～ ${displayRefHigh ?? '—'}`}
+                        ? guidance || <span title="请按患者条件和本机构检测方法维护参考规则">{def?.rules.length ? '无适用区间' : '待机构确认'}</span>
+                        : displayRefLow == null ? `≤ ${displayRefHigh}` : displayRefHigh == null ? `≥ ${displayRefLow}` : `${displayRefLow} ～ ${displayRefHigh}`}
                     </td>
                   ) : (
                     <EditableCell
@@ -399,22 +413,22 @@ export function LaboratoryResultEditor({
           return instruments.length || populations.length ? (
             <div key={row.observationCode} className="diagnostic-form-row">
               {instruments.length > 0 && (
-                <FormField label={`${row.observationName} · 仪器`}>
+                <FormField label={`${row.observationName} · 分析系统/方法`}>
                   <Select
                     disabled={disabled}
                     value={row.instrumentCode || ''}
-                    options={instruments.map((value) => ({ value, label: value }))}
-                    onChange={(value) => update(index, { instrumentCode: value || undefined })}
+                    options={instruments.map((value) => ({ value, label: referenceConditionLabel(value) }))}
+                    onChange={(value) => update(index, { instrumentCode: value || undefined }, true)}
                   />
                 </FormField>
               )}
               {populations.length > 0 && (
-                <FormField label={`${row.observationName} · 生理状态`}>
+                <FormField label={`${row.observationName} · 适用条件`}>
                   <Select
                     disabled={disabled}
                     value={row.populationCode || ''}
-                    options={populations.map((value) => ({ value, label: value }))}
-                    onChange={(value) => update(index, { populationCode: value || undefined })}
+                    options={populations.map((value) => ({ value, label: referenceConditionLabel(value) }))}
+                    onChange={(value) => update(index, { populationCode: value || undefined }, true)}
                   />
                 </FormField>
               )}

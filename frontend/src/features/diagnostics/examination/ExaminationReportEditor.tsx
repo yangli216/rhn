@@ -54,17 +54,13 @@ export function ExaminationReportEditor({
 
   return (
     <section aria-label="检查报告录入" className="diagnostic-examination-document">
-      <div className="diagnostic-editor-head">
-        <h3>结构化影像报告书写 (WS 445.11)</h3>
-      </div>
-
       <div className="diagnostic-exam-toolbar">
-        <FormField label="国家标准结构化报告模板 (预制典型阴性/正常模板)">
+        <FormField label="国家标准结构化报告模板">
           <Select
             id="exam-template-select"
             aria-label="选择国家标准检查报告模板"
             value={selectedTemplateCode}
-            placeholder="-- 快捷选择预制国家标准检查模板快速填入 --"
+            placeholder="选择预制阴性/正常模板快速填入"
             disabled={disabled}
             options={NATIONAL_EXAM_TEMPLATES.map((tpl) => ({
               value: tpl.templateCode,
@@ -74,7 +70,6 @@ export function ExaminationReportEditor({
           />
         </FormField>
         <Button
-          size="sm"
           variant="secondary"
           disabled={disabled || !selectedTemplateCode}
           onClick={() => handleApplyTemplate(selectedTemplateCode)}
@@ -84,10 +79,10 @@ export function ExaminationReportEditor({
       </div>
 
       <div className="diagnostic-exam-phrase-box">
-        <span className="diagnostic-exam-phrase-header">
-          常见影像表现与诊断词条库：
-        </span>
         <div className="diagnostic-exam-phrase-tags">
+          <span className="diagnostic-exam-phrase-header">
+            常见影像表现与诊断词条库：
+          </span>
           {COMMON_EXAM_PHRASES.map((group) => (
             <Button
               key={group.category}

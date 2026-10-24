@@ -10,11 +10,12 @@
 .specimen-thermal-preview-container {
   display: flex;
   justify-content: center;
-  padding: var(--space-3);
+  padding: var(--space-4);
   background: var(--color-surface-muted);
   border-radius: var(--radius-md);
   border: 1px dashed var(--color-border-strong);
   width: 100%;
+  box-sizing: border-box;
 }
 
 /* 60mm × 40mm 物理尺寸比例标签卡片 (1mm ≈ 3.78px, 60mm ≈ 227px, 40mm ≈ 151px) */
@@ -27,6 +28,7 @@
   --thermal-font-lg: 3.2mm;
   --thermal-gap: 1.5mm;
   --thermal-margin-v: 0.5mm;
+  --thermal-line: 1.2;
   width: 60mm;
   height: 40mm;
   background: var(--color-surface);
@@ -50,7 +52,7 @@
   border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--thermal-margin-v);
   font-size: var(--thermal-font-sm);
-  line-height: var(--line-height-tight, 1.2);
+  line-height: var(--thermal-line);
 }
 
 .specimen-thermal-org {
@@ -71,7 +73,7 @@
   align-items: baseline;
   gap: var(--thermal-gap);
   font-size: var(--thermal-font-md);
-  line-height: var(--line-height-tight, 1.2);
+  line-height: var(--thermal-line);
 }
 
 .specimen-thermal-name {
@@ -96,25 +98,41 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: var(--line-height-tight, 1.2);
+  line-height: var(--thermal-line);
 }
 
 .specimen-thermal-tube-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--thermal-gap);
+  min-width: 0;
   font-size: var(--thermal-font-sm);
   color: var(--color-text-secondary);
 }
 
+/* 标签是按毫米定尺的打印实体，管型徽标不随界面字号档变化 */
+.specimen-thermal-label-card .diagnostic-tube-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: var(--thermal-gap);
+  padding: 0 var(--thermal-gap);
+  font-size: var(--thermal-font-sm);
+  line-height: var(--thermal-line);
+}
+
+.specimen-thermal-label-card .diagnostic-tube-dot { flex: none; }
+
 .specimen-thermal-tube-name {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 45mm;
 }
 
+
 .specimen-thermal-vol {
+  flex: none;
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
@@ -136,7 +154,7 @@
   font-family: var(--font-family-mono);
   font-size: var(--thermal-font-md);
   font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-tight, 1.2);
+  line-height: var(--thermal-line);
 }
 
 .specimen-thermal-footer {
@@ -147,18 +165,31 @@
   padding-top: var(--thermal-margin-v);
   font-size: var(--thermal-font-xs);
   color: var(--color-text-secondary);
-  line-height: var(--line-height-tight, 1.2);
+  line-height: var(--thermal-line);
 }
 
 .specimen-thermal-guidance {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
   width: 100%;
+  padding: var(--space-2) var(--space-3);
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.specimen-thermal-guidance p {
+  margin: 0;
+}
+
+.specimen-thermal-guidance strong {
+  color: var(--color-text-primary);
 }
 
 .specimen-thermal-guidance code {
   background: var(--color-surface-subtle);
-  padding: var(--space-0-5) var(--space-1);
+  padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
   font-family: var(--font-family-mono);
 }

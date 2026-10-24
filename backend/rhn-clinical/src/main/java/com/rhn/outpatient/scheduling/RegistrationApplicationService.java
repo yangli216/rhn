@@ -443,7 +443,10 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Map<Long, String> operatorCache = new HashMap<>();
         Map<Long, String> departmentCache = new HashMap<>();
 
-        if (matchQuery != null) preloadResidents(residentCache, registrations);
+        if (matchQuery != null) {
+            preloadResidents(residentCache, registrations);
+            preloadSchedules(scheduleCache, registrations, context);
+        }
         List<PatientRegistration> filtered = registrations.stream()
                 .filter(reg -> matchesRegistration(reg, normalizedStatus, matchQuery, tickets,
                         residentCache, scheduleCache, operatorCache, departmentCache, context))
@@ -457,6 +460,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         List<PatientRegistration> slice = filtered.subList(fromIndex, toIndex);
 
         preloadResidents(residentCache, slice);
+        preloadSchedules(scheduleCache, slice, context);
         List<ReceptionQueueItem> content = slice.stream()
                 .map(registration -> toPageItem(registration, tickets, residentCache, scheduleCache,
                         operatorCache, departmentCache, context))
@@ -499,10 +503,20 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     }
 
     private Map<Long, ServiceSchedule> loadSchedules(List<PatientRegistration> registrations, ExecutionContext context) {
-        return registrations.stream().map(PatientRegistration::scheduleId)
-                .filter(java.util.Objects::nonNull).distinct()
-                .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
-                .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
+        Map<Long, ServiceSchedule> schedules = new HashMap<>();
+        preloadSchedules(schedules, registrations, context);
+        return schedules;
+    }
+
+    private void preloadSchedules(Map<Long, ServiceSchedule> scheduleCache, List<PatientRegistration> source,
+                                  ExecutionContext context) {
+        List<Long> missing = source.stream().map(PatientRegistration::scheduleId)
+                .filter(id -> id != null && !scheduleCache.containsKey(id)).distinct().toList();
+        for (int from = 0; from < missing.size(); from += 500) {
+            scheduleRepository.findByTenantIdAndIdIn(context.tenantId(),
+                            missing.subList(from, Math.min(from + 500, missing.size())))
+                    .forEach(schedule -> scheduleCache.put(schedule.id(), schedule));
+        }
     }
 
     private Map<Long, EncounterFlowSnapshot> loadEncounters(List<PatientRegistration> registrations, ExecutionContext context) {
@@ -600,8 +614,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 if (resident.healthRecordNo() != null && resident.healthRecordNo().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
             }
             if (reg.scheduleId() != null) {
-                ServiceSchedule schedule = scheduleCache.computeIfAbsent(reg.scheduleId(),
-                        id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+                ServiceSchedule schedule = scheduleCache.get(reg.scheduleId());
                 if (schedule != null) {
                     if (schedule.practitionerName() != null && schedule.practitionerName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
                     if (schedule.serviceName() != null && schedule.serviceName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
@@ -631,9 +644,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         TicketSnapshot ticket = tickets.get(registration.id());
         ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(registration.residentId(),
                 residentDirectory::requireSnapshot);
-        ServiceSchedule schedule = registration.scheduleId() == null ? null :
-                scheduleCache.computeIfAbsent(registration.scheduleId(),
-                        id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+        ServiceSchedule schedule = registration.scheduleId() == null ? null
+                : scheduleCache.get(registration.scheduleId());
         String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), operatorCache);
         Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
         String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, departmentCache);

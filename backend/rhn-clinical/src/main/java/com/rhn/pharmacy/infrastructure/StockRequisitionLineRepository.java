@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface StockRequisitionLineRepository extends JpaRepository<StockRequisitionLine, Long> {
     List<StockRequisitionLine> findByTenantIdAndStockRequisitionIdOrderBySortOrder(Long tenantId, Long requisitionId);
+    List<StockRequisitionLine> findByTenantIdAndStockRequisitionIdInOrderByStockRequisitionIdAscSortOrderAsc(
+            Long tenantId, java.util.Collection<Long> requisitionIds);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from StockRequisitionLine value where value.tenantId = :tenantId " +
             "and value.stockRequisitionId = :requisitionId order by value.sortOrder")

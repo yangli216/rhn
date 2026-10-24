@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface StockLotRepository extends JpaRepository<StockLot, Long> {
     Optional<StockLot> findByIdAndTenantId(Long id, Long tenantId);
+    List<StockLot> findByTenantIdAndIdIn(Long tenantId, List<Long> ids);
     Optional<StockLot> findByTenantIdAndCatalogItemIdAndPackageIdAndLotNo(
             Long tenantId, Long catalogItemId, Long packageId, String lotNo);
     List<StockLot> findByTenantIdAndCatalogItemIdOrderByExpiryDateAscLotNoAsc(Long tenantId, Long catalogItemId);

@@ -15,18 +15,18 @@ export function DiagnosticQueue({ api, tasks, selectedId, scope, forms, onSelect
     return <li key={task.id} className={`diagnostic-queue-entry ${task.id === selectedId ? 'is-active' : ''}`}>
       <Button variant="text" className="diagnostic-queue-choice" aria-current={task.id === selectedId ? 'true' : undefined}
         aria-label={`${task.residentName} · ${task.itemName}`}
-        title={`申请单号 ${task.requestNo}`} onClick={() => onSelect(task.id)}><span className="diagnostic-queue-summary">
-          <span className="diagnostic-queue-col diagnostic-queue-col--patient">
-            <strong className="diagnostic-queue-patient-name">{task.residentName}</strong>
-            <span className="diagnostic-queue-demographics"><DiagnosticPatientDemographics api={api} task={task} compact /></span>
+        title={`申请单号 ${task.requestNo}`} onClick={() => onSelect(task.id)}>
+        <span className="diagnostic-queue-head">
+          <strong className="diagnostic-queue-patient-name">{task.residentName}</strong>
+          <span className="diagnostic-queue-demographics"><DiagnosticPatientDemographics api={api} task={task} compact /></span>
+          <span className="diagnostic-queue-state">
+            {forms[`${scope}:${task.id}`]?.dirty && <small className="diagnostic-unsaved">未保存</small>}
+            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           </span>
-          <span className="diagnostic-queue-col diagnostic-queue-col--project">
-            <span className="diagnostic-queue-project">{task.itemName}</span>
-            <span className="diagnostic-queue-meta">申请 {formatTime(task.createdAt) || '—'}{task.specimenNo && ` · 标本 ${task.specimenNo}`}</span>
-          </span>
-        </span></Button>
-      <div className="diagnostic-queue-state"><StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        {forms[`${scope}:${task.id}`]?.dirty && <small className="diagnostic-unsaved">未保存</small>}</div>
+        </span>
+        <span className="diagnostic-queue-project"><span className="diagnostic-queue-project-name">{task.itemName}</span></span>
+        <span className="diagnostic-queue-meta">申请 {formatTime(task.createdAt) || '—'}{task.specimenNo && ` · 标本 ${task.specimenNo}`}</span>
+      </Button>
     </li>
   })}</ul>
 }
@@ -66,7 +66,6 @@ export function DiagnosticTaskContext({ api, task }: { api: RhnApi; task: Diagno
         <span className="diagnostic-context-label">申请项目：</span>
         <strong className="diagnostic-context-item-name">{task.itemName}</strong>
       </div>
-      <span className="diagnostic-context-divider" aria-hidden="true">|</span>
       <div className="diagnostic-context-meta-section">
         <span>单号：{task.requestNo}</span>
         {laboratory ? (

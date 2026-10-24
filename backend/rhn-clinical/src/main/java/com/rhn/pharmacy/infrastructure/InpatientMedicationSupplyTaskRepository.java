@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,8 +16,12 @@ public interface InpatientMedicationSupplyTaskRepository
         extends JpaRepository<InpatientMedicationSupplyTask, Long> {
     List<InpatientMedicationSupplyTask> findByTenantIdAndSupplyLineIdOrderByScheduledAt(
             Long tenantId, Long supplyLineId);
+    List<InpatientMedicationSupplyTask> findByTenantIdAndSupplyLineIdInOrderBySupplyLineIdAscScheduledAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> supplyLineIds);
     Optional<InpatientMedicationSupplyTask> findByTenantIdAndOrderTaskIdAndStatus(
             Long tenantId, Long orderTaskId, InpatientMedicationSupplyTaskStatus status);
+    List<InpatientMedicationSupplyTask> findByTenantIdAndOrderTaskIdInAndStatus(
+            Long tenantId, Collection<Long> orderTaskIds, InpatientMedicationSupplyTaskStatus status);
     List<InpatientMedicationSupplyTask> findByTenantIdAndRequestIdAndStatusOrderByScheduledAt(
             Long tenantId, Long requestId, InpatientMedicationSupplyTaskStatus status);
     boolean existsByTenantIdAndOrderTaskIdAndStatus(Long tenantId, Long orderTaskId,

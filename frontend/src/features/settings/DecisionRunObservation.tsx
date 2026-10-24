@@ -17,6 +17,7 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
   const [selected, setSelected] = useState<string>()
   const query = useQuery({ queryKey: ['decision-observations', scopeKey, filter], queryFn: () => api.decisionObservations.list(filter), retry: false })
   const data = query.isError ? undefined : query.data
+  const sceneNames = { ...decisionScenes, ...Object.fromEntries((data?.scenes ?? []).filter(s => s.scene && s.label).map(s => [s.scene, s.label])) }
   const stats = data?.statistics
   const valid = Boolean(dates.from && dates.to && dates.from <= dates.to)
   return <Dialog title="决策运行观察" size="xwide" onClose={onClose}>
@@ -24,7 +25,7 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
       <WorkspacePane label="决策运行记录" scroll="content" header={<div className="decision-observation__header">
         <div className="decision-observation__filters ui-query-filters">
           <FormField label="决策场景" className="decision-observation__filter-field--scene">
-            <Select aria-label="决策场景" value={scene} onChange={setScene} options={options(decisionScenes)} placeholder="全部场景" />
+            <Select aria-label="决策场景" value={scene} onChange={setScene} options={options(sceneNames)} placeholder="全部场景" />
           </FormField>
           <FormField label="运行模式" className="decision-observation__filter-field--mode">
             <Select aria-label="运行模式" value={mode} onChange={setMode} options={options(decisionModes)} placeholder="全部模式" />
@@ -99,6 +100,8 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
               <span className="stat-sub">P95 {stats?.p95LatencyMs ?? '—'} ms</span>
             </div>
           </div>
+          {data.feedback && <p>病历提示反馈（每条提示按最新状态计数）：已采纳 {data.feedback.adopted} · 已忽略 {data.feedback.dismissed} ·
+            相关字段修改并保存 {data.feedback.modified} · 保存未修改 {data.feedback.unchanged}。字段变化不代表提示已解决。</p>}
         </>}
       </div>}>
         <TableShell scrollLabel="决策运行结果" resetScrollKey={JSON.stringify(filter)} footer={<Pagination page={filter.page}
@@ -107,7 +110,7 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
           {query.isPending ? <LoadingState label="正在读取运行记录…" /> : data && <DataTable aria-label="决策运行记录">
             <thead><tr><th>时间／场景</th><th>模式／结果</th><th>模型／耗时</th><th>基线比较</th><th>人工研判</th><th>操作</th></tr></thead>
             <tbody>{data.records?.content?.map(r => <tr key={r.id}>
-              <td>{observationTime(r.time)}<br />{labelOf(decisionScenes, r.scene)}</td>
+              <td>{observationTime(r.time)}<br />{labelOf(sceneNames, r.scene)}</td>
               <td>{labelOf(decisionModes, r.mode)}<br />{labelOf(decisionOutcomes, r.outcome)}{r.uncertain && <p>存在不确定／无匹配判断</p>}</td>
               <td>{r.modelCalled ? r.model || '模型名称未返回' : '未调用模型'}<br />{r.latencyMs ?? '—'} ms</td>
               <td>{r.comparison === 'COMPARABLE' ? r.equal ? '与基线一致' : '与基线不同' : labelOf(decisionComparisons, r.comparison)}</td>
@@ -118,11 +121,11 @@ export function DecisionRunObservation({ api, onClose }: { api: RhnApi; onClose:
         </TableShell>
       </WorkspacePane>
     </div>
-    {selected && <DecisionRunDetail key={`${scopeKey}-${selected}`} api={api} id={selected} onClose={() => setSelected(undefined)} onReviewed={() => void query.refetch()} />}
+    {selected && <DecisionRunDetail key={`${scopeKey}-${selected}`} api={api} id={selected} sceneNames={sceneNames} onClose={() => setSelected(undefined)} onReviewed={() => void query.refetch()} />}
   </Dialog>
 }
 
-function DecisionRunDetail({ api, id, onClose, onReviewed }: { api: RhnApi; id: string; onClose: () => void; onReviewed: () => void }) {
+function DecisionRunDetail({ api, id, sceneNames, onClose, onReviewed }: { api: RhnApi; id: string; sceneNames: Record<string, string>; onClose: () => void; onReviewed: () => void }) {
   const [verdict, setVerdict] = useState(''), [reason, setReason] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const scopeKey = observationScope(api)
   const query = useQuery({ queryKey: ['decision-run-detail', scopeKey, id], queryFn: () => api.decisionObservations.detail(id), retry: false, gcTime: 0 })
@@ -130,7 +133,7 @@ function DecisionRunDetail({ api, id, onClose, onReviewed }: { api: RhnApi; id: 
   return <Dialog title="运行详情与人工研判" size="xwide" onClose={busy ? () => {} : onClose} closeOnBackdrop={false}>
     {query.isPending && <LoadingState label="正在读取快照…" />}{query.error && <Alert tone="error">{errorMessage(query.error)}</Alert>}
     {run && <>
-      <p>{labelOf(decisionScenes, run.scene)} · {labelOf(decisionModes, run.mode)} · {labelOf(decisionOutcomes, run.outcome)} · {observationTime(run.time)}</p>
+      <p>{labelOf(sceneNames, run.scene)} · {labelOf(decisionModes, run.mode)} · {labelOf(decisionOutcomes, run.outcome)} · {observationTime(run.time)}</p>
       <p>模型 {run.model || '未调用'} · 版本 {run.version} · 阈值 {run.threshold ?? '—'} · 耗时 {run.latencyMs ?? '—'} ms</p>
       <p>追踪 {run.traceId || '—'} · 关联 {run.correlationId || '—'} · 输入指纹 {run.inputHash || '未形成模型输入'}</p>
       <p>比较依据：{labelOf(decisionComparisons, run.comparison)}；模型选择 {run.selected?.join('、') || '无可确认选择'}；规则选择 {run.baseline?.join('、') || '需人工核对'}</p>
@@ -150,6 +153,10 @@ function DecisionRunDetail({ api, id, onClose, onReviewed }: { api: RhnApi; id: 
         }}>记录研判</Button>
       </div>
       {error && <Alert tone="error">{error}</Alert>}
+      {!!detail?.feedback?.length && <><h3>医生采纳与保存反馈</h3>
+        <p>保存反馈由服务端核对病历版本与字段指纹；修改不代表临床问题已经解决。</p>
+        {detail.feedback.map(f => <p key={f.id}>{observationTime(f.time)} · {f.actor} · {f.findingCode} ·
+          {f.actionText ?? f.action}{f.documentVersion && ` · 病历 V${f.documentVersion}`}</p>)}</>}
       <h3>研判历史</h3>{detail?.reviews?.map(r => <p key={r.id}>{observationTime(r.time)} · {r.actor} · {labelOf(decisionVerdicts, r.verdict)}：{r.reason}</p>)}
     </>}
   </Dialog>

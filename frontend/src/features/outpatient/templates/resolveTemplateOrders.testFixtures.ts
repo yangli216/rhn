@@ -17,6 +17,8 @@ export function templateCatalogFixture() {
       quantity: 2, unitCode: '次', performerOrganizationId: 'org', performerDepartmentId: 'lab-dept', clinicalDescription: '明确说明' }],
   }
   const medications = vi.fn().mockResolvedValue([f.medication])
+  const medicationsByCodes = vi.fn().mockImplementation(async (codes: string[]) =>
+    [f.medication].filter(item => codes.includes(item.code)))
   const autoSplitPreview = vi.fn().mockImplementation(async (_id: string, items: BatchOrderMedicationItem[]) => items.map(item => ({
     categoryCode: item.categoryCode, title: '真实分方预览', ruleReasons: ['分类分方'],
     routeGroupType: item.categoryCode === 'HERBAL' ? 'HERBAL' : item.routeExecutionType === 'INFUSION' ? 'INFUSION' : 'NON_INFUSION',
@@ -24,10 +26,11 @@ export function templateCatalogFixture() {
     items: [{ item: { ...item, stockSiteId: item.selfProvided ? null : 'pharmacy', stockSiteName: item.selfProvided ? null : '当前药房' }, groupLeader: false }],
   })))
   const api = { encounters: { ...f.api.encounters, autoSplitPreview },
-    masterData: { ...f.api.masterData, medications, searchServices: g.api.masterData.searchServices },
+    masterData: { ...f.api.masterData, medications, medicationsByCodes, searchServices: g.api.masterData.searchServices,
+      servicesByCodes: g.api.masterData.servicesByCodes },
     organization: g.api.organization,
   } satisfies { [K in keyof RhnApi]?: Partial<RhnApi[K]> } as unknown as RhnApi
-  return { ...f, plan, api, medications, autoSplitPreview, service: g.services[0], department: g.department }
+  return { ...f, plan, api, medications, medicationsByCodes, autoSplitPreview, service: g.services[0], department: g.department }
 }
 
 // Explicit catalog setup for workstation integration tests only; production never synthesizes these facts.
@@ -45,7 +48,11 @@ export function installTemplateCatalog(api: RhnApi, plan: OutpatientPlanTemplate
     return medication
   })
   api.masterData.medications = vi.fn().mockImplementation(async code => medications.filter(item => item.code === code))
+  api.masterData.medicationsByCodes = vi.fn().mockImplementation(async (codes: string[]) =>
+    medications.filter(item => codes.includes(item.code)))
   api.encounters.orderableMedications = vi.fn().mockImplementation(async (_id, code) => medications.filter(item => item.code === code))
+  api.encounters.orderableMedicationsBatch = vi.fn().mockImplementation(async (_id: string, codes: string[]) =>
+    Object.fromEntries(codes.map(code => [code, medications.filter(item => item.code === code)])))
   api.masterData.activeMedicationRoutes = vi.fn().mockResolvedValue(plan.medications.map(item => ({
     id: item.routeCode, code: item.routeCode, name: '口服', executionType: 'NONE',
   })))
@@ -61,6 +68,8 @@ export function installTemplateCatalog(api: RhnApi, plan: OutpatientPlanTemplate
     const content = services.filter(item => item.code === code)
     return { content, totalElements: content.length, totalPages: 1, page: 0, size: 100 }
   }) as RhnApi['masterData']['searchServices']
+  api.masterData.servicesByCodes = vi.fn().mockImplementation(async (codes: string[]) =>
+    services.filter(item => codes.includes(item.code)))
   api.organization = { ...api.organization, department: vi.fn().mockResolvedValue({
     department: { ...f.department, id: 'dept-1', organizationId: 'org-1', name: '测试执行科室' },
   }) }

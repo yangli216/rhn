@@ -14,7 +14,7 @@ const task: DiagnosticExecutionTask = { id: 'task1', revision: 1, requestNo: 'SR
   organizationId: 'org1', departmentId: 'dept1', itemCode: 'LAB1', itemName: '血常规', createdAt: '2026-10-13T01:00:00Z' }
 const context = { organization: { id: 'org1', name: '测试机构' }, department: { id: 'dept1', name: '医技科' } } as ClinicalContext
 const blank = { revision: 0, doubleSignatureRequired: false }
-function setup({ exam = false, tasks = [task], overrides = {}, authorities }: { exam?: boolean; tasks?: DiagnosticExecutionTask[]; overrides?: Record<string, ReturnType<typeof vi.fn>>; authorities?: string[] } = {}) {
+function setup({ exam = false, tasks = [task], overrides = {}, authorities, entry = "/diagnostics/laboratory" }: { exam?: boolean; tasks?: DiagnosticExecutionTask[]; overrides?: Record<string, ReturnType<typeof vi.fn>>; authorities?: string[]; entry?: string } = {}) {
   const diagnostics = { reportTemplate: vi.fn().mockResolvedValue(null), worklistPage: vi.fn().mockResolvedValue({ content: tasks, totalElements: tasks.length, totalPages: 1, page: 0, size: 20 }), reportsByRequest: vi.fn().mockResolvedValue([]),
     specimens: vi.fn().mockResolvedValue([]),
     draftImages: vi.fn().mockResolvedValue([]),
@@ -25,11 +25,23 @@ function setup({ exam = false, tasks = [task], overrides = {}, authorities }: { 
   })) } } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const Workspace = exam ? ExaminationWorkspace : LaboratoryWorkspace
-  render(<QueryClientProvider client={client}><MemoryRouter><Workspace api={api} clinicalContext={context} onNavigate={vi.fn()} authorities={authorities} /></MemoryRouter></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[entry]}><Workspace api={api} clinicalContext={context} onNavigate={vi.fn()} authorities={authorities} /></MemoryRouter></QueryClientProvider>)
   return diagnostics
 }
 
 describe('simple diagnostic business workbench', () => {
+  it.each([false, true])('loads an explicitly linked historical task outside the focused queue (examination=%s)', async (exam) => {
+    const historical = { ...task, id: 'old-task', requestType: exam ? 'EXAMINATION' as const : 'LABORATORY' as const,
+      residentName: '历史患者', createdAt: '2020-01-01T00:00:00Z', itemName: exam ? '历史超声检查' : '历史血常规' }
+    const readTask = vi.fn().mockResolvedValue(historical)
+    const api = setup({ exam, tasks: [], entry: `/diagnostics/${exam ? 'examination' : 'laboratory'}?taskId=old-task`,
+      overrides: { task: readTask } })
+    await waitFor(() => expect(screen.getAllByText(/历史患者/).length).toBeGreaterThan(0))
+    expect(readTask).toHaveBeenCalledWith('old-task')
+    expect(api.worklistPage).toHaveBeenCalledWith(historical.requestType, '', 0, 20, undefined, undefined,
+      expect.objectContaining({ activeAndRecent: true }))
+  })
+
   it('uses the common keyword filter after removing the barcode location area', async () => {
     const scanSpecimen = vi.fn()
     const api = setup({ overrides: { scanSpecimen } })
@@ -39,7 +51,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText('搜索患者、申请或标本'), { target: { value: 'SP1' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))
     await waitFor(() => expect(api.worklistPage).toHaveBeenLastCalledWith('LABORATORY', 'SP1', 0, 20,
-      undefined, undefined, { status: undefined, createdFrom: undefined, createdBefore: undefined }))
+      undefined, undefined, { activeAndRecent: true, status: undefined, createdFrom: undefined, createdBefore: undefined }))
     expect(scanSpecimen).not.toHaveBeenCalled()
   })
 
@@ -52,7 +64,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText('申请结束日期'), { target: { value: '2026-10-13' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))
     await waitFor(() => expect(api.worklistPage).toHaveBeenLastCalledWith('LABORATORY', '', 0, 20, undefined, undefined, {
-      status: 'IN_PROGRESS', createdFrom: new Date(2026, 9, 1).toISOString(), createdBefore: new Date(2026, 9, 14).toISOString(),
+      activeAndRecent: true, status: 'IN_PROGRESS', createdFrom: new Date(2026, 9, 1).toISOString(), createdBefore: new Date(2026, 9, 14).toISOString(),
     }))
     fireEvent.click(screen.getByRole('button', { name: '重置' }))
     expect(screen.getByLabelText('申请开始日期')).toHaveValue('')
@@ -66,7 +78,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText('申请结束日期'), { target: { value: '2026-10-13' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))
     await waitFor(() => expect(api.worklistPage).toHaveBeenLastCalledWith('LABORATORY', '', 0, 20, undefined, undefined, {
-      status: undefined, createdFrom: new Date(2026, 9, 13).toISOString(), createdBefore: new Date(2026, 9, 14).toISOString(),
+      activeAndRecent: true, status: undefined, createdFrom: new Date(2026, 9, 13).toISOString(), createdBefore: new Date(2026, 9, 14).toISOString(),
     }))
     await waitFor(() => expect(screen.getByLabelText('指标1结果')).toHaveValue('12.8'))
   })
@@ -114,16 +126,14 @@ describe('simple diagnostic business workbench', () => {
     expect(rejectSpecimen).toHaveBeenCalledTimes(2)
   })
 
-  it('requires explicit institution template selection and submits fixed template metadata', async () => {
+  it('automatically loads the institution default into an empty report and submits fixed template metadata', async () => {
     const template = { id: 'tpl1', organizationId: 'org1', catalogItemId: 'catalog1', version: 1, serviceType: 'LABORATORY',
       effectiveFrom: '2026-01-01', publicationBasis: '机构规则', publishedBy: 'user1', publishedAt: '2026-01-01T00:00:00Z',
       content: { minimumImages: 0, requiredChecks: [], phrases: [], indicators: [{ code: 'GLU', name: '血糖', valueType: 'NUMBER',
         required: true, unitCode: 'mmol/L', allowedCodes: [], rules: [] }] } }
     const api=setup({ overrides: { reportTemplate: vi.fn().mockResolvedValue(template) } })
-    await screen.findByText('请载入机构模板后填写；已有模板的项目不能绕过机构规则签发。')
-    expect(screen.getByRole('button',{name:'签发正式报告'})).toBeDisabled()
-    fireEvent.click(screen.getByRole('button',{name:'载入机构模板 V1'}))
-    expect(screen.getByText('血糖')).toBeInTheDocument()
+    expect(await screen.findByText('血糖')).toBeInTheDocument()
+    expect(screen.getByRole('button',{name:'签发正式报告'})).toBeEnabled()
     expect(screen.getByTitle('必填')).toBeInTheDocument()
     expect(screen.queryByLabelText('指标1代码')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('指标1单位')).not.toBeInTheDocument()
@@ -152,7 +162,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText('指标2结果'), { target: { value: '120' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
     await waitFor(() => expect(api.recordLocalReport).toHaveBeenCalledOnce())
-    expect(api.worklistPage).toHaveBeenCalledWith('LABORATORY', '', 0, 20, undefined, undefined, { status: undefined, createdFrom: undefined, createdBefore: undefined })
+    expect(api.worklistPage).toHaveBeenCalledWith('LABORATORY', '', 0, 20, undefined, undefined, { activeAndRecent: true, status: undefined, createdFrom: undefined, createdBefore: undefined })
     expect(api.recordLocalReport.mock.calls[0][1].observations).toEqual([
       expect.objectContaining({ observationValue: '5.8' }),
       expect.objectContaining({ observationCode: 'HGB', observationValue: '120' }),
@@ -199,7 +209,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText(/检查结论/), { target: { value: '具体结论' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
     await waitFor(() => expect(api.recordLocalReport).toHaveBeenCalledWith('task1', expect.objectContaining({ findings: '具体所见', conclusion: '具体结论' })))
-    expect(api.worklistPage).toHaveBeenCalledWith('EXAMINATION', '', 0, 20, undefined, undefined, { status: undefined, createdFrom: undefined, createdBefore: undefined })
+    expect(api.worklistPage).toHaveBeenCalledWith('EXAMINATION', '', 0, 20, undefined, undefined, { activeAndRecent: true, status: undefined, createdFrom: undefined, createdBefore: undefined })
     expect(screen.queryByLabelText('指标1结果')).not.toBeInTheDocument()
   })
 
@@ -216,9 +226,9 @@ describe('simple diagnostic business workbench', () => {
   it('automatically binds preset national laboratory template when task is 5-part CBC without manual selection', async () => {
     const cbcTask = { ...task, id: 'task-cbc', itemName: '血常规（五分类）', itemCode: 'LAB-CBC' }
     setup({ tasks: [cbcTask] })
-    await screen.findByText(/国标预设 · WS\/T 405-2012/)
-    expect(await screen.findByText(/白细胞计数 \(WBC\)/)).toBeInTheDocument()
-    expect(screen.getByText(/红细胞计数 \(RBC\)/)).toBeInTheDocument()
+    await screen.findByText(/项目预置 · WS\/T 405-2012/)
+    expect(await screen.findByText('白细胞计数')).toBeInTheDocument()
+    expect(screen.getByText('红细胞计数')).toBeInTheDocument()
     expect(screen.getByLabelText('指标1结果')).toBeInTheDocument()
   })
 

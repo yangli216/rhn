@@ -28,9 +28,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -195,6 +194,69 @@ class SkinTestApplicationServiceTest {
         // Unknown historical validity must never be promoted to a reusable negative result.
         when(request.medicationSnapshot()).thenReturn(null);
         assertThat(service.validRecentNegativeSkinTests(30L, 50L, 72)).isEmpty();
+    }
+
+    @Test
+    void worklist_uses_batch_facts_without_per_request_fallback() {
+        MedicationRequestSnapshot first = request(100L, 30L, "ORIGINAL_SOLUTION");
+        MedicationRequestSnapshot second = request(101L, 31L, "ORIGINAL_SOLUTION");
+        when(medicationRequests.activeForExecution(10L, 20L)).thenReturn(List.of(first, second));
+        when(events.findByTenantIdAndMedicationRequestIdInOrderByStartedAtDesc(1L, List.of(100L, 101L)))
+                .thenReturn(List.of());
+        when(residents.requireSnapshots(List.of(30L, 31L))).thenReturn(java.util.Map.of(
+                30L, new ResidentDirectory.ResidentSnapshot(30L, "HR001", "测试患者", "2", LocalDate.of(1990, 1, 1), null, false),
+                31L, new ResidentDirectory.ResidentSnapshot(31L, "HR002", "测试患者二", "1", LocalDate.of(1991, 2, 2), null, false)));
+        java.util.Map<Long, Long> settled = new java.util.HashMap<>();
+        settled.put(100L, 501L);
+        settled.put(101L, null);
+        when(settlements.finalizedSettlementsForRequests(1L, List.of(100L, 101L), "MEDICATION_REQUEST"))
+                .thenReturn(settled);
+        when(fulfillment.fulfillmentsForRequests(1L, List.of(100L, 101L))).thenReturn(java.util.Map.of(
+                100L, new MedicationFulfillmentDirectory.FulfillmentSnapshot(true, 601L, BigDecimal.ONE, "COMPLETED"),
+                101L, MedicationFulfillmentDirectory.FulfillmentSnapshot.pending()));
+
+        var values = service.worklist(null, null, null);
+
+        assertThat(values).hasSize(2);
+        assertThat(values.get(0).status()).isEqualTo("WAITING_SETTLEMENT");
+        assertThat(values.get(1).status()).isEqualTo("PENDING");
+        assertThat(values.get(0).residentName()).isEqualTo("测试患者二");
+        assertThat(values.get(1).residentName()).isEqualTo("测试患者");
+        org.mockito.Mockito.verify(residents, org.mockito.Mockito.never())
+                .requireSnapshot(org.mockito.ArgumentMatchers.anyLong());
+        org.mockito.Mockito.verify(settlements, org.mockito.Mockito.never())
+                .finalizedSettlementForRequest(org.mockito.ArgumentMatchers.anyLong(),
+                        org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.verify(fulfillment, org.mockito.Mockito.never())
+                .fulfillmentForRequest(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    void negative_history_uses_batch_routing_and_resident_facts() {
+        MedicationRequestSnapshot request = request("DILUTED_SOLUTION", null);
+        var event = mock(com.rhn.treatment.domain.SkinTestEvent.class);
+        when(event.id()).thenReturn(501L);
+        when(event.medicationRequestId()).thenReturn(100L);
+        when(event.completedAt()).thenReturn(java.time.Instant.now().minus(java.time.Duration.ofHours(2)));
+        when(events.findByTenantIdAndResidentIdAndMedicationIdAndResultOrderByCompletedAtDesc(1L, 30L, 50L, "NEGATIVE"))
+                .thenReturn(List.of(event));
+        when(medicationRequests.routingSnapshots(1L, List.of(100L))).thenReturn(java.util.Map.of(100L, request));
+        when(residents.requireSnapshots(List.of(30L))).thenReturn(java.util.Map.of(
+                30L, new ResidentDirectory.ResidentSnapshot(30L, "HR001", "测试患者", "2", LocalDate.of(1990, 1, 1), null, false)));
+
+        assertThat(service.validRecentNegativeSkinTests(30L, 50L, 72)).hasSize(1);
+        org.mockito.Mockito.verify(medicationRequests, org.mockito.Mockito.never())
+                .requireForRouting(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        org.mockito.Mockito.verify(residents, org.mockito.Mockito.never())
+                .requireSnapshot(org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    private MedicationRequestSnapshot request(long id, long residentId, String medicationSolutionMode) {
+        MedicationRequestSnapshot request = request(medicationSolutionMode, null);
+        when(request.id()).thenReturn(id);
+        when(request.residentId()).thenReturn(residentId);
+        when(request.requestNo()).thenReturn("MR" + id);
+        return request;
     }
 
     private MedicationRequestSnapshot request(String medicationSolutionMode, String resolvedSolutionMode) {

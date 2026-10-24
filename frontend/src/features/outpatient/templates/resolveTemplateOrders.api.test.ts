@@ -12,8 +12,8 @@ describe('template catalog resolution through production API modules', () => {
       const url = new URL(String(input), 'http://localhost')
       const json = (value: unknown) => new Response(JSON.stringify(value))
       switch (url.pathname) {
-        case '/api/platform/master-data/medications':
-          expect(url.searchParams.get('query')).toBe('TEST')
+        case '/api/platform/master-data/medications/batch':
+          expect(url.searchParams.getAll('codes')).toEqual(['TEST'])
           expect(url.searchParams.get('organizationId')).toBe('org')
           expect(url.searchParams.get('status')).toBe('ACTIVE')
           return json([f.medication])
@@ -25,13 +25,14 @@ describe('template catalog resolution through production API modules', () => {
           expect(url.searchParams.get('departmentId')).toBe('dept')
           expect(url.searchParams.get('orderType')).toBe('MEDICATION')
           return json(f.frequencies)
-        case '/api/encounters/current/orderable-medications':
-          expect(url.searchParams.get('query')).toBe('TEST')
-          return json([f.medication])
-        case '/api/platform/master-data/services/search':
-          expect(url.searchParams.get('query')).toBe('S1')
+        case '/api/encounters/current/orderable-medications/batch':
+          expect(url.searchParams.getAll('queries')).toEqual(['TEST'])
+          return json({ TEST: [f.medication] })
+        case '/api/platform/master-data/services/batch':
+          expect(url.searchParams.getAll('codes')).toEqual(['S1'])
           expect(url.searchParams.get('organizationId')).toBe('org')
-          return json({ content: [f.service] })
+          expect(url.searchParams.get('status')).toBe('ACTIVE')
+          return json([f.service])
         case '/api/platform/departments/lab-dept':
           if (outcome === 'forbidden') return new Response(JSON.stringify({ message: '科室不可访问' }), { status: 403 })
           return json({ department: f.department })

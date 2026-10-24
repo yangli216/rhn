@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { SettlementRecord } from '../../shared/api/billingApi'
@@ -15,7 +16,7 @@ import { Icon } from '../../shared/ui/Icon'
 import { money } from './BillingShared'
 import './billing-query-workspace.css'
 import { formatDateTimeParts } from '../../shared/format'
-import { SettlementExceptionBanner, SettlementExceptionList, useSettlementExceptions } from './settlementExceptions'
+import { SettlementExceptionBanner, useSettlementExceptions } from './settlementExceptions'
 
 /** 收费入口（字典 PAY_USE_SCENE，库表约束固定这五项）。 */
 const TERMINAL_SCENE_OPTIONS = [
@@ -78,9 +79,9 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
   const [submittedTerminalScene, setSubmittedTerminalScene] = useState('ALL')
   const [scene, setScene] = useState('ALL')
   const [settlementType, setSettlementType] = useState('ALL')
+  const navigate = useNavigate()
   const [feeType, setFeeType] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
-  const [view, setView] = useState<'RECORDS' | 'EXCEPTIONS'>('RECORDS')
   const [selectedId, setSelectedId] = useState('')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -298,17 +299,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
       }
     />
     {error && <Alert>{errorMessage(error)}</Alert>}
-    <SettlementExceptionBanner items={exceptionItems} onOpen={view === 'RECORDS' ? () => setView('EXCEPTIONS') : undefined} />
-    <div className="billing-query-view-switch" role="tablist" aria-label="查询视图">
-      <Button variant={view === 'RECORDS' ? 'primary' : 'secondary'} role="tab" aria-selected={view === 'RECORDS'}
-        onClick={() => setView('RECORDS')}>结算流水</Button>
-      <Button variant={view === 'EXCEPTIONS' ? 'primary' : 'secondary'} role="tab" aria-selected={view === 'EXCEPTIONS'}
-        onClick={() => setView('EXCEPTIONS')}>异常待处理（{exceptionItems.length}）</Button>
-    </div>
-    {view === 'EXCEPTIONS' && <Panel className="billing-query-main-panel" aria-label="异常结算待处理">
-      <SettlementExceptionList api={api} items={exceptionItems} loading={exceptions.isPending && !exceptions.data}
-        error={exceptions.isError ? exceptions.error : undefined} onChanged={() => void exceptions.refetch()} />
-    </Panel>}
+    <SettlementExceptionBanner items={exceptionItems} onOpen={() => navigate('/billing/exceptions')} />
 
     {/* 检索区：关键词有限伸缩，其他条件保持内容宽度，操作紧随条件 */}
     <form className="billing-query-filters ui-query-filters" onSubmit={handleSearch} aria-label="收费查询条件">
@@ -359,7 +350,6 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
 
     {records.data && records.data.length >= 500 && <Alert>当前范围记录较多，仅展示最近 500 条；请缩小日期或按办理人、收费入口查询后核对金额。</Alert>}
     {/* 主体卡片：全宽财务流水台账表格 */}
-    <div style={{ display: view === 'EXCEPTIONS' ? 'none' : 'contents' }}>
     <Panel className="billing-query-main-panel" aria-label="已结算收费记录">
       {records.isPending ? (
         <LoadingState label="正在加载已结算收费记录…" />
@@ -536,7 +526,6 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         </>
       )}
     </Panel>
-    </div>
 
     {/* 侧滑详情抽屉 Slide-over Detail Drawer */}
     {isDrawerOpen && selected && (

@@ -191,4 +191,134 @@ title: 阿莫西林胶囊
     expect(markdown).not.toContain('# 阿莫西林胶囊')
     expect(markdown).toContain('## 一、成分与性状')
   })
+
+  it('renders clinical threshold symbols and formulas using KaTeX', async () => {
+    const docWithMath: ClinicalAiWikiDocResult = {
+      id: 'us-exam',
+      title: '腹部超声检查',
+      type: 'EXAMINATION',
+      markdown: `## 核心常见病影像征象与诊断标准
+- 胆囊增大（横径 $> 4.0$ cm）；
+- 胆囊壁弥漫性增厚（$\\ge 4$ mm）；
+- 体重指数计算：$$\\text{BMI} = \\frac{\\text{kg}}{\\text{m}^2}$$`,
+    }
+    const getWikiDoc = vi.fn().mockResolvedValue(docWithMath)
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+
+    render(
+      <MedicalInsertViewerModal
+        isOpen
+        onClose={vi.fn()}
+        target={{ name: '腹部超声检查', type: 'examination' }}
+        api={api}
+      />
+    )
+
+    expect(await screen.findByRole('heading', { level: 2, name: /核心常见病影像征象与诊断标准/ })).toBeInTheDocument()
+
+    // 确认页面成功将公式转换为 KaTeX 节点
+    const prose = document.querySelector('.medical-insert-prose')
+    expect(prose).not.toBeNull()
+    const katexElements = prose!.querySelectorAll('.katex')
+    expect(katexElements.length).toBeGreaterThanOrEqual(3)
+
+    // 确认不再包含未转义的原始代码标记
+    expect(prose!.textContent).not.toContain('$> 4.0$')
+    expect(prose!.textContent).not.toContain('$\\ge 4$')
+  })
+
+  it('renders multi-dosage form tabs and updates active form specifications on tab switch', async () => {
+    const user = userEvent.setup()
+    const mockValsartanDoc: ClinicalAiWikiDocResult = {
+      id: 'med-valsartan',
+      title: '药品说明书 · 缬沙坦（片剂 / 胶囊剂）',
+      type: 'MEDICATION',
+      genericName: '缬沙坦',
+      englishName: 'Valsartan',
+      atcCode: 'C09CA03',
+      approvalCategory: '国家基本药物 (2026年版)',
+      tradeNames: ['代文'],
+      dosageForms: [
+        {
+          formName: '片剂',
+          displayName: '片剂 (缬沙坦片)',
+          specs: ['80mg', '160mg'],
+          appearance: '浅橙色薄膜衣片，带划痕',
+          administration: '口服，用水送服。片剂可沿划痕掰开。',
+          specialNotes: '片剂刻痕仅用于分剂量，不可研碎。',
+        },
+        {
+          formName: '胶囊剂',
+          displayName: '胶囊剂 (缬沙坦胶囊)',
+          specs: ['80mg', '160mg'],
+          appearance: '硬胶囊，内容物为白色粉末',
+          administration: '口服，整粒吞服。',
+          specialNotes: '必须整粒吞服，切勿拆开倾倒药粉。',
+        },
+      ],
+      activeForm: '片剂',
+      maxDailyDose: '320mg/日',
+      standardMaintenanceDose: '80mg qd',
+      keyContraindications: ['妊娠期绝对禁用'],
+    }
+
+    const getWikiDoc = vi.fn().mockResolvedValue(mockValsartanDoc)
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+
+    render(
+      <MedicalInsertViewerModal
+        isOpen
+        onClose={vi.fn()}
+        target={{ name: '[基]缬沙坦片 80mg', type: 'medication' }}
+        api={api}
+      />
+    )
+
+    // 默认按照 activeForm 选中片剂
+    expect(await screen.findByRole('dialog', { name: '药品说明书 · 缬沙坦（片剂）' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '片剂 (缬沙坦片)' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('浅橙色薄膜衣片，带划痕')).toBeInTheDocument()
+    expect(screen.getByText('片剂刻痕仅用于分剂量，不可研碎。')).toBeInTheDocument()
+
+    // 点击切换至胶囊剂 Tab
+    const capsuleTab = screen.getByRole('tab', { name: '胶囊剂 (缬沙坦胶囊)' })
+    await user.click(capsuleTab)
+
+    expect(screen.getByRole('dialog', { name: '药品说明书 · 缬沙坦（胶囊剂）' })).toBeInTheDocument()
+    expect(capsuleTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('硬胶囊，内容物为白色粉末')).toBeInTheDocument()
+    expect(screen.getByText('必须整粒吞服，切勿拆开倾倒药粉。')).toBeInTheDocument()
+  })
+
+  it('renders cross-dosage form warning banner when prescribed form does not match available forms', async () => {
+    const mockValsartanDoc: ClinicalAiWikiDocResult = {
+      id: 'med-valsartan',
+      title: '药品说明书 · 缬沙坦',
+      type: 'MEDICATION',
+      genericName: '缬沙坦',
+      dosageForms: [
+        {
+          formName: '片剂',
+          specs: ['80mg'],
+        },
+      ],
+      activeForm: '片剂',
+    }
+
+    const getWikiDoc = vi.fn().mockResolvedValue(mockValsartanDoc)
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+
+    render(
+      <MedicalInsertViewerModal
+        isOpen
+        onClose={vi.fn()}
+        target={{ name: '缬沙坦注射液 50mg', type: 'medication' }}
+        api={api}
+      />
+    )
+
+    expect(await screen.findByText(/跨剂型参考说明书提示/)).toBeInTheDocument()
+    expect(screen.getByText(/跨剂型参考说明书提示/)).toBeInTheDocument()
+    expect(screen.getByText(/当前处方开具的药品为「缬沙坦注射液 50mg」/)).toBeInTheDocument()
+  })
 })

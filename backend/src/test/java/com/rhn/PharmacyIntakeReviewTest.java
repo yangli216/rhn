@@ -18,6 +18,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     com.rhn.quality.medication.api.MedicationRuleAuthoringAi improvementAi;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    com.rhn.platform.masterdata.api.CatalogLifecycleDirectory catalogDirectory;
 
     private static final String PRODUCT_ID = "362387869795113";
     private static final String MEDICATION_ID = "362387869795203";
@@ -84,6 +86,16 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.length()").value(2));
+        org.mockito.Mockito.verify(catalogDirectory, org.mockito.Mockito.times(1)).resolveAll(
+                org.mockito.Mockito.eq(Long.valueOf(TENANT)), org.mockito.Mockito.eq(Long.valueOf(ORGANIZATION)),
+                org.mockito.Mockito.eq("SALE"),
+                org.mockito.Mockito.argThat((java.util.Map<Long, Long> ids) -> ids.size() == 2
+                        && ids.containsKey(Long.valueOf("362387869795111"))
+                        && ids.containsKey(Long.valueOf("362387869795112"))),
+                org.mockito.Mockito.any());
+        org.mockito.Mockito.verify(catalogDirectory, org.mockito.Mockito.times(2)).resolve(
+                org.mockito.Mockito.any(), org.mockito.Mockito.any(), org.mockito.Mockito.any(),
+                org.mockito.Mockito.any(), org.mockito.Mockito.any(), org.mockito.Mockito.any());
 
         mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -99,11 +111,22 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("STOCK_ITEM_DUPLICATE"));
 
+        org.mockito.Mockito.clearInvocations(catalogDirectory);
         mockMvc.perform(get("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[?(@.catalogItemId == '362387869795113')]").isEmpty());
+        org.mockito.Mockito.verify(catalogDirectory, org.mockito.Mockito.times(1)).resolveAll(
+                org.mockito.Mockito.eq(Long.valueOf(TENANT)), org.mockito.Mockito.eq(Long.valueOf(ORGANIZATION)),
+                org.mockito.Mockito.eq("SALE"),
+                org.mockito.Mockito.argThat((java.util.Map<Long, Long> ids) -> ids.size() == 2
+                        && ids.containsKey(Long.valueOf("362387869795111"))
+                        && ids.containsKey(Long.valueOf("362387869795112"))),
+                org.mockito.Mockito.any());
+        org.mockito.Mockito.verify(catalogDirectory, org.mockito.Mockito.never()).resolve(
+                org.mockito.Mockito.any(), org.mockito.Mockito.any(), org.mockito.Mockito.any(),
+                org.mockito.Mockito.any(), org.mockito.Mockito.any(), org.mockito.Mockito.any());
     }
 
     @Test

@@ -15,6 +15,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,6 +75,70 @@ class InventoryPriceAdjustmentWorkflowTest extends RhnIntegrationTestSupport {
         assertEquals(0, close.at("/totals/0/valuationAdjustmentAmount").decimalValue().compareTo(new BigDecimal("84.000000")));
         assertEquals(0, close.at("/totals/0/closingValue").decimalValue().compareTo(new BigDecimal("441.000000")));
         assertEquals(0, close.get("differenceCount").asInt());
+    }
+
+    @Test
+    void balance_summary_aggregates_detail_rows_for_warehouse_page() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        Fixture fixture = createFixture(suffix);
+        receive("SUM-R1-" + suffix, fixture, createLot(fixture.itemId(), "SUM-" + suffix), "2");
+        String nearLot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{id}/lots", fixture.itemId())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"lotNo":"SUM-NEAR-%s","productionDate":"2026-01-01","expiryDate":"%s",
+                                 "manufacturerNameSnapshot":"示例制药企业","qualityStatus":"QUALIFIED"}
+                                """.formatted(suffix, LocalDate.now().plusDays(30))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
+        receive("SUM-R2-" + suffix, fixture, nearLot, "1");
+
+        JsonNode details = json(mockMvc.perform(get("/api/pharmacy/inventory/balances").with(rhnWorkContext())
+                        .queryParam("stockSiteId", fixture.siteId()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode summary = json(mockMvc.perform(get("/api/pharmacy/inventory/balances/summary").with(rhnWorkContext())
+                        .queryParam("stockSiteId", fixture.siteId()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode row = summary.get("items").get(0);
+
+        BigDecimal onHand = BigDecimal.ZERO, available = BigDecimal.ZERO;
+        BigDecimal reserved = BigDecimal.ZERO, frozen = BigDecimal.ZERO;
+        long activeRows = 0;
+        Set<String> activeLots = new java.util.HashSet<>(), bins = new java.util.HashSet<>(), expiringLots = new java.util.HashSet<>();
+        LocalDate earliestExpiry = null;
+        java.time.Instant latestProjectedAt = null;
+        for (JsonNode detail : details) {
+            onHand = onHand.add(detail.get("quantityOnHand").decimalValue());
+            available = available.add(detail.get("quantityAvailable").decimalValue());
+            reserved = reserved.add(detail.get("quantityReserved").decimalValue());
+            frozen = frozen.add(detail.get("quantityFrozen").decimalValue());
+            java.time.Instant projectedAt = java.time.Instant.parse(detail.get("projectedAt").asString());
+            if (latestProjectedAt == null || projectedAt.isAfter(latestProjectedAt)) latestProjectedAt = projectedAt;
+            if (detail.get("quantityOnHand").decimalValue().signum() == 0) continue;
+            activeRows++;
+            activeLots.add(detail.get("stockLotId").asString());
+            bins.add(detail.get("stockBinId").asString());
+            LocalDate expiry = LocalDate.parse(detail.get("expiryDate").asString());
+            if (earliestExpiry == null || expiry.isBefore(earliestExpiry)) earliestExpiry = expiry;
+            if (!expiry.isBefore(LocalDate.now()) && !expiry.isAfter(LocalDate.now().plusDays(90))) {
+                expiringLots.add(detail.get("stockLotId").asString());
+            }
+        }
+        assertEquals(0, row.get("quantityOnHand").decimalValue().compareTo(onHand));
+        assertEquals(0, row.get("quantityAvailable").decimalValue().compareTo(available));
+        assertEquals(0, row.get("quantityReserved").decimalValue().compareTo(reserved));
+        assertEquals(0, row.get("quantityFrozen").decimalValue().compareTo(frozen));
+        assertEquals(activeRows, row.get("activeRows").asLong());
+        assertEquals(activeLots.size(), row.get("activeLots").asLong());
+        assertEquals(bins.size(), row.get("binCount").asLong());
+        assertEquals(expiringLots.size(), row.get("expiringLots").asLong());
+        assertEquals(expiringLots.size(), summary.get("expiringLotCount").asLong());
+        assertEquals(activeRows, summary.get("activeRowCount").asLong());
+        assertEquals(1, summary.get("inStockItemCount").asLong());
+        assertEquals(earliestExpiry.toString(), row.get("earliestExpiry").asString());
+        assertEquals(latestProjectedAt.toString(), java.time.Instant.parse(row.get("latestProjectedAt").asString()).toString());
+        assertEquals(0, row.get("averageUnitCost").decimalValue().compareTo(new BigDecimal("8.5")));
+        java.util.List<String> lotNos = new java.util.ArrayList<>();
+        row.get("lotNos").forEach(value -> lotNos.add(value.asString()));
+        assertEquals(2, lotNos.size());
+        assertEquals(Set.of("SUM-" + suffix, "SUM-NEAR-" + suffix), Set.copyOf(lotNos));
     }
 
     @ParameterizedTest

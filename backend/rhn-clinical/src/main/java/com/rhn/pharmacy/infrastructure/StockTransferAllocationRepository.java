@@ -4,4 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 public interface StockTransferAllocationRepository extends JpaRepository<StockTransferAllocation, Long> {
     List<StockTransferAllocation> findByTenantIdAndStockTransferLineIdOrderById(Long tenantId, Long transferLineId);
+    List<StockTransferAllocation> findByTenantIdAndStockTransferLineIdInOrderByStockTransferLineIdAscIdAsc(
+            Long tenantId, java.util.Collection<Long> transferLineIds);
 }

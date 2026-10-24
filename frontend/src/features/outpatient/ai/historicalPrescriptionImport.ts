@@ -1,4 +1,4 @@
-import type { MedicationRequest, Prescription } from '../../../shared/api/encountersApi'
+import type { MedicationRequest, OrderableMedicationKnowledge, Prescription } from '../../../shared/api/encountersApi'
 import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { resolveDispensableOptions } from '../orders/dispensableOptions'
@@ -88,8 +88,13 @@ export async function resolveHistoricalPrescriptionImport({ source, target, view
   ])
   if (!Array.isArray(routes) || !Array.isArray(frequencies)) return fail('当前用法或频次目录未确认')
   const availability = new Map<string, number>()
+  // 一次批量读取所选医嘱的全部开立候选，避免逐药触发整仓库存扫描。
+  const stockCodes = [...new Set(selected.map(value => value.item.medicationCode).filter(text))]
+  const stockRows: Record<string, unknown> = stockCodes.length
+    ? await api.encounters.orderableMedicationsBatch(target.id, stockCodes) : {}
+  if (!stockRows || typeof stockRows !== 'object' || Array.isArray(stockRows)) return fail('当前目录候选未确认')
   const additions = await Promise.all(selected.map(async ({ rx, item }): Promise<MedicationPlanDraft> => {
-    const matches = await api.encounters.orderableMedications(target.id, item.medicationCode)
+    const matches = stockRows[item.medicationCode] as OrderableMedicationKnowledge[] | undefined
     if (!Array.isArray(matches)) return fail(`${item.medicationName}的当前目录未确认`)
     const candidates = matches.filter(raw => raw?.id === item.medicationId && raw.code === item.medicationCode
       && Array.isArray(raw.products) && raw.products.some(product => product.id === item.catalogItemId))

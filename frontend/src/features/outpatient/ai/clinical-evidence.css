@@ -541,11 +541,131 @@
   border-top: 1px solid var(--color-border);
 }
 
+.medical-insert-prose .katex {
+  font-size: 1.05em;
+}
+
+.medical-insert-prose .katex-display {
+  margin: var(--space-3) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-1) 0;
+}
+
 .medical-insert-footer-sources {
   font-size: var(--font-size-small);
   color: var(--color-text-disabled);
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-2);
+}
+
+/* Multi-dosage form aggregation styles */
+.dosage-form-mismatch-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-warning-subtle, #fff8e6);
+  border: 1px solid var(--color-warning-border, #ffd591);
+  border-radius: var(--radius-md);
+  color: var(--color-warning-text, #873800);
+  font-size: var(--font-size-small);
+  line-height: 1.5;
+}
+
+.dosage-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dosage-form-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.dosage-form-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.dosage-form-tab-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.dosage-form-tab-btn.is-active {
+  color: var(--color-primary);
+  background: var(--color-surface);
+  border-color: var(--color-primary-light, #91caff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.dosage-form-active-card {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary-light, #d6e4ff);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+}
+
+.dosage-form-active-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.dosage-form-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--color-primary-subtle, #e6f4ff);
+  color: var(--color-primary, #1677ff);
+  border: 1px solid var(--color-primary-light, #91caff);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: var(--font-size-small);
+}
+
+.dosage-form-specs {
+  color: var(--color-text-primary);
+}
+
+.dosage-form-active-row {
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.dosage-form-active-row strong {
+  color: var(--color-text-primary);
+}
+
+.dosage-form-active-row.is-caution {
+  color: var(--color-warning-text, #d46b08);
+  background: var(--color-warning-subtle, #fffbe6);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-warning, #faad14);
 }
 
 .doctor-diag-guide-btn {

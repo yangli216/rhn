@@ -325,6 +325,79 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void batch_cancel_dispense_restores_all_tasks_and_rolls_back_when_one_is_not_dispensed() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture fixture = createPharmacy("B" + suffix);
+        JsonNode lot = createLot(fixture.stockItemId(), "BCN-" + suffix, "2027-12-31");
+        receive("BCN-RCV-" + suffix, fixture, lot.get("id").asString(), "3");
+        Reviewer pharmacist = createReviewer("B" + suffix);
+        String first = createReviewedTask("BA" + suffix, fixture.stockItemId(), pharmacist, 1).get("id").asString();
+        String second = createReviewedTask("BB" + suffix, fixture.stockItemId(), pharmacist, 1).get("id").asString();
+        for (String taskId : java.util.List.of(first, second)) {
+            reserve(taskId);
+            completePicking(taskId, pharmacist);
+            dispense(taskId, "BCN-DSP-" + taskId, "1", pharmacist);
+        }
+        assertEquals(14, sum(balances(fixture), "quantityOnHand"));
+        String pending = createReviewedTask("BC" + suffix, fixture.stockItemId(), pharmacist, 1).get("id").asString();
+
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/cancel-dispense").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(batchCancel(first + "," + pending, pharmacist)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DISPENSE_TASK_NOT_DISPENSED"));
+        // 未发药任务使整批回滚：已发药任务保持原状，库存没有被冲回。
+        assertEquals(14, sum(balances(fixture), "quantityOnHand"));
+        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}", first).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/cancel-dispense").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(batchCancel(first + "," + second, pharmacist)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].taskStatus").value("READY_TO_DISPENSE"))
+                .andExpect(jsonPath("$[1].taskStatus").value("READY_TO_DISPENSE"));
+        assertEquals(42, sum(balances(fixture), "quantityOnHand"));
+    }
+
+    @Test
+    void batch_trace_returns_the_same_views_as_individual_reads_and_skips_unknown_tasks() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture fixture = createPharmacy("T" + suffix);
+        JsonNode lot = createLot(fixture.stockItemId(), "BTR-" + suffix, "2027-12-31");
+        receive("BTR-RCV-" + suffix, fixture, lot.get("id").asString(), "3");
+        Reviewer pharmacist = createReviewer("T" + suffix);
+        String first = createReviewedTask("TA" + suffix, fixture.stockItemId(), pharmacist, 1).get("id").asString();
+        String second = createReviewedTask("TB" + suffix, fixture.stockItemId(), pharmacist, 1).get("id").asString();
+        for (String taskId : java.util.List.of(first, second)) {
+            reserve(taskId);
+            completePicking(taskId, pharmacist);
+            dispense(taskId, "BTR-DSP-" + taskId, "1", pharmacist);
+        }
+
+        JsonNode batch = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/traces").with(rhnWorkContext())
+                        .queryParam("taskIds", first, second, "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode firstTrace = json(mockMvc.perform(
+                        get("/api/pharmacy/dispense-tasks/{taskId}/trace", first).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode secondTrace = json(mockMvc.perform(
+                        get("/api/pharmacy/dispense-tasks/{taskId}/trace", second).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertEquals(firstTrace.toString(), batch.get(0).toString(), "批量轨迹必须与单任务读取完全一致");
+        assertEquals(secondTrace.toString(), batch.get(1).toString(), "批量轨迹必须与单任务读取完全一致");
+    }
+
+    private String batchCancel(String taskIds, Reviewer pharmacist) {
+        String ids = java.util.Arrays.stream(taskIds.split(","))
+                .map(id -> "\"" + id + "\"").collect(java.util.stream.Collectors.joining(","));
+        return """
+                {"taskIds":[%s],"operatorPractitionerId":"%s","operatorAssignmentId":"%s",
+                 "reasonCode":"MISTAKEN_CLICK","description":"整批撤销发药","occurredAt":"2026-08-27T10:30:00Z"}
+                """.formatted(ids, pharmacist.practitionerId(), pharmacist.assignmentId());
+    }
+
+    @Test
     void cancel_dispense_restores_reserved_stock_at_cost_and_blocks_return_against_cancelled_event() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         PharmacyFixture fixture = createPharmacy("C" + suffix);

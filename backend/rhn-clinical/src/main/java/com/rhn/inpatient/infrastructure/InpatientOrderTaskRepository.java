@@ -16,6 +16,9 @@ import java.util.Collection;
 public interface InpatientOrderTaskRepository extends JpaRepository<InpatientOrderTask, Long> {
     List<InpatientOrderTask> findByTenantIdAndRequestIdOrderByOccurrenceNoAsc(Long tenantId, Long requestId);
 
+    List<InpatientOrderTask> findByTenantIdAndRequestIdInOrderByOccurrenceNoAsc(
+            Long tenantId, Collection<Long> requestIds);
+
     List<InpatientOrderTask> findByTenantIdOrderByScheduledAtAsc(Long tenantId);
 
     List<InpatientOrderTask> findByTenantIdAndStatusAndScheduledAtGreaterThanEqualAndScheduledAtLessThanOrderByScheduledAtAsc(

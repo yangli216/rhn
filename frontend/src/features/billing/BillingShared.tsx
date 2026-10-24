@@ -45,6 +45,8 @@ function formatRegistrationInfo(item: BillingWorkItem) {
 
 export function BillingQueue({
   title,
+  header,
+  className = '',
   items,
   selectedId,
   onSelect,
@@ -60,7 +62,9 @@ export function BillingQueue({
   toolbar,
   footer,
 }: {
-  title: string
+  title?: string
+  header?: ReactNode
+  className?: string
   items: BillingWorkItem[]
   selectedId: string
   onSelect: (encounterId: string) => void
@@ -143,8 +147,8 @@ export function BillingQueue({
     }
   }
 
-  return <Panel className="billing-queue">
-    <PanelHead title={title} actions={action} />
+  return <Panel className={`billing-queue ${className}`.trim()}>
+    {header ?? (title ? <PanelHead title={title} actions={action} /> : null)}
     {toolbar}
     {showSearch && (items.length > 0 || serverFiltered) && (
       <div className="billing-queue-search">

@@ -12,5 +12,7 @@ public interface PharmacyFulfillmentAuthorizationRepository
             Long tenantId, Long medicationRequestId, Long settlementId);
     Optional<PharmacyFulfillmentAuthorization> findTopByTenantIdAndMedicationRequestIdOrderByReadyAtDesc(
             Long tenantId, Long medicationRequestId);
+    List<PharmacyFulfillmentAuthorization> findByTenantIdAndMedicationRequestIdInOrderByReadyAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> medicationRequestIds);
     List<PharmacyFulfillmentAuthorization> findByTenantIdAndSettlementId(Long tenantId, Long settlementId);
 }

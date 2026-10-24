@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
-import type { InventoryBalance, InventoryTransactionPage, StockSite } from '../../shared/api'
+import type { InventoryBalance, InventoryBalanceSummary, InventoryTransactionPage, StockSite } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { WarehouseManagement } from './WarehouseManagement'
 
@@ -44,8 +44,25 @@ const mockSites = [
   },
 ] as unknown as StockSite[]
 
+const summaryRow = (cost?: number) => ({
+  stockItemId: 'item-1', quantityOnHand: 10, quantityAvailable: 10, quantityReserved: 0, quantityFrozen: 0,
+  activeRows: 1, activeLots: 1, binCount: 1, expiringLots: 0, averageUnitCost: cost, lotNos: ['LOT-1'],
+})
+function emptySummary(): InventoryBalanceSummary {
+  return { items: [], inStockItemCount: 0, activeRowCount: 0, expiringLotCount: 0 }
+}
+function summaryOf(rows: ReturnType<typeof summaryRow>[]): InventoryBalanceSummary {
+  return {
+    items: rows,
+    inStockItemCount: rows.filter(row => row.quantityOnHand !== 0).length,
+    activeRowCount: rows.reduce((sum, row) => sum + row.activeRows, 0),
+    expiringLotCount: rows.reduce((sum, row) => sum + row.expiringLots, 0),
+  }
+}
+
 function createMockApi(): RhnApi {
   return {
+    dictionaries: { systemEnum: vi.fn().mockResolvedValue({ items: [] }) },
     pharmacy: {
       sites: vi.fn().mockResolvedValue(mockSites),
       suppliers: vi.fn().mockResolvedValue([]),
@@ -68,6 +85,7 @@ function createMockApi(): RhnApi {
         },
       ]),
       balances: vi.fn().mockResolvedValue([]),
+      balanceSummary: vi.fn().mockResolvedValue(emptySummary()),
       transactions: vi.fn().mockResolvedValue([]),
       transactionPage: vi.fn().mockResolvedValue({
         content: [], page: 0, size: 50, totalElements: 0, totalPages: 0, first: true, last: true,
@@ -78,6 +96,10 @@ function createMockApi(): RhnApi {
       stocktakingOrders: vi.fn().mockResolvedValue([]),
       inventoryPeriodStatus: vi.fn().mockResolvedValue({ currentPeriod: '2026-09', closed: false }),
       traceCodes: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+      traceCodePage: vi.fn().mockResolvedValue({
+        content: [], page: 0, size: 10, totalElements: 0, totalPages: 0, first: true, last: true,
+        metrics: { total: 0, available: 0, transit: 0, exceptions: 0 },
+      }),
       verifyInventoryAccuracy: vi.fn().mockResolvedValue({ discrepancies: [] }),
       createStockBin: vi.fn(),
       createStockItems: vi.fn(),
@@ -228,6 +250,43 @@ describe('WarehouseManagement', () => {
       stockItemId: 'item-1', allPeriods: true, query: 'OPENING-STOCK', page: 0, size: 20,
     }))
   })
+
+  it('loads only the current trace code page and takes metrics from the server', async () => {
+    const api = createMockApi()
+    const tracePage = vi.fn().mockImplementation(async (_siteId: string, options: { page: number; size: number }) => ({
+      content: [{
+        code: {
+          id: `trace-${options.page}`, revision: 0, stockSiteId: 'site-warehouse', stockItemId: 'item-1',
+          traceCode: `TRACE-00${options.page + 1}`, productCode: 'AMX-01', productName: '阿莫西林胶囊',
+          lotNo: 'LOT-1', packageQuantity: 1, baseQuantity: 24, remainingBaseQuantity: 24,
+          status: 'AVAILABLE', currentDocumentType: 'GOODS_RECEIPT', currentDocumentId: '1',
+          statusText: '在库', updatedAt: '2026-10-01T00:00:00Z',
+        },
+        lotExpiryDate: '2028-06-01',
+      }],
+      page: options.page, size: options.size, totalElements: 21, totalPages: 2,
+      first: options.page === 0, last: options.page === 1,
+      metrics: { total: 21, available: 20, transit: 1, exceptions: 0 },
+    }))
+    api.pharmacy.traceCodePage = tracePage
+
+    renderComponent(api, warehouseContext)
+    fireEvent.click(await screen.findByRole('button', { name: /追溯码/ }))
+    expect(await screen.findByText('TRACE-001')).toBeInTheDocument()
+    expect(screen.getByText('效期 2028-06-01 · 余 24 / 24 基本单位')).toBeInTheDocument()
+    expect(screen.getByText('全库').parentElement).toHaveTextContent('21')
+    expect(api.pharmacy.traceCodes).not.toHaveBeenCalled()
+    await waitFor(() => expect(tracePage).toHaveBeenCalledWith('site-warehouse', {
+      status: '', query: '', page: 0, size: 10,
+    }))
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: '追溯码台账分页' }))
+      .getByRole('button', { name: '下一页' }))
+    await waitFor(() => expect(tracePage).toHaveBeenCalledWith('site-warehouse', {
+      status: '', query: '', page: 1, size: 10,
+    }))
+    expect(await screen.findByText('TRACE-002')).toBeInTheDocument()
+  })
 })
 
 
@@ -237,14 +296,14 @@ const balance = (cost?: number) => ({ id: 'balance', stockItemId: 'item-1', stoc
   stockBinId: 'bin-1', stockStatus: 'AVAILABLE', quantityOnHand: 10, quantityAvailable: 10,
   quantityReserved: 0, quantityFrozen: 0, averageUnitCost: cost }) as InventoryBalance
 
-it('does not report zero stock when a successful balance query later fails', async () => {
+it('does not report zero stock when a successful balance summary later fails', async () => {
   const api = createMockApi()
-  vi.mocked(api.pharmacy.balances).mockResolvedValue([balance(4)])
+  vi.mocked(api.pharmacy.balanceSummary).mockResolvedValue(summaryOf([summaryRow(4)]))
   const { queryClient } = renderComponent(api, warehouseContext)
   fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
   await screen.findByRole('table', { name: '库存查询结果' })
-  vi.mocked(api.pharmacy.balances).mockRejectedValueOnce(new Error('库存查询失败'))
-  await act(() => queryClient.invalidateQueries({ queryKey: ['warehouse-balances', 'site-warehouse'] }))
+  vi.mocked(api.pharmacy.balanceSummary).mockRejectedValueOnce(new Error('库存查询失败'))
+  await act(() => queryClient.invalidateQueries({ queryKey: ['warehouse-balance-summary', 'site-warehouse'] }))
   expect(await screen.findByText('库存基础数据读取失败')).toBeInTheDocument()
   expect(screen.queryByRole('table', { name: '库存查询结果' })).not.toBeInTheDocument()
   expect(screen.queryByText('零库存')).not.toBeInTheDocument()
@@ -252,9 +311,12 @@ it('does not report zero stock when a successful balance query later fails', asy
   await screen.findByRole('table', { name: '库存查询结果' })
 })
 
-it.each([null, [{ ...balance(4), quantityOnHand: null }]])('rejects missing inventory data instead of showing zeros %#', async rows => {
+it.each([
+  null,
+  { ...summaryOf([summaryRow(4)]), items: [{ ...summaryRow(4), quantityOnHand: null }] },
+])('rejects missing inventory data instead of showing zeros %#', async summary => {
   const api = createMockApi()
-  vi.mocked(api.pharmacy.balances).mockResolvedValue(rows as unknown as InventoryBalance[])
+  vi.mocked(api.pharmacy.balanceSummary).mockResolvedValue(summary as unknown as InventoryBalanceSummary)
   renderComponent(api, warehouseContext)
   expect(await screen.findByText('库存基础数据读取失败')).toBeInTheDocument()
   expect(screen.queryByText('零库存')).not.toBeInTheDocument()
@@ -270,7 +332,7 @@ it('does not equate a failed site lookup with an unconfigured organization', asy
 
 it('does not count a batch with missing cost as free in the weighted inventory cost', async () => {
   const api = createMockApi()
-  vi.mocked(api.pharmacy.balances).mockResolvedValue([balance(4), { ...balance(), id: 'missing-cost' }])
+  vi.mocked(api.pharmacy.balanceSummary).mockResolvedValue(summaryOf([summaryRow()]))
   renderComponent(api, warehouseContext)
   fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
   const table = await screen.findByRole('table', { name: '库存查询结果' })

@@ -101,23 +101,68 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     @Transactional(readOnly = true)
     public List<OrderableMedicationView> findOrderableMedications(Long tenantId, Long organizationId,
                                                                  Long departmentId, String query) {
-        var candidates = collectOrderableMedications(tenantId, organizationId, departmentId, query, true);
+        // 先完成路由与目录扫描，保证路由配置错误优先于搜索偏好读取暴露。
+        OrderableScan scan = scanOrderableCandidates(tenantId, organizationId, departmentId);
         int resultLimit = searchDirectory.resolvePreference(tenantId, organizationId, departmentId).resultLimit();
-        return candidates.stream().limit(resultLimit).toList();
+        return resolveOrderableQuery(scan, tenantId, organizationId, departmentId, query, resultLimit, true);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderableMedicationView> findOrderableMedicationCandidates(Long tenantId, Long organizationId,
                                                                           Long departmentId, String query) {
-        return collectOrderableMedications(tenantId, organizationId, departmentId, query, false);
+        return resolveOrderableQuery(scanOrderableCandidates(tenantId, organizationId, departmentId), tenantId,
+                organizationId, departmentId, query, Integer.MAX_VALUE, false);
     }
 
-    private List<OrderableMedicationView> collectOrderableMedications(Long tenantId, Long organizationId,
-                                                                    Long departmentId, String query, boolean requireWholeStockPackage) {
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, List<OrderableMedicationView>> findOrderableMedicationsBatch(Long tenantId, Long organizationId,
+                                                                                   Long departmentId,
+                                                                                   List<String> queries) {
+        if (queries == null || queries.isEmpty()) return Map.of();
+        List<String> distinct = queries.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (distinct.isEmpty()) return Map.of();
+        // 多关键词共用一次库存与目录扫描，避免逐药重复加载整仓候选。
+        OrderableScan scan = scanOrderableCandidates(tenantId, organizationId, departmentId);
+        int resultLimit = searchDirectory.resolvePreference(tenantId, organizationId, departmentId).resultLimit();
+        Map<String, List<OrderableMedicationView>> results = new java.util.LinkedHashMap<>();
+        for (String query : distinct) {
+            results.put(query, resolveOrderableQuery(scan, tenantId, organizationId, departmentId, query,
+                    resultLimit, true));
+        }
+        return Map.copyOf(results);
+    }
+
+    private List<OrderableMedicationView> resolveOrderableQuery(OrderableScan scan, Long tenantId, Long organizationId,
+                                                                Long departmentId, String query, int limit,
+                                                                boolean requireWholeStockPackage) {
         LocalDate today = LocalDate.now();
         boolean searching = query != null && !query.isBlank();
         String normalizedQuery = searching ? query.trim().toLowerCase(java.util.Locale.ROOT) : "";
+        Set<Long> matchingMedicationIds = searching
+                ? searchDirectory.findMatchingTargetIds("MEDICATION", tenantId, organizationId, departmentId,
+                        query, scan.medicationIds())
+                : Set.of();
+        Set<Long> matchingProductIds = searching
+                ? searchDirectory.findMatchingTargetIds("CATALOG_ITEM", tenantId, organizationId, departmentId,
+                        query, scan.catalogItemIds())
+                : Set.of();
+        List<OrderableMedicationView> results = new ArrayList<>();
+        for (OrderableCandidate candidate : scan.candidates()) {
+            if (searching && !matchesSearch(candidate.medication(), candidate.product(),
+                    candidate.stockItem().catalogItemId(), matchingMedicationIds, matchingProductIds, normalizedQuery)) {
+                continue;
+            }
+            OrderableMedicationView view = buildOrderableView(candidate, requireWholeStockPackage, today);
+            if (view != null) results.add(view);
+        }
+        results.sort(Comparator.comparing(OrderableMedicationView::name));
+        return List.copyOf(results.size() > limit ? results.subList(0, limit) : results);
+    }
+
+    private OrderableScan scanOrderableCandidates(Long tenantId, Long organizationId, Long departmentId) {
+        LocalDate today = LocalDate.now();
 
         // 1. 获取已配置的门诊路由候选站点，随后按每个药品类型核实唯一有效目标。
         Set<Long> targetSiteIds = resolveOutpatientTargetSiteIds(tenantId, organizationId, departmentId, today);
@@ -130,46 +175,40 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
             throw conflict("ROUTE_TARGET_UNAVAILABLE", "门诊发药路由包含不可用或不支持门诊的目标药房，请核实配置");
         }
         Map<String, java.util.Optional<StockSite>> selectedSites = new HashMap<>();
-        List<OrderableMedicationView> results = new ArrayList<>();
+        List<OrderableCandidate> candidates = new ArrayList<>();
 
         for (StockSite site : siteMap.values()) {
             // 2. 查该药房所有的可用库存（stockStatus = AVAILABLE 且 quantityAvailable > 0）
-            SiteStockCandidates candidates = collectSiteStockCandidates(
-                    tenantId, organizationId, departmentId, query, searching, site);
-            if (candidates == null) continue;
+            SiteStockCandidates stock = collectSiteStockCandidates(tenantId, organizationId, site);
+            if (stock == null) continue;
 
-            for (StockItem si : candidates.stockItems()) {
-                MedicationView medication = candidates.medViewByCatalogItemId().get(si.catalogItemId());
+            for (StockItem si : stock.stockItems()) {
+                MedicationView medication = stock.medViewByCatalogItemId().get(si.catalogItemId());
                 if (medication == null) continue;
                 StockSite selected = selectedSites.computeIfAbsent(medication.sdMedicationType(), type -> java.util.Optional.ofNullable(
                         routedPharmacy(tenantId, organizationId, departmentId, type, today))).orElse(null);
                 if (selected == null || !selected.id().equals(site.id())) continue;
-                OrderableMedicationView view = buildOrderableView(si, site, candidates, searching, normalizedQuery, today, requireWholeStockPackage);
-                if (view != null) {
-                    results.add(view);
-                }
+                BigDecimal availableBaseQty = stock.availableByStockItemId().getOrDefault(si.id(), BigDecimal.ZERO);
+                if (availableBaseQty.signum() <= 0) continue;
+                List<MedicationProductView> products = medication.products().stream()
+                        .filter(p -> p.id().equals(si.catalogItemId())).toList();
+                if (products.size() != 1) throw conflict("INVENTORY_PRODUCT_UNCONFIRMED", "未确认唯一的库存产品目录信息");
+                candidates.add(new OrderableCandidate(site, si, medication, products.getFirst(), availableBaseQty));
             }
         }
 
-        results.sort(Comparator.comparing(OrderableMedicationView::name));
-        return List.copyOf(results);
+        return new OrderableScan(List.copyOf(candidates),
+                candidates.stream().map(value -> value.stockItem().catalogItemId()).collect(Collectors.toSet()),
+                candidates.stream().map(value -> value.medication().id()).collect(Collectors.toSet()));
     }
 
-    private OrderableMedicationView buildOrderableView(StockItem si, StockSite site, SiteStockCandidates candidates,
-                                                       boolean searching, String normalizedQuery, LocalDate today,
-                                                       boolean requireWholeStockPackage) {
-        BigDecimal availableBaseQty = candidates.availableByStockItemId().getOrDefault(si.id(), BigDecimal.ZERO);
-        if (availableBaseQty.signum() <= 0) return null;
-
-        MedicationView medView = candidates.medViewByCatalogItemId().get(si.catalogItemId());
-        if (medView == null) return null;
-
-        List<MedicationProductView> products = medView.products().stream()
-                .filter(p -> p.id().equals(si.catalogItemId())).toList();
-        if (products.size() != 1) throw conflict("INVENTORY_PRODUCT_UNCONFIRMED", "未确认唯一的库存产品目录信息");
-        MedicationProductView matchedProduct = products.getFirst();
-        if (searching && !matchesSearch(medView, matchedProduct, si.catalogItemId(),
-                candidates.matchingMedicationIds(), candidates.matchingProductIds(), normalizedQuery)) return null;
+    private OrderableMedicationView buildOrderableView(OrderableCandidate candidate,
+                                                       boolean requireWholeStockPackage, LocalDate today) {
+        StockItem si = candidate.stockItem();
+        StockSite site = candidate.site();
+        MedicationView medView = candidate.medication();
+        MedicationProductView matchedProduct = candidate.product();
+        BigDecimal availableBaseQty = candidate.availableBaseQty();
 
         PackageView defaultPkg = null;
         if (si.basePackageId() != null) {
@@ -250,19 +289,10 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                 .collect(Collectors.toMap(StockSite::id, s -> s));
     }
 
-    private SiteStockCandidates collectSiteStockCandidates(Long tenantId, Long organizationId, Long departmentId,
-                                                           String query, boolean searching, StockSite site) {
-        List<InventoryBalance> siteBalances = availabilityService.findBySite(tenantId, site.id()).stream()
-                .filter(b -> "AVAILABLE".equals(b.stockStatus()) && b.quantityAvailable().signum() > 0)
-                .toList();
-        if (siteBalances.isEmpty()) return null;
-
-        // 按 stockItemId 汇总可用数量
-        Map<Long, BigDecimal> availableByStockItemId = siteBalances.stream()
-                .collect(Collectors.groupingBy(
-                        InventoryBalance::stockItemId,
-                        Collectors.reducing(BigDecimal.ZERO, InventoryBalance::quantityAvailable, BigDecimal::add)
-                ));
+    private SiteStockCandidates collectSiteStockCandidates(Long tenantId, Long organizationId, StockSite site) {
+        Map<Long, BigDecimal> availableByStockItemId =
+                availabilityService.availableQuantitiesByStockItem(tenantId, site.id());
+        if (availableByStockItemId.isEmpty()) return null;
 
         // 获取这些 stockItem
         List<StockItem> stockItems = stockItemRepository.findAllById(availableByStockItemId.keySet()).stream()
@@ -281,17 +311,8 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                 medViewByCatalogItemId.put(pv.id(), mv);
             }
         }
-        Set<Long> matchingMedicationIds = searching
-                ? searchDirectory.findMatchingTargetIds("MEDICATION", tenantId, organizationId, departmentId,
-                        query, medViews.stream().map(MedicationView::id).collect(Collectors.toSet()))
-                : Set.of();
-        Set<Long> matchingProductIds = searching
-                ? searchDirectory.findMatchingTargetIds("CATALOG_ITEM", tenantId, organizationId, departmentId,
-                        query, catalogItemIds)
-                : Set.of();
 
-        return new SiteStockCandidates(availableByStockItemId, stockItems, medViewByCatalogItemId,
-                matchingMedicationIds, matchingProductIds);
+        return new SiteStockCandidates(availableByStockItemId, stockItems, medViewByCatalogItemId);
     }
 
     private boolean matchesSearch(MedicationView medView, MedicationProductView matchedProduct, Long catalogItemId,
@@ -337,9 +358,22 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     private record SiteStockCandidates(
             Map<Long, BigDecimal> availableByStockItemId,
             List<StockItem> stockItems,
-            Map<Long, MedicationView> medViewByCatalogItemId,
-            Set<Long> matchingMedicationIds,
-            Set<Long> matchingProductIds) {
+            Map<Long, MedicationView> medViewByCatalogItemId) {
+    }
+
+    /** 已通过路由与目录校验的可开立候选，批量检索只在一次扫描结果上按关键词过滤。 */
+    private record OrderableCandidate(
+            StockSite site,
+            StockItem stockItem,
+            MedicationView medication,
+            MedicationProductView product,
+            BigDecimal availableBaseQty) {
+    }
+
+    private record OrderableScan(
+            List<OrderableCandidate> candidates,
+            Set<Long> catalogItemIds,
+            Set<Long> medicationIds) {
     }
 
     private boolean startsWith(String value, String query) {

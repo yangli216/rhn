@@ -3,11 +3,13 @@ package com.rhn.billing.web;
 import com.rhn.billing.api.RegistrationBillingViews.RegistrationIntentView;
 import com.rhn.billing.application.RegistrationBillingService;
 import com.rhn.billing.application.RegistrationBillingService.CreateRegistrationIntentCommand;
+import com.rhn.outpatient.api.OutpatientPermissions;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/billing/registration-intents")
+@PreAuthorize(OutpatientPermissions.REGISTRATION_BILLING_ACCESS)
 public class RegistrationBillingController {
     private final RegistrationBillingService service;
     private final com.rhn.billing.application.RegistrationCancellationBillingService cancellation;

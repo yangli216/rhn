@@ -31,6 +31,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -177,6 +178,12 @@ public class BillingController {
         return cancellations.cancel(settlementId, input.reason());
     }
 
+    /** 按结算单批量取消：诊毕页放弃收款时一次请求完成多张未付款结算单的取消。 */
+    @PostMapping("/settlements/cancel")
+    List<CancelledSettlementView> cancelSettlements(@Valid @RequestBody CancelSettlementsRequest input) {
+        return cancellations.cancelSeveral(input.settlementIds(), input.reason());
+    }
+
     /** 医生修改已进结算单的医嘱、诊毕放弃收款时，取消本就诊全部未付款结算单。 */
     @PostMapping("/encounters/{encounterId}/unpaid-settlements/cancel")
     List<CancelledSettlementView> cancelUnpaidSettlements(@PathVariable Long encounterId,
@@ -263,6 +270,7 @@ public class BillingController {
                                @NotBlank @Size(max = 1000) String reason, @Size(max = 1000) String evidence) {}
     record ConfirmReliefRequest(List<@Valid ManualReliefRequest> manual) {}
     record CancelSettlementRequest(@NotBlank @Size(max = 200) String reason) {}
+    record CancelSettlementsRequest(@NotEmpty List<Long> settlementIds, @NotBlank @Size(max = 200) String reason) {}
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
     record IssueInvoiceRequest(
             @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,

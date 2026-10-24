@@ -5,6 +5,7 @@ import type { DiagnosticExecutionTask, DiagnosticReportDraft, LocalDiagnosticRep
 import { readDiagnosticTemplateSnapshot } from '../../../shared/api/diagnosticTemplateTypes'
 import {
   extractPatientConditions,
+  defaultReferenceNote,
   matchApplicableReferenceRule,
   matchPresetTemplateByTask,
   nationalTemplateAsVersion,
@@ -48,8 +49,19 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
     return matchPresetTemplateByTask({ itemName: task.itemName, itemCode: task.itemCode })
   }, [task.requestType, task.itemName, task.itemCode])
 
-  const initial = useMemo(() => {
+  const initial = useMemo<LocalDiagnosticReportInput>(() => {
     if (draft.content) return draft.content
+    if (task.requestType === 'LABORATORY' && template.data) {
+      return {
+        expectedRevision: task.revision, findings: '', conclusion: defaultReferenceNote(template.data), templateVersionId: template.data.id,
+        templateSnapshot: JSON.stringify(template.data),
+        observations: template.data.content.indicators.map((indicator) => ({
+          observationCode: indicator.code, observationName: indicator.name, valueType: indicator.valueType,
+          observationValue: '', unitCode: indicator.unitCode,
+          valueComparator: indicator.valueType === 'NUMBER' ? 'EQ' as const : undefined,
+        })),
+      }
+    }
     if (presetTemplate) {
       const patientConditions = extractPatientConditions({ gender: task.gender, birthDate: task.birthDate })
       const observations: LocalDiagnosticObservationInput[] = presetTemplate.content.indicators.map((ind) => {
@@ -68,7 +80,7 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
       return {
         expectedRevision: task.revision,
         findings: '',
-        conclusion: '',
+        conclusion: defaultReferenceNote(nationalTemplateAsVersion(presetTemplate)),
         templateSnapshot: JSON.stringify(nationalTemplateAsVersion(presetTemplate)),
         observations,
       }
@@ -84,7 +96,7 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
         observationValue: '',
       }],
     }
-  }, [draft.content, presetTemplate, task.revision, task.itemCode, task.itemName, task.gender, task.birthDate])
+  }, [draft.content, template.data, presetTemplate, task.requestType, task.revision, task.itemCode, task.itemName, task.gender, task.birthDate])
   const current = form || { input: initial, dirty: false, correction: Boolean(draft.content?.correctionReason) }
   const input = current.input
   const change = (patch: Partial<LocalDiagnosticReportInput>) => onForm({ ...current, dirty: true, input: { ...input, ...patch } })
@@ -167,7 +179,7 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
   return <section aria-label="报告编辑" className="diagnostic-editor">
     <div className="diagnostic-composer-body" role="region" aria-label="报告编辑正文" tabIndex={0}>
     {task.requestType === 'EXAMINATION' && (
-      <div className="diagnostic-editor-head"><h3>{current.correction ? '更正报告' : '录入报告'}</h3>
+      <div className="diagnostic-editor-head"><h3>{current.correction ? '更正报告' : '录入报告'}<small>结构化影像报告 · WS 445.11</small></h3>
         <span>{draft.authorName ? `草稿录入：${draft.authorName} · ${formatTime(draft.updatedAt || '')}` : '尚未保存草稿'}</span></div>
     )}
     {draft.doubleSignatureRequired && <Alert tone="info" placement="inline">机构启用双签：保存后由另一名医技人员打开草稿直接审核并签发。</Alert>}
@@ -176,7 +188,7 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
     <DiagnosticTemplateSelection current={template.data ?? null} selected={selectedTemplate} input={input}
       disabled={save.isPending || issue.isPending || refreshing || !canEdit} onChange={change} />
     {task.requestType === 'LABORATORY' ? <><LaboratoryResultEditor rows={input.observations || []} template={selectedTemplate}
-      disabled={busy || !canEdit} patient={{ gender: task.gender, birthDate: task.birthDate }}
+      disabled={busy || !canEdit} presetTemplates={presetTemplate ? [presetTemplate] : []} patient={{ gender: task.gender, birthDate: task.birthDate }}
       title={current.correction ? '更正检验结果' : '检验结果录入'}
       dirty={current.dirty}
       draftAuthor={draft.authorName}
@@ -204,7 +216,7 @@ export function ReportComposer({ api, task, draft, refreshing, onRefresh, form, 
         value={input.conclusion || ''} onChange={(e) => change({ conclusion: e.target.value })} /></FormField></>
       : <ExaminationReportEditor findings={input.findings || ''} conclusion={input.conclusion || ''} disabled={busy || !canEdit} onChange={change} />}
     {task.requestType === 'EXAMINATION' && <ExaminationImages api={api} task={task} draft={draft}
-      disabled={busy || current.dirty || !canEdit} onRefresh={onRefresh} />}
+      disabled={busy || !canEdit} dirty={current.dirty} onRefresh={onRefresh} />}
     {current.correction && <FormField label="更正原因" required><textarea rows={2} disabled={busy || !canEdit} value={input.correctionReason || ''}
       onChange={(e) => change({ correctionReason: e.target.value })} /></FormField>}
     </div>

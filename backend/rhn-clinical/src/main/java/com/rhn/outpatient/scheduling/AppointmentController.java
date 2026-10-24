@@ -1,11 +1,13 @@
 package com.rhn.outpatient.scheduling;
 
+import com.rhn.outpatient.api.OutpatientPermissions;
 import com.rhn.outpatient.scheduling.AppointmentContracts.AppointmentView;
 import com.rhn.outpatient.scheduling.AppointmentContracts.CancelAppointmentRequest;
 import com.rhn.outpatient.scheduling.AppointmentContracts.CreateAppointmentRequest;
 import com.rhn.outpatient.scheduling.AppointmentContracts.RescheduleAppointmentRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +22,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/outpatient/appointments")
+@PreAuthorize(OutpatientPermissions.APPOINTMENT_ACCESS)
 class AppointmentController {
     private final AppointmentApplicationService service;
 

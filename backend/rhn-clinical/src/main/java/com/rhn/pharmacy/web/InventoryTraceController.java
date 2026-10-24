@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.web;
 
 import com.rhn.pharmacy.api.InventoryTraceViews.ReceiptTraceSummaryView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodePageView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceDetailView;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService;
@@ -42,6 +43,15 @@ public class InventoryTraceController {
                                @RequestParam(required = false) String status,
                                @RequestParam(required = false) String query) {
         return service.search(stockSiteId, status, query);
+    }
+
+    @GetMapping("/inventory/trace-codes/page")
+    TraceCodePageView page(@RequestParam Long stockSiteId,
+                           @RequestParam(required = false) String status,
+                           @RequestParam(required = false) String query,
+                           @RequestParam(defaultValue = "0") int page,
+                           @RequestParam(defaultValue = "20") int size) {
+        return service.page(stockSiteId, status, query, page, size);
     }
 
     @GetMapping("/inventory/trace-codes/{id}")

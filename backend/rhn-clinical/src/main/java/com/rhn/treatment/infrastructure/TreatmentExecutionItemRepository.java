@@ -16,6 +16,8 @@ public interface TreatmentExecutionItemRepository extends JpaRepository<Treatmen
             + "and i.sourceType=:sourceType and i.sourceId in :sourceIds")
     List<Long> findExistingSourceIds(Long tenantId, String sourceType, java.util.Collection<Long> sourceIds);
     List<TreatmentExecutionItem> findByTenantIdAndTaskIdOrderByCreatedAtAscIdAsc(Long tenantId, Long taskId);
+    List<TreatmentExecutionItem> findByTenantIdAndTaskIdInOrderByTaskIdAscCreatedAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> taskIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from TreatmentExecutionItem i where i.tenantId=:tenantId "

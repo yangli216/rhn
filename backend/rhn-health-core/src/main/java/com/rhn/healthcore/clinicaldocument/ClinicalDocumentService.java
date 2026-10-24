@@ -208,6 +208,20 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
                         document.id(), document.currentVersion(), document.status().name()));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<EncounterDocumentSnapshot> findEncounterDocumentSnapshot(Long encounterId, String documentType) {
+        return documentRepository.findByTenantIdAndEncounterIdAndDocumentTypeAndInstanceKey(
+                        TenantContext.requireTenantId(), encounterId, documentType, "DEFAULT")
+                .filter(this::accessible).map(document -> {
+                    var current = versionRepository.findByDocumentIdOrderByVersionNumberDesc(document.id()).stream()
+                            .filter(version -> version.versionNumber() == document.currentVersion()).findFirst()
+                            .orElseThrow(() -> new IllegalStateException("Clinical document version is missing"));
+                    return new EncounterDocumentSnapshot(document.id(), document.currentVersion(), document.status().name(),
+                            current.createdBy(), current.createdAt(), parse(current.contentJson()));
+                });
+    }
+
     private ClinicalDocumentResponse toResponse(ClinicalDocument document) {
         List<ClinicalDocumentVersion> versions = versionRepository
                 .findByDocumentIdOrderByVersionNumberDesc(document.id());

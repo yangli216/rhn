@@ -376,7 +376,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
       if (blockers.includes('血压')) window.requestAnimationFrame(() => {
         const input = document.getElementById('doctor-vital-systolic')
         if (!(input instanceof HTMLInputElement) || input.disabled) return
-        input.scrollIntoView({ block: 'center' })
+        input.scrollIntoView?.({ block: 'center' })
         input.focus()
       })
     }

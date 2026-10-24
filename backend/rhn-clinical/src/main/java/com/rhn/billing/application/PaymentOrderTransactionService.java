@@ -9,6 +9,7 @@ import com.rhn.billing.domain.PaymentEvent;
 import com.rhn.billing.domain.PaymentOrder;
 import com.rhn.billing.domain.Payment;
 import com.rhn.billing.domain.Settlement;
+import com.rhn.billing.domain.SettlementStatus;
 import com.rhn.billing.infrastructure.InvoiceRepository;
 import com.rhn.billing.infrastructure.LedgerEntryRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
@@ -27,7 +28,10 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -256,9 +260,32 @@ class PaymentOrderTransactionService {
                 input.eventAmount() == null ? null : money(input.eventAmount()),
                 Strings.trimToNull(input.errorCode()), Strings.trimToNull(input.errorMessage()), context.subjectId()));
         if ("SETTLEMENT_PAY".equals(order.orderType()) && Set.of("FAILED", "CANCELLED", "EXPIRED").contains(next)) {
+            revertAbandonedRounding(context, order);
             events.publishEvent(new PaymentOrderFailedEvent(order.tenantId(), order.id(), order.businessScene()));
         }
         return new TransitionResult(order, false);
+    }
+
+    /**
+     * 收款指令以失败/取消/过期结束时，回退它在创建时写入结算单与结算凭证的舍入，防止患者改用不舍入的方式付款时白得抹零。
+     * 舍入只允许搭配“一次付清调整后全部待付金额”的支付，故未结清结算单上的舍入一定尚未被成功收款确认；
+     * 但同一凭证仍有其它在途支付指令时不回退（它们可能是基于该舍入创建的）。幂等：舍入已为零时不做任何事。
+     * 加锁顺序 支付指令 → 账户 → 结算单，与收款（completePayment → collectPayment）一致。
+     */
+    private void revertAbandonedRounding(ExecutionContext context, PaymentOrder order) {
+        if (order.invoiceId() == null) return;
+        accountRepository.lockByIdAndTenantId(order.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
+        Settlement settlement = settlements.lockByInvoiceIfPresent(context, order.invoiceId()).orElse(null);
+        if (settlement == null || !"NORMAL".equals(settlement.settlementType())
+                || !Set.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL)
+                        .contains(settlement.status())
+                || settlement.roundingAmount().signum() == 0) return;
+        if (orderRepository.activeRequestedForInvoice(context.tenantId(), order.invoiceId()).signum() > 0) return;
+        Invoice invoice = invoiceRepository.findByIdAndTenantId(order.invoiceId(), context.tenantId())
+                .orElseThrow(() -> notFound("INVOICE_NOT_FOUND", "未找到待支付结算凭证"));
+        settlement.revertRounding();
+        invoice.revertRounding();
     }
 
     @Transactional
@@ -357,9 +384,12 @@ class PaymentOrderTransactionService {
                 .orElseThrow(() -> notFound("PAYMENT_ORDER_NOT_FOUND", "未找到支付指令"));
         requireAccess(context, accountRepository.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户")));
-        List<PaymentEventView> events = eventRepository
+        return orderView(value, eventRepository
                 .findByTenantIdAndPaymentOrderIdOrderByOccurredAtAscIdAsc(context.tenantId(), value.id())
-                .stream().map(this::eventView).toList();
+                .stream().map(this::eventView).toList(), duplicate);
+    }
+
+    private PaymentOrderView orderView(PaymentOrder value, List<PaymentEventView> events, boolean duplicate) {
         return new PaymentOrderView(value.id(), value.revision(), value.patientAccountId(), value.invoiceId(), value.originalPaymentId(),
                 value.orderNo(), value.idempotencyKey(), value.businessScene(), value.paymentSceneCode(),
                 value.paymentMethodCode(), value.paymentMethodNameSnapshot(), value.orderType(), value.status(),
@@ -374,16 +404,51 @@ class PaymentOrderTransactionService {
         PatientAccount account = accountRepository.findByIdAndTenantId(accountId, context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
         requireAccess(context, account);
-        return orderRepository.findTop100ByTenantIdAndPatientAccountIdOrderByCreatedAtDesc(
-                context.tenantId(), accountId).stream().map(value -> view(value.id(), false)).toList();
+        return orderViews(context, orderRepository.findTop100ByTenantIdAndPatientAccountIdOrderByCreatedAtDesc(
+                context.tenantId(), accountId));
     }
 
     @Transactional(readOnly = true)
     List<PaymentOrderView> recoveryWorklist(int limit) {
         ExecutionContext context = requireWorkContext();
-        return orderRepository.findRecoveryWorklist(context.tenantId(), context.organizationId(),
-                        PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
-                .stream().map(value -> view(value.id(), false)).toList();
+        return orderViews(context, orderRepository.findRecoveryWorklist(context.tenantId(), context.organizationId(),
+                PageRequest.of(0, Math.max(1, Math.min(limit, 100)))));
+    }
+
+    private List<PaymentOrderView> orderViews(ExecutionContext context, List<PaymentOrder> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, PatientAccount> accountById = accountsById(context.tenantId(), values);
+        Map<Long, List<PaymentEventView>> eventsByOrder = eventsByOrder(context.tenantId(), values);
+        List<PaymentOrderView> result = new ArrayList<>(values.size());
+        for (PaymentOrder value : values) {
+            PatientAccount account = accountById.get(value.patientAccountId());
+            if (account == null) throw notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户");
+            requireAccess(context, account);
+            result.add(orderView(value, eventsByOrder.getOrDefault(value.id(), List.of()), false));
+        }
+        return List.copyOf(result);
+    }
+
+    private Map<Long, PatientAccount> accountsById(Long tenantId, List<PaymentOrder> values) {
+        List<Long> ids = values.stream().map(PaymentOrder::patientAccountId).distinct().toList();
+        Map<Long, PatientAccount> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            accountRepository.findByTenantIdAndIdIn(tenantId, ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.put(value.id(), value));
+        }
+        return result;
+    }
+
+    private Map<Long, List<PaymentEventView>> eventsByOrder(Long tenantId, List<PaymentOrder> values) {
+        List<Long> ids = values.stream().map(PaymentOrder::id).toList();
+        Map<Long, List<PaymentEventView>> result = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            eventRepository.findByTenantIdAndPaymentOrderIdInOrderByPaymentOrderIdAscOccurredAtAscIdAsc(tenantId,
+                            ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> result.computeIfAbsent(value.paymentOrderId(), ignored -> new ArrayList<>())
+                            .add(eventView(value)));
+        }
+        return result;
     }
 
     private PaymentOrder verifySame(PaymentOrder value, CreateCommand input) {

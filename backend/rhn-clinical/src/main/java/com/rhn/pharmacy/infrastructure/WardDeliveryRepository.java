@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface WardDeliveryRepository extends JpaRepository<WardDelivery, Long> {
     Optional<WardDelivery> findByTenantIdAndCommandCode(Long tenantId, String commandCode);
     Optional<WardDelivery> findByIdAndTenantId(Long id, Long tenantId);
+    List<WardDelivery> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from WardDelivery d where d.id = :id and d.tenantId = :tenantId")

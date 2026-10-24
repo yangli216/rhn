@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -96,6 +97,38 @@ class ProcurementCatalogServiceTest {
         assertThat(result).extracting(value -> value.catalogItemId()).containsExactly(eligible.catalogItemId());
         verify(catalogs, never()).resolve(eq(TENANT), eq(missingAgreement.catalogItemId()), eq(ORGANIZATION),
                 eq(missingAgreement.basePackageId()), eq("PURCHASE"), eq(TODAY));
+    }
+
+    @Test
+    void searchStopsResolvingCatalogEntriesOnceTheDisplayLimitIsReached() {
+        when(suppliers.findByIdAndTenantId(supplier.id(), TENANT)).thenReturn(Optional.of(supplier));
+        List<StockItem> stock = new java.util.ArrayList<>();
+        List<SupplierSupplyItem> agreements = new java.util.ArrayList<>();
+        java.util.Set<Long> matchedCatalogIds = new java.util.HashSet<>();
+        for (long catalogId = 101L; catalogId <= 111L; catalogId++) {
+            StockItem item = stockItem(catalogId, catalogId + 1000);
+            stock.add(item);
+            agreements.add(agreement(item));
+            if (catalogId <= 110L) {
+                matchedCatalogIds.add(catalogId);
+                when(catalogs.resolve(TENANT, catalogId, ORGANIZATION, item.basePackageId(), "PURCHASE", TODAY))
+                        .thenReturn(snapshot(item, true, true));
+            }
+        }
+        when(stockItems.findByTenantIdAndStockSiteIdOrderById(TENANT, site.id())).thenReturn(stock);
+        when(supplyItems.findByTenantIdAndSupplierIdOrderById(TENANT, supplier.id())).thenReturn(agreements);
+        when(searches.resolvePreference(TENANT, ORGANIZATION, site.departmentId())).thenReturn(
+                new SearchPreference(SearchInputMode.PINYIN, SearchMatchMode.PREFIX, 0.75, 10));
+        when(searches.findMatchingTargetIds(eq("CATALOG_ITEM"), eq(TENANT), eq(ORGANIZATION),
+                eq(site.departmentId()), eq("P-10"), any())).thenReturn(matchedCatalogIds);
+        when(searches.findMatchingTargetIds(eq("MEDICATION"), eq(TENANT), eq(ORGANIZATION),
+                eq(site.departmentId()), eq("P-10"), any())).thenReturn(Set.of());
+
+        var result = service.searchPurchasable(TENANT, site.id(), supplier.id(), "P-10", TODAY);
+
+        assertThat(result).hasSize(10);
+        verify(catalogs, never()).resolve(eq(TENANT), eq(stock.get(10).catalogItemId()), eq(ORGANIZATION),
+                eq(stock.get(10).basePackageId()), eq("PURCHASE"), eq(TODAY));
     }
 
     @Test

@@ -16,10 +16,11 @@ function setup(tasks: TreatmentExecutionTask[] = [task], load = vi.fn().mockReso
   const treatments = { worklist: load, start: vi.fn().mockResolvedValue(task), complete: vi.fn().mockResolvedValue(task),
     resolve: vi.fn().mockResolvedValue(task) }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  const onNavigate = vi.fn()
   render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/treatment?encounterId=enc1']}>
-    <TreatmentExecutionWorkspace api={{ treatments } as unknown as RhnApi} clinicalContext={context} onNavigate={vi.fn()} />
+    <TreatmentExecutionWorkspace api={{ treatments } as unknown as RhnApi} clinicalContext={context} onNavigate={onNavigate} />
   </MemoryRouter></QueryClientProvider>)
-  return { treatments, client }
+  return { treatments, client, onNavigate }
 }
 async function choose(label: RegExp, option: string) {
   await userEvent.click(screen.getByLabelText(label))
@@ -119,6 +120,19 @@ describe('explicit treatment assessment', () => {
     expect(treatments.complete).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['WAITING_SETTLEMENT', '去费用结算', '/billing/settlement?encounterId=enc1'],
+    ['WAITING_DISPENSE', '去门诊药房', '/pharmacy?encounterId=enc1'],
+    ['WAITING_SKIN_TEST', '去皮试管理', '/skin-tests?encounterId=enc1'],
+  ])('offers the next step for %s without nesting buttons in the queue', async (status, label, path) => {
+    const { onNavigate } = setup([{ ...task, status: status as TreatmentExecutionTask['status'] }])
+    await userEvent.click(await screen.findByRole('button', { name: label }))
+    expect(onNavigate).toHaveBeenCalledWith(path)
+    const entry = screen.getByRole('button', { name: /患者甲/ })
+    expect(entry).toHaveAttribute('aria-current', 'true')
+    expect(entry.querySelector('button')).toBeNull()
+  })
+
   describe('exception resolution', () => {
     const exception: TreatmentExecutionTask = { ...task, status: 'EXCEPTION', revision: 4, resultCode: 'INTERRUPTED',
       adverseReaction: false, exceptionNote: '治疗未正常完成：INTERRUPTED', allowedResolutions: ['REQUEUE', 'CLOSE'] }
@@ -162,7 +176,7 @@ describe('explicit treatment assessment', () => {
       await screen.findByText('异常已处置并关闭')
       expect(screen.getByText('确认不再执行')).toBeInTheDocument()
       expect(screen.getByText('中途停止')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '已完成' })).toHaveClass('is-active')
+      expect(screen.getByRole('tab', { name: '已完成' })).toHaveClass('is-active')
       expect(screen.queryByRole('button', { name: '确认处置' })).not.toBeInTheDocument()
       // 已处置不计入「今日已完成」
       expect(within(screen.getByRole('region', { name: '治疗任务摘要' })).getByText('今日已完成').parentElement)

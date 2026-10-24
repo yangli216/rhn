@@ -1,5 +1,6 @@
 package com.rhn.inpatient.web;
 
+import com.rhn.inpatient.api.InpatientOrderViews.BatchTaskExecutionView;
 import com.rhn.inpatient.api.InpatientOrderViews.DoctorWorklistView;
 import com.rhn.inpatient.api.InpatientOrderViews.NurseWorklistView;
 import com.rhn.inpatient.api.InpatientOrderViews.OrderView;
@@ -80,6 +81,15 @@ public class InpatientOrderController {
                 input.commandCode()));
     }
 
+    /** 批量执行医嘱任务：一次请求处理多项，逐任务独立事务并返回逐项失败原因。 */
+    @PostMapping("/order-tasks/execute-batch")
+    BatchTaskExecutionView executeBatch(@Valid @RequestBody BatchTaskRequest input) {
+        return service.executeBatch(new InpatientOrderApplicationService.BatchTaskCommand(
+                input.items().stream().map(item -> new InpatientOrderApplicationService.BatchTaskItem(
+                        item.taskId(), item.expectedRevision())).toList(),
+                input.outcomeCode(), input.note(), input.batchCommandCode()));
+    }
+
     @PostMapping("/order-tasks/{taskId}/skip")
     TaskView skip(@PathVariable Long taskId, @Valid @RequestBody TaskRequest input) {
         return service.skip(taskId, new TaskCommand(input.expectedRevision(), input.outcomeCode(), input.note(),
@@ -138,6 +148,16 @@ public class InpatientOrderController {
             @Size(max = 64) String outcomeCode,
             @Size(max = 1000) String note,
             @NotBlank @Size(max = 128) String commandCode) {
+    }
+
+    public record BatchTaskRequest(
+            @NotEmpty @Size(max = 100) List<@NotNull @Valid BatchTaskItem> items,
+            @Size(max = 64) String outcomeCode,
+            @Size(max = 1000) String note,
+            @NotBlank @Size(max = 128) String batchCommandCode) {
+    }
+
+    public record BatchTaskItem(@NotNull Long taskId, @NotNull Long expectedRevision) {
     }
 
     public record StopRequest(

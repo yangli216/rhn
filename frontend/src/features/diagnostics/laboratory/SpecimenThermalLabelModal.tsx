@@ -53,19 +53,17 @@ export function SpecimenThermalLabelModal({
           <Button variant="secondary" onClick={onClose}>
             关闭
           </Button>
-          <div className="ui-form-actions">
-            <DiagnosticPrintAction
-              api={api}
-              encounterId={task.encounterId}
-              sourceId={specimen.id}
-              sourceLabel={specimen.specimenNo}
-              taskCode="DIAGNOSTICS.SPECIMEN.LABEL.PRINT"
-              label
-            />
-            <Button variant="primary" onClick={handlePrint}>
-              一键热敏打印 (60×40mm)
-            </Button>
-          </div>
+          <DiagnosticPrintAction
+            api={api}
+            encounterId={task.encounterId}
+            sourceId={specimen.id}
+            sourceLabel={specimen.specimenNo}
+            taskCode="DIAGNOSTICS.SPECIMEN.LABEL.PRINT"
+            label
+          />
+          <Button variant="primary" onClick={handlePrint}>
+            一键热敏打印 (60×40mm)
+          </Button>
         </>
       }
     >

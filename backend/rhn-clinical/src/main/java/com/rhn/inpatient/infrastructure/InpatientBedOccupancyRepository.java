@@ -10,4 +10,5 @@ public interface InpatientBedOccupancyRepository extends JpaRepository<Inpatient
     List<InpatientBedOccupancy> findByTenantId(Long tenantId);
     Optional<InpatientBedOccupancy> findByTenantIdAndBedLocationId(Long tenantId, Long bedLocationId);
     Optional<InpatientBedOccupancy> findByTenantIdAndEpisodeId(Long tenantId, Long episodeId);
+    List<InpatientBedOccupancy> findByTenantIdAndEpisodeIdIn(Long tenantId, java.util.Collection<Long> episodeIds);
 }

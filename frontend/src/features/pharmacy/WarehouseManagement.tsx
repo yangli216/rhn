@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
-import type { InventoryBalance, StockBin, StockItem } from '../../shared/api'
+import type { InventoryBalanceSummary, StockBin, StockItem } from '../../shared/api'
 import type { RhnApi, MedicationProduct } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
@@ -10,7 +10,7 @@ import {
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import '../../styles/features/pharmacy-warehouse.css'
-import { inventoryAverageCost, inventoryKnownTotal, knownInventoryNumber, requireInventoryBalances, requireInventoryList, requireInventoryPage } from './inventoryLedgerTruth'
+import { inventoryKnownTotal, knownInventoryNumber, requireInventoryBalanceSummary, requireInventoryBalances, requireInventoryList, requireInventoryPage } from './inventoryLedgerTruth'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import { formatDateKey } from '../../shared/utils/dateRange'
@@ -33,7 +33,6 @@ type ReceiptDraft = {
 }
 type InventorySummary = {
   item: StockItem
-  balances: InventoryBalance[]
   onHand: number
   available: number
   reserved: number
@@ -44,6 +43,7 @@ type InventorySummary = {
   earliestExpiry?: string
   averageUnitCost?: number
   latestProjectedAt?: string
+  lotNos: string[]
 }
 
 export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
@@ -75,10 +75,15 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   const items = useQuery({
     queryKey: ['pharmacy-stock-items', siteId], queryFn: async () => requireInventoryList(await api.pharmacy.stockItems(siteId)), enabled: Boolean(siteId),
   })
+  const balanceSummary = useQuery({
+    queryKey: ['warehouse-balance-summary', siteId],
+    queryFn: async () => requireInventoryBalanceSummary(await api.pharmacy.balanceSummary(siteId)),
+    enabled: Boolean(siteId),
+  })
   const balances = useQuery({
     queryKey: ['warehouse-balances', siteId],
     queryFn: async () => requireInventoryBalances(await api.pharmacy.balances(siteId)),
-    enabled: Boolean(siteId),
+    enabled: Boolean(siteId) && tab === 'price',
   })
   const transactionSummary = useQuery({
     queryKey: ['warehouse-transaction-summary', siteId],
@@ -124,9 +129,11 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['pharmacy-stock-bins', siteId] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse-balance-summary', siteId] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse-balances', siteId] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse-transaction-summary', siteId] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse-item-ledger', siteId] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse-item-balances', siteId] }),
       ])
       setReceiptDialogOpen(false)
     },
@@ -134,11 +141,10 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
 
   const selectedBin = bins.data?.find((bin) => bin.id === selectedBinId)
   const selectedReceiptItem = items.data?.find((item) => item.id === receiptItemId)
-  const inventoryVarietyCount = new Set((balances.data ?? []).filter(row => row.quantityOnHand !== 0)
-    .map(row => row.stockItemId)).size
-  const foundationError = bins.error || items.error || balances.error
-  const foundationLoading = bins.isPending || items.isPending || balances.isPending
-  const retryFoundation = () => { void bins.refetch(); void items.refetch(); void balances.refetch() }
+  const inventoryVarietyCount = balanceSummary.data?.inStockItemCount
+  const foundationError = bins.error || items.error || balanceSummary.error
+  const foundationLoading = bins.isPending || items.isPending || balanceSummary.isPending
+  const retryFoundation = () => { void bins.refetch(); void items.refetch(); void balanceSummary.refetch() }
 
   return <>
     <PageHeader title="库房管理" compact />
@@ -157,7 +163,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
                   ['trace', '追溯码', undefined], ['accuracy', '账目校验', undefined],
                   ['price', '库存调价', undefined],
                   ['period', '库存月结', undefined],
-                  ['inventory', '库存查询', balances.isSuccess ? inventoryVarietyCount : undefined], ['bins', '库位', bins.isSuccess ? bins.data.length : undefined],
+                  ['inventory', '库存查询', balanceSummary.isSuccess ? inventoryVarietyCount : undefined], ['bins', '库位', bins.isSuccess ? bins.data.length : undefined],
                   ['items', '经营项目', items.isSuccess ? items.data.length : undefined]] as const).map(([value, label, count]) =>
                   <button type="button" className={tab === value ? 'is-active' : ''} key={value}
                     onClick={() => setTab(value)}>{label}{count !== undefined && <span>{count}</span>}</button>)}
@@ -177,7 +183,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
                 : transactionSummary.isPending ? <LoadingState label="正在读取库存记账摘要…" />
                 : <InventorySection api={api} siteId={siteId} items={items.data ?? []}
                 bins={bins.data ?? []} selectedItemId={ledgerItemId} onInspect={setLedgerItemId}
-                loading={balances.isPending || transactionSummary.isPending} balances={balances.data ?? []}
+                loading={balanceSummary.isPending || transactionSummary.isPending} summary={balanceSummary.data}
                 transactionCount={transactionSummary.data?.totalElements ?? 0} onReceive={(itemId) => {
                   setReceiptItemId(itemId); setReceiptDialogOpen(true)
                 }} isOperator={true} />)}
@@ -196,11 +202,13 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
                   <InventoryPeriodManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} />
                 </Suspense>
               )}
-              {tab === 'price' && (
-                <Suspense fallback={<LoadingState label="正在加载库存调价…" />}>
+              {tab === 'price' && (balances.isPending
+                ? <LoadingState label="正在读取库存余额…" />
+                : balances.isError ? <EmptyState icon="pharmacy" title="库存余额读取失败" copy={errorMessage(balances.error)}
+                    action={<Button variant="secondary" onClick={() => void balances.refetch()}>重新读取库存余额</Button>} />
+                : <Suspense fallback={<LoadingState label="正在加载库存调价…" />}>
                   <InventoryPriceAdjustmentManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} balances={balances.data ?? []} />
-                </Suspense>
-              )}
+                </Suspense>)}
               {(['purchase', 'requisition', 'transfer', 'count'] as ActiveTab[]).includes(tab) && selectedSite &&
                 <WarehouseOperations tab={tab as OperationTab} api={api} site={selectedSite}
                   sites={allSites} items={items.data ?? []} bins={bins.data ?? []} onNavigate={onNavigate} isOperator={true} />}
@@ -269,10 +277,10 @@ function ItemSection({ items, loading, onAdd, onInspect, isOperator = true }: {
   </section>
 }
 
-function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect, loading, balances,
+function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect, loading, summary,
   transactionCount, onReceive, isOperator = true }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]; selectedItemId: string
-  onInspect: (id: string) => void; loading: boolean; balances: InventoryBalance[]
+  onInspect: (id: string) => void; loading: boolean; summary?: InventoryBalanceSummary
   transactionCount: number; onReceive: (itemId: string) => void; isOperator?: boolean
 }) {
   const [query, setQuery] = useState('')
@@ -281,33 +289,24 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
   const [pageSize, setPageSize] = useState(20)
   const selectedItem = items.find(item => item.id === selectedItemId)
   const summaries = useMemo<InventorySummary[]>(() => {
-    const now = Date.now(); const expiryLimit = now + 90 * 86400000
+    const aggregates = new Map((summary?.items ?? []).map(row => [row.stockItemId, row]))
     return items.map(item => {
-      const rows = balances.filter(row => row.stockItemId === item.id)
-      const onHand = rows.reduce((sum, row) => sum + Number(row.quantityOnHand), 0)
-      const available = rows.reduce((sum, row) => sum + Number(row.quantityAvailable), 0)
-      const reserved = rows.reduce((sum, row) => sum + Number(row.quantityReserved), 0)
-      const frozen = rows.reduce((sum, row) => sum + Number(row.quantityFrozen), 0)
-      const activeRows = rows.filter(row => Number(row.quantityOnHand) !== 0)
-      const expiringRows = activeRows.filter(row => row.expiryDate
-        && new Date(row.expiryDate).getTime() >= now && new Date(row.expiryDate).getTime() <= expiryLimit)
-      const expiryDates = activeRows.map(row => row.expiryDate).filter((value): value is string => Boolean(value)).sort()
-      const latestProjectedAt = rows.map(row => row.projectedAt).filter(Boolean).sort().at(-1)
+      const row = aggregates.get(item.id)
       return {
-        item, balances: rows, onHand, available, reserved, frozen,
-        activeLots: new Set(activeRows.map(row => row.stockLotId)).size,
-        binCount: new Set(activeRows.map(row => row.stockBinId)).size,
-        expiringLots: new Set(expiringRows.map(row => row.stockLotId)).size,
-        earliestExpiry: expiryDates[0], averageUnitCost: inventoryAverageCost(rows),
-        latestProjectedAt,
+        item, onHand: row?.quantityOnHand ?? 0, available: row?.quantityAvailable ?? 0,
+        reserved: row?.quantityReserved ?? 0, frozen: row?.quantityFrozen ?? 0,
+        activeLots: row?.activeLots ?? 0, binCount: row?.binCount ?? 0,
+        expiringLots: row?.expiringLots ?? 0, earliestExpiry: row?.earliestExpiry,
+        averageUnitCost: row?.averageUnitCost, latestProjectedAt: row?.latestProjectedAt,
+        lotNos: row?.lotNos ?? [],
       }
     }).sort((left, right) => Number(right.onHand !== 0) - Number(left.onHand !== 0)
       || left.item.productName.localeCompare(right.item.productName, 'zh-CN'))
-  }, [balances, items])
+  }, [summary, items])
   const normalizedQuery = query.trim().toLowerCase()
   const filtered = summaries.filter(summary => {
     const matchesQuery = !normalizedQuery || [summary.item.productName, summary.item.productCode,
-      summary.item.packageSpec, summary.item.manufacturerName, ...summary.balances.map(row => row.lotNo)]
+      summary.item.packageSpec, summary.item.manufacturerName, ...summary.lotNos]
       .some(value => value?.toLowerCase().includes(normalizedQuery))
     const matchesStock = stockFilter === 'ALL'
       || stockFilter === 'IN_STOCK' && summary.onHand !== 0
@@ -316,9 +315,9 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
         || summary.reserved > 0 || summary.frozen > 0)
     return matchesQuery && matchesStock
   })
-  const inStockCount = summaries.filter(summary => summary.onHand !== 0).length
-  const activeLotCount = balances.filter(row => Number(row.quantityOnHand) !== 0).length
-  const expiringCount = summaries.reduce((sum, row) => sum + row.expiringLots, 0)
+  const inStockCount = summary?.inStockItemCount ?? summaries.filter(value => value.onHand !== 0).length
+  const activeLotCount = summary?.activeRowCount ?? 0
+  const expiringCount = summary?.expiringLotCount ?? 0
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const visible = filtered.slice(page * pageSize, (page + 1) * pageSize)
   useEffect(() => { setPage(0) }, [query, siteId, stockFilter])
@@ -407,6 +406,10 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
       ...(debouncedQuery ? { query: debouncedQuery } : {}),
     })),
   })
+  const itemBalances = useQuery({
+    queryKey: ['warehouse-item-balances', siteId, item.id],
+    queryFn: async () => requireInventoryBalances(await api.pharmacy.balances(siteId, item.id)),
+  })
   const transactions = history.isSuccess ? history.data.content : []
   const entries = useMemo(() => {
     let quantityAfter = knownInventoryNumber(history.data?.firstEntryQuantityAfter)
@@ -415,7 +418,7 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
       const delta = lines.reduce((sum, line) => sum + Number(line.quantityDelta), 0)
       const before: number | undefined = quantityAfter === undefined ? undefined : quantityAfter - delta
       const dimensions = lines.map(line => {
-        const balance = summary?.balances.find(row => row.stockLotId === line.stockLotId
+        const balance = itemBalances.data?.find(row => row.stockLotId === line.stockLotId
           && row.stockBinId === line.stockBinId && row.stockStatus === line.stockStatus)
         const bin = bins.find(candidate => candidate.id === line.stockBinId)
         return { id: line.id,
@@ -429,7 +432,7 @@ function InventoryLedgerDialog({ api, siteId, item, summary, bins, onClose }: {
       quantityAfter = debouncedQuery ? undefined : before
       return entry
     }).filter(value => value.lines.length)
-  }, [bins, debouncedQuery, history.data?.firstEntryQuantityAfter, item.id, summary, transactions])
+  }, [bins, debouncedQuery, history.data?.firstEntryQuantityAfter, item.id, itemBalances.data, transactions])
   const totalElements = history.data?.totalElements ?? 0
   const totalPages = history.data?.totalPages ?? 0
   const description = [item.packageSpec || item.packageUnitName, item.manufacturerName, '全部库存期间']

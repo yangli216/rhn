@@ -523,6 +523,10 @@ export function createBillingApi(client: ApiClient) {
     cancelSettlement: (settlementId: string, reason: string) => client.request<CancelledSettlement>(
       `/api/billing/settlements/${settlementId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) },
     ),
+    /** 按结算单批量取消未付款结算单：诊毕页放弃收款时一次请求完成多张，语义与逐单取消一致。 */
+    cancelSettlements: (settlementIds: string[], reason: string) => client.request<CancelledSettlement[]>(
+      '/api/billing/settlements/cancel', { method: 'POST', body: JSON.stringify({ settlementIds, reason }) },
+    ),
     /** 取消本就诊全部可取消的未付款结算单（不含挂号），供医生修改医嘱、放弃诊间收款时使用。 */
     cancelUnpaidSettlements: (encounterId: string, reason: string) => client.request<CancelledSettlement[]>(
       `/api/billing/encounters/${encounterId}/unpaid-settlements/cancel`, { method: 'POST', body: JSON.stringify({ reason }) },

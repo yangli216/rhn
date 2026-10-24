@@ -74,8 +74,8 @@ public class EncounterCancellationService implements OutpatientEncounterCancella
         Encounter encounter = encounters.findWithLockByIdAndTenantId(encounterId, TenantContext.requireTenantId())
                 .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
         ExecutionContext context = contextProvider.requireCurrent();
-        if (context.hasWorkContext() && (!context.canAccessOrganization(encounter.organizationId())
-                || !context.canAccessDepartment(encounter.departmentId()))) {
+        if (!context.hasWorkContext() || !context.canAccessOrganization(encounter.organizationId())
+                || !context.canAccessDepartment(encounter.departmentId())) {
             throw forbidden("ENCOUNTER_FORBIDDEN", "无权处理当前工作上下文之外的就诊");
         }
         return encounter;

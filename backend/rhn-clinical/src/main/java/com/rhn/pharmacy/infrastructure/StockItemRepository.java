@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface StockItemRepository extends JpaRepository<StockItem, Long> {
     Optional<StockItem> findByIdAndTenantId(Long id, Long tenantId);
+    List<StockItem> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
     Optional<StockItem> findByTenantIdAndStockSiteIdAndCatalogItemId(Long tenantId, Long stockSiteId, Long catalogItemId);
     List<StockItem> findByTenantIdAndStockSiteIdOrderById(Long tenantId, Long stockSiteId);
 }

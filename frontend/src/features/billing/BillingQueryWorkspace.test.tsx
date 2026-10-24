@@ -19,7 +19,7 @@ const record: SettlementRecord = {
   createdAt: '2026-09-08T01:30:00Z', finalizedAt: '2026-09-08T01:31:00Z',
 }
 
-function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides: Partial<Record<'settlementRecords' | 'settlementCashiers' | 'settlement' | 'statement' | 'settlementReceipts', ReturnType<typeof vi.fn>>> = {}) {
+function renderWorkspace(sourceRecords: SettlementRecord[] = [record], overrides: Partial<Record<'settlementRecords' | 'settlementExceptions' | 'settlementCashiers' | 'settlement' | 'statement' | 'settlementReceipts', ReturnType<typeof vi.fn>>> = {}) {
   const api = { billing: {
     settlementRecords: vi.fn().mockResolvedValue(sourceRecords),
     settlementExceptions: vi.fn().mockResolvedValue([]),
@@ -117,7 +117,7 @@ describe('BillingQueryWorkspace', () => {
     expect(screen.getByRole('button', { name: '结算记录 STL-ZERO-FUND' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '结算记录 STL-SELF-PAY' })).not.toBeInTheDocument()
   })
-  it('shows settlement status and surfaces one-sided accounts in the exception view with a banner', async () => {
+  it('shows settlement status and surfaces one-sided accounts in the banner with navigation action', async () => {
     const api = renderWorkspace([record, { ...record, id: 'stl-2', settlementNo: 'STL-20260908-002', status: 'PRICED', statusText: '待收款' }], {
       settlementExceptions: vi.fn().mockResolvedValue([{
         settlement: { ...record, id: 'stl-2', settlementNo: 'STL-20260908-002', status: 'PRICED' },
@@ -127,9 +127,7 @@ describe('BillingQueryWorkspace', () => {
     })
     expect(await screen.findByRole('alert')).toHaveTextContent('1 笔单边账待处理')
     expect(await screen.findByRole('button', { name: '结算记录 STL-20260908-002' })).toHaveTextContent('待收款')
-    await userEvent.click(screen.getByRole('tab', { name: /异常待处理/ }))
-    expect(await screen.findByText('医保已结算，自付未收（单边账）')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '撤销医保结算' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '去处理' })).toBeInTheDocument()
     expect(api.billing.settlementExceptions).toHaveBeenCalled()
   })
   it('filters by entry and disables the operator for entries without staff', async () => {

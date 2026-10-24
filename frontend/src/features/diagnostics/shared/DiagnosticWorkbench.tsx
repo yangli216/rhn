@@ -1,3 +1,4 @@
+import { includeLinkedDiagnosticTask, useDiagnosticTaskLink } from './useDiagnosticTaskLink'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
@@ -23,7 +24,7 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
 }) {
   const client = useQueryClient()
   const [params, setParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(params.get('taskId') || '')
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
   const [dates, setDates] = useState({ from: '', to: '' })
@@ -42,9 +43,10 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
       throw new Error('队列数据不完整或与当前工作上下文不一致，请重新读取。')
     return task
   }
+  const linkedTask = useDiagnosticTaskLink(api, params.get('taskId'), scope, requireTask)
   const worklist = useQuery({ queryKey: ['diagnostic-worklist', scope, filters, page, params.toString()],
     queryFn: async () => {
-      const queryFilters: DiagnosticWorklistFilters = { status: (filters.status || undefined) as DiagnosticTaskStatus | undefined,
+      const queryFilters: DiagnosticWorklistFilters = { activeAndRecent: true, status: (filters.status || undefined) as DiagnosticTaskStatus | undefined,
         createdFrom: diagnosticDateBoundary(filters.from), createdBefore: diagnosticDateBoundary(filters.to, true) }
       const result = await api.diagnostics.worklistPage(requestType, filters.keyword, page, 20,
         params.get('encounterId') || undefined, params.get('residentId') || undefined, queryFilters)
@@ -54,8 +56,9 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
       result.content.forEach(requireTask)
       return result
     }, refetchInterval: 30_000 })
-  const tasks = useMemo(() => worklist.isSuccess ? worklist.data.content : [], [worklist.isSuccess, worklist.data])
+  const tasks = useMemo(() => includeLinkedDiagnosticTask(worklist.isSuccess ? worklist.data.content : [], linkedTask.isSuccess ? linkedTask.data : undefined), [worklist.isSuccess, worklist.data, linkedTask.isSuccess, linkedTask.data])
   const selected = tasks.find((task) => task.id === selectedId)
+  useEffect(() => { if (params.get('taskId')) setSelectedId(params.get('taskId')!) }, [params])
   const hasUnsaved = Object.values(forms).some((form) => form.dirty)
   useEffect(() => {
     onDirtyChange?.(hasUnsaved)
@@ -68,18 +71,19 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
     return () => window.removeEventListener('beforeunload', preventUnload)
   }, [hasUnsaved])
   useEffect(() => {
+    if (params.get('taskId') && !linkedTask.isSuccess) return
     if (!tasks.some((task) => task.id === selectedId)) setSelectedId(tasks[0]?.id || '')
-  }, [tasks, selectedId])
+  }, [tasks, selectedId, params, linkedTask.isSuccess])
   useEffect(() => {
-    setSelectedId(''); setKeyword(''); setStatus(''); setDates({ from: '', to: '' }); setFilterError('')
+    setSelectedId(params.get('taskId') || ''); setKeyword(''); setStatus(''); setDates({ from: '', to: '' }); setFilterError('')
     setFilters({ keyword: '', status: '', from: '', to: '' }); setPage(0)
-  }, [scope])
+  }, [scope, params])
   // A state transition can remove the last row on a page; return to the last remaining page.
   useEffect(() => {
     if (worklist.isSuccess && page > 0 && page >= worklist.data.totalPages) setPage(Math.max(0, worklist.data.totalPages - 1))
   }, [worklist.isSuccess, worklist.data, page])
   const refresh = async () => { await Promise.all([
-    'diagnostic-worklist', 'diagnostic-task-reports', 'diagnostic-draft', 'diagnostic-specimens', 'diagnostic-patient-demographics',
+    'diagnostic-worklist', 'diagnostic-linked-task', 'diagnostic-task-reports', 'diagnostic-draft', 'diagnostic-specimens', 'diagnostic-patient-demographics',
     'doctor-reports', 'inpatient-diagnostic-reports',
   ].map((key) => client.invalidateQueries({ queryKey: [key] }))) }
   const applyFilters = () => {
@@ -106,6 +110,10 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
       <div className="ui-query-filters__actions"><Button variant="secondary" onClick={applyFilters}>查询</Button>
         <Button variant="text" onClick={resetFilters}>重置</Button></div>
     </div>{filterError && <Alert placement="inline">{filterError}</Alert>}
+    <Alert tone="info" placement="inline">队列显示全部未完成任务及近7天已完成、取消记录。
+      <Button variant="text" onClick={() => onNavigate(`/diagnostics/${requestType === 'LABORATORY' ? 'laboratory' : 'examination'}/reports`)}>查询历史报告</Button>
+    </Alert>
+    {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}
     {worklist.error && <Alert>{errorMessage(worklist.error)}</Alert>}
     {(params.get('encounterId') || params.get('residentId')) && <Alert tone="info" placement="inline">当前限定为临床入口关联的患者申请。
       <Button variant="text" onClick={() => { const next = new URLSearchParams(params); next.delete('encounterId'); next.delete('residentId');

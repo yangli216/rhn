@@ -162,9 +162,6 @@ class ClinicalAssistantController {
         if (outcome == EventRecordingOutcome.ADOPTION_REJECTED_EXPIRED) {
             throw conflict("AI_SUGGESTION_EXPIRED", "AI 建议已过期，请重新分析后再采纳");
         }
-        if (outcome == EventRecordingOutcome.ADOPTION_REJECTED_SERVER_CONTEXT_CHANGED) {
-            throw conflict("AI_SUGGESTION_SERVER_CONTEXT_CHANGED", "患者临床信息已变化，请重新分析后再采纳");
-        }
     }
 
     @GetMapping("/suggestions/{suggestionId}/events")

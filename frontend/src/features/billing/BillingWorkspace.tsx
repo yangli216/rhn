@@ -921,7 +921,7 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [], usern
         setScanNotice({ tone: 'info', text: '未读取医保凭证，未执行试算' })
       }} />}
     {insuranceReader.dialog}
-    <SettlementExceptionBanner items={settlementExceptions.data ?? []} onOpen={() => navigate('/billing/query')} />
+    <SettlementExceptionBanner items={settlementExceptions.data ?? []} onOpen={() => navigate('/billing/exceptions')} />
     {scanNotice && <Alert tone={scanNotice.tone} onDismiss={() => setScanNotice(null)}>{scanNotice.text}</Alert>}
     {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
       <div className="billing-workspace">

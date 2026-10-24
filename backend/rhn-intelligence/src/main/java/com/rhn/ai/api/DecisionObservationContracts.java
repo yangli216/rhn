@@ -18,10 +18,10 @@ public final class DecisionObservationContracts {
     public record DecisionReviewRequest(@NotBlank String verdict, @NotBlank @Size(max=2000) String reason) {}
     public record DecisionRow(Long id, String scene, String mode, String outcome, Instant time, String traceId,
                       String model, Integer latencyMs, String comparison, Boolean equal, DecisionReview review, boolean uncertain, boolean modelCalled) {}
-    public record DecisionDetail(DecisionRun run, List<DecisionReview> reviews) {}
+    public record DecisionDetail(DecisionRun run, List<DecisionReview> reviews, List<RecordQualityContracts.RecordQualityFeedback> feedback) {}
     public record DecisionSceneState(String scene, String label, String mode, String state, Instant lastTriggeredAt) {}
     public record DecisionStatistics(int total, Map<String,Integer> outcomes, int comparable, int equal,
                              int reviewed, Double averageLatencyMs, Integer p95LatencyMs, int modelCalls, int judged, int uncertain) {}
     public record DecisionObservation(PageResult<DecisionRow> records, DecisionStatistics statistics, List<DecisionSceneState> scenes,
-                              Long organizationId, Long departmentId, String auditVersion) {}
+                              Long organizationId, Long departmentId, String auditVersion, RecordQualityContracts.DecisionFeedbackStatistics feedback) {}
 }

@@ -280,8 +280,16 @@ class SettlementReliefService {
                 .collect(Collectors.groupingBy(SettlementLine::settlementId, LinkedHashMap::new, Collectors.toList()));
         BigDecimal total = BigDecimal.ZERO;
         Instant now = Instant.now();
+        // 一次装载本批原结算，避免逐条回查。
+        List<Long> originalSettlementIds = originalLines.keySet().stream().toList();
+        Map<Long, Settlement> originalById = new HashMap<>();
+        for (int from = 0; from < originalSettlementIds.size(); from += 500) {
+            settlements.findByTenantIdAndIdIn(context.tenantId(),
+                    originalSettlementIds.subList(from, Math.min(from + 500, originalSettlementIds.size())))
+                    .forEach(value -> originalById.put(value.id(), value));
+        }
         for (Long settlementId : originalLines.keySet()) {
-            Settlement original = settlements.findByIdAndTenantId(settlementId, context.tenantId()).orElse(null);
+            Settlement original = originalById.get(settlementId);
             if (original == null || !"NORMAL".equals(original.settlementType())) continue;
             List<ReliefApplication> active = applications.findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(
                             context.tenantId(), settlementId).stream()

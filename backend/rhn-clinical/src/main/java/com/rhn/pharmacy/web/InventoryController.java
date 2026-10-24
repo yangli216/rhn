@@ -33,6 +33,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -105,6 +106,13 @@ public class InventoryController {
                                                          @RequestParam(defaultValue = "0") @Min(0) int page,
                                                          @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
         return service.balancePage(stockSiteId, stockItemId, page, size);
+    }
+
+    @GetMapping("/inventory/balances/summary")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
+    com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceSummaryView balanceSummary(
+            @RequestParam Long stockSiteId) {
+        return service.balanceSummary(stockSiteId);
     }
 
     @GetMapping("/inventory/transactions")
@@ -183,11 +191,40 @@ public class InventoryController {
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     DispenseTraceView trace(@PathVariable Long taskId) { return dispenseService.trace(taskId); }
 
+    /** 批量读取发药轨迹：退药勾选多项时一次取回全部轨迹，避免逐项请求。 */
+    @GetMapping("/dispense-tasks/traces")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
+    List<DispenseTraceView> traces(@RequestParam List<Long> taskIds) {
+        return dispenseService.traces(taskIds);
+    }
+
     @PostMapping("/dispense-tasks/{taskId}/cancel-dispense")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     DispenseCancelResultView cancelDispense(@PathVariable Long taskId,
                                            @Valid @RequestBody CancelDispenseRequest input) {
         return dispenseService.cancelDispense(taskId, input.command());
+    }
+
+    /** 整批取消发药：一次请求撤销多张处方任务的发药，任一任务不可取消则整批回滚。 */
+    @PostMapping("/dispense-tasks/cancel-dispense")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
+    java.util.List<DispenseCancelResultView> cancelDispenseBatch(@Valid @RequestBody CancelDispenseBatchRequest input) {
+        return dispenseService.cancelDispenseBatch(input.taskIds(), input.template());
+    }
+
+    record CancelDispenseBatchRequest(
+            @NotEmpty java.util.List<@NotNull Long> taskIds,
+            @NotNull Long operatorPractitionerId,
+            @NotNull Long operatorAssignmentId,
+            String reasonCode,
+            String description,
+            Instant occurredAt
+    ) {
+        /** 取消编码由服务端按任务生成，这里只带共享的操作人、原因与发生时间。 */
+        CancelDispenseCommand template() {
+            return new CancelDispenseCommand(null, operatorPractitionerId, operatorAssignmentId, reasonCode,
+                    description, occurredAt);
+        }
     }
 
     record CancelDispenseRequest(

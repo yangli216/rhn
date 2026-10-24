@@ -1,3 +1,4 @@
+import { includeLinkedDiagnosticTask, useDiagnosticTaskLink } from '../shared/useDiagnosticTaskLink'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
@@ -81,7 +82,7 @@ export function ExaminationWorkspace({
 }: ExaminationWorkspaceProps) {
   const client = useQueryClient()
   const [params, setParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(params.get('taskId') || '')
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
   const [modality, setModality] = useState('')
@@ -117,10 +118,11 @@ export function ExaminationWorkspace({
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const hasUnsaved = Object.values(forms).some((form) => form.dirty)
 
+  const linkedTask = useDiagnosticTaskLink(api, params.get('taskId'), scope, requireTask)
   const worklist = useQuery({
     queryKey: ['diagnostic-worklist', scope, filters, page, params.toString()],
     queryFn: async () => {
-      const queryFilters: DiagnosticWorklistFilters = {
+      const queryFilters: DiagnosticWorklistFilters = { activeAndRecent: true,
         status: (filters.status || undefined) as DiagnosticTaskStatus | undefined,
         createdFrom: diagnosticDateBoundary(filters.from),
         createdBefore: diagnosticDateBoundary(filters.to, true),
@@ -151,7 +153,7 @@ export function ExaminationWorkspace({
     refetchInterval: hasUnsaved ? false : 30_000,
   })
 
-  const rawTasks = useMemo(() => (worklist.isSuccess ? worklist.data.content : []), [worklist.isSuccess, worklist.data])
+  const rawTasks = useMemo(() => (includeLinkedDiagnosticTask(worklist.isSuccess ? worklist.data.content : [], linkedTask.isSuccess ? linkedTask.data : undefined)), [worklist.isSuccess, worklist.data, linkedTask.isSuccess, linkedTask.data])
 
   // Modality 前端分面过滤
   const tasks = useMemo(() => {
@@ -163,6 +165,7 @@ export function ExaminationWorkspace({
   }, [rawTasks, filters.modality])
 
   const selected = tasks.find((task) => task.id === selectedId) || tasks[0]
+  useEffect(() => { if (params.get('taskId')) setSelectedId(params.get('taskId')!) }, [params])
 
   useEffect(() => {
     onDirtyChange?.(hasUnsaved)
@@ -180,11 +183,12 @@ export function ExaminationWorkspace({
   }, [hasUnsaved])
 
   useEffect(() => {
+    if (params.get('taskId') && !linkedTask.isSuccess) return
     if (!tasks.some((task) => task.id === selectedId)) setSelectedId(tasks[0]?.id || '')
-  }, [tasks, selectedId])
+  }, [tasks, selectedId, params, linkedTask.isSuccess])
 
   useEffect(() => {
-    setSelectedId('')
+    setSelectedId(params.get('taskId') || '')
     setKeyword('')
     setStatus('')
     setModality('')
@@ -192,7 +196,7 @@ export function ExaminationWorkspace({
     setFilterError('')
     setFilters({ keyword: '', status: '', modality: '', from: '', to: '' })
     setPage(0)
-  }, [scope])
+  }, [scope, params])
 
   useEffect(() => {
     if (worklist.isSuccess && page > 0 && page >= worklist.data.totalPages) {
@@ -206,6 +210,7 @@ export function ExaminationWorkspace({
       await Promise.all(
         [
           'diagnostic-worklist',
+          'diagnostic-linked-task',
           'diagnostic-task-reports',
           'diagnostic-draft',
           'diagnostic-patient-demographics',
@@ -320,6 +325,10 @@ export function ExaminationWorkspace({
               </div>
             </div>
             {filterError && <Alert placement="inline">{filterError}</Alert>}
+            <Alert tone="info" placement="inline">队列显示全部未完成任务及近7天已完成、取消记录。
+              <Button variant="text" onClick={() => onNavigate('/diagnostics/examination/reports')}>查询历史报告</Button>
+            </Alert>
+            {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}
             {worklist.error && <Alert>{errorMessage(worklist.error)}</Alert>}
             {startExam.error && <Alert>{errorMessage(startExam.error)}</Alert>}
             {(params.get('encounterId') || params.get('residentId')) && (
@@ -389,34 +398,32 @@ export function ExaminationWorkspace({
                       title={`申请单号 ${task.requestNo}`}
                       onClick={() => setSelectedId(task.id)}
                     >
-                      <span className="diagnostic-queue-summary">
-                        <span className="diagnostic-queue-col diagnostic-queue-col--patient">
-                          <strong className="diagnostic-queue-patient-name">{task.residentName}</strong>
-                          <span className="diagnostic-queue-demographics">
-                            <DiagnosticPatientDemographics api={api} task={task} compact />
-                          </span>
+                      <span className="diagnostic-queue-head">
+                        <strong className="diagnostic-queue-patient-name">{task.residentName}</strong>
+                        <span className="diagnostic-queue-demographics">
+                          <DiagnosticPatientDemographics api={api} task={task} compact />
                         </span>
-                        <span className="diagnostic-queue-col diagnostic-queue-col--project">
-                          <span className="diagnostic-queue-project">
-                            <span
-                              className={`diagnostic-modality-badge diagnostic-modality-badge--${std.code.toLowerCase()}`}
-                            >
-                              {std.code}
-                            </span>{' '}
-                            {task.itemName}{task.bodySiteText ? `（${task.bodySiteText}）` : ''}
-                          </span>
-                          <span className="diagnostic-queue-meta">
-                            申请 {formatTime(task.createdAt) || '—'} · 单号 {task.requestNo}
-                          </span>
+                        <span className="diagnostic-queue-state">
+                          {forms[`${scope}:${task.id}`]?.dirty && (
+                            <small className="diagnostic-unsaved">未保存</small>
+                          )}
+                          <StatusBadge tone={itemStatus.tone}>{itemStatus.label}</StatusBadge>
                         </span>
                       </span>
+                      <span className="diagnostic-queue-project">
+                        <span
+                          className={`diagnostic-modality-badge diagnostic-modality-badge--${std.code.toLowerCase()}`}
+                        >
+                          {std.code}
+                        </span>
+                        <span className="diagnostic-queue-project-name">
+                          {task.itemName}{task.bodySiteText ? `（${task.bodySiteText}）` : ''}
+                        </span>
+                      </span>
+                      <span className="diagnostic-queue-meta">
+                        申请 {formatTime(task.createdAt) || '—'} · 单号 {task.requestNo}
+                      </span>
                     </Button>
-                    <div className="diagnostic-queue-state">
-                      <StatusBadge tone={itemStatus.tone}>{itemStatus.label}</StatusBadge>
-                      {forms[`${scope}:${task.id}`]?.dirty && (
-                        <small className="diagnostic-unsaved">未保存</small>
-                      )}
-                    </div>
                   </li>
                 )
               })}

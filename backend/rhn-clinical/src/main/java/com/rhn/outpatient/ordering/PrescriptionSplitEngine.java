@@ -44,10 +44,17 @@ public class PrescriptionSplitEngine {
 
     public List<SplitPrescriptionPlan> plan(EncounterDirectory.EncounterSnapshot encounter,
                                             List<BatchOrderMedicationItem> items) {
+        return plan(encounter, items, Map.of());
+    }
+
+    /** 批量开立可传入预解析目录快照，避免逐项重复解析；快照不匹配时回退单条解析。 */
+    public List<SplitPrescriptionPlan> plan(EncounterDirectory.EncounterSnapshot encounter,
+                                            List<BatchOrderMedicationItem> items,
+                                            Map<Long, CatalogLifecycleDirectory.CatalogOperationalSnapshot> preparedCatalogs) {
         if (items == null || items.isEmpty()) return List.of();
         // 与正式开立默认业务日期保持一致，不使用就诊登记日替代当前目录有效日。
         LocalDate businessDate = LocalDate.now();
-        List<ItemMeta> metas = buildItemMetas(encounter, items, businessDate);
+        List<ItemMeta> metas = buildItemMetas(encounter, items, businessDate, preparedCatalogs);
         PrescriptionSplitPolicy.Settings settings = policy.resolve(encounter);
 
         // 2. 多维分流桶划分
@@ -65,15 +72,25 @@ public class PrescriptionSplitEngine {
         return plans;
     }
 
-    private List<ItemMeta> buildItemMetas(EncounterDirectory.EncounterSnapshot encounter, List<BatchOrderMedicationItem> items, LocalDate businessDate) {
+    private List<ItemMeta> buildItemMetas(EncounterDirectory.EncounterSnapshot encounter, List<BatchOrderMedicationItem> items,
+                                          LocalDate businessDate,
+                                          Map<Long, CatalogLifecycleDirectory.CatalogOperationalSnapshot> preparedCatalogs) {
         Long tenantId = encounter.tenantId();
         List<ItemMeta> metas = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             BatchOrderMedicationItem item = items.get(i);
             MedicationSnapshot med;
             if (item.catalogItemId() != null) {
-                var catalog = catalogDirectory.resolve(tenantId, item.catalogItemId(), encounter.organizationId(),
-                        item.packageId(), Strings.trimToNull(item.priceType()) == null ? "SALE" : item.priceType(), businessDate);
+                String priceType = Strings.trimToNull(item.priceType()) == null ? "SALE"
+                        : Strings.trimToNull(item.priceType()).toUpperCase();
+                var prepared = preparedCatalogs.get(item.catalogItemId());
+                var catalog = prepared != null && Objects.equals(prepared.packageId(), item.packageId())
+                        && Objects.equals(prepared.organizationId(), encounter.organizationId())
+                        && Objects.equals(prepared.priceType(), priceType)
+                        && Objects.equals(prepared.businessDate(), businessDate)
+                        ? prepared
+                        : catalogDirectory.resolve(tenantId, item.catalogItemId(), encounter.organizationId(),
+                                item.packageId(), Strings.trimToNull(item.priceType()) == null ? "SALE" : item.priceType(), businessDate);
                 if (catalog == null || catalog.item() == null || !"MED_PRODUCT".equals(catalog.item().itemType())
                         || !item.catalogItemId().equals(catalog.item().id()) || catalog.medication() == null) {
                     throw badRequest("SPLIT_MEDICATION_PRODUCT_UNCONFIRMED", "分方未确认真实药品产品及其通用药品");
@@ -222,12 +239,13 @@ public class PrescriptionSplitEngine {
         String categoryCode;
         if (infusionBucket) {
             title = "门诊输液处方";
-            categoryCode = first.category();
+            // 输液桶按药房与途径归集，可能混入西药与中成药；处方大类取通用的门诊处方，避免药品类型校验误判。
+            categoryCode = categories.size() > 1 ? "OUTPATIENT" : first.category();
             reasons.add("静脉输液途径隔离");
         } else if (categories.size() > 1) {
-            // 合方处方按西药处方笺管理，打印与药房仍按明细药品分类展示。
+            // 合方处方按西药处方笺管理，打印与药房仍按明细药品分类展示；大类使用通用的门诊处方以兼容混类明细。
             title = "门诊西药/中成药处方";
-            categoryCode = "WESTERN";
+            categoryCode = "OUTPATIENT";
             reasons.add("西药与中成药合方（机构参数）");
         } else if ("CHINESE_PATENT".equalsIgnoreCase(first.category())) {
             title = "门诊中成药处方";

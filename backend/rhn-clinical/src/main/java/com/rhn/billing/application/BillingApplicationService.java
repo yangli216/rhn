@@ -60,6 +60,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -461,16 +462,19 @@ public class BillingApplicationService {
         }
         codes.requireTenderType(context.tenantId(), method);
         if (invoice.netAmount().signum() <= 0) throw conflict("PAYMENT_CREDIT_INVOICE_INVALID", "贷项结算凭证不能执行收款");
+        // 先账户后结算单的加锁顺序（账户已锁）；未付金额须同时扣除支付流水与医保基金/个人账户/减免等非支付资金。
+        Settlement formalSettlement = settlements.lockByInvoice(context, invoice.id());
         BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
+        BigDecimal externallyFunded = settlements.nonPaymentTendered(context, formalSettlement.id());
         if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
-            Settlement formalSettlement = settlements.requireForPayment(context, invoice.id());
+            settlements.requireForPayment(context, invoice.id());
             BigDecimal adjustment = roundingPolicy.totalAdjustment(context, invoice.id(), method, paymentScene,
-                    invoice.netAmount().subtract(paid).subtract(settlements.nonPaymentTendered(context, formalSettlement.id())),
+                    invoice.netAmount().subtract(paid).subtract(externallyFunded),
                     input.amount(), input.roundingAdjustment(), formalSettlement.roundingAmount());
             formalSettlement.applyRoundingAdjustment(adjustment);
             invoice.adjustRounding(adjustment);
         }
-        BigDecimal outstanding = money(invoice.netAmount().subtract(paid));
+        BigDecimal outstanding = money(invoice.netAmount().subtract(paid).subtract(externallyFunded));
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
         Instant paidAt = input.paidAt() == null ? Instant.now() : input.paidAt();
         String displayNumber =  numbers.next("payment", new BusinessNumberContext(context.tenantId(), account.organizationId(), account.departmentId()));
@@ -652,23 +656,57 @@ public class BillingApplicationService {
         Map<String, String> unitNames = unitDirectory.resolveNames(context.tenantId(), charges.stream()
                 .map(ChargeItem::unitCode).filter(Objects::nonNull).collect(Collectors.toSet()));
         var ordering = orderOrigins.resolve(context.tenantId(), charges);
+        // 药品计费项的包装/厂商信息一次批量取回路由快照，避免逐条回查。
+        List<Long> requestIds = charges.stream()
+                .filter(value -> value.sourceType() != null && value.sourceType().startsWith("MEDICATION"))
+                .map(value -> value.requestId() != null ? value.requestId()
+                        : "MEDICATION_REQUEST".equals(value.sourceType()) ? value.sourceId() : null)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<Long, MedicationRequestSnapshot> loadedSnapshots = requestIds.isEmpty() ? Map.of()
+                : medicationRequestDirectory.routingSnapshots(context.tenantId(), requestIds);
+        Map<Long, MedicationRequestSnapshot> requestSnapshots = loadedSnapshots == null ? Map.of() : loadedSnapshots;
+        List<Long> invoiceIds = invoices.stream().map(Invoice::id).toList();
+        // 发票段一次批量装载发票行、结算凭证金额与支付净额，避免逐发票回查。
+        Map<Long, List<InvoiceLine>> linesByInvoice = new HashMap<>();
+        for (int from = 0; from < invoiceIds.size(); from += 500) {
+            invoiceLineRepository.findByTenantIdAndInvoiceIdInOrderByInvoiceIdAscLineNoAsc(context.tenantId(),
+                            invoiceIds.subList(from, Math.min(from + 500, invoiceIds.size())))
+                    .forEach(value -> linesByInvoice.computeIfAbsent(value.invoiceId(),
+                            ignored -> new ArrayList<>()).add(value));
+        }
+        Map<Long, BigDecimal> tenderedByInvoice = settlements.invoiceTendered(context, invoiceIds);
+        Map<Long, BigDecimal> netPaidByInvoice = new HashMap<>();
+        if (!invoiceIds.isEmpty()) {
+            paymentRepository.netPaidForInvoices(context.tenantId(), invoiceIds)
+                    .forEach(value -> netPaidByInvoice.put(value.getInvoiceId(), value.getPaidAmount()));
+        }
         return new AccountStatementView(account.id(), account.revision(), account.residentId(), account.encounterId(),
                 account.organizationId(), account.departmentId(), account.accountType(), account.currencyCode(),
                 account.status().name(), account.openedAt(), chargeAmount, invoiced, uninvoiced, paymentAmount, refundAmount,
                 money(ledgerRepository.balance(context.tenantId(), account.id())),
-                charges.stream().map(value -> chargeView(value, unitNames, ordering.get(value.id()))).toList(),
-                invoices.stream().map(value -> invoiceView(context, value)).toList(),
+                charges.stream().map(value -> chargeView(value, unitNames, ordering.get(value.id()),
+                        requestSnapshots)).toList(),
+                invoices.stream().map(value -> {
+                    BigDecimal tendered = tenderedByInvoice.get(value.id());
+                    BigDecimal paid = tendered != null ? tendered
+                            : money(netPaidByInvoice.getOrDefault(value.id(), BigDecimal.ZERO));
+                    return invoiceView(value, linesByInvoice.getOrDefault(value.id(), List.of()), paid);
+                }).toList(),
                 settlements.listByAccount(context, account.id()),
                 payments.stream().map(this::paymentView).toList(), ledger.stream().map(this::ledgerView).toList());
     }
 
     private InvoiceView invoiceView(ExecutionContext context, Invoice invoice) {
-        List<InvoiceLineView> lines = invoiceLineRepository.findByTenantIdAndInvoiceIdOrderByLineNo(
-                        context.tenantId(), invoice.id()).stream()
-                .map(value -> new InvoiceLineView(value.id(), value.chargeItemId(), value.lineNo(), value.amount())).toList();
         BigDecimal tendered = settlements.tenderedForInvoice(context, invoice.id());
         BigDecimal paid = tendered == null
                 ? money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id())) : tendered;
+        return invoiceView(invoice, invoiceLineRepository.findByTenantIdAndInvoiceIdOrderByLineNo(
+                context.tenantId(), invoice.id()), paid);
+    }
+
+    private InvoiceView invoiceView(Invoice invoice, List<InvoiceLine> lineValues, BigDecimal paid) {
+        List<InvoiceLineView> lines = lineValues.stream()
+                .map(value -> new InvoiceLineView(value.id(), value.chargeItemId(), value.lineNo(), value.amount())).toList();
         return new InvoiceView(invoice.id(), invoice.patientAccountId(), invoice.invoiceNo(), invoice.commandCode(), invoice.invoiceType(),
                 invoice.status(), invoice.currencyCode(), invoice.grossAmount(), invoice.discountAmount(),
                 invoice.netAmount(), paid, money(invoice.netAmount().subtract(paid)), invoice.issuedAt(),
@@ -676,7 +714,8 @@ public class BillingApplicationService {
     }
 
     private ChargeItemView chargeView(ChargeItem value, Map<String, String> unitNames,
-                                     com.rhn.billing.api.BillingViews.ChargeOrderingView ordering) {
+                                     com.rhn.billing.api.BillingViews.ChargeOrderingView ordering,
+                                     Map<Long, MedicationRequestSnapshot> requestSnapshots) {
         String packageSpec = null;
         String manufacturerName = null;
         String unitName = value.unitCode() == null ? null
@@ -685,7 +724,9 @@ public class BillingApplicationService {
                 : "MEDICATION_REQUEST".equals(value.sourceType()) ? value.sourceId() : null;
         if (value.sourceType() != null && value.sourceType().startsWith("MEDICATION") && reqId != null) {
             try {
-                MedicationRequestSnapshot snap = medicationRequestDirectory.requireForRouting(value.tenantId(), reqId);
+                MedicationRequestSnapshot snap = requestSnapshots.containsKey(reqId)
+                        ? requestSnapshots.get(reqId)
+                        : medicationRequestDirectory.requireForRouting(value.tenantId(), reqId);
                 if (snap != null) {
                     packageSpec = snap.packageSpec();
                     manufacturerName = snap.manufacturerName();

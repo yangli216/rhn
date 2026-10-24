@@ -21,4 +21,11 @@ describe('IconActionButton', () => {
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('title', '已发药，不能撤销')
   })
+  it('shows a positive count without changing the action name and hides an empty count', () => {
+    const { rerender } = render(<IconActionButton label="病历核查" icon={<Icon name="check" />} count={3} />)
+    expect(screen.getByRole('button', { name: '病历核查' })).toHaveTextContent('3')
+    expect(screen.getByText('3')).toHaveAttribute('aria-hidden', 'true')
+    rerender(<IconActionButton label="病历核查" icon={<Icon name="check" />} count={0} />)
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
 })

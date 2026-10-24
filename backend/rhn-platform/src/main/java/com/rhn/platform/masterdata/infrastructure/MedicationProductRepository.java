@@ -28,6 +28,12 @@ public interface MedicationProductRepository extends JpaRepository<MedicationPro
             Pageable pageable);
 
     List<MedicationProduct> findByTenantIdAndItemTypeOrderByName(Long tenantId, String itemType);
+    @Query("""
+            select p from MedicationProduct p
+            where p.tenantId = :tenantId and p.itemType = 'MED_PRODUCT' and p.id in :ids
+            """)
+    List<MedicationProduct> findProductsByTenantIdAndIdIn(@Param("tenantId") Long tenantId,
+                                                          @Param("ids") Collection<Long> ids);
     List<MedicationProduct> findByTenantIdAndMedicationIdIn(Long tenantId, Collection<Long> medicationIds);
     List<MedicationProduct> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
     Optional<MedicationProduct> findByIdAndTenantIdAndItemType(Long id, Long tenantId, String itemType);

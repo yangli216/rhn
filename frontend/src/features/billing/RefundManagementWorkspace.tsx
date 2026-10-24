@@ -379,27 +379,27 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
     {worklist.isPending ? <LoadingState label="正在加载退费队列…" /> : worklist.isError ?
       <EmptyState icon="billing" title="退费队列加载失败" copy="无法确认当前待退费记录，请重新加载。"
         action={<Button onClick={() => void worklist.refetch()}>重新加载退费队列</Button>} /> : <div className="billing-refund-workspace">
-      <div>
-        <div className="billing-refund-queue-tabs">
-          <button
-            type="button"
-            className={`billing-refund-queue-tab ${queueTab === 'PENDING_REFUND' ? 'is-active' : ''}`}
-            onClick={() => setQueueTab('PENDING_REFUND')}
-          >
-            待退费队列 ({pendingItems.length})
-          </button>
-          <button
-            type="button"
-            className={`billing-refund-queue-tab ${queueTab === 'SETTLED' ? 'is-active' : ''}`}
-            onClick={() => setQueueTab('SETTLED')}
-          >
-            已收费就诊{queueTab === 'SETTLED' && settled.data ? ` (${settled.data.totalElements})` : ''}
-          </button>
-        </div>
         {queueTab === 'PENDING_REFUND' ? (
           <BillingQueue
             key="PENDING_REFUND"
-            title="待退费患者"
+            header={
+              <div className="billing-refund-queue-tabs">
+                <button
+                  type="button"
+                  className="billing-refund-queue-tab is-active"
+                  onClick={() => setQueueTab('PENDING_REFUND')}
+                >
+                  待退费队列 ({pendingItems.length})
+                </button>
+                <button
+                  type="button"
+                  className="billing-refund-queue-tab"
+                  onClick={() => setQueueTab('SETTLED')}
+                >
+                  已收费就诊{settled.data ? ` (${settled.data.totalElements})` : ''}
+                </button>
+              </div>
+            }
             items={pendingItems}
             selectedId={encounterId}
             onSelect={(id) => { const item = pendingItems.find((value) => value.encounterId === id); if (item) selectItem(item) }}
@@ -409,7 +409,24 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
         ) : (
           <BillingQueue
             key="SETTLED"
-            title="已结算就诊"
+            header={
+              <div className="billing-refund-queue-tabs">
+                <button
+                  type="button"
+                  className="billing-refund-queue-tab"
+                  onClick={() => setQueueTab('PENDING_REFUND')}
+                >
+                  待退费队列 ({pendingItems.length})
+                </button>
+                <button
+                  type="button"
+                  className="billing-refund-queue-tab is-active"
+                  onClick={() => setQueueTab('SETTLED')}
+                >
+                  已收费就诊{settled.data ? ` (${settled.data.totalElements})` : ''}
+                </button>
+              </div>
+            }
             items={settledItems ?? []}
             selectedId={encounterId}
             onSelect={(id) => { const item = settledItems?.find((value) => value.encounterId === id); if (item) selectItem(item) }}
@@ -428,7 +445,6 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
               onChange={setSettledPage} />}
           />
         )}
-      </div>
 
       <Panel className="billing-refund-detail">
         <header className="billing-section-head">

@@ -78,6 +78,9 @@ public class Invoice {
         this.netAmount = this.grossAmount.add(adjustment).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
     }
 
+    /** 舍入随支付指令失败回退：结算凭证净额恢复为 毛额 − 减免。 */
+    public void revertRounding() { adjustRounding(BigDecimal.ZERO); }
+
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
     public Long organizationId() { return organizationId; }

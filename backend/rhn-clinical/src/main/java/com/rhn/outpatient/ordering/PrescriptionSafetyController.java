@@ -1,12 +1,14 @@
 package com.rhn.outpatient.ordering;
 
 import com.rhn.outpatient.api.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 /** Optional observation endpoint. Never submits an order, reserves stock, or creates an approval gate. */
 @RestController
 @RequestMapping("/api/encounters/{encounterId}/prescriptions/{prescriptionId}/safety-evaluations")
+@PreAuthorize(OutpatientPermissions.ORDERING_ACCESS)
 class PrescriptionSafetyController {
     private final PrescriptionSafetyEvaluationDirectory evaluations;
     private final PrescriptionSafetySnapshotDirectory snapshots;

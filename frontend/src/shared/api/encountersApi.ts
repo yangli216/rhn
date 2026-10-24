@@ -391,6 +391,12 @@ export function createEncountersApi(client: ApiClient) {
       client.request<ServiceRequest>(`/api/encounters/${encounterId}/service-requests/${id}/document-info`, {
         method: 'PUT', body: JSON.stringify({ expectedRevision, documentInfo }),
       }),
+    /** 一张申请单内的多个项目共用单据信息，一次请求批量写入，每项各自校验版本。 */
+    updateServiceDocumentInfoBatch: (encounterId: string,
+      members: Array<{ id: string; expectedRevision: number }>, documentInfo: OrderDocumentInfo) =>
+      client.request<ServiceRequest[]>(`/api/encounters/${encounterId}/service-requests/document-info`, {
+        method: 'PUT', body: JSON.stringify({ members, documentInfo }),
+      }),
     directVisitSettings: () => client.request<{ enabled: boolean; catalogItemId?: string | null }>(
       '/api/encounters/direct-visit/settings'),
     directVisit: (input: { residentId: string; encounterId?: string; commandCode: string;
@@ -519,6 +525,13 @@ export function createEncountersApi(client: ApiClient) {
     orderableMedications: (encounterId: string, query?: string) => client.request<OrderableMedicationKnowledge[]>(
       `/api/encounters/${encounterId}/orderable-medications${query ? `?query=${encodeURIComponent(query)}` : ''}`,
     ),
+    orderableMedicationsBatch: (encounterId: string, queries: string[]) => {
+      const params = new URLSearchParams()
+      for (const value of queries) params.append('queries', value)
+      return client.request<Record<string, OrderableMedicationKnowledge[]>>(
+        `/api/encounters/${encounterId}/orderable-medications/batch?${params.toString()}`,
+      )
+    },
     page: async (params: {
       dateFrom?: string
       dateTo?: string

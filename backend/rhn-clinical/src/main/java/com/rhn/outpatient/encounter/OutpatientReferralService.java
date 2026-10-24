@@ -156,16 +156,47 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
     public List<View> byEncounter(Long encounterId) {
         ExecutionContext context = requireWorkContext();
         sourceEncounter(encounterId, context);
-        return requests.findByTenantIdAndEncounterIdOrderByRequestedAtDesc(context.tenantId(), encounterId)
-                .stream().map(this::toView).toList();
+        return views(requests.findByTenantIdAndEncounterIdOrderByRequestedAtDesc(context.tenantId(), encounterId));
     }
 
     @Transactional(readOnly = true)
     public List<View> inbox() {
         ExecutionContext context = requireWorkContext();
-        return requests.findByTenantIdAndTargetOrganizationIdAndTargetDepartmentIdAndStatusInOrderByRequestedAtAsc(
-                        context.tenantId(), context.organizationId(), context.departmentId(), OPEN_STATUSES)
-                .stream().map(this::toView).toList();
+        return views(requests.findByTenantIdAndTargetOrganizationIdAndTargetDepartmentIdAndStatusInOrderByRequestedAtAsc(
+                context.tenantId(), context.organizationId(), context.departmentId(), OPEN_STATUSES));
+    }
+
+    /** 列表装配：一次批量装载就诊与居民，机构/科室按去重键复用，避免逐条转诊重复查询。 */
+    private List<View> views(List<OutpatientReferralRequest> rows) {
+        if (rows.isEmpty()) return List.of();
+        Long tenantId = rows.getFirst().tenantId();
+        Map<Long, Encounter> encounterById = new LinkedHashMap<>();
+        encounters.findByTenantIdAndIdIn(tenantId,
+                        rows.stream().map(OutpatientReferralRequest::encounterId).distinct().toList())
+                .forEach(value -> encounterById.put(value.id(), value));
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentById = residents.requireSnapshots(
+                rows.stream().map(OutpatientReferralRequest::residentId).distinct().toList());
+        Map<Long, OrganizationView> organizationById = new LinkedHashMap<>();
+        Map<String, DepartmentView> departmentByKey = new LinkedHashMap<>();
+        return rows.stream().map(request -> {
+            Encounter source = encounterById.get(request.encounterId());
+            if (source == null) throw notFound("ENCOUNTER_NOT_FOUND", "未找到协同请求关联的就诊");
+            ResidentDirectory.ResidentSnapshot resident = residentById.containsKey(request.residentId())
+                    ? residentById.get(request.residentId()) : residents.requireSnapshot(request.residentId());
+            OrganizationView sourceOrganization = organizationById.computeIfAbsent(source.organizationId(),
+                    id -> organizations.requireOrganization(tenantId, id));
+            DepartmentView sourceDepartment = departmentByKey.computeIfAbsent(
+                    source.organizationId() + ":" + source.departmentId(),
+                    key -> organizations.requireDepartment(tenantId, source.organizationId(), source.departmentId()));
+            OrganizationView targetOrganization = organizationById.computeIfAbsent(request.targetOrganizationId(),
+                    id -> organizations.requireOrganization(tenantId, id));
+            DepartmentView targetDepartment = departmentByKey.computeIfAbsent(
+                    request.targetOrganizationId() + ":" + request.targetDepartmentId(),
+                    key -> organizations.requireDepartment(tenantId, request.targetOrganizationId(),
+                            request.targetDepartmentId()));
+            return view(request, source, resident, sourceOrganization, sourceDepartment,
+                    targetOrganization, targetDepartment);
+        }).toList();
     }
 
     @Transactional
@@ -274,6 +305,8 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
         if (source.status() != EncounterStatus.SUSPENDED) {
             throw conflict("TRANSFER_SOURCE_STATE_INVALID", "转科来源就诊必须处于等待接收状态");
         }
+        // 与普通挂号共用居民行锁串行化，避免并发接收时在目标科室重复建立就诊。
+        residents.requireSnapshotForUpdate(source.residentId());
         encounters.findFirstByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
                         context.tenantId(), source.residentId(), request.targetOrganizationId(),
                         request.targetDepartmentId(), List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS,
@@ -383,6 +416,14 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
                 request.tenantId(), request.targetOrganizationId());
         DepartmentView targetDepartment = organizations.requireDepartment(
                 request.tenantId(), request.targetOrganizationId(), request.targetDepartmentId());
+        return view(request, source, resident, sourceOrganization, sourceDepartment,
+                targetOrganization, targetDepartment);
+    }
+
+    private View view(OutpatientReferralRequest request, Encounter source,
+                      ResidentDirectory.ResidentSnapshot resident,
+                      OrganizationView sourceOrganization, DepartmentView sourceDepartment,
+                      OrganizationView targetOrganization, DepartmentView targetDepartment) {
         return new View(request.id(), request.revision(), request.requestNo(), request.encounterId(),
                 source.encounterNo(), source.status().name(), request.residentId(), resident.fullName(),
                 resident.healthRecordNo(), source.organizationId(), sourceOrganization.name(), source.departmentId(),

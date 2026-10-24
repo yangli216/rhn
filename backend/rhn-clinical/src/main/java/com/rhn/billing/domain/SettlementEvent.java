@@ -30,7 +30,8 @@ public class SettlementEvent {
         this.eventType = eventType; this.statusFrom = statusFrom; this.statusTo = statusTo;
         this.commandCode = commandCode; this.actorId = actorId; this.occurredAt = occurredAt;
     }
-    public Long id() { return id; } public String eventType() { return eventType; }
+    public Long id() { return id; } public Long settlementId() { return settlementId; }
+    public String eventType() { return eventType; }
     public String statusFrom() { return statusFrom; } public String statusTo() { return statusTo; }
     public String commandCode() { return commandCode; } public Long actorId() { return actorId; }
     public String errorCode() { return errorCode; } public String errorMessage() { return errorMessage; }

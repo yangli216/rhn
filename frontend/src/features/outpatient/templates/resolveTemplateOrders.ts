@@ -3,6 +3,7 @@ import type { Encounter } from '../../../shared/model'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
 import type { MedicationKnowledge } from '../../../shared/api/masterDataApi'
+import type { OrderableMedicationKnowledge } from '../../../shared/api/encountersApi'
 import type { OutpatientPlanTemplate, OutpatientPlanTemplateMedication } from '../../../shared/api/outpatientPlanTemplatesApi'
 import type { MedicationPlanDraft } from '../orders/medicationDraft'
 import type { ServicePlanDraft } from '../orders/orderDraftTypes'
@@ -80,17 +81,16 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
     api.masterData.activeOrderFrequencies(encounter.organizationId, encounter.departmentId, 'OUTPATIENT', 'MEDICATION'),
   ]) : [[], []]
   if (!Array.isArray(routes) || !Array.isArray(frequencies)) return fail('当前用法或频次目录未确认')
-  const knowledge = new Map<string, ReturnType<RhnApi['masterData']['medications']>>()
-  const stocks = new Map<string, ReturnType<RhnApi['encounters']['orderableMedications']>>()
   const departments = new Map<string, ReturnType<typeof resolveOrderExecutionDepartment>>()
-  const medicationFacts = await Promise.all(plan.medications.map(async (item, index) => {
-    if (!knowledge.has(item.medicationId)) knowledge.set(item.medicationId,
-      api.masterData.medications(item.medicationCode, '', 'ACTIVE', encounter.organizationId))
-    const rows = await knowledge.get(item.medicationId)!
-    if (!Array.isArray(rows)) return fail(`${item.medicationName}的知识目录未确认`)
-    const matches = rows.filter(row => row?.id === item.medicationId && row.code === item.medicationCode)
-    if (matches.length !== 1) return fail(`${item.medicationName}未匹配到唯一的当前药品`)
-    const medication = matches[0]
+  // 一次按编码批量读取模板涉及的药品知识，避免逐药请求（每次都会全表过滤）。
+  const medicationCodes = [...new Set(plan.medications.map(item => item.medicationCode).filter(text))]
+  const medicationRows = medicationCodes.length
+    ? await api.masterData.medicationsByCodes(medicationCodes, 'ACTIVE', encounter.organizationId) : []
+  if (!Array.isArray(medicationRows)) return fail('当前药品知识目录未确认')
+  const facts = plan.medications.map((item, index) => {
+    const rows = medicationRows.filter(row => row?.id === item.medicationId && row.code === item.medicationCode)
+    if (rows.length !== 1) return fail(`${item.medicationName}未匹配到唯一的当前药品`)
+    const medication = rows[0]
     if (medication.sdStatus !== 'ACTIVE' || medication.sdMedicationType !== item.categoryCode || !text(medication.name)
       || typeof medication.skinTestRequired !== 'boolean' || typeof medication.antimicrobial !== 'boolean'
       || !Array.isArray(medication.allergenConceptIds) || !medication.allergenConceptIds.every(text)
@@ -106,9 +106,16 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
     if (!sameUnit(item.quantityUnit, product.unitCode) && !sameUnit(item.quantityUnit, product.unitName)) {
       return fail(`${item.medicationName}的模板数量单位与当前包装不一致，请核对换算关系`)
     }
-    if (!item.selfProvided && !stocks.has(item.medicationId)) stocks.set(item.medicationId,
-      api.encounters.orderableMedications(encounter.id, medication.code))
-    const inventory = item.selfProvided ? [] : await stocks.get(item.medicationId)!
+    return { index, item, medication, product, route: route[0], frequency: frequency[0] }
+  })
+  // 一次批量读取全部开立候选，服务端复用同一次库存与目录扫描。
+  const stockCodes = [...new Set(facts.filter(value => !value.item.selfProvided).map(value => value.medication.code))]
+  const stockRows: Record<string, unknown> = stockCodes.length
+    ? await api.encounters.orderableMedicationsBatch(encounter.id, stockCodes) : {}
+  if (!stockRows || typeof stockRows !== 'object' || Array.isArray(stockRows)) return fail('当前库存候选未确认')
+  const medicationFacts = facts.map(value => {
+    const { index, item, medication, product, route, frequency } = value
+    const inventory = (item.selfProvided ? [] : stockRows[medication.code]) as OrderableMedicationKnowledge[] | undefined
     if (!Array.isArray(inventory)) return fail(`${item.medicationName}的当前库存未确认`)
     const draft: MedicationPlanDraft = {
       id: crypto.randomUUID(), sequence: Date.now() + index, editorMode: item.editorMode, categoryCode: medication.sdMedicationType,
@@ -116,23 +123,27 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
       productName: product.product?.name ?? '自备药品（产品未指定）', preparationSpec: medication.preparationSpec,
       productSpec: product.itemPackage?.packageSpec, manufacturerName: product.product?.manufacturerName,
       unitPrice: product.price, currencyCode: product.currencyCode, packageUnitName: product.unitName,
-      routeName: route[0].name, routeExecutionType: route[0].executionType,
-      administrationGroupKey: route[0].executionType === 'INFUSION' ? `draft:${crypto.randomUUID()}` : undefined,
+      routeName: route.name, routeExecutionType: route.executionType,
+      administrationGroupKey: route.executionType === 'INFUSION' ? `draft:${crypto.randomUUID()}` : undefined,
       skinTestRequired: medication.skinTestRequired, skinTestResultValidityHours: medication.skinTestResultValidityHours,
       antimicrobial: medication.antimicrobial, sdAntimicrobialLevelText: medication.sdAntimicrobialLevelText,
       allergenConceptIds: medication.allergenConceptIds,
       request: { medicationId: medication.id, catalogItemId: product.product?.id, packageId: product.itemPackage?.id,
-        doseValue: item.doseValue, doseUnit: item.doseUnit, routeCode: route[0].code, frequencyCode: frequency[0].code,
+        doseValue: item.doseValue, doseUnit: item.doseUnit, routeCode: route.code, frequencyCode: frequency.code,
         durationValue: item.durationValue, durationUnit: item.durationUnit, quantity: item.quantity, quantityUnit: product.unitCode,
         substitutionAllowed: item.substitutionAllowed, selfProvided: item.selfProvided, medicationInstruction: item.medicationInstruction,
         allergyReviewConfirmed: allergyRecorded, pricingRequired: product.priced, priceType: item.priceType ?? 'SALE', reason: item.reason },
     }
     return { draft, inventory, product, medication }
-  }))
+  })
+  // 一次按编码批量读取模板涉及的服务项目，避免逐项请求。
+  const serviceCodes = [...new Set(plan.services.map(item => item.itemCode).filter(text))]
+  const serviceRows = serviceCodes.length
+    ? await api.masterData.servicesByCodes(serviceCodes, 'ACTIVE', encounter.organizationId) : []
+  if (!Array.isArray(serviceRows)) return fail('当前项目目录未确认')
   const services = await Promise.all(plan.services.map(async (item, index): Promise<ServicePlanDraft> => {
-    const page = await api.masterData.searchServices(item.itemCode, item.serviceType, 'ACTIVE', encounter.organizationId, 0, 100)
-    if (!page || !Array.isArray(page.content)) return fail(`${item.itemName}的项目目录未确认`)
-    const matches = page.content.filter(row => row?.id === item.catalogItemId)
+    const matches = serviceRows.filter(row => row?.id === item.catalogItemId && row.code === item.itemCode
+      && row.sdServiceType === item.serviceType)
     if (matches.length !== 1) return fail(`${item.itemName}未匹配到唯一的当前项目`)
     const current = matches[0]
     if (current.code !== item.itemCode || current.sdServiceType !== item.serviceType || !text(current.name)

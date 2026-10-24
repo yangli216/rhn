@@ -68,6 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -191,6 +192,21 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                     .limit(resultLimit - matches.size()).forEach(matches::add);
         }
         return List.copyOf(matches);
+    }
+
+    /** 按编码批量读取服务项目，供模板一次请求完成目录核对。 */
+    @Transactional(readOnly = true)
+    public List<ServiceView> servicesByCodes(Collection<String> codes, String status, Long organizationId) {
+        ExecutionContext context = current();
+        if (codes == null || codes.isEmpty()) return List.of();
+        Set<String> normalized = codes.stream().filter(value -> !blank(value)).map(String::trim)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (normalized.isEmpty()) return List.of();
+        List<ServiceCatalogItem> items = serviceRepository
+                .findByTenantIdAndItemTypeAndCodeIn(context.tenantId(), "SERVICE", normalized).stream()
+                .filter(value -> blank(status) || status.equals(value.status()))
+                .toList();
+        return serviceViews(context.tenantId(), items, organizationId);
     }
 
     @Transactional(readOnly = true)
@@ -390,6 +406,19 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 .filter(value -> matches(query, value.code(), value.name(), value.aliasName(), value.doseForm(),
                         value.preparationSpec()) || searchIds.contains(value.id()))
                 .limit(500).toList();
+        return medicationViews(context.tenantId(), items, organizationId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MedicationView> medicationsByCodes(Collection<String> codes, String status, Long organizationId) {
+        ExecutionContext context = current();
+        if (codes == null || codes.isEmpty()) return List.of();
+        Set<String> normalized = codes.stream().filter(value -> !blank(value)).map(String::trim)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (normalized.isEmpty()) return List.of();
+        List<Medication> items = medicationRepository.findByTenantIdAndCodeIn(context.tenantId(), normalized).stream()
+                .filter(value -> blank(status) || status.equals(value.status()))
+                .toList();
         return medicationViews(context.tenantId(), items, organizationId);
     }
 
@@ -896,6 +925,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 .collect(Collectors.toMap(Manufacturer::id, Function.identity()));
         Map<Long, List<MedicationProductView>> productViews = productViews(tenantId, products, manufacturers,
                 organizationId).stream().collect(Collectors.groupingBy(MedicationProductView::medicationId));
+        // 标准关联一次批量解析：按药品逐个调用会重复查询关联来源与审核摘要，整页检索时形成 N+1。
+        Map<Long, com.rhn.platform.masterdata.api.MedicationStandardReference> standards =
+                medicationStandards.references(tenantId, items);
         return items.stream().map(value -> new MedicationView(value.id(), value.revision(), value.itemTypeId(),
                 value.itemMasterId(), value.code(), value.name(),
                 value.aliasName(), value.medicationType(), value.doseForm(), value.preparationSpec(),
@@ -908,7 +940,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(),
                 value.defaultFrequencyId(), value.defaultFrequency(), value.chronicDiseaseDrug(), value.singleOrder(), value.status(),
                 classifications.getOrDefault(value.id(), List.of()), allergenConceptIds.getOrDefault(value.id(), List.of()),
-                productViews.getOrDefault(value.id(), List.of()), medicationStandards.reference(tenantId, value.id()))).toList();
+                productViews.getOrDefault(value.id(), List.of()), standards.get(value.id()))).toList();
     }
 
     private List<MedicationProductView> productViews(Long tenantId, List<MedicationProduct> products,

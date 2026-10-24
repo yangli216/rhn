@@ -10,5 +10,6 @@ import java.util.Optional;
 public interface ItemPackageRepository extends JpaRepository<ItemPackage, Long> {
     List<ItemPackage> findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscQuantityFactorAsc(
             Long tenantId, Collection<Long> catalogItemIds);
+    List<ItemPackage> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
     Optional<ItemPackage> findByIdAndTenantId(Long id, Long tenantId);
 }

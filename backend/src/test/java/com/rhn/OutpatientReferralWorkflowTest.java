@@ -63,6 +63,12 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '%s')].residentName".formatted(requestId))
                         .value("会诊连续性患者"));
+        mockMvc.perform(get("/api/outpatient/referrals/encounters/{id}", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '%s')].residentName".formatted(requestId))
+                        .value("会诊连续性患者"))
+                .andExpect(jsonPath("$[?(@.id == '%s')].targetDepartmentName".formatted(requestId))
+                        .value("内科门诊"));
         mockMvc.perform(post("/api/outpatient/referrals/{id}/accept", requestId).with(targetWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"CONSULT-ACCEPT-%s\"}".formatted(suffix)))

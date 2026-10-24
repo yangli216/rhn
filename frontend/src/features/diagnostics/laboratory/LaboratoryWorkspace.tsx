@@ -1,3 +1,4 @@
+import { includeLinkedDiagnosticTask, useDiagnosticTaskLink } from '../shared/useDiagnosticTaskLink'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
@@ -69,7 +70,7 @@ export function LaboratoryWorkspace({
 }: LaboratoryWorkspaceProps) {
   const client = useQueryClient()
   const [params, setParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(params.get('taskId') || '')
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
   const [dates, setDates] = useState({ from: '', to: '' })
@@ -104,10 +105,11 @@ export function LaboratoryWorkspace({
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const hasUnsaved = Object.values(forms).some((form) => form.dirty)
 
+  const linkedTask = useDiagnosticTaskLink(api, params.get('taskId'), scope, requireTask)
   const worklist = useQuery({
     queryKey: ['diagnostic-worklist', scope, filters, page, params.toString()],
     queryFn: async () => {
-      const queryFilters: DiagnosticWorklistFilters = {
+      const queryFilters: DiagnosticWorklistFilters = { activeAndRecent: true,
         status: (filters.status || undefined) as DiagnosticTaskStatus | undefined,
         createdFrom: diagnosticDateBoundary(filters.from),
         createdBefore: diagnosticDateBoundary(filters.to, true),
@@ -138,8 +140,9 @@ export function LaboratoryWorkspace({
     refetchInterval: hasUnsaved ? false : 30_000,
   })
 
-  const tasks = useMemo(() => (worklist.isSuccess ? worklist.data.content : []), [worklist.isSuccess, worklist.data])
+  const tasks = useMemo(() => (includeLinkedDiagnosticTask(worklist.isSuccess ? worklist.data.content : [], linkedTask.isSuccess ? linkedTask.data : undefined)), [worklist.isSuccess, worklist.data, linkedTask.isSuccess, linkedTask.data])
   const selected = tasks.find((task) => task.id === selectedId)
+  useEffect(() => { if (params.get('taskId')) setSelectedId(params.get('taskId')!) }, [params])
 
   useEffect(() => {
     onDirtyChange?.(hasUnsaved)
@@ -157,18 +160,19 @@ export function LaboratoryWorkspace({
   }, [hasUnsaved])
 
   useEffect(() => {
+    if (params.get('taskId') && !linkedTask.isSuccess) return
     if (!tasks.some((task) => task.id === selectedId)) setSelectedId(tasks[0]?.id || '')
-  }, [tasks, selectedId])
+  }, [tasks, selectedId, params, linkedTask.isSuccess])
 
   useEffect(() => {
-    setSelectedId('')
+    setSelectedId(params.get('taskId') || '')
     setKeyword('')
     setStatus('')
     setDates({ from: '', to: '' })
     setFilterError('')
     setFilters({ keyword: '', status: '', from: '', to: '' })
     setPage(0)
-  }, [scope])
+  }, [scope, params])
 
   useEffect(() => {
     if (worklist.isSuccess && page > 0 && page >= worklist.data.totalPages) {
@@ -182,6 +186,7 @@ export function LaboratoryWorkspace({
       await Promise.all(
         [
           'diagnostic-worklist',
+          'diagnostic-linked-task',
           'diagnostic-task-reports',
           'diagnostic-draft',
           'diagnostic-specimens',
@@ -302,6 +307,10 @@ export function LaboratoryWorkspace({
               </div>
             </div>
             {filterError && <Alert placement="inline">{filterError}</Alert>}
+            <Alert tone="info" placement="inline">队列显示全部未完成任务及近7天已完成、取消记录。
+              <Button variant="text" onClick={() => onNavigate('/diagnostics/laboratory/reports')}>查询历史报告</Button>
+            </Alert>
+            {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}
             {worklist.error && <Alert>{errorMessage(worklist.error)}</Alert>}
             {(params.get('encounterId') || params.get('residentId')) && (
               <Alert tone="info" placement="inline">

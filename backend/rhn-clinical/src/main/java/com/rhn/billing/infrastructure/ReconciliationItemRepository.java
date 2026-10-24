@@ -11,6 +11,8 @@ public interface ReconciliationItemRepository extends JpaRepository<Reconciliati
  org.springframework.data.domain.Page<ReconciliationItem> findByTenantIdAndReconciliationBatchIdAndMatchTypeNotOrderById(Long tenant,Long batch,String match,org.springframework.data.domain.Pageable page);
 
  List<ReconciliationItem>findByTenantIdAndReconciliationBatchIdOrderById(Long tenantId,Long batchId);
+ List<ReconciliationItem>findByTenantIdAndReconciliationBatchIdInOrderByReconciliationBatchIdAscIdAsc(
+         Long tenantId,java.util.Collection<Long> batchIds);
  long countByTenantIdAndReconciliationBatchIdAndStatus(Long tenantId,Long batchId,String status);
  @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select v from ReconciliationItem v where v.id=:id and v.tenantId=:tenantId") Optional<ReconciliationItem>lock(@Param("id")Long id,@Param("tenantId")Long tenantId);
 }

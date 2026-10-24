@@ -9,6 +9,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -40,6 +41,10 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                         .value("WAITING_SETTLEMENT"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode task = findBy(tasks, "requestId", request.get("id").asString());
+        // 列表段必须带出批量装载的居民与申请快照字段。
+        assertEquals("医技闭环测试居民", task.get("residentName").asString());
+        assertEquals("1992-08-08", task.get("birthDate").asString());
+        assertEquals(request.get("requestNo").asString(), task.get("requestNo").asString());
 
         mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

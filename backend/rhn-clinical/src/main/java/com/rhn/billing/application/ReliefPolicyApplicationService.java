@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,11 +80,15 @@ public class ReliefPolicyApplicationService {
     public List<ReliefPolicySummaryView> list() {
         ExecutionContext context = contextProvider.requireCurrent();
         List<ReliefPolicy> values = policies.findByTenantIdOrderByCodeAsc(context.tenantId());
+        // 一次装载本页全部政策版本，避免逐政策回查。
         Map<Long, List<ReliefPolicyVersion>> byPolicy = new HashMap<>();
-        for (ReliefPolicy policy : values) {
-            byPolicy.put(policy.id(), versions.findByTenantIdAndPolicyIdOrderByVersionNoDesc(context.tenantId(), policy.id()));
+        List<Long> policyIds = values.stream().map(ReliefPolicy::id).toList();
+        for (int from = 0; from < policyIds.size(); from += 500) {
+            versions.findByTenantIdAndPolicyIdInOrderByPolicyIdAscVersionNoDesc(context.tenantId(),
+                            policyIds.subList(from, Math.min(from + 500, policyIds.size())))
+                    .forEach(value -> byPolicy.computeIfAbsent(value.policyId(), ignored -> new ArrayList<>()).add(value));
         }
-        return values.stream().map(policy -> summary(policy, byPolicy.get(policy.id()))).toList();
+        return values.stream().map(policy -> summary(policy, byPolicy.getOrDefault(policy.id(), List.of()))).toList();
     }
 
     @Transactional(readOnly = true)

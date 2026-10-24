@@ -7,7 +7,8 @@ import { formatTime } from '../../shared/format'
 import { treatmentFulfillmentPresentation } from '../../shared/presentation'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, EmptyState, FormField, LoadingState, PanelHead, SearchField, Select, StatusBadge, Tabs } from '../../shared/ui'
+import { WorkbenchPage } from '../../shared/ui/templates/PageTemplates'
 import '../../styles/features/treatment-skintest.css'
 
 const statusText: Record<TreatmentTaskStatus, string> = {
@@ -24,6 +25,22 @@ function tone(status: TreatmentTaskStatus) {
   if (status === 'CANCELLED' || status === 'EXCEPTION') return 'danger' as const
   return 'info' as const
 }
+
+/** 未放行状态的下一步入口；跳转路径由状态决定，不依赖展示文案。 */
+function nextStep(task: TreatmentExecutionTask) {
+  if (task.status === 'WAITING_SETTLEMENT') return { label: '去费用结算', path: `/billing/settlement?encounterId=${task.encounterId}` }
+  if (task.status === 'WAITING_DISPENSE') return { label: '去门诊药房', path: `/pharmacy?encounterId=${task.encounterId}` }
+  if (task.status === 'WAITING_SKIN_TEST') return { label: '去皮试管理', path: `/skin-tests?encounterId=${task.encounterId}` }
+  return null
+}
+
+const statusTabs: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'ACTIONABLE', label: '待处理' }, { value: 'WAITING', label: '未放行' },
+  { value: 'COMPLETED', label: '已完成' }, { value: 'ALL', label: '全部' },
+]
+const typeOptions = [
+  { value: 'ALL', label: '全部类型' }, { value: 'SERVICE', label: '治疗项目' }, { value: 'MEDICATION', label: '用药执行' },
+]
 
 type VerificationMethod = 'NAME_AND_IDENTIFIER' | 'CARD' | 'MANUAL' | ''
 type ResolutionChoice = TreatmentResolution | ''
@@ -160,58 +177,74 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
     completed: allTasks.filter((value) => value.status === 'COMPLETED').length,
   }), [allTasks])
 
-  return <>
-    <PageHeader eyebrow="门诊医疗 · 治疗执行" title="治疗执行工作台"
+  const step = selected ? nextStep(selected) : null
+
+  return <div className="treatment-workbench">
+    <WorkbenchPage eyebrow="门诊医疗 · 治疗执行" title="治疗执行工作台"
       description="基层简易模式统一承接注射、输液、雾化和治疗项目；系统自动校验结算与发药状态，执行人员只需完成核对、开始和结束。"
-      actions={<Button variant="secondary" onClick={() => void refresh()}>刷新队列</Button>} />
-    {error && <Alert>{errorMessage(error)}</Alert>}
-    <section className="treatment-metrics" aria-label="治疗任务摘要">
-      <div><span>待结算</span><strong>{worklist.isSuccess ? metrics.settlement : '—'}</strong><small>完成收费后自动放行</small></div>
-      <div><span>待发药</span><strong>{worklist.isSuccess ? metrics.dispense : '—'}</strong><small>药房发药后自动放行</small></div>
-      <div><span>待皮试</span><strong>{worklist.isSuccess ? metrics.skinTest : '—'}</strong><small>阴性结果后自动放行</small></div>
-      <div><span>待执行 / 执行中</span><strong>{worklist.isSuccess ? metrics.actionable : '—'}</strong><small>当前需要治疗室处理</small></div>
-      <div><span>今日已完成</span><strong>{worklist.isSuccess ? metrics.completed : '—'}</strong><small>{clinicalContext.department.name}</small></div>
-    </section>
-    <div className="treatment-workspace">
-      <Panel className="treatment-queue">
-        <header className="treatment-section-head">
-          <div><h2>治疗队列</h2><span>{worklist.isSuccess ? `${values.length} 项` : '数量待确认'}</span></div>
-          <input aria-label="搜索治疗任务" value={keyword} placeholder="姓名 / 档案号 / 项目"
-            onChange={(event) => setKeyword(event.target.value)} />
-        </header>
-        <div className="treatment-filter-row">
-          <nav aria-label="任务状态筛选">{([
-            ['ACTIONABLE', '待处理'], ['WAITING', '未放行'], ['COMPLETED', '已完成'], ['ALL', '全部'],
-          ] as [StatusFilter, string][]).map(([value, label]) => <button type="button" key={value}
-            className={statusFilter === value ? 'is-active' : ''} onClick={() => setStatusFilter(value)}>{label}</button>)}</nav>
-          <select aria-label="治疗类型筛选" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}>
-            <option value="ALL">全部类型</option><option value="SERVICE">治疗项目</option><option value="MEDICATION">用药执行</option>
-          </select>
+      actions={<Button variant="secondary" onClick={() => void refresh()}>刷新队列</Button>}
+      feedback={<>
+        {error && <Alert>{errorMessage(error)}</Alert>}
+        <section className="ui-stat-grid" aria-label="治疗任务摘要">
+          <div className="ui-stat-card is-warning"><span>待结算</span><strong>{worklist.isSuccess ? metrics.settlement : '—'}</strong><small>完成收费后自动放行</small></div>
+          <div className="ui-stat-card is-warning"><span>待发药</span><strong>{worklist.isSuccess ? metrics.dispense : '—'}</strong><small>药房发药后自动放行</small></div>
+          <div className="ui-stat-card is-warning"><span>待皮试</span><strong>{worklist.isSuccess ? metrics.skinTest : '—'}</strong><small>阴性结果后自动放行</small></div>
+          <div className="ui-stat-card"><span>待执行 / 执行中</span><strong>{worklist.isSuccess ? metrics.actionable : '—'}</strong><small>当前需要治疗室处理</small></div>
+          <div className="ui-stat-card is-success"><span>今日已完成</span><strong>{worklist.isSuccess ? metrics.completed : '—'}</strong><small>{clinicalContext.department.name}</small></div>
+        </section>
+      </>}
+      queueLabel="治疗队列"
+      queueHeader={<>
+        <PanelHead title="治疗队列" meta={worklist.isSuccess ? `${values.length} 项` : '数量待确认'} />
+        <div className="treatment-queue-filters">
+          <div className="treatment-queue-filters__row">
+            <SearchField label="搜索治疗任务" value={keyword} placeholder="姓名 / 档案号 / 项目" onChange={setKeyword} />
+            <Select aria-label="治疗类型筛选" value={typeFilter} options={typeOptions} clearable={false} searchable={false}
+              onChange={(value) => setTypeFilter(value as TypeFilter)} />
+          </div>
+          <Tabs label="任务状态筛选" variant="line" value={statusFilter} items={statusTabs}
+            onChange={(value) => setStatusFilter(value)} />
         </div>
+      </>}
+      queue={<>
         {worklist.isError && <EmptyState icon="clinical" title="治疗队列加载失败" copy="无法确认可执行任务，请重新加载。"
           action={<Button onClick={() => void worklist.refetch()}>重新加载治疗队列</Button>} />}
         {worklist.isPending && <LoadingState label="正在加载治疗队列…" />}
         {worklist.isSuccess && values.length === 0 && <EmptyState icon="clinical" title="当前筛选下暂无任务"
           copy="医生开立治疗或注射类医嘱后，任务会自动进入此处。" />}
-        <div className="treatment-queue-list">{values.map((value) => <TaskButton key={value.id} value={value}
-          active={value.id === taskId} onClick={() => setTaskId(value.id)} />)}</div>
-      </Panel>
-      <Panel className="treatment-detail">
+        {values.length > 0 && <ul className="treatment-queue-list" aria-label="治疗任务列表">{values.map((value) => <TaskEntry key={value.id}
+          value={value} active={value.id === taskId} onClick={() => setTaskId(value.id)} />)}</ul>}
+      </>}
+      context={selected && <header className="treatment-detail-head">
+        <div className="treatment-detail-title">
+          <span className="treatment-eyebrow">{selected.taskType === 'MEDICATION' ? '用药执行' : '治疗项目'} · {[...new Set(selected.items.map(item => item.requestNo).filter(Boolean))].join('、') || '—'}</span>
+          <h2>{selected.residentName}</h2><p>健康档案 {selected.healthRecordNo} · 就诊 {selected.encounterId}</p></div>
+        <div className="treatment-detail-aside">
+          <StatusBadge tone={tone(selected.status)}>{statusText[selected.status]}</StatusBadge>
+          {step && <Button size="sm" variant="secondary" onClick={() => onNavigate(step.path)}>{step.label}</Button>}
+        </div>
+      </header>}
+      referenceLabel="任务信息"
+      reference={<div className="treatment-reference">
+        <PanelHead title="任务信息" />
+        <div className="treatment-scroll" role="region" aria-label="任务信息内容" tabIndex={0}>
+          {!selected ? <p className="treatment-hint">选择治疗任务后，在此查看任务编号、开单单号和执行时间。</p>
+            : <dl className="treatment-facts">
+              <dt>任务编号</dt><dd>{selected.taskNo || '—'}</dd>
+              <dt>治疗类型</dt><dd>{selected.taskType === 'MEDICATION' ? '用药执行' : '治疗项目'}</dd>
+              <dt>开单单号</dt><dd>{[...new Set(selected.items.map(item => item.requestNo).filter(Boolean))].join('、') || '—'}</dd>
+              <dt>创建时间</dt><dd>{formatTime(selected.createdAt) || '—'}</dd>
+              {selected.startedAt && <><dt>开始时间</dt><dd>{formatTime(selected.startedAt) || '—'}</dd></>}
+            </dl>}
+        </div>
+      </div>}>
+      <div className="treatment-scroll" role="region" aria-label="任务作业区" tabIndex={0}>
         {!selected ? <EmptyState icon="clinical" title="请选择治疗任务" copy="从左侧队列选择患者后开始执行。" /> : <>
-          <header className="treatment-detail-head"><div><span>{selected.taskType === 'MEDICATION' ? '用药执行' : '治疗项目'} · {[...new Set(selected.items.map(item => item.requestNo).filter(Boolean))].join('、') || '—'}</span>
-            <h2>{selected.residentName}</h2><p>健康档案 {selected.healthRecordNo} · 就诊 {selected.encounterId}</p></div>
-            <StatusBadge tone={tone(selected.status)}>{statusText[selected.status]}</StatusBadge></header>
           <section className="treatment-items"><h3>本次执行项目</h3>
             {selected.items.map((item) => <TreatmentItemRow key={item.id} item={item} />)}</section>
-          {selected.status === 'WAITING_SETTLEMENT' && <Alert tone="info">任务尚未完成结算，结算后会自动放行。
-            <Button size="sm" variant="text" onClick={() => onNavigate(`/billing/settlement?encounterId=${selected.encounterId}`)}>
-              去费用结算</Button></Alert>}
-          {selected.status === 'WAITING_DISPENSE' && <Alert tone="info">药品尚未完成发药，不能开始治疗。
-            <Button size="sm" variant="text" onClick={() => onNavigate(`/pharmacy?encounterId=${selected.encounterId}`)}>
-              去门诊药房</Button></Alert>}
-          {selected.status === 'WAITING_SKIN_TEST' && <Alert tone="info">用药尚未取得皮试阴性结果，不能开始治疗。
-            <Button size="sm" variant="text" onClick={() => onNavigate(`/skin-tests?encounterId=${selected.encounterId}`)}>
-              去皮试管理</Button></Alert>}
+          {selected.status === 'WAITING_SETTLEMENT' && <Alert tone="info" placement="inline">任务尚未完成结算，结算后会自动放行。</Alert>}
+          {selected.status === 'WAITING_DISPENSE' && <Alert tone="info" placement="inline">药品尚未完成发药，不能开始治疗。</Alert>}
+          {selected.status === 'WAITING_SKIN_TEST' && <Alert tone="info" placement="inline">用药尚未取得皮试阴性结果，不能开始治疗。</Alert>}
           {selected.status === 'READY' && <StartForm identityVerified={identityVerified} setIdentityVerified={setIdentityVerified}
             verificationMethod={verificationMethod} setVerificationMethod={setVerificationMethod}
             executionSite={executionSite} setExecutionSite={setExecutionSite} note={startNote} setNote={setStartNote}
@@ -220,21 +253,21 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
             note={completionNote} setNote={setCompletionNote} adverseReaction={adverseReaction}
             setAdverseReaction={(value) => { setAdverseReaction(value); if (value !== true) setAdverseReactionDetail('') }} adverseReactionDetail={adverseReactionDetail}
             setAdverseReactionDetail={setAdverseReactionDetail} busy={complete.isPending || worklist.isFetching} onSubmit={() => complete.mutate()} />}
-          {selected.status === 'EXCEPTION' && <Alert>{selected.exceptionNote || selected.adverseReactionDetail || '该任务需要人工核对和后续处置。'}</Alert>}
+          {selected.status === 'EXCEPTION' && <Alert placement="inline">{selected.exceptionNote || selected.adverseReactionDetail || '该任务需要人工核对和后续处置。'}</Alert>}
           {selected.status === 'EXCEPTION' && (selected.allowedResolutions?.length
             ? <ResolveForm allowed={selected.allowedResolutions} resolution={resolution} setResolution={setResolution}
               note={resolveNote} setNote={setResolveNote} busy={resolve.isPending || worklist.isFetching}
               onSubmit={() => resolve.mutate()} />
-            : <Alert tone="info">该异常不能在治疗执行内处置，请联系开单医生调整医嘱，条件解除后任务会自动更新。</Alert>)}
+            : <Alert tone="info" placement="inline">该异常不能在治疗执行内处置，请联系开单医生调整医嘱，条件解除后任务会自动更新。</Alert>)}
           {selected.status === 'CLOSED' && <section className="treatment-completion-summary">
-            <header><div><span>异常处置</span><h3>异常已处置并关闭</h3></div>
+            <header><div><span className="treatment-eyebrow">异常处置</span><h3>异常已处置并关闭</h3></div>
               <StatusBadge tone="info">{selected.completedAt ? formatTime(selected.completedAt) : '未记录处置时间'}</StatusBadge></header>
             <dl><div><dt>原执行结果</dt><dd>{resultText(selected.resultCode)}</dd></div>
               <div><dt>不良反应评估</dt><dd>{selected.adverseReaction == null ? '未评估' : selected.adverseReaction ? '有' : '无'}</dd></div></dl>
             <p>{selected.exceptionNote || '未记录处置说明'}</p>
           </section>}
           {selected.status === 'COMPLETED' && <section className="treatment-completion-summary">
-            <header><div><span>执行结果</span><h3>{selected.resultCode === 'COMPLETED' ? '治疗已完成' : selected.resultCode ? '治疗未正常完成' : '未记录执行结果'}</h3></div>
+            <header><div><span className="treatment-eyebrow">执行结果</span><h3>{selected.resultCode === 'COMPLETED' ? '治疗已完成' : selected.resultCode ? '治疗未正常完成' : '未记录执行结果'}</h3></div>
               <StatusBadge tone="success">{selected.completedAt ? formatTime(selected.completedAt) : '未记录结束时间'}</StatusBadge></header>
             <dl><div><dt>执行地点</dt><dd>{selected.executionSite || '未记录'}</dd></div>
               <div><dt>身份核对</dt><dd>{verificationText(selected.verificationMethod)}</dd></div>
@@ -242,17 +275,24 @@ export function TreatmentExecutionWorkspace({ api, clinicalContext, onNavigate }
             {selected.completionNote && <p>{selected.completionNote}</p>}
           </section>}
         </>}
-      </Panel>
-    </div>
-  </>
+      </div>
+    </WorkbenchPage>
+  </div>
 }
 
-function TaskButton({ value, active, onClick }: { value: TreatmentExecutionTask; active: boolean; onClick: () => void }) {
-  return <button type="button" className={active ? 'is-active' : ''} onClick={onClick}>
-    <div><strong>{value.residentName}</strong><StatusBadge tone={tone(value.status)}>{statusText[value.status]}</StatusBadge></div>
-    <span>{value.items.map((item) => item.itemName).join('、')}</span>
-    <small>{value.taskType === 'MEDICATION' ? `${value.items.length} 项用药` : '治疗项目'} · {formatTime(value.createdAt)}</small>
-  </button>
+/** 队列项：整块选择按钮不嵌套其他按钮；状态徽标放在按钮之外，状态文字以视觉隐藏文本并入按钮名称。 */
+function TaskEntry({ value, active, onClick }: { value: TreatmentExecutionTask; active: boolean; onClick: () => void }) {
+  return <li className={`treatment-queue-entry ${active ? 'is-active' : ''}`}>
+    <Button variant="text" className="treatment-queue-choice" aria-current={active ? 'true' : undefined} onClick={onClick}>
+      <span className="treatment-queue-body">
+        <strong className="treatment-queue-name">{value.residentName}</strong>
+        <span className="treatment-queue-items">{value.items.map((item) => item.itemName).join('、')}</span>
+        <span className="treatment-queue-meta">{value.taskType === 'MEDICATION' ? `${value.items.length} 项用药` : '治疗项目'} · {formatTime(value.createdAt)}</span>
+        <span className="visually-hidden">状态：{statusText[value.status]}</span>
+      </span>
+    </Button>
+    <span className="treatment-queue-status" aria-hidden="true"><StatusBadge tone={tone(value.status)}>{statusText[value.status]}</StatusBadge></span>
+  </li>
 }
 
 function TreatmentItemRow({ item }: { item: TreatmentExecutionItem }) {

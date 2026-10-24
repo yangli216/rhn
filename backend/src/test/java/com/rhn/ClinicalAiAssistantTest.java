@@ -121,6 +121,9 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals(1, eventCount(suggestionId, "VIEWED"));
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "查看建议不得写入诊断");
 
+        // 医生保留采纳控制权：建议生成后病历发生变化，服务端不再以临床信息变化为由拦截采纳。
+        JsonNode relaxedSuggestion = generateSuggestion(encounterId, "AI-CONTEXT-RELAXED-" + suffix, planName);
+        String relaxedSuggestionId = relaxedSuggestion.get("id").asString();
         Long residentId = jdbcTemplate.queryForObject(
                 "select ID_PAT as resident_id from RHN_VIS_ENC where ID_TNT=? and ID_ENC=?",
                 Long.class, Long.valueOf(TENANT), Long.valueOf(encounterId));
@@ -137,19 +140,16 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, encounterId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated());
         ClinicalCounts anchoredBaseline = clinicalCounts(encounterId);
-        int anchoredEventBaseline = eventCount(suggestionId);
-        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", suggestionId)
+        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", relaxedSuggestionId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "commandCode":"AI-ADOPT-ANCHOR-CHANGED-%s","eventType":"ADOPTED","sectionCode":"ALL",
-                                  "contextHash":"%s","detail":"病历版本变化后尝试采纳"
+                                  "commandCode":"AI-ADOPT-AFTER-CHANGE-%s","eventType":"ADOPTED","sectionCode":"ALL",
+                                  "contextHash":"%s","detail":"病历变化后医生仍确认采纳"
                                 }
-                                """.formatted(suffix, contextHash)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("AI_SUGGESTION_SERVER_CONTEXT_CHANGED"));
-        assertEquals(anchoredEventBaseline, eventCount(suggestionId), "服务端锚点变化不得落采纳事件");
-        assertEquals("GENERATED", suggestionStatus(suggestionId));
-        assertEquals(anchoredBaseline, clinicalCounts(encounterId), "锚点冲突不得改写主要临床表");
+                                """.formatted(suffix, relaxedSuggestion.get("contextHash").asString())))
+                .andExpect(status().isNoContent());
+        assertEquals(1, eventCount(relaxedSuggestionId, "ADOPTED"));
+        assertEquals("ADOPTED", suggestionStatus(relaxedSuggestionId));
 
         Instant expiredAt = Instant.parse(suggestion.get("generatedAt").asString()).plusMillis(10);
         while (!Instant.now().isAfter(expiredAt)) {

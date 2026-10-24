@@ -521,7 +521,8 @@
     },
     "decision-observation": {
       "coverage": [
-        "决策持久化、旁路观察查询/研判、合理用药日志分页及详情、机构科室隔离与物理目录"
+        "决策持久化、旁路观察查询/研判、合理用药日志分页及详情、机构科室隔离与物理目录",
+        "病历完整性、文字矛盾与医生采纳/保存反馈闭环"
       ],
       "limitations": [
         "运行次数、可比较一致性和人工研判不是临床准确率；部署、真实模型试用和视觉验收另行确认。"
@@ -533,7 +534,8 @@
         "src/features/quality/MedicationEvaluationLog.test.tsx",
         "src/features/quality/MedicationWorkbench.test.tsx",
         "src/features/outpatient/triage/OutpatientTriageWorkspace.test.tsx",
-        "src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx"
+        "src/features/outpatient/ai/ClinicalAiCatalogReview.test.tsx",
+        "src/features/outpatient/record/useRecordQualityDecision.test.tsx"
       ],
       "backend": [
         "DecisionObservationTest",
@@ -542,7 +544,9 @@
         "com.rhn.ai.application.TreatmentCatalogDecisionServiceTest",
         "com.rhn.ai.application.PlanInvestigationDecisionServiceTest",
         "com.rhn.ai.application.ClinicalTreatmentRecommendationServiceTest",
-        "ClinicalAiConfigurationTest"
+        "ClinicalAiConfigurationTest",
+        "RecordQualityDecisionTest",
+        "com.rhn.ai.application.RecordQualityDecisionServiceTest"
       ]
     },
     "maintenance": {
@@ -583,6 +587,8 @@
       ],
       "frontend_only": false,
       "frontend": [
+        "src/features/diagnostics/shared/DiagnosticReportQuery.test.tsx",
+        "src/shared/api/diagnosticsReportQuery.test.ts",
         "src/features/diagnostics/laboratory/LaboratoryWorkspace.test.tsx",
         "src/features/diagnostics/examination/ExaminationWorkspace.test.tsx",
         "src/features/diagnostics/laboratory/laboratorySourceFacts.test.tsx",
@@ -602,6 +608,7 @@
       ],
       "backend": [
         "ArchitectureTest",
+        "DiagnosticReportQueryTest",
         "DiagnosticExecutionWorkflowTest",
         "DiagnosticExchangeTest",
         "DiagnosticReportWorkingCopyTest",

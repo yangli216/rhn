@@ -6,6 +6,7 @@ import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationSafetyDecision;
 import com.rhn.outpatient.api.PrescriptionSafetyEvaluationDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
+import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +81,10 @@ class PrescriptionService {
         var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
         ExecutionContext context = contextProvider.requireCurrent();
         Long tenantId = TenantContext.requireTenantId();
-        List<SplitPrescriptionPlan> plans = splitEngine.plan(encounter, request.items());
+        Map<Long, CatalogLifecycleDirectory.CatalogOperationalSnapshot> preparedCatalogs =
+                medicationService.prepareCatalogSnapshots(tenantId, encounter.organizationId(), request.items(),
+                        LocalDate.now());
+        List<SplitPrescriptionPlan> plans = splitEngine.plan(encounter, request.items(), preparedCatalogs);
         List<Prescription> createdPrescriptions = new java.util.ArrayList<>();
 
         for (SplitPrescriptionPlan plan : plans) {
@@ -133,7 +138,8 @@ class PrescriptionService {
                         item.reason() != null ? item.reason() : plan.title()
                 );
 
-                MedicationRequestResponse medResp = medicationService.create(encounterId, createRequest);
+                MedicationRequestResponse medResp = medicationService.create(encounter, createRequest,
+                        item.catalogItemId() == null ? null : preparedCatalogs.get(item.catalogItemId()));
                 if (plannedItem.groupKey() != null && plannedItem.groupLeader()) {
                     groupLeaderIds.put(plannedItem.groupKey(), medResp.id());
                 }
@@ -208,9 +214,14 @@ class PrescriptionService {
 
     /** 本次就诊仍含草稿药品、可整批提交的处方草稿，用于提交命令核对医生看到的单据集合。 */
     List<Prescription> submittableDrafts(Long tenantId, Long encounterId) {
-        return repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounterId).stream()
-                .filter(value -> value.status() == PrescriptionStatus.DRAFT)
-                .filter(value -> medicationService.prescriptionRequests(tenantId, value.id()).stream()
+        List<Prescription> drafts = repository.findByTenantIdAndEncounterIdOrderByAuthoredAtDesc(tenantId, encounterId)
+                .stream().filter(value -> value.status() == PrescriptionStatus.DRAFT).toList();
+        if (drafts.isEmpty()) return List.of();
+        // 一次查询取全部草稿处方的药品行，避免逐张处方回查。
+        var grouped = medicationService.prescriptionRequests(tenantId,
+                drafts.stream().map(Prescription::id).toList());
+        return drafts.stream()
+                .filter(value -> grouped.getOrDefault(value.id(), List.of()).stream()
                         .anyMatch(request -> request.status() == MedicationRequestStatus.DRAFT))
                 .toList();
     }

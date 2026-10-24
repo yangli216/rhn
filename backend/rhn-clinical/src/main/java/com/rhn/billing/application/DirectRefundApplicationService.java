@@ -62,6 +62,7 @@ public class DirectRefundApplicationService {
     private final com.rhn.billing.api.RefundDiagnosticDirectory diagnostics;
     private final ExecutionContextProvider contextProvider;
     private final SettlementReliefService relief;
+    private final SettlementRoundingLedger rounding;
     private final TransactionTemplate transactionTemplate;
 
     public DirectRefundApplicationService(PaymentRepository payments,
@@ -78,6 +79,7 @@ public class DirectRefundApplicationService {
                                           com.rhn.billing.api.RefundDiagnosticDirectory diagnostics,
                                           ExecutionContextProvider contextProvider,
                                           SettlementReliefService relief,
+                                          SettlementRoundingLedger rounding,
                                           PlatformTransactionManager transactionManager) {
         this.payments = payments;
         this.accounts = accounts;
@@ -93,6 +95,7 @@ public class DirectRefundApplicationService {
         this.diagnostics = diagnostics;
         this.contextProvider = contextProvider;
         this.relief = relief;
+        this.rounding = rounding;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -264,7 +267,7 @@ public class DirectRefundApplicationService {
         }
     }
 
-    /** 冲销收费事项并冲回其已享受的惠民减免；返回本次实际增加的可退金额（冲销原额 - 冲回减免）。 */
+    /** 冲销收费事项并冲回其已享受的惠民减免与整单冲销时的舍入；返回本次实际增加的可退金额（冲销原额 - 冲回减免 - 冲回舍入借方）。 */
     private BigDecimal reverseSingleCharge(ExecutionContext context, PatientAccount account, ChargeItem original, Instant now) {
         BigDecimal reversalAmount = original.totalAmount().negate();
         ChargeItem reversal = charges.save(new ChargeItem(
@@ -296,7 +299,8 @@ public class DirectRefundApplicationService {
         ));
 
         BigDecimal relieved = relief.reverseForChargeReversals(context, account, List.of(reversal), null, null);
-        return original.totalAmount().subtract(relieved);
+        BigDecimal roundingDebited = rounding.reverseForChargeReversals(context, List.of(reversal), now);
+        return original.totalAmount().subtract(relieved).subtract(roundingDebited);
     }
 
     private void tryRedFlushFiscalReceipts(Long tenantId, Payment originalPayment, BigDecimal refundAmount,

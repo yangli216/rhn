@@ -909,19 +909,15 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
       return
     }
     setCancellingTaskId('batch')
-    let cancelledCount = 0
     try {
-      for (const taskId of uniqueTaskIds) {
-        await api.pharmacy.cancelDispense(taskId, {
-          cancelNo: `CNC-${taskId}-${Date.now()}`,
-          operatorPractitionerId: practitionerId,
-          operatorAssignmentId: assignmentId,
-          reasonCode: cancelReasonCode,
-          description: cancelDescription.trim() || '误点击发药整批取消，库存原路冲回',
-        })
-        cancelledCount++
-      }
-      showActionNotice('success', `已成功取消 ${cancelledCount} 张处方的发药记录，库存已冲回并恢复为待发药状态`)
+      // 一次请求取消全部勾选处方对应的发药任务，服务端逐任务校验、任一失败整批回滚。
+      const res = await api.pharmacy.cancelDispenses(uniqueTaskIds, {
+        operatorPractitionerId: practitionerId,
+        operatorAssignmentId: assignmentId,
+        reasonCode: cancelReasonCode,
+        description: cancelDescription.trim() || '误点击发药整批取消，库存原路冲回',
+      })
+      showActionNotice('success', `已成功取消 ${res.length} 张处方的发药记录，库存已冲回并恢复为待发药状态`)
       setCancelDescription('')
       await refresh()
     } catch (err) {
@@ -981,9 +977,16 @@ export function usePharmacyWorkspace({ api, clinicalContext, mode = 'dispensing'
     let successCount = 0
     let totalRefundAmount = 0
     try {
+      // 一次取回全部待退项的发药轨迹，避免逐项请求；服务端按任务批量装配事件、退药与货位批次。
+      const returnTaskIds = [...new Set(itemsToReturn
+        .filter(({ item, quantity }) => Boolean(item.taskId) && quantity > 0)
+        .map(({ item }) => item.taskId as string))]
+      const traces = returnTaskIds.length ? await api.pharmacy.traces(returnTaskIds) : []
+      const traceByTask = new Map(traces.map((value) => [value.taskId, value]))
       for (const { item, quantity, disposition } of itemsToReturn) {
         if (!item.taskId || quantity <= 0) continue
-        const traceData = await api.pharmacy.trace(item.taskId)
+        const traceData = traceByTask.get(item.taskId)
+        if (!traceData) throw new Error(`药品 ${item.request.medicationName} 的发药轨迹不存在，请刷新后核对发药记录`)
         // 已取消发药的事件库存已冲回，不能再作为退药原单；数量按批次明细依次拆分，避免单批次不足时退药失败。
         const cancelledIds = new Set(traceData.events
           .filter((e) => e.dispenseType === 'CANCEL' && e.originalDispenseId)

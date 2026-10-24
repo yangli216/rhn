@@ -19,7 +19,9 @@ public class DecisionObservationService {
     private final DecisionObservationStore store;
     private final ExecutionContextProvider contexts;
     private final ClinicalAiRuntimePolicy policy;
-    public DecisionObservationService(DecisionObservationStore store,ExecutionContextProvider contexts,ClinicalAiRuntimePolicy policy){this.store=store;this.contexts=contexts;this.policy=policy;}
+    private final com.rhn.ai.infrastructure.RecordQualityStore recordQuality;
+    public DecisionObservationService(DecisionObservationStore store,ExecutionContextProvider contexts,ClinicalAiRuntimePolicy policy,
+            com.rhn.ai.infrastructure.RecordQualityStore recordQuality){this.store=store;this.contexts=contexts;this.policy=policy;this.recordQuality=recordQuality;}
     private ExecutionContext context() {
         var c=contexts.requireCurrent();
         if(!c.hasAuthority(com.rhn.platform.configuration.api.ClinicalAiConfigurationPermissions.MANAGE))throw forbidden("DECISION_OBSERVATION_ACCESS","无权查看决策运行观察");
@@ -37,7 +39,7 @@ public class DecisionObservationService {
         if(to==null)to=Instant.now().plus(1,ChronoUnit.SECONDS);
         if(!from.isBefore(to)||java.time.Duration.between(from,to).compareTo(java.time.Duration.ofDays(90))>0)throw badRequest("DECISION_OBSERVATION_RANGE","请选择不超过90天的有效时间范围");
         var filter=new Filter(scene,mode,outcome,from,to);var stats=store.statistics(c,filter);
-        var rows=store.page(c,filter,page,size).stream().map(r->new DecisionRow(r.id(),r.scene(),r.mode(),r.outcome(),r.time(),r.traceId(),r.model(),r.latencyMs(),r.comparison(),r.equal(),store.latestReview(c,r.id()).orElse(null),r.uncertain(),r.modelCalled())).toList();
+        var rows=store.page(c,filter,page,size).stream().map(r->new DecisionRow(r.id(),r.scene(),r.mode(),r.outcome(),r.time(),r.traceId(),r.model(),r.latencyMs(),r.comparison(),r.equal(),listReview(c,r),r.uncertain(),r.modelCalled())).toList();
         var settings=DecisionModelSettings.current(policy,c.tenantId());
         var scenes=Arrays.stream(DecisionScene.values()).map(s->{
             var last=store.latest(c,s.name()).orElse(null);
@@ -46,9 +48,9 @@ public class DecisionObservationService {
                     :!settings.ready()?"CONFIGURATION_INCOMPLETE":last==null?"NOT_TRIGGERED":"RECORDED";
             return new DecisionSceneState(s.name(),s.label(),settings.mode().name(),state,last);
         }).toList();
-        return new DecisionObservation(new PageResult<>(rows,stats.total(),(stats.total()+size-1)/size,page,size),stats,scenes,c.organizationId(),c.departmentId(),AUDIT_VERSION);
+        return new DecisionObservation(new PageResult<>(rows,stats.total(),(stats.total()+size-1)/size,page,size),stats,scenes,c.organizationId(),c.departmentId(),AUDIT_VERSION,recordQuality.statistics(c,filter));
     }
-    public DecisionDetail detail(Long id) {var c=context();return new DecisionDetail(run(c,id),store.reviews(c,id));}
+    public DecisionDetail detail(Long id) {var c=context();return new DecisionDetail(run(c,id),store.reviews(c,id),recordQuality.feedback(c,id));}
     public DecisionReview review(Long id,DecisionReviewRequest input) {
         var c=context();run(c,id);
         if(!Set.of("APPROPRIATE","INAPPROPRIATE","UNCERTAIN").contains(input.verdict())||input.reason()==null||input.reason().isBlank()||input.reason().length()>2000)throw badRequest("DECISION_REVIEW_INPUT","请选择研判结果并填写原因");
@@ -59,7 +61,18 @@ public class DecisionObservationService {
         var run=store.find(c,id).orElseThrow(()->notFound("DECISION_OBSERVATION_NOT_FOUND","当前机构科室未找到该运行记录"));
         if("OUTPATIENT_TRIAGE".equals(run.scene()) && Collections.disjoint(c.authorities(),Set.of("OUTPATIENT_TRIAGE.ACCESS","OUTPATIENT_RECEPTION.ACCESS","OUTPATIENT_REGISTRATION.ACCESS","ROLE_ADMIN")))
             throw forbidden("DECISION_OBSERVATION_CLINICAL_ACCESS","读取或研判分诊输入还需要当前工作范围的临床访问权限");
+        if("RECORD_QUALITY".equals(run.scene()) && !canReadRecord(c))
+            throw forbidden("DECISION_OBSERVATION_RECORD_ACCESS","读取或研判病历输入还需要当前工作范围的门诊接诊权限");
         return run;
+    }
+    private DecisionReview listReview(ExecutionContext c,DecisionRun run) {
+        var review=store.latestReview(c,run.id()).orElse(null);
+        if(review!=null&&"RECORD_QUALITY".equals(run.scene())&&!canReadRecord(c))
+            return new DecisionReview(review.id(),review.runId(),review.verdict(),"",review.actor(),review.time());
+        return review;
+    }
+    private boolean canReadRecord(ExecutionContext c) {
+        return !Collections.disjoint(c.authorities(),Set.of("OUTPATIENT_RECEPTION.ACCESS","ROLE_ADMIN"));
     }
     private static String clean(String v){return v==null||v.isBlank()?null:v.trim();}
 }

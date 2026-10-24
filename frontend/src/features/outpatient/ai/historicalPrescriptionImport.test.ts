@@ -18,10 +18,10 @@ describe('historical prescription import uses current facts', () => {
         expect(url.searchParams.get('departmentId')).toBe('dept')
         return new Response(JSON.stringify(f.frequencies))
       }
-      if (url.pathname === '/api/encounters/current/orderable-medications') {
-        expect(url.searchParams.get('query')).toBe('TEST')
+      if (url.pathname === '/api/encounters/current/orderable-medications/batch') {
+        expect(url.searchParams.getAll('queries')).toEqual(['TEST'])
         return denied ? new Response(JSON.stringify({ message: '目录无权访问' }), { status: 403 })
-          : new Response(JSON.stringify([f.medication]))
+          : new Response(JSON.stringify({ TEST: [f.medication] }))
       }
       throw new Error(`Unexpected request: ${url.pathname}`)
     })
@@ -38,7 +38,9 @@ describe('historical prescription import uses current facts', () => {
     const f = historicalImportFixture()
     const [draft] = await resolveHistoricalPrescriptionImport(f.input)
     expect(f.prescriptions).toHaveBeenCalledWith('history')
-    expect(f.orderableMedications).toHaveBeenCalledWith('current', 'TEST')
+    expect(f.orderableMedicationsBatch).toHaveBeenCalledWith('current', ['TEST'])
+    expect(f.orderableMedicationsBatch).toHaveBeenCalledTimes(1)
+    expect(f.orderableMedications).not.toHaveBeenCalled()
     expect(f.activeOrderFrequencies).toHaveBeenCalledWith('org', 'dept', 'OUTPATIENT', 'MEDICATION')
     expect(draft).toMatchObject({ medicationName: '当前测试药', productName: '当前产品', stockSiteName: '当前药房',
       unitPrice: 2.5, currencyCode: 'USD', availablePackageQuantity: 10, packageUnitName: '盒', quantityManuallySet: true,
@@ -51,7 +53,7 @@ describe('historical prescription import uses current facts', () => {
     'rejects an invalid target before reading a catalog: %j', async patch => {
       const f = historicalImportFixture(); Object.assign(f.target, patch)
       await expect(resolveHistoricalPrescriptionImport(f.input)).rejects.toThrow(/当前就诊/)
-      expect(f.orderableMedications).not.toHaveBeenCalled()
+      expect(f.orderableMedicationsBatch).not.toHaveBeenCalled()
     })
   it.each([
     { quantity: undefined }, { doseValue: 0 }, { catalogItemId: undefined }, { durationUnit: undefined },
@@ -70,13 +72,13 @@ describe('historical prescription import uses current facts', () => {
       if (failure === 'cancelled') latest.status = 'CANCELLED'
       f.prescriptions.mockResolvedValue(failure === 'removed' ? [] : failure === 'duplicate' ? [latest, latest] : [latest])
       await expect(resolveHistoricalPrescriptionImport(f.input)).rejects.toThrow(/历史处方未带入/)
-      expect(f.orderableMedications).not.toHaveBeenCalled()
+      expect(f.orderableMedicationsBatch).not.toHaveBeenCalled()
     })
   it.each(['missing', 'ambiguous', 'inactive', 'antimicrobial', 'skin-test', 'price', 'package', 'unit', 'factor', 'stock', 'route', 'frequency'])(
     'rejects unusable current facts: %s', async failure => {
       const f = historicalImportFixture(), product = f.medication.products[0]
-      if (failure === 'missing') f.orderableMedications.mockResolvedValue([])
-      if (failure === 'ambiguous') f.orderableMedications.mockResolvedValue([f.medication, f.medication])
+      if (failure === 'missing') f.orderableMedicationsBatch.mockResolvedValue({ TEST: [] })
+      if (failure === 'ambiguous') f.orderableMedicationsBatch.mockResolvedValue({ TEST: [f.medication, f.medication] })
       if (failure === 'inactive') f.medication.sdStatus = 'SUSPENDED'
       if (failure === 'antimicrobial') f.medication.antimicrobial = true
       if (failure === 'skin-test') f.medication.skinTestRequired = true
@@ -102,8 +104,9 @@ describe('historical prescription import uses current facts', () => {
     const f = historicalImportFixture()
     f.rx.medicationRequests.push({ ...f.rx.medicationRequests[0], id: 'med2', medicationId: 'm2', medicationCode: 'OTHER' })
     f.input.selectedIds.push('med2')
-    f.orderableMedications.mockResolvedValueOnce([f.medication]).mockRejectedValueOnce(new Error('目录读取失败'))
+    f.orderableMedicationsBatch.mockRejectedValueOnce(new Error('目录读取失败'))
     await expect(resolveHistoricalPrescriptionImport(f.input)).rejects.toThrow('目录读取失败')
+    expect(f.orderableMedicationsBatch).toHaveBeenCalledTimes(1)
   })
   it.each(['missing-snapshot', 'changed-count', 'changed-times', 'changed-policy'])(
     'does not silently change a historical schedule: %s', async failure => {

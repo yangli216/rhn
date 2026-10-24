@@ -14,7 +14,13 @@ import java.time.Instant;
 public interface MedicationDispenseRepository extends JpaRepository<MedicationDispense, Long> {
     Optional<MedicationDispense> findByTenantIdAndDispenseNo(Long tenantId, String dispenseNo);
     Optional<MedicationDispense> findByIdAndTenantId(Long id, Long tenantId);
+    List<MedicationDispense> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from MedicationDispense d where d.tenantId = :tenantId and d.id in :ids")
+    List<MedicationDispense> lockByIdIn(@Param("tenantId") Long tenantId, @Param("ids") java.util.Collection<Long> ids);
     List<MedicationDispense> findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(Long tenantId, Long taskId);
+    List<MedicationDispense> findByTenantIdAndTaskIdInOrderByOccurredAtAscIdAsc(Long tenantId,
+                                                                               java.util.Collection<Long> taskIds);
     List<MedicationDispense> findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(Long tenantId, Long encounterId);
 
     @Query("""

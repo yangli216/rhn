@@ -73,13 +73,71 @@ public class ProcurementCatalogService implements ProcurementCatalogDirectory {
                 .filter(value -> value.effective(date))
                 .collect(Collectors.toMap(value -> new CatalogPackageKey(value.catalogItemId(), value.packageId()),
                         Function.identity(), (left, right) -> right));
-        List<Candidate> candidates = stockItems.findByTenantIdAndStockSiteIdOrderById(tenantId, stockSiteId).stream()
+        List<StockItem> stocked = stockItems.findByTenantIdAndStockSiteIdOrderById(tenantId, stockSiteId).stream()
                 .filter(value -> "ACTIVE".equals(value.status()))
-                .map(value -> candidate(site, value, agreements.get(
-                        new CatalogPackageKey(value.catalogItemId(), value.basePackageId())), date))
-                .filter(java.util.Objects::nonNull)
+                .filter(value -> agreements.containsKey(
+                        new CatalogPackageKey(value.catalogItemId(), value.basePackageId())))
                 .toList();
-        return filterAndLimit(tenantId, site, query, candidates).stream().map(this::option).toList();
+        return searchCandidates(tenantId, site, stocked, agreements, query, date).stream().map(this::option).toList();
+    }
+
+    /**
+     * 采购目录检索：无关键字时按库存项顺序边解析边截断；有关键字时先用检索索引确定命中范围，
+     * 再只对命中候选解析目录，避免为空结果或超出展示上限时解析全部库存项。
+     */
+    private List<Candidate> searchCandidates(Long tenantId, StockSite site, List<StockItem> stock,
+                                             Map<CatalogPackageKey, SupplierSupplyItem> agreements,
+                                             String query, LocalDate date) {
+        int limit = searches.resolvePreference(tenantId, site.organizationId(), site.departmentId()).resultLimit();
+        if (query == null || query.isBlank()) {
+            List<Candidate> matched = new java.util.ArrayList<>();
+            for (StockItem value : stock) {
+                Candidate candidate = candidate(site, value, agreementOf(agreements, value), date);
+                if (candidate == null) continue;
+                matched.add(candidate);
+                if (matched.size() >= limit) break;
+            }
+            return matched;
+        }
+        Collection<Long> catalogIds = stock.stream().map(StockItem::catalogItemId).distinct().toList();
+        Set<Long> matchedCatalogIds = searches.findMatchingTargetIds("CATALOG_ITEM", tenantId,
+                site.organizationId(), site.departmentId(), query, catalogIds);
+        Map<Long, Long> medicationByCatalogItem = medicationIdsByCatalogItem(tenantId, site.organizationId(), catalogIds);
+        Set<Long> matchedMedicationIds = searches.findMatchingTargetIds("MEDICATION", tenantId,
+                site.organizationId(), site.departmentId(), query,
+                medicationByCatalogItem.values().stream().distinct().toList());
+        String normalized = query.trim().toLowerCase(Locale.ROOT);
+        List<Candidate> matched = new java.util.ArrayList<>();
+        for (StockItem value : stock) {
+            Candidate candidate = candidate(site, value, agreementOf(agreements, value), date);
+            if (candidate == null || !matches(candidate, matchedCatalogIds, matchedMedicationIds, normalized)) continue;
+            matched.add(candidate);
+            if (matched.size() >= limit) break;
+        }
+        return matched;
+    }
+
+    private SupplierSupplyItem agreementOf(Map<CatalogPackageKey, SupplierSupplyItem> agreements, StockItem value) {
+        return agreements.get(new CatalogPackageKey(value.catalogItemId(), value.basePackageId()));
+    }
+
+    private Map<Long, Long> medicationIdsByCatalogItem(Long tenantId, Long organizationId,
+                                                       Collection<Long> catalogIds) {
+        Map<Long, Long> result = new java.util.HashMap<>();
+        for (var view : catalogs.findMedicationsByProductCatalogItemIds(tenantId, organizationId, catalogIds)) {
+            for (var product : view.products()) result.putIfAbsent(product.id(), view.id());
+        }
+        return result;
+    }
+
+    private boolean matches(Candidate value, Set<Long> matchedCatalogIds, Set<Long> matchedMedicationIds,
+                            String normalized) {
+        return matchedCatalogIds.contains(value.stockItem().catalogItemId())
+                || value.catalog().medication() != null
+                && matchedMedicationIds.contains(value.catalog().medication().id())
+                || startsWith(value.catalog().item().code(), normalized)
+                || contains(value.catalog().itemPackage().packageSpec(), normalized)
+                || startsWith(value.catalog().itemPackage().unitCode(), normalized);
     }
 
     @Override
@@ -127,12 +185,8 @@ public class ProcurementCatalogService implements ProcurementCatalogDirectory {
                 site.organizationId(), site.departmentId(), query, medicationIds);
         String normalized = query.trim().toLowerCase(Locale.ROOT);
         int limit = searches.resolvePreference(tenantId, site.organizationId(), site.departmentId()).resultLimit();
-        return candidates.stream().filter(value -> matchedCatalogIds.contains(value.stockItem().catalogItemId())
-                        || value.catalog().medication() != null
-                        && matchedMedicationIds.contains(value.catalog().medication().id())
-                        || startsWith(value.catalog().item().code(), normalized)
-                        || contains(value.catalog().itemPackage().packageSpec(), normalized)
-                        || startsWith(value.catalog().itemPackage().unitCode(), normalized))
+        return candidates.stream()
+                .filter(value -> matches(value, matchedCatalogIds, matchedMedicationIds, normalized))
                 .limit(limit).toList();
     }
 

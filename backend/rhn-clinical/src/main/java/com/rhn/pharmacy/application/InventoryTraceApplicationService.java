@@ -3,6 +3,9 @@ package com.rhn.pharmacy.application;
 import com.rhn.pharmacy.api.InventoryTraceViews.ReceiptTraceLineView;
 import com.rhn.pharmacy.api.InventoryTraceViews.ReceiptTraceSummaryView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeBatchScanView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeLedgerRowView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeMetricsView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodePageView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceDetailView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceEventView;
@@ -13,18 +16,22 @@ import com.rhn.pharmacy.domain.InventoryTraceCode;
 import com.rhn.pharmacy.domain.InventoryTraceCodeStatus;
 import com.rhn.pharmacy.domain.InventoryTraceEvent;
 import com.rhn.pharmacy.domain.StockItem;
+import com.rhn.pharmacy.domain.StockLot;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.GoodsReceiptLineRepository;
 import com.rhn.pharmacy.infrastructure.GoodsReceiptRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTraceCodeRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTraceEventRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
+import com.rhn.pharmacy.infrastructure.StockLotRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.text.Strings;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,23 +53,30 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class InventoryTraceApplicationService {
+    /** 台账指标口径：在库/已开包、调拨在途、异常状态。 */
+    private static final List<InventoryTraceCodeStatus> AVAILABLE_METRIC_STATUSES = List.of(
+            InventoryTraceCodeStatus.AVAILABLE, InventoryTraceCodeStatus.OPENED, InventoryTraceCodeStatus.PARTIALLY_ISSUED);
+    private static final List<InventoryTraceCodeStatus> EXCEPTION_METRIC_STATUSES = List.of(
+            InventoryTraceCodeStatus.DAMAGED, InventoryTraceCodeStatus.QUARANTINED);
     private final InventoryTraceCodeRepository codeRepository;
     private final InventoryTraceEventRepository eventRepository;
     private final GoodsReceiptRepository receiptRepository;
     private final GoodsReceiptLineRepository receiptLineRepository;
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
+    private final StockLotRepository stockLotRepository;
     private final CatalogLifecycleDirectory catalogDirectory;
     private final ExecutionContextProvider contextProvider;
 
     public InventoryTraceApplicationService(InventoryTraceCodeRepository codeRepository,
             InventoryTraceEventRepository eventRepository, GoodsReceiptRepository receiptRepository,
             GoodsReceiptLineRepository receiptLineRepository, StockSiteRepository siteRepository,
-            StockItemRepository itemRepository, CatalogLifecycleDirectory catalogDirectory,
-            ExecutionContextProvider contextProvider) {
+            StockItemRepository itemRepository, StockLotRepository stockLotRepository,
+            CatalogLifecycleDirectory catalogDirectory, ExecutionContextProvider contextProvider) {
         this.codeRepository = codeRepository; this.eventRepository = eventRepository;
         this.receiptRepository = receiptRepository; this.receiptLineRepository = receiptLineRepository;
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
+        this.stockLotRepository = stockLotRepository;
         this.catalogDirectory = catalogDirectory; this.contextProvider = contextProvider;
     }
 
@@ -74,6 +88,7 @@ public class InventoryTraceApplicationService {
         }
         List<GoodsReceiptLine> receiptLines = receiptLineRepository.lockByReceipt(context.tenantId(), receiptId);
         Map<Long, GoodsReceiptLine> lineMap = new HashMap<>(); receiptLines.forEach(line -> lineMap.put(line.id(), line));
+        Map<Long, StockItem> itemById = receiptItems(context, receiptLines);
         if (input.lines() == null || input.lines().isEmpty()) throw badRequest("TRACE_CODES_REQUIRED", "请登记追溯码");
         Set<Long> inputLineIds = new HashSet<>(); Set<String> requestCodes = new HashSet<>();
         List<InventoryTraceCode> staged = new ArrayList<>();
@@ -81,7 +96,7 @@ public class InventoryTraceApplicationService {
             if (!inputLineIds.add(command.goodsReceiptLineId())) throw badRequest("TRACE_LINE_DUPLICATE", "追溯码登记明细不能重复");
             GoodsReceiptLine line = lineMap.get(command.goodsReceiptLineId());
             if (line == null) throw badRequest("TRACE_RECEIPT_LINE_INVALID", "追溯码明细不属于当前到货单");
-            StockItem item = requireItem(context, line.stockItemId(), receipt.stockSiteId());
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), receipt.stockSiteId());
             if (!item.traceRequired()) throw badRequest("TRACE_ITEM_NOT_REQUIRED", "未启用追溯的经营项目无需登记追溯码");
             int expected = integerPackages(line.acceptedQuantity());
             List<String> codes = normalizeInput(command.traceCodes());
@@ -98,21 +113,29 @@ public class InventoryTraceApplicationService {
             }
         }
         for (GoodsReceiptLine line : receiptLines) {
-            StockItem item = requireItem(context, line.stockItemId(), receipt.stockSiteId());
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), receipt.stockSiteId());
             if (item.traceRequired() && line.acceptedQuantity() != null && line.acceptedQuantity().signum() > 0
                     && !inputLineIds.contains(line.id())) {
                 throw badRequest("TRACE_REGISTRATION_INCOMPLETE", "必须一次登记全部需追溯的验收合格明细");
             }
         }
+        Map<Long, List<InventoryTraceCode>> codesByLine = receiptCodes(context, receiptLines);
         List<InventoryTraceCode> existing = receiptLines.stream()
-                .flatMap(line -> codeRepository.findByTenantIdAndGoodsReceiptLineIdOrderById(context.tenantId(), line.id()).stream())
+                .flatMap(line -> codesByLine.getOrDefault(line.id(), List.of()).stream())
                 .toList();
         if (existing.stream().anyMatch(code -> code.status() != InventoryTraceCodeStatus.PENDING_RECEIPT)) {
             throw conflict("TRACE_CODES_ALREADY_POSTED", "已入库的追溯码不能覆盖登记");
         }
         codeRepository.deleteAll(existing); codeRepository.flush();
+        Set<String> takenCodes = new HashSet<>();
+        List<String> normalizedCodes = staged.stream().map(InventoryTraceCode::normalizedCode).toList();
+        for (int from = 0; from < normalizedCodes.size(); from += 500) {
+            codeRepository.findByTenantIdAndNormalizedCodeIn(context.tenantId(),
+                            normalizedCodes.subList(from, Math.min(from + 500, normalizedCodes.size())))
+                    .forEach(value -> takenCodes.add(value.normalizedCode()));
+        }
         for (InventoryTraceCode code : staged) {
-            if (codeRepository.findByTenantIdAndNormalizedCode(context.tenantId(), code.normalizedCode()).isPresent()) {
+            if (takenCodes.contains(code.normalizedCode())) {
                 throw conflict("TRACE_CODE_DUPLICATE", "追溯码已存在：" + code.traceCode());
             }
         }
@@ -167,11 +190,13 @@ public class InventoryTraceApplicationService {
     }
 
     public void validateReceiptPosting(ExecutionContext context, GoodsReceipt receipt, List<GoodsReceiptLine> lines) {
+        Map<Long, StockItem> itemById = receiptItems(context, lines);
+        Map<Long, List<InventoryTraceCode>> codesByLine = receiptCodes(context, lines);
         for (GoodsReceiptLine line : lines) {
-            StockItem item = requireItem(context, line.stockItemId(), receipt.stockSiteId());
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), receipt.stockSiteId());
             if (!item.traceRequired() || line.acceptedQuantity() == null || line.acceptedQuantity().signum() == 0) continue;
             int expected = integerPackages(line.acceptedQuantity());
-            List<InventoryTraceCode> codes = codeRepository.findByTenantIdAndGoodsReceiptLineIdOrderById(context.tenantId(), line.id());
+            List<InventoryTraceCode> codes = codesByLine.getOrDefault(line.id(), List.of());
             if (codes.size() != expected
                     || codes.stream().anyMatch(code -> code.status() != InventoryTraceCodeStatus.PENDING_RECEIPT)) {
                 throw conflict("TRACE_REGISTRATION_INCOMPLETE", "追溯码登记未完成，不能批量入库");
@@ -181,8 +206,9 @@ public class InventoryTraceApplicationService {
 
     public void activateReceiptCodes(ExecutionContext context, GoodsReceipt receipt, List<GoodsReceiptLine> lines,
                                      Map<Long, Long> lotIds) {
+        Map<Long, List<InventoryTraceCode>> codesByLine = receiptCodes(context, lines);
         for (GoodsReceiptLine line : lines) {
-            for (InventoryTraceCode code : codeRepository.findByTenantIdAndGoodsReceiptLineIdOrderById(context.tenantId(), line.id())) {
+            for (InventoryTraceCode code : codesByLine.getOrDefault(line.id(), List.of())) {
                 String from = code.status().name(); code.receive(line.destinationBinId(), lotIds.get(line.id()), receipt.id(),
                         receipt.receiptNo(), receipt.receivedAt(), context.subjectId());
                 eventRepository.save(event(context, code, "RECEIVED", from, code.status().name(), null, receipt.stockSiteId(),
@@ -190,6 +216,44 @@ public class InventoryTraceApplicationService {
                         code.baseQuantity(), code.remainingBaseQuantity(), receipt.receivedAt()));
             }
         }
+    }
+
+    /** 一次装载入库单全部经营项目，按明细校验站点归属时保持原错误码与顺序。 */
+    private Map<Long, StockItem> receiptItems(ExecutionContext c, List<GoodsReceiptLine> lines) {
+        return itemsById(c, lines.stream().map(GoodsReceiptLine::stockItemId).toList());
+    }
+
+    private Map<Long, StockItem> itemsById(ExecutionContext c, List<Long> itemIds) {
+        Map<Long, StockItem> itemById = new HashMap<>();
+        List<Long> distinctIds = itemIds.stream().distinct().toList();
+        for (int from = 0; from < distinctIds.size(); from += 500) {
+            itemRepository.findByTenantIdAndIdIn(c.tenantId(),
+                            distinctIds.subList(from, Math.min(from + 500, distinctIds.size())))
+                    .forEach(value -> itemById.put(value.id(), value));
+        }
+        return itemById;
+    }
+
+    private StockItem requireSiteItem(Map<Long, StockItem> itemById, Long itemId, Long siteId) {
+        StockItem item = itemById.get(itemId);
+        if (item == null) throw notFound("STOCK_ITEM_NOT_FOUND", "未找到库房经营项目");
+        if (!siteId.equals(item.stockSiteId())) {
+            throw badRequest("STOCK_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
+        }
+        return item;
+    }
+
+    /** 一次装载入库单全部明细的追溯码，并按明细分组。 */
+    private Map<Long, List<InventoryTraceCode>> receiptCodes(ExecutionContext c, List<GoodsReceiptLine> lines) {
+        Map<Long, List<InventoryTraceCode>> codesByLine = new HashMap<>();
+        List<Long> lineIds = lines.stream().map(GoodsReceiptLine::id).toList();
+        for (int from = 0; from < lineIds.size(); from += 500) {
+            codeRepository.findByTenantIdAndGoodsReceiptLineIdInOrderByGoodsReceiptLineIdAscIdAsc(c.tenantId(),
+                            lineIds.subList(from, Math.min(from + 500, lineIds.size())))
+                    .forEach(value -> codesByLine.computeIfAbsent(value.goodsReceiptLineId(),
+                            ignored -> new ArrayList<>()).add(value));
+        }
+        return codesByLine;
     }
 
     /** Preserve immutable trace history while retiring references to deleted test documents. */
@@ -213,8 +277,10 @@ public class InventoryTraceApplicationService {
 
     public void issue(ExecutionContext context, Long siteId, String documentType, Long documentId, String documentNo,
                       List<TraceMovementLine> lines) {
+        Map<Long, StockItem> itemById = itemsById(context,
+                lines.stream().map(TraceMovementLine::stockItemId).toList());
         for (TraceMovementLine line : lines) {
-            StockItem item = requireItem(context, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
             List<InventoryTraceCode> selected = selectExact(codeRepository.lockAvailable(context.tenantId(), siteId,
                     line.stockItemId(), line.stockLotId()), line.baseQuantity(), "TRACE_CODE_STOCK_INSUFFICIENT");
             for (InventoryTraceCode code : selected) {
@@ -237,8 +303,10 @@ public class InventoryTraceApplicationService {
         }
 
         Map<TraceMovementKey, BigDecimal> required = new HashMap<>();
+        Map<Long, StockItem> itemById = itemsById(context,
+                lines.stream().map(TraceMovementLine::stockItemId).toList());
         for (TraceMovementLine line : lines) {
-            StockItem item = requireItem(context, line.stockItemId(), siteId);
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), siteId);
             if (!item.traceRequired()) continue;
             required.merge(new TraceMovementKey(line.stockBinId(), line.stockItemId(), line.stockLotId()),
                     line.baseQuantity(), BigDecimal::add);
@@ -284,8 +352,10 @@ public class InventoryTraceApplicationService {
 
     public void dispatchTransfer(ExecutionContext context, Long siteId, Long transferId, String transferNo,
                                  List<TraceMovementLine> lines) {
+        Map<Long, StockItem> itemById = itemsById(context,
+                lines.stream().map(TraceMovementLine::stockItemId).toList());
         for (TraceMovementLine line : lines) {
-            StockItem item = requireItem(context, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
             List<InventoryTraceCode> selected = selectExact(codeRepository.lockAvailable(context.tenantId(), siteId,
                     line.stockItemId(), line.stockLotId()), line.baseQuantity(), "TRACE_CODE_STOCK_INSUFFICIENT");
             for (InventoryTraceCode code : selected) {
@@ -299,8 +369,10 @@ public class InventoryTraceApplicationService {
 
     public void receiveTransfer(ExecutionContext context, Long sourceSiteId, Long destinationSiteId,
                                 Long transferId, String transferNo, List<TraceTransferReceiptLine> lines) {
+        Map<Long, StockItem> itemById = itemsById(context,
+                lines.stream().map(TraceTransferReceiptLine::destinationStockItemId).toList());
         for (TraceTransferReceiptLine line : lines) {
-            StockItem item = requireItem(context, line.destinationStockItemId(), destinationSiteId);
+            StockItem item = requireSiteItem(itemById, line.destinationStockItemId(), destinationSiteId);
             if (!item.traceRequired()) continue;
             List<InventoryTraceCode> codes = codeRepository.lockTransferCodes(context.tenantId(), transferId, line.stockLotId());
             List<InventoryTraceCode> received = selectExact(codes, line.receivedBaseQuantity(), "TRACE_TRANSFER_QUANTITY_MISMATCH");
@@ -320,8 +392,10 @@ public class InventoryTraceApplicationService {
     }
     public void returnMedication(ExecutionContext context, Long siteId, Long originalDispenseId,
                                  Long returnId, String returnNo, String documentType, List<TraceReturnLine> lines) {
+        Map<Long, StockItem> itemById = itemsById(context,
+                lines.stream().map(TraceReturnLine::stockItemId).toList());
         for (TraceReturnLine line : lines) {
-            StockItem item = requireItem(context, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
+            StockItem item = requireSiteItem(itemById, line.stockItemId(), siteId); if (!item.traceRequired()) continue;
             List<InventoryTraceCode> selected = selectExact(codeRepository.lockIssuedDispenseCodes(context.tenantId(),
                     originalDispenseId, line.stockItemId(), line.stockLotId()), line.baseQuantity(),
                     "TRACE_RETURN_QUANTITY_MISMATCH");
@@ -390,6 +464,51 @@ public class InventoryTraceApplicationService {
         return codeRepository.search(context.tenantId(), siteId, filter, term).stream().limit(500).map(this::view).toList();
     }
 
+    /** 台账分页：筛选、排序与指标聚合都在服务端完成，前端只取当前页。 */
+    @Transactional(readOnly = true)
+    public TraceCodePageView page(Long siteId, String status, String query, int page, int size) {
+        ExecutionContext context = requireContext(); requireSite(context, siteId);
+        if (page < 0) throw badRequest("TRACE_PAGE_INVALID", "页码不能小于零");
+        if (size < 1 || size > 200) throw badRequest("TRACE_PAGE_SIZE_INVALID", "每页数量必须在 1 至 200 之间");
+        TraceCodeMetricsView metrics = metricsView(codeRepository.summarize(context.tenantId(), siteId,
+                AVAILABLE_METRIC_STATUSES, InventoryTraceCodeStatus.IN_TRANSIT, EXCEPTION_METRIC_STATUSES));
+        String state = Strings.trimToNull(status); InventoryTraceCodeStatus filter = null;
+        if (state != null) {
+            try { filter = InventoryTraceCodeStatus.valueOf(state.toUpperCase(Locale.ROOT)); }
+            catch (IllegalArgumentException exception) {
+                return new TraceCodePageView(List.of(), page, size, 0, 0, true, true, metrics);
+            }
+        }
+        Page<InventoryTraceCode> values = codeRepository.searchPage(context.tenantId(), siteId, filter,
+                Strings.trimToNull(query), PageRequest.of(page, size));
+        Map<Long, LocalDate> lotExpiries = lotExpiries(context.tenantId(), values.getContent());
+        List<TraceCodeLedgerRowView> rows = new ArrayList<>(values.getNumberOfElements());
+        for (InventoryTraceCode value : values.getContent()) {
+            rows.add(new TraceCodeLedgerRowView(view(value), lotExpiries.get(value.stockLotId())));
+        }
+        return new TraceCodePageView(rows, values.getNumber(), values.getSize(), values.getTotalElements(),
+                values.getTotalPages(), values.isFirst(), values.isLast(), metrics);
+    }
+
+    /** 当前页涉及的批次效期一次批量读取，避免按经营项目逐个查批次。 */
+    private Map<Long, LocalDate> lotExpiries(Long tenantId, List<InventoryTraceCode> values) {
+        Set<Long> lotIds = new HashSet<>();
+        for (InventoryTraceCode value : values) if (value.stockLotId() != null) lotIds.add(value.stockLotId());
+        if (lotIds.isEmpty()) return Map.of();
+        Map<Long, LocalDate> expiries = new HashMap<>();
+        for (StockLot lot : stockLotRepository.findByTenantIdAndIdIn(tenantId, List.copyOf(lotIds))) {
+            expiries.put(lot.id(), lot.expiryDate());
+        }
+        return expiries;
+    }
+
+    private TraceCodeMetricsView metricsView(InventoryTraceCodeRepository.TraceCodeSummary summary) {
+        return new TraceCodeMetricsView(count(summary.getTotal()), count(summary.getAvailable()),
+                count(summary.getTransit()), count(summary.getExceptions()));
+    }
+
+    private static long count(Long value) { return value == null ? 0 : value; }
+
     @Transactional(readOnly = true)
     public TraceDetailView detail(Long id) {
         ExecutionContext context = requireContext(); InventoryTraceCode code = codeRepository.findById(id)
@@ -429,10 +548,31 @@ public class InventoryTraceApplicationService {
     }
 
     private ReceiptTraceSummaryView receiptSummary(ExecutionContext c, GoodsReceipt receipt, List<GoodsReceiptLine> lines) {
+        // 一次装载本单全部经营项目与各明细已登记追溯码数量，避免逐明细回查。
+        Map<Long, StockItem> itemById = new HashMap<>();
+        Map<Long, Integer> registeredByLine = new HashMap<>();
+        List<Long> itemIds = lines.stream().map(GoodsReceiptLine::stockItemId).distinct().toList();
+        for (int from = 0; from < itemIds.size(); from += 500) {
+            itemRepository.findByTenantIdAndIdIn(c.tenantId(),
+                            itemIds.subList(from, Math.min(from + 500, itemIds.size())))
+                    .forEach(value -> itemById.put(value.id(), value));
+        }
+        List<Long> lineIds = lines.stream().map(GoodsReceiptLine::id).toList();
+        for (int from = 0; from < lineIds.size(); from += 500) {
+            codeRepository.countByGoodsReceiptLineIds(c.tenantId(),
+                            lineIds.subList(from, Math.min(from + 500, lineIds.size())))
+                    .forEach(value -> registeredByLine.put(value.getLineId(),
+                            value.getTotal() == null ? 0 : value.getTotal().intValue()));
+        }
+
         List<ReceiptTraceLineView> result = new ArrayList<>(); int required = 0; int registered = 0;
         for (GoodsReceiptLine line : lines) {
-            StockItem item = requireItem(c, line.stockItemId(), receipt.stockSiteId());
-            int count = codeRepository.findByTenantIdAndGoodsReceiptLineIdOrderById(c.tenantId(), line.id()).size();
+            StockItem item = itemById.get(line.stockItemId());
+            if (item == null) throw notFound("STOCK_ITEM_NOT_FOUND", "未找到库房经营项目");
+            if (!receipt.stockSiteId().equals(item.stockSiteId())) {
+                throw badRequest("STOCK_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
+            }
+            int count = registeredByLine.getOrDefault(line.id(), 0);
             int expected = item.traceRequired() && line.acceptedQuantity() != null && line.acceptedQuantity().signum() > 0
                     ? integerPackages(line.acceptedQuantity()) : 0;
             required += expected; registered += count;

@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface StockReturnLineRepository extends JpaRepository<StockReturnLine, Long> {
     List<StockReturnLine> findByTenantIdAndStockReturnIdOrderBySortOrder(Long tenantId, Long stockReturnId);
+    List<StockReturnLine> findByTenantIdAndStockReturnIdInOrderBySortOrder(Long tenantId,
+                                                                          java.util.Collection<Long> stockReturnIds);
 }

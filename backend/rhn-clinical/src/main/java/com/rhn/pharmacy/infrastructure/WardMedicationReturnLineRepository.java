@@ -21,4 +21,22 @@ public interface WardMedicationReturnLineRepository extends JpaRepository<WardMe
             + "and request.status in ('REQUESTED', 'IN_TRANSIT')")
     BigDecimal pendingBaseQuantity(@Param("tenantId") Long tenantId,
                                    @Param("dispenseLineId") Long dispenseLineId);
+
+    interface DispenseLinePendingBaseQuantity {
+        Long getDispenseLineId();
+        BigDecimal getPendingBaseQuantity();
+    }
+
+    /** 批量待退量：按原发药行一次汇总，避免发药核销装配逐行查询。 */
+    @Query("select line.originalDispenseLineId as dispenseLineId, "
+            + "coalesce(sum(line.requestedBaseQuantity), 0) as pendingBaseQuantity "
+            + "from WardMedicationReturnLine line "
+            + "join WardMedicationReturnRequest request on request.id = line.returnRequestId "
+            + "and request.tenantId = line.tenantId "
+            + "where line.tenantId = :tenantId and line.originalDispenseLineId in :dispenseLineIds "
+            + "and request.status in ('REQUESTED', 'IN_TRANSIT') "
+            + "group by line.originalDispenseLineId")
+    List<DispenseLinePendingBaseQuantity> pendingBaseQuantities(
+            @Param("tenantId") Long tenantId,
+            @Param("dispenseLineIds") Collection<Long> dispenseLineIds);
 }

@@ -10,6 +10,7 @@ import com.rhn.pharmacy.infrastructure.GoodsReceiptRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTraceCodeRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTraceEventRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
+import com.rhn.pharmacy.infrastructure.StockLotRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.shared.context.ExecutionContext;
@@ -113,8 +114,8 @@ class InventoryTraceCodeTest {
                                                             StockItemRepository items) {
         return new InventoryTraceApplicationService(codes, mock(InventoryTraceEventRepository.class),
                 mock(GoodsReceiptRepository.class), mock(GoodsReceiptLineRepository.class),
-                mock(StockSiteRepository.class), items, mock(CatalogLifecycleDirectory.class),
-                mock(ExecutionContextProvider.class));
+                mock(StockSiteRepository.class), items, mock(StockLotRepository.class),
+                mock(CatalogLifecycleDirectory.class), mock(ExecutionContextProvider.class));
     }
 
     private ExecutionContext context(long tenantId, long actorId) {

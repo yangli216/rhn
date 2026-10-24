@@ -53,8 +53,9 @@ public class DiagnosticWorkspaceController {
             @RequestParam(required = false) Long encounterId, @RequestParam(required = false) Long residentId,
             @RequestParam(required = false) com.rhn.diagnostics.domain.DiagnosticExecutionTaskStatus status,
             @RequestParam(required = false) java.time.Instant createdFrom,
-            @RequestParam(required = false) java.time.Instant createdBefore) {
-        return execution.worklistPage(requestType, keyword, page, size, encounterId, residentId, status, createdFrom, createdBefore);
+            @RequestParam(required = false) java.time.Instant createdBefore,
+            @RequestParam(defaultValue = "false") boolean activeAndRecent) {
+        return execution.worklistPage(requestType, keyword, page, size, encounterId, residentId, status, createdFrom, createdBefore, activeAndRecent);
     }
 
     @PostMapping("/tasks/{taskId}/collection")

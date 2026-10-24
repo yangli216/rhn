@@ -11,4 +11,6 @@ public interface PaymentEventRepository extends JpaRepository<PaymentEvent, Long
             Long tenantId, Long paymentOrderId, String commandCode);
     List<PaymentEvent> findByTenantIdAndPaymentOrderIdOrderByOccurredAtAscIdAsc(
             Long tenantId, Long paymentOrderId);
+    List<PaymentEvent> findByTenantIdAndPaymentOrderIdInOrderByPaymentOrderIdAscOccurredAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> paymentOrderIds);
 }

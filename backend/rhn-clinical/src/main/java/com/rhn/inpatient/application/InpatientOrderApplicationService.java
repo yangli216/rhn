@@ -4,6 +4,8 @@ import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot;
 import com.rhn.healthcore.api.AllergyDirectory;
 import com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot;
+import com.rhn.inpatient.api.InpatientOrderViews.BatchTaskExecutionView;
+import com.rhn.inpatient.api.InpatientOrderViews.TaskFailureView;
 import com.rhn.inpatient.api.InpatientOrderViews.DoctorWorklistView;
 import com.rhn.inpatient.api.InpatientOrderViews.NurseWorklistView;
 import com.rhn.inpatient.api.InpatientOrderViews.MedicationConsumptionView;
@@ -37,6 +39,7 @@ import com.rhn.pharmacy.api.MedicationFulfillmentDirectory.FulfillmentSnapshot;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
+import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.text.Strings;
@@ -45,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -52,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -83,6 +88,7 @@ public class InpatientOrderApplicationService {
     private final WardDeliveryDirectory wardDeliveries;
     private final InpatientOrderChargeService orderCharges;
     private final DomainEventPublisher domainEvents;
+    private final org.springframework.transaction.support.TransactionTemplate taskTransactions;
 
     public InpatientOrderApplicationService(
             ExecutionContextProvider contextProvider,
@@ -102,7 +108,8 @@ public class InpatientOrderApplicationService {
             InpatientMedicationStopDirectory medicationStops,
             WardDeliveryDirectory wardDeliveries,
             InpatientOrderChargeService orderCharges,
-            DomainEventPublisher domainEvents) {
+            DomainEventPublisher domainEvents,
+            org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.contextProvider = contextProvider;
         this.organizations = organizations;
         this.workContexts = workContexts;
@@ -121,6 +128,7 @@ public class InpatientOrderApplicationService {
         this.wardDeliveries = wardDeliveries;
         this.orderCharges = orderCharges;
         this.domainEvents = domainEvents;
+        this.taskTransactions = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     }
 
     @Transactional
@@ -224,6 +232,25 @@ public class InpatientOrderApplicationService {
         return completeTask(taskId, input, false);
     }
 
+    /** 批量执行医嘱任务：逐任务独立事务，单项失败不影响其余任务，保持局部成功语义。 */
+    public BatchTaskExecutionView executeBatch(BatchTaskCommand input) {
+        requireAction();
+        String batchCommandCode = requireCommand(input.batchCommandCode());
+        List<Long> succeeded = new ArrayList<>();
+        List<TaskFailureView> failures = new ArrayList<>();
+        for (BatchTaskItem item : input.items()) {
+            String commandCode = batchCommandCode + "-" + item.taskId();
+            try {
+                taskTransactions.executeWithoutResult(status -> completeTask(item.taskId(),
+                        new TaskCommand(item.expectedRevision(), input.outcomeCode(), input.note(), commandCode), false));
+                succeeded.add(item.taskId());
+            } catch (BusinessException exception) {
+                failures.add(new TaskFailureView(item.taskId(), exception.code(), exception.getMessage()));
+            }
+        }
+        return new BatchTaskExecutionView(succeeded, failures);
+    }
+
     @Transactional
     public TaskView skip(Long taskId, TaskCommand input) {
         return completeTask(taskId, input, true);
@@ -266,12 +293,57 @@ public class InpatientOrderApplicationService {
         Long targetDepartmentId = targetDepartment(context, episodeId);
         Set<String> statuses = statusFilter(status, ORDER_STATUSES, Set.of("DRAFT", "SIGNED", "ACTIVE"),
                 "INPATIENT_ORDER_STATUS_INVALID", "住院医嘱状态不合法");
-        List<OrderView> values = workflows.findByTenantIdOrderByUpdatedAtDesc(context.tenantId()).stream()
+        List<InpatientOrderWorkflow> candidates = workflows.findByTenantIdOrderByUpdatedAtDesc(context.tenantId())
+                .stream()
                 .filter(value -> episodeId == null || episodeId.equals(value.episodeId()))
                 .filter(value -> statuses.contains(value.workflowStatus()))
-                .map(value -> new WorkflowAndRequest(value, requireRequest(context, value.requestId())))
-                .filter(value -> targetWorkContext(context, targetDepartmentId, value.request()))
-                .map(value -> orderView(context, value.workflow(), value.request()))
+                .toList();
+        if (candidates.isEmpty()) return new DoctorWorklistView(List.of());
+        // 批量装载医嘱事实、住院接触、居民快照、住院记录、任务与药品明细，避免逐医嘱重复查询。
+        Set<Long> requestIds = candidates.stream().map(InpatientOrderWorkflow::requestId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, InpatientCareRequest> requestById = new LinkedHashMap<>();
+        requests.findByTenantIdAndIdIn(context.tenantId(), requestIds)
+                .forEach(value -> requestById.putIfAbsent(value.id(), value));
+        Set<Long> encounterIds = requestById.values().stream().map(InpatientCareRequest::encounterId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, InpatientEncounter> encounterById = new LinkedHashMap<>();
+        if (!encounterIds.isEmpty()) {
+            encounters.findByTenantIdAndIdIn(context.tenantId(), encounterIds)
+                    .forEach(value -> encounterById.putIfAbsent(value.id(), value));
+        }
+        Set<Long> authorizedDepartments = new LinkedHashSet<>();
+        List<WorkflowAndRequest> visible = new ArrayList<>();
+        for (InpatientOrderWorkflow workflow : candidates) {
+            InpatientCareRequest request = requestById.get(workflow.requestId());
+            if (request == null) throw notFound("INPATIENT_ORDER_NOT_FOUND", "住院医嘱事实不存在");
+            InpatientEncounter encounter = requireRequestScope(context, request, encounterById, authorizedDepartments);
+            if (!targetDepartmentId.equals(encounter.departmentId())) continue;
+            visible.add(new WorkflowAndRequest(workflow, request));
+        }
+        if (visible.isEmpty()) return new DoctorWorklistView(List.of());
+        Map<Long, ResidentSnapshot> snapshots = residents.requireSnapshots(context.tenantId(),
+                visible.stream().map(value -> value.request().residentId())
+                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+        Map<Long, CareEpisode> episodeById = new LinkedHashMap<>();
+        episodes.findByTenantIdAndIdIn(context.tenantId(), visible.stream()
+                        .map(value -> value.workflow().episodeId())
+                        .collect(Collectors.toCollection(LinkedHashSet::new)))
+                .forEach(value -> episodeById.putIfAbsent(value.id(), value));
+        Map<Long, List<InpatientOrderTask>> tasksByRequest = new LinkedHashMap<>();
+        tasks.findByTenantIdAndRequestIdInOrderByOccurrenceNoAsc(context.tenantId(),
+                        visible.stream().map(value -> value.request().id())
+                                .collect(Collectors.toCollection(LinkedHashSet::new)))
+                .forEach(value -> tasksByRequest.computeIfAbsent(value.requestId(), ignored -> new ArrayList<>())
+                        .add(value));
+        TaskAssembly assembly = taskAssembly(context, visible.stream()
+                .flatMap(value -> tasksByRequest.getOrDefault(value.request().id(), List.of()).stream()
+                        .map(task -> new TaskContext(task, value.workflow(), value.request())))
+                .toList());
+        List<OrderView> values = visible.stream()
+                .map(value -> orderView(value.workflow(), value.request(),
+                        snapshots.get(value.request().residentId()), episodeById.get(value.workflow().episodeId()),
+                        tasksByRequest.getOrDefault(value.request().id(), List.of()), assembly))
                 .toList();
         return new DoctorWorklistView(values);
     }
@@ -285,18 +357,83 @@ public class InpatientOrderApplicationService {
         if (from != null && to != null && to.isBefore(from)) {
             throw badRequest("INPATIENT_TASK_TIME_RANGE_INVALID", "任务查询结束时间不能早于开始时间");
         }
-        List<TaskView> values = tasks.findByTenantIdOrderByScheduledAtAsc(context.tenantId()).stream()
+        List<InpatientOrderTask> candidates = tasks.findByTenantIdOrderByScheduledAtAsc(context.tenantId()).stream()
                 .filter(value -> statuses.contains(value.status().name()))
                 .filter(value -> from == null || !value.scheduledAt().isBefore(from))
                 .filter(value -> to == null || !value.scheduledAt().isAfter(to))
-                .map(value -> new TaskContext(value, requireWorkflow(context, value.requestId()),
-                        requireRequest(context, value.requestId())))
-                .filter(value -> episodeId == null || episodeId.equals(value.workflow().episodeId()))
-                .filter(value -> targetWorkContext(context, targetDepartmentId, value.request()))
+                .toList();
+        if (candidates.isEmpty()) return new NurseWorklistView(List.of());
+        // 批量装配工作流、诊疗事实、住院接触与居民快照，避免逐任务重复查询；科室授权按科室去重校验。
+        Set<Long> requestIds = candidates.stream().map(InpatientOrderTask::requestId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, InpatientOrderWorkflow> workflowByRequest = new LinkedHashMap<>();
+        workflows.findByTenantIdAndRequestIdIn(context.tenantId(), requestIds)
+                .forEach(value -> workflowByRequest.putIfAbsent(value.requestId(), value));
+        Map<Long, InpatientCareRequest> requestById = new LinkedHashMap<>();
+        requests.findByTenantIdAndIdIn(context.tenantId(), requestIds)
+                .forEach(value -> requestById.putIfAbsent(value.id(), value));
+        Set<Long> encounterIds = requestById.values().stream().map(InpatientCareRequest::encounterId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, InpatientEncounter> encounterById = new LinkedHashMap<>();
+        if (!encounterIds.isEmpty()) {
+            encounters.findByTenantIdAndIdIn(context.tenantId(), encounterIds)
+                    .forEach(value -> encounterById.putIfAbsent(value.id(), value));
+        }
+        Set<Long> authorizedDepartments = new LinkedHashSet<>();
+        List<TaskContext> visible = new ArrayList<>();
+        for (InpatientOrderTask task : candidates) {
+            InpatientOrderWorkflow workflow = workflowByRequest.get(task.requestId());
+            if (workflow == null) throw notFound("INPATIENT_ORDER_NOT_FOUND", "住院医嘱不存在");
+            InpatientCareRequest request = requestById.get(task.requestId());
+            if (request == null) throw notFound("INPATIENT_ORDER_NOT_FOUND", "住院医嘱事实不存在");
+            InpatientEncounter encounter = requireRequestScope(context, request, encounterById, authorizedDepartments);
+            if (episodeId != null && !episodeId.equals(workflow.episodeId())) continue;
+            if (!targetDepartmentId.equals(encounter.departmentId())) continue;
+            visible.add(new TaskContext(task, workflow, request));
+        }
+        if (visible.isEmpty()) return new NurseWorklistView(List.of());
+        Map<Long, ResidentSnapshot> snapshots = residents.requireSnapshots(context.tenantId(),
+                visible.stream().map(value -> value.request().residentId())
+                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+        TaskAssembly assembly = taskAssembly(context, visible);
+        List<TaskView> values = visible.stream()
                 .map(value -> taskView(value.task(), value.workflow(), value.request(),
-                        residents.requireSnapshot(value.request().residentId()).fullName()))
+                        snapshots.get(value.request().residentId()).fullName(), assembly))
                 .toList();
         return new NurseWorklistView(values);
+    }
+
+    /** 为工作台列表一次性预取药品明细、消费者供药快照与核销记录，避免逐任务查询。 */
+    private TaskAssembly taskAssembly(ExecutionContext context, List<TaskContext> items) {
+        Set<Long> medicationRequestIds = items.stream()
+                .filter(value -> "MEDICATION".equals(value.request().orderCategory()))
+                .map(value -> value.request().id())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, RequestDetails> detailsByRequest = requestStore.detailsByRequest(context.tenantId(),
+                medicationRequestIds);
+        Map<Long, Long> requestIdByTaskId = new LinkedHashMap<>();
+        for (TaskContext value : items) {
+            RequestDetails details = detailsByRequest.getOrDefault(value.request().id(), RequestDetails.EMPTY);
+            if (fulfillmentRequired(value.request(), details)) {
+                requestIdByTaskId.put(value.task().id(), value.request().id());
+            }
+        }
+        Map<Long, FulfillmentSnapshot> fulfillmentByTask = requestIdByTaskId.isEmpty() ? Map.of()
+                : medicationFulfillment.fulfillmentsForConsumers(context.tenantId(), "INPATIENT_ORDER_TASK",
+                        requestIdByTaskId);
+        if (fulfillmentByTask == null) fulfillmentByTask = Map.of();
+        Map<Long, List<MedicationFulfillmentDirectory.ConsumptionAllocation>> consumptionsByTask =
+                medicationRequestIds.isEmpty() ? Map.of()
+                        : medicationFulfillment.consumptionsForConsumers(context.tenantId(), "INPATIENT_ORDER_TASK",
+                                items.stream().filter(value -> "MEDICATION".equals(value.request().orderCategory()))
+                                        .map(value -> value.task().id())
+                                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+        if (consumptionsByTask == null) consumptionsByTask = Map.of();
+        return new TaskAssembly(detailsByRequest, fulfillmentByTask, consumptionsByTask);
+    }
+
+    private static boolean fulfillmentRequired(InpatientCareRequest request, RequestDetails details) {
+        return "MEDICATION".equals(request.orderCategory()) && !details.selfProvided();
     }
 
     private TaskView completeTask(Long taskId, TaskCommand input, boolean skip) {
@@ -363,10 +500,24 @@ public class InpatientOrderApplicationService {
         ResidentSnapshot resident = residents.requireSnapshot(request.residentId());
         CareEpisode episode = episodes.findByIdAndTenantId(workflow.episodeId(), context.tenantId())
                 .orElseThrow(() -> notFound("INPATIENT_EPISODE_NOT_FOUND", "住院记录不存在"));
-        RequestDetails details = requestStore.details(context.tenantId(), request.id(), request.orderCategory());
-        List<TaskView> taskViews = tasks.findByTenantIdAndRequestIdOrderByOccurrenceNoAsc(
-                        context.tenantId(), request.id()).stream()
-                .map(task -> taskView(task, workflow, request, resident.fullName()))
+        List<InpatientOrderTask> orderTasks = tasks.findByTenantIdAndRequestIdOrderByOccurrenceNoAsc(
+                context.tenantId(), request.id());
+        TaskAssembly assembly = taskAssembly(context, orderTasks.stream()
+                .map(task -> new TaskContext(task, workflow, request)).toList());
+        return orderView(workflow, request, resident, episode, orderTasks, assembly);
+    }
+
+    /** 使用已批量装载的数据装配医嘱视图；工作台列表据此避免逐医嘱查询。 */
+    private OrderView orderView(InpatientOrderWorkflow workflow, InpatientCareRequest request,
+                                ResidentSnapshot resident, CareEpisode episode,
+                                List<InpatientOrderTask> orderTasks, TaskAssembly assembly) {
+        if (episode == null) throw notFound("INPATIENT_EPISODE_NOT_FOUND", "住院记录不存在");
+        RequestDetails details = assembly.detailsByRequest().get(request.id());
+        if (details == null) {
+            details = requestStore.details(request.tenantId(), request.id(), request.orderCategory());
+        }
+        List<TaskView> taskViews = orderTasks.stream()
+                .map(task -> taskView(task, workflow, request, resident.fullName(), assembly))
                 .toList();
         MedicationClosureView medicationClosure = medicationClosure(workflow, request);
         return new OrderView(request.id(), workflow.revision(), request.requestNo(), request.orderCategory(),
@@ -391,18 +542,35 @@ public class InpatientOrderApplicationService {
 
     private TaskView taskView(InpatientOrderTask task, InpatientOrderWorkflow workflow,
                               InpatientCareRequest request, String residentName) {
-        RequestDetails details = requestStore.details(request.tenantId(), request.id(), request.orderCategory());
-        boolean fulfillmentRequired = "MEDICATION".equals(request.orderCategory()) && !details.selfProvided();
+        return taskView(task, workflow, request, residentName, TaskAssembly.EMPTY);
+    }
+
+    /** 装配执行任务视图；工作台列表通过预取结果一次取回明细、供药快照与核销记录，单任务路径回落到逐条查询。 */
+    private TaskView taskView(InpatientOrderTask task, InpatientOrderWorkflow workflow,
+                              InpatientCareRequest request, String residentName, TaskAssembly assembly) {
+        RequestDetails details = assembly.detailsByRequest().get(request.id());
+        if (details == null) {
+            details = requestStore.details(request.tenantId(), request.id(), request.orderCategory());
+        }
+        boolean fulfillmentRequired = fulfillmentRequired(request, details);
         FulfillmentSnapshot fulfillment = fulfillmentRequired
-                ? medicationFulfillment.fulfillmentForConsumer(request.tenantId(), request.id(),
-                        "INPATIENT_ORDER_TASK", task.id())
+                ? assembly.fulfillmentByTask().get(task.id())
                 : new FulfillmentSnapshot(true, null, BigDecimal.ZERO, "NOT_REQUIRED");
+        if (fulfillmentRequired && fulfillment == null) {
+            fulfillment = medicationFulfillment.fulfillmentForConsumer(request.tenantId(), request.id(),
+                    "INPATIENT_ORDER_TASK", task.id());
+        }
         // Preserve compatibility for fulfillment adapters that only implement the earlier request-level contract.
         if (fulfillmentRequired && fulfillment == null) {
             fulfillment = medicationFulfillment.fulfillmentForRequest(request.tenantId(), request.id());
         }
-        List<MedicationConsumptionView> medicationConsumptions = medicationFulfillment
-                .consumptionsFor(request.tenantId(), "INPATIENT_ORDER_TASK", task.id()).stream()
+        List<MedicationFulfillmentDirectory.ConsumptionAllocation> consumptions =
+                assembly.consumptionsByTask().get(task.id());
+        if (consumptions == null) {
+            consumptions = medicationFulfillment.consumptionsFor(request.tenantId(), "INPATIENT_ORDER_TASK",
+                    task.id());
+        }
+        List<MedicationConsumptionView> medicationConsumptions = consumptions.stream()
                 .map(value -> new MedicationConsumptionView(value.id(), value.dispenseTaskLineId(),
                         value.dispenseId(), value.dispenseLineId(),
                         value.consumedQuantity(), value.dispenseUnitCode(), value.consumedBaseQuantity(),
@@ -582,12 +750,21 @@ public class InpatientOrderApplicationService {
         requireDepartmentScope(context, encounter.departmentId());
     }
 
-    private boolean targetWorkContext(ExecutionContext context, Long departmentId,
-                                      InpatientCareRequest request) {
-        if (!context.organizationId().equals(request.performerOrganizationId())) return false;
-        return encounters.findByIdAndTenantId(request.encounterId(), context.tenantId())
-                .map(value -> departmentId.equals(value.departmentId()))
-                .orElse(false);
+    /**
+     * 列表装配用的范围校验：接触已批量预取，科室授权按科室去重执行，错误语义与单条校验保持一致。
+     */
+    private InpatientEncounter requireRequestScope(ExecutionContext context, InpatientCareRequest request,
+                                                   Map<Long, InpatientEncounter> encounterById,
+                                                   Set<Long> authorizedDepartments) {
+        if (!context.organizationId().equals(request.performerOrganizationId())) {
+            throw forbidden("INPATIENT_ORDER_SCOPE_DENIED", "住院医嘱不属于当前机构");
+        }
+        InpatientEncounter encounter = encounterById.get(request.encounterId());
+        if (encounter == null) throw notFound("INPATIENT_ENCOUNTER_NOT_FOUND", "住院接触不存在");
+        if (authorizedDepartments.add(encounter.departmentId())) {
+            requireDepartmentScope(context, encounter.departmentId());
+        }
+        return encounter;
     }
 
     private Long targetDepartment(ExecutionContext context, Long episodeId) {
@@ -695,10 +872,21 @@ public class InpatientOrderApplicationService {
                                    String allergyOverrideReason, String commandCode) {}
     public record PlanCommand(long expectedRevision, List<Instant> plannedTimes, String commandCode) {}
     public record TaskCommand(long expectedRevision, String outcomeCode, String note, String commandCode) {}
+    public record BatchTaskItem(Long taskId, long expectedRevision) {}
+    public record BatchTaskCommand(List<BatchTaskItem> items, String outcomeCode, String note,
+                                   String batchCommandCode) {}
     public record StopCommand(long expectedRevision, String reason, String commandCode) {}
 
     private record WorkflowAndRequest(InpatientOrderWorkflow workflow, InpatientCareRequest request) {}
     private record TaskContext(InpatientOrderTask task, InpatientOrderWorkflow workflow,
                                InpatientCareRequest request) {}
+
+    /** 列表装配预取结果；未命中的键回落到逐条查询，保持单任务路径与旧适配器语义。 */
+    private record TaskAssembly(Map<Long, RequestDetails> detailsByRequest,
+                                Map<Long, FulfillmentSnapshot> fulfillmentByTask,
+                                Map<Long, List<MedicationFulfillmentDirectory.ConsumptionAllocation>>
+                                        consumptionsByTask) {
+        static final TaskAssembly EMPTY = new TaskAssembly(Map.of(), Map.of(), Map.of());
+    }
     private record AllergyReview(String eventReason) {}
 }

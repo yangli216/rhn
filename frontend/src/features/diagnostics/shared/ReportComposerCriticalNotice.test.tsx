@@ -162,7 +162,7 @@ describe('ReportComposer Critical Value Interception and Double Sign Flow', () =
     expect(await screen.findByRole('region', { name: '报告编辑正文' })).toBeInTheDocument()
     expect(screen.queryByText(/data is undefined/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '重新读取报告模板' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('套用国家标准模板')).toBeInTheDocument()
+    expect(screen.getByLabelText('套用项目结果模板')).toBeInTheDocument()
   })
 })
 

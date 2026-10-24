@@ -68,6 +68,9 @@ function mockApi(orders: InpatientOrder[], tasks: InpatientOrderTask[] = [], del
       verifyOrder: vi.fn().mockResolvedValue(activeOrder), planOrder: vi.fn().mockResolvedValue(activeOrder),
       stopOrder: vi.fn().mockResolvedValue({ ...activeOrder, status: 'STOPPED' }),
       executeOrderTask: vi.fn().mockResolvedValue({ ...plannedTask, status: 'EXECUTED' }),
+      executeOrderTasksBatch: vi.fn().mockImplementation((items: { taskId: string }[]) => Promise.resolve({
+        succeededTaskIds: items.map((item) => item.taskId), failures: [],
+      })),
       skipOrderTask: vi.fn().mockResolvedValue({ ...plannedTask, status: 'SKIPPED' }),
     },
     pharmacy: {
@@ -336,13 +339,12 @@ describe('InpatientOrderWorkspace', () => {
     await userEvent.type(screen.getByLabelText('批量执行备注'), '同一时点床旁核对完成')
     await userEvent.click(screen.getByRole('button', { name: '执行所选' }))
 
-    await waitFor(() => expect(api.inpatient.executeOrderTask).toHaveBeenCalledTimes(2))
-    expect(api.inpatient.executeOrderTask).toHaveBeenCalledWith(plannedTask.id, plannedTask.revision, 'COMPLETED',
-      '同一时点床旁核对完成', 'ORDER-TASK-BATCH-task-1-batch-request')
-    expect(api.inpatient.executeOrderTask).toHaveBeenCalledWith(secondTask.id, secondTask.revision, 'COMPLETED',
-      '同一时点床旁核对完成', 'ORDER-TASK-BATCH-task-2-batch-request')
-    expect(api.inpatient.executeOrderTask).not.toHaveBeenCalledWith(awaitingDispense.id, expect.anything(), expect.anything(),
-      expect.anything(), expect.anything())
+    await waitFor(() => expect(api.inpatient.executeOrderTasksBatch).toHaveBeenCalledTimes(1))
+    expect(api.inpatient.executeOrderTasksBatch).toHaveBeenCalledWith(
+      [{ taskId: plannedTask.id, expectedRevision: plannedTask.revision },
+        { taskId: secondTask.id, expectedRevision: secondTask.revision }],
+      'COMPLETED', '同一时点床旁核对完成', 'ORDER-TASK-BATCH-batch-request')
+    expect(api.inpatient.executeOrderTask).not.toHaveBeenCalled()
     expect(await screen.findByText('已完成 2 项执行。')).toBeInTheDocument()
   })
 

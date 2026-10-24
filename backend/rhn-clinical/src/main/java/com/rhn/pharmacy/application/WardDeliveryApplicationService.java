@@ -88,8 +88,7 @@ public class WardDeliveryApplicationService {
             return view(existing);
         }
 
-        List<DeliveryCandidate> candidates = new ArrayList<>();
-        for (Long dispenseId : dispenseIds) candidates.add(candidate(context, dispenseId));
+        List<DeliveryCandidate> candidates = candidates(context, dispenseIds);
         DeliveryCandidate first = candidates.getFirst();
         if (candidates.stream().anyMatch(value -> !value.stockSite().id().equals(first.stockSite().id())
                 || !value.destination().organizationId().equals(first.destination().organizationId())
@@ -216,50 +215,99 @@ public class WardDeliveryApplicationService {
         deliveries.flush(); events.flush(); return view(delivery);
     }
 
-    private DeliveryCandidate candidate(ExecutionContext context, Long dispenseId) {
-        MedicationDispense dispense = dispenses.lockByIdAndTenantId(dispenseId, context.tenantId())
-                .orElseThrow(() -> notFound("WARD_DELIVERY_DISPENSE_NOT_FOUND", "待配送发药记录不存在"));
-        if (!Set.of("DISPENSE", "REDISPENSE").contains(dispense.dispenseType())) {
-            throw badRequest("WARD_DELIVERY_DISPENSE_INVALID", "退药记录不能创建病区配送交接");
+    /** 一次装载全部待配送发药记录及其任务、药房、已配送标记与病区去向，再按入参顺序校验。 */
+    private List<DeliveryCandidate> candidates(ExecutionContext context, List<Long> dispenseIds) {
+        Map<Long, MedicationDispense> dispenseById = new HashMap<>();
+        Map<Long, DispenseTask> taskById = new HashMap<>();
+        Map<Long, StockSite> siteById = new HashMap<>();
+        Set<Long> deliveredDispenseIds = new HashSet<>();
+        Map<Long, List<Destination>> destinationsByDispense = new HashMap<>();
+        for (int from = 0; from < dispenseIds.size(); from += 500) {
+            List<Long> slice = dispenseIds.subList(from, Math.min(from + 500, dispenseIds.size()));
+            dispenses.lockByIdIn(context.tenantId(), slice)
+                    .forEach(value -> dispenseById.put(value.id(), value));
+            lines.findByTenantIdAndDispenseIdIn(context.tenantId(), slice)
+                    .forEach(value -> deliveredDispenseIds.add(value.dispenseId()));
         }
-        if (lines.existsByTenantIdAndDispenseId(context.tenantId(), dispense.id())) {
-            throw conflict("WARD_DELIVERY_DISPENSE_DUPLICATE", "该发药记录已进入病区配送交接");
+        List<Long> taskIds = dispenseById.values().stream().map(MedicationDispense::taskId).distinct().toList();
+        for (int from = 0; from < taskIds.size(); from += 500) {
+            List<Long> slice = taskIds.subList(from, Math.min(from + 500, taskIds.size()));
+            tasks.findByTenantIdAndIdIn(context.tenantId(), slice).forEach(value -> taskById.put(value.id(), value));
         }
-        DispenseTask task = tasks.findByIdAndTenantId(dispense.taskId(), context.tenantId())
-                .orElseThrow(() -> notFound("WARD_DELIVERY_TASK_NOT_FOUND", "发药任务不存在"));
-        if (!"INPATIENT".equals(task.taskType())) {
-            throw badRequest("WARD_DELIVERY_TASK_NOT_INPATIENT", "只有住院发药可以创建病区配送交接");
+        List<Long> siteIds = dispenseById.values().stream().map(MedicationDispense::stockSiteId).distinct().toList();
+        for (int from = 0; from < siteIds.size(); from += 500) {
+            List<Long> slice = siteIds.subList(from, Math.min(from + 500, siteIds.size()));
+            sites.findByTenantIdAndIdIn(context.tenantId(), Set.copyOf(slice))
+                    .forEach(value -> siteById.put(value.id(), value));
         }
-        StockSite site = sites.findByIdAndTenantId(dispense.stockSiteId(), context.tenantId())
-                .orElseThrow(() -> notFound("WARD_DELIVERY_SITE_NOT_FOUND", "发药药房不存在"));
-        if (!context.canAccessOrganization(site.organizationId())) {
-            throw forbidden("WARD_DELIVERY_SCOPE_DENIED", "发药记录不属于当前机构");
+        destinationsByDispense.putAll(destinations(context.tenantId(), dispenseIds));
+
+        List<DeliveryCandidate> result = new ArrayList<>();
+        for (Long dispenseId : dispenseIds) {
+            MedicationDispense dispense = dispenseById.get(dispenseId);
+            if (dispense == null) {
+                throw notFound("WARD_DELIVERY_DISPENSE_NOT_FOUND", "待配送发药记录不存在");
+            }
+            if (!Set.of("DISPENSE", "REDISPENSE").contains(dispense.dispenseType())) {
+                throw badRequest("WARD_DELIVERY_DISPENSE_INVALID", "退药记录不能创建病区配送交接");
+            }
+            if (deliveredDispenseIds.contains(dispense.id())) {
+                throw conflict("WARD_DELIVERY_DISPENSE_DUPLICATE", "该发药记录已进入病区配送交接");
+            }
+            DispenseTask task = taskById.get(dispense.taskId());
+            if (task == null) throw notFound("WARD_DELIVERY_TASK_NOT_FOUND", "发药任务不存在");
+            if (!"INPATIENT".equals(task.taskType())) {
+                throw badRequest("WARD_DELIVERY_TASK_NOT_INPATIENT", "只有住院发药可以创建病区配送交接");
+            }
+            StockSite site = siteById.get(dispense.stockSiteId());
+            if (site == null) throw notFound("WARD_DELIVERY_SITE_NOT_FOUND", "发药药房不存在");
+            if (!context.canAccessOrganization(site.organizationId())) {
+                throw forbidden("WARD_DELIVERY_SCOPE_DENIED", "发药记录不属于当前机构");
+            }
+            Destination destination = summarizeDestination(destinationsByDispense.get(dispense.id()));
+            if (!site.organizationId().equals(destination.organizationId())) {
+                throw conflict("WARD_DELIVERY_ORGANIZATION_MISMATCH", "发药药房与住院病区不属于同一机构");
+            }
+            result.add(new DeliveryCandidate(dispense, site, destination));
         }
-        Destination destination = destination(context.tenantId(), dispense.id());
-        if (!site.organizationId().equals(destination.organizationId())) {
-            throw conflict("WARD_DELIVERY_ORGANIZATION_MISMATCH", "发药药房与住院病区不属于同一机构");
-        }
-        return new DeliveryCandidate(dispense, site, destination);
+        return result;
     }
 
-    private Destination destination(Long tenantId, Long dispenseId) {
-        List<Destination> values = jdbc.query("""
-                select e.ID_ORG as organization_id, sl.ID_DEPT as department_id, d.NA_DEPT as nursing_unit_name,
-                       r.NA_FULL as resident_name, dtl.NA_PRODUCT_SNAP as medication_name from RHN_SUP_MED_DISP md
-                  join RHN_VIS_ENC e on e.ID_TNT = md.ID_TNT and e.ID_ENC = md.ID_ENC
-                  join RHN_VIS_SVC_LOC sl on sl.ID_TNT = e.ID_TNT and sl.ID_SVC_LOC = e.ID_SVC_LOC
-                  join RHN_SYS_DEPT d on d.ID_TNT = e.ID_TNT and d.ID_ORG = e.ID_ORG
-                       and d.ID_DEPT = sl.ID_DEPT
-                  join RHN_PI_PAT r on r.ID_TNT = md.ID_TNT and r.ID_PAT = md.ID_PAT
-                  join RHN_SUP_MED_DISP_LINE mdl on mdl.ID_TNT = md.ID_TNT
-                       and mdl.ID_MED_DISP = md.ID_MED_DISP
-                  join RHN_SUP_DISP_TASK_LINE dtl on dtl.ID_TNT = mdl.ID_TNT and dtl.ID_DISP_TASK_LINE = mdl.ID_DISP_TASK_LINE
-                 where md.ID_TNT = ? and md.ID_MED_DISP = ?
-                 order by mdl.SN_SORT
-                """, (rs, rowNum) -> new Destination(rs.getLong("organization_id"),
-                rs.getLong("department_id"), rs.getString("nursing_unit_name"),
-                rs.getString("resident_name"), rs.getString("medication_name")), tenantId, dispenseId);
-        if (values.isEmpty() || values.getFirst().nursingUnitDepartmentId() == 0) {
+    private Map<Long, List<Destination>> destinations(Long tenantId, List<Long> dispenseIds) {
+        Map<Long, List<Destination>> grouped = new HashMap<>();
+        for (int from = 0; from < dispenseIds.size(); from += 500) {
+            List<Long> slice = dispenseIds.subList(from, Math.min(from + 500, dispenseIds.size()));
+            String placeholders = String.join(",", java.util.Collections.nCopies(slice.size(), "?"));
+            List<Object> args = new ArrayList<>();
+            args.add(tenantId);
+            args.addAll(slice);
+            jdbc.query("""
+                    select md.ID_MED_DISP as dispense_id, e.ID_ORG as organization_id, sl.ID_DEPT as department_id,
+                           d.NA_DEPT as nursing_unit_name, r.NA_FULL as resident_name,
+                           dtl.NA_PRODUCT_SNAP as medication_name from RHN_SUP_MED_DISP md
+                      join RHN_VIS_ENC e on e.ID_TNT = md.ID_TNT and e.ID_ENC = md.ID_ENC
+                      join RHN_VIS_SVC_LOC sl on sl.ID_TNT = e.ID_TNT and sl.ID_SVC_LOC = e.ID_SVC_LOC
+                      join RHN_SYS_DEPT d on d.ID_TNT = e.ID_TNT and d.ID_ORG = e.ID_ORG
+                           and d.ID_DEPT = sl.ID_DEPT
+                      join RHN_PI_PAT r on r.ID_TNT = md.ID_TNT and r.ID_PAT = md.ID_PAT
+                      join RHN_SUP_MED_DISP_LINE mdl on mdl.ID_TNT = md.ID_TNT
+                           and mdl.ID_MED_DISP = md.ID_MED_DISP
+                      join RHN_SUP_DISP_TASK_LINE dtl on dtl.ID_TNT = mdl.ID_TNT
+                           and dtl.ID_DISP_TASK_LINE = mdl.ID_DISP_TASK_LINE
+                     where md.ID_TNT = ? and md.ID_MED_DISP in (%s)
+                     order by md.ID_MED_DISP, mdl.SN_SORT
+                    """.formatted(placeholders),
+                    (org.springframework.jdbc.core.RowCallbackHandler) rs -> grouped
+                    .computeIfAbsent(rs.getLong("dispense_id"), ignored -> new ArrayList<>())
+                    .add(new Destination(rs.getLong("organization_id"), rs.getLong("department_id"),
+                            rs.getString("nursing_unit_name"), rs.getString("resident_name"),
+                            rs.getString("medication_name"))), args.toArray());
+        }
+        return grouped;
+    }
+
+    private Destination summarizeDestination(List<Destination> values) {
+        if (values == null || values.isEmpty() || values.getFirst().nursingUnitDepartmentId() == 0) {
             throw conflict("WARD_DELIVERY_DESTINATION_MISSING", "住院患者当前病区不完整，不能创建配送交接");
         }
         Destination first = values.getFirst();

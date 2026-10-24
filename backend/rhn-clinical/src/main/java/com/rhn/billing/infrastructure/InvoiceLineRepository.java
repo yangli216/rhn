@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface InvoiceLineRepository extends JpaRepository<InvoiceLine, Long> {
     List<InvoiceLine> findByTenantIdAndInvoiceIdOrderByLineNo(Long tenantId, Long invoiceId);
+    List<InvoiceLine> findByTenantIdAndInvoiceIdInOrderByInvoiceIdAscLineNoAsc(
+            Long tenantId, java.util.Collection<Long> invoiceIds);
 }

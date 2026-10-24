@@ -63,11 +63,19 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 context.organizationId(), context.departmentId()).stream()
                 .filter(MedicationRequestSnapshot::skinTestRequired)
                 .filter(value -> !value.skinTestExempt()).toList();
-        Map<Long, SkinTestSnapshot> latest = latestForMedicationRequests(context.tenantId(),
-                requests.stream().map(MedicationRequestSnapshot::id).toList());
+        List<MedicationRequestSnapshot> scoped = requests.stream()
+                .filter(value -> encounterId == null || encounterId.equals(value.encounterId())).toList();
+        // 一次批量装载最近皮试事件、居民快照、结算授权与供药事实，避免逐条医嘱重复查询。
+        Map<Long, SkinTestEvent> latest = latestEvents(context.tenantId(),
+                scoped.stream().map(MedicationRequestSnapshot::id).toList());
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentFacts = residents.requireSnapshots(
+                scoped.stream().map(MedicationRequestSnapshot::residentId).distinct().toList());
+        Map<Long, Long> settledRequests = settlementFacts(context.tenantId(), scoped);
+        Map<Long, MedicationFulfillmentDirectory.FulfillmentSnapshot> fulfillments =
+                fulfillmentFacts(context.tenantId(), scoped);
         String statusFilter = upper(status); String term = upper(keyword);
-        return requests.stream().filter(value -> encounterId == null || encounterId.equals(value.encounterId()))
-                .map(value -> view(value, latest.get(value.id())))
+        return scoped.stream()
+                .map(value -> view(value, latest.get(value.id()), residentFacts, settledRequests, fulfillments))
                 .filter(value -> statusFilter == null || statusFilter.equals(value.status()))
                 .filter(value -> term == null || searchable(value).contains(term))
                 .sorted((left, right) -> right.medicationRequestId().compareTo(left.medicationRequestId()))
@@ -85,15 +93,41 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         Instant threshold = now.minus(java.time.Duration.ofHours(hours));
         List<SkinTestEvent> history = events.findByTenantIdAndResidentIdAndMedicationIdAndResultOrderByCompletedAtDesc(
                 context.tenantId(), residentId, medicationId, "NEGATIVE");
-        return history.stream()
-                .filter(e -> e.completedAt() != null && e.completedAt().isAfter(threshold))
-                .map(event -> {
-                    MedicationRequestSnapshot req = medicationRequests.requireForRouting(event.tenantId(), event.medicationRequestId());
-                    return view(req, snapshot(event));
-                })
-                .filter(item -> item.resultValidityHours() != null && item.resultValidityHours() > 0 && item.resultValidityHours() <= 8760
-                        && item.completedAt().plus(java.time.Duration.ofHours(item.resultValidityHours())).isAfter(now))
+        List<SkinTestEvent> recent = history.stream()
+                .filter(e -> e.completedAt() != null && e.completedAt().isAfter(threshold)).toList();
+        if (recent.isEmpty()) return List.of();
+        // 一次批量读取路由快照，避免逐条历史事件回查医嘱；缺失项仍按单条路径抛错，语义不变。
+        Map<Long, MedicationRequestSnapshot> requests = routingSnapshots(context.tenantId(),
+                recent.stream().map(SkinTestEvent::medicationRequestId).distinct().toList());
+        // 先按记录的有效期过滤，再为真正命中的事件装载居民与门禁事实，避免为必然丢弃的记录付出查询。
+        List<SkinTestEvent> valid = recent.stream().filter(event -> {
+            Integer window = configuration(requests.get(event.medicationRequestId())).resultValidityHours();
+            return window != null && window > 0 && window <= 8760
+                    && event.completedAt().plus(java.time.Duration.ofHours(window)).isAfter(now);
+        }).toList();
+        if (valid.isEmpty()) return List.of();
+        List<MedicationRequestSnapshot> scoped = valid.stream()
+                .map(event -> requests.get(event.medicationRequestId())).distinct().toList();
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentFacts = residents.requireSnapshots(
+                scoped.stream().map(MedicationRequestSnapshot::residentId).distinct().toList());
+        Map<Long, Long> settledRequests = settlementFacts(context.tenantId(), scoped);
+        Map<Long, MedicationFulfillmentDirectory.FulfillmentSnapshot> fulfillments =
+                fulfillmentFacts(context.tenantId(), scoped);
+        return valid.stream()
+                .map(event -> view(requests.get(event.medicationRequestId()), event,
+                        residentFacts, settledRequests, fulfillments))
                 .toList();
+    }
+
+    private Map<Long, MedicationRequestSnapshot> routingSnapshots(Long tenantId, List<Long> requestIds) {
+        Map<Long, MedicationRequestSnapshot> result = new LinkedHashMap<>();
+        if (requestIds.isEmpty()) return result;
+        Map<Long, MedicationRequestSnapshot> loaded = medicationRequests.routingSnapshots(tenantId, requestIds);
+        for (Long id : requestIds) {
+            MedicationRequestSnapshot value = loaded == null ? null : loaded.get(id);
+            result.put(id, value != null ? value : medicationRequests.requireForRouting(tenantId, id));
+        }
+        return result;
     }
 
     @Transactional
@@ -142,7 +176,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 Strings.trimToNull(bodySite), Strings.trimToNull(verificationMethod), observationMinutes,
                 context.subjectId(), context.practitionerId(), now));
         publish(context, value, "SKIN_TEST_STARTED", "皮试已开始");
-        return view(request, snapshot(value));
+        return view(request, value);
     }
 
     @Transactional
@@ -164,7 +198,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                     value.reactionDescription(), now, value.id());
         }
         publish(context, value, "SKIN_TEST_COMPLETED", "皮试判读已完成");
-        return view(request, snapshot(value));
+        return view(request, value);
     }
 
     @Transactional
@@ -175,27 +209,60 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         value.cancel(expectedRevision, reason, context.subjectId(), Instant.now());
         events.flush();
         publish(context, value, "SKIN_TEST_CANCELLED", "皮试已取消");
-        return view(request, snapshot(value));
+        return view(request, value);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<Long, SkinTestSnapshot> latestForMedicationRequests(Long tenantId,
                                                                    Collection<Long> medicationRequestIds) {
-        if (medicationRequestIds == null || medicationRequestIds.isEmpty()) return Map.of();
         Map<Long, SkinTestSnapshot> result = new LinkedHashMap<>();
-        for (SkinTestEvent value : events.findByTenantIdAndMedicationRequestIdInOrderByStartedAtDesc(
-                tenantId, medicationRequestIds)) {
-            result.putIfAbsent(value.medicationRequestId(), snapshot(value));
-        }
+        latestEvents(tenantId, medicationRequestIds).forEach((id, value) -> result.put(id, snapshot(value)));
         return Map.copyOf(result);
     }
 
-    private SkinTestWorkItemView view(MedicationRequestSnapshot request, SkinTestSnapshot latest) {
-        ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(request.residentId());
-        SkinTestEvent event = latest == null ? null : events.findById(latest.eventId()).orElse(null);
+    /** 一次装载各医嘱最近一次皮试事件（按开始时间倒序取首条），供列表视图与皮试事实复用。 */
+    private Map<Long, SkinTestEvent> latestEvents(Long tenantId, Collection<Long> medicationRequestIds) {
+        Map<Long, SkinTestEvent> result = new LinkedHashMap<>();
+        if (tenantId == null || medicationRequestIds == null || medicationRequestIds.isEmpty()) return result;
+        List<Long> ids = medicationRequestIds.stream().filter(Objects::nonNull).distinct().toList();
+        for (int from = 0; from < ids.size(); from += 500) {
+            for (SkinTestEvent value : events.findByTenantIdAndMedicationRequestIdInOrderByStartedAtDesc(
+                    tenantId, ids.subList(from, Math.min(from + 500, ids.size())))) {
+                result.putIfAbsent(value.medicationRequestId(), value);
+            }
+        }
+        return result;
+    }
+
+    private Map<Long, Long> settlementFacts(Long tenantId, List<MedicationRequestSnapshot> requests) {
+        List<Long> ids = requests.stream()
+                .filter(value -> settlementRequiredBeforeStart(value, configuration(value)))
+                .map(MedicationRequestSnapshot::id).distinct().toList();
+        return ids.isEmpty() ? Map.of()
+                : settlements.finalizedSettlementsForRequests(tenantId, ids, "MEDICATION_REQUEST");
+    }
+
+    private Map<Long, MedicationFulfillmentDirectory.FulfillmentSnapshot> fulfillmentFacts(
+            Long tenantId, List<MedicationRequestSnapshot> requests) {
+        List<Long> ids = requests.stream()
+                .filter(value -> dispenseRequiredBeforeStart(value, configuration(value)))
+                .map(MedicationRequestSnapshot::id).distinct().toList();
+        return ids.isEmpty() ? Map.of() : fulfillment.fulfillmentsForRequests(tenantId, ids);
+    }
+
+    private SkinTestWorkItemView view(MedicationRequestSnapshot request, SkinTestEvent event) {
+        return view(request, event, Map.of(), Map.of(), Map.of());
+    }
+
+    private SkinTestWorkItemView view(MedicationRequestSnapshot request, SkinTestEvent event,
+                                      Map<Long, ResidentDirectory.ResidentSnapshot> residentFacts,
+                                      Map<Long, Long> settledRequests,
+                                      Map<Long, MedicationFulfillmentDirectory.FulfillmentSnapshot> fulfillments) {
+        ResidentDirectory.ResidentSnapshot resident = residentFacts.containsKey(request.residentId())
+                ? residentFacts.get(request.residentId()) : residents.requireSnapshot(request.residentId());
         SkinTestConfiguration configuration = configuration(request);
-        Gate gate = gate(request);
+        Gate gate = gate(request, configuration, settledRequests, fulfillments);
         String status = derivedStatus(event, gate);
         String gateMessage = Set.of("WAITING_SETTLEMENT", "WAITING_DISPENSE", "CONFIGURATION_REQUIRED").contains(status)
                 ? gate.message() : null;
@@ -229,21 +296,34 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     }
 
     private Gate gate(MedicationRequestSnapshot request) {
-        SkinTestConfiguration configuration = configuration(request);
+        return gate(request, configuration(request), Map.of(), Map.of());
+    }
+
+    private Gate gate(MedicationRequestSnapshot request, SkinTestConfiguration configuration,
+                      Map<Long, Long> settledRequests,
+                      Map<Long, MedicationFulfillmentDirectory.FulfillmentSnapshot> fulfillments) {
         if (!configuration.valid()) {
             return new Gate(false, "CONFIGURATION_REQUIRED", "SKIN_TEST_CONFIGURATION_REQUIRED",
                     "医嘱皮试配置缺失或无效，请完善药品主数据并重新开立医嘱后执行");
         }
-        if (settlementRequiredBeforeStart(request, configuration)
-                && settlements.finalizedSettlementForRequest(request.tenantId(), request.id(),
-                "MEDICATION_REQUEST").isEmpty()) {
-            return new Gate(false, "WAITING_SETTLEMENT", "SKIN_TEST_SETTLEMENT_REQUIRED",
-                    "当前为原液皮试，药品费用尚未完成结算，暂不能开始皮试");
+        if (settlementRequiredBeforeStart(request, configuration)) {
+            Long settlementId = settledRequests.containsKey(request.id())
+                    ? settledRequests.get(request.id())
+                    : settlements.finalizedSettlementForRequest(request.tenantId(), request.id(),
+                    "MEDICATION_REQUEST").orElse(null);
+            if (settlementId == null) {
+                return new Gate(false, "WAITING_SETTLEMENT", "SKIN_TEST_SETTLEMENT_REQUIRED",
+                        "当前为原液皮试，药品费用尚未完成结算，暂不能开始皮试");
+            }
         }
-        if (dispenseRequiredBeforeStart(request, configuration) && !fulfillment.fulfillmentForRequest(
-                request.tenantId(), request.id()).completed()) {
-            return new Gate(false, "WAITING_DISPENSE", "SKIN_TEST_DISPENSE_REQUIRED",
-                    "当前为原液皮试，皮试用药尚未完成发药，暂不能开始皮试");
+        if (dispenseRequiredBeforeStart(request, configuration)) {
+            var fact = fulfillments.containsKey(request.id())
+                    ? fulfillments.get(request.id())
+                    : fulfillment.fulfillmentForRequest(request.tenantId(), request.id());
+            if (!fact.completed()) {
+                return new Gate(false, "WAITING_DISPENSE", "SKIN_TEST_DISPENSE_REQUIRED",
+                        "当前为原液皮试，皮试用药尚未完成发药，暂不能开始皮试");
+            }
         }
         return new Gate(true, "PENDING", null, null);
     }

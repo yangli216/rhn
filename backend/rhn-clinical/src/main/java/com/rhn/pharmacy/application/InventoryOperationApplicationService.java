@@ -239,8 +239,12 @@ public class InventoryOperationApplicationService {
     @Transactional(readOnly = true)
     public List<PurchaseOrderView> purchaseOrders(Long siteId) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
-        return orderRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(context.tenantId(), site.id())
-                .stream().map(value -> orderView(context, value)).toList();
+        List<PurchaseOrder> values = orderRepository
+                .findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(context.tenantId(), site.id());
+        Map<Long, List<PurchaseOrderLine>> linesByOrder = orderLines(context.tenantId(),
+                values.stream().map(PurchaseOrder::id).toList());
+        return values.stream().map(value -> orderView(value,
+                linesByOrder.getOrDefault(value.id(), List.of()))).toList();
     }
 
     @Transactional
@@ -344,8 +348,12 @@ public class InventoryOperationApplicationService {
     @Transactional(readOnly = true)
     public List<GoodsReceiptView> goodsReceipts(Long siteId) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
-        return receiptRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(context.tenantId(), site.id())
-                .stream().map(value -> receiptView(context, value)).toList();
+        List<GoodsReceipt> values = receiptRepository
+                .findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(context.tenantId(), site.id());
+        Map<Long, List<GoodsReceiptLine>> linesByReceipt = receiptLines(context.tenantId(),
+                values.stream().map(GoodsReceipt::id).toList());
+        return values.stream().map(value -> receiptView(value,
+                linesByReceipt.getOrDefault(value.id(), List.of()))).toList();
     }
 
     @Transactional
@@ -680,10 +688,39 @@ public class InventoryOperationApplicationService {
 
 
 
+    /** 列表装配时一次批量装载采购明细，按每批 500 个单号分片以规避 Oracle IN 上限。 */
+    private Map<Long, List<PurchaseOrderLine>> orderLines(Long tenantId, List<Long> orderIds) {
+        Map<Long, List<PurchaseOrderLine>> result = new HashMap<>();
+        for (int from = 0; from < orderIds.size(); from += 500) {
+            for (PurchaseOrderLine line : orderLineRepository
+                    .findByTenantIdAndPurchaseOrderIdInOrderByPurchaseOrderIdAscSortOrderAsc(
+                            tenantId, orderIds.subList(from, Math.min(from + 500, orderIds.size())))) {
+                result.computeIfAbsent(line.purchaseOrderId(), key -> new ArrayList<>()).add(line);
+            }
+        }
+        return result;
+    }
+
+    /** 列表装配时一次批量装载入库明细，按每批 500 个单号分片以规避 Oracle IN 上限。 */
+    private Map<Long, List<GoodsReceiptLine>> receiptLines(Long tenantId, List<Long> receiptIds) {
+        Map<Long, List<GoodsReceiptLine>> result = new HashMap<>();
+        for (int from = 0; from < receiptIds.size(); from += 500) {
+            for (GoodsReceiptLine line : receiptLineRepository
+                    .findByTenantIdAndGoodsReceiptIdInOrderByGoodsReceiptIdAscSortOrderAsc(
+                            tenantId, receiptIds.subList(from, Math.min(from + 500, receiptIds.size())))) {
+                result.computeIfAbsent(line.goodsReceiptId(), key -> new ArrayList<>()).add(line);
+            }
+        }
+        return result;
+    }
+
     private PurchaseOrderView orderView(ExecutionContext context, PurchaseOrder value) {
-        List<PurchaseOrderLineView> lines = orderLineRepository
-                .findByTenantIdAndPurchaseOrderIdOrderBySortOrder(context.tenantId(), value.id())
-                .stream().map(this::orderLineView).toList();
+        return orderView(value, orderLineRepository
+                .findByTenantIdAndPurchaseOrderIdOrderBySortOrder(context.tenantId(), value.id()));
+    }
+
+    private PurchaseOrderView orderView(PurchaseOrder value, List<PurchaseOrderLine> orderLines) {
+        List<PurchaseOrderLineView> lines = orderLines.stream().map(this::orderLineView).toList();
         return new PurchaseOrderView(value.id(), value.revision(), value.organizationId(), value.stockSiteId(),
                 value.supplierId(), value.orderNo(), value.requestCode(), value.status().name(), value.orderDate(),
                 value.expectedDate(), value.submittedAt(), value.submittedBy(), value.approvedAt(), value.approvedBy(),
@@ -698,9 +735,12 @@ public class InventoryOperationApplicationService {
     }
 
     private GoodsReceiptView receiptView(ExecutionContext context, GoodsReceipt value) {
-        List<GoodsReceiptLineView> lines = receiptLineRepository
-                .findByTenantIdAndGoodsReceiptIdOrderBySortOrder(context.tenantId(), value.id())
-                .stream().map(this::receiptLineView).toList();
+        return receiptView(value, receiptLineRepository
+                .findByTenantIdAndGoodsReceiptIdOrderBySortOrder(context.tenantId(), value.id()));
+    }
+
+    private GoodsReceiptView receiptView(GoodsReceipt value, List<GoodsReceiptLine> receiptLines) {
+        List<GoodsReceiptLineView> lines = receiptLines.stream().map(this::receiptLineView).toList();
         return new GoodsReceiptView(value.id(), value.revision(), value.organizationId(), value.stockSiteId(),
                 value.purchaseOrderId(), value.supplierId(), value.receiptNo(), value.requestCode(),
                 value.deliveryNoteNo(), value.status().name(), value.receivedAt(), value.receivedBy(), value.inspectedAt(),

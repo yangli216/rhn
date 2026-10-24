@@ -48,6 +48,7 @@ public class PaymentEvent {
     }
 
     public Long id() { return id; }
+    public Long paymentOrderId() { return paymentOrderId; }
     public Long externalMessageId() { return externalMessageId; }
     public String eventType() { return eventType; }
     public String statusFrom() { return statusFrom; }

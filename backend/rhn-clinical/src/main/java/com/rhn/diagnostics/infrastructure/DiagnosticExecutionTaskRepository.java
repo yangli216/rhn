@@ -31,6 +31,9 @@ public interface DiagnosticExecutionTaskRepository extends JpaRepository<Diagnos
               and task.departmentId = :departmentId and task.requestType = :requestType
               and (:encounterId is null or task.encounterId = :encounterId)
               and (:residentId is null or task.residentId = :residentId)
+              and (:recentFrom is null or task.status not in ('COMPLETED', 'CANCELLED')
+                or (task.status = 'COMPLETED' and report.id is null)
+                or coalesce(task.completedAt, task.cancelledAt, task.createdAt) >= :recentFrom)
               and (:createdFrom is null or task.createdAt >= :createdFrom)
               and (:createdBefore is null or task.createdAt < :createdBefore)
               and (:status is null or (case when task.status = 'COMPLETED'
@@ -44,7 +47,7 @@ public interface DiagnosticExecutionTaskRepository extends JpaRepository<Diagnos
     org.springframework.data.domain.Page<DiagnosticExecutionTask> pageForWorkContext(
             Long tenantId, Long organizationId, Long departmentId, String requestType,
             String keyword, String keywordPattern, Long encounterId, Long residentId,
-            String status, java.time.Instant createdFrom,
+            String status, java.time.Instant recentFrom, java.time.Instant createdFrom,
             java.time.Instant createdBefore, org.springframework.data.domain.Pageable pageable);
     List<DiagnosticExecutionTask> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
 

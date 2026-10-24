@@ -21,6 +21,8 @@ public interface InpatientOrderWorkflowRepository extends JpaRepository<Inpatien
     List<InpatientOrderWorkflow> findByTenantIdAndEpisodeIdInOrderByUpdatedAtDesc(
             Long tenantId, Collection<Long> episodeIds);
 
+    List<InpatientOrderWorkflow> findByTenantIdAndRequestIdIn(Long tenantId, Collection<Long> requestIds);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from InpatientOrderWorkflow value where value.tenantId = :tenantId "
             + "and value.requestId = :requestId")

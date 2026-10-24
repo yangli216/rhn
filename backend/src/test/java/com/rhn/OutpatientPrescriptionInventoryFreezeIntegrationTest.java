@@ -1,9 +1,11 @@
 package com.rhn;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -18,6 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ResetDatabaseBeforeEachTestMethod
 class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegrationTestSupport {
+
+    @MockitoSpyBean com.rhn.platform.masterdata.api.CatalogLifecycleDirectory catalogDirectory;
 
     @Test
     void orderable_catalog_reports_missing_routing_instead_of_using_any_existing_pharmacy() throws Exception {
@@ -63,11 +67,19 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
         mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         // The batch endpoint independently resolves facts; it never consumes the client's fallback name.
+        Mockito.clearInvocations(catalogDirectory);
         mockMvc.perform(post("/api/encounters/{id}/prescriptions/batch-order", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"items\":[" + input + "],\"autoSubmit\":false}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$[0].categoryCode").value("WESTERN"))
                 .andExpect(jsonPath("$[0].medicationRequests[0].medicationId").value(MEDICATION_ID));
+        // 目录快照由批量解析一次装载，分方与正式开立两处复用，不再逐项重复解析。
+        Mockito.verify(catalogDirectory).resolveAll(Mockito.eq(Long.valueOf(TENANT)),
+                Mockito.eq(Long.valueOf(ORGANIZATION)), Mockito.eq("SALE"),
+                Mockito.argThat((java.util.Map<Long, Long> ids) -> ids.containsKey(Long.valueOf(PRODUCT_ID))),
+                Mockito.any());
+        Mockito.verify(catalogDirectory, Mockito.never()).resolve(Mockito.any(), Mockito.eq(Long.valueOf(PRODUCT_ID)),
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         // Once routing disappears, neither preview nor opening may select another existing pharmacy.
         jdbcTemplate.update("delete from RHN_SUP_DISP_ROUTE where ID_TNT=? and ID_ORG=?", Long.valueOf(TENANT), Long.valueOf(ORGANIZATION));
         mockMvc.perform(post("/api/encounters/{id}/prescriptions/auto-split-preview", encounterId)

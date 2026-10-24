@@ -96,6 +96,13 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.resultCode").value("COMPLETED"))
                 .andExpect(jsonPath("$.adverseReaction").value(false));
+        // 已完成任务进入当日终态窗口，批量装配仍须带出执行项与结算事实
+        JsonNode completed = taskBySource(request.get("id").asString());
+        org.junit.jupiter.api.Assertions.assertEquals("COMPLETED", completed.get("status").asString());
+        org.junit.jupiter.api.Assertions.assertEquals(1, completed.get("items").size());
+        org.junit.jupiter.api.Assertions.assertEquals("SERVICE_REQUEST", completed.at("/items/0/sourceType").asString());
+        org.junit.jupiter.api.Assertions.assertTrue(completed.at("/items/0/settlementRequired").asBoolean());
+        org.junit.jupiter.api.Assertions.assertTrue(completed.at("/items/0/settlementId").isString());
     }
 
     @Test
@@ -210,6 +217,8 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         task = taskBySource(request.get("id").asString());
         org.junit.jupiter.api.Assertions.assertEquals("READY", task.get("status").asString());
         org.junit.jupiter.api.Assertions.assertTrue(task.at("/items/0/ready").asBoolean());
+        org.junit.jupiter.api.Assertions.assertTrue(task.at("/items/0/settlementId").isString());
+        org.junit.jupiter.api.Assertions.assertEquals("COMPLETED", task.at("/items/0/fulfillmentStatus").asString());
         JsonNode started = json(mockMvc.perform(post("/api/treatments/tasks/{id}/start", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"identityVerified":true,

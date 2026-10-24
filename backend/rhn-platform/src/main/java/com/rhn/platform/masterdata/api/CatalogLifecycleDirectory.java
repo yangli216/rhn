@@ -11,6 +11,22 @@ public interface CatalogLifecycleDirectory {
     CatalogOperationalSnapshot resolve(Long tenantId, Long catalogItemId, Long organizationId,
                                        Long packageId, String priceType, LocalDate businessDate);
 
+    /**
+     * 批量解析：一次加载多个目录项目的服务/产品/包装/药品/采用/价格，避免逐项重复查询。
+     * 默认实现按单条解析，供测试替身与过渡实现使用；生产实现覆盖为批量加载。
+     */
+    default java.util.Map<Long, CatalogOperationalSnapshot> resolveAll(Long tenantId, Long organizationId,
+                                                                     String priceType,
+                                                                     java.util.Map<Long, Long> packageIdByCatalogItemId,
+                                                                     LocalDate businessDate) {
+        java.util.Map<Long, CatalogOperationalSnapshot> result = new java.util.LinkedHashMap<>();
+        for (var entry : packageIdByCatalogItemId.entrySet()) {
+            result.put(entry.getKey(), resolve(tenantId, entry.getKey(), organizationId, entry.getValue(),
+                    priceType, businessDate));
+        }
+        return result;
+    }
+
     MedicationSnapshot requireMedication(Long tenantId, Long medicationId);
 
     java.util.List<MasterDataViews.MedicationView> findMedicationsByProductCatalogItemIds(

@@ -189,6 +189,7 @@ class ScheduleTemplatePeriod {
     }
 
     Long id() { return id; }
+    Long templateId() { return templateId; }
     int dayOfWeek() { return dayOfWeek; }
     String dayPart() { return dayPart; }
     int minuteStart() { return minuteStart; }
@@ -234,6 +235,7 @@ class ScheduleException {
     }
 
     Long id() { return id; }
+    Long templateId() { return templateId; }
     LocalDate exceptionDate() { return exceptionDate; }
     String exceptionType() { return exceptionType; }
     Integer minuteStart() { return minuteStart; }

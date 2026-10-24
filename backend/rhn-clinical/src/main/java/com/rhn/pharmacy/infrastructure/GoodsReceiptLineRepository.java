@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface GoodsReceiptLineRepository extends JpaRepository<GoodsReceiptLine, Long> {
     List<GoodsReceiptLine> findByTenantIdAndGoodsReceiptIdOrderBySortOrder(Long tenantId, Long goodsReceiptId);
+    List<GoodsReceiptLine> findByTenantIdAndGoodsReceiptIdInOrderByGoodsReceiptIdAscSortOrderAsc(
+            Long tenantId, java.util.Collection<Long> goodsReceiptIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from GoodsReceiptLine value where value.tenantId = :tenantId " +

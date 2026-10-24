@@ -31,6 +31,9 @@ interface MedicationRequestRepository extends JpaRepository<MedicationRequest, L
             + "and request.id in :ids and request.requestKind = 'MEDICATION' "
             + "and request.status = com.rhn.outpatient.ordering.MedicationRequestStatus.CANCELLED")
     List<Long> findCancelledIds(Long tenantId, java.util.Collection<Long> ids);
+    @Query("select request from MedicationRequest request where request.tenantId = :tenantId "
+            + "and request.id in :ids and request.requestKind = 'MEDICATION'")
+    List<MedicationRequest> findByIdsForRouting(Long tenantId, java.util.Collection<Long> ids);
     @Query("select request from MedicationRequest request where request.id = :id and request.tenantId = :tenantId "
             + "and request.requestKind = 'MEDICATION'")
     Optional<MedicationRequest> findByIdAndTenantId(Long id, Long tenantId);

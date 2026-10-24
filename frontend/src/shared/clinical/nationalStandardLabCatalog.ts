@@ -1,9 +1,12 @@
 /**
  * WS/T 404/405-2012 & WS 445.10-2014 国家卫生行业标准检验指标与参考区间字典
  *
- * 规范检验指标代码、法定计量单位、精度、男女分型参考区间与危急值生命线。
+ * 保留既有参考指标集，并承载按项目编码匹配的预置录入结构。
+ * 参考区间仅在有明确依据时提供；正式规则以机构发布版本为准，不推定危急阈值。
  * 数据结构严格对齐后端 DiagnosticIndicatorDefinition 及 DiagnosticTemplateValidation。
  */
+
+import laboratoryResultPresets from './laboratoryResultPresets.json'
 
 import type { DiagnosticIndicatorDefinition, DiagnosticReferenceRule, DiagnosticTemplateContent, DiagnosticTemplateVersion } from '../api/diagnosticTemplateTypes'
 
@@ -729,10 +732,24 @@ export interface NationalStandardLabTemplate {
   specimenTubeCode: string
   specimenType: string
   standardBasis: string
+  conditionLabels?: Record<string, string>
+  referenceGuidance?: Record<string, string>
   content: DiagnosticTemplateContent
 }
 
-export const NATIONAL_STANDARD_LAB_TEMPLATES: readonly NationalStandardLabTemplate[] = [
+function currentBiochemistryReferences(indicators: readonly DiagnosticIndicatorDefinition[]): DiagnosticIndicatorDefinition[] {
+  return indicators.map((indicator) => {
+    const preset = (laboratoryResultPresets as NationalStandardLabTemplate[]).flatMap((item) => item.content.indicators).find((item) => item.code === indicator.code)
+    if (preset) return { ...indicator, rules: preset.rules as DiagnosticReferenceRule[] }
+    if (indicator.code === 'GLO' || indicator.code === 'AG_RATIO') {
+      return { ...indicator, rules: [{ code: `WST4042_${indicator.code}`, minimumAgeDays: 7300, maximumAgeDays: 29200,
+        referenceLow: indicator.code === 'GLO' ? 20 : 1.2, referenceHigh: indicator.code === 'GLO' ? 40 : 2.4, criticalCodes: [] }] }
+    }
+    return { ...indicator, rules: [] }
+  })
+}
+
+const STANDARD_LAB_PANELS: readonly NationalStandardLabTemplate[] = [
   {
     templateCode: 'TPL_LAB_CBC_5PART',
     templateName: '血常规（五分类）标准模板',
@@ -767,9 +784,9 @@ export const NATIONAL_STANDARD_LAB_TEMPLATES: readonly NationalStandardLabTempla
     serviceType: 'LABORATORY',
     specimenTubeCode: 'TUBE_YELLOW_SST',
     specimenType: '血清',
-    standardBasis: 'WS/T 404.1~5-2012 临床常用生化检验参考区间',
+    standardBasis: 'WS/T 404.1/2-2012、404.4-2018；按性别、年龄、分析系统选择参考规则',
     content: {
-      indicators: [...LIVER_PANEL_INDICATORS],
+      indicators: currentBiochemistryReferences(LIVER_PANEL_INDICATORS),
       phrases: [],
       requiredChecks: [],
       minimumImages: 0,
@@ -781,9 +798,9 @@ export const NATIONAL_STANDARD_LAB_TEMPLATES: readonly NationalStandardLabTempla
     serviceType: 'LABORATORY',
     specimenTubeCode: 'TUBE_YELLOW_SST',
     specimenType: '血清',
-    standardBasis: 'WS/T 404.6~7-2012 临床常用生化检验参考区间',
+    standardBasis: 'WS/T 404.5-2015；肌酐需确认ID-MS溯源；尿酸按本机构方法确认',
     content: {
-      indicators: [...RENAL_PANEL_INDICATORS],
+      indicators: currentBiochemistryReferences(RENAL_PANEL_INDICATORS),
       phrases: [],
       requiredChecks: [],
       minimumImages: 0,
@@ -795,15 +812,46 @@ export const NATIONAL_STANDARD_LAB_TEMPLATES: readonly NationalStandardLabTempla
     serviceType: 'LABORATORY',
     specimenTubeCode: 'TUBE_GRAY_NAF',
     specimenType: '血浆',
-    standardBasis: 'WS/T 404.8-2012 葡萄糖测定参考区间',
+    standardBasis: '空腹葡萄糖常用参考3.9～6.1 mmol/L；国家卫健委2025-11-06发布会；需确认非妊娠、空腹≥8小时；非诊断切点',
     content: {
-      indicators: [...GLUCOSE_INDICATORS],
+      indicators: currentBiochemistryReferences(GLUCOSE_INDICATORS),
       phrases: [],
       requiredChecks: [],
       minimumImages: 0,
     },
   },
 ] as const
+
+/** Explicit order-code mappings; new entries define structure without asserting institution reference rules. */
+export const LABORATORY_RESULT_PRESETS: readonly (NationalStandardLabTemplate & { itemCode: string; itemName: string })[] =
+  laboratoryResultPresets as (NationalStandardLabTemplate & { itemCode: string; itemName: string })[]
+
+export const NATIONAL_STANDARD_LAB_TEMPLATES: readonly NationalStandardLabTemplate[] = [
+  ...STANDARD_LAB_PANELS, ...LABORATORY_RESULT_PRESETS,
+]
+
+/** Versioned clinical reference wording is data, not an automatic normality or treatment rule. */
+export function findReferenceGuidance(ruleCode?: string): string | undefined {
+  if (!ruleCode) return undefined
+  return LABORATORY_RESULT_PRESETS.find((item) => item.referenceGuidance?.[ruleCode])?.referenceGuidance?.[ruleCode]
+}
+
+export function referenceConditionLabel(code: string): string {
+  return LABORATORY_RESULT_PRESETS.find((item) => item.conditionLabels?.[code])?.conditionLabels?.[code] ?? code
+}
+
+export function defaultReferenceNote(template: DiagnosticTemplateVersion): string {
+  return template.content.indicators.some((indicator) => indicator.rules.some((rule) => findReferenceGuidance(rule.code)))
+    ? `参考说明：${template.publicationBasis}` : ''
+}
+
+export function savedReferenceGuidance(snapshot?: string | null): string | undefined {
+  if (!snapshot) return undefined
+  try {
+    const value = JSON.parse(snapshot) as { evaluation?: { matchedRule?: { code?: string } } }
+    return findReferenceGuidance(value.evaluation?.matchedRule?.code)
+  } catch { return undefined }
+}
 
 /** 根据代码查找国家标准检验模板 */
 export function findNationalLabTemplateByCode(templateCode?: string): NationalStandardLabTemplate | undefined {
@@ -819,53 +867,42 @@ export function nationalTemplateAsVersion(tpl: NationalStandardLabTemplate): Dia
     catalogItemId: '',
     version: 1,
     serviceType: tpl.serviceType,
-    effectiveFrom: '2012-12-25',
+    effectiveFrom: tpl.templateCode.startsWith('TPL_LAB_ITEM_') ? '2026-01-01' : '2012-12-25',
     publicationBasis: tpl.standardBasis,
-    publishedBy: '国家卫生健康委员会',
-    publishedAt: '2012-12-25T00:00:00Z',
+    publishedBy: '系统预置',
+    publishedAt: tpl.templateCode.startsWith('TPL_LAB_ITEM_') ? '2026-01-01T00:00:00Z' : '2012-12-25T00:00:00Z',
     content: tpl.content,
   }
 }
 
-/**
- * 检验项目结果模板预设匹配策略
- *
- * 当项目明确指定为“血常规（五分类）”或特定标准套餐时，系统直接预设绑定对应的国标模板，无需技师人工在下拉框选择。
- */
+/** Catalog codes are authoritative. A known code never falls back to an unrelated display name. */
 export function matchPresetTemplateByTask(task: { itemName?: string; itemCode?: string }): NationalStandardLabTemplate | undefined {
-  if (!task.itemName) return undefined
-  const name = task.itemName.trim()
-  if (name.includes('五分类') || name.includes('5-PART') || name.includes('5DIFF')) {
-    return NATIONAL_STANDARD_LAB_TEMPLATES[0] // 血常规五分类标准模板 (24项指标)
-  }
-  if (name.includes('尿液分析') || name.includes('尿沉渣') || name.includes('尿常规（化学+沉渣）')) {
-    return NATIONAL_STANDARD_LAB_TEMPLATES[1] // 尿液常规分析标准模板
-  }
-  if (name.includes('肝功八项') || name.includes('肝功常用') || name.includes('肝功十二项')) {
-    return NATIONAL_STANDARD_LAB_TEMPLATES[2] // 肝功能常用组标准模板
-  }
-  if (name.includes('肾功三项') || name.includes('肾功四项')) {
-    return NATIONAL_STANDARD_LAB_TEMPLATES[3] // 肾功能三项标准模板
-  }
-  return undefined
+  const code = task.itemCode?.trim()
+  if (code && /^\d+$/.test(code)) return LABORATORY_RESULT_PRESETS.find((item) => item.itemCode === code)
+  return matchNationalLabTemplateByItemName(task.itemName)
 }
 
-/** 根据开单项目名称匹配国家标准检验模板 */
+/** Only exact legacy names are supported; single tests never inherit an entire panel. */
 export function matchNationalLabTemplateByItemName(itemName?: string): NationalStandardLabTemplate | undefined {
   if (!itemName) return undefined
-  const name = itemName.toUpperCase()
-  if (name.includes('血常规') || name.includes('CBC')) return NATIONAL_STANDARD_LAB_TEMPLATES[0]
-  if (name.includes('尿常规') || name.includes('尿液分析') || name.includes('尿沉渣')) return NATIONAL_STANDARD_LAB_TEMPLATES[1]
-  if (name.includes('肝功') || name.includes('ALT') || name.includes('转氨酶')) return NATIONAL_STANDARD_LAB_TEMPLATES[2]
-  if (name.includes('肾功') || name.includes('肌酐') || name.includes('尿酸')) return NATIONAL_STANDARD_LAB_TEMPLATES[3]
-  if (name.includes('血糖') || name.includes('葡萄糖') || name.includes('GLU')) return NATIONAL_STANDARD_LAB_TEMPLATES[4]
-  return undefined
+  const normalize = (name: string) => name.replace(/[（]/g, '(').replace(/[）]/g, ')').replace(/\s/g, '').toUpperCase()
+  const name = normalize(itemName)
+  const mapped = LABORATORY_RESULT_PRESETS.find((item) => normalize(item.itemName) === name)
+  if (mapped) return mapped
+  const aliases: Record<string, string> = {
+    '血常规五分类': 'TPL_LAB_CBC_5PART', '血常规三分类': 'TPL_LAB_ITEM_25010101501',
+    '尿常规分析': 'TPL_LAB_ITEM_25010200100', '尿液分析': 'TPL_LAB_ITEM_25010200100',
+    '肝功能检查': 'TPL_LAB_LIVER', '肝功能常用组': 'TPL_LAB_LIVER', '肝功常用': 'TPL_LAB_LIVER',
+    '肾功能三项': 'TPL_LAB_RENAL', '肾功三项': 'TPL_LAB_RENAL',
+    '空腹静脉血糖测定': 'TPL_LAB_GLUCOSE', '静脉空腹血糖测定': 'TPL_LAB_GLUCOSE',
+  }
+  return findNationalLabTemplateByCode(aliases[name])
 }
 
 /** 根据指标代码查找国家标准指标定义 */
 export function findNationalIndicatorDefinition(code?: string): DiagnosticIndicatorDefinition | undefined {
   if (!code) return undefined
-  for (const tpl of NATIONAL_STANDARD_LAB_TEMPLATES) {
+  for (const tpl of [...LABORATORY_RESULT_PRESETS, ...STANDARD_LAB_PANELS]) {
     const found = tpl.content.indicators.find((ind) => ind.code === code)
     if (found) return found
   }
@@ -875,32 +912,22 @@ export function findNationalIndicatorDefinition(code?: string): DiagnosticIndica
 /** 前端根据患者画像评估适用参考规则（性别 1=男, 2=女, 年龄日数） */
 export function matchApplicableReferenceRule(
   rules: readonly DiagnosticReferenceRule[],
-  patient?: { gender?: '1' | '2'; ageDays?: number }
+  patient?: { gender?: '1' | '2'; ageDays?: number; instrumentCode?: string; populationCode?: string }
 ): DiagnosticReferenceRule | undefined {
   if (!rules || rules.length === 0) return undefined
   const gender = patient?.gender
   const ageDays = patient?.ageDays
 
   // 1. 优先尝试全匹配（性别 + 年龄同时满足）
-  const exact = rules.find((rule) => {
+  const matches = rules.filter((rule) => {
+    if (rule.instrumentCode && rule.instrumentCode !== patient?.instrumentCode) return false
+    if (rule.populationCode && rule.populationCode !== patient?.populationCode) return false
     if (rule.gender && rule.gender !== gender) return false
     if (rule.minimumAgeDays != null && (ageDays == null || ageDays < rule.minimumAgeDays)) return false
     if (rule.maximumAgeDays != null && (ageDays == null || ageDays >= rule.maximumAgeDays)) return false
     return true
   })
-  if (exact) return exact
-
-  // 2. 尝试无性别限定但符合年龄的规则
-  const ageOnly = rules.find((rule) => {
-    if (rule.gender) return false
-    if (rule.minimumAgeDays != null && (ageDays == null || ageDays < rule.minimumAgeDays)) return false
-    if (rule.maximumAgeDays != null && (ageDays == null || ageDays >= rule.maximumAgeDays)) return false
-    return true
-  })
-  if (ageOnly) return ageOnly
-
-  // 3. 通用兜底规则
-  return rules[0]
+  return matches.length === 1 ? matches[0] : undefined
 }
 
 export type IndicatorEvaluationResult = {
@@ -914,15 +941,17 @@ export type IndicatorEvaluationResult = {
 export function evaluateIndicatorValue(
   indicator: DiagnosticIndicatorDefinition,
   val?: string | number,
-  patient?: { gender?: '1' | '2'; ageDays?: number }
+  patient?: { gender?: '1' | '2'; ageDays?: number; instrumentCode?: string; populationCode?: string }
 ): IndicatorEvaluationResult {
   if (val == null || (typeof val === 'string' && !val.trim())) {
     return { isCritical: false, displayLabel: '未录入' }
   }
   const rule = matchApplicableReferenceRule(indicator.rules, patient)
   if (!rule) {
-    return { isCritical: false, displayLabel: '正常' }
+    return { isCritical: false, displayLabel: '待机构规则确认' }
   }
+
+  if (indicator.valueType === 'STRING') return { isCritical: false, displayLabel: '待人工核对', rule }
 
   // 定性指标
   if (indicator.valueType === 'CODE') {
@@ -959,6 +988,7 @@ export function evaluateIndicatorValue(
     return { interpretationCode: 'H', isCritical: false, displayLabel: '↑偏高', rule }
   }
 
+  if (rule.referenceLow == null || rule.referenceHigh == null) return { isCritical: false, displayLabel: '待机构规则确认', rule }
   return { interpretationCode: 'N', isCritical: false, displayLabel: '正常', rule }
 }
 

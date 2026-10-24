@@ -9,4 +9,6 @@ import java.util.Optional;
 public interface ReceiptEventRepository extends JpaRepository<ReceiptEvent, Long> {
     Optional<ReceiptEvent> findByTenantIdAndReceiptIdAndCommandCode(Long tenantId, Long receiptId, String commandCode);
     List<ReceiptEvent> findByTenantIdAndReceiptIdOrderByOccurredAtAscIdAsc(Long tenantId, Long receiptId);
+    List<ReceiptEvent> findByTenantIdAndReceiptIdInOrderByReceiptIdAscOccurredAtAscIdAsc(
+            Long tenantId, java.util.Collection<Long> receiptIds);
 }

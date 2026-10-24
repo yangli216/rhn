@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface CashierCloseLineRepository extends JpaRepository<CashierCloseLine, Long> {
     List<CashierCloseLine> findByTenantIdAndCashierCloseIdOrderByLineNo(Long tenantId, Long cashierCloseId);
+    List<CashierCloseLine> findByTenantIdAndCashierCloseIdInOrderByCashierCloseIdAscLineNoAsc(
+            Long tenantId, java.util.Collection<Long> cashierCloseIds);
 }

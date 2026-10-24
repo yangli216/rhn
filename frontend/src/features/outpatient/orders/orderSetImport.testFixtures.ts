@@ -24,6 +24,7 @@ export function groupApi(group = groupFixture()) {
   const api = { masterData: {
     itemGroups: vi.fn().mockResolvedValue([group]),
     searchServices: vi.fn().mockImplementation(async (code: string) => ({ content: services.filter(service => service.code === code) })),
+    servicesByCodes: vi.fn().mockImplementation(async (codes: string[]) => services.filter(service => codes.includes(service.code))),
   }, organization: { department: vi.fn().mockResolvedValue({ department }) },
   encounters: { saveOrderDrafts: vi.fn().mockImplementation(async (id, input) => orderDraftReceipt(id, input)) } } satisfies { [K in keyof RhnApi]?: Partial<RhnApi[K]> } as unknown as RhnApi
   return { api, services, department }

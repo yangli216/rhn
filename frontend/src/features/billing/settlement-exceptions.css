@@ -41,4 +41,63 @@
 .settlement-exception-reason { display: grid; gap: 6px; margin-top: 12px; font-size: var(--font-size-small); }
 .settlement-exception-reason input { padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: inherit; }
 
-.billing-query-view-switch { display: flex; gap: 8px; margin: 0 0 12px; }
+.settlement-exception-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 0 24px;
+}
+
+.settlement-exception-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.settlement-exception-metric-card {
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settlement-exception-metric-card span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.settlement-exception-metric-card strong {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.settlement-exception-metric-card.is-critical strong {
+  color: var(--color-danger);
+}
+
+.settlement-exception-metric-card.is-warning strong {
+  color: var(--color-warning);
+}
+
+.settlement-exception-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settlement-exception-filter-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settlement-exception-main-panel {
+  padding: 16px;
+}
+

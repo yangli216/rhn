@@ -46,6 +46,7 @@ import static org.mockito.Mockito.when;
 
 class DirectRefundApplicationServiceTest {
     private final SettlementReliefService relief = mock(SettlementReliefService.class);
+    private final SettlementRoundingLedger rounding = mock(SettlementRoundingLedger.class);
 
     private PaymentRepository payments;
     private PatientAccountRepository accounts;
@@ -83,9 +84,10 @@ class DirectRefundApplicationServiceTest {
                 payments, accounts, charges, components, ledger,
                 settlements, receipts, pharmacy,
                 paymentOrchestration, receiptService, preCheckService, mock(com.rhn.billing.api.RefundDiagnosticDirectory.class), contextProvider,
-                relief, mock(org.springframework.transaction.PlatformTransactionManager.class)
+                relief, rounding, mock(org.springframework.transaction.PlatformTransactionManager.class)
         );
         when(relief.reverseForChargeReversals(any(), any(), any(), any(), any())).thenReturn(java.math.BigDecimal.ZERO);
+        when(rounding.reverseForChargeReversals(any(), any(), any())).thenReturn(java.math.BigDecimal.ZERO);
     }
 
     @Test

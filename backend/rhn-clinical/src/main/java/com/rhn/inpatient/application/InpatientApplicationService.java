@@ -420,7 +420,13 @@ public class InpatientApplicationService {
                 .collect(Collectors.toMap(ServiceLocation::id, Function.identity()));
         Map<Long, InpatientBedOccupancy> occupancyByBed = occupancies.findByTenantId(context.tenantId()).stream()
                 .collect(Collectors.toMap(InpatientBedOccupancy::bedLocationId, Function.identity()));
+        // 占用居民与科室名称一次批量装载，避免逐床回查。
+        Map<Long, ResidentSnapshot> residentById = residents.requireSnapshots(context.tenantId(),
+                occupancyByBed.values().stream().map(InpatientBedOccupancy::residentId).toList());
         Map<Long, String> departmentNames = new LinkedHashMap<>();
+        for (DepartmentView value : organizations.listDepartments(context.tenantId(), context.organizationId())) {
+            departmentNames.putIfAbsent(value.id(), value.name());
+        }
         return bedProfiles.findByTenantId(context.tenantId()).stream()
                 .filter(profile -> {
                     ServiceLocation location = locationsById.get(profile.bedLocationId());
@@ -432,9 +438,15 @@ public class InpatientApplicationService {
                     ServiceLocation ward = room != null && "ROOM".equals(room.locationType())
                             ? locationsById.get(room.parentId()) : room;
                     InpatientBedOccupancy occupancy = occupancyByBed.get(bed.id());
-                    String departmentName = departmentNames.computeIfAbsent(bed.departmentId(), id ->
-                            organizations.requireDepartment(context.tenantId(), context.organizationId(), id).name());
-                    ResidentSnapshot resident = occupancy == null ? null : residents.requireSnapshot(occupancy.residentId());
+                    String departmentName = departmentNames.get(bed.departmentId());
+                    if (departmentName == null) {
+                        departmentName = organizations.requireDepartment(
+                                context.tenantId(), context.organizationId(), bed.departmentId()).name();
+                    }
+                    ResidentSnapshot resident = occupancy == null ? null : residentById.get(occupancy.residentId());
+                    if (resident == null && occupancy != null) {
+                        resident = residents.requireSnapshot(occupancy.residentId());
+                    }
                     return new BedView(
                             bed.id(), profile.revision(), bed.organizationId(), bed.departmentId(), departmentName,
                             ward == null ? null : ward.id(), ward == null ? null : ward.name(),
@@ -452,27 +464,71 @@ public class InpatientApplicationService {
     }
 
     private List<EpisodeView> episodeViews(ExecutionContext context, Collection<CareEpisodeStatus> statuses) {
-        return episodes.findByTenantIdAndOrganizationIdAndEpisodeTypeAndStatusInOrderByStartAtDesc(
-                        context.tenantId(), context.organizationId(), "INPATIENT", statuses).stream()
-                .map(value -> episodeView(context, value))
-                .toList();
+        List<CareEpisode> values = episodes
+                .findByTenantIdAndOrganizationIdAndEpisodeTypeAndStatusInOrderByStartAtDesc(
+                        context.tenantId(), context.organizationId(), "INPATIENT", statuses);
+        if (values.isEmpty()) return List.of();
+        // 列表/看板装配一次批量装载居民、接触、住院明细、床位占用、床位位置与科室，避免逐条回查。
+        List<Long> episodeIds = values.stream().map(CareEpisode::id).toList();
+        Map<Long, ResidentSnapshot> residentById = residents.requireSnapshots(context.tenantId(),
+                values.stream().map(CareEpisode::residentId).toList());
+        Map<Long, InpatientEncounter> encounterByEpisode = new LinkedHashMap<>();
+        for (InpatientEncounter value : encounters.findByTenantIdAndEpisodeIdIn(context.tenantId(), episodeIds)) {
+            encounterByEpisode.putIfAbsent(value.episodeId(), value);
+        }
+        Map<Long, InpatientEpisodeDetail> detailByEpisode = new LinkedHashMap<>();
+        for (InpatientEpisodeDetail value : episodeDetails.findByTenantIdAndEpisodeIdIn(
+                context.tenantId(), episodeIds)) {
+            detailByEpisode.putIfAbsent(value.episodeId(), value);
+        }
+        Map<Long, InpatientBedOccupancy> occupancyByEpisode = new LinkedHashMap<>();
+        for (InpatientBedOccupancy value : occupancies.findByTenantIdAndEpisodeIdIn(
+                context.tenantId(), episodeIds)) {
+            occupancyByEpisode.putIfAbsent(value.episodeId(), value);
+        }
+        Map<Long, ServiceLocation> locationMap = locations
+                .findByTenantIdAndOrganizationIdOrderBySortOrderAscCodeAsc(
+                        context.tenantId(), context.organizationId()).stream()
+                .collect(Collectors.toMap(ServiceLocation::id, Function.identity()));
+        Map<Long, DepartmentView> departmentById = new LinkedHashMap<>();
+        for (DepartmentView value : organizations.listDepartments(context.tenantId(), context.organizationId())) {
+            departmentById.putIfAbsent(value.id(), value);
+        }
+        return values.stream().map(value -> episodeView(context, value, residentById, encounterByEpisode,
+                detailByEpisode, occupancyByEpisode, locationMap, departmentById)).toList();
     }
 
     private EpisodeView episodeView(ExecutionContext context, CareEpisode episode) {
-        ResidentSnapshot resident = residents.requireSnapshot(episode.residentId());
-        InpatientEncounter encounter = requireEncounter(context, episode.id());
-        InpatientEpisodeDetail detail = episodeDetails.findByEpisodeIdAndTenantId(episode.id(), context.tenantId())
-                .orElseThrow(() -> notFound("INPATIENT_DETAIL_NOT_FOUND", "住院明细不存在"));
-        InpatientBedOccupancy occupancy = occupancies.findByTenantIdAndEpisodeId(context.tenantId(), episode.id())
-                .orElse(null);
-        Map<Long, ServiceLocation> locationMap = locations.findByTenantIdAndOrganizationIdOrderBySortOrderAscCodeAsc(
+        Map<Long, ServiceLocation> locationMap = locations
+                .findByTenantIdAndOrganizationIdOrderBySortOrderAscCodeAsc(
                         context.tenantId(), context.organizationId()).stream()
                 .collect(Collectors.toMap(ServiceLocation::id, Function.identity()));
+        return episodeView(context, episode, Map.of(), Map.of(), Map.of(), Map.of(), locationMap, Map.of());
+    }
+
+    private EpisodeView episodeView(ExecutionContext context, CareEpisode episode,
+                                    Map<Long, ResidentSnapshot> residentById,
+                                    Map<Long, InpatientEncounter> encounterByEpisode,
+                                    Map<Long, InpatientEpisodeDetail> detailByEpisode,
+                                    Map<Long, InpatientBedOccupancy> occupancyByEpisode,
+                                    Map<Long, ServiceLocation> locationMap,
+                                    Map<Long, DepartmentView> departmentById) {
+        ResidentSnapshot resident = residentById.get(episode.residentId());
+        if (resident == null) resident = residents.requireSnapshot(episode.residentId());
+        InpatientEncounter encounter = encounterByEpisode.get(episode.id());
+        if (encounter == null) encounter = requireEncounter(context, episode.id());
+        InpatientEpisodeDetail detail = detailByEpisode.get(episode.id());
+        if (detail == null) detail = episodeDetails.findByEpisodeIdAndTenantId(episode.id(), context.tenantId())
+                .orElseThrow(() -> notFound("INPATIENT_DETAIL_NOT_FOUND", "住院明细不存在"));
+        InpatientBedOccupancy occupancy = occupancyByEpisode.get(episode.id());
+        if (occupancy == null) occupancy = occupancies.findByTenantIdAndEpisodeId(context.tenantId(), episode.id())
+                .orElse(null);
         ServiceLocation bed = occupancy == null ? null : locationMap.get(occupancy.bedLocationId());
         ServiceLocation room = bed == null ? null : locationMap.get(bed.parentId());
         ServiceLocation ward = room != null && "ROOM".equals(room.locationType())
                 ? locationMap.get(room.parentId()) : room;
-        DepartmentView department = organizations.requireDepartment(
+        DepartmentView department = departmentById.get(encounter.departmentId());
+        if (department == null) department = organizations.requireDepartment(
                 context.tenantId(), context.organizationId(), encounter.departmentId());
         return new EpisodeView(
                 episode.id(), episode.revision(), episode.episodeNo(), episode.status().name(),

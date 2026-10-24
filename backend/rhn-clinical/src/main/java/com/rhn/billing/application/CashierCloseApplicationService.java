@@ -227,16 +227,29 @@ public class CashierCloseApplicationService {
     @Transactional(readOnly = true)
     public List<CashierCloseView> listMine() {
         ExecutionContext context = requireContext();
-        return closes.findTop100ByTenantIdAndOrganizationIdAndCashierUserIdOrderByCreatedAtDesc(
-                context.tenantId(), context.organizationId(), context.subjectId()).stream()
-                .map(value -> view(value, false)).toList();
+        List<CashierClose> values = closes
+                .findTop100ByTenantIdAndOrganizationIdAndCashierUserIdOrderByCreatedAtDesc(
+                        context.tenantId(), context.organizationId(), context.subjectId());
+        // 一次批量装载本页全部日结明细，避免逐条日结回查明细行。
+        Map<Long, List<CashierCloseLine>> linesByClose = new LinkedHashMap<>();
+        for (CashierCloseLine line : lines.findByTenantIdAndCashierCloseIdInOrderByCashierCloseIdAscLineNoAsc(
+                context.tenantId(), values.stream().map(CashierClose::id).toList())) {
+            linesByClose.computeIfAbsent(line.cashierCloseId(), key -> new java.util.ArrayList<>()).add(line);
+        }
+        return values.stream().map(value -> view(value, false,
+                linesByClose.getOrDefault(value.id(), List.of()))).toList();
     }
 
     private CashierCloseView view(CashierClose close, boolean duplicate) {
-        List<CashierCloseLineView> lineViews = lines.findByTenantIdAndCashierCloseIdOrderByLineNo(
-                close.tenantId(), close.id()).stream().map(line -> new CashierCloseLineView(line.lineNo(),
-                line.paymentMethodCode(), line.closeLineType(), line.transactionCount(), line.expectedAmount(),
-                line.actualAmount(), line.differenceAmount(), line.currencyCode())).toList();
+        return view(close, duplicate, lines.findByTenantIdAndCashierCloseIdOrderByLineNo(
+                close.tenantId(), close.id()));
+    }
+
+    private CashierCloseView view(CashierClose close, boolean duplicate, List<CashierCloseLine> storedLines) {
+        List<CashierCloseLineView> lineViews = storedLines.stream()
+                .map(line -> new CashierCloseLineView(line.lineNo(),
+                        line.paymentMethodCode(), line.closeLineType(), line.transactionCount(), line.expectedAmount(),
+                        line.actualAmount(), line.differenceAmount(), line.currencyCode())).toList();
         return new CashierCloseView(close.id(), close.revision(), close.reversesCloseId(), close.closeNo(),
                 close.commandCode(), close.organizationId(), close.cashierUserId(), close.terminalCode(), close.status().name(),
                 close.rangeFrom(), close.rangeTo(), close.transactionCount(), close.expectedAmount(), close.actualAmount(),

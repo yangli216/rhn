@@ -78,6 +78,8 @@ public class SettlementApplicationService {
     private final com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders;
     private final BillingCodes codes;
     private final SettlementReliefService relief;
+    private final SettlementRoundingLedger rounding;
+    private final SettlementFinalizationGuard finalizationGuard;
 
     @Autowired
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
@@ -89,7 +91,9 @@ public class SettlementApplicationService {
                                         EncounterDirectory encounterDirectory,
                                         ChargeCategoryResolver categoryResolver, BillingCashierResolver cashierResolver,
                                         com.rhn.billing.infrastructure.PaymentOrderRepository paymentOrders,
-                                        BillingCodes codes, SettlementReliefService relief) {
+                                        BillingCodes codes, SettlementReliefService relief,
+                                        SettlementRoundingLedger rounding,
+                                        SettlementFinalizationGuard finalizationGuard) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
         this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
         this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
@@ -99,6 +103,8 @@ public class SettlementApplicationService {
         this.paymentOrders = paymentOrders;
         this.codes = codes;
         this.relief = relief;
+        this.rounding = rounding;
+        this.finalizationGuard = finalizationGuard;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -138,8 +144,12 @@ public class SettlementApplicationService {
                 "CREATE-" + invoice.invoiceNo(), context.subjectId(), invoice.issuedAt()));
         if ("REVERSAL".equals(type)) value.inheritSettlementMode(originalSettlementMode(context, chargeItems));
         if ("NORMAL".equals(type)) relief.applyPreInsurance(context, account, value, invoice, settlementMode);
-        else relief.reverseForChargeReversals(context, account, chargeItems, value, invoice);
+        else {
+            relief.reverseForChargeReversals(context, account, chargeItems, value, invoice);
+            rounding.reverseForChargeReversals(context, chargeItems, invoice.issuedAt());
+        }
         if ("NORMAL".equals(type) && value.netAmount().signum() == 0) {
+            requireTendersWithinNet(context, value);
             String previous = value.applyPaidAmount(BigDecimal.ZERO.setScale(6), context.subjectId(), invoice.issuedAt());
             events.save(new SettlementEvent(context.tenantId(), value.id(), "FINALIZE", previous,
                     value.status().name(), "ZERO-AMOUNT-" + value.id(), context.subjectId(), invoice.issuedAt()));
@@ -154,6 +164,7 @@ public class SettlementApplicationService {
         if (settlement.status() == SettlementStatus.SETTLED) return;
         if (settlement.netAmount().signum() == 0) {
             Instant occurredAt = Instant.now();
+            requireTendersWithinNet(context, settlement);
             String previous = settlement.applyPaidAmount(BigDecimal.ZERO.setScale(6), context.subjectId(), occurredAt);
             events.save(new SettlementEvent(context.tenantId(), settlement.id(), "FINALIZE", previous,
                     settlement.status().name(), "ZERO-AMOUNT-" + settlement.id(), context.subjectId(), occurredAt));
@@ -178,6 +189,7 @@ public class SettlementApplicationService {
         BigDecimal funded = money(tenders.totalTendered(context.tenantId(), settlement.id()));
         if (funded.signum() <= 0) return;
         Instant occurredAt = Instant.now();
+        requireTendersWithinNet(context, settlement);
         String previous = settlement.applyPaidAmount(funded, context.subjectId(), occurredAt);
         events.save(new SettlementEvent(context.tenantId(), settlement.id(),
                 settlement.status() == SettlementStatus.SETTLED ? "FINALIZE" : "PARTIAL_PAY", previous,
@@ -195,6 +207,7 @@ public class SettlementApplicationService {
         tenders.save(new SettlementTender(context.tenantId(), value.id(), payment.id(), lineNo,
                 codes.requireTenderType(context.tenantId(), payment.paymentMethodCode()), payment.paymentMethodCode(), payment.paymentMethodCode(),
                 payment.amount(), payment.currencyCode()));
+        requireTendersWithinNet(context, value);
         String previous = value.applyPaidAmount(money(tenders.totalTendered(context.tenantId(), value.id())),
                 context.subjectId(), payment.paidAt());
         if (value.status() == SettlementStatus.SETTLED && payment.paymentOrderId() != null && paymentOrders != null) {
@@ -212,9 +225,17 @@ public class SettlementApplicationService {
         List<Long> originalChargeIds = reversalCharges.stream().map(ChargeItem::reversesChargeItemId)
                 .filter(java.util.Objects::nonNull).distinct().toList();
         if (originalChargeIds.isEmpty()) return Settlement.SELF_PAY;
-        boolean insured = lines.findByTenantIdAndChargeItemIdIn(context.tenantId(), originalChargeIds).stream()
-                .map(SettlementLine::settlementId).distinct()
-                .map(id -> settlements.findByIdAndTenantId(id, context.tenantId()).orElse(null))
+        List<Long> originalSettlementIds = lines
+                .findByTenantIdAndChargeItemIdIn(context.tenantId(), originalChargeIds).stream()
+                .map(SettlementLine::settlementId).distinct().toList();
+        Map<Long, Settlement> originalById = new HashMap<>();
+        for (int from = 0; from < originalSettlementIds.size(); from += 500) {
+            settlements.findByTenantIdAndIdIn(context.tenantId(),
+                            originalSettlementIds.subList(from, Math.min(from + 500, originalSettlementIds.size())))
+                    .forEach(value -> originalById.put(value.id(), value));
+        }
+        boolean insured = originalSettlementIds.stream()
+                .map(originalById::get)
                 .anyMatch(original -> original != null && !"REVERSAL".equals(original.settlementType())
                         && Settlement.MEDICAL_INSURANCE.equals(original.settlementMode()));
         return insured ? Settlement.MEDICAL_INSURANCE : Settlement.SELF_PAY;
@@ -250,6 +271,7 @@ public class SettlementApplicationService {
         accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
                 .ifPresent(account -> relief.applyAfterInsurance(context, account, value));
         BigDecimal funded = money(tenders.totalTendered(context.tenantId(), settlementId));
+        requireTendersWithinNet(context, value);
         String previous = value.applyPaidAmount(funded, context.subjectId(), occurredAt);
         events.save(new SettlementEvent(context.tenantId(), settlementId,
                 value.status() == SettlementStatus.SETTLED ? "FINALIZE" : "PARTIAL_PAY", previous, value.status().name(),
@@ -302,12 +324,24 @@ public class SettlementApplicationService {
         boolean finalized = !"SETTLED".equals(previousStatus) && settlement.status() == SettlementStatus.SETTLED;
         boolean reversed = "SETTLED".equals(previousStatus) && settlement.status() != SettlementStatus.SETTLED;
         if (!finalized && !reversed) return;
-        if (finalized) relief.confirmQuota(context, settlement, occurredAt);
+        if (finalized) {
+            relief.confirmQuota(context, settlement, occurredAt);
+            rounding.recordOnFinalize(context, settlement, occurredAt);
+            finalizationGuard.requireBalanced(context, settlement);
+        }
         PatientAccount account = accounts.findByIdAndTenantId(settlement.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
-        List<ChargeItem> settledCharges = lines
-                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id()).stream()
-                .map(line -> chargeItems.findByIdAndTenantId(line.chargeItemId(), context.tenantId()).orElse(null))
+        List<SettlementLine> settlementLines = lines
+                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id());
+        Map<Long, ChargeItem> chargeById = new HashMap<>();
+        List<Long> chargeIds = settlementLines.stream().map(SettlementLine::chargeItemId).distinct().toList();
+        for (int from = 0; from < chargeIds.size(); from += 500) {
+            chargeItems.findByTenantIdAndIdIn(context.tenantId(),
+                            chargeIds.subList(from, Math.min(from + 500, chargeIds.size())))
+                    .forEach(value -> chargeById.put(value.id(), value));
+        }
+        List<ChargeItem> settledCharges = settlementLines.stream()
+                .map(line -> chargeById.get(line.chargeItemId()))
                 .filter(java.util.Objects::nonNull).toList();
         Map<Long, BigDecimal> requestAmounts = settledCharges.stream()
                 .filter(charge -> charge.requestId() != null)
@@ -374,10 +408,18 @@ public class SettlementApplicationService {
     @Transactional
     public ReliefViews.SettlementReliefView confirmRelief(Long settlementId, ConfirmReliefCommand input) {
         ExecutionContext context = contextProvider.requireCurrent();
+        // 与 collectPayment 同序：先读结算单取账户，先锁账户，再锁结算单，避免与收款互相等待。
+        Settlement probe = requireAccessible(context, settlementId, false);
+        accounts.lockByIdAndTenantId(probe.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
         Settlement value = requireAccessible(context, settlementId, true);
         if (!List.of(SettlementStatus.PRICED, SettlementStatus.PAYMENT_PENDING, SettlementStatus.PARTIAL)
                 .contains(value.status())) {
             throw conflict("RELIEF_SETTLEMENT_STATE_INVALID", "结算已完成或已冲正，不能再确认减免");
+        }
+        if (paymentOrders != null && value.legacyInvoiceId() != null
+                && paymentOrders.activeRequestedForInvoice(context.tenantId(), value.legacyInvoiceId()).signum() > 0) {
+            throw conflict("RELIEF_PAYMENT_IN_FLIGHT", "存在在途支付，请先查询或取消原支付后再确认减免");
         }
         PatientAccount account = accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId()).orElseThrow();
         Map<Long, SettlementReliefService.ManualDecision> manual = new LinkedHashMap<>();
@@ -391,6 +433,7 @@ public class SettlementApplicationService {
         List<ReliefViews.ReliefOutcomeView> outcomes = relief.applyPostInsurance(context, account, value, manual, "RELIEF-POST-");
         if (value.reliefAmount().compareTo(before) != 0) {
             Instant occurredAt = Instant.now();
+            requireTendersWithinNet(context, value);
             String previous = value.applyPaidAmount(money(tenders.totalTendered(context.tenantId(), value.id())),
                     context.subjectId(), occurredAt);
             events.save(new SettlementEvent(context.tenantId(), value.id(),
@@ -531,12 +574,17 @@ public class SettlementApplicationService {
                 .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
         Map<Long, EncounterSnapshot> encounterById = encounterDirectory.findOrganizationAccessible(encounterIds)
                 .stream().collect(Collectors.toMap(EncounterSnapshot::id, Function.identity()));
-        Map<Long, ResidentSnapshot> residentById = new HashMap<>();
+        // 一次批量装载本页结算记录涉及的居民快照，避免逐条结算记录回查患者档案。
+        List<Long> residentIds = accountById.values().stream().map(PatientAccount::residentId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, ResidentSnapshot> residentById = residentIds.isEmpty() ? Map.of()
+                : new HashMap<>(residentDirectory.requireSnapshots(context.tenantId(), residentIds));
         return values.stream().map(value -> {
             PatientAccount account = accountById.get(value.patientAccountId());
             if (account == null) return null;
-            ResidentSnapshot resident = residentById.computeIfAbsent(account.residentId(),
-                    residentId -> residentDirectory.requireSnapshot(context.tenantId(), residentId));
+            ResidentSnapshot resident = residentById.containsKey(account.residentId())
+                    ? residentById.get(account.residentId())
+                    : residentDirectory.requireSnapshot(context.tenantId(), account.residentId());
             EncounterSnapshot encounter = account.encounterId() == null ? null : encounterById.get(account.encounterId());
             var cashier = value.finalizedBy() == null || cashierResolver == null ? new BillingCashierResolver.Cashier(null, null)
                     : cashiers.computeIfAbsent(value.finalizedBy(), id -> cashierResolver.resolve(context.tenantId(), id));
@@ -560,6 +608,31 @@ public class SettlementApplicationService {
         return value;
     }
 
+    /** 收款入口在已锁账户后锁结算单（先账户后结算单），按结算凭证定位。 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Settlement lockByInvoice(ExecutionContext context, Long invoiceId) {
+        return lockByInvoiceIfPresent(context, invoiceId)
+                .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    java.util.Optional<Settlement> lockByInvoiceIfPresent(ExecutionContext context, Long invoiceId) {
+        return settlements.findByTenantIdAndLegacyInvoiceId(context.tenantId(), invoiceId)
+                .flatMap(found -> settlements.lockByIdAndTenantId(found.id(), context.tenantId()));
+    }
+
+    /**
+     * 资金合计不得超过 NORMAL 结算单净额：超出部分会悄悄变成账户贷方。冲正结算（REVERSAL）不受此限。
+     */
+    private void requireTendersWithinNet(ExecutionContext context, Settlement settlement) {
+        if (!"NORMAL".equals(settlement.settlementType())) return;
+        BigDecimal tendered = money(tenders.totalTendered(context.tenantId(), settlement.id()));
+        if (tendered.compareTo(money(settlement.netAmount())) > 0) {
+            throw conflict("SETTLEMENT_TENDER_EXCEEDS_NET", "结算资金合计 %s 超过结算净额 %s，不能继续入账"
+                    .formatted(tendered.toPlainString(), money(settlement.netAmount()).toPlainString()));
+        }
+    }
+
     BigDecimal nonPaymentTendered(ExecutionContext context, Long settlementId) {
         return money(tenders.nonPaymentTendered(context.tenantId(), settlementId));
     }
@@ -570,21 +643,79 @@ public class SettlementApplicationService {
                 .orElse(null);
     }
 
+    /**
+     * 批量取回发票对应的结算凭证金额；无结算凭证的发票在返回 Map 中值为 null，
+     * 调用方可继续用支付净额回退。
+     */
+    Map<Long, BigDecimal> invoiceTendered(ExecutionContext context, List<Long> invoiceIds) {
+        Map<Long, BigDecimal> result = new java.util.LinkedHashMap<>();
+        for (Long invoiceId : invoiceIds) result.put(invoiceId, null);
+        if (invoiceIds.isEmpty()) return result;
+        Map<Long, Long> settlementByInvoice = new java.util.LinkedHashMap<>();
+        Map<Long, BigDecimal> tenderedBySettlement = new java.util.HashMap<>();
+        for (int from = 0; from < invoiceIds.size(); from += 500) {
+            List<Settlement> values = settlements.findByTenantIdAndLegacyInvoiceIdIn(context.tenantId(),
+                    invoiceIds.subList(from, Math.min(from + 500, invoiceIds.size())));
+            for (Settlement value : values) {
+                if (value.legacyInvoiceId() != null) {
+                    settlementByInvoice.putIfAbsent(value.legacyInvoiceId(), value.id());
+                }
+            }
+            if (values.isEmpty()) continue;
+            tenders.totalTenderedBySettlementIds(context.tenantId(),
+                            values.stream().map(Settlement::id).toList())
+                    .forEach(value -> tenderedBySettlement.put(value.getSettlementId(), value.getTenderedAmount()));
+        }
+        settlementByInvoice.forEach((invoiceId, settlementId) -> result.put(invoiceId,
+                money(tenderedBySettlement.getOrDefault(settlementId, BigDecimal.ZERO))));
+        return result;
+    }
+
     List<SettlementView> listByAccount(ExecutionContext context, Long accountId) {
-        return settlements.findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(context.tenantId(), accountId)
-                .stream().map(value -> view(context, value)).toList();
+        List<Settlement> values = settlements.findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(
+                context.tenantId(), accountId);
+        if (values.isEmpty()) return List.of();
+        // 账户流水一次批量装载结算行、支付方式与事件，避免逐结算单三次回查。
+        List<Long> ids = values.stream().map(Settlement::id).toList();
+        Map<Long, List<SettlementLine>> linesBySettlement = new java.util.HashMap<>();
+        Map<Long, List<SettlementTender>> tendersBySettlement = new java.util.HashMap<>();
+        Map<Long, List<SettlementEvent>> eventsBySettlement = new java.util.HashMap<>();
+        for (int from = 0; from < ids.size(); from += 500) {
+            List<Long> shard = ids.subList(from, Math.min(from + 500, ids.size()));
+            lines.findByTenantIdAndSettlementIdInOrderBySettlementIdAscLineNoAsc(context.tenantId(), shard)
+                    .forEach(value -> linesBySettlement.computeIfAbsent(value.settlementId(),
+                            ignored -> new java.util.ArrayList<>()).add(value));
+            tenders.findByTenantIdAndSettlementIdInOrderBySettlementIdAscLineNoAsc(context.tenantId(), shard)
+                    .forEach(value -> tendersBySettlement.computeIfAbsent(value.settlementId(),
+                            ignored -> new java.util.ArrayList<>()).add(value));
+            events.findByTenantIdAndSettlementIdInOrderBySettlementIdAscIdAsc(context.tenantId(), shard)
+                    .forEach(value -> eventsBySettlement.computeIfAbsent(value.settlementId(),
+                            ignored -> new java.util.ArrayList<>()).add(value));
+        }
+        return values.stream().map(value -> view(value,
+                linesBySettlement.getOrDefault(value.id(), List.of()),
+                tendersBySettlement.getOrDefault(value.id(), List.of()),
+                eventsBySettlement.getOrDefault(value.id(), List.of()))).toList();
     }
 
     private SettlementView view(ExecutionContext context, Settlement value) {
-        List<SettlementLineView> lineViews = lines.findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), value.id())
+        return view(value,
+                lines.findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), value.id()),
+                tenders.findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), value.id()),
+                events.findByTenantIdAndSettlementIdOrderByIdAsc(context.tenantId(), value.id()));
+    }
+
+    private SettlementView view(Settlement value, List<SettlementLine> lineValues,
+                                List<SettlementTender> tenderValues, List<SettlementEvent> eventValues) {
+        List<SettlementLineView> lineViews = lineValues
                 .stream().map(line -> new SettlementLineView(line.id(), line.chargeItemId(), line.lineNo(),
                         line.settledQuantity(), line.grossAmount(), line.discountAmount(), line.insuranceAmount(),
                         line.patientAmount(), line.otherAmount(), line.netAmount())).toList();
-        List<SettlementTenderView> tenderViews = tenders.findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), value.id())
+        List<SettlementTenderView> tenderViews = tenderValues
                 .stream().map(tender -> new SettlementTenderView(tender.id(), tender.paymentId(), tender.claimResponseId(),
                         tender.lineNo(), tender.tenderType(), tender.payerCode(), tender.payerNameSnapshot(), tender.tenderAmount(),
                         tender.currencyCode())).toList();
-        List<SettlementEventView> eventViews = events.findByTenantIdAndSettlementIdOrderByIdAsc(context.tenantId(), value.id())
+        List<SettlementEventView> eventViews = eventValues
                 .stream().map(event -> new SettlementEventView(event.id(), event.eventType(), event.statusFrom(),
                         event.statusTo(), event.commandCode(), event.actorId(), event.errorCode(), event.errorMessage(),
                         event.occurredAt())).toList();

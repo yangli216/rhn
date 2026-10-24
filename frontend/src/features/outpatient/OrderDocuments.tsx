@@ -18,15 +18,13 @@ export interface OrderDocument {
   members?: ServiceRequest[]
 }
 
-/** 单据信息按单保存：申请单逐项写入，返回首项结果以便编辑器更新基线。 */
+/** 单据信息按单保存：申请单以一次批量请求逐项写入，返回首项结果以便编辑器更新基线。 */
 export async function saveOrderDocumentInfo(api: RhnApi, encounterId: string, doc: OrderDocument, revision: number,
   info: OrderDocumentInfo) {
   if (doc.kind === 'prescription') return api.encounters.updatePrescriptionDocumentInfo(encounterId, doc.value.id, revision, info)
   const members = doc.members?.length ? doc.members : [doc.value as ServiceRequest]
-  const results = []
-  for (const member of members) {
-    results.push(await api.encounters.updateServiceDocumentInfo(encounterId, member.id, member.revision, info))
-  }
+  const results = await api.encounters.updateServiceDocumentInfoBatch(encounterId,
+    members.map(member => ({ id: member.id, expectedRevision: member.revision })), info)
   return results[0]
 }
 

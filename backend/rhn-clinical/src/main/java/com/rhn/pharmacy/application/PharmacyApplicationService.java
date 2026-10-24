@@ -6,6 +6,7 @@ import com.rhn.healthcore.api.EncounterCareSettingDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory.MedicationRequestSnapshot;
+import com.rhn.healthcore.api.EncounterCareSettingDirectory.EncounterCareSetting;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskLineView;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskView;
@@ -224,15 +225,15 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                 value.input().negativeAllowed(), value.input().lotRequired(), value.input().traceRequired(),
                 value.input().splitAllowed(), value.input().coldChain(), value.input().controlled(),
                 value.controlLevel(), value.input().highAlert(), context.subjectId())).toList();
-        return itemRepository.saveAllAndFlush(values).stream().map(value -> stockItemView(value, site)).toList();
+        return stockItemViews(context, site, itemRepository.saveAllAndFlush(values));
     }
 
     @Transactional(readOnly = true)
     public List<StockItemView> stockItems(Long siteId) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
         requireOrganizationAccess(context, site.organizationId());
-        return itemRepository.findByTenantIdAndStockSiteIdOrderById(context.tenantId(), siteId)
-                .stream().map(value -> stockItemView(value, site)).toList();
+        return stockItemViews(context, site,
+                itemRepository.findByTenantIdAndStockSiteIdOrderById(context.tenantId(), siteId));
     }
 
     @Transactional(readOnly = true)
@@ -241,34 +242,45 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         StockSite currentSite = siteRepository.findByTenantIdAndOrganizationIdAndDepartmentId(
                 context.tenantId(), organizationId, context.departmentId()).orElse(null);
         if (currentSite == null || !"PHARMACY".equals(currentSite.siteType())) return List.of();
+        Long tenantId = context.tenantId();
         Map<Long, PharmacyInboxItem> result = new LinkedHashMap<>();
-        Map<Long, ResidentDirectory.ResidentSnapshot> residents = new HashMap<>();
         List<MedicationRequestSnapshot> activeRequests = requestDirectory.activeForPharmacy(organizationId);
-        residents.putAll(residentDirectory.requireSnapshots(context.tenantId(),
-                activeRequests.stream().map(MedicationRequestSnapshot::residentId).toList()));
+        List<Long> activeRequestIds = activeRequests.stream().map(MedicationRequestSnapshot::id).distinct().toList();
+        // 待接方处方、任务、审方、发药、居民、就诊类别与临床快照一律批量装载，避免逐处方回查。
+        Map<Long, DispenseTaskLine> lineByRequest = linesByFulfillmentSource(tenantId, activeRequestIds);
+        List<Long> taskIds = lineByRequest.values().stream().map(DispenseTaskLine::taskId).distinct().toList();
+        Map<Long, DispenseTask> taskById = new HashMap<>();
+        loadTasks(tenantId, taskIds, taskById);
+        Map<Long, List<PharmacyReview>> reviewsByTask = reviewsByTask(tenantId, taskIds);
+        Map<Long, MedicationDispense> latestDispenseByTask = latestDispenses(tenantId, taskIds);
+        Map<Long, ResidentDirectory.ResidentSnapshot> residents = new HashMap<>(residentDirectory.requireSnapshots(
+                tenantId, activeRequests.stream().map(MedicationRequestSnapshot::residentId).toList()));
+        List<Long> encounterIds = activeRequests.stream().map(MedicationRequestSnapshot::encounterId).distinct().toList();
+        Map<Long, EncounterCareSetting> careSettings = new HashMap<>(encounterCareSettings.careSettings(
+                tenantId, encounterIds));
+        Map<Long, EncounterDirectory.PharmacyClinicalSnapshot> clinical = new HashMap<>(
+                encounterDirectory.pharmacySnapshots(tenantId, encounterIds));
+        Map<Long, PharmacyFulfillmentAuthorization> authorizations = requireSettlementAuthorization
+                ? latestAuthorizations(tenantId, activeRequestIds) : Map.of();
         for (MedicationRequestSnapshot request : activeRequests) {
             var resident = residents.computeIfAbsent(request.residentId(),
-                    id -> residentDirectory.requireSnapshot(context.tenantId(), id));
-            DispenseTaskLine line = lineRepository
-                    .findByTenantIdAndFulfillmentSourceTypeAndFulfillmentSourceId(
-                            context.tenantId(), "MEDICATION_REQUEST", request.id())
-                    .orElse(null);
+                    id -> residentDirectory.requireSnapshot(tenantId, id));
+            DispenseTaskLine line = lineByRequest.get(request.id());
             if (line == null) {
-                if (visibleInInbox(context, request, currentSite.id())) {
+                if (visibleInInbox(context, request, currentSite, careSettings, authorizations)) {
                     result.put(request.id(), new PharmacyInboxItem(
                             request, null, null, null, null, null, null, null,
                             resident.fullName(), resident.healthRecordNo(), resident.phone(),
                             null, null, null, null, null, null,
-                            clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
+                            clinicalContext(request, clinical), prescriptionRequests(activeRequests, request)));
                 }
                 continue;
             }
-            DispenseTask task = taskRepository.findByIdAndTenantId(line.taskId(), context.tenantId())
-                    .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "接方任务不存在"));
+            DispenseTask task = taskById.get(line.taskId());
+            if (task == null) throw notFound("DISPENSE_TASK_NOT_FOUND", "接方任务不存在");
             if (!currentSite.id().equals(task.stockSiteId())) continue;
-            List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
-                    context.tenantId(), task.id());
-            MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());
+            List<PharmacyReview> reviews = reviewsByTask.getOrDefault(task.id(), List.of());
+            MedicationDispense latestDispense = latestDispenseByTask.get(task.id());
             result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status().name(), null,
                     line.stockItemId(), line.productNameSnapshot(),
                     reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
@@ -276,7 +288,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                     latestDispense == null ? null : latestDispense.occurredAt(),
                     latestDispense == null ? null : latestDispense.dispenserPractitionerId(),
                     line.plannedQuantity(), line.dispensedQuantity(), line.returnedQuantity(), line.dispenseUnitCode(),
-                    clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
+                    clinicalContext(request, clinical), prescriptionRequests(activeRequests, request)));
         }
         // 应退(RETURN_REQUIRED)必须 已发>已退，SQL 先滤掉从未发出/已退清的历史任务，其余才查 closure
         List<DispenseTaskLine> netLines = lineRepository.findNetDispensedBySite(context.tenantId(), currentSite.id())
@@ -285,25 +297,41 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         Set<Long> cancelledIds = requestDirectory.cancelledRequestIds(context.tenantId(),
                 netLines.stream().map(DispenseTaskLine::requestId).collect(Collectors.toSet()));
         List<DispenseTaskLine> candidates = netLines.stream().filter(line -> cancelledIds.contains(line.requestId())).toList();
-        Map<Long, DispenseTask> tasksById = new HashMap<>();
-        List<Long> taskIds = candidates.stream().map(DispenseTaskLine::taskId).distinct().toList();
-        for (int from = 0; from < taskIds.size(); from += 500) {
-            taskRepository.findByTenantIdAndIdIn(context.tenantId(),
-                    taskIds.subList(from, Math.min(from + 500, taskIds.size())))
-                    .forEach(value -> tasksById.put(value.id(), value));
+        if (candidates.isEmpty()) return new ArrayList<>(result.values());
+        List<Long> candidateRequestIds = candidates.stream().map(DispenseTaskLine::requestId).distinct().toList();
+        List<Long> candidateTaskIds = candidates.stream().map(DispenseTaskLine::taskId).distinct().toList();
+        loadTasks(tenantId, candidateTaskIds, taskById);
+        Map<Long, List<PharmacyReview>> candidateReviews = reviewsByTask(tenantId, candidateTaskIds);
+        candidateReviews.forEach(reviewsByTask::putIfAbsent);
+        Map<Long, MedicationDispense> candidateDispenses = latestDispenses(tenantId, candidateTaskIds);
+        candidateDispenses.forEach(latestDispenseByTask::putIfAbsent);
+        Map<Long, InpatientMedicationStopDirectory.StopClosure> closures = medicationStops.closures(
+                tenantId, candidateRequestIds);
+        if (closures == null) closures = Map.of();
+        Map<Long, MedicationRequestSnapshot> candidateSnapshots = requestDirectory.pharmacySnapshots(
+                candidateRequestIds);
+        if (candidateSnapshots == null) candidateSnapshots = Map.of();
+        if (!candidateSnapshots.isEmpty()) {
+            residents.putAll(residentDirectory.requireSnapshots(tenantId, candidateSnapshots.values().stream()
+                    .map(MedicationRequestSnapshot::residentId).toList()));
+            clinical.putAll(encounterDirectory.pharmacySnapshots(tenantId, candidateSnapshots.values().stream()
+                    .map(MedicationRequestSnapshot::encounterId).distinct().toList()));
         }
         for (DispenseTaskLine line : candidates) {
             if (result.containsKey(line.requestId())) continue;
-            DispenseTask task = tasksById.get(line.taskId());
+            DispenseTask task = taskById.get(line.taskId());
             if (task == null) continue;
-            var closure = medicationStops.closure(context.tenantId(), line.requestId());
+            var closure = closures.get(line.requestId());
+            if (closure == null && !closures.containsKey(line.requestId())) {
+                closure = medicationStops.closure(context.tenantId(), line.requestId());
+            }
             if (!closure.returnRequired()) continue;
-            MedicationRequestSnapshot request = requestDirectory.requireForPharmacy(line.requestId());
+            MedicationRequestSnapshot request = candidateSnapshots.get(line.requestId());
+            if (request == null) request = requestDirectory.requireForPharmacy(line.requestId());
             var resident = residents.computeIfAbsent(request.residentId(),
-                    id -> residentDirectory.requireSnapshot(context.tenantId(), id));
-            List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
-                    context.tenantId(), task.id());
-            MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());
+                    id -> residentDirectory.requireSnapshot(tenantId, id));
+            List<PharmacyReview> reviews = reviewsByTask.getOrDefault(task.id(), List.of());
+            MedicationDispense latestDispense = latestDispenseByTask.get(task.id());
             result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status().name(),
                     closure.status(), line.stockItemId(), line.productNameSnapshot(),
                     reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
@@ -311,20 +339,72 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                     latestDispense == null ? null : latestDispense.occurredAt(),
                     latestDispense == null ? null : latestDispense.dispenserPractitionerId(),
                     line.plannedQuantity(), line.dispensedQuantity(), line.returnedQuantity(), line.dispenseUnitCode(),
-                    clinicalContext(context.tenantId(), request), List.of(request)));
+                    clinicalContext(request, clinical), List.of(request)));
         }
         return new ArrayList<>(result.values());
     }
 
-    private MedicationDispense latestDispense(Long tenantId, Long taskId) {
-        return dispenseRepository.findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(tenantId, taskId).stream()
-                .filter(value -> "DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType()))
-                .reduce((left, right) -> right)
-                .orElse(null);
+    private Map<Long, DispenseTaskLine> linesByFulfillmentSource(Long tenantId, List<Long> requestIds) {
+        Map<Long, DispenseTaskLine> result = new HashMap<>();
+        for (int from = 0; from < requestIds.size(); from += 500) {
+            lineRepository.findByTenantIdAndFulfillmentSourceTypeAndFulfillmentSourceIdIn(tenantId,
+                            "MEDICATION_REQUEST", requestIds.subList(from, Math.min(from + 500, requestIds.size())))
+                    .forEach(value -> result.putIfAbsent(value.fulfillmentSourceId(), value));
+        }
+        return result;
+    }
+
+    private void loadTasks(Long tenantId, List<Long> taskIds, Map<Long, DispenseTask> target) {
+        for (int from = 0; from < taskIds.size(); from += 500) {
+            taskRepository.findByTenantIdAndIdIn(tenantId,
+                            taskIds.subList(from, Math.min(from + 500, taskIds.size())))
+                    .forEach(value -> target.putIfAbsent(value.id(), value));
+        }
+    }
+
+    private Map<Long, List<PharmacyReview>> reviewsByTask(Long tenantId, List<Long> taskIds) {
+        if (taskIds.isEmpty()) return new HashMap<>();
+        return reviewRepository.findByTenantIdAndTaskIdInOrderByTaskIdAscReviewedAtAscIdAsc(tenantId, taskIds)
+                .stream().collect(Collectors.groupingBy(PharmacyReview::taskId));
+    }
+
+    private Map<Long, MedicationDispense> latestDispenses(Long tenantId, List<Long> taskIds) {
+        Map<Long, MedicationDispense> result = new HashMap<>();
+        if (taskIds.isEmpty()) return result;
+        for (MedicationDispense value : dispenseRepository.findByTenantIdAndTaskIdInOrderByOccurredAtAscIdAsc(
+                tenantId, taskIds)) {
+            if ("DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType())) {
+                result.put(value.taskId(), value);
+            }
+        }
+        return result;
+    }
+
+    private Map<Long, PharmacyFulfillmentAuthorization> latestAuthorizations(Long tenantId, List<Long> requestIds) {
+        Map<Long, PharmacyFulfillmentAuthorization> result = new HashMap<>();
+        for (Long requestId : requestIds) result.put(requestId, null);
+        if (requestIds.isEmpty()) return result;
+        for (PharmacyFulfillmentAuthorization value : fulfillmentAuthorizations
+                .findByTenantIdAndMedicationRequestIdInOrderByReadyAtAscIdAsc(tenantId, requestIds)) {
+            result.put(value.medicationRequestId(), value);
+        }
+        return result;
+    }
+
+    private PharmacyClinicalContextView clinicalContext(MedicationRequestSnapshot request,
+            Map<Long, EncounterDirectory.PharmacyClinicalSnapshot> batch) {
+        if (request.encounterId() == null || !batch.containsKey(request.encounterId())) {
+            return clinicalContext(request.tenantId(), request);
+        }
+        return clinicalContext(request, batch.get(request.encounterId()));
     }
 
     private PharmacyClinicalContextView clinicalContext(Long tenantId, MedicationRequestSnapshot request) {
-        var value = encounterDirectory.requireForPharmacy(tenantId, request.encounterId());
+        return clinicalContext(request, encounterDirectory.requireForPharmacy(tenantId, request.encounterId()));
+    }
+
+    private PharmacyClinicalContextView clinicalContext(MedicationRequestSnapshot request,
+                                                       EncounterDirectory.PharmacyClinicalSnapshot value) {
         if (!request.residentId().equals(value.residentId())) {
             throw conflict("PHARMACY_ENCOUNTER_RESIDENT_MISMATCH", "处方患者与就诊患者不一致");
         }
@@ -455,25 +535,32 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         return taskView(task);
     }
 
-    private boolean visibleInInbox(ExecutionContext context, MedicationRequestSnapshot request, Long currentSiteId) {
-        String careSetting = encounterCareSettings.require(context.tenantId(), request.encounterId()).encounterClass();
+    private boolean visibleInInbox(ExecutionContext context, MedicationRequestSnapshot request, StockSite currentSite,
+                                   Map<Long, com.rhn.healthcore.api.EncounterCareSettingDirectory.EncounterCareSetting> careSettings,
+                                   Map<Long, PharmacyFulfillmentAuthorization> authorizations) {
+        var setting = careSettings.get(request.encounterId());
+        String careSetting = setting == null
+                ? encounterCareSettings.require(context.tenantId(), request.encounterId()).encounterClass()
+                : setting.encounterClass();
         if ("INPATIENT".equals(careSetting)) {
-            return siteRepository.findByIdAndTenantId(currentSiteId, context.tenantId())
-                    .filter(site -> "PHARMACY".equals(site.siteType()) && supports(site, careSetting))
-                    .isPresent();
+            return supports(currentSite, careSetting);
         }
         if (!requireSettlementAuthorization) return true;
-        PharmacyFulfillmentAuthorization authorization = fulfillmentAuthorizations
-                .findTopByTenantIdAndMedicationRequestIdOrderByReadyAtDesc(context.tenantId(), request.id())
-                .filter(PharmacyFulfillmentAuthorization::allowsIntake)
-                .filter(value -> value.organizationId().equals(request.performerOrganizationId()))
-                .orElse(null);
-        if (authorization == null) return false;
+        PharmacyFulfillmentAuthorization authorization;
+        if (authorizations.containsKey(request.id())) {
+            authorization = authorizations.get(request.id());
+        } else {
+            authorization = fulfillmentAuthorizations
+                    .findTopByTenantIdAndMedicationRequestIdOrderByReadyAtDesc(context.tenantId(), request.id())
+                    .orElse(null);
+        }
+        if (authorization == null || !authorization.allowsIntake()
+                || !authorization.organizationId().equals(request.performerOrganizationId())) return false;
         Long targetSiteId = authorization.routedStockSiteId();
         if (targetSiteId == null) targetSiteId = routing.resolve(context.tenantId(), request.performerOrganizationId(),
                 request.performerDepartmentId(), request.medicationType(), careSetting, request.businessDate())
                 .map(DispenseRouteApplicationService.ResolvedRoute::stockSiteId).orElse(null);
-        return currentSiteId.equals(targetSiteId);
+        return currentSite.id().equals(targetSiteId);
     }
 
     private boolean supports(StockSite site, String careSetting) {
@@ -498,7 +585,7 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
             values = taskRepository.findByTenantIdAndStockSiteIdAndStatusOrderByCreatedAtDesc(
                     context.tenantId(), siteId, taskStatus);
         }
-        return values.stream().map(this::taskView).toList();
+        return views(values);
     }
 
     @Transactional(readOnly = true)
@@ -640,9 +727,8 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
         }
     }
 
-    private StockItemView stockItemView(StockItem value, StockSite site) {
-        var catalog = catalogDirectory.resolve(value.tenantId(), value.catalogItemId(), site.organizationId(),
-                value.basePackageId(), "SALE", LocalDate.now());
+    private StockItemView stockItemView(StockItem value, StockSite site,
+                                        CatalogLifecycleDirectory.CatalogOperationalSnapshot catalog) {
         return new StockItemView(value.id(), value.revision(), value.stockSiteId(), value.catalogItemId(),
                 value.basePackageId(), catalog.medication().id(), catalog.item().code(), catalog.item().name(),
                 catalog.itemPackage().unitCode(), catalog.itemPackage().unitName(), catalog.itemPackage().packageSpec(),
@@ -652,19 +738,86 @@ public class PharmacyApplicationService implements com.rhn.pharmacy.api.Pharmacy
                 catalog.item().manufacturerName());
     }
 
+    /** 经营项目视图批量装配：目录项一次解析，避免逐条 resolve 造成的 N+1。 */
+    private List<StockItemView> stockItemViews(ExecutionContext context, StockSite site, List<StockItem> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, Long> packageByCatalogItemId = new LinkedHashMap<>();
+        for (StockItem value : values) packageByCatalogItemId.putIfAbsent(value.catalogItemId(), value.basePackageId());
+        Map<Long, CatalogLifecycleDirectory.CatalogOperationalSnapshot> catalogs = catalogDirectory.resolveAll(
+                context.tenantId(), site.organizationId(), "SALE", packageByCatalogItemId, LocalDate.now());
+        return values.stream().map(value -> stockItemView(value, site, catalogs.get(value.catalogItemId()))).toList();
+    }
+
     private DispenseTaskView taskView(DispenseTask task) {
-        List<DispenseTaskLineView> lines = lineRepository.findByTenantIdAndTaskIdOrderById(task.tenantId(), task.id())
-                .stream().map(this::lineView).toList();
+        List<DispenseTaskLine> lines = lineRepository.findByTenantIdAndTaskIdOrderById(task.tenantId(), task.id());
         String closureStatus = lines.isEmpty() ? null
                 : medicationStops.closure(task.tenantId(), lines.getFirst().requestId()).status();
-        List<PharmacyReviewView> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
-                task.tenantId(), task.id()).stream().map(this::reviewView).toList();
+        return taskView(task, lines,
+                reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(task.tenantId(), task.id()),
+                closureStatus, safetyReviews(lines, Map.of()));
+    }
+
+    /** 工作台列表一次批量装配任务行、审方记录、停嘱闭环与审方快照，避免逐任务回查。 */
+    private List<DispenseTaskView> views(List<DispenseTask> values) {
+        if (values.isEmpty()) return List.of();
+        Long tenantId = contextProvider.requireCurrent().tenantId();
+        List<Long> taskIds = values.stream().map(DispenseTask::id).distinct().toList();
+        Map<Long, List<DispenseTaskLine>> lineMap = lineRepository
+                .findByTenantIdAndTaskIdInOrderByTaskIdAscIdAsc(tenantId, taskIds).stream()
+                .collect(Collectors.groupingBy(DispenseTaskLine::taskId));
+        Map<Long, List<PharmacyReview>> reviewMap = reviewRepository
+                .findByTenantIdAndTaskIdInOrderByTaskIdAscReviewedAtAscIdAsc(tenantId, taskIds).stream()
+                .collect(Collectors.groupingBy(PharmacyReview::taskId));
+        List<Long> requestIds = lineMap.values().stream().flatMap(List::stream)
+                .map(DispenseTaskLine::requestId).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, InpatientMedicationStopDirectory.StopClosure> closures = requestIds.isEmpty() ? Map.of()
+                : medicationStops.closures(tenantId, requestIds);
+        if (closures == null) closures = Map.of();
+        var safety = requestIds.isEmpty() ? Map.<Long, com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review>of()
+                : prescriptionSafety.forMedicationRequests(requestIds);
+        if (safety == null) safety = Map.of();
+        Map<Long, InpatientMedicationStopDirectory.StopClosure> stopClosures = closures;
+        Map<Long, com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review> safetyByRequest = safety;
+        return values.stream().map(task -> {
+            List<DispenseTaskLine> lines = lineMap.getOrDefault(task.id(), List.of());
+            String closureStatus = lines.isEmpty() ? null
+                    : stopClosureStatus(task.tenantId(), lines.getFirst().requestId(), stopClosures);
+            return taskView(task, lines, reviewMap.getOrDefault(task.id(), List.of()), closureStatus,
+                    safetyReviews(lines, safetyByRequest));
+        }).toList();
+    }
+
+    private String stopClosureStatus(Long tenantId, Long requestId,
+                                     Map<Long, InpatientMedicationStopDirectory.StopClosure> closures) {
+        InpatientMedicationStopDirectory.StopClosure closure = closures.get(requestId);
+        if (closure == null && !closures.containsKey(requestId)) {
+            closure = medicationStops.closure(tenantId, requestId);
+        }
+        return closure == null ? null : closure.status();
+    }
+
+    private List<com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review> safetyReviews(
+            List<DispenseTaskLine> lines,
+            Map<Long, com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review> batch) {
+        List<com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review> result = new ArrayList<>();
+        for (DispenseTaskLine line : lines) {
+            Long requestId = line.requestId();
+            var review = requestId == null || !batch.containsKey(requestId)
+                    ? prescriptionSafety.forMedicationRequest(requestId) : batch.get(requestId);
+            if (review != null) result.add(review);
+        }
+        return result.stream().distinct().toList();
+    }
+
+    private DispenseTaskView taskView(DispenseTask task, List<DispenseTaskLine> lines, List<PharmacyReview> reviews,
+                                      String closureStatus,
+                                      List<com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory.Review> safety) {
+        List<DispenseTaskLineView> lineViews = lines.stream().map(this::lineView).toList();
         return new DispenseTaskView(task.id(), task.revision(), task.residentId(), task.encounterId(),
                 task.stockSiteId(), task.taskNo(), task.taskType(), task.priority(), task.status().name(), closureStatus,
                 task.createdAt(), task.dueAt(), task.pickedAt(), task.assignedPractitionerId(),
                 task.pickedByUserId(), task.pickedAssignmentId(), task.pickDescription(),
-                task.description(), lines, reviews, lines.stream().map(line -> prescriptionSafety.forMedicationRequest(line.requestId()))
-                    .filter(java.util.Objects::nonNull).distinct().toList());
+                task.description(), lineViews, reviews.stream().map(this::reviewView).toList(), safety);
     }
 
     private DispenseTaskLineView lineView(DispenseTaskLine value) {

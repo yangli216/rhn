@@ -24,8 +24,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -139,6 +142,31 @@ public class InpatientCareRequestStore {
                         result.getBoolean(8), result.getBigDecimal(9), result.getString(10),
                         result.getBigDecimal(11), result.getString(12)));
         return values.isEmpty() ? RequestDetails.EMPTY : values.getFirst();
+    }
+
+    /**
+     * 批量读取药品医嘱明细：一次查询取回全部药品请求，缺失明细的请求按单条查询语义映射为
+     * {@link RequestDetails#EMPTY}；非药品请求不应传入。
+     */
+    public Map<Long, RequestDetails> detailsByRequest(Long tenantId, Collection<Long> requestIds) {
+        Map<Long, RequestDetails> result = new LinkedHashMap<>();
+        if (tenantId == null || requestIds == null || requestIds.isEmpty()) return result;
+        List<Long> ids = requestIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return result;
+        jdbc.query("""
+                select ID_CARE_REQ as request_id, ID_MED as medication_id, CD_MED_SNAP as medication_code_snapshot,
+                       NA_MED_SNAP as medication_name_snapshot, QTY_DOSE_VAL, DOSE_UNIT, CD_ROUTE as route_code,
+                       CD_FREQ as frequency_code, FG_SELF_PRVDD as self_provided, QTY_ORDERED as quantity,
+                       QTY_UNIT as quantity_unit, QTY_BASE as base_quantity, BASE_UNIT
+                from RHN_EX_MED_REQ where ID_TNT = :tenantId and ID_CARE_REQ in (:requestIds)
+                """, new MapSqlParameterSource().addValue("tenantId", tenantId).addValue("requestIds", ids),
+                (rs, row) -> new RequestDetailsRow(rs.getLong(1), new RequestDetails(rs.getLong(2), rs.getString(3),
+                        rs.getString(4), rs.getBigDecimal(5), rs.getString(6), rs.getString(7), rs.getString(8),
+                        rs.getBoolean(9), rs.getBigDecimal(10), rs.getString(11), rs.getBigDecimal(12),
+                        rs.getString(13))))
+                .forEach(row -> result.putIfAbsent(row.requestId(), row.details()));
+        ids.forEach(id -> result.putIfAbsent(id, RequestDetails.EMPTY));
+        return result;
     }
 
     public ServiceDetails serviceDetails(Long tenantId, Long requestId) {
@@ -305,12 +333,15 @@ public class InpatientCareRequestStore {
                                  String routeCode, String frequencyCode, boolean selfProvided,
                                  BigDecimal quantity, String quantityUnit,
                                  BigDecimal baseQuantity, String baseUnit) {
-        static final RequestDetails EMPTY = new RequestDetails(
+        public static final RequestDetails EMPTY = new RequestDetails(
                 null, null, null, null, null, null, null, false, null, null, null, null);
     }
 
     public record ServiceDetails(String serviceType, String specimenType, String examinationType,
                                  BigDecimal quantity) {
+    }
+
+    private record RequestDetailsRow(Long requestId, RequestDetails details) {
     }
 
     private record ResolvedItem(Long catalogItemId, Long medicationId, String itemCode, String itemName,

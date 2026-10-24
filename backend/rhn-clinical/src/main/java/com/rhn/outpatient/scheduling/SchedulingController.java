@@ -1,5 +1,6 @@
 package com.rhn.outpatient.scheduling;
 
+import com.rhn.outpatient.api.OutpatientPermissions;
 import com.rhn.outpatient.scheduling.SchedulingContracts.QuickScheduleRequest;
 import com.rhn.outpatient.scheduling.SchedulingContracts.QuickScheduleResult;
 import com.rhn.outpatient.scheduling.SchedulingContracts.ScheduleView;
@@ -11,6 +12,7 @@ import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalScheduleRes
 import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalTemplateView;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -26,6 +28,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/outpatient/scheduling")
+@PreAuthorize(OutpatientPermissions.SCHEDULING_ACCESS)
 class SchedulingController {
     private final SchedulingApplicationService service;
 

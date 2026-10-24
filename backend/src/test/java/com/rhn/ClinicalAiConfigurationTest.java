@@ -68,7 +68,8 @@ class ClinicalAiConfigurationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/ai/administration/configuration").param("scope", "TENANT").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scope").value("TENANT"))
-                .andExpect(jsonPath("$.settings.length()").value(30))
+                .andExpect(jsonPath("$.settings.length()").value(31))
+                .andExpect(jsonPath("$.settings[?(@.key == 'decision-scene-record-quality-enabled')].effectiveValue").value(false))
                 .andExpect(jsonPath("$.settings[?(@.key == 'decision-scene-chronic-refill-assessment-enabled')].effectiveValue").value(true))
                 .andExpect(jsonPath("$.encryptionAvailable").value(true));
 

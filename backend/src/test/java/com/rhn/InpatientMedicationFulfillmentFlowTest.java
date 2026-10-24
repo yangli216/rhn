@@ -15,6 +15,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -116,6 +117,28 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, executed.get("medicationConsumptions").size());
         assertEquals(dispenseLineId, executed.at("/medicationConsumptions/0/dispenseLineId").asString());
         assertMoney("1", executed.at("/medicationConsumptions/0/consumedBaseQuantity").decimalValue());
+        // 工作台列表的批量装配必须与单任务读取完全一致（供药快照、核销明细）。
+        mockMvc.perform(get("/api/inpatient/order-tasks/nurse-worklist")
+                        .with(rhnWorkContext()).queryParam("episodeId", episodeId).queryParam("status", "ALL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks[0].id").value(firstTaskId))
+                .andExpect(jsonPath("$.tasks[0].pharmacyFulfilled").value(true))
+                .andExpect(jsonPath("$.tasks[0].dispenseId").value(Long.valueOf(dispenseId)))
+                .andExpect(jsonPath("$.tasks[0].netDispensedQuantity").value(2))
+                .andExpect(jsonPath("$.tasks[0].pharmacyFulfillmentStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.tasks[0].medicationConsumptions.length()").value(1))
+                .andExpect(jsonPath("$.tasks[0].medicationConsumptions[0].dispenseLineId")
+                        .value(Long.valueOf(dispenseLineId)));
+        // 医生工作台按医嘱批量装配，结果必须与单任务读取一致。
+        mockMvc.perform(get("/api/inpatient/orders/doctor-worklist")
+                        .with(rhnWorkContext()).queryParam("episodeId", episodeId).queryParam("status", "ALL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orders[0].tasks[0].id").value(firstTaskId))
+                .andExpect(jsonPath("$.orders[0].tasks[0].pharmacyFulfilled").value(true))
+                .andExpect(jsonPath("$.orders[0].tasks[0].dispenseId").value(Long.valueOf(dispenseId)))
+                .andExpect(jsonPath("$.orders[0].tasks[0].netDispensedQuantity").value(2))
+                .andExpect(jsonPath("$.orders[0].tasks[0].medicationConsumptions[0].dispenseLineId")
+                        .value(Long.valueOf(dispenseLineId)));
 
         JsonNode stopped = postJson("/api/inpatient/orders/" + requestId + "/stop", """
                 {"expectedRevision":3,"reason":"患者停用","commandCode":"IP-MED-FLOW-STOP"}
@@ -274,6 +297,23 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}", dispenseTaskId).with(pharmacyContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.closureStatus").value("STOPPED"));
+    }
+
+    @Test
+    void pharmacy_workbench_list_assembles_same_task_view_as_detail() throws Exception {
+        OrderFacts facts = createPlannedOrder("IP-MED-LIST", 1);
+        JsonNode prepared = intakeAndPrepare(facts, "列表装配");
+        String taskId = prepared.get("id").asString();
+        JsonNode detail = getJson("/api/pharmacy/dispense-tasks/" + taskId, pharmacyContext());
+        JsonNode list = getJson("/api/pharmacy/dispense-tasks?stockSiteId=" + INPATIENT_STOCK_SITE, pharmacyContext());
+        JsonNode listed = null;
+        for (JsonNode item : list) if (taskId.equals(item.get("id").asString())) listed = item;
+        assertNotNull(listed);
+        assertEquals(detail.get("status"), listed.get("status"));
+        assertEquals(detail.get("closureStatus"), listed.get("closureStatus"));
+        assertEquals(detail.get("lines"), listed.get("lines"));
+        assertEquals(detail.get("reviews"), listed.get("reviews"));
+        assertEquals(detail.get("prescriptionSafety"), listed.get("prescriptionSafety"));
     }
 
     private OrderFacts createPlannedOrder(String prefix, int occurrences) throws Exception {

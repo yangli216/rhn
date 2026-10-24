@@ -147,6 +147,33 @@ class BillingReliefSettlementTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void batch_cancellation_cancels_every_listed_unpaid_settlement_in_one_request() throws Exception {
+        Visit first = visit();
+        Visit second = visit();
+        JsonNode firstInvoice = issueInvoice(first, "SELF_PAY", 201);
+        JsonNode secondInvoice = issueInvoice(second, "SELF_PAY", 201);
+        JsonNode cancelled = send(post("/api/billing/settlements/cancel"), """
+                {"settlementIds":["%s","%s"],"reason":"诊毕页未收款，取消诊间结算单"}
+                """.formatted(firstInvoice.get("id").asString(), secondInvoice.get("id").asString()), 200);
+        assertThat(cancelled).hasSize(2);
+        assertThat(send(get("/api/billing/encounters/{id}/statement", first.encounterId()), null, 200)
+                .get("settlements")).isEmpty();
+        assertThat(send(get("/api/billing/encounters/{id}/statement", second.encounterId()), null, 200)
+                .get("uninvoicedAmount").decimalValue()).isEqualByComparingTo(second.amount());
+
+        // 与逐单取消同语义：已取消的结算单不能再次取消，其余未取消的保持原状。
+        JsonNode thirdInvoice = issueInvoice(visit(), "SELF_PAY", 201);
+        assertThat(send(post("/api/billing/settlements/cancel"), """
+                {"settlementIds":["%s","%s"],"reason":"诊毕页未收款，取消诊间结算单"}
+                """.formatted(firstInvoice.get("id").asString(), thirdInvoice.get("id").asString()), 404)
+                .get("code").asString()).isEqualTo("SETTLEMENT_NOT_FOUND");
+        assertThat(send(get("/api/billing/settlements/{id}", thirdInvoice.get("id").asString()), null, 200)
+                .get("status").asString()).isEqualTo("PRICED");
+        assertThat(send(post("/api/billing/settlements/cancel"), "{\"settlementIds\":[],\"reason\":\"放弃收款\"}", 400)
+                .get("code").asString()).isEqualTo("VALIDATION_FAILED");
+    }
+
+    @Test
     void a_settlement_with_payment_activity_or_unrevocable_insurance_cannot_be_cancelled() throws Exception {
         Visit visit = visit();
         long coverageId = GlobalIds.next();
@@ -334,6 +361,63 @@ class BillingReliefSettlementTest extends RhnIntegrationTestSupport {
         JsonNode keyword = send(get("/api/billing/relief/records").param("from", today).param("to", today)
                 .param("keyword", "民政局"), null, 200);
         assertThat(keyword.get("total").asLong()).isEqualTo(1);
+    }
+
+    /** 在途支付期间不能确认减免；取消在途支付后可确认，随后收款不能超过扣除减免后的实际应付。 */
+    @Test
+    void relief_is_blocked_by_an_in_flight_payment_and_later_collection_cannot_exceed_net_of_relief() throws Exception {
+        createPolicy("GATE-RELIEF", "POST_INSURANCE", "HOSPITAL", true,
+                "{\"feeScope\":\"ALL\",\"method\":\"RATIO\",\"ratio\":0.5}", "{\"source\":\"ALL\"}", ",\"onceMaxAmount\":1");
+        Visit visit = visit();
+        String settlementId = issueInvoice(visit, null, 201).get("id").asString();
+        JsonNode order = send(post("/api/billing/settlements/{id}/payment-orders", settlementId), """
+                {"idempotencyKey":"GATE-%s","businessScene":"OUTPATIENT","paymentSceneCode":"CASHIER",
+                 "paymentMethodCode":"BANK_CARD","amount":%s,"terminalCode":"CASHIER-WEB"}
+                """.formatted(UUID.randomUUID(), visit.amount().toPlainString()), 201);
+        assertThat(order.get("status").asString()).isEqualTo("PENDING");
+        assertThat(send(post("/api/billing/settlements/{id}/relief/confirm", settlementId), "{}", 409)
+                .get("code").asString()).isEqualTo("RELIEF_PAYMENT_IN_FLIGHT");
+        assertThat(send(get("/api/billing/settlements/{id}", settlementId), null, 200).get("reliefAmount").decimalValue()).isZero();
+
+        send(post("/api/billing/payment-orders/{id}/cancel", order.get("id").asString()), null, 200);
+        BigDecimal relief = send(post("/api/billing/settlements/{id}/relief/confirm", settlementId), "{}", 200)
+                .get("reliefAmount").decimalValue();
+        assertThat(relief).isPositive();
+
+        String full = """
+                {"paymentNo":"PAY-%s","paymentMethodCode":"CASH","paymentSceneCode":"CASHIER","amount":%s}
+                """;
+        assertThat(send(post("/api/billing/invoices/{id}/payments", settlementId),
+                full.formatted(UUID.randomUUID(), visit.amount().toPlainString()), 409)
+                .get("code").asString()).isEqualTo("PAYMENT_EXCEEDS_OUTSTANDING");
+        send(post("/api/billing/invoices/{id}/payments", settlementId),
+                full.formatted(UUID.randomUUID(), visit.amount().subtract(relief).toPlainString()), 201);
+        assertThat(send(get("/api/billing/settlements/{id}", settlementId), null, 200).get("status").asString())
+                .isEqualTo("SETTLED");
+    }
+
+    /** 已有现金入账后确认减免，若资金合计会超过净额则整体拒绝并回滚，不留下减免记录。 */
+    @Test
+    void relief_that_would_push_funds_above_the_net_amount_is_rejected_and_rolled_back() throws Exception {
+        createPolicy("GATE-OVER", "POST_INSURANCE", "HOSPITAL", true,
+                "{\"feeScope\":\"ALL\",\"method\":\"RATIO\",\"ratio\":0.5}", "{\"source\":\"ALL\"}", ",\"onceMaxAmount\":1");
+        Visit visit = visit();
+        String settlementId = issueInvoice(visit, null, 201).get("id").asString();
+        BigDecimal cash = visit.amount().subtract(new BigDecimal("0.5"));
+        send(post("/api/billing/invoices/{id}/payments", settlementId), """
+                {"paymentNo":"PAY-%s","paymentMethodCode":"CASH","paymentSceneCode":"CASHIER","amount":%s}
+                """.formatted(UUID.randomUUID(), cash.toPlainString()), 201);
+        assertThat(send(post("/api/billing/settlements/{id}/relief/confirm", settlementId), "{}", 409)
+                .get("code").asString()).isEqualTo("SETTLEMENT_TENDER_EXCEEDS_NET");
+        JsonNode settlement = send(get("/api/billing/settlements/{id}", settlementId), null, 200);
+        assertThat(settlement.get("status").asString()).isEqualTo("PARTIAL");
+        assertThat(settlement.get("reliefAmount").decimalValue()).isZero();
+        assertThat(ledgerRelief(Long.parseLong(settlementId))).isZero();
+        send(post("/api/billing/invoices/{id}/payments", settlementId), """
+                {"paymentNo":"PAY-%s","paymentMethodCode":"CASH","paymentSceneCode":"CASHIER","amount":0.5}
+                """.formatted(UUID.randomUUID()), 201);
+        assertThat(send(get("/api/billing/settlements/{id}", settlementId), null, 200).get("status").asString())
+                .isEqualTo("SETTLED");
     }
 
     private JsonNode createPolicy(String code, String timing, String sponsor, boolean insured, String rule,

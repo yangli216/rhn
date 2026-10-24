@@ -156,8 +156,21 @@ public class ReconciliationTransactionService {
     @Transactional(readOnly = true)
     List<BatchView> list() {
         ExecutionContext c = context();
-        return batches.findTop100ByTenantIdAndOrganizationIdOrderByCreatedAtDesc(c.tenantId(), c.organizationId())
-                .stream().map(v -> view(v, false)).toList();
+        return views(c, batches.findTop100ByTenantIdAndOrganizationIdOrderByCreatedAtDesc(c.tenantId(), c.organizationId()));
+    }
+
+    private List<BatchView> views(ExecutionContext c, List<ReconciliationBatch> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, List<ItemView>> detailByBatch = new HashMap<>();
+        List<Long> ids = values.stream().map(ReconciliationBatch::id).toList();
+        for (int from = 0; from < ids.size(); from += 500) {
+            items.findByTenantIdAndReconciliationBatchIdInOrderByReconciliationBatchIdAscIdAsc(c.tenantId(),
+                            ids.subList(from, Math.min(from + 500, ids.size())))
+                    .forEach(value -> detailByBatch.computeIfAbsent(value.reconciliationBatchId(),
+                            ignored -> new ArrayList<>()).add(itemView(value)));
+        }
+        return values.stream().map(value -> view(value, detailByBatch.getOrDefault(value.id(), List.of()), false))
+                .toList();
     }
 
     private void saveItem(ExecutionContext c, ReconciliationBatch b, Long paymentId, String externalNo, String match,
@@ -169,11 +182,17 @@ public class ReconciliationTransactionService {
     }
 
     private BatchView view(ReconciliationBatch b, boolean duplicate) {
-        List<ItemView> detail = items.findByTenantIdAndReconciliationBatchIdOrderById(b.tenantId(), b.id()).stream()
-                .map(i -> new ItemView(i.id(), i.revision(), i.paymentId(), i.externalTransactionNo(), i.matchType(),
-                        i.status(), i.localAmount(), i.externalAmount(), i.differenceAmount(), i.currencyCode(),
-                        i.resolvedAt(), i.resolution()))
-                .toList();
+        return view(b, items.findByTenantIdAndReconciliationBatchIdOrderById(b.tenantId(), b.id()).stream()
+                .map(this::itemView).toList(), duplicate);
+    }
+
+    private ItemView itemView(ReconciliationItem i) {
+        return new ItemView(i.id(), i.revision(), i.paymentId(), i.externalTransactionNo(), i.matchType(),
+                i.status(), i.localAmount(), i.externalAmount(), i.differenceAmount(), i.currencyCode(),
+                i.resolvedAt(), i.resolution());
+    }
+
+    private BatchView view(ReconciliationBatch b, List<ItemView> detail, boolean duplicate) {
         return new BatchView(b.id(), b.revision(), b.batchNo(), b.commandCode(), b.reconciliationType(),
                 b.status().name(),
                 b.sourceCode(), b.paymentMethodCode(), b.externalBatchNo(), b.businessDate(), b.localCount(),

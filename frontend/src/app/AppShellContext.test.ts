@@ -15,7 +15,7 @@ describe('AppShell work context routing', () => {
     expect(medtech).toBeDefined()
     expect(medtech?.label).toBe('医技管理')
     const children = medtech?.children?.map((child) => child.id) ?? []
-    expect(children).toEqual(['laboratory', 'examination', 'skin-tests', 'treatments', 'clinical-printing'])
+    expect(children).toEqual(['laboratory', 'laboratory-reports', 'examination', 'examination-reports', 'skin-tests', 'treatments', 'clinical-printing'])
     expect(children).not.toContain('diagnostics')
 
     const outpatient = NAVIGATION_NODES.find((node) => node.id === 'outpatient-services')
@@ -45,6 +45,10 @@ describe('AppShell work context routing', () => {
     const lab = new Set(['DIAGNOSTICS.ACCESS', 'DIAGNOSTICS.LABORATORY.VIEW'])
     expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory?encounterId=e1', lab)).toBe(true)
     expect(canAccessDiagnosticWorkspace('/diagnostics/examination', lab)).toBe(false)
+    expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory/reports', lab)).toBe(true)
+    expect(canAccessDiagnosticWorkspace('/diagnostics/examination/reports', lab)).toBe(false)
+    expect(tabForPath('/diagnostics/laboratory/reports')).toMatchObject({ title: '检验报告查询' })
+    expect(tabForPath('/diagnostics/examination/reports')).toMatchObject({ title: '检查报告查询' })
     expect(canAccessDiagnosticWorkspace('/diagnostics/laboratory', new Set(['DIAGNOSTICS.ACCESS']))).toBe(false)
     expect(canAccessDiagnosticWorkspace('/diagnostics/examination', new Set(['DIAGNOSTICS.EXAMINATION.SIGN']))).toBe(true)
   })

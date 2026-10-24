@@ -8,5 +8,7 @@ import java.util.List;
 public interface InpatientShiftHandoffItemRepository extends JpaRepository<InpatientShiftHandoffItem, Long> {
     List<InpatientShiftHandoffItem> findByTenantIdAndHandoffIdOrderBySortOrderAscIdAsc(
             Long tenantId, Long handoffId);
+    List<InpatientShiftHandoffItem> findByTenantIdAndHandoffIdInOrderByHandoffIdAscSortOrderAscIdAsc(
+            Long tenantId, java.util.Collection<Long> handoffIds);
 }
 

@@ -3,6 +3,7 @@ package com.rhn.outpatient.ordering;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationSafetyDecision;
 import com.rhn.outpatient.api.PrescriptionSafetyEvaluationDirectory;
+import com.rhn.platform.idempotency.IdempotencyService;
 import com.rhn.shared.json.JsonCodec;
 import com.rhn.shared.text.Strings;
 import org.springframework.stereotype.Service;
@@ -23,18 +24,21 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 @Service
 class OrderSubmissionService {
     private static final Set<String> DIAGNOSTIC_SERVICE_TYPES = Set.of("LABORATORY", "EXAMINATION");
+    private static final String SUBMIT_OPERATION = "OUTPATIENT.ORDER.SUBMIT";
     private final EncounterDirectory encounters;
     private final PrescriptionService prescriptions;
     private final ServiceRequestService services;
     private final PrescriptionSafetyEvaluationDirectory safetyEvaluations;
     private final OrderDocumentInfoSupport documentInfos;
     private final JsonCodec json;
+    private final IdempotencyService idempotency;
 
     OrderSubmissionService(EncounterDirectory encounters, PrescriptionService prescriptions, ServiceRequestService services,
                            PrescriptionSafetyEvaluationDirectory safetyEvaluations, OrderDocumentInfoSupport documentInfos,
-                           JsonCodec json) {
+                           JsonCodec json, IdempotencyService idempotency) {
         this.encounters = encounters; this.prescriptions = prescriptions; this.services = services;
         this.safetyEvaluations = safetyEvaluations; this.documentInfos = documentInfos; this.json = json;
+        this.idempotency = idempotency;
     }
 
     @Transactional
@@ -44,6 +48,26 @@ class OrderSubmissionService {
             throw badRequest("ORDER_SUBMISSION_EMPTY", "没有需要开立的医嘱");
         }
         var drafts = prescriptions.submittableDrafts(encounter.tenantId(), encounterId);
+        // 先评价全部草稿，确认前不写任何单据。
+        List<MedicationSafetyDecision> reviews = new ArrayList<>();
+        for (var draft : drafts) {
+            var evaluation = safetyEvaluations.evaluateShadow(encounterId, draft.id());
+            if (needsAcknowledgement(evaluation)) reviews.add(evaluation);
+        }
+        String reviewKey = reviews.isEmpty() ? null : reviewKey(reviews);
+        if (Boolean.TRUE.equals(input.dryRun())) {
+            return new OrderSubmissionResponse(reviewKey == null ? OrderSubmissionResponse.Status.READY
+                    : OrderSubmissionResponse.Status.REVIEW_REQUIRED, reviewKey, List.copyOf(reviews), List.of(), List.of());
+        }
+        // 已完成命令先回放：首次成功开立后草稿已消失，重试若先核对集合会直接报“草稿已变化”。
+        // 尚未完成时不占用命令编码，只有通过全部核对、写入单据前才正式登记幂等。
+        String commandCode = Strings.trimToNull(input.commandCode());
+        String canonicalRequest = commandCode == null ? null : encounterId + "|" + json.write(input);
+        if (commandCode != null) {
+            var replay = idempotency.completedReplay(SUBMIT_OPERATION, commandCode, canonicalRequest);
+            if (replay.isPresent()) return json.read(replay.get().responseJson(), OrderSubmissionResponse.class);
+        }
+
         Map<Long, OrderSubmissionRequest.PrescriptionEntry> entries = new LinkedHashMap<>();
         for (var entry : input.prescriptions()) {
             if (entries.put(entry.id(), entry) != null) throw badRequest("ORDER_SUBMISSION_DUPLICATE", "同一处方不能重复提交");
@@ -59,17 +83,7 @@ class OrderSubmissionService {
         if (!draftIds.equals(entries.keySet())) {
             throw conflict("ORDER_SUBMISSION_DRAFTS_CHANGED", "待开立处方已变化，请刷新后重新核对再开立");
         }
-        // 先评价全部草稿，确认前不写任何单据。
-        List<MedicationSafetyDecision> reviews = new ArrayList<>();
-        for (var draft : drafts) {
-            var evaluation = safetyEvaluations.evaluateShadow(encounterId, draft.id());
-            if (needsAcknowledgement(evaluation)) reviews.add(evaluation);
-        }
-        String reviewKey = reviews.isEmpty() ? null : reviewKey(reviews);
-        if (Boolean.TRUE.equals(input.dryRun())) {
-            return new OrderSubmissionResponse(reviewKey == null ? OrderSubmissionResponse.Status.READY
-                    : OrderSubmissionResponse.Status.REVIEW_REQUIRED, reviewKey, List.copyOf(reviews), List.of(), List.of());
-        }
+        // 草稿集合核对先于审查确认：核对过的版本已过期时先提示重新核对，不误导医生去确认旧结果。
         if (reviewKey != null && !reviewKey.equals(Strings.trimToNull(input.acknowledgedReviewKey()))) {
             return new OrderSubmissionResponse(OrderSubmissionResponse.Status.REVIEW_REQUIRED, reviewKey,
                     List.copyOf(reviews), List.of(), List.of());
@@ -99,6 +113,8 @@ class OrderSubmissionService {
                 throw badRequest("ORDER_DOCUMENT_INFO_REQUIRED", "已开立申请只能提交单据信息修改");
             }
         }
+        // 全部核对通过后才登记命令编码：校验失败随事务回滚，命令编码仍可用于修正后重试。
+        if (commandCode != null) idempotency.reserve(SUBMIT_OPERATION, commandCode, canonicalRequest);
 
         OrderDocumentInfo defaultInfo = defaultDocumentInfo(encounter);
         List<PrescriptionResponse> submitted = new ArrayList<>();
@@ -132,8 +148,12 @@ class OrderSubmissionService {
             updatedServices.add(services.updateDocumentInfo(encounterId, entry.id(),
                     new UpdateOrderDocumentInfo(entry.expectedRevision(), entry.documentInfo())));
         }
-        return new OrderSubmissionResponse(OrderSubmissionResponse.Status.SUBMITTED, null, List.of(),
-                List.copyOf(submitted), List.copyOf(updatedServices));
+        OrderSubmissionResponse response = new OrderSubmissionResponse(OrderSubmissionResponse.Status.SUBMITTED, null,
+                List.of(), List.copyOf(submitted), List.copyOf(updatedServices));
+        if (commandCode != null) {
+            idempotency.complete(SUBMIT_OPERATION, commandCode, "Encounter", encounterId, 200, json.write(response));
+        }
+        return response;
     }
 
     private OrderDocumentInfo defaultDocumentInfo(EncounterDirectory.EncounterSnapshot encounter) {

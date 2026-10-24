@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
+  "fingerprint": "9d67ce5d52ee558eea83c6f1e5c3c71f477d8545df168f6e8fc957eed2005603",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -21,7 +21,7 @@
     {
       "code": "AUD",
       "name": "审计与质量",
-      "count": 28
+      "count": 30
     },
     {
       "code": "BD",
@@ -2658,6 +2658,20 @@
       "domain": "BIL",
       "comment": "支付对账操作凭据；一行代表一次幂等命令和审计结果",
       "columns": 12
+    },
+    {
+      "physical": "RHN_AUD_AI_REC_DCSN",
+      "logical": "aud.ai_record_decision",
+      "domain": "AUD",
+      "comment": "病历决策反馈关联；一行代表一次可采纳核查与原就诊、医生及字段指纹的绑定",
+      "columns": 7
+    },
+    {
+      "physical": "RHN_AUD_AI_REC_FB",
+      "logical": "aud.ai_record_feedback",
+      "domain": "AUD",
+      "comment": "病历决策医生反馈；一行代表一条提示的一次追加操作或保存核实结果，不代表问题已经解决",
+      "columns": 8
     }
   ]
 }

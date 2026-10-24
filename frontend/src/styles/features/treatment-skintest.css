@@ -1,55 +1,63 @@
-/* Treatment execution workbench */
-.treatment-metrics { margin-bottom: var(--space-4); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); }
-.treatment-metrics > div { min-height: 5.25rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
-.treatment-metrics span, .treatment-metrics small { display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.treatment-metrics strong { display: block; margin: .15rem 0; font-size: var(--font-size-h2); }
-.treatment-workspace { min-width: 64rem; display: grid; grid-template-columns: minmax(20rem, .7fr) minmax(40rem, 1.3fr); align-items: start; gap: var(--space-4); }
-.treatment-workspace > .ui-panel { min-width: 0; overflow: hidden; }
-.treatment-section-head { min-height: 4rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
-.treatment-section-head > div { display: flex; align-items: baseline; gap: var(--space-2); }
-.treatment-section-head h2 { margin: 0; font-size: var(--font-size-h3); }
-.treatment-section-head span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.treatment-section-head input { width: 12rem; min-height: 2.25rem; padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
-.treatment-filter-row { padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.treatment-filter-row nav { padding: .15rem; display: flex; border-radius: var(--radius-md); background: var(--color-surface); }
-.treatment-filter-row button { min-height: 1.9rem; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
-.treatment-filter-row button.is-active { color: var(--color-brand-primary); background: var(--color-brand-soft); font-weight: var(--font-weight-semibold); }
-.treatment-filter-row select { min-height: 2.2rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
-.treatment-queue-list { max-height: calc(100vh - 25rem); min-height: 22rem; padding: var(--space-2); overflow: auto; display: grid; align-content: start; gap: var(--space-1); }
-.treatment-queue-list > button { width: 100%; padding: var(--space-3); border: 1px solid transparent; border-radius: var(--radius-md); text-align: left; color: var(--color-text-primary); background: transparent; cursor: pointer; }
-.treatment-queue-list > button:hover { background: var(--color-surface-subtle); }
-.treatment-queue-list > button.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
-.treatment-queue-list button > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.treatment-queue-list button > span, .treatment-queue-list button > small { display: block; margin-top: var(--space-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.treatment-queue-list button > span { font-weight: var(--font-weight-medium); }
-.treatment-queue-list button > small { color: var(--color-text-secondary); }
-.treatment-detail { min-height: 34rem; padding: var(--space-5); }
-.treatment-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.treatment-detail-head span, .treatment-detail-head p { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.treatment-detail-head h2 { margin: var(--space-1) 0; }
-.treatment-detail-head p { margin: 0; }
-.treatment-items { margin: var(--space-4) 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-.treatment-items > h3 { margin: 0; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); font-size: var(--font-size-body); }
-.treatment-item-row { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(10rem, .8fr) auto; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+/* Treatment execution workbench: layout only. Controls, tabs, badges, alerts and metrics come from shared/ui; shell and scroll panes from WorkbenchPage. */
+.treatment-workbench { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.treatment-workbench .ui-page-template__workbench { grid-template-columns: clamp(21rem, 26%, 28rem) minmax(0, 1fr); }
+.treatment-scroll { flex: 1; min-width: 0; min-height: 0; padding: var(--space-3); overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--layout-section-gap); }
+.treatment-scroll > .ui-alert { margin: 0; }
+.treatment-reference { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.treatment-hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }
+.treatment-eyebrow, .treatment-completion-summary dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+/* Queue: filters live in the fixed pane header; the pane body is the only vertical scroll area. */
+.treatment-queue-filters { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.treatment-queue-filters__row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, 10rem); align-items: center; gap: var(--space-2); }
+.treatment-queue-list { margin: 0; padding: 0; list-style: none; }
+.treatment-queue-entry { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; border-bottom: 1px solid var(--color-border); border-left: var(--space-1) solid transparent; }
+.treatment-queue-entry:hover { background: var(--color-brand-soft); }
+.treatment-queue-entry.is-active { background: var(--color-brand-soft); border-left-color: var(--color-brand-primary); }
+.treatment-queue-choice { width: 100%; min-width: 0; height: auto; padding: var(--space-2) var(--space-3); justify-content: flex-start; text-align: left; }
+.treatment-queue-choice .ui-button__label { flex: 1; min-width: 0; justify-content: flex-start; }
+.treatment-queue-body { display: grid; flex: 1; min-width: 0; gap: var(--space-1); }
+.treatment-queue-name { color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); line-height: var(--line-height-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.treatment-queue-choice .treatment-queue-items { color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-regular); line-height: var(--line-height-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.treatment-queue-choice .treatment-queue-meta { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); line-height: var(--line-height-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.treatment-queue-status { padding: var(--space-2) var(--space-3) 0 0; }
+
+/* Selected task: patient context stays fixed above the scrolling work area. */
+.treatment-detail-head { flex: none; padding: var(--space-2) var(--space-3); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.treatment-detail-title { min-width: 0; }
+.treatment-detail-title h2 { margin: var(--space-1) 0; font-size: var(--font-size-h2); line-height: var(--line-height-h2); overflow-wrap: anywhere; }
+.treatment-detail-title p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.treatment-detail-aside { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.treatment-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-3); margin: 0; }
+.treatment-facts dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.treatment-facts dd { margin: 0; overflow-wrap: anywhere; }
+.treatment-items { border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+.treatment-items > h3 { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); font-size: var(--font-size-body); }
+.treatment-item-row { padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-1) var(--space-3); border-bottom: 1px solid var(--color-border); }
 .treatment-item-row:last-child { border-bottom: 0; }
 .treatment-item-row strong, .treatment-item-row small { display: block; }
-.treatment-item-row small, .treatment-item-row p { margin: .2rem 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.treatment-item-gates { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
-.treatment-action-card { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
-.treatment-action-card h3 { margin: 0 0 var(--space-3); }
-.treatment-action-card > .ui-field { margin-top: var(--space-3); }
+.treatment-item-row small, .treatment-item-row p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.treatment-item-row > p { grid-row: 2; grid-column: 1 / -1; margin: 0; }
+.treatment-item-gates { grid-row: 1; grid-column: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
+
+/* Action cards */
+.treatment-action-card { padding: var(--space-3) var(--space-4); display: grid; gap: var(--layout-section-gap); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.treatment-action-card h3 { margin: 0; font-size: var(--font-size-body); }
+.treatment-action-card .ui-field { margin: 0; }
+.treatment-action-card > .ui-form-actions { margin-top: 0; }
 .treatment-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: var(--space-3); }
 .treatment-identity-check { margin-bottom: var(--space-3); padding: var(--space-3); display: flex; align-items: flex-start; gap: var(--space-3); border: 1px solid var(--color-brand-primary); border-radius: var(--radius-md); background: var(--color-brand-soft); cursor: pointer; }
 .treatment-identity-check input { margin-top: .2rem; }
 .treatment-identity-check strong, .treatment-identity-check small { display: block; }
 .treatment-identity-check small { margin-top: .2rem; color: var(--color-text-secondary); }
-.treatment-inline-check { min-height: 2.5rem; display: flex; align-items: center; gap: var(--space-2); }
-.treatment-completion-summary { padding: var(--space-4); border: 1px solid var(--color-brand-primary); border-radius: var(--radius-lg); background: var(--color-brand-soft); }
+
+/* Completed / closed summary */
+.treatment-completion-summary { padding: var(--space-3) var(--space-4); display: grid; gap: var(--layout-section-gap); border: 1px solid var(--color-brand-primary); border-radius: var(--radius-lg); background: var(--color-brand-soft); }
 .treatment-completion-summary > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.treatment-completion-summary header span, .treatment-completion-summary dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.treatment-completion-summary h3 { margin: var(--space-1) 0; }
-.treatment-completion-summary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.treatment-completion-summary dd { margin: .2rem 0 0; font-weight: var(--font-weight-semibold); }
+.treatment-completion-summary h3 { margin: var(--space-1) 0 0; }
+.treatment-completion-summary dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-3); margin: 0; }
+.treatment-completion-summary dd { margin: var(--space-1) 0 0; font-weight: var(--font-weight-semibold); }
+.treatment-completion-summary p { margin: 0; overflow-wrap: anywhere; }
 
 /* Skin-test management: Modern Desktop 3-Column Quality Workbench */
 @keyframes skin-test-pulse {
@@ -1426,22 +1434,12 @@
 
 
 @media (max-width: 70rem) {
-  .treatment-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skin-test-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .treatment-item-row { grid-template-columns: minmax(14rem, 1fr) auto; }
-  .treatment-item-row > p { grid-column: 1 / -1; }
 }
 
 @media (max-width: 47.5rem) {
-  .treatment-workspace, .skin-test-workspace { min-width: 0; grid-template-columns: 1fr; }
-  .treatment-metrics, .treatment-form-grid, .treatment-completion-summary dl,
+  .skin-test-workspace { min-width: 0; grid-template-columns: 1fr; }
   .skin-test-metrics, .skin-test-form-grid, .skin-test-order-summary, .skin-test-facts { grid-template-columns: 1fr; }
-  .treatment-section-head, .treatment-filter-row { align-items: stretch; flex-direction: column; }
-  .treatment-section-head input { width: 100%; }
-  .treatment-queue-list { min-height: 0; max-height: 18rem; }
-  .treatment-item-row { grid-template-columns: 1fr; }
-  .treatment-item-row > p { grid-column: auto; }
-  .treatment-item-gates { justify-content: flex-start; }
   .skin-test-section-head { align-items: stretch; flex-direction: column; }
   .skin-test-section-head input { width: 100%; }
   .skin-test-queue-list { min-height: 0; max-height: 18rem; }

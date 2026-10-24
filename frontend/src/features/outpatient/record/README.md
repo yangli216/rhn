@@ -17,6 +17,7 @@
 | 诊毕、诊间收款与结算单 | `completeEncounter.ts`、`completionFacts.ts`、`completionBillingWrites.ts`、`EncounterCompletionDialog.tsx` | `completeEncounter.test.ts`、`completionFacts.test.ts`、`completionBillingWrites.test.ts` |
 | 行内来源与变量标记 | `recordAnnotations.ts`、`AnnotatedRecordField.tsx` | `recordAnnotations.test.ts`、`../DoctorWorkstation.test.tsx` |
 | 诊断身份与管理提示 | `diagnosisIdentity.ts`、`diagnosisManagementEvidence.ts` | `diagnosisManagementEvidence.test.ts`、`DiagnosisPanel.test.tsx` |
+| 病历完整性、文字矛盾与反馈 | 标题栏 `RecordQualityControl.tsx` 的数量角标和按需浮层、`RecordQualityReview.tsx`、`useRecordQualityDecision.ts`；正文不保留核查区域，保存回执由 ClinicalRecordPanel 对接 | `useRecordQualityDecision.test.tsx`、后端 `RecordQualityDecisionTest` |
 | 主诉扩写病历 | `../ai/recordExpansion.ts`、`../ai/RecordExpansionTrigger.tsx` | `../ai/recordExpansion.test.tsx`、后端 `ClinicalAiModelModeTest` |
 
 ## 关键约束速查

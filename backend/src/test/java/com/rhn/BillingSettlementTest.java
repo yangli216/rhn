@@ -136,6 +136,21 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.accountBalance").value(0))
                 .andExpect(jsonPath("$.payments[0].paymentOrderId").value(paymentOrder.get("id").asLong()))
                 .andReturn().getResponse().getContentAsString());
+        // 账户对账单的结算单列表与单条详情一致：行、支付方式与事件必须完整装配。
+        assertEquals(1, paidStatement.path("settlements").size());
+        JsonNode statementSettlement = paidStatement.at("/settlements/0");
+        assertEquals(1, statementSettlement.path("lines").size());
+        assertEquals(1, statementSettlement.path("tenders").size());
+        assertEquals("CASH", statementSettlement.at("/tenders/0/tenderType").asText());
+        assertEquals(3, statementSettlement.path("events").size());
+        assertEquals(fullAmount.doubleValue(), statementSettlement.get("netAmount").asDouble());
+        // 发票段与单条发票详情一致：行、已收金额与待收金额必须完整装配。
+        assertEquals(1, paidStatement.path("invoices").size());
+        JsonNode statementInvoice = paidStatement.at("/invoices/0");
+        assertEquals(invoice.get("id").asString(), statementInvoice.get("id").asString());
+        assertEquals(1, statementInvoice.path("lines").size());
+        assertEquals(fullAmount.doubleValue(), statementInvoice.get("paidAmount").asDouble());
+        assertEquals(0, statementInvoice.get("outstandingAmount").asDouble());
         JsonNode payment = paidStatement.at("/payments/0");
         String day = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).toString();
         JsonNode completed = json(mockMvc.perform(get("/api/billing/settlement-records")

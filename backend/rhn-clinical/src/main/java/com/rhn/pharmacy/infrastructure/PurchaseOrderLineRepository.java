@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface PurchaseOrderLineRepository extends JpaRepository<PurchaseOrderLine, Long> {
     List<PurchaseOrderLine> findByTenantIdAndPurchaseOrderIdOrderBySortOrder(Long tenantId, Long purchaseOrderId);
+    List<PurchaseOrderLine> findByTenantIdAndPurchaseOrderIdInOrderByPurchaseOrderIdAscSortOrderAsc(
+            Long tenantId, java.util.Collection<Long> purchaseOrderIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from PurchaseOrderLine value where value.tenantId = :tenantId " +

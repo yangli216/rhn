@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -76,13 +77,40 @@ public class DiagnosticExecutionService {
         List<DiagnosticExecutionTask> values = tasks
                 .findTop100ByTenantIdAndOrganizationIdAndDepartmentIdOrderByCreatedAtDesc(
                         context.tenantId(), context.organizationId(), context.departmentId());
-        values.forEach(this::reconcileSettlement);
+        // 一次批量取回各任务的结算授权，避免逐任务回查账务模块。
+        Map<Long, Long> settledByRequest = requireSettlementAuthorization
+                ? settlements.finalizedSettlementsForRequests(context.tenantId(), values.stream()
+                        .map(DiagnosticExecutionTask::requestId).filter(Objects::nonNull).distinct().toList(),
+                        "SERVICE_REQUEST")
+                : Map.of();
+        values.forEach(value -> reconcileSettlement(value, settledByRequest));
         Map<Long, DiagnosticReport> latestReports = DiagnosticReportEvidence.latestCompletedReports(reports, context.tenantId(), values);
-        return values.stream()
+        List<DiagnosticExecutionTask> visible = values.stream()
                 .filter(value -> com.rhn.diagnostics.api.DiagnosticPermissions.canRead(context, value.requestType()))
                 .filter(value -> typeFilter == null || typeFilter.equals(value.requestType()))
                 .filter(value -> statusFilter == null || statusFilter.equals(DiagnosticReportEvidence.status(value, latestReports).name()))
-                .map(value -> view(value, DiagnosticReportEvidence.status(value, latestReports))).toList();
+                .toList();
+        if (visible.isEmpty()) return List.of();
+        // 列表段一次批量装载居民快照与诊疗请求快照（含部位行），避免逐任务回查。
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentSnapshots = residents.requireSnapshots(
+                visible.stream().map(DiagnosticExecutionTask::residentId).filter(Objects::nonNull).distinct().toList());
+        Map<Long, ServiceRequestDirectory.ServiceRequestSnapshot> requestSnapshots = requests.forDiagnosticExchange(
+                visible.stream().map(DiagnosticExecutionTask::requestId).distinct().toList());
+        return visible.stream()
+                .map(value -> view(value, DiagnosticReportEvidence.status(value, latestReports),
+                        residentSnapshot(residentSnapshots, value), requestSnapshot(requestSnapshots, value))).toList();
+    }
+
+    private ResidentDirectory.ResidentSnapshot residentSnapshot(
+            Map<Long, ResidentDirectory.ResidentSnapshot> batch, DiagnosticExecutionTask value) {
+        ResidentDirectory.ResidentSnapshot snapshot = batch.get(value.residentId());
+        return snapshot != null ? snapshot : residents.requireSnapshot(value.residentId());
+    }
+
+    private ServiceRequestDirectory.ServiceRequestSnapshot requestSnapshot(
+            Map<Long, ServiceRequestDirectory.ServiceRequestSnapshot> batch, DiagnosticExecutionTask value) {
+        ServiceRequestDirectory.ServiceRequestSnapshot snapshot = batch.get(value.requestId());
+        return snapshot != null ? snapshot : requests.requireForDiagnosticExchange(value.requestId());
     }
 
     @Transactional
@@ -101,7 +129,7 @@ public class DiagnosticExecutionService {
     @Transactional
     public com.rhn.shared.api.PageResult<DiagnosticExecutionTaskView> worklistPage(
             String requestType, String keyword, int page, int size, Long encounterId, Long residentId,
-            DiagnosticExecutionTaskStatus status, Instant createdFrom, Instant createdBefore) {
+            DiagnosticExecutionTaskStatus status, Instant createdFrom, Instant createdBefore, boolean activeAndRecent) {
         var context = requireWorkContext();
         if (!Set.of("LABORATORY", "EXAMINATION").contains(requestType)) throw conflict(
                 "DIAGNOSTIC_REQUEST_TYPE_REQUIRED", "请选择检验或检查队列");
@@ -111,7 +139,7 @@ public class DiagnosticExecutionService {
         String term = keyword == null ? "" : keyword.trim().toLowerCase(java.util.Locale.ROOT);
         String escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_");
         var values = tasks.pageForWorkContext(context.tenantId(), context.organizationId(), context.departmentId(),
-                requestType, term, "%" + escaped + "%", encounterId, residentId, status == null ? null : status.name(), createdFrom, createdBefore,
+                requestType, term, "%" + escaped + "%", encounterId, residentId, status == null ? null : status.name(), activeAndRecent ? Instant.now().minus(java.time.Duration.ofDays(7)) : null, createdFrom, createdBefore,
                 org.springframework.data.domain.PageRequest.of(
                         page, size, org.springframework.data.domain.Sort.by("createdAt", "id").descending()));
         values.forEach(this::reconcileSettlement);
@@ -274,8 +302,15 @@ public class DiagnosticExecutionService {
 
     private void reconcileSettlement(DiagnosticExecutionTask task) {
         if (!requireSettlementAuthorization) return;
-        Long finalized = settlements.finalizedSettlementForRequest(
-                task.tenantId(), task.requestId(), "SERVICE_REQUEST").orElse(null);
+        reconcileSettlement(task, Map.of());
+    }
+
+    private void reconcileSettlement(DiagnosticExecutionTask task, Map<Long, Long> settledByRequest) {
+        if (!requireSettlementAuthorization) return;
+        Long finalized = settledByRequest.containsKey(task.requestId())
+                ? settledByRequest.get(task.requestId())
+                : settlements.finalizedSettlementForRequest(task.tenantId(), task.requestId(), "SERVICE_REQUEST")
+                        .orElse(null);
         if (finalized != null) task.authorize(finalized, Instant.now());
         else if (task.settlementId() != null) task.reverseAuthorization(Instant.now());
     }
@@ -298,9 +333,15 @@ public class DiagnosticExecutionService {
     }
 
     private DiagnosticExecutionTaskView view(DiagnosticExecutionTask value, DiagnosticExecutionTaskStatus verifiedStatus) {
+        return view(value, verifiedStatus, residents.requireSnapshot(value.residentId()),
+                requests.requireForDiagnosticExchange(value.requestId()));
+    }
+
+    private DiagnosticExecutionTaskView view(DiagnosticExecutionTask value,
+                                             DiagnosticExecutionTaskStatus verifiedStatus,
+                                             ResidentDirectory.ResidentSnapshot resident,
+                                             ServiceRequestDirectory.ServiceRequestSnapshot request) {
         boolean inconsistent = verifiedStatus != value.status();
-        ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(value.residentId());
-        var request = requests.requireForDiagnosticExchange(value.requestId());
         return new DiagnosticExecutionTaskView(value.id(), value.revision(), value.taskNo(), value.requestType(),
                 verifiedStatus.name(), value.residentId(), resident.fullName(), resident.healthRecordNo(),
                 value.encounterId(), value.requestId(), value.organizationId(), value.departmentId(),

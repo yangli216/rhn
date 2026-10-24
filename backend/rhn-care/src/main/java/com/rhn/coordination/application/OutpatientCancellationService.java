@@ -13,10 +13,6 @@ import org.springframework.stereotype.Service;
  * 退号编排刻意不加外层事务：门诊预检、计费（含医保冲正/渠道退款等外部调用）、门诊关闭各自独立提交，
  * 外部调用不持有就诊/意向锁，失败标记（markCancellationFailed）也不会被随后的异常回滚。
  */
-/**
- * 退号编排刻意不加外层事务：门诊预检、计费（含医保冲正/渠道退款等外部调用）、门诊关闭各自独立提交，
- * 外部调用不持有就诊/意向锁，失败标记（markCancellationFailed）也不会被随后的异常回滚。
- */
 @Service
 public class OutpatientCancellationService {
     private final OutpatientEncounterCancellationDirectory outpatient;

@@ -35,6 +35,7 @@ class PaymentRoundingIntegrationTest extends RhnIntegrationTestSupport {
     @Autowired SettlementRepository settlements;
     @Autowired PaymentOrderRepository orders;
     @Autowired PaymentRepository payments;
+    @Autowired com.rhn.billing.infrastructure.LedgerEntryRepository ledger;
 
     @ParameterizedTest @ValueSource(booleans = {false, true})
     void rejects_arbitrary_client_adjustment_without_changing_financial_facts(boolean order) throws Exception {
@@ -65,13 +66,6 @@ class PaymentRoundingIntegrationTest extends RhnIntegrationTestSupport {
         assertThat(value.netAmount()).isEqualByComparingTo("33.61");
         assertThat(invoices.findById(invoice.id()).orElseThrow().netAmount()).isEqualByComparingTo("33.61");
         assertThat(payments.netPaidForInvoice(Long.valueOf(TENANT), invoice.id())).isEqualByComparingTo("33.61");
-        Long catalogId = jdbc.queryForObject("select min(ID_CATALOG_ITEM) from RHN_BD_CATALOG_ITEM where ID_TNT=?", Long.class, Long.valueOf(TENANT));
-        var charge = charges.saveAndFlush(new com.rhn.billing.domain.ChargeItem(Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(DEPARTMENT),
-                invoice.patientAccountId(), accounts.findById(invoice.patientAccountId()).orElseThrow().residentId(), null, null, catalogId,
-                "SERVICE_REQUEST", invoice.id(), "ROUND-"+invoice.id(), BigDecimal.ONE, "EA", new BigDecimal("33.67"), new BigDecimal("33.67"),
-                "CNY", null, null, "SALE", "ROUND-LAB", "舍入检验项目", Instant.now(), 362387869790222L, null, "LABORATORY"));
-        var original = invoiceLines.saveAndFlush(new com.rhn.billing.domain.InvoiceLine(Long.valueOf(TENANT), invoice.id(), charge.id(), 1, charge.totalAmount()));
-        settlementLines.saveAndFlush(new com.rhn.billing.domain.SettlementLine(Long.valueOf(TENANT), invoice.id(), charge.id(), original.id(), 1, charge.quantity(), charge.totalAmount()));
         var receipt = json(mockMvc.perform(post("/api/billing/settlements/{id}/receipts", invoice.id()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"idempotencyKey\":\"ROUND-RECEIPT-"+invoice.id()+"\",\"receiptType\":\"PAPER_INVOICE\",\"issueChannel\":\"CASHIER\",\"fiscalAuthorityCode\":\"ROUND_TEST_QUEUE\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
@@ -119,6 +113,16 @@ class PaymentRoundingIntegrationTest extends RhnIntegrationTestSupport {
         settlements.saveAndFlush(new Settlement(invoice.id(), Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(DEPARTMENT),
                 account.id(), invoice.id(), "STL-" + key, key, "NORMAL", "OUTPATIENT", "CASHIER",
                 new BigDecimal("33.67"), "CNY", "TEST", 362387869790222L, Instant.now()));
+        // 结清平衡校验需要真实的收费事项、CHARGE 借方分录与结算行。
+        Long catalogId = jdbc.queryForObject("select min(ID_CATALOG_ITEM) from RHN_BD_CATALOG_ITEM where ID_TNT=?", Long.class, Long.valueOf(TENANT));
+        var charge = charges.saveAndFlush(new com.rhn.billing.domain.ChargeItem(Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(DEPARTMENT),
+                account.id(), residentId, null, null, catalogId,
+                "SERVICE_REQUEST", invoice.id(), "ROUND-"+invoice.id(), BigDecimal.ONE, "EA", new BigDecimal("33.67"), new BigDecimal("33.67"),
+                "CNY", null, null, "SALE", "ROUND-LAB", "舍入检验项目", Instant.now(), 362387869790222L, null, "LABORATORY"));
+        ledger.saveAndFlush(new com.rhn.billing.domain.LedgerEntry(Long.valueOf(TENANT), account.id(), "CHARGE", "DEBIT",
+                charge.totalAmount(), "CNY", charge.id(), null, null, null, Instant.now(), 362387869790222L));
+        var original = invoiceLines.saveAndFlush(new com.rhn.billing.domain.InvoiceLine(Long.valueOf(TENANT), invoice.id(), charge.id(), 1, charge.totalAmount()));
+        settlementLines.saveAndFlush(new com.rhn.billing.domain.SettlementLine(Long.valueOf(TENANT), invoice.id(), charge.id(), original.id(), 1, charge.quantity(), charge.totalAmount()));
         return invoice;
     }
 }

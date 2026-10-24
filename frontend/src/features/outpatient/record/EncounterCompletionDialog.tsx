@@ -113,7 +113,8 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
       const current = requireCompletionStatement(await api.billing.statement(encounter.id), encounter)
       const unpaid = current.settlements.filter(row => createdSettlementIds.includes(row.id)
         && row.status === 'PRICED' && row.tenderedAmount === 0)
-      for (const row of unpaid) await api.billing.cancelSettlement(row.id, '诊毕页未收款，取消诊间结算单')
+      // 一次请求取消全部本弹窗生成的未收款结算单，避免逐单往返。
+      if (unpaid.length) await api.billing.cancelSettlements(unpaid.map(row => row.id), '诊毕页未收款，取消诊间结算单')
     },
     onSettled: () => {
       setCreatedSettlementIds([])

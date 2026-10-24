@@ -26,6 +26,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -105,9 +106,8 @@ class OutpatientInventoryRoutingTruthTest {
         when(sites.findAllById(any())).thenReturn(List.of(site));
         when(search.resolvePreference(1L, 2L, 3L)).thenReturn(new SearchPreference(SearchInputMode.PINYIN, SearchMatchMode.PREFIX, .75, 20));
         StockItem item = new StockItem(1L, site.id(), 101L, 9L, "片", "FEFO", false, false, false, true, false, false, null, false, 1L);
-        InventoryBalance balance = new InventoryBalance(1L, site.id(), 20L, item.id(), 30L, "AVAILABLE", "片");
-        balance.receive(new BigDecimal("100"), BigDecimal.ONE);
-        when(availability.findBySite(1L, site.id())).thenReturn(List.of(balance));
+        when(availability.availableQuantitiesByStockItem(1L, site.id()))
+                .thenReturn(Map.of(item.id(), new BigDecimal("100")));
         when(items.findAllById(any())).thenReturn(List.of(item));
         var product = mock(MasterDataViews.MedicationProductView.class);
         when(product.id()).thenReturn(101L); when(product.unitCode()).thenReturn("片");
@@ -139,9 +139,8 @@ class OutpatientInventoryRoutingTruthTest {
                 .thenReturn(new SearchPreference(SearchInputMode.PINYIN, SearchMatchMode.PREFIX, .75, 20));
         var item = new StockItem(1L, site.id(), 101L, 9L, "片", "FEFO", false,
                 false, false, true, false, false, null, false, 1L);
-        var balance = new InventoryBalance(1L, site.id(), 20L, item.id(), 30L, "AVAILABLE", "片");
-        balance.receive(new BigDecimal("5"), BigDecimal.ONE);
-        when(availability.findBySite(1L, site.id())).thenReturn(List.of(balance));
+        when(availability.availableQuantitiesByStockItem(1L, site.id()))
+                .thenReturn(Map.of(item.id(), new BigDecimal("5")));
         when(items.findAllById(any())).thenReturn(List.of(item));
         var product = mock(MasterDataViews.MedicationProductView.class);
         when(product.id()).thenReturn(101L);
@@ -228,7 +227,9 @@ class OutpatientInventoryRoutingTruthTest {
             when(medication.products()).thenReturn(List.of(product));
             medications.add(medication);
         }
-        when(availability.findBySite(1L, site.id())).thenReturn(balances);
+        Map<Long, BigDecimal> available = new java.util.HashMap<>();
+        balances.forEach(value -> available.put(value.stockItemId(), value.quantityAvailable()));
+        when(availability.availableQuantitiesByStockItem(1L, site.id())).thenReturn(available);
         when(items.findAllById(any())).thenReturn(stockItems);
         when(catalogs.findMedicationsByProductCatalogItemIds(eq(1L), eq(2L), any())).thenReturn(medications);
 

@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface ServiceLocationRepository extends JpaRepository<ServiceLocation, Long> {
     Optional<ServiceLocation> findByIdAndTenantId(Long id, Long tenantId);
+    List<ServiceLocation> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
     List<ServiceLocation> findByTenantIdAndOrganizationIdOrderBySortOrderAscCodeAsc(
             Long tenantId, Long organizationId);
 }

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { ClinicalAiWikiDocResult } from '../../../shared/api/clinicalAiApi'
 import { LoadingState, EmptyState, Icon } from '../../../shared/ui'
@@ -75,9 +78,29 @@ export function MedicalInsertViewerModal({
   const [loading, setLoading] = useState(false)
   const [doc, setDoc] = useState<ClinicalAiWikiDocResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedFormName, setSelectedFormName] = useState<string | null>(null)
   const name = target?.name
   const id = target?.id
   const type = target?.type
+
+  // Sync active dosage form whenever document or target changes
+  useEffect(() => {
+    if (doc?.dosageForms && doc.dosageForms.length > 0) {
+      if (doc.activeForm && doc.dosageForms.some((f) => f.formName === doc.activeForm)) {
+        setSelectedFormName(doc.activeForm)
+      } else {
+        const targetText = (target?.name || '').toLowerCase()
+        const matched = doc.dosageForms.find((f) => {
+          const fn = f.formName.toLowerCase()
+          const fnShort = fn.replace(/剂$/, '')
+          return targetText.includes(fn) || (fnShort.length > 0 && targetText.includes(fnShort))
+        })
+        setSelectedFormName(matched ? matched.formName : doc.dosageForms[0].formName)
+      }
+    } else {
+      setSelectedFormName(null)
+    }
+  }, [doc, target?.name])
 
   // Callers recreate target objects during workstation updates; only article changes should reload.
   useEffect(() => {
@@ -130,6 +153,27 @@ export function MedicalInsertViewerModal({
 
   const isMedication = doc?.type === 'MEDICATION' || target?.type === 'medication'
   const title = doc?.title || target?.name || '医学说明书'
+  const dosageForms = doc?.dosageForms || []
+  const activeDosageForm = dosageForms.find((f) => f.formName === selectedFormName) || dosageForms[0] || null
+
+  const isCrossDosageMismatch = Boolean(
+    isMedication &&
+    dosageForms.length > 0 &&
+    target?.name &&
+    /(注射|滴眼|滴鼻|贴膏|喷雾|气雾|洗剂|栓剂|搽剂)/.test(target.name) &&
+    !dosageForms.some((f) => target.name?.includes(f.formName) || target.name?.includes(f.formName.replace(/剂$/, '')))
+  )
+
+  const displayTitle = isMedication
+    ? (activeDosageForm && doc?.genericName
+        ? `药品说明书 · ${doc.genericName}（${activeDosageForm.formName}）`
+        : `药品说明书 · ${title}`)
+    : target?.type === 'laboratory'
+      ? `检验项目说明 · ${title}`
+      : target?.type === 'examination'
+        ? `检查项目说明 · ${title}`
+        : `临床指南 · ${title}`
+
   const contraindications = (doc?.keyContraindications || []).filter((value) => value && !isInternalCode(value))
   const populations = Object.entries(doc?.specialPopulations || {})
     .map(([name, value]) => ({ name: populationLabels[name] || name, value: readableValue(value) }))
@@ -144,13 +188,12 @@ export function MedicalInsertViewerModal({
     || doc?.atcCode
     || doc?.approvalCategory
     || doc?.formsAndSpecs?.length
+    || dosageForms.length > 0
   )
 
   return (
     <ClinicalKnowledgePanel
-      title={isMedication ? `药品说明书 · ${title}`
-        : target?.type === 'laboratory' ? `检验项目说明 · ${title}`
-          : target?.type === 'examination' ? `检查项目说明 · ${title}` : `临床指南 · ${title}`}
+      title={displayTitle}
       onClose={onClose}
     >
       {loading && <LoadingState label="正在加载知识库资料…" />}
@@ -191,12 +234,80 @@ export function MedicalInsertViewerModal({
                 <strong>准字分类:</strong> {doc.approvalCategory}
               </div>
             )}
-            {doc.formsAndSpecs && doc.formsAndSpecs.length > 0 && (
+            {doc.formsAndSpecs && doc.formsAndSpecs.length > 0 && dosageForms.length === 0 && (
               <div className="medical-insert-meta-item">
                 <strong>剂型与规格:</strong> {doc.formsAndSpecs.join('；')}
               </div>
             )}
           </div>}
+
+          {isCrossDosageMismatch && (
+            <div className="dosage-form-mismatch-banner" role="status">
+              <Icon name="warning" />
+              <div>
+                <strong>跨剂型参考说明书提示：</strong>
+                当前处方开具的药品为「{target?.name}」，而本说明书收录的法定剂型为「
+                {dosageForms.map((f) => f.formName).join('、')}
+                」。不同剂型的给药途径、吸收动力学及规格用法存在差异，请注意核实。
+              </div>
+            </div>
+          )}
+
+          {dosageForms.length > 0 && (
+            <div className="dosage-form-container">
+              {dosageForms.length > 1 && (
+                <div className="dosage-form-tabs" role="tablist" aria-label="药品剂型切换">
+                  {dosageForms.map((form) => {
+                    const isSelected = form.formName === activeDosageForm?.formName
+                    return (
+                      <button
+                        key={form.formName}
+                        type="button"
+                        role="tab"
+                        aria-selected={isSelected}
+                        className={`dosage-form-tab-btn ${isSelected ? 'is-active' : ''}`}
+                        onClick={() => setSelectedFormName(form.formName)}
+                      >
+                        {form.displayName || `${form.formName} (${doc.genericName || ''}${form.formName})`}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {activeDosageForm && (
+                <div className="dosage-form-active-card">
+                  <div className="dosage-form-active-header">
+                    <span className="dosage-form-badge">{activeDosageForm.formName}</span>
+                    {activeDosageForm.specs && activeDosageForm.specs.length > 0 && (
+                      <span className="dosage-form-specs">
+                        <strong>法定品规：</strong>
+                        {activeDosageForm.specs.join('、')}
+                      </span>
+                    )}
+                  </div>
+                  {activeDosageForm.appearance && (
+                    <div className="dosage-form-active-row">
+                      <strong>性状特征：</strong>
+                      <span>{activeDosageForm.appearance}</span>
+                    </div>
+                  )}
+                  {activeDosageForm.administration && (
+                    <div className="dosage-form-active-row">
+                      <strong>给药与服用指导：</strong>
+                      <span>{activeDosageForm.administration}</span>
+                    </div>
+                  )}
+                  {activeDosageForm.specialNotes && (
+                    <div className="dosage-form-active-row is-caution">
+                      <strong>特别注意：</strong>
+                      <span>{activeDosageForm.specialNotes}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {isMedication && (doc.maxDailyDose || doc.standardMaintenanceDose || contraindications.length > 0) && (
             <div className="safety-critical-alert-box" role="alert">
@@ -249,7 +360,7 @@ export function MedicalInsertViewerModal({
 
           {normalizedMarkdown ? (
             <div className="medical-insert-prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {normalizedMarkdown}
               </ReactMarkdown>
             </div>

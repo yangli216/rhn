@@ -11,12 +11,14 @@ import java.util.List;
  * 以及需更新单据信息的已生效申请。草稿 documentInfo 为空且尚无关联诊断时默认关联本次主诊断；
  * 已生效申请必须携带 documentInfo。acknowledgedReviewKey 为上次返回的合理用药审查键。
  * dryRun 只核对草稿集合并返回合理用药审查结果，不写任何单据，供核查窗打开时预先展示。
+ * commandCode 用于一次开立的幂等回放：网络重试或重复点击时返回首次开立结果，不进重复开立。
  */
 record OrderSubmissionRequest(
         @NotNull @Size(max = 200) List<@NotNull @Valid PrescriptionEntry> prescriptions,
         @NotNull @Size(max = 200) List<@NotNull @Valid ServiceDocumentEntry> serviceDocuments,
         @Size(max = 128) String acknowledgedReviewKey,
-        Boolean dryRun) {
+        Boolean dryRun,
+        @Size(max = 128) String commandCode) {
     record PrescriptionEntry(@NotNull Long id, @NotNull @PositiveOrZero Long expectedRevision,
                              @Valid OrderDocumentInfo documentInfo, @Size(max = 1000) String safetyReason) {}
     record ServiceDocumentEntry(@NotNull Long id, @NotNull @PositiveOrZero Long expectedRevision,

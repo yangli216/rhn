@@ -59,6 +59,16 @@ public final class InpatientOrderViews {
         }
     }
 
+    public record BatchTaskExecutionView(List<Long> succeededTaskIds, List<TaskFailureView> failures) {
+        public BatchTaskExecutionView {
+            succeededTaskIds = List.copyOf(succeededTaskIds);
+            failures = List.copyOf(failures);
+        }
+    }
+
+    public record TaskFailureView(Long taskId, String code, String message) {
+    }
+
     public record MedicationConsumptionView(
             Long id, Long dispenseTaskLineId, Long dispenseId, Long dispenseLineId,
             BigDecimal consumedQuantity, String dispenseUnitCode,

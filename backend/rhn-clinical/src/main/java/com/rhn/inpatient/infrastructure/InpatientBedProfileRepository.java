@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public interface InpatientBedProfileRepository extends JpaRepository<InpatientBedProfile, Long> {
     List<InpatientBedProfile> findByTenantId(Long tenantId);
+    List<InpatientBedProfile> findByTenantIdAndBedLocationIdIn(Long tenantId, java.util.Collection<Long> bedLocationIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from InpatientBedProfile value where value.tenantId = :tenantId and value.bedLocationId = :bedId")

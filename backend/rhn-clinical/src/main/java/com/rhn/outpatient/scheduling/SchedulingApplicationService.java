@@ -41,6 +41,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -293,11 +294,46 @@ class SchedulingApplicationService {
         if (resources.isEmpty()) return List.of();
         Map<Long, ServiceResource> resourceById = resources.stream()
                 .collect(Collectors.toMap(ServiceResource::id, Function.identity()));
-        return templateRepository.findByTenantIdAndResourceIdInOrderByUpdatedAtDesc(
+        List<ScheduleTemplate> templates = templateRepository.findByTenantIdAndResourceIdInOrderByUpdatedAtDesc(
                         context.tenantId(), resourceById.keySet()).stream()
                 .filter(value -> ScheduleManagementMode.PROFESSIONAL.name().equals(value.managementMode()))
-                .map(value -> toProfessionalTemplate(context.tenantId(), value, resourceById.get(value.resourceId())))
                 .toList();
+        // 一次批量装载本页全部模板的作息时段、例外日期与主办人名称，避免逐模板回查。
+        Map<Long, List<ScheduleTemplatePeriod>> periodsByTemplate = new LinkedHashMap<>();
+        for (int from = 0; from < templates.size(); from += 500) {
+            for (ScheduleTemplatePeriod period : periodRepository
+                    .findByTenantIdAndTemplateIdInOrderByTemplateIdAscDayOfWeekAsc(context.tenantId(),
+                            templates.subList(from, Math.min(from + 500, templates.size())).stream()
+                                    .map(ScheduleTemplate::id).toList())) {
+                periodsByTemplate.computeIfAbsent(period.templateId(), key -> new ArrayList<>()).add(period);
+            }
+        }
+        Map<Long, List<ScheduleException>> exceptionsByTemplate = new LinkedHashMap<>();
+        for (int from = 0; from < templates.size(); from += 500) {
+            for (ScheduleException exception : exceptionRepository
+                    .findByTenantIdAndTemplateIdInOrderByTemplateIdAscExceptionDateAscIdAsc(context.tenantId(),
+                            templates.subList(from, Math.min(from + 500, templates.size())).stream()
+                                    .map(ScheduleTemplate::id).toList())) {
+                exceptionsByTemplate.computeIfAbsent(exception.templateId(), key -> new ArrayList<>()).add(exception);
+            }
+        }
+        Map<Long, String> ownerNames = new LinkedHashMap<>();
+        Map<Long, String> departmentNames = new LinkedHashMap<>();
+        List<ProfessionalTemplateView> result = new ArrayList<>(templates.size());
+        for (ScheduleTemplate template : templates) {
+            ServiceResource resource = resourceById.get(template.resourceId());
+            String ownerName = ownerNames.computeIfAbsent(resource.id(), key ->
+                    ScheduleRegistrationScope.PRACTITIONER.name().equals(resource.resourceType())
+                            ? organizationDirectory.requireStaff(context.tenantId(), resource.practitionerId())
+                                    .practitioner().fullName()
+                            : departmentNames.computeIfAbsent(resource.departmentId(), departmentId ->
+                                    organizationDirectory.requireDepartment(context.tenantId(),
+                                            resource.organizationId(), departmentId).name()));
+            result.add(templateView(template, resource, ownerName,
+                    periodsByTemplate.getOrDefault(template.id(), List.of()),
+                    exceptionsByTemplate.getOrDefault(template.id(), List.of())));
+        }
+        return result;
     }
 
     @Transactional
@@ -459,10 +495,11 @@ class SchedulingApplicationService {
         ExecutionContext context = requireWorkContext();
         ServiceSchedule schedule = requireScheduleForUpdate(context, scheduleId);
         String commandCode = request.commandCode().trim();
-        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCode(
-                context.tenantId(), schedule.id(), commandCode)) {
+        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCodeAndEventType(
+                context.tenantId(), schedule.id(), commandCode, "UPDATED")) {
             return toView(context.tenantId(), schedule);
         }
+        requireCommandCodeUnused(context.tenantId(), schedule.id(), commandCode);
         requireOperable(schedule);
         if (!"PUBLISHED".equals(schedule.status()) && !"SUSPENDED".equals(schedule.status())) {
             throw conflict("SCHEDULE_NOT_EDITABLE", "当前状态的班次不能修改");
@@ -503,10 +540,12 @@ class SchedulingApplicationService {
         ExecutionContext context = requireWorkContext();
         ServiceSchedule schedule = requireScheduleForUpdate(context, scheduleId);
         String commandCode = request.commandCode().trim();
-        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCode(
-                context.tenantId(), schedule.id(), commandCode)) {
+        // 幂等回放必须区分动作：同一编码用于暂停、恢复或取消时不能当成同一次操作静默返回。
+        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCodeAndEventType(
+                context.tenantId(), schedule.id(), commandCode, statusEventType(request.action()))) {
             return toView(context.tenantId(), schedule);
         }
+        requireCommandCodeUnused(context.tenantId(), schedule.id(), commandCode);
         requireOperable(schedule);
         ScheduleSlotPool pool = requirePool(context.tenantId(), schedule.id());
         String target;
@@ -554,23 +593,45 @@ class SchedulingApplicationService {
         return toView(context.tenantId(), schedule);
     }
 
+    /** 同一编码已被该班次的其他动作使用过时拒绝，避免动作被静默跳过。 */
+    private void requireCommandCodeUnused(Long tenantId, Long scheduleId, String commandCode) {
+        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCode(tenantId, scheduleId, commandCode)) {
+            throw conflict("SCHEDULE_COMMAND_CODE_CONFLICT", "幂等编码已用于该班次的其他操作");
+        }
+    }
+
+    private String statusEventType(ScheduleAction action) {
+        return switch (action) {
+            case SUSPEND -> "SUSPENDED";
+            case RESUME -> "PUBLISHED";
+            case CANCEL -> "CANCELLED";
+        };
+    }
+
     private ProfessionalTemplateView toProfessionalTemplate(Long tenantId, ScheduleTemplate template,
                                                             ServiceResource resource) {
-        List<ProfessionalTemplatePeriodView> periods = periodRepository
-                .findByTenantIdAndTemplateIdOrderByDayOfWeek(tenantId, template.id()).stream()
+        String ownerName = ScheduleRegistrationScope.PRACTITIONER.name().equals(resource.resourceType())
+                ? organizationDirectory.requireStaff(tenantId, resource.practitionerId()).practitioner().fullName()
+                : organizationDirectory.requireDepartment(tenantId, resource.organizationId(),
+                        resource.departmentId()).name();
+        return templateView(template, resource, ownerName,
+                periodRepository.findByTenantIdAndTemplateIdOrderByDayOfWeek(tenantId, template.id()),
+                exceptionRepository.findByTenantIdAndTemplateIdOrderByExceptionDate(tenantId, template.id()));
+    }
+
+    private ProfessionalTemplateView templateView(ScheduleTemplate template, ServiceResource resource,
+                                                  String ownerName, List<ScheduleTemplatePeriod> storedPeriods,
+                                                  List<ScheduleException> storedExceptions) {
+        List<ProfessionalTemplatePeriodView> periods = storedPeriods.stream()
                 .map(value -> new ProfessionalTemplatePeriodView(value.dayOfWeek(), toTime(value.minuteStart()),
                         toTime(value.minuteEnd()), value.defaultCapacity(), value.slotMode(), value.slotMinutes()))
                 .toList();
-        List<ProfessionalExceptionView> exceptions = exceptionRepository
-                .findByTenantIdAndTemplateIdOrderByExceptionDate(tenantId, template.id()).stream()
+        List<ProfessionalExceptionView> exceptions = storedExceptions.stream()
                 .map(value -> new ProfessionalExceptionView(value.id(), value.exceptionDate(), value.exceptionType(),
                         value.minuteStart() == null ? null : toTime(value.minuteStart()),
                         value.minuteEnd() == null ? null : toTime(value.minuteEnd()), value.capacity(),
                         value.slotMinutes(), value.reason()))
                 .toList();
-        String ownerName = ScheduleRegistrationScope.PRACTITIONER.name().equals(resource.resourceType())
-                ? organizationDirectory.requireStaff(tenantId, resource.practitionerId()).practitioner().fullName()
-                : organizationDirectory.requireDepartment(tenantId, resource.organizationId(), resource.departmentId()).name();
         return new ProfessionalTemplateView(template.id(), template.templateCode(), template.templateName(),
                 resource.resourceType(), resource.practitionerId(), ownerName, resource.catalogItemId(), resource.serviceCode(),
                 resource.serviceName(), template.validFrom(), template.validTo(), template.status(), periods, exceptions);

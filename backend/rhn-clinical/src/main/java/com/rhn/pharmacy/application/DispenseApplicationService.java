@@ -61,6 +61,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -331,6 +332,19 @@ public class DispenseApplicationService {
     }
 
     @Transactional
+    public List<DispenseCancelResultView> cancelDispenseBatch(List<Long> taskIds, CancelDispenseCommand template) {
+        List<DispenseCancelResultView> results = new ArrayList<>(taskIds.size());
+        for (Long taskId : taskIds) {
+            // 复用全局雪花编号作为逐任务取消编码后缀，避免同发药单重试时冲正单据编码冲突。
+            results.add(cancelDispense(taskId, new CancelDispenseCommand(
+                    "CNC-" + taskId + "-" + com.rhn.shared.id.GlobalIds.next(),
+                    template.operatorPractitionerId(), template.operatorAssignmentId(),
+                    template.reasonCode(), template.description(), template.occurredAt())));
+        }
+        return results;
+    }
+
+    @Transactional
     public DispenseCancelResultView cancelDispense(Long taskId, CancelDispenseCommand input) {
         ExecutionContext context = requireWorkContext();
         String cancelNo = required(input.cancelNo(), "DISPENSE_CANCEL_NO_REQUIRED", "取消发药请求编码不能为空");
@@ -571,20 +585,117 @@ public class DispenseApplicationService {
         DispenseTaskLine line = requireTaskLine(context, task.id());
         List<MedicationDispense> events = dispenseRepository.findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(
                 context.tenantId(), task.id());
+        return traceView(context, task, line, events, traceFacts(context, events));
+    }
+
+    /** 批量读取发药轨迹：退药勾选多项时一次取回全部任务的事件、退药与货位批次，避免逐项请求与逐项查询。 */
+    @Transactional(readOnly = true)
+    public List<DispenseTraceView> traces(List<Long> taskIds) {
+        ExecutionContext context = requireWorkContext();
+        if (taskIds == null) return List.of();
+        List<Long> requested = taskIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (requested.isEmpty()) return List.of();
+        List<DispenseTask> tasks = taskRepository.findByTenantIdAndIdIn(context.tenantId(), requested).stream()
+                .sorted(Comparator.comparing(DispenseTask::id)).toList();
+        if (tasks.isEmpty()) return List.of();
+        Map<Long, StockSite> sites = new HashMap<>();
+        for (StockSite site : siteRepository.findByTenantIdAndIdIn(context.tenantId(),
+                tasks.stream().map(DispenseTask::stockSiteId).collect(java.util.stream.Collectors.toSet()))) {
+            sites.put(site.id(), site);
+        }
+        for (DispenseTask task : tasks) requireAccessibleSite(context, sites.get(task.stockSiteId()));
+
+        Map<Long, DispenseTaskLine> lineByTask = new HashMap<>();
+        for (DispenseTaskLine line : taskLineRepository.findByTenantIdAndTaskIdIn(context.tenantId(), requested)) {
+            lineByTask.putIfAbsent(line.taskId(), line);
+        }
+        List<MedicationDispense> events = dispenseRepository.findByTenantIdAndTaskIdInOrderByOccurredAtAscIdAsc(
+                context.tenantId(), requested);
+        Map<Long, List<MedicationDispense>> eventsByTask = new HashMap<>();
+        for (MedicationDispense event : events) {
+            eventsByTask.computeIfAbsent(event.taskId(), key -> new ArrayList<>()).add(event);
+        }
+        TraceFacts facts = traceFacts(context, events);
+        List<DispenseTraceView> views = new ArrayList<>(tasks.size());
+        for (DispenseTask task : tasks) {
+            DispenseTaskLine line = lineByTask.get(task.id());
+            if (line == null) throw notFound("DISPENSE_TASK_LINE_NOT_FOUND", "发药任务缺少药品明细");
+            views.add(traceView(context, task, line, eventsByTask.getOrDefault(task.id(), List.of()), facts));
+        }
+        return views;
+    }
+
+    /** 一次装载发药明细、退药、退药明细与货位批次，供单条与批量轨迹装配复用。 */
+    private TraceFacts traceFacts(ExecutionContext context, List<MedicationDispense> events) {
+        Map<Long, List<MedicationDispenseLine>> linesByEvent = new HashMap<>();
+        if (!events.isEmpty()) {
+            for (MedicationDispenseLine line : dispenseLineRepository
+                    .findByTenantIdAndMedicationDispenseIdInOrderBySortOrder(context.tenantId(),
+                            events.stream().map(MedicationDispense::id).toList())) {
+                linesByEvent.computeIfAbsent(line.medicationDispenseId(), key -> new ArrayList<>()).add(line);
+            }
+        }
+        List<Long> dispenseIds = events.stream().filter(DispenseApplicationService::isDispenseEvent)
+                .map(MedicationDispense::id).toList();
+        Map<Long, List<StockReturn>> returnsByOriginal = new HashMap<>();
+        if (!dispenseIds.isEmpty()) {
+            for (StockReturn value : returnRepository.findByTenantIdAndOriginalDispenseIdInOrderByRequestedAt(
+                    context.tenantId(), dispenseIds)) {
+                returnsByOriginal.computeIfAbsent(value.originalDispenseId(), key -> new ArrayList<>()).add(value);
+            }
+        }
+        List<Long> returnIds = returnsByOriginal.values().stream()
+                .flatMap(List::stream).map(StockReturn::id).toList();
+        Map<Long, List<StockReturnLine>> linesByReturn = new HashMap<>();
+        if (!returnIds.isEmpty()) {
+            for (StockReturnLine line : returnLineRepository.findByTenantIdAndStockReturnIdInOrderBySortOrder(
+                    context.tenantId(), returnIds)) {
+                linesByReturn.computeIfAbsent(line.stockReturnId(), key -> new ArrayList<>()).add(line);
+            }
+        }
+        List<MedicationDispenseLine> allLines = linesByEvent.values().stream().flatMap(List::stream).toList();
+        Map<Long, StockBin> bins = new HashMap<>();
+        List<Long> binIds = allLines.stream().map(MedicationDispenseLine::stockBinId).distinct().toList();
+        if (!binIds.isEmpty()) {
+            for (StockBin bin : binRepository.findByTenantIdAndIdIn(context.tenantId(), binIds)) {
+                bins.put(bin.id(), bin);
+            }
+        }
+        Map<Long, StockLot> lots = new HashMap<>();
+        List<Long> lotIds = allLines.stream().map(MedicationDispenseLine::stockLotId).distinct().toList();
+        if (!lotIds.isEmpty()) {
+            for (StockLot lot : lotRepository.findByTenantIdAndIdIn(context.tenantId(), lotIds)) {
+                lots.put(lot.id(), lot);
+            }
+        }
+        return new TraceFacts(linesByEvent, returnsByOriginal, linesByReturn, bins, lots);
+    }
+
+    private DispenseTraceView traceView(ExecutionContext context, DispenseTask task, DispenseTaskLine line,
+                                        List<MedicationDispense> events, TraceFacts facts) {
         List<StockReturnView> returns = new ArrayList<>();
         for (MedicationDispense event : events) {
-            if (!"DISPENSE".equals(event.dispenseType()) && !"REDISPENSE".equals(event.dispenseType())) continue;
-            for (StockReturn value : returnRepository.findByTenantIdAndOriginalDispenseIdOrderByRequestedAt(
-                    context.tenantId(), event.id())) {
-                returns.add(returnView(context, value, returnLineRepository
-                        .findByTenantIdAndStockReturnIdOrderBySortOrder(context.tenantId(), value.id())));
+            if (!isDispenseEvent(event)) continue;
+            for (StockReturn value : facts.returnsByOriginal().getOrDefault(event.id(), List.of())) {
+                returns.add(returnView(context, value, facts.linesByReturn().getOrDefault(value.id(), List.of())));
             }
         }
         return new DispenseTraceView(task.id(), task.taskNo(), task.status().name(), line.plannedQuantity(),
                 line.dispensedQuantity(), line.returnedQuantity(), line.netDispensedQuantity(),
-                line.dispenseUnitCode(), events.stream().map(value -> dispenseView(context, value,
-                        dispenseLineRepository.findByTenantIdAndMedicationDispenseIdOrderBySortOrder(
-                                context.tenantId(), value.id()))).toList(), returns);
+                line.dispenseUnitCode(), events.stream().map(value -> dispenseView(value,
+                        facts.linesByEvent().getOrDefault(value.id(), List.of()),
+                        dispenseLine -> dispenseLineView(dispenseLine, facts.bins().get(dispenseLine.stockBinId()),
+                                facts.lots().get(dispenseLine.stockLotId())))).toList(), returns);
+    }
+
+    private record TraceFacts(Map<Long, List<MedicationDispenseLine>> linesByEvent,
+                              Map<Long, List<StockReturn>> returnsByOriginal,
+                              Map<Long, List<StockReturnLine>> linesByReturn,
+                              Map<Long, StockBin> bins, Map<Long, StockLot> lots) {
+    }
+
+    private static boolean isDispenseEvent(MedicationDispense event) {
+        return "DISPENSE".equals(event.dispenseType()) || "REDISPENSE".equals(event.dispenseType());
     }
 
     private MedicationDispenseView verifyIdempotentDispense(MedicationDispense value, Long taskId, DispenseCommand input) {
@@ -627,16 +738,26 @@ public class DispenseApplicationService {
 
     private MedicationDispenseView dispenseView(ExecutionContext context, MedicationDispense value,
                                                  List<MedicationDispenseLine> lines) {
+        return dispenseView(value, lines, line -> dispenseLineView(context, line));
+    }
+
+    private MedicationDispenseView dispenseView(MedicationDispense value, List<MedicationDispenseLine> lines,
+                                                 Function<MedicationDispenseLine, MedicationDispenseLineView> lineView) {
         return new MedicationDispenseView(value.id(), value.taskId(), value.residentId(), value.encounterId(),
                 value.stockSiteId(), value.originalDispenseId(), value.dispenseNo(), value.dispenseType(),
                 value.occurredAt(), value.dispenserPractitionerId(), value.dispenserUserId(),
                 value.dispenserAssignmentId(), value.checkerPractitionerId(), value.checkerUserId(),
                 value.checkerAssignmentId(), value.checkedAt(), value.operationQuantity(), value.operationUnitCode(),
-                value.description(), lines.stream().map(line -> dispenseLineView(context, line)).toList());
+                value.description(), lines.stream().map(lineView).toList());
     }
 
     private MedicationDispenseLineView dispenseLineView(ExecutionContext context, MedicationDispenseLine value) {
-        StockBin bin = requireBin(context, value.stockBinId()); StockLot lot = requireLot(context, value.stockLotId());
+        return dispenseLineView(value, requireBin(context, value.stockBinId()), requireLot(context, value.stockLotId()));
+    }
+
+    private MedicationDispenseLineView dispenseLineView(MedicationDispenseLine value, StockBin bin, StockLot lot) {
+        if (bin == null) throw notFound("STOCK_BIN_NOT_FOUND", "未找到库存货位");
+        if (lot == null) throw notFound("STOCK_LOT_NOT_FOUND", "未找到库存批次");
         return new MedicationDispenseLineView(value.id(), value.taskLineId(), value.originalDispenseLineId(),
                 value.sortOrder(), value.stockBinId(), bin.code(), value.stockItemId(), value.stockLotId(),
                 lot.lotNo(), lot.expiryDate(), value.inventoryTransactionLineId(), value.quantityDispensed(),
@@ -709,8 +830,14 @@ public class DispenseApplicationService {
                 .orElseThrow(() -> notFound("DISPENSE_TASK_LINE_NOT_FOUND", "发药任务缺少药品明细"));
     }
     private StockSite requireSite(ExecutionContext context, Long id) {
-        StockSite site = siteRepository.findByIdAndTenantId(id, context.tenantId())
+        return requireAccessibleSite(context, requireSiteRow(id, context));
+    }
+    private StockSite requireSiteRow(Long id, ExecutionContext context) {
+        return siteRepository.findByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("STOCK_SITE_NOT_FOUND", "未找到库存站点"));
+    }
+    private StockSite requireAccessibleSite(ExecutionContext context, StockSite site) {
+        if (site == null) throw notFound("STOCK_SITE_NOT_FOUND", "未找到库存站点");
         requireOrganizationAccess(context, site.organizationId());
         if (site.departmentId() != null && !site.departmentId().equals(context.departmentId())) {
             throw badRequest("PHARMACY_SITE_CONTEXT_MISMATCH", "当前工作科室与库存站点所属科室不一致");

@@ -14,7 +14,9 @@ import java.util.Optional;
 
 public interface SettlementRepository extends JpaRepository<Settlement, Long> {
     Optional<Settlement> findByIdAndTenantId(Long id, Long tenantId);
+    List<Settlement> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
     Optional<Settlement> findByTenantIdAndLegacyInvoiceId(Long tenantId, Long legacyInvoiceId);
+    List<Settlement> findByTenantIdAndLegacyInvoiceIdIn(Long tenantId, java.util.Collection<Long> legacyInvoiceIds);
     Optional<Settlement> findByTenantIdAndOrganizationIdAndSettlementNo(Long tenantId, Long organizationId, String settlementNo);
     List<Settlement> findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(Long tenantId, Long patientAccountId);
 

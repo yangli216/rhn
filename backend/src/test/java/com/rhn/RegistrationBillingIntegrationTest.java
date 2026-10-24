@@ -138,6 +138,12 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                         .content("{\"commandCode\":\"RESOLVE-RECON-%s\",\"reason\":\"渠道测试流水，不入院内账\",\"ignore\":true}"
                                 .formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESOLVED"));
+        mockMvc.perform(get("/api/billing/reconciliation-batches").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '%s')].items.length()".formatted(
+                        reconciliation.get("id").asString())).value(2))
+                .andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(
+                        reconciliation.get("id").asString())).value("RESOLVED"));
 
         Long receiptChargeId = jdbc.queryForObject("select ID_CHARGE_ITEM from RHN_BIL_STL_LINE where ID_STL=?", Long.class, intent.get("settlementId").asLong());
         String originalCategory = jdbc.queryForObject("select SD_ACCTG_CAT from RHN_BIL_CHARGE_ITEM where ID_CHARGE_ITEM=?", String.class, receiptChargeId);
@@ -188,7 +194,8 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.externalReceiptNo").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(get("/api/billing/receipts/recovery-worklist").with(rhnWorkContext()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(pendingReceipt.get("id").asLong()));
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(pendingReceipt.get("id").asLong()))
+                .andExpect(jsonPath("$[0].events[0].eventType").value("REQUEST"));
         mockMvc.perform(post("/api/billing/receipts/recovery").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"batchCode\":\"RC-RECOVERY-%s\",\"limit\":20}".formatted(suffix)))
@@ -268,6 +275,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/billing/cashier-closes/{closeId}", cashierClose.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REVERSED"));
+        // 列表端点批量装配后，日结明细行仍需完整带出
+        mockMvc.perform(get("/api/billing/cashier-closes").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + cashierClose.get("id").asString() + "')].lines").isNotEmpty());
     }
 
     @Test
@@ -697,7 +708,8 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(residentId)));
 
         mockMvc.perform(get("/api/billing/payment-orders/recovery-worklist").with(rhnWorkContext()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(pendingOrder.get("id").asLong()));
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(pendingOrder.get("id").asLong()))
+                .andExpect(jsonPath("$[0].events[0].eventType").value("CREATE"));
         mockMvc.perform(post("/api/billing/payment-orders/recovery").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"batchCode\":\"PAY-RECOVERY-%s\",\"limit\":20}".formatted(suffix)))
@@ -1047,7 +1059,9 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PRE_SETTLEMENT_PENDING"))
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(get("/api/billing/insurance-claims/recovery-worklist").with(rhnWorkContext()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].claimId").value(claim.get("claimId").asLong()));
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].claimId").value(claim.get("claimId").asLong()))
+                .andExpect(jsonPath("$[0].lines[0].insuranceItemCode").value("INS-REG-001"))
+                .andExpect(jsonPath("$[0].responses").isNotEmpty());
         mockMvc.perform(post("/api/billing/insurance-claims/recovery").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"batchCode\":\"INS-RECOVERY-%s\",\"limit\":20}".formatted(suffix)))

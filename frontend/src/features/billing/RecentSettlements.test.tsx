@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -16,14 +16,17 @@ const record = (id: string, no: string, finalizedAt: string, extra: Partial<Sett
   ({ ...base, cashierUsername: 'doctor', id, settlementNo: no, residentName: `患者${no}`, createdAt: finalizedAt, finalizedAt, ...extra }) as SettlementRecord
 
 function renderPanel(records: SettlementRecord[], handlers = { onReceipt: vi.fn(), onCopy: vi.fn() }, username = 'doctor') {
-  const api = { billing: { settlementRecords: vi.fn().mockResolvedValue(records) } } as unknown as RhnApi
+  const settlementRecords = vi.fn().mockResolvedValue(records)
+  const api = { billing: { settlementRecords } } as unknown as RhnApi
   const clinicalContext = { organization: { id: 'o' }, department: { id: 'd' } } as unknown as ClinicalContext
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <RecentSettlements api={api} clinicalContext={clinicalContext} username={username} {...handlers} /></QueryClientProvider>)
-  return handlers
+  return Object.assign(handlers, { settlementRecords })
 }
 
 describe('RecentSettlements', () => {
+  afterEach(() => { vi.useRealTimers() })
+
   it('lists only the latest three settled outpatient settlements and exposes quick actions', async () => {
     const handlers = renderPanel([
       record('1', 'S1', '2026-10-22T01:00:00Z'), record('2', 'S2', '2026-10-22T02:00:00Z'),
@@ -57,5 +60,14 @@ describe('RecentSettlements', () => {
   it('shows an empty hint when nothing has been settled today', async () => {
     renderPanel([])
     expect(await screen.findByText('今日尚无本人办理的结算。')).toBeInTheDocument()
+  })
+
+  it('uses the Asia/Shanghai business date for today and for the displayed settlement time', async () => {
+    // UTC 06:00 is 14:00 on 10-24 in Shanghai but still 10-23 evening in the Americas: the browser date must not leak into the query.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'))
+    const { settlementRecords } = renderPanel([record('1', 'S1', '2026-10-24T06:00:00Z')])
+    expect(await screen.findByText('2026-10-24 14:00')).toBeInTheDocument()
+    expect(settlementRecords).toHaveBeenCalledWith(100, { from: '2026-10-24', to: '2026-10-24', cashier: 'doctor' })
   })
 })

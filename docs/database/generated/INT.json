@@ -1,5 +1,5 @@
 {
-  "fingerprint": "514141651939478ef0ee1f2dbb4b5848d43b12dabb472a8732ecb66a199c82af",
+  "fingerprint": "9d67ce5d52ee558eea83c6f1e5c3c71f477d8545df168f6e8fc957eed2005603",
   "tables": [
     {
       "logical": "int.event_consumption",

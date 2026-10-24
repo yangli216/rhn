@@ -36,11 +36,14 @@ describe('order document metadata', () => {
     const docs = orderDocuments([], services)
     expect(docs.map(doc => [doc.key, doc.items.map(item => item.name)])).toEqual([
       ['service-doc:d1', ['血常规', '肝功能']], ['service:s4', ['尿常规']]])
-    const update = vi.fn().mockImplementation(async (_enc, id, revision, documentInfo) => ({ id, revision: revision + 1, documentInfo }))
-    const api = { encounters: { updateServiceDocumentInfo: update } } as unknown as RhnApi
+    const update = vi.fn().mockImplementation(async (_enc, members, documentInfo) =>
+      members.map((member: { id: string; expectedRevision: number }) =>
+        ({ id: member.id, revision: member.expectedRevision + 1, documentInfo })))
+    const api = { encounters: { updateServiceDocumentInfoBatch: update } } as unknown as RhnApi
     const info = { diagnoses: [{ code: 'I10', display: '高血压', primary: true }], externalPrescription: false }
     await saveOrderDocumentInfo(api, 'enc1', docs[0], 1, info)
-    expect(update.mock.calls.map(call => call[1])).toEqual(['s1', 's2'])
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(update.mock.calls[0][1]).toEqual([{ id: 's1', expectedRevision: 1 }, { id: 's2', expectedRevision: 1 }])
   })
 
   it('accepts a service document preview only when every draft appears exactly once', () => {

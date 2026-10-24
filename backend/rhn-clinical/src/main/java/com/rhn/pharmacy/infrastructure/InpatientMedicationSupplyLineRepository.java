@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,10 +15,13 @@ public interface InpatientMedicationSupplyLineRepository
         extends JpaRepository<InpatientMedicationSupplyLine, Long> {
     List<InpatientMedicationSupplyLine> findByTenantIdAndSupplyBatchIdOrderById(
             Long tenantId, Long supplyBatchId);
+    List<InpatientMedicationSupplyLine> findByTenantIdAndSupplyBatchIdInOrderBySupplyBatchIdAscIdAsc(
+            Long tenantId, java.util.Collection<Long> supplyBatchIds);
     List<InpatientMedicationSupplyLine> findByTenantIdAndRequestIdOrderByCreatedAt(
             Long tenantId, Long requestId);
     Optional<InpatientMedicationSupplyLine> findByTenantIdAndDispenseTaskLineId(
             Long tenantId, Long dispenseTaskLineId);
+    List<InpatientMedicationSupplyLine> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from InpatientMedicationSupplyLine value "

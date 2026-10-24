@@ -95,6 +95,9 @@ class EncounterQueryTest extends RhnIntegrationTestSupport {
         assertTrue(pageResp.has("totalPages"));
         assertTrue(pageResp.get("totalElements").asLong() >= 1);
         assertTrue(containsEncounter(pageResp.get("content"), encounterId));
+        // 无关键字分页同样需要居民快照（批量加载），姓名必须可见
+        assertEquals("就诊查询测试" + suffix,
+                findEncounter(pageResp.get("content"), encounterId).get("residentName").asString());
 
         // 2. 关键词模糊查询匹配
         JsonNode queryMatch = json(mockMvc.perform(get("/api/encounters/page").with(rhnWorkContext())

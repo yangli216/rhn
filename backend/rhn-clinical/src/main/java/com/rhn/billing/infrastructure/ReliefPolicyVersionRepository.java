@@ -10,5 +10,7 @@ import java.util.Optional;
 public interface ReliefPolicyVersionRepository extends JpaRepository<ReliefPolicyVersion, Long> {
     Optional<ReliefPolicyVersion> findByIdAndTenantId(Long id, Long tenantId);
     List<ReliefPolicyVersion> findByTenantIdAndPolicyIdOrderByVersionNoDesc(Long tenantId, Long policyId);
+    List<ReliefPolicyVersion> findByTenantIdAndPolicyIdInOrderByPolicyIdAscVersionNoDesc(
+            Long tenantId, Collection<Long> policyIds);
     List<ReliefPolicyVersion> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 }

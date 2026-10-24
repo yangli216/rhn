@@ -185,7 +185,11 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                         .queryParam("from", shiftFrom.toString()).queryParam("to", shiftTo.toString())
                         .queryParam("status", "ACCEPTED"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(handoffId));
+                .andExpect(jsonPath("$[0].id").value(handoffId))
+                // 列表段与详情一致：患者事项与签署记录必须完整装配。
+                .andExpect(jsonPath("$[0].patients[0].bedNo").value("01床"))
+                .andExpect(jsonPath("$[0].signatures[0].signatureMeaning").value("HANDOVER"))
+                .andExpect(jsonPath("$[0].signatures[1].signatureMeaning").value("TAKEOVER"));
 
         Instant dischargedAt = Instant.now();
         jdbcTemplate.update("update RHN_VIS_CARE_EPISODE set SD_STATUS = 'DISCHARGED', DT_END = ? where ID_CARE_EPISODE = ?",

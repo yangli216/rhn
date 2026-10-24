@@ -14,6 +14,8 @@ import java.util.Collection;
 public interface RegistrationBillingIntentRepository extends JpaRepository<RegistrationBillingIntent, Long> {
     boolean existsByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
             Long tenantId, Long residentId, Long organizationId, Long departmentId, Collection<RegistrationBillingIntentStatus> statuses);
+    java.util.List<RegistrationBillingIntent> findByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
+            Long tenantId, Long residentId, Long organizationId, Long departmentId, Collection<RegistrationBillingIntentStatus> statuses);
     Optional<RegistrationBillingIntent> findByIdAndTenantId(Long id, Long tenantId);
     Optional<RegistrationBillingIntent> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
     Optional<RegistrationBillingIntent> findByTenantIdAndSettlementId(Long tenantId, Long settlementId);

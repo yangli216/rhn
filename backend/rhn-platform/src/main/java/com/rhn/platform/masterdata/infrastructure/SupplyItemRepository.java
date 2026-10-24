@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface SupplyItemRepository extends JpaRepository<SupplyItem, Long> {
     List<SupplyItem> findByTenantIdOrderByName(Long tenantId);
+    List<SupplyItem> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
     Optional<SupplyItem> findByIdAndTenantId(Long id, Long tenantId);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
     boolean existsByTenantIdAndUdiDi(Long tenantId, String udiDi);

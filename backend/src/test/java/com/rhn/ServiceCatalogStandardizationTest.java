@@ -16,6 +16,8 @@ class ServiceCatalogStandardizationTest extends RhnIntegrationTestSupport {
     private static final long ORGANIZATION = 362387869790211L;
     private static final long NATIONAL_GLUCOSE = 362387890000297L;
     private static final long NATIONAL_URINALYSIS = 362387890000274L;
+    private static final long CBC_FIVE_PART = 362387890000270L;
+    private static final long CBC_THREE_PART = 362387890000271L;
 
     @Autowired
     JdbcTemplate jdbc;
@@ -118,5 +120,18 @@ class ServiceCatalogStandardizationTest extends RhnIntegrationTestSupport {
                 join RHN_EX_LAB_SVC_SPEC specimen on specimen.ID_CATALOG_ITEM = service.ID_CATALOG_ITEM
                 where service.ID_CATALOG_ITEM in (?, ?) order by service.ID_CATALOG_ITEM
                 """, String.class, NATIONAL_URINALYSIS, NATIONAL_GLUCOSE)).containsExactly("URINE:ACTIVE", "SERUM:ACTIVE");
+    }
+
+    @Test
+    void both_blood_count_items_have_an_active_whole_blood_specimen_rule_so_specimens_can_be_generated() {
+        assertThat(jdbc.queryForList("""
+                select service.SD_SPEC_TYPE || ':' || specimen.SD_STATUS || ':' || specimen.ID_DICT_ITEM_CONTNR
+                from RHN_BD_SVC_ITEM service
+                join RHN_EX_LAB_SVC_SPEC specimen on specimen.ID_CATALOG_ITEM = service.ID_CATALOG_ITEM
+                where service.ID_CATALOG_ITEM = ?
+                """, String.class, CBC_THREE_PART)).hasSize(1).allSatisfy(value -> assertThat(value).startsWith("WHOLE_BLOOD:ACTIVE:"));
+        assertThat(jdbc.queryForObject("select ID_DICT_ITEM_CONTNR from RHN_EX_LAB_SVC_SPEC where ID_CATALOG_ITEM = ?",
+                Long.class, CBC_THREE_PART)).isEqualTo(jdbc.queryForObject(
+                "select ID_DICT_ITEM_CONTNR from RHN_EX_LAB_SVC_SPEC where ID_CATALOG_ITEM = ?", Long.class, CBC_FIVE_PART));
     }
 }

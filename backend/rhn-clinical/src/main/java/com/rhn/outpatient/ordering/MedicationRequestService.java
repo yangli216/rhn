@@ -3,6 +3,7 @@ package com.rhn.outpatient.ordering;
 import com.rhn.platform.numbering.api.BusinessNumberGenerator;
 import com.rhn.platform.numbering.api.BusinessNumberContext;
 import com.rhn.outpatient.api.OrderFulfillmentGuard;
+import com.rhn.outpatient.api.PrescriptionSafetyReviewDirectory;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.healthcore.api.AllergyDirectory;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -95,18 +97,30 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     @Transactional
     MedicationRequestResponse create(Long encounterId, CreateMedicationRequest input) {
-        var encounter = encounterDirectory.lockActiveForOrdering(encounterId);
+        return create(encounterDirectory.lockActiveForOrdering(encounterId), input);
+    }
+
+    /** 批量开立已在外部锁定就诊：复用同一次行锁与快照，避免逐条重复加锁、重读就诊。 */
+    @Transactional
+    MedicationRequestResponse create(EncounterDirectory.EncounterSnapshot encounter, CreateMedicationRequest input) {
+        return create(encounter, input, null);
+    }
+
+    /** 批量开立预解析的目录快照：条目不匹配（目录项/包装/价格类型/机构/业务日期）时回退单条解析。 */
+    @Transactional
+    MedicationRequestResponse create(EncounterDirectory.EncounterSnapshot encounter, CreateMedicationRequest input,
+                                     CatalogLifecycleDirectory.CatalogOperationalSnapshot preparedCatalog) {
         ExecutionContext context = contextProvider.requireCurrent();
         Long tenantId = TenantContext.requireTenantId();
         LocalDate businessDate = input.businessDate() == null ? LocalDate.now() : input.businessDate();
         if (input.medicationId() == null && input.catalogItemId() == null) {
             throw badRequest("MEDICATION_REQUEST_TARGET_REQUIRED", "必须选择通用药品，或选择可推导通用药品的具体产品");
         }
-        Prescription prescription = requireDraftPrescription(input, encounterId, tenantId);
+        Prescription prescription = requireDraftPrescription(input, encounter.id(), tenantId);
         CreateContext ctx = new CreateContext(encounter, context, tenantId, businessDate, prescription,
                 resolveExecutionScope(input, encounter, prescription, context, tenantId));
 
-        CatalogSelection selection = resolveCatalogSelection(ctx, input);
+        CatalogSelection selection = resolveCatalogSelection(ctx, input, preparedCatalog);
         CatalogLifecycleDirectory.CatalogItemSnapshot item = selection.item();
         CatalogLifecycleDirectory.PackageSnapshot itemPackage = selection.itemPackage();
         CatalogLifecycleDirectory.MedicationSnapshot medication = selection.medication();
@@ -182,6 +196,33 @@ class MedicationRequestService implements MedicationRequestDirectory {
         return response(value);
     }
 
+    /**
+     * 批量开立预解析：按价格类型分组一次装载目录/包装/药品/采用/价格快照，返回按目录项索引的快照。
+     * 装载失败时返回空表，由逐条解析恢复原有错误语义；快照不匹配的条目同样回退单条解析。
+     */
+    Map<Long, CatalogLifecycleDirectory.CatalogOperationalSnapshot> prepareCatalogSnapshots(
+            Long tenantId, Long organizationId, List<BatchOrderMedicationItem> items, LocalDate businessDate) {
+        Map<String, Map<Long, Long>> packageIdsByPriceType = new LinkedHashMap<>();
+        for (BatchOrderMedicationItem item : items) {
+            if (item.catalogItemId() == null) continue;
+            packageIdsByPriceType.computeIfAbsent(priceType(item.priceType()), key -> new LinkedHashMap<>())
+                    .putIfAbsent(item.catalogItemId(), item.packageId());
+        }
+        Map<Long, CatalogLifecycleDirectory.CatalogOperationalSnapshot> prepared = new LinkedHashMap<>();
+        try {
+            packageIdsByPriceType.forEach((priceType, requested) -> prepared.putAll(
+                    catalogDirectory.resolveAll(tenantId, organizationId, priceType, requested, businessDate)));
+        } catch (com.rhn.shared.api.BusinessException failure) {
+            return Map.of();
+        }
+        return prepared;
+    }
+
+    private static String priceType(String value) {
+        String normalized = Strings.trimToNull(value);
+        return normalized == null ? "SALE" : normalized.toUpperCase();
+    }
+
     private Prescription requireDraftPrescription(CreateMedicationRequest input, Long encounterId, Long tenantId) {
         Prescription prescription = input.prescriptionId() == null ? null
                 : prescriptionRepository.findByIdAndTenantId(input.prescriptionId(), tenantId)
@@ -219,11 +260,12 @@ class MedicationRequestService implements MedicationRequestDirectory {
     }
 
     /** 按"通用药品开立 / 具体产品开立"两条路径解析目录、机构采用与价格快照。 */
-    private CatalogSelection resolveCatalogSelection(CreateContext ctx, CreateMedicationRequest input) {
+    private CatalogSelection resolveCatalogSelection(CreateContext ctx, CreateMedicationRequest input,
+                                                     CatalogLifecycleDirectory.CatalogOperationalSnapshot prepared) {
         Long tenantId = ctx.tenantId();
         LocalDate businessDate = ctx.businessDate();
         Long performerOrganizationId = ctx.scope().performerOrganizationId();
-        String priceType = Strings.trimToNull(input.priceType()) == null ? "SALE" : Strings.trimToNull(input.priceType()).toUpperCase();
+        String priceType = priceType(input.priceType());
         boolean productSelected = input.catalogItemId() != null;
         boolean pricingRequired = input.pricingRequired() == null
                 ? productSelected && !input.selfProvided() : input.pricingRequired();
@@ -237,8 +279,14 @@ class MedicationRequestService implements MedicationRequestDirectory {
         MasterDataViews.PriceView resolvedPrice = null;
 
         if (productSelected) {
-            var catalog = catalogDirectory.resolve(tenantId, input.catalogItemId(), performerOrganizationId,
-                    input.packageId(), priceType, businessDate);
+            var catalog = prepared != null && Objects.equals(prepared.catalogItemId(), input.catalogItemId())
+                    && Objects.equals(prepared.packageId(), input.packageId())
+                    && Objects.equals(prepared.priceType(), priceType)
+                    && Objects.equals(prepared.organizationId(), performerOrganizationId)
+                    && Objects.equals(prepared.businessDate(), businessDate)
+                    ? prepared
+                    : catalogDirectory.resolve(tenantId, input.catalogItemId(), performerOrganizationId,
+                            input.packageId(), priceType, businessDate);
             item = catalog.item(); itemPackage = catalog.itemPackage(); medication = catalog.medication();
             if (!"MED_PRODUCT".equals(item.itemType()) || medication == null) {
                 throw badRequest("MEDICATION_REQUEST_ITEM_TYPE_INVALID", "药品请求只能选择药品产品");
@@ -334,7 +382,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
     /** 执行门诊过敏状态核对与过敏原命中校验。 */
     private AllergyAssessment assessAllergies(CreateContext ctx, CreateMedicationRequest input,
                                               CatalogLifecycleDirectory.MedicationSnapshot medication) {
-        var activeAllergies = allergyDirectory.activeForResident(ctx.encounter().residentId());
+        var activeAllergies = TransactionScopedFacts.reuse(
+                "allergies:" + ctx.encounter().tenantId() + ':' + ctx.encounter().residentId(),
+                () -> allergyDirectory.activeForResident(ctx.encounter().residentId()));
         var drugAllergies = activeAllergies.stream()
                 .filter(AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
         boolean drugAllergyStatusRecorded = !drugAllergies.isEmpty() || activeAllergies.stream().anyMatch(allergy ->
@@ -443,9 +493,32 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (fulfillment != null) cancellationPolicy.requireCancellable(fulfillment, CANCEL_BLOCKED_CODE);
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         if (fulfillment != null) cancellationPolicy.releaseUnstarted(fulfillment);
+        if (fulfillment != null && value.requestGroupId() != null) {
+            prescriptionRepository.findByIdAndTenantId(value.requestGroupId(), encounter.tenantId())
+                    .filter(prescription -> prescription.status() == PrescriptionStatus.ACTIVE)
+                    .ifPresent(prescription -> refreshSafetyReview(prescription, value.id()));
+        }
         repository.flush();
         publishCancellation(value, input.reason().trim(), context.subjectId(), draft, encounter);
         return response(value);
+    }
+
+    /**
+     * 已签署处方内药品撤销后同步剔除审方快照中的该药品：药房与处方打印按快照核对，
+     * 保留已撤销药品会让审方结论与实际处方不一致。
+     */
+    private void refreshSafetyReview(Prescription prescription, Long cancelledRequestId) {
+        String snapshot = prescription.safetyReviewJson();
+        if (snapshot == null) return;
+        var review = jsonCodec.read(snapshot, PrescriptionSafetyReviewDirectory.Review.class);
+        if (review == null || review.medications() == null) return;
+        var medications = review.medications().stream()
+                .filter(medication -> !cancelledRequestId.equals(medication.requestId()))
+                .toList();
+        if (medications.size() == review.medications().size()) return;
+        prescription.recordSafetyReview(jsonCodec.write(new PrescriptionSafetyReviewDirectory.Review(
+                review.prescriptionId(), review.prescriptionNo(), review.submittedAt(), review.doctorReason(),
+                review.evaluation(), medications)));
     }
 
     MedicationRequest requireOwned(Long tenantId, Long encounterId, Long requestId) {
@@ -477,7 +550,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 input.exemptEvidenceEventId(), value.reasonText());
         CreateContext ctx = new CreateContext(encounter, context, encounter.tenantId(), value.businessDate(), prescription,
                 new ExecutionScope(value.performerOrganizationId(), value.performerDepartmentId()));
-        CatalogSelection selection = resolveCatalogSelection(ctx, create);
+        CatalogSelection selection = resolveCatalogSelection(ctx, create, null);
         UnitSelection units = resolveUnits(create, selection);
         DirectionSelection directions = resolveDirections(ctx, create, selection);
         AllergyAssessment allergies = assessAllergies(ctx, create, selection.medication());
@@ -567,6 +640,48 @@ class MedicationRequestService implements MedicationRequestDirectory {
     public MedicationRequestSnapshot requireForRouting(Long tenantId, Long requestId) {
         return repository.findByIdAndTenantId(requestId, tenantId).map(this::pharmacySnapshot)
                 .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, MedicationRequestSnapshot> pharmacySnapshots(java.util.Collection<Long> requestIds) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        java.util.List<Long> ids = requestIds.stream().distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        java.util.List<MedicationRequest> values = new java.util.ArrayList<>();
+        // Oracle IN 上限 1000，按 500 分片
+        for (int from = 0; from < ids.size(); from += 500) {
+            values.addAll(repository.findByIdsForRouting(context.tenantId(),
+                    ids.subList(from, Math.min(from + 500, ids.size()))));
+        }
+        if (values.isEmpty()) return Map.of();
+        java.util.Set<Long> organizations = values.stream().map(MedicationRequest::performerOrganizationId)
+                .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        for (Long organizationId : organizations) requirePharmacyOrganizationAccess(context, organizationId);
+        Map<Long, MedicationRequestSnapshot> result = new LinkedHashMap<>();
+        for (MedicationRequestSnapshot snapshot : pharmacySnapshots(values, context.tenantId())) {
+            result.put(snapshot.id(), snapshot);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, MedicationRequestSnapshot> routingSnapshots(Long tenantId, java.util.Collection<Long> requestIds) {
+        java.util.List<Long> ids = requestIds == null ? java.util.List.of() : requestIds.stream().distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        java.util.List<MedicationRequest> values = new java.util.ArrayList<>();
+        // Oracle IN 上限 1000，按 500 分片
+        for (int from = 0; from < ids.size(); from += 500) {
+            values.addAll(repository.findByIdsForRouting(tenantId,
+                    ids.subList(from, Math.min(from + 500, ids.size()))));
+        }
+        if (values.isEmpty()) return Map.of();
+        Map<Long, MedicationRequestSnapshot> result = new LinkedHashMap<>();
+        for (MedicationRequestSnapshot snapshot : pharmacySnapshots(values, tenantId)) {
+            result.put(snapshot.id(), snapshot);
+        }
+        return result;
     }
 
     @Override

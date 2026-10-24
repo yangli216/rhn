@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DiagnosticTemplateVersion } from '../../../shared/api/diagnosticTemplateTypes'
-import { CBC_5PART_INDICATORS } from '../../../shared/clinical/nationalStandardLabCatalog'
+import { CBC_5PART_INDICATORS, LABORATORY_RESULT_PRESETS, nationalTemplateAsVersion } from '../../../shared/clinical/nationalStandardLabCatalog'
 import { LaboratoryResultEditor } from './LaboratoryResultEditor'
 
 const mockTemplate: DiagnosticTemplateVersion = {
@@ -136,7 +136,7 @@ describe('LaboratoryResultEditor real-time evaluation & navigation', () => {
       />
     )
 
-    expect(screen.getByText('套用国家标准模板 (WS/T 404/405)')).toBeInTheDocument()
+    expect(screen.getByText('载入项目结果模板')).toBeInTheDocument()
   })
 
   it('triggers critical value warning only on blur, avoiding premature alert during continuous typing', () => {
@@ -223,4 +223,50 @@ describe('LaboratoryResultEditor real-time evaluation & navigation', () => {
     expect(screen.getByText(/危急值预警 1 项/)).toBeInTheDocument()
     expect(screen.getByText('极低危急 ↓↓')).toBeInTheDocument()
   })
+  it('requires confirmation before replacing already entered results with a project preset', () => {
+    const onApply = vi.fn()
+    const preset = LABORATORY_RESULT_PRESETS.find((item) => item.itemCode === '25010101501')!
+    render(<LaboratoryResultEditor rows={[{ observationCode: 'WBC', observationName: '白细胞', valueType: 'NUMBER', observationValue: '5' }]}
+      disabled={false} onChange={vi.fn()} presetTemplates={[preset]} onApplyTemplate={onApply} />)
+    fireEvent.click(screen.getByLabelText('套用项目结果模板'))
+    fireEvent.click(screen.getByRole('option', { name: preset.templateName }))
+    expect(screen.getByRole('dialog', { name: '载入项目模板并清空现有指标结果？' })).toBeInTheDocument()
+    expect(onApply).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '保留当前内容' }))
+    expect(screen.getByLabelText('指标1结果')).toHaveValue('5')
+    fireEvent.click(screen.getByLabelText('套用项目结果模板'))
+    fireEvent.click(screen.getByRole('option', { name: preset.templateName }))
+    fireEvent.click(screen.getByRole('button', { name: '载入并清空指标结果' }))
+    expect(onApply).toHaveBeenCalledWith(preset)
+  })
+
+  it('shows adult three-part reference intervals before typing and explains unconfigured instrument parameters', () => {
+    const preset = LABORATORY_RESULT_PRESETS.find((item) => item.itemCode === '25010101501')!
+    render(<LaboratoryResultEditor rows={preset.content.indicators.map((i) => ({ observationCode: i.code, observationName: i.name,
+      valueType: i.valueType, observationValue: '', unitCode: i.unitCode }))} template={nationalTemplateAsVersion(preset)}
+      patient={{ gender: 'MALE', ageDays: 51 * 365 }} disabled={false} onChange={vi.fn()} />)
+    expect(screen.getByText('3.5 ～ 9.5')).toBeInTheDocument()
+    expect(screen.getByText('130 ～ 175')).toBeInTheDocument()
+    expect(screen.getByText('40 ～ 50')).toBeInTheDocument()
+    expect(screen.getAllByText('待机构确认').length).toBeGreaterThan(0)
+  })
+
+  it('recalculates a saved result when the reagent profile changes and clears stale flags if no profile applies', () => {
+    const preset = LABORATORY_RESULT_PRESETS.find((item) => item.itemCode === '25030500700')!
+    const onChange = vi.fn()
+    const row = { observationCode: 'ALT', observationName: '丙氨酸氨基转移酶', valueType: 'NUMBER' as const,
+      observationValue: '42', instrumentCode: 'IFCC_NO_P5P', referenceRangeLow: 7, referenceRangeHigh: 40, interpretationCode: 'H' as const }
+    const { rerender } = render(<LaboratoryResultEditor rows={[row]} template={nationalTemplateAsVersion(preset)}
+      patient={{ gender: 'FEMALE', ageDays: 51 * 365 }} disabled={false} onChange={onChange} />)
+    fireEvent.click(screen.getAllByRole('combobox')[0])
+    fireEvent.click(screen.getByRole('option', { name: '试剂含磷酸吡哆醛（P5P）' }))
+    const updated = onChange.mock.calls.at(-1)![0]
+    expect(updated[0]).toMatchObject({ instrumentCode: 'IFCC_P5P', referenceRangeHigh: 45, interpretationCode: 'N' })
+    rerender(<LaboratoryResultEditor rows={[{ ...updated[0], instrumentCode: 'OTHER', referenceRangeLow: undefined, referenceRangeHigh: undefined, interpretationCode: undefined }]}
+      template={nationalTemplateAsVersion(preset)} patient={{ gender: 'FEMALE', ageDays: 51 * 365 }} disabled={false} onChange={onChange} />)
+    fireEvent.change(screen.getByLabelText('指标1结果'), { target: { value: '43' } })
+    expect(onChange.mock.calls.at(-1)![0][0]).toMatchObject({ ruleStatus: 'NO_RULE', interpretationCode: undefined, referenceRangeHigh: undefined })
+    expect(screen.getByText('无适用区间')).toBeInTheDocument()
+  })
+
 })

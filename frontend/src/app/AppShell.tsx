@@ -78,6 +78,8 @@ const WarehouseManagement = lazy(() => import('../features/pharmacy/WarehouseMan
   .then((module) => ({ default: module.WarehouseManagement })))
 const BillingWorkspace = lazy(() => import('../features/billing/BillingWorkspace')
   .then((module) => ({ default: module.BillingWorkspace })))
+const SettlementExceptionWorkspace = lazy(() => import('../features/billing/SettlementExceptionWorkspace')
+  .then((module) => ({ default: module.SettlementExceptionWorkspace })))
 const BillingQueryWorkspace = lazy(() => import('../features/billing/BillingQueryWorkspace')
   .then((module) => ({ default: module.BillingQueryWorkspace })))
 const RefundManagementWorkspace = lazy(() => import('../features/billing/RefundManagementWorkspace')
@@ -91,6 +93,8 @@ const ReliefRosterManagement = lazy(() => import('../features/billing/relief/Rel
   .then((module) => ({ default: module.ReliefRosterManagement })))
 const ReliefRecordQuery = lazy(() => import('../features/billing/relief/ReliefRecordQuery')
   .then((module) => ({ default: module.ReliefRecordQuery })))
+const DiagnosticReportQuery = lazy(() => import('../features/diagnostics/shared/DiagnosticReportQuery')
+  .then((module) => ({ default: module.DiagnosticReportQuery })))
 const LaboratoryWorkspace = lazy(() => import('../features/diagnostics/laboratory/LaboratoryWorkspace')
   .then((module) => ({ default: module.LaboratoryWorkspace })))
 const ExaminationWorkspace = lazy(() => import('../features/diagnostics/examination/ExaminationWorkspace')
@@ -264,7 +268,9 @@ export const NAVIGATION_NODES: NavigationNode[] = [
   {
     id: 'medtech-services', label: '医技管理', icon: 'flask', children: [
       { id: 'laboratory', label: '检验工作台', icon: 'flask', to: '/diagnostics/laboratory', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'laboratory-reports', label: '检验报告查询', icon: 'flask', to: '/diagnostics/laboratory/reports', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'examination', label: '检查工作台', icon: 'clinical', to: '/diagnostics/examination', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'examination-reports', label: '检查报告查询', icon: 'clinical', to: '/diagnostics/examination/reports', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'treatments', label: '治疗执行', icon: 'syringe', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'clinical-printing', label: '临床打印', icon: 'print', to: '/printing/batches', requiredAuthority: 'TREATMENT.ACCESS' },
@@ -281,6 +287,7 @@ export const NAVIGATION_NODES: NavigationNode[] = [
   {
     id: 'billing-management', label: '收费管理', icon: 'billing', children: [
       { id: 'billing-settlement', label: '收费结算', icon: 'billing', to: '/billing/settlement', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'billing-exceptions', label: '异常待处理', icon: 'warning', to: '/billing/exceptions', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-query', label: '收费查询', icon: 'search', to: '/billing/query', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-refunds', label: '退费管理', icon: 'billing', to: '/billing/refunds', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'payment-reconciliation', label: '支付对账', icon: 'billing', to: '/billing/payment-reconciliation', requiredAuthority: 'PAYMENT_RECONCILIATION.READ' },
@@ -367,8 +374,8 @@ export const NAVIGATION_NODES: NavigationNode[] = [
 export function canAccessDiagnosticWorkspace(path: string, authorities: Set<string>) {
   const pathname = path.split('?')[0]
   if (!pathname.startsWith('/diagnostics')) return true
-  const categories = pathname === '/diagnostics/laboratory' ? ['LABORATORY']
-    : pathname === '/diagnostics/examination' ? ['EXAMINATION'] : ['LABORATORY', 'EXAMINATION']
+  const categories = pathname.startsWith('/diagnostics/laboratory') ? ['LABORATORY']
+    : pathname.startsWith('/diagnostics/examination') ? ['EXAMINATION'] : ['LABORATORY', 'EXAMINATION']
   return authorities.has('ROLE_ADMIN') || categories.some((category) =>
     ['VIEW', 'EXECUTE', 'EDIT', 'SIGN'].some((action) => authorities.has(`DIAGNOSTICS.${category}.${action}`)))
 }
@@ -455,6 +462,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/pharmacy/warehouse') return { id: pathname, path: pathname, title: '库房管理', icon: 'pharmacy', closeable: true }
   if (pathname === '/billing') return { id: pathname, path: pathname, title: '费用结算', icon: 'billing', closeable: true }
   if (pathname === '/billing/settlement') return { id: pathname, path: pathname, title: '收费结算', icon: 'billing', closeable: true }
+  if (pathname === '/billing/exceptions') return { id: pathname, path: pathname, title: '异常待处理', icon: 'warning', closeable: true }
   if (pathname === '/billing/query') return { id: pathname, path: pathname, title: '收费查询', icon: 'search', closeable: true }
   if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
   if (pathname === '/billing/payment-reconciliation') return { id: pathname, path: pathname, title: '支付对账', icon: 'billing', closeable: true }
@@ -462,6 +470,8 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/billing/relief-policies') return { id: pathname, path: pathname, title: '惠民政策', icon: 'settings', closeable: true }
   if (pathname === '/billing/relief-roster') return { id: pathname, path: pathname, title: '惠民资格名单', icon: 'residents', closeable: true }
   if (pathname === '/billing/relief-records') return { id: pathname, path: pathname, title: '惠民减免查询', icon: 'search', closeable: true }
+  if (pathname === '/diagnostics/laboratory/reports') return { id: pathname, path: pathname, title: '检验报告查询', icon: 'flask', closeable: true }
+  if (pathname === '/diagnostics/examination/reports') return { id: pathname, path: pathname, title: '检查报告查询', icon: 'clinical', closeable: true }
   if (pathname === '/diagnostics/laboratory') return { id: pathname, path: pathname, title: '检验工作台', icon: 'flask', closeable: true }
   if (pathname === '/diagnostics/examination') return { id: pathname, path: pathname, title: '检查工作台', icon: 'clinical', closeable: true }
   if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'syringe', closeable: true }
@@ -1138,6 +1148,8 @@ export function AppShell() {
                     clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} username={session.username} />} />
                   <Route path="/billing/settlement" element={<BillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} username={session.username} />} />
+                  <Route path="/billing/exceptions" element={<SettlementExceptionWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/query" element={<BillingQueryWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/refunds" element={<RefundManagementWorkspace api={tabSlot.api}
@@ -1153,6 +1165,10 @@ export function AppShell() {
                   <Route path="/billing/relief-roster" element={<ReliefRosterManagement api={tabSlot.api}
                     canEdit={tabAuthorities.has('BILLING_RELIEF.ROSTER')} />} />
                   <Route path="/billing/relief-records" element={<ReliefRecordQuery api={tabSlot.api} />} />
+                  <Route path="/diagnostics/laboratory/reports" element={<DiagnosticReportQuery api={tabSlot.api}
+                    requestType="LABORATORY" clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/diagnostics/examination/reports" element={<DiagnosticReportQuery api={tabSlot.api}
+                    requestType="EXAMINATION" clinicalContext={tabSlot.clinicalContext} authorities={[...tabAuthorities]} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/diagnostics/laboratory" element={<LaboratoryWorkspace api={tabSlot.api}
                     authorities={[...tabAuthorities]}
                     clinicalContext={tabSlot.clinicalContext} onDirtyChange={(value) => markDirty(tab.id, value)}
@@ -1494,15 +1510,12 @@ function UserAccountMenu({ api, session, activeContexts, activeContextType, them
     </button>
     {open && <section id="account-menu-panel" className="account-panel" role="region" aria-label="用户与账户">
       <header className="account-panel__header">
-        <span className="avatar avatar--large" aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span>
-        <div><strong>{session.username}</strong><span>当前登录用户</span></div>
+        <span className="avatar" aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span>
+        <strong title={session.username}>{session.username}</strong>
       </header>
 
       <div className="account-panel__context">
-        <div className="account-panel__section-label">
-          <span>业务工作上下文</span>
-          <small>多类型自由配置</small>
-        </div>
+        <div className="account-panel__section-label">工作科室</div>
 
         <div className="account-panel__context-group">
           {availableTypes.length > 1 && (
@@ -1540,14 +1553,14 @@ function UserAccountMenu({ api, session, activeContexts, activeContextType, them
       <div className="account-panel__font-section"><FontSizeControl /></div>
 
       <div className="account-panel__theme-section">
-        <div className="account-panel__section-label"><span>系统主色调</span><small>自由切换</small></div>
+        <div className="account-panel__section-label">主题颜色</div>
         <div className="account-panel__theme-grid" role="radiogroup" aria-label="系统主色调选择">
           {THEME_OPTIONS.map((theme) => (
             <button key={theme.id} type="button" role="radio" aria-checked={themeColor === theme.id}
               className={`account-panel__theme-btn ${themeColor === theme.id ? 'is-active' : ''}`}
-              onClick={() => onThemeChange(theme.id)}>
-              <span className={`account-panel__theme-dot is-${theme.id}`} />
-              <span><strong>{theme.label}</strong><small>{theme.desc}</small></span>
+              title={theme.desc} onClick={() => onThemeChange(theme.id)}>
+              <span className={`account-panel__theme-dot is-${theme.id}`} aria-hidden="true" />
+              <span>{theme.label}</span>
             </button>
           ))}
         </div>
@@ -1555,16 +1568,16 @@ function UserAccountMenu({ api, session, activeContexts, activeContextType, them
 
       <div className="account-panel__shortcuts" aria-label="快捷操作">
         <button type="button" onClick={() => navigateFromMenu('/')}>
-          <Icon name="home" /><span><strong>工作台</strong><small>返回首页</small></span>
+          <Icon name="home" /><span>工作台</span>
         </button>
         <button type="button" onClick={() => navigateFromMenu('/tasks')}>
-          <Icon name="tasks" /><span><strong>我的任务</strong><small>查看待办</small></span>
+          <Icon name="tasks" /><span>我的任务</span>
         </button>
         <button type="button" disabled={refreshing} onClick={() => void refreshWorkspace()}>
-          <Icon name="refresh" /><span><strong>{refreshing ? '正在刷新' : '刷新数据'}</strong><small>更新当前页面</small></span>
+          <Icon name="refresh" /><span>{refreshing ? '正在刷新' : '刷新数据'}</span>
         </button>
         <button type="button" onClick={() => void toggleFullscreen()}>
-          <Icon name="fullscreen" /><span><strong>{fullscreen ? '退出全屏' : '全屏显示'}</strong><small>扩展工作区</small></span>
+          <Icon name="fullscreen" /><span>{fullscreen ? '退出全屏' : '全屏显示'}</span>
         </button>
       </div>
 
@@ -2098,7 +2111,7 @@ function NavigationTree({ nodes, pathname, collapsed, expandedDirectories, onTog
         const content = <>
           <NavigationGlyph node={node} />
           <span className="nav-label">{node.label}</span>
-          {(node.id === 'billing-settlement' || node.id === 'billing-query') && <BillingExceptionNavBadge />}
+          {(node.id === 'billing-settlement' || node.id === 'billing-exceptions') && <BillingExceptionNavBadge />}
         </>
         return <div className="nav-node" key={node.id}>
           {node.fullPageNavigation

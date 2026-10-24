@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Public, read-only medication-order contract consumed by pharmacy and billing modules. */
@@ -16,6 +17,22 @@ public interface MedicationRequestDirectory {
     MedicationRequestSnapshot requireForPharmacy(Long requestId);
     MedicationRequestSnapshot lockForPharmacyIntake(Long requestId);
     MedicationRequestSnapshot requireForRouting(Long tenantId, Long requestId);
+
+    /**
+     * 批量读取药房范围的药品请求快照（机构范围校验与 {@link #requireForPharmacy(Long)} 一致），按 id 返回；
+     * 默认返回空 Map，调用方逐条回退。
+     */
+    default Map<Long, MedicationRequestSnapshot> pharmacySnapshots(Collection<Long> requestIds) {
+        return Map.of();
+    }
+
+    /**
+     * 批量读取路由所需快照（与 {@link #requireForRouting(Long, Long)} 同语义），按 id 返回缺失项不包含；
+     * 默认返回空 Map，调用方逐条回退。
+     */
+    default Map<Long, MedicationRequestSnapshot> routingSnapshots(Long tenantId, Collection<Long> requestIds) {
+        return Map.of();
+    }
 
     /** 批量筛出已作废(停嘱)的药品请求 id，供药房应退列表避免逐条加载。 */
     Set<Long> cancelledRequestIds(Long tenantId, Collection<Long> requestIds);

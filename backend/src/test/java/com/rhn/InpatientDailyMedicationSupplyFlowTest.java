@@ -17,7 +17,9 @@ import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ResetDatabaseBeforeEachTestMethod
@@ -88,6 +90,16 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         assertEquals(requestId, firstSupplyLine.get("requestId").asString());
         assertEquals(2, firstSupplyLine.get("occurrenceCount").asInt());
         assertEquals(2, firstSupplyLine.get("occurrences").size());
+        // 列表端点批量装配后，供药明细、给药节点与药品请求路由字段仍需完整带出
+        mockMvc.perform(get("/api/pharmacy/ward-supply-batches")
+                        .param("stockSiteId", INPATIENT_STOCK_SITE)
+                        .param("nursingUnitDepartmentId", nursingUnitDepartmentId)
+                        .param("businessDate", firstDate.toString())
+                        .with(pharmacyContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(firstBatch.get("id").asString()))
+                .andExpect(jsonPath("$[0].lines[0].catalogItemId").value(PRODUCT))
+                .andExpect(jsonPath("$[0].lines[0].occurrences.length()").value(2));
         assertEquals("SUBMITTED", jdbc.queryForObject("""
                 select SD_STATUS as status from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?
                 """, String.class, firstBatch.get("id").asLong()));
