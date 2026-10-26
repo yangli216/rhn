@@ -357,4 +357,51 @@ title: 阿莫西林胶囊
     const tdTexts = Array.from(prose!.querySelectorAll('td')).map((td) => td.innerHTML)
     expect(tdTexts.some((t) => t.includes('&lt;br&gt;') || t.includes('&lt;br/&gt;'))).toBe(false)
   })
+
+  it('renders GFM callout boxes and strips raw [!CAUTION] and [!WARNING] markers', async () => {
+    const docWithCallouts: ClinicalAiWikiDocResult = {
+      id: 'cefixime-safety',
+      title: '药品说明书 · 头孢克肟分散片',
+      type: 'MEDICATION',
+      genericName: '头孢克肟',
+      markdown: `### 四、 临床警示与黑框级安全防范
+
+> [!CAUTION]
+> #### 🛑 严重警示一：假膜性肠炎
+> - 口服广谱第三代头孢菌素可严重清除结肠正常厌氧微生态菌群。
+
+> [!WARNING]
+> #### ⚠️ 核心规则二：肾功能减退阶梯减量
+> - 头孢克肟主要以原型经肾脏随尿排泄。`,
+    }
+    const getWikiDoc = vi.fn().mockResolvedValue(docWithCallouts)
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+
+    render(
+      <MedicalInsertViewerModal
+        isOpen
+        onClose={vi.fn()}
+        target={{ name: '头孢克肟分散片', type: 'medication' }}
+        api={api}
+      />
+    )
+
+    expect(await screen.findByText(/假膜性肠炎/)).toBeInTheDocument()
+
+    const prose = document.querySelector('.medical-insert-prose')
+    expect(prose).not.toBeNull()
+
+    // 确认渲染为专业的 callout 卡片容器
+    const cautionBox = prose!.querySelector('.medical-insert-callout-caution')
+    expect(cautionBox).toBeInTheDocument()
+    expect(cautionBox).toHaveTextContent(/假膜性肠炎/)
+
+    const warningBox = prose!.querySelector('.medical-insert-callout-warning')
+    expect(warningBox).toBeInTheDocument()
+    expect(warningBox).toHaveTextContent(/肾功能减退阶梯减量/)
+
+    // 确认原始标记 [!CAUTION] 和 [!WARNING] 绝不会以文字直接暴露给用户
+    expect(prose!.textContent).not.toContain('[!CAUTION]')
+    expect(prose!.textContent).not.toContain('[!WARNING]')
+  })
 })

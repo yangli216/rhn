@@ -50,6 +50,56 @@ function formatBr(node: React.ReactNode): React.ReactNode {
   return node
 }
 
+function extractCalloutMarker(node: React.ReactNode): { type: string; cleanNode: React.ReactNode | null } | null {
+  if (typeof node === 'string') {
+    const m = node.match(/^\[!(NOTE|WARNING|CAUTION|IMPORTANT|TIP|INFO)\]\s*(.*)$/i)
+    if (m) {
+      return { type: m[1].toLowerCase(), cleanNode: m[2] ? m[2] : null }
+    }
+  } else if (Array.isArray(node) && node.length > 0) {
+    const firstRes = extractCalloutMarker(node[0])
+    if (firstRes) {
+      const rest = node.slice(1)
+      const cleanList = firstRes.cleanNode ? [firstRes.cleanNode, ...rest] : rest
+      return { type: firstRes.type, cleanNode: cleanList.length > 0 ? cleanList : null }
+    }
+  } else if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode }
+    if (props && props.children) {
+      const childRes = extractCalloutMarker(props.children)
+      if (childRes) {
+        if (!childRes.cleanNode) {
+          return { type: childRes.type, cleanNode: null }
+        }
+        return {
+          type: childRes.type,
+          cleanNode: React.cloneElement(node, { children: childRes.cleanNode } as any),
+        }
+      }
+    }
+  }
+  return null
+}
+
+function parseCallout(children: React.ReactNode): { type: string; cleanChildren: React.ReactNode } | null {
+  if (!children) return null
+  const rawList = Array.isArray(children) ? children : [children]
+  // 过滤开头和结尾的空换行字符
+  const list = rawList.filter((item) => {
+    if (typeof item === 'string' && !item.trim()) return false
+    return true
+  })
+  if (list.length === 0) return null
+
+  const marker = extractCalloutMarker(list[0])
+  if (marker) {
+    const rest = list.slice(1)
+    const cleanList = marker.cleanNode ? [marker.cleanNode, ...rest] : rest
+    return { type: marker.type, cleanChildren: cleanList }
+  }
+  return null
+}
+
 function safeKnowledgeHtml(value?: string) {
   if (!value || typeof DOMParser === 'undefined') return ''
   const parsed = new DOMParser().parseFromString(value, 'text/html')
@@ -370,6 +420,20 @@ export function MedicalInsertViewerModal({
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
+                  blockquote({ children, ...props }) {
+                    const callout = parseCallout(children)
+                    if (callout) {
+                      return (
+                        <div
+                          className={`medical-insert-callout medical-insert-callout-${callout.type}`}
+                          role="alert"
+                        >
+                          {formatBr(callout.cleanChildren)}
+                        </div>
+                      )
+                    }
+                    return <blockquote {...props}>{formatBr(children)}</blockquote>
+                  },
                   td({ children, ...props }) {
                     return <td {...props}>{formatBr(children)}</td>
                   },
