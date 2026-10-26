@@ -1,8 +1,53 @@
 /* 门诊临床知识轻量面板 */
 
-/* 指南与说明书正文较长，默认比通用面板（30rem）宽一些。 */
+/* 指南与说明书正文较长，默认比通用面板（30rem）宽一些，并支持左侧拖拽拉宽。 */
 .ui-dialog-backdrop--panel > .clinical-knowledge-panel.ui-dialog--panel {
   width: min(36rem, calc(100vw - 2 * var(--space-4)));
+  max-width: calc(100vw - 2 * var(--space-4));
+  min-width: min(28rem, calc(100vw - 2 * var(--space-4)));
+  transition: width var(--motion-fast) ease-out;
+}
+
+.ui-dialog-backdrop--panel > .clinical-knowledge-panel.ui-dialog--panel.is-resizing {
+  transition: none;
+  user-select: none;
+}
+
+.clinical-knowledge-panel__resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 10px;
+  z-index: var(--z-sticky, 20);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.clinical-knowledge-panel__resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 3px;
+  height: 3rem;
+  transform: translateY(-50%);
+  border-radius: var(--radius-round, 9999px);
+  background: var(--color-border-strong);
+  opacity: 0;
+  transition: opacity var(--motion-fast), background-color var(--motion-fast), height var(--motion-fast);
+}
+
+.clinical-knowledge-panel__resizer:hover::after,
+.clinical-knowledge-panel__resizer:focus-visible::after,
+.clinical-knowledge-panel__resizer.is-dragging::after {
+  opacity: 1;
+  height: 60%;
+  background: var(--color-brand-primary);
+}
+
+.clinical-knowledge-panel__resizer:focus-visible {
+  outline: none;
 }
 
 .clinical-knowledge-panel__body {

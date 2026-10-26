@@ -452,6 +452,7 @@ export function Dialog({
   closeOnBackdrop = true,
   size = 'default',
   className = '',
+  style,
   initialFocusRef,
   enterNavigation = true,
   presentation = 'dialog',
@@ -466,6 +467,7 @@ export function Dialog({
   closeOnBackdrop?: boolean
   size?: 'default' | 'wide' | 'xwide'
   className?: string
+  style?: CSSProperties
   initialFocusRef?: RefObject<HTMLElement | null>
   enterNavigation?: boolean
   presentation?: 'dialog' | 'drawer' | 'panel'
@@ -626,6 +628,7 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={`ui-dialog ${presentation !== 'dialog' ? `ui-dialog--${presentation}` : ''} ${size !== 'default' ? `ui-dialog--${size}` : ''} ${className}`}
+        style={style}
         role="dialog"
         data-dialog-id={panelId}
         data-dialog-ancestors={ancestors.join(' ')}
