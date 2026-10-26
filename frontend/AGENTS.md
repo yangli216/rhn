@@ -4,6 +4,7 @@
 
 - 编码前用一段进度说明明确：页面类型、选用模板、共享组件、主操作位置、滚动区域和必要偏离。无需为常规选型等待用户确认。
 - 新页面从 `src/shared/ui/templates` 的四种模板组合开始。参考旧页面时仅复用入口文档明确标注的模式，不能把整页当作合规证明。
+- 页面默认遵循“正文优先，布局紧凑，对齐工整”，按 [UI 规范第 2.7 节](../docs/用户界面设计与开发规范.md#27-用户偏好正文优先紧凑有序) 实现并主动自查，用户无需重复说明。
 - `src/shared/ui/README.md` 是组件 API/用法导航；`../docs/用户界面设计与开发规范.md` 是设计规则来源。发现二者不一致时核对实现并同步文档，不能静默挑选更宽松的说法。
 - 优先使用共享 Button、SearchField、Select/DictionarySelect/FormSelect、DataTable、Tabs、Dialog、EditableTable。普通文本 input/textarea 继续由 FormField 包装；不要求发明不存在的 Input 组件。
 - 业务 CSS 负责布局，不重写共享控件的颜色、字号、圆角、阴影、焦点或禁用外观。尺寸、分栏宽度可按业务设置；视觉值使用语义令牌。

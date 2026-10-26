@@ -420,6 +420,11 @@ describe('AI Pre-consultation data boundary in DoctorWorkstation', () => {
     } as unknown as Encounter
 
     const api = {
+      clinicalAi: {
+        capabilities: vi.fn().mockResolvedValue({ available: false, mode: 'DISABLED', provider: 'test', features: [] }),
+        history: vi.fn().mockResolvedValue([]),
+        recommendPlans: vi.fn().mockResolvedValue([]),
+      },
       clinicalSafety: {
         vitalSignRules: vi.fn().mockResolvedValue({ rules: [] }),
       },

@@ -115,7 +115,7 @@ export function toggleTool(current: WorkTool | null, next: WorkTool): WorkTool |
 }
 
 export function toolLabel(value: WorkTool) {
-  return ({ assistant: '智医助理', plans: '临床模板', history: '就诊历史', results: '检验检查报告', coordination: '协同业务',
+  return ({ assistant: '智医助理', plans: '临床模板', history: '就诊历史', results: '检验检查报告', coordination: '会诊 / 转科',
     allergy: '过敏信息', prints: '就诊文书' } as const)[value]
 }
 

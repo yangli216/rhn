@@ -226,3 +226,28 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
 }
+
+.diagnostic-report-document.is-compact .diagnostic-report-document__header {
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.diagnostic-report-document.is-compact .diagnostic-report-document__title { text-align: left; }
+.diagnostic-report-document.is-compact .diagnostic-report-document__title h3 { margin: 0; }
+
+.diagnostic-report-document__context {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.diagnostic-report-document__context > summary {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.diagnostic-report-document__context > summary > span { margin-inline-end: var(--space-3); }
+.diagnostic-report-document__context-toggle { color: var(--color-text-secondary); }
+.diagnostic-report-document__context .diagnostic-report-document__facts { border-bottom: 0; }

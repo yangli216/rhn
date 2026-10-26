@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
@@ -46,16 +46,16 @@ describe('OutpatientFlowWorkspace composite visit', () => {
       <OutpatientFlowWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
     </QueryClientProvider>)
 
-    await userEvent.click(await screen.findByRole('button', { name: /流程完成.*1/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /流程结束.*1/ }))
     const row = await screen.findByRole('row', { name: /复合门诊居民/ })
-    expect(row).toHaveTextContent('接诊诊毕')
-    expect(row).toHaveTextContent('费用已结算')
-    expect(row).toHaveTextContent(`取药${pharmacyText}`)
+    expect(row).toHaveTextContent('接诊：诊毕')
+    expect(row).toHaveTextContent('费用：已结算')
+    expect(row).toHaveTextContent(`取药：${pharmacyText}`)
     if (pharmacyStatus !== 'COMPLETED') {
-      expect(row.querySelector(`.is-${pharmacyStatus.toLowerCase()}`)).not.toHaveTextContent('✓')
+      expect(row).not.toHaveTextContent('✓')
     }
-    expect(row).toHaveTextContent('医技已完成 · 2项')
-    expect(row).toHaveTextContent('治疗已完成')
+    expect(row).toHaveTextContent('医技：已完成 · 2项')
+    expect(row).toHaveTextContent('治疗：已完成')
     expect(row).toHaveTextContent('可以离院')
     expect(row).toHaveTextContent(reason)
   })
@@ -113,7 +113,7 @@ describe('OutpatientFlowWorkspace composite visit', () => {
     const searchField = container.querySelector('.ui-search-field')
     expect(searchField).toBeInTheDocument()
     const searchInput = screen.getByRole('searchbox', { name: '搜索患者' })
-    expect(searchInput).toHaveAttribute('placeholder', '姓名 / 档案号 / 就诊号（回车或点击查询）')
+    expect(searchInput).toHaveAttribute('placeholder', '姓名 / 档案号 / 就诊号')
     expect(screen.getByRole('button', { name: '查询' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '重置' })).toBeInTheDocument()
 
@@ -146,5 +146,13 @@ describe('OutpatientFlowWorkspace composite visit', () => {
 
     await user.click(screen.getByRole('button', { name: '查询' }))
     expect(vi.mocked(api.outpatientFlow.board)).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, '张三')
+    await user.click(screen.getByRole('button', { name: '全部患者' }))
+    expect(screen.getByRole('button', { name: '全部患者' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: '重置' }))
+    expect(searchInput).toHaveValue('')
+    await waitFor(() => expect(api.outpatientFlow.board).toHaveBeenLastCalledWith(
+      getTodayRange().from, getTodayRange().to, undefined, ''))
+    expect(await screen.findByRole('button', { name: /候诊.*接诊.*15/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('OP-1')).toBeInTheDocument()
   })
 })

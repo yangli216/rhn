@@ -6,7 +6,8 @@ import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelect
 import { ClinicalEvidenceDrawer } from './ClinicalEvidenceDrawer'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { ServiceInsertButton } from './ServiceInsertButton'
-import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
+import { assessReceptionScene } from './receptionSceneAssessment'
+import { outpatientReportQueries } from '../outpatientReportQueries'
 import { ChronicRefillActionCard } from './ChronicRefillActionCard'
 import { useChronicRefill } from './useChronicRefill'
 import { speechRecognitionConstructor, type BrowserSpeechRecognition } from '../../../shared/utils/speechRecognition'
@@ -64,7 +65,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   surfaces?: ClinicalAiSurfaces
   onOpenDetail?: () => void
   onOpenHistory?: () => void
-  onOpenResults?: () => void
+  onOpenResults?: (reportIds: string[]) => void
   historyEncounters?: Encounter[]
   onFieldStream?: (stream: ClinicalAiFieldStream | null) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[], onCompleted: (acceptedKeys: string[]) => void, onFailed?: (message: string) => void) => void
@@ -73,17 +74,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   onRegisterTreatmentBatchDiscard?: (capture: (() => (() => void) | undefined) | null) => void
 }) {
   const queryClient = useQueryClient()
-  const reportsQuery = useQuery({
-    queryKey: ['doctor-reports', encounter.id],
-    queryFn: () => api.diagnostics.reportsByEncounter(encounter.id),
-    staleTime: 60 * 1000,
-  })
-
-  const recentHistory = useMemo(() => recentHistoryEncounters(encounter, historyEncounters ?? []), [encounter, historyEncounters])
-  const historyReportQueries = useQueries({ queries: recentHistory
-    .filter((item) => Date.parse(item.registeredAt) >= Date.now() - 14 * 86_400_000)
-    .map((item) => ({ queryKey: ['doctor-reports', item.id], queryFn: () => api.diagnostics.reportsByEncounter(item.id), staleTime: 60_000 })) })
-  const reportDataKey = JSON.stringify([reportsQuery.data ?? [], ...historyReportQueries.map((query) => query.data ?? [])])
+  const reportQueries = useQueries({ queries: outpatientReportQueries(api, encounter, historyEncounters ?? []) })
+  const reportDataKey = JSON.stringify(reportQueries.map((query) => query.isSuccess && !query.isFetching ? query.data : []))
   const diagnosticReports = useMemo(() => JSON.parse(reportDataKey).flat() as import('../../../shared/api/diagnosticsApi').DiagnosticReport[], [reportDataKey])
   const sceneAssessment = useMemo(() => assessReceptionScene({ encounter, historyEncounters,
     diagnosticReports, currentDraft: currentContext }), [encounter, historyEncounters, diagnosticReports, currentContext])
@@ -1017,7 +1009,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       } : undefined}
       onReviewRecommendedPlan={onReviewRecommendedPlan}
       onGenerate={async (focus, options) => (await generate.mutateAsync({ focus, intent: options?.intent })).value.id} onApply={applyInline}
-      onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory} onOpenResults={onOpenResults}
+      onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory}
+      onOpenResults={onOpenResults ? () => onOpenResults(sceneAssessment.selectedReportIds) : undefined}
       onOpenEvidenceChain={setEvidenceDiagnosis}
       // Confirming the selection settles this batch: unticked recommendations are discarded with it.
       onReviewTreatment={(items) => reviewTreatments(items, (keys) => {
@@ -1026,7 +1019,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
 
       sceneAssessment={sceneAssessment}
-      sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)}
+      sceneLoading={reportQueries.some((query) => query.isPending || query.isFetching)}
       chronicRefill={chronicRefill} />
     {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
     {sharedDrawersAndModals}

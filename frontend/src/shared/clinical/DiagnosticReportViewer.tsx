@@ -50,11 +50,12 @@ function renderReportObservationFlag(value: DiagnosticObservation) {
   return <StatusBadge tone="neutral">{code}</StatusBadge>
 }
 
-export function DiagnosticReportViewer({ report, historical = false, api, subject }: {
+export function DiagnosticReportViewer({ report, historical = false, api, subject, compact = false }: {
   report: DiagnosticReport
   historical?: boolean
   api?: RhnApi
   subject?: DiagnosticReportSubject
+  compact?: boolean
 }) {
   const status = diagnosticReportStatusPresentation(report.status)
   const isLab = report.reportType === 'LABORATORY' || (!report.reportType && report.observations.length > 0)
@@ -67,25 +68,31 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
     return ['HH', 'LL', 'CRITICAL', 'PANIC'].includes(code || '')
   }).length
   const reportNumber = report.reportCode || report.externalReportId || report.id
-  const subjectFacts: Array<[string, string | undefined]> = [
+  const identityFacts: Array<[string, string | undefined]> = [
     ['姓名', subject?.patientName],
     ['性别 / 年龄', [subject?.genderText, subject?.ageText].filter(Boolean).join(' / ')],
     ['门诊 / 住院号', subject?.encounterNo],
+  ].filter((fact): fact is [string, string] => Boolean(fact[1]))
+  const reportFacts: Array<[string, string | undefined]> = [
     ['健康档案号', subject?.healthRecordNo],
     ['申请科室', subject?.departmentName],
     ['申请单号', subject?.requestNo],
     [isLab ? '标本' : '检查类型', subject?.specimenOrExam],
     ['报告编号', reportNumber],
     ['报告时间', formatTime(report.issuedAt)],
+    ...(compact ? [['报告机构', subject?.organizationName], ['报告版本', report.reportVersion ? `第 ${report.reportVersion} 版` : '版本未记录']] : []),
   ].filter((fact): fact is [string, string] => Boolean(fact[1]))
+  const facts = <dl className="diagnostic-report-document__facts">
+    {(compact ? reportFacts : [...identityFacts, ...reportFacts]).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+  </dl>
 
-  return <section aria-label={report.reportName} className="diagnostic-report-document">
+  return <section aria-label={report.reportName} className={`diagnostic-report-document${compact ? ' is-compact' : ''}`}>
     <header className="diagnostic-report-document__header">
-      <div className="diagnostic-report-document__kind">{isLab ? '检验报告单' : '检查报告单'}</div>
+      {!compact && <div className="diagnostic-report-document__kind">{isLab ? '检验报告单' : '检查报告单'}</div>}
       <div className="diagnostic-report-document__title">
-        {subject?.organizationName && <span>{subject.organizationName}</span>}
+        {!compact && subject?.organizationName && <span>{subject.organizationName}</span>}
         <h3>{report.reportName}</h3>
-        <small>{report.reportVersion ? `第 ${report.reportVersion} 版` : '版本未记录'}</small>
+        {!compact && <small>{report.reportVersion ? `第 ${report.reportVersion} 版` : '版本未记录'}</small>}
       </div>
       <div className="diagnostic-report-document__actions">
         <StatusBadge tone={historical ? 'neutral' : status.tone}>{historical ? '历史版本' : status.label}</StatusBadge>
@@ -94,9 +101,13 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
           taskCode={isLab ? 'DIAGNOSTICS.LABORATORY.REPORT.PRINT' : 'DIAGNOSTICS.EXAMINATION.REPORT.PRINT'} />}
       </div>
     </header>
-    {subjectFacts.length > 0 && <dl className="diagnostic-report-document__facts">
-      {subjectFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-    </dl>}
+    {compact ? <details className="diagnostic-report-document__context">
+      <summary aria-label="展开患者及报告信息">
+        {identityFacts.map(([label, value]) => <span key={label} title={label}>{value}</span>)}
+        <span className="diagnostic-report-document__context-toggle">患者及报告信息</span>
+      </summary>
+      {facts}
+    </details> : facts}
     {isLab && <div className="diagnostic-report-document__summary" aria-label="检验结果摘要">
       <span>共 {report.observations.length} 项</span>
       <span>异常 {abnormalCount} 项</span>

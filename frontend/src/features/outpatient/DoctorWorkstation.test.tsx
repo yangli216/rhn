@@ -442,10 +442,34 @@ it('opens the current encounter diagnostic reports from the doctor workstation',
   await user.click(reportEntry)
 
   const drawer = await screen.findByRole('complementary', { name: '检验检查报告' })
-  expect(within(drawer).getByText('血常规检验报告')).toBeInTheDocument()
+  expect(within(drawer).getByRole('region', { name: '血常规检验报告' })).toBeInTheDocument()
   expect(within(drawer).getByText('张建国')).toBeInTheDocument()
   expect(within(drawer).getByRole('table', { name: '检验结果明细' })).toBeInTheDocument()
   expect(api.diagnostics.reportsByEncounter).toHaveBeenCalledWith(mockInProgressEncounter.id)
+})
+
+it('opens recent follow-up reports from the workstation when the current encounter has none', async () => {
+  const user = userEvent.setup()
+  const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+  const previous = { ...mockCompletedEncounter, id: 'previous-encounter', encounterNo: 'OP-PREVIOUS',
+    registeredAt: new Date(Date.now() - 2 * 86_400_000).toISOString() }
+  vi.mocked(api.encounters.byResident).mockResolvedValue([mockInProgressEncounter, previous])
+  vi.mocked(api.diagnostics.reportsByEncounter).mockImplementation(async (id) => id === previous.id ? [{
+    id: 'prior-report', residentId: mockResident.id, encounterId: previous.id, requestId: 'prior-request',
+    reportVersion: 1, reportType: 'LABORATORY', status: 'FINAL', reportCode: 'PRIOR-REPORT',
+    reportName: '上次就诊血常规', issuedAt: new Date().toISOString(), observations: [],
+    endpointCode: 'LOCAL', externalReportId: 'prior-external', receivedAt: new Date().toISOString(),
+    contentDigestAlgorithm: 'SHA-256', contentDigest: 'prior-digest', inboundMessageId: 'prior-message',
+  }] : [])
+  renderStation(api)
+
+  await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+  await user.click(await screen.findByRole('button', { name: '检验报告' }))
+  const drawer = await screen.findByRole('complementary', { name: '检验检查报告' })
+  const report = await within(drawer).findByRole('region', { name: '上次就诊血常规' })
+  expect(within(report).getByText(previous.encounterNo)).toBeInTheDocument()
+  expect(within(report).queryByText(mockInProgressEncounter.encounterNo)).not.toBeInTheDocument()
+  expect(within(drawer).getByText('1 份报告')).toBeInTheDocument()
 })
 
 function receiptTestPlan(): OutpatientPlanTemplate {
@@ -1306,6 +1330,25 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(screen.getByRole('menuitem', { name: '终止诊疗' }))
     expect(await screen.findByRole('dialog', { name: '终止本次诊疗' })).toBeInTheDocument()
     expect(api.outpatientFlow.terminate).not.toHaveBeenCalled()
+  })
+
+  it('opens consultation and transfer from more actions while keeping the clinical sidebar focused', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    api.outpatientReferrals.byEncounter = vi.fn().mockResolvedValue([])
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+
+    const tools = within(screen.getByRole('navigation', { name: '医生站扩展工具' }))
+    expect(tools.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      '临床模板', '就诊历史', '检验报告', '就诊文书',
+    ])
+    await user.click(screen.getByRole('button', { name: '更多' }))
+    await user.click(screen.getByRole('menuitem', { name: '会诊 / 转科' }))
+    const drawer = screen.getByRole('complementary', { name: '会诊 / 转科' })
+    expect(within(drawer).getByRole('button', { name: '发起院内会诊' })).toBeInTheDocument()
+    expect(await within(drawer).findByText('暂无协同记录')).toBeInTheDocument()
+    expect(api.outpatientReferrals.byEncounter).toHaveBeenCalledWith('encounter-101')
   })
 
   it('manages allergies in the workstation drawer and records a controlled allergen directly', async () => {

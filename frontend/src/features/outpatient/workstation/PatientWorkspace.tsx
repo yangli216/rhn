@@ -9,7 +9,6 @@ import type { ClinicalAiFieldStream } from "../../../shared/api/clinicalAiStream
 import { OutpatientDiagnosticResults } from "../OutpatientDiagnosticResults";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { ClinicalContext } from "../../../shared/clinical/workContext";
 import type { ClinicalDocument } from "../../../shared/api/clinicalDocumentsApi";
 import type { ClinicalAiDraftContext } from "../../../shared/api/clinicalAiApi";
@@ -66,8 +65,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
 }) {
   // The chart needs the record and orders side by side, so the main navigation folds away while it is open.
   useFocusLayout()
-  const navigate = useNavigate()
   const [activeTool, setActiveTool] = useState<WorkTool | null>(null)
+  const [reportFocus, setReportFocus] = useState<{ encounterId: string; ids: string[] }>()
   const [completionOpen, setCompletionOpen] = useState(false)
   const [suspensionOpen, setSuspensionOpen] = useState(false)
   const [cancelCompletionOpen, setCancelCompletionOpen] = useState(false)
@@ -495,6 +494,9 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                 title={simpleOrdering && hasPendingSave ? '自动保存未保存内容后进入诊毕汇总' : '进入诊毕汇总，核对费用和转归信息'}
                 onClick={() => requestAction('complete')}>诊毕</Button>
               <ActionMenu label="更多" disabled={aiAdoptionBusy} items={[{
+                key: 'coordination', label: '会诊 / 转科',
+                onSelect: () => setActiveTool('coordination'),
+              }, {
                 key: 'terminate', label: '终止诊疗', danger: true,
                 onSelect: () => requestAction('terminate'),
               }]} />
@@ -542,7 +544,9 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                     chiefComplaint: aiChiefComplaint }}
                   onOpenDetail={() => setActiveTool('assistant')}
                   onReviewRecommendedPlan={(plan) => { setRecommendedPlanId(plan.templateId); setActiveTool('plans') }}
-                  onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
+                  onOpenHistory={() => setActiveTool('history')} onOpenResults={(ids) => {
+                    setReportFocus({ encounterId: encounter.id, ids }); setActiveTool('results')
+                  }}
                   onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onPreparePlan={prepareAiPlan} onFieldStream={setAiFieldStream}
                   existingTreatmentKeys={existingTreatmentKeys}
                   onRegisterTreatmentBatchDiscard={registerTreatmentBatchDiscard}
@@ -564,6 +568,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                 currentEncounter={encounter} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
                 onCopy={(draft) => { setHistoryCopy({ ...draft, targetEncounterId: encounter.id, targetResidentId: encounter.residentId }); setActiveTool(null) }} />}
               {activeTool === 'results' && <OutpatientDiagnosticResults encounter={encounter} resident={resident} api={api}
+                historyEncounters={encounters.data ?? []}
+                preferredReportIds={reportFocus?.encounterId === encounter.id ? reportFocus.ids : undefined}
                 organizationName={clinicalContext.organization.name} departmentName={clinicalContext.department.name} />}
               {activeTool === 'allergy' && <AllergySafetyPanel resident={resident} encounter={encounter}
                 allergies={allergies.data ?? []} loading={allergies.isPending} error={allergies.error}
@@ -574,18 +580,14 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
             </div>
           </aside>}
           <nav className="doctor-workspace-tools" aria-label="医生站扩展工具">
-            {editing && encounter.status === 'IN_PROGRESS' && <ToolButton icon="sparkles" label="智医助理"
-              active={activeTool === 'assistant'}
-              onClick={() => !aiAdoptionBusy && setActiveTool(toggleTool(activeTool, 'assistant'))} />}
             {editing && encounter.status === 'IN_PROGRESS' && outpatientNote?.status !== 'SIGNED'
               && <ToolButton icon="stethoscope" label="临床模板" active={activeTool === 'plans'}
                 onClick={() => setActiveTool(toggleTool(activeTool, 'plans'))} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
-            <ToolButton icon="clinical" label="检验报告" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
+            <ToolButton icon="clinical" label="检验报告" active={activeTool === 'results'} onClick={() => {
+              setReportFocus(undefined); setActiveTool(toggleTool(activeTool, 'results'))
+            }} />
             <ToolButton icon="print" label="就诊文书" active={activeTool === 'prints'} onClick={() => setActiveTool(toggleTool(activeTool, 'prints'))} />
-            {editing && <ToolButton icon="tasks" label="皮试管理" active={false}
-              onClick={() => navigate(`/skin-tests?encounterId=${encounter.id}`)} />}
-            {editing && <ToolButton icon="organization" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />}
           </nav>
         </div>}
     {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api} simpleOrdering={simpleOrdering}

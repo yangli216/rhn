@@ -37,6 +37,30 @@ const template: OutpatientPlanTemplate = {
 }
 
 describe('ClinicalAiAssistantPanel plan preflight', () => {
+  it('passes the associated historical report IDs when opening follow-up results', async () => {
+    const previous = { ...encounter, id: 'prior-enc', status: 'COMPLETED',
+      registeredAt: new Date(Date.now() - 2 * 86_400_000).toISOString() } as Encounter
+    const api = {
+      diagnostics: { reportsByEncounter: vi.fn().mockImplementation(async (id) => id === previous.id ? [{
+        id: 'follow-up-report', encounterId: previous.id, residentId: encounter.residentId,
+        requestId: 'prior-request', reportCode: 'prior-report', reportName: '回诊血常规', status: 'FINAL',
+        reportVersion: 1, issuedAt: new Date().toISOString(), observations: [],
+      }] : []) },
+      clinicalAi: { capabilities: vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', features: ['RECORD_COMPLETENESS', 'AUDIT_TRAIL'] }),
+        history: vi.fn().mockResolvedValue([]), recommendPlans: vi.fn().mockResolvedValue([]) },
+      outpatientPlanTemplates: { list: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const onOpenResults = vi.fn()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const host = render(<div data-testid="report-guide-host" />).getByTestId('report-guide-host') as HTMLDivElement
+    render(<QueryClientProvider client={client}><ClinicalAiAssistantPanel encounter={encounter}
+      currentContext={context} historyEncounters={[previous]} allergies={[]} allergyState="READY" api={api}
+      disabled={false} onAdoptionBusyChange={vi.fn()} onApply={vi.fn()} onOpenResults={onOpenResults}
+      surfaces={{ summary: host, note: host, diagnoses: null, plans: null, detail: null }} /></QueryClientProvider>)
+    await userEvent.click(await screen.findByRole('button', { name: '查看结果' }))
+    expect(onOpenResults).toHaveBeenCalledWith(['follow-up-report'])
+  })
+
   it.each(['drawer'] as const)('shows deterministic medication blockers and explicit unevaluated safety boundaries (%s)', async (layout: 'drawer' | 'inline') => {
     const preflightPlan = vi.fn().mockResolvedValue({
       templateId: 'plan-1', templateRevision: 3, status: 'BLOCKED', blockingCount: 1, warningCount: 2,

@@ -31,11 +31,40 @@ function setup(fetch: ReturnType<typeof vi.fn>, selectedContext = context) {
   return { ...render(content(selectedContext)), content, onNavigate }
 }
 async function showCompleted() {
-  await userEvent.click(await screen.findByRole('button', { name: /流程完成.*1/ }))
+  await userEvent.click(await screen.findByRole('button', { name: /流程结束.*1/ }))
   expect(await screen.findByRole('row', { name: /待核验患者/ })).toBeInTheDocument()
 }
 
 describe('outpatient flow evidence', () => {
+  it('opens the refund workspace for billing exceptions with the same encounter', async () => {
+    const value = board()
+    value.summary.completedCount = 0
+    value.summary.exceptionCount = 1
+    Object.assign(value.visits[0]!, { flowStatus: 'EXCEPTION', flowStatusText: '需人工处理',
+      nextDestination: '费用结算', nextRoute: '/billing?residentId=resident-1&encounterId=enc-1',
+      nextActionText: '处理退费', attentionReason: '存在待退费用' })
+    const { onNavigate } = setup(vi.fn().mockResolvedValue(value))
+    await userEvent.click(await screen.findByRole('button', { name: /异常关注.*1/ }))
+    await userEvent.click(screen.getByRole('button', { name: '处理退费' }))
+    expect(onNavigate).toHaveBeenCalledWith('/billing/refunds?residentId=resident-1&encounterId=enc-1')
+  })
+
+  it.each(['laboratory', 'examination'] as const)('routes diagnostics to the %s workspace with the original patient and encounter', async (kind) => {
+    const value = board()
+    value.summary.completedCount = 0
+    value.summary.downstreamPendingCount = 1
+    Object.assign(value.visits[0]!, { flowStatus: 'WAITING_DIAGNOSTICS', flowStatusText: '待检查检验',
+      nextDestination: '检查检验', nextRoute: '/diagnostics?residentId=resident-1&encounterId=enc-1',
+      nextActionText: '去检查检验', attentionReason: '检查检验待执行' })
+    value.visits[0]!.stages.push({ stageCode: 'DIAGNOSTICS', stageName: '医技', status: 'WAITING',
+      statusText: '待执行', totalCount: 1, pendingCount: 1 })
+    const { onNavigate } = setup(vi.fn().mockResolvedValue(value))
+    await userEvent.click(await screen.findByRole('button', { name: /诊后待办.*1/ }))
+    await userEvent.click(screen.getByRole('button', { name: '去检查检验' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: kind === 'laboratory' ? '检验工作台' : '检查工作台' }))
+    expect(onNavigate).toHaveBeenCalledWith(`/diagnostics/${kind}?residentId=resident-1&encounterId=enc-1`)
+  })
+
   it('does not invent zero patients while loading', () => {
     setup(vi.fn().mockReturnValue(new Promise(() => {})))
     expect(screen.getByText('科室一 · 人数待确认')).toBeInTheDocument()
@@ -79,7 +108,7 @@ describe('outpatient flow evidence', () => {
     expect(screen.queryByLabelText('门诊流转摘要')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '重新加载' }))
     expect(await screen.findByText('当前筛选下暂无患者')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /流程完成.*0/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /流程结束.*0/ })).toBeInTheDocument()
   })
 
   it('withholds cached completion during refresh and uses newly verified pending work', async () => {

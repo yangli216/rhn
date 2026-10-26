@@ -50,6 +50,11 @@ export function recentHistoryEncounters(encounter: Encounter, history: Encounter
     .sort((a, b) => Date.parse(b.registeredAt) - Date.parse(a.registeredAt)).slice(0, 10)
 }
 
+export function recentReportEncounters(encounter: Encounter, history: Encounter[], now = Date.now()) {
+  return recentHistoryEncounters(encounter, history, now)
+    .filter((item) => Date.parse(item.registeredAt) >= now - 14 * DAY)
+}
+
 export function isAbnormalObservation(item: DiagnosticObservation): boolean {
   if (item.status === 'CANCELLED') return false
   if (['H', 'HH', 'L', 'LL', 'A', 'AA', 'ABNORMAL', 'POS', 'POSITIVE', 'CRITICAL', 'PANIC']
@@ -80,7 +85,7 @@ export function assessReceptionScene({ encounter, historyEncounters = [], diagno
 }: { encounter: Encounter; historyEncounters?: Encounter[]; diagnosticReports?: DiagnosticReport[];
   currentDraft?: Partial<ClinicalAiRecordDraft> & { diagnoses?: DiagnosisInput[] }; now?: number }): ReceptionSceneAssessment {
   const history = recentHistoryEncounters(encounter, historyEncounters, now)
-  const recentIds = new Set(history.filter((item) => Date.parse(item.registeredAt) >= now - 14 * DAY).map((item) => item.id))
+  const recentIds = new Set(recentReportEncounters(encounter, historyEncounters, now).map((item) => item.id))
   const replaced = new Set(diagnosticReports.map((report) => report.replacesReportId).filter(Boolean))
   const eligibleReports = diagnosticReports.filter((report) => report.residentId === encounter.residentId
     && (report.encounterId === encounter.id || recentIds.has(report.encounterId))

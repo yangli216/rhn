@@ -6,8 +6,8 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
-  Alert, Button, DateRangePicker, EmptyState, getTodayRange, LoadingState, PageHeader, Pagination, Panel,
-  SearchField, StatusBadge, type DateRange, type StatusTone,
+  ActionMenu, Alert, Button, DateRangePicker, EmptyState, getTodayRange, LoadingState, PageHeader, Pagination, Panel,
+  SearchField, StatusBadge, DataTable, TableShell, tableCellClass, type DateRange, type StatusTone,
 } from '../../shared/ui'
 import '../../styles/features/diagnostic-execution.css'
 import { requireOutpatientFlowBoard } from './outpatientFlowTruth'
@@ -27,6 +27,7 @@ function flowTone(status: OutpatientFlowStatus): StatusTone {
 
 function stageTone(status: OutpatientFlowStage['status']): StatusTone {
   if (status === 'COMPLETED') return 'success'
+  if (status === 'RETURNED' || status === 'PARTIALLY_RETURNED') return 'neutral'
   if (status === 'EXCEPTION' || status === 'CANCELLED') return 'danger'
   if (status === 'IN_PROGRESS') return 'info'
   return 'warning'
@@ -35,6 +36,11 @@ function stageTone(status: OutpatientFlowStage['status']): StatusTone {
 function pendingAge(minutes: number) {
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes} 分钟`
+  if (minutes >= 1440) {
+    const days = Math.floor(minutes / 1440)
+    const hours = Math.floor(minutes % 1440 / 60)
+    return `${days} 天${hours ? ` ${hours} 小时` : ''}`
+  }
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   return `${hours} 小时${rest ? ` ${rest} 分钟` : ''}`
@@ -58,6 +64,8 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
   const handleReset = () => {
     setKeyword('')
     setQuery('')
+    setDateRange(getTodayRange())
+    setFilter('ACTIVE')
     setPage(0)
   }
 
@@ -91,27 +99,28 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
 
   return <>
     <PageHeader compact eyebrow="门诊医疗 · 全程协同" title="门诊流转看板"
-      description="诊毕不等于流程完成；统一查看患者当前去向和待办环节，基层机构无需在多个页面之间逐一核对。"
+      description="查看患者去向及待办；诊毕后仍可能需要缴费、取药或执行。"
       actions={<Button variant="secondary" busy={board.isFetching} busyLabel="刷新中" onClick={() => void board.refetch()}>刷新</Button>} />
     {board.error && <Alert duration={null}>{errorMessage(board.error)}</Alert>}
     {available && <section className="outpatient-flow-metrics" aria-label="门诊流转摘要">
-      <button type="button" className={filter === 'ACTIVE' ? 'is-active' : ''} onClick={() => setFilter('ACTIVE')}>
-        <span>候诊 / 接诊</span><strong>{(summary?.waitingConsultationCount ?? 0) + (summary?.inConsultationCount ?? 0)}</strong>
-        <small>{summary?.waitingConsultationCount ?? 0} 人待接诊或协同</small></button>
-      <button type="button" className={filter === 'DOWNSTREAM' ? 'is-active' : ''} onClick={() => setFilter('DOWNSTREAM')}>
-        <span>诊后待办</span><strong>{summary?.downstreamPendingCount ?? 0}</strong><small>收费、取药、医技或治疗</small></button>
-      <button type="button" className={filter === 'EXCEPTION' ? 'is-active' : ''} onClick={() => setFilter('EXCEPTION')}>
-        <span>异常关注</span><strong>{summary?.exceptionCount ?? 0}</strong><small>需要人工协调</small></button>
-      <button type="button" className={filter === 'COMPLETED' ? 'is-active' : ''} onClick={() => setFilter('COMPLETED')}>
-        <span>流程完成</span><strong>{summary?.completedCount ?? 0}</strong><small>完成、转科、终止或取消</small></button>
+      <Button variant={filter === 'ACTIVE' ? 'primary' : 'secondary'} aria-pressed={filter === 'ACTIVE'}
+        title="候诊、接诊、暂挂及会诊转科" onClick={() => setFilter('ACTIVE')}>
+        候诊 / 接诊 <strong>{(summary?.waitingConsultationCount ?? 0) + (summary?.inConsultationCount ?? 0)}</strong></Button>
+      <Button variant={filter === 'DOWNSTREAM' ? 'primary' : 'secondary'} aria-pressed={filter === 'DOWNSTREAM'}
+        title="收费、取药、检查检验或治疗" onClick={() => setFilter('DOWNSTREAM')}>
+        诊后待办 <strong>{summary?.downstreamPendingCount ?? 0}</strong></Button>
+      <Button variant={filter === 'EXCEPTION' ? 'primary' : 'secondary'} aria-pressed={filter === 'EXCEPTION'}
+        title="需要人工协调" onClick={() => setFilter('EXCEPTION')}>
+        异常关注 <strong>{summary?.exceptionCount ?? 0}</strong></Button>
+      <Button variant={filter === 'COMPLETED' ? 'primary' : 'secondary'} aria-pressed={filter === 'COMPLETED'}
+        title="完成、转科、终止或取消" onClick={() => setFilter('COMPLETED')}>
+        流程结束 <strong>{summary?.completedCount ?? 0}</strong></Button>
     </section>}
     <Panel className="outpatient-flow-board">
-      <header className="outpatient-flow-toolbar ui-query-filters">
-        <div><h2>患者去向</h2><span>{clinicalContext.department.name} · {available ? `${values.length} 人` : '人数待确认'}</span></div>
-        <nav aria-label="流转状态筛选">{([
-          ['ACTIVE', '诊前诊中'], ['DOWNSTREAM', '诊后待办'], ['EXCEPTION', '异常'], ['COMPLETED', '已完成'], ['ALL', '全部'],
-        ] as [FlowFilter, string][]).map(([value, label]) => <button type="button" key={value}
-          className={filter === value ? 'is-active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</nav>
+      <header className="outpatient-flow-toolbar ui-query-filters" aria-label="患者去向查询">
+        <span className="outpatient-flow-toolbar-context">{clinicalContext.department.name} · {available ? `${values.length} 人` : '人数待确认'}</span>
+        <Button variant={filter === 'ALL' ? 'primary' : 'secondary'}
+          aria-pressed={filter === 'ALL'} onClick={() => setFilter('ALL')}>全部患者</Button>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <div className="ui-query-filters__group">
           <SearchField
@@ -119,10 +128,10 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
             value={keyword}
             onChange={setKeyword}
             onSearch={handleSearch}
-            placeholder="姓名 / 档案号 / 就诊号（回车或点击查询）"
+            placeholder="姓名 / 档案号 / 就诊号"
           />
-          <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
-          <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
+          <div className="ui-query-filters__actions"><Button variant="primary" onClick={handleSearch}>查询</Button>
+          <Button variant="secondary" onClick={handleReset}>重置</Button></div>
         </div>
       </header>
       {(board.isPending || board.isFetching) && <LoadingState label="正在汇总门诊各环节状态…" />}
@@ -130,13 +139,10 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
         copy="当前人数、完成状态和患者去向尚未确认，请重新加载。"
         action={<Button variant="secondary" onClick={() => void board.refetch()}>重新加载</Button>} />}
       {available && values.length === 0 && <EmptyState icon="clinical" title="当前筛选下暂无患者"
-        copy="完成挂号后，患者会自动进入流转看板。" />}
-      {values.length > 0 && <>
-        <div className="outpatient-flow-list" role="table" aria-label="门诊患者流转列表">
-          <div className="outpatient-flow-row outpatient-flow-row--head" role="row">
-            <span>患者</span><span>门诊状态</span><span>业务进度</span><span>当前去向 / 原因</span><span /></div>
-          {pagedVisits.map((value) => <VisitRow key={value.encounterId} value={value} onNavigate={onNavigate} />)}
-        </div>
+        copy="可切换状态、调整日期或清空关键词后查询。" />}
+      {values.length > 0 && <TableShell scrollLabel="门诊患者流转列表滚动区"
+        resetScrollKey={`${clinicalContext.organization.id}:${clinicalContext.department.id}:${filter}:${dateRange.from}:${dateRange.to}:${query}:${safePage}:${pageSize}`}
+        footer={
         <Pagination
           page={safePage}
           totalPages={totalPages}
@@ -149,29 +155,44 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
           }}
           onChange={setPage}
           label="门诊患者流转列表分页"
-        />
-      </>}
+        />}>
+        <DataTable compact className="outpatient-flow-table" aria-label="门诊患者流转列表">
+          <colgroup><col className="outpatient-flow-col-patient" /><col className="outpatient-flow-col-status" />
+            <col className="outpatient-flow-col-progress" /><col /><col className="outpatient-flow-col-actions" /></colgroup>
+          <thead><tr><th scope="col">患者 / 就诊号</th><th scope="col" className={tableCellClass('status')}>门诊状态</th>
+            <th scope="col">业务进度</th><th scope="col">当前去向 / 原因</th><th scope="col" className={tableCellClass('actions')}>操作</th></tr></thead>
+          <tbody>{pagedVisits.map((value) => <VisitRow key={value.encounterId} value={value} onNavigate={onNavigate} />)}</tbody>
+        </DataTable>
+      </TableShell>}
     </Panel>
   </>
 }
 
 function VisitRow({ value, onNavigate }: { value: OutpatientFlowVisit; onNavigate: (path: string) => void }) {
-  return <article className="outpatient-flow-row" role="row">
-    <div className="outpatient-flow-patient"><span className="outpatient-flow-avatar">{value.residentName.slice(0, 1)}</span>
-      <span><strong>{value.residentName}</strong><small>{value.healthRecordNo}</small></span></div>
-    <div className="outpatient-flow-clinical"><StatusBadge tone={flowTone(value.flowStatus)}>{value.flowStatusText}</StatusBadge>
-      <small>{formatTime(value.registeredAt)} 挂号{value.clinicalCompletedAt ? ` · ${formatTime(value.clinicalCompletedAt)} 诊毕` : ''}</small></div>
-    <div className="outpatient-flow-stages">{value.stages.map((stage) => <StageChip key={stage.stageCode} stage={stage} />)}</div>
-    <div className="outpatient-flow-destination"><strong>{value.nextDestination}</strong>
-      <small title={value.attentionReason}>{value.attentionReason}{value.pendingSince ? ` · 已等待 ${pendingAge(value.pendingMinutes)}` : ''}</small></div>
-    <div>{value.nextRoute && <Button size="sm" variant="secondary" onClick={() => onNavigate(value.nextRoute!)}>
-      {value.nextActionText || '去处理'}</Button>}</div>
-  </article>
+  const nextRoute = value.nextRoute ? new URL(value.nextRoute, 'https://rhn.invalid') : undefined
+  const diagnosticDestination = nextRoute?.pathname === '/diagnostics'
+  // The aggregate flow API still returns the legacy billing destination for refund exceptions.
+  if (nextRoute?.pathname === '/billing' && value.flowStatus === 'EXCEPTION') nextRoute.pathname = '/billing/refunds'
+  const nextActionText = nextRoute?.pathname === '/outpatient/reception' ? '查看接诊' : value.nextActionText || '去处理'
+  return <tr>
+    <td className="outpatient-flow-patient"><strong title={value.healthRecordNo}>{value.residentName}</strong><small title={`档案号：${value.healthRecordNo} · 就诊号：${value.encounterNo}`}>{value.encounterNo}</small></td>
+    <td className={`${tableCellClass('status')} outpatient-flow-clinical`}><StatusBadge tone={flowTone(value.flowStatus)}>{value.flowStatusText}</StatusBadge>
+      <small title={`挂号：${formatTime(value.registeredAt)}${value.clinicalCompletedAt ? ` · 诊毕：${formatTime(value.clinicalCompletedAt)}` : ''}`}>
+        {formatTime(value.clinicalCompletedAt || value.registeredAt)} {value.clinicalCompletedAt ? '诊毕' : '挂号'}</small></td>
+    <td><div className="outpatient-flow-stages">{value.stages.map((stage) => <StageChip key={stage.stageCode} stage={stage} />)}</div></td>
+    <td className="outpatient-flow-destination"><strong>{value.nextDestination}</strong>
+      <small title={value.attentionReason}>{value.attentionReason}{value.pendingSince ? ` · 已等待 ${pendingAge(value.pendingMinutes)}` : ''}</small></td>
+    <td className={tableCellClass('actions')}>{diagnosticDestination ? <ActionMenu size="sm" label={value.nextActionText || '检查检验'} items={[
+      { key: 'laboratory', label: '检验工作台', onSelect: () => onNavigate(`/diagnostics/laboratory${nextRoute.search}`) },
+      { key: 'examination', label: '检查工作台', onSelect: () => onNavigate(`/diagnostics/examination${nextRoute.search}`) },
+    ]} /> : nextRoute && <Button size="sm" variant="secondary" onClick={() => onNavigate(`${nextRoute.pathname}${nextRoute.search}${nextRoute.hash}`)}>
+      {nextActionText}</Button>}</td>
+  </tr>
 }
 
 function StageChip({ stage }: { stage: OutpatientFlowStage }) {
-  return <span className={`outpatient-flow-stage is-${stage.status.toLowerCase()}`} title={`${stage.stageName}：${stage.statusText}`}>
-    <i aria-hidden="true" /><span>{stage.stageName}</span><small>{stage.statusText}{stage.totalCount > 1 ? ` · ${stage.totalCount}项` : ''}</small>
-    <StatusBadge tone={stageTone(stage.status)}>{stage.status === 'COMPLETED' ? '✓' : stage.pendingCount || '·'}</StatusBadge>
+  return <span title={`${stage.stageName}：${stage.statusText} · 共 ${stage.totalCount} 项，待办 ${stage.pendingCount} 项`}>
+    <StatusBadge tone={stageTone(stage.status)}>{stage.stageName}：{stage.statusText}{stage.totalCount > 1
+      ? stage.pendingCount > 0 ? ` · 待${stage.pendingCount}/${stage.totalCount}项` : ` · ${stage.totalCount}项` : ''}</StatusBadge>
   </span>
 }
