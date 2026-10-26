@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import type { RhnApi } from '../../../shared/rhnApi'
 import type { ClinicalAiWikiDocResult } from '../../../shared/api/clinicalAiApi'
-import { LoadingState, EmptyState, Icon } from '../../../shared/ui'
+import { LoadingState, EmptyState, Icon, Tabs } from '../../../shared/ui'
 import { ClinicalKnowledgePanel } from './ClinicalKnowledgePanel'
 import { normalizeKnowledgeDocumentMarkdown } from './knowledgeDocumentMarkdown'
 import './clinical-evidence.css'
@@ -29,6 +29,26 @@ const SAFE_KNOWLEDGE_TAGS = new Set([
   'H1', 'H2', 'H3', 'H4', 'P', 'UL', 'OL', 'LI', 'STRONG', 'EM', 'BLOCKQUOTE',
   'HR', 'BR', 'PRE', 'CODE', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD',
 ])
+
+function formatBr(node: React.ReactNode): React.ReactNode {
+  if (typeof node === 'string') {
+    if (!node.includes('<br')) return node
+    const parts = node.split(/<br\s*\/?>/gi)
+    return parts.flatMap((part, idx) => (idx === 0 ? [part] : [<br key={idx} />, part]))
+  }
+  if (Array.isArray(node)) {
+    return node.map((child, idx) => <React.Fragment key={idx}>{formatBr(child)}</React.Fragment>)
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode }
+    if (props && props.children) {
+      return React.cloneElement(node, {
+        children: formatBr(props.children),
+      } as any)
+    }
+  }
+  return node
+}
 
 function safeKnowledgeHtml(value?: string) {
   if (!value || typeof DOMParser === 'undefined') return ''
@@ -256,23 +276,9 @@ export function MedicalInsertViewerModal({
           {dosageForms.length > 0 && (
             <div className="dosage-form-container">
               {dosageForms.length > 1 && (
-                <div className="dosage-form-tabs" role="tablist" aria-label="药品剂型切换">
-                  {dosageForms.map((form) => {
-                    const isSelected = form.formName === activeDosageForm?.formName
-                    return (
-                      <button
-                        key={form.formName}
-                        type="button"
-                        role="tab"
-                        aria-selected={isSelected}
-                        className={`dosage-form-tab-btn ${isSelected ? 'is-active' : ''}`}
-                        onClick={() => setSelectedFormName(form.formName)}
-                      >
-                        {form.displayName || `${form.formName} (${doc.genericName || ''}${form.formName})`}
-                      </button>
-                    )
-                  })}
-                </div>
+                <Tabs label="药品剂型切换" value={activeDosageForm?.formName ?? ''} onChange={setSelectedFormName}
+                  items={dosageForms.map(form => ({ value: form.formName,
+                    label: form.displayName || `${form.formName} (${doc.genericName || ''}${form.formName})` }))} />
               )}
 
               {activeDosageForm && (
@@ -360,7 +366,24 @@ export function MedicalInsertViewerModal({
 
           {normalizedMarkdown ? (
             <div className="medical-insert-prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  td({ children, ...props }) {
+                    return <td {...props}>{formatBr(children)}</td>
+                  },
+                  th({ children, ...props }) {
+                    return <th {...props}>{formatBr(children)}</th>
+                  },
+                  p({ children, ...props }) {
+                    return <p {...props}>{formatBr(children)}</p>
+                  },
+                  li({ children, ...props }) {
+                    return <li {...props}>{formatBr(children)}</li>
+                  },
+                }}
+              >
                 {normalizedMarkdown}
               </ReactMarkdown>
             </div>

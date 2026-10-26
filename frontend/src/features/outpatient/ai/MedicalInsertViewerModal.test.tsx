@@ -321,4 +321,40 @@ title: 阿莫西林胶囊
     expect(screen.getByText(/跨剂型参考说明书提示/)).toBeInTheDocument()
     expect(screen.getByText(/当前处方开具的药品为「缬沙坦注射液 50mg」/)).toBeInTheDocument()
   })
+
+  it('renders html linebreaks <br> within markdown tables correctly instead of raw text', async () => {
+    const docWithBrTable: ClinicalAiWikiDocResult = {
+      id: 'cefixime',
+      title: '药品说明书 · 头孢克肟分散片',
+      type: 'MEDICATION',
+      genericName: '头孢克肟',
+      markdown: `| 剂型名称 | 批准规格列表 | 滴定策略 |
+| :--- | :--- | :--- |
+| 分散片 | • 50mg<br>• 100mg<br/>• 200mg | • 一次 0.1g<br>• 一日 2 次 |`,
+    }
+    const getWikiDoc = vi.fn().mockResolvedValue(docWithBrTable)
+    const api = { clinicalAi: { getWikiDoc } } as unknown as RhnApi
+
+    render(
+      <MedicalInsertViewerModal
+        isOpen
+        onClose={vi.fn()}
+        target={{ name: '头孢克肟分散片', type: 'medication' }}
+        api={api}
+      />
+    )
+
+    expect(await screen.findByText(/批准规格列表/)).toBeInTheDocument()
+
+    const prose = document.querySelector('.medical-insert-prose')
+    expect(prose).not.toBeNull()
+
+    // 确认渲染出了真正的 DOM <br> 元素
+    const brs = prose!.querySelectorAll('table td br')
+    expect(brs.length).toBeGreaterThanOrEqual(3)
+
+    // 确认单元格内不再含有未解析的原始 '<br>' 或 '<br/>' 字符串字面量
+    const tdTexts = Array.from(prose!.querySelectorAll('td')).map((td) => td.innerHTML)
+    expect(tdTexts.some((t) => t.includes('&lt;br&gt;') || t.includes('&lt;br/&gt;'))).toBe(false)
+  })
 })
