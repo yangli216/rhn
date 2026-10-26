@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AllergyIntolerance } from '../../../shared/api/residentsApi'
-import { resolveTemplateOrders } from './resolveTemplateOrders'
+import { resolveTemplateOrders, resolveTemplateOrdersTolerant } from './resolveTemplateOrders'
 import { templateCatalogFixture } from './resolveTemplateOrders.testFixtures'
 
 const resolve = (f: ReturnType<typeof templateCatalogFixture>, allergies: AllergyIntolerance[] = []) =>
@@ -40,6 +40,18 @@ describe('template orders use current catalog facts', () => {
       if (failure === 'service-type') f.service.sdServiceType = 'EXAMINATION'
       await expect(resolve(f)).rejects.toThrow()
     })
+  it('uses the execution department an order-set row pins, and skips only that row when it is no longer usable', async () => {
+    const f = templateCatalogFixture()
+    const { performerDepartmentId: _department, performerOrganizationId: _organization, ...service } = f.plan.services[0]
+    f.plan.services = [{ ...service, executionDepartmentId: 'lab-dept' }]
+    expect((await resolve(f)).services[0]).toMatchObject({ performerDepartmentId: 'lab-dept', performerDepartmentName: '检验中心二部' })
+    f.department.sdOrgStatus = 'INACTIVE'
+    await expect(resolve(f)).rejects.toThrow(/执行科室/)
+    const tolerated = await resolveTemplateOrdersTolerant(f.plan, f.target, f.api, [], true)
+    expect(tolerated.skipped).toEqual([expect.objectContaining({ kind: 'SERVICE', label: '旧项目名称', reason: expect.stringContaining('执行科室') })])
+    expect(tolerated.services).toEqual([])
+    expect(tolerated.medications).toHaveLength(1)
+  })
   it('uses the pharmacy chosen by the backend rather than the first available stock record', async () => {
     const f = templateCatalogFixture()
     f.orderableMedicationsBatch.mockResolvedValue({ TEST: [{ ...f.medication, stockSiteId: 'wrong', stockSiteName: '其他药房' }, f.medication] })
@@ -111,5 +123,49 @@ describe('template orders use current catalog facts', () => {
     const f = templateCatalogFixture()
     vi.mocked(f.api.organization.department).mockRejectedValue(new Error('科室无权访问'))
     await expect(resolve(f)).rejects.toThrow('科室无权访问')
+  })
+
+  describe('tolerant resolution skips only rows that fail on their own', () => {
+    const tolerant = (f: ReturnType<typeof templateCatalogFixture>) => resolveTemplateOrdersTolerant(f.plan, f.target, f.api, [], true)
+    it('behaves like the strict resolver when every row is valid', async () => {
+      const f = templateCatalogFixture(), result = await tolerant(f)
+      expect(result.skipped).toEqual([])
+      expect(result.medications).toHaveLength(1)
+      expect(result.services).toHaveLength(1)
+    })
+    it('brings in valid rows and reports the failing service with its position and reason', async () => {
+      const f = templateCatalogFixture()
+      f.plan.services.push({ ...f.plan.services[0], catalogItemId: 'gone', itemCode: 'GONE', itemName: '已下架项目' })
+      const result = await tolerant(f)
+      expect(result.services.map(item => item.itemName)).toEqual(['S1当前目录名称'])
+      expect(result.medications).toHaveLength(1)
+      expect(result.skipped).toEqual([{ kind: 'SERVICE', index: 1, label: '已下架项目', reason: '已下架项目未匹配到唯一的当前项目' }])
+    })
+    it('skips a failing medication and still re-checks the remaining rows together', async () => {
+      const f = templateCatalogFixture()
+      f.plan.medications.push({ ...f.plan.medications[0], lineId: 'bad', medicationId: 'unknown', medicationCode: 'UNKNOWN', medicationName: '未知药' })
+      const result = await tolerant(f)
+      expect(result.medications).toHaveLength(1)
+      expect(result.skipped).toMatchObject([{ kind: 'MEDICATION', index: 1, label: '未知药' }])
+    })
+    it('returns nothing but a skip list when no row is valid', async () => {
+      const f = templateCatalogFixture()
+      f.plan.medications = []; f.service.prices = []
+      const result = await tolerant(f)
+      expect(result).toMatchObject({ medications: [], services: [], skipped: [{ kind: 'SERVICE', index: 0 }] })
+    })
+    it('still rejects the whole selection for failures shared by every row', async () => {
+      const f = templateCatalogFixture()
+      vi.mocked(f.api.masterData.servicesByCodes).mockRejectedValue(new Error('目录不可访问'))
+      await expect(tolerant(f)).rejects.toThrow('目录不可访问')
+      const g = templateCatalogFixture()
+      await expect(resolveTemplateOrdersTolerant(g.plan, { ...g.target, status: 'COMPLETED' }, g.api, [], true)).rejects.toThrow(/上下文未确认/)
+    })
+    it('does not isolate an aggregate stock shortage into silent skips', async () => {
+      const f = templateCatalogFixture()
+      f.plan.medications.push({ ...f.plan.medications[0], lineId: 'second', doseValue: 10 })
+      f.medication.availableBaseQuantity = 30
+      await expect(tolerant(f)).rejects.toThrow(/总量超过/)
+    })
   })
 })

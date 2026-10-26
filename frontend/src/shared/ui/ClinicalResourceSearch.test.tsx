@@ -15,6 +15,7 @@ describe('ClinicalResourceSearch', () => {
       services: vi.fn(),
       itemGroups: vi.fn().mockResolvedValue([]),
     },
+    outpatientPlanTemplates: { list: vi.fn().mockResolvedValue([]) },
   } as unknown as RhnApi
 
   it('renders clinical order items with manufacturer, unit price, stock and clinical tags without duplicate pharmacy tag', async () => {

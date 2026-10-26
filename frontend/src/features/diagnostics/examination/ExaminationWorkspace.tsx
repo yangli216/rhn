@@ -44,6 +44,7 @@ import { diagnosticTaskStatusPresentation } from '../../../shared/presentation'
 import { formatTime } from '../../../shared/format'
 import { ExaminationImages } from './ExaminationImages'
 import { DiagnosticPrintAction } from '../../../shared/clinical/DiagnosticPrintAction'
+import { DiagnosticQueueNote } from '../shared/DiagnosticQueueNote'
 import '../../../styles/features/diagnostic-execution.css'
 import '../shared/diagnostic-workbench.css'
 
@@ -323,11 +324,9 @@ export function ExaminationWorkspace({
                   重置
                 </Button>
               </div>
+              <DiagnosticQueueNote reportPath="/diagnostics/examination/reports" onNavigate={onNavigate} />
             </div>
             {filterError && <Alert placement="inline">{filterError}</Alert>}
-            <Alert tone="info" placement="inline">队列显示全部未完成任务及近7天已完成、取消记录。
-              <Button variant="text" onClick={() => onNavigate('/diagnostics/examination/reports')}>查询历史报告</Button>
-            </Alert>
             {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}
             {worklist.error && <Alert>{errorMessage(worklist.error)}</Alert>}
             {startExam.error && <Alert>{errorMessage(startExam.error)}</Alert>}

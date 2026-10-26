@@ -13,7 +13,7 @@ interface OutpatientPlanTemplateRepository extends JpaRepository<OutpatientPlanT
     @Query("""
             select value from OutpatientPlanTemplate value
              where value.tenantId = :tenantId and value.organizationId = :organizationId
-               and value.status = 'ACTIVE'
+               and value.status = 'ACTIVE' and value.templateKind = :templateKind
                and ((value.scopeType = 'PERSONAL' and value.departmentId = :departmentId and value.ownerId = :practitionerId)
                  or (value.scopeType = 'DEPARTMENT' and value.departmentId = :departmentId)
                  or (value.scopeType = 'HOSPITAL'))
@@ -22,7 +22,8 @@ interface OutpatientPlanTemplateRepository extends JpaRepository<OutpatientPlanT
     List<OutpatientPlanTemplate> findVisible(@Param("tenantId") Long tenantId,
                                               @Param("organizationId") Long organizationId,
                                               @Param("departmentId") Long departmentId,
-                                              @Param("practitionerId") Long practitionerId);
+                                              @Param("practitionerId") Long practitionerId,
+                                              @Param("templateKind") String templateKind);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from OutpatientPlanTemplate value where value.id = :id and value.tenantId = :tenantId")

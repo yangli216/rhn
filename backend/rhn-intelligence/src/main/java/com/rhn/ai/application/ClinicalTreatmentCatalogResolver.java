@@ -26,6 +26,7 @@ public class ClinicalTreatmentCatalogResolver {
     private final MedicationKnowledgeDirectory medications;
     private final ExecutionContextProvider contexts;
     private final TreatmentUsageMapper usageMapper;
+    private final ExaminationIntentMatcher examinations;
     private final Map<String, Alias> aliases = new LinkedHashMap<>();
 
     public record Alias(String type, String name, List<String> aliases, List<String> queries, boolean broad,
@@ -38,12 +39,20 @@ public class ClinicalTreatmentCatalogResolver {
         this(inventory, services, medications, contexts, jsonCodec, null);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
     public ClinicalTreatmentCatalogResolver(OutpatientPrescriptionInventoryDirectory inventory,
             ServiceCatalogDirectory services, MedicationKnowledgeDirectory medications,
             ExecutionContextProvider contexts, JsonCodec jsonCodec, TreatmentUsageMapper usageMapper) {
+        this(inventory, services, medications, contexts, jsonCodec, usageMapper, null);
+    }
+
+    /** Without an examination matcher, examination intents keep the name search only. */
+    @org.springframework.beans.factory.annotation.Autowired
+    public ClinicalTreatmentCatalogResolver(OutpatientPrescriptionInventoryDirectory inventory,
+            ServiceCatalogDirectory services, MedicationKnowledgeDirectory medications,
+            ExecutionContextProvider contexts, JsonCodec jsonCodec, TreatmentUsageMapper usageMapper,
+            ExaminationIntentMatcher examinations) {
         this.inventory = inventory; this.services = services; this.medications = medications; this.contexts = contexts;
-        this.usageMapper = usageMapper;
+        this.usageMapper = usageMapper; this.examinations = examinations;
         try (var input = getClass().getResourceAsStream("/clinical-catalog-aliases.json")) {
             if (input == null) throw new IllegalStateException("缺少临床目录别名配置");
             for (var alias : jsonCodec.read(new String(input.readAllBytes(), StandardCharsets.UTF_8), Alias[].class)) {
@@ -59,25 +68,63 @@ public class ClinicalTreatmentCatalogResolver {
 
     public List<TreatmentMatch> resolve(List<TreatmentRecommendation> intents, LocalDate date) {
         ExecutionContext context = contexts.requireCurrent();
+        var session = new Session(context, date);
         var result = new LinkedHashMap<String, TreatmentMatch>();
         // Split only explicit additive test separators; never split medication names, ratios or alternatives.
         for (var intent : intents.stream().limit(12).toList()) {
             if (intent == null) continue;
             String rawType = text(intent.type()).toUpperCase(Locale.ROOT);
-            List<String> split = intent.catalogItemId() == null ? splitServiceName(intent.name()) : List.of(text(intent.name()));
+            // A structured examination intent is one examination; its sites are not split into separate items.
+            List<String> split = intent.catalogItemId() == null && intent.examination() == null
+                    ? splitServiceName(intent.name()) : List.of(text(intent.name()));
             boolean knownServices = split.size() > 1 && split.stream().allMatch(name -> aliases.containsKey(normalize(name)));
             List<String> names = Set.of("LABORATORY", "EXAMINATION").contains(rawType) || knownServices
                     ? split : List.of(text(intent.name()));
             for (String name : names) {
                 if (result.size() >= 24) throw com.rhn.shared.api.BusinessErrors.badRequest("AI_CATALOG_TOO_MANY_ITEMS", "组合项目拆分后超过24项，请分批核对");
                 var source = new TreatmentRecommendation(intent.type(), intent.catalogItemId(), intent.medicationId(), intent.code(), name.trim(),
-                        intent.specification(), intent.rationale(), intent.usageSuggestion(), intent.purpose());
+                        intent.specification(), intent.rationale(), intent.usageSuggestion(), intent.purpose(),
+                        intent.examination(), null);
                 String key = rawType + ":" + normalize(name) + ":" + text(intent.specification())
                         + (intent.catalogItemId() == null ? "" : ":ID:" + intent.catalogItemId());
-                if (!result.containsKey(key)) result.put(key, resolveOne(key, source, context, date));
+                if (!result.containsKey(key)) result.put(key, resolveOne(key, source, session));
             }
         }
-        return List.copyOf(result.values());
+        return mergeExaminations(List.copyOf(result.values()), session);
+    }
+
+    /** Lazily built per call: the body-site dictionary is read only when an examination intent needs it. */
+    private final class Session {
+        private final ExecutionContext context;
+        private final LocalDate date;
+        private ExaminationIntentMatcher.Session examination;
+        private Session(ExecutionContext context, LocalDate date) { this.context = context; this.date = date; }
+        ExaminationIntentMatcher.Session examination() {
+            if (examination == null && examinations != null) examination = examinations.session(context, date);
+            return examination;
+        }
+    }
+
+    /**
+     * 同一次推荐中多条检查意图落到同一个开立项目（例如“头颅CT”和“胸部CT”）时合并为一条、带多个部位；
+     * 只合并已唯一定位开立项目的意图，不跨开立项目合并。
+     */
+    private List<TreatmentMatch> mergeExaminations(List<TreatmentMatch> matches, Session session) {
+        if (session.examination == null) return matches;
+        var groups = new LinkedHashMap<Object, List<TreatmentMatch>>();
+        for (var match : matches) {
+            boolean unique = "EXAMINATION".equalsIgnoreCase(text(match.intent().type())) && match.candidates().size() == 1
+                    && match.candidates().getFirst().examinationSites() != null
+                    && Set.of("MATCHED", "AMBIGUOUS").contains(match.status());
+            groups.computeIfAbsent(unique ? match.candidates().getFirst().catalogItemId() : match.key(), key -> new ArrayList<>()).add(match);
+        }
+        var merged = new ArrayList<TreatmentMatch>();
+        for (var group : groups.values()) {
+            var match = group.size() == 1 ? group.getFirst() : session.examination().merge(group);
+            if (group.size() > 1) session.examination().logOutcome(match);
+            merged.add(match);
+        }
+        return List.copyOf(merged);
     }
 
     /**
@@ -89,15 +136,17 @@ public class ClinicalTreatmentCatalogResolver {
         Alias alias = aliases.get(normalize(name));
         if (alias == null || !alias.type().equals(rawType)) return Optional.empty();
         var intent = new TreatmentRecommendation(rawType, null, null, null, text(name), null, null);
-        return Optional.of(resolveOne(rawType + ":" + normalize(name), intent, contexts.requireCurrent(), date));
+        return Optional.of(resolveOne(rawType + ":" + normalize(name), intent, new Session(contexts.requireCurrent(), date)));
     }
 
-    private TreatmentMatch resolveOne(String key, TreatmentRecommendation source, ExecutionContext context, LocalDate date) {
+    private TreatmentMatch resolveOne(String key, TreatmentRecommendation source, Session session) {
+        ExecutionContext context = session.context;
+        LocalDate date = session.date;
         long started = System.nanoTime();
         // A model usage draft (unresolved wording) is consumed here and never echoed back inside the intent.
         final TreatmentRecommendation intent = source.usageSuggestion() == null ? source : new TreatmentRecommendation(
                 source.type(), source.catalogItemId(), source.medicationId(), source.code(), source.name(),
-                source.specification(), source.rationale(), null, source.purpose());
+                source.specification(), source.rationale(), null, source.purpose(), source.examination(), null);
         var counts = new Counts();
         String type = text(intent.type()).toUpperCase(Locale.ROOT);
         Alias alias = intent.catalogItemId() == null ? aliases.get(normalize(intent.name())) : null;
@@ -120,8 +169,9 @@ public class ClinicalTreatmentCatalogResolver {
                         usageMapper == null || source.usageSuggestion() == null ? null
                                 : new Usage(usageMapper.session(context, date), source.usageSuggestion()));
             } else {
-                result = resolveService(key, intent, type, query, alias, context, date, counts);
+                result = resolveService(key, intent, type, query, alias, context, date, counts, session);
             }
+            if ("EXAMINATION".equals(type) && session.examination() != null) result = withSites(result, session);
         } catch (RuntimeException exception) {
             result = new TreatmentMatch(key, intent, "CATALOG_ERROR", "目录读取失败，请重试。", List.of());
             log.warn("clinical_ai_catalog_error correlationId={} errorType={}", context.correlationId(), exception.getClass().getSimpleName());
@@ -139,6 +189,7 @@ public class ClinicalTreatmentCatalogResolver {
         return result;
     }
 
+    /** Fallback only when no examination matcher is wired; normally the body-site dictionary supplies the terms. */
     private static final List<String> ANATOMICAL_SITES = List.of(
             "胸部", "腹部", "头颅", "颅脑", "盆腔", "颈部", "腰椎", "胸椎", "颈椎", "脊柱",
             "骨盆", "双肺", "肺部", "膝关节", "肩关节", "肘关节", "腕关节", "髋关节", "踝关节",
@@ -169,15 +220,19 @@ public class ClinicalTreatmentCatalogResolver {
             if (!base.isEmpty()) {
                 derived.add(base);
                 derived.add(base + "测定");
+                // “血X”与目录“血清X”互不包含；只对较长的分析物去掉标本前缀，避免“血常规”退化成“常规”。
+                String analyte = base.replaceFirst("^血清?", "");
+                if (analyte.length() >= 4 && !analyte.equals(base)) derived.add(analyte);
             }
         }
         return List.copyOf(derived);
     }
 
     private List<com.rhn.platform.masterdata.api.MasterDataViews.ServiceView> expandExaminationCandidates(
-            String intentName, Long organizationId, LocalDate date) {
+            String intentName, List<String> siteTerms, Long organizationId, LocalDate date) {
         if (intentName == null || intentName.isBlank()) return List.of();
-        for (String site : ANATOMICAL_SITES) {
+        for (String site : siteTerms) {
+            if (site.length() < 2) continue;
             if (intentName.contains(site)) {
                 var siteCandidates = services.searchOrderableServices(site, "EXAMINATION", organizationId, date);
                 if (siteCandidates.isEmpty()) continue;
@@ -211,8 +266,34 @@ public class ClinicalTreatmentCatalogResolver {
         return List.of();
     }
 
+    /**
+     * 检查结果补充部位解析：意图未给结构化检查时从名称推导；唯一院内项目的部位未全部确定时转为待核对。
+     * 已按检查方式定位的结果原样保留。
+     */
+    private TreatmentMatch withSites(TreatmentMatch result, Session session) {
+        var matcher = session.examination();
+        var exam = result.intent().examination() != null ? result.intent().examination() : matcher.parse(result.intent().name());
+        var intent = ExaminationIntentMatcher.withExamination(result.intent(), exam);
+        if (result.candidates().isEmpty()) {
+            return intent == result.intent() ? result : new TreatmentMatch(result.key(), intent, result.status(), result.reason(),
+                    result.candidates(), result.decisionReview());
+        }
+        var candidates = result.candidates().stream().map(item -> matcher.withSites(item, exam)).toList();
+        TreatmentMatch enriched = "MATCHED".equals(result.status()) && candidates.size() == 1
+                ? matcher.siteChecked(result.key(), intent, candidates.getFirst(), result.reason())
+                : new TreatmentMatch(result.key(), intent, result.status(), result.reason(), candidates, result.decisionReview());
+        matcher.logOutcome(enriched);
+        return enriched;
+    }
+
     private TreatmentMatch resolveService(String key, TreatmentRecommendation intent, String type, String query,
-            Alias alias, ExecutionContext context, LocalDate date, Counts counts) {
+            Alias alias, ExecutionContext context, LocalDate date, Counts counts, Session session) {
+        if ("EXAMINATION".equals(type) && session.examination() != null) {
+            var matcher = session.examination();
+            var exam = intent.examination() != null ? intent.examination() : matcher.parse(intent.name());
+            var structured = matcher.resolve(key, intent, exam);
+            if (structured.isPresent()) return structured.get();
+        }
         var queries = new LinkedHashSet<String>();
         queries.addAll(deriveQueries(intent.name(), type));
         if (!query.isBlank()) queries.addAll(deriveQueries(query, type));
@@ -236,7 +317,8 @@ public class ClinicalTreatmentCatalogResolver {
             }
         }
         if (candidates.isEmpty() && alias == null && "EXAMINATION".equals(type)) {
-            for (var service : expandExaminationCandidates(intent.name(), context.organizationId(), date)) {
+            var siteTerms = session.examination() == null ? ANATOMICAL_SITES : session.examination().siteTerms();
+            for (var service : expandExaminationCandidates(intent.name(), siteTerms, context.organizationId(), date)) {
                 counts.catalog++;
                 reviewIds.add(service.id());
                 var item = new TreatmentRecommendation(type, service.id(), null, service.code(), service.name(),

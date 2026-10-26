@@ -55,24 +55,33 @@ public class ClinicalOrderChargeProjector {
     private void apply(DomainEventEnvelope event) {
         ClinicalOrderChargeFacts facts = ClinicalOrderChargeFacts.read(event);
         String sourceType = event.eventType().startsWith("SERVICE_REQUEST") ? "SERVICE_REQUEST" : "MEDICATION_REQUEST";
-        ChargeItem original = charges.findByTenantIdAndSourceTypeAndSourceId(
-                event.tenantId(), sourceType, event.aggregateId()).orElse(null);
-        ChargeItem reversal = charges.findByTenantIdAndSourceTypeAndSourceId(
-                event.tenantId(), sourceType + "_REVERSAL", event.aggregateId()).orElse(null);
+        List<ChargeItem> originals = charges.findByTenantIdAndSourceTypeAndSourceIdOrderByChargeLineNoAsc(
+                event.tenantId(), sourceType, event.aggregateId());
+        List<ChargeItem> reversals = charges.findByTenantIdAndSourceTypeAndSourceIdOrderByChargeLineNoAsc(
+                event.tenantId(), sourceType + "_REVERSAL", event.aggregateId());
         if (facts.disposition() != ClinicalOrderBillingDisposition.CHARGEABLE) {
-            require(original == null && reversal == null, "非收费决策与已存在的收费记录冲突");
+            require(originals.isEmpty() && reversals.isEmpty(), "非收费决策与已存在的收费记录冲突");
             return;
         }
         boolean cancellation = event.eventType().endsWith("_CANCELLED");
-        if (original != null) facts.requireOriginal(original, event, cancellation);
+        List<ClinicalOrderChargeFacts.Line> lines = facts.lines();
+        if (!originals.isEmpty()) {
+            require(originals.size() == lines.size(), "收费记录行数与医嘱收费明细不一致");
+            for (int index = 0; index < lines.size(); index++) {
+                facts.requireOriginal(originals.get(index), lines.get(index), event, cancellation);
+            }
+        }
         if (cancellation) {
-            require(original != null, "应收费医嘱缺少原收费记录，不能确认撤销完成");
-            reverse(event, facts, sourceType, original, reversal);
-        } else if (original == null) {
-            require(reversal == null, "仅存在冲销记录，原收费事实缺失");
+            require(!originals.isEmpty(), "应收费医嘱缺少原收费记录，不能确认撤销完成");
+            require(reversals.isEmpty() || reversals.size() == originals.size(), "冲销记录行数与原收费不一致");
+            for (int index = 0; index < originals.size(); index++) {
+                reverse(event, facts, sourceType, originals.get(index), reversals.isEmpty() ? null : reversals.get(index));
+            }
+        } else if (originals.isEmpty()) {
+            require(reversals.isEmpty(), "仅存在冲销记录，原收费事实缺失");
             charge(event, facts, sourceType);
         } else {
-            requireOriginalLedger(event, original);
+            originals.forEach(original -> requireOriginalLedger(event, original));
         }
     }
 
@@ -87,33 +96,37 @@ public class ClinicalOrderChargeProjector {
                 && Objects.equals(account.organizationId(), facts.organizationId())
                 && Objects.equals(account.departmentId(), facts.departmentId())
                 && Objects.equals(account.currencyCode(), facts.currency()), "就诊账户与医嘱患者、机构或币种不一致");
-        ChargeItem charge = charges.save(new ChargeItem(event.tenantId(), facts.organizationId(), facts.departmentId(),
-                account.id(), facts.residentId(), facts.encounterId(), event.aggregateId(), facts.catalogItemId(),
-                sourceType, event.aggregateId(), facts.requestNo(), facts.quantity(), facts.unitCode(), facts.unitPrice(),
-                facts.totalAmount(), facts.currency(), facts.priceId(), facts.priceRevision(), facts.priceType(),
-                facts.itemCode(), facts.itemName(), facts.occurredAt(), facts.actorId(), null, facts.accountingCategory()));
-        saveComponents(event.tenantId(), charge.id(), facts);
-        ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", facts.totalAmount(), facts.currency(),
-                charge.id(), null, null, null, facts.occurredAt(), facts.actorId()));
+        // 检查申请按收费方案逐行落账：每行一个收费事项与一条借方流水，行号与申请收费明细一致。
+        for (ClinicalOrderChargeFacts.Line line : facts.lines()) {
+            ChargeItem charge = charges.save(new ChargeItem(event.tenantId(), facts.organizationId(), facts.departmentId(),
+                    account.id(), facts.residentId(), facts.encounterId(), event.aggregateId(), line.catalogItemId(),
+                    sourceType, event.aggregateId(), facts.requestNo(), line.quantity(), line.unitCode(), line.unitPrice(),
+                    line.totalAmount(), facts.currency(), line.priceId(), line.priceRevision(), line.priceType(),
+                    line.itemCode(), line.itemName(), facts.occurredAt(), facts.actorId(), null, line.accountingCategory())
+                    .asChargeLine(line.lineNo(), line.role()));
+            saveComponents(event.tenantId(), charge.id(), facts, line);
+            ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", line.totalAmount(), facts.currency(),
+                    charge.id(), null, null, null, facts.occurredAt(), facts.actorId()));
+        }
     }
 
     /**
-     * 检查数量等于所选部位数时（按部位计价）每个部位一行收费构成；只选一个部位时整行记该部位；
-     * 其余情况（不按部位计价或超过最大计费部位数）保持一行，不猜测部位与数量的对应。
+     * 主项目数量等于所选部位数时（按部位计价）每个部位一行收费构成；只选一个部位时整行记该部位；
+     * 其余情况（不按部位计价、阶梯档位或超过最大计费部位数）保持一行，不猜测部位与数量的对应。加收与附加项目不拆部位。
      */
-    private void saveComponents(Long tenantId, Long chargeId, ClinicalOrderChargeFacts facts) {
-        List<String> sites = facts.bodySiteCodes();
-        if (sites.size() > 1 && facts.quantity().compareTo(BigDecimal.valueOf(sites.size())) == 0) {
+    private void saveComponents(Long tenantId, Long chargeId, ClinicalOrderChargeFacts facts, ClinicalOrderChargeFacts.Line line) {
+        List<String> sites = line.mainLine() ? facts.bodySiteCodes() : List.of();
+        if (sites.size() > 1 && line.quantity().compareTo(BigDecimal.valueOf(sites.size())) == 0) {
             for (int index = 0; index < sites.size(); index++) {
-                components.save(new ChargeItemComponent(tenantId, chargeId, index + 1, facts.catalogItemId(),
-                        facts.itemCode(), facts.itemName(), sites.get(index), BigDecimal.ONE, facts.unitCode(),
-                        BigDecimal.ONE, facts.unitPrice(), facts.unitPrice()));
+                components.save(new ChargeItemComponent(tenantId, chargeId, index + 1, line.catalogItemId(),
+                        line.itemCode(), line.itemName(), sites.get(index), BigDecimal.ONE, line.unitCode(),
+                        BigDecimal.ONE, line.unitPrice(), line.unitPrice()));
             }
             return;
         }
-        components.save(new ChargeItemComponent(tenantId, chargeId, 1, facts.catalogItemId(), facts.itemCode(),
-                facts.itemName(), sites.size() == 1 ? sites.getFirst() : null, facts.quantity(), facts.unitCode(),
-                BigDecimal.ONE, facts.unitPrice(), facts.totalAmount()));
+        components.save(new ChargeItemComponent(tenantId, chargeId, 1, line.catalogItemId(), line.itemCode(),
+                line.itemName(), sites.size() == 1 ? sites.getFirst() : null, line.quantity(), line.unitCode(),
+                BigDecimal.ONE, line.unitPrice(), line.totalAmount()));
     }
 
     private void reverse(DomainEventEnvelope event, ClinicalOrderChargeFacts facts, String sourceType,
@@ -121,11 +134,12 @@ public class ClinicalOrderChargeProjector {
         LedgerEntry originalLedger = requireOriginalLedger(event, original);
         if (existingReversal != null) {
             require(Objects.equals(existingReversal.reversesChargeItemId(), original.id())
+                    && existingReversal.chargeLineNo() == original.chargeLineNo()
                     && Objects.equals(existingReversal.patientAccountId(), original.patientAccountId())
                     && Objects.equals(existingReversal.enteredBy(), facts.actorId())
                     && Objects.equals(existingReversal.currencyCode(), facts.currency())
-                    && sameNumber(existingReversal.totalAmount(), facts.totalAmount().negate())
-                    && existingReversal.quantity() != null && existingReversal.quantity().compareTo(facts.quantity().negate()) == 0
+                    && sameNumber(existingReversal.totalAmount(), original.totalAmount().negate())
+                    && existingReversal.quantity() != null && existingReversal.quantity().compareTo(original.quantity().negate()) == 0
                     && sameTime(existingReversal.occurredAt(), facts.occurredAt()), "重复撤销事件与原冲销事实不一致");
             LedgerEntry reversalLedger = ledger.findByTenantIdAndChargeItemId(event.tenantId(), existingReversal.id())
                     .orElseThrow(() -> unverified("冲销记录缺少账务流水"));
@@ -136,7 +150,7 @@ public class ClinicalOrderChargeProjector {
                     && Objects.equals(reversalLedger.chargeItemId(), existingReversal.id())
                     && Objects.equals(reversalLedger.recordedBy(), facts.actorId())
                     && sameTime(reversalLedger.occurredAt(), facts.occurredAt())
-                    && sameNumber(reversalLedger.amount(), facts.totalAmount()), "冲销流水与原收费不一致");
+                    && sameNumber(reversalLedger.amount(), original.totalAmount()), "冲销流水与原收费不一致");
             return;
         }
         ChargeItem reversal = charges.save(new ChargeItem(event.tenantId(), original.organizationId(), original.departmentId(),
@@ -144,7 +158,8 @@ public class ClinicalOrderChargeProjector {
                 sourceType + "_REVERSAL", event.aggregateId(), "REV-" + original.requestCode(), original.quantity().negate(),
                 original.unitCode(), original.unitPrice(), original.totalAmount().negate(), original.currencyCode(),
                 original.priceId(), original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
-                original.itemNameSnapshot(), facts.occurredAt(), facts.actorId(), original.id(), original.accountingCategory()));
+                original.itemNameSnapshot(), facts.occurredAt(), facts.actorId(), original.id(), original.accountingCategory())
+                .asChargeLine(original.chargeLineNo(), original.chargeRole()));
         List<ChargeItemComponent> originalComponents = components.findByTenantIdAndChargeItemId(event.tenantId(), original.id());
         if (originalComponents.isEmpty()) originalComponents = List.of(new ChargeItemComponent(event.tenantId(), original.id(), 1,
                 original.catalogItemId(), original.itemCodeSnapshot(), original.itemNameSnapshot(), null, original.quantity(),

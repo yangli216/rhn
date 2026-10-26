@@ -414,7 +414,6 @@ export function EncounterCompletionDialog({ encounter, api, signed, ready, busy,
               showSettlementMode settlementModeCode={insurance.mode} onSettlementModeChange={insurance.setMode}
               insuranceIntegrated insuranceClaimView={insurance.claim} isPreSettlingInsurance={insurance.preSettling}
               onPreSettleInsurance={(settlementId) => insurance.preSettle(confirmedStatement, settlementId)}
-              onCancelInsurancePreSettle={insurance.clearClaim}
               onSubmit={(command) => billingOperation.mutateAsync({ kind: 'payment', command })} />}
               {methods.isSuccess && !nonCashMethods.length && <small className="doctor-fee-stat__hint">
                 诊间未配置非现金支付方式，需个人自付时请到收费处缴费。</small>}

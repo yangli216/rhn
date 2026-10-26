@@ -43,7 +43,8 @@ import { clinicalAiContextFingerprint, type ClinicalAiDraftRequest } from "../ai
 import type { AiPreConsultation, VitalsSummary } from "../waiting/queueTypes";
 import { type HistoryCopyDraft, type EncounterDraftState, medicationDraftKey } from '../workstation/workstationShared'
 import { OrdersPanel, type OrderIssueOutcome } from '../orders/OrdersPanel'
-import { PlanTemplatePanel } from '../templates/PlanTemplatePanel'
+import { TemplateLibraryDrawer } from '../templates/TemplateLibraryDrawer'
+import type { OrderSetPreselect, TemplatePurpose } from '../templates/templateLibrary'
 import { ControlledPrintDialog } from '../printing/EncounterPrintPanel'
 import { templateApiScope } from '../templates/templateApplicationReceipt'
 
@@ -54,8 +55,8 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   aiDraft, onAiDraftConsumed, onRegisterAiPlan, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
-  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost, recommendedPlanId,
-  onClosePlanDrawer, onCaptureTreatmentBatchDiscard,
+  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName, planTemplateDrawerHost, planTemplatePurpose = 'DIAGNOSIS', planTemplatePreselect, recommendedPlanId,
+  onClosePlanDrawer, onOpenTemplateLibrary, onCaptureTreatmentBatchDiscard,
   onOpenPrintCenter }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   completionMode: OutpatientCompletionMode | undefined
@@ -79,7 +80,13 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
   currentDepartmentName?: string
   recommendedPlanId?: string
   planTemplateDrawerHost?: HTMLDivElement | null
+  /** 统一模板抽屉的打开用途；由工作站在打开抽屉时一并指定。 */
+  planTemplatePurpose?: TemplatePurpose
+  /** 医嘱录入框检索选中新医嘱组套时，抽屉打开后预选的组套。 */
+  planTemplatePreselect?: OrderSetPreselect
   onClosePlanDrawer?: () => void
+  /** 病历区“套用模板”、医嘱区“组套 / 方案”按用途打开统一模板抽屉；医嘱检索选中新组套时附带预选组套 id。 */
+  onOpenTemplateLibrary?: (purpose: TemplatePurpose, orderSetId?: string) => void
   onCaptureTreatmentBatchDiscard?: () => (() => void) | undefined
   onOpenPrintCenter?: () => void
 }) {
@@ -323,7 +330,9 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
         }))])
       })
     }
-    setCopyNotice(`已从 ${formatTime(historyCopy.sourceRegisteredAt)}（${historyCopy.sourceEncounterNo}）带入所选内容，请核对后保存。`)
+    const medicationNotice = historyCopy.medicationDrafts?.length
+      ? `，其中 ${historyCopy.medicationDrafts.length} 项历史用药已加入医嘱待确认草稿` : ''
+    setCopyNotice(`已从 ${formatTime(historyCopy.sourceRegisteredAt)}（${historyCopy.sourceEncounterNo}）带入所选内容${medicationNotice}，请核对后保存。`)
     onHistoryCopyConsumed()
   }, [documents.isPending, getValues, historyCopy, onHistoryCopyConsumed, reset, encounter, save.isPending, orderBusy, document?.status, allergyState, medicationDrafts])
   const captureDocumentSession = useClinicalDocumentSession(api, JSON.stringify([encounter.id, encounter.residentId,
@@ -510,7 +519,7 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
           {formMode && <NoteTemplateBar api={api} disabled={signed || businessBusy || documents.isPending || Boolean(documents.error)}
           contextKey={JSON.stringify([encounter.id, encounter.residentId, encounter.organizationId, encounter.departmentId,
             encounter.clinicianId, document?.currentVersion])} currentContent={currentNoteContent}
-          onApply={applyNoteTemplate} showApply={false}
+          onOpenLibrary={onOpenTemplateLibrary && editing && !signed ? () => onOpenTemplateLibrary('RECORD') : undefined}
           defaultName={(diagnoses.find((item) => item.type === 'PRIMARY') ?? diagnoses[0])?.display} />}
           {formMode && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
           {!editing && <div className="doctor-clinical-readonly-note"
@@ -693,10 +702,13 @@ export function ClinicalRecordPanel({ encounter, allergies, allergyState, api, h
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy}
         currentDepartmentName={currentDepartmentName} onOpenPrintCenter={onOpenPrintCenter}
-        onRegisterIssueOrders={registerIssueOrders} onUnissuedCountChange={setUnissuedOrderCount} />
+        onRegisterIssueOrders={registerIssueOrders} onUnissuedCountChange={setUnissuedOrderCount}
+        onOpenTemplateLibrary={onOpenTemplateLibrary && editing && !signed ? () => onOpenTemplateLibrary('ORDERS') : undefined}
+        onOpenOrderSetTemplate={onOpenTemplateLibrary && editing && !signed ? (id) => onOpenTemplateLibrary('ORDERS', id) : undefined} />
     </aside>
     {editing && !signed && planTemplateDrawerHost && createPortal(
-      <PlanTemplatePanel initialPlanId={recommendedPlanId} encounter={encounter} busy={aiContextBusy}
+      <TemplateLibraryDrawer key={planTemplatePurpose} purpose={planTemplatePurpose} initialPlanId={planTemplatePurpose === 'DIAGNOSIS' ? recommendedPlanId : undefined}
+        initialOrderSet={planTemplatePurpose === 'ORDERS' ? planTemplatePreselect : undefined} encounter={encounter} busy={aiContextBusy}
         allergies={allergies} allergyReady={allergyState === 'READY'}
         allergyContext={JSON.stringify([allergyState, allergies])} readRecordDraft={() => JSON.stringify(getValues())}
         diagnoses={diagnoses} setDiagnoses={setDiagnoses}

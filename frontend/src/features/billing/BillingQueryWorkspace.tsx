@@ -39,11 +39,7 @@ const OPEN_STATUSES = new Set(['PRICED', 'PAYMENT_PENDING', 'PARTIAL'])
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
   SETTLED: 'success', PRICED: 'warning', PAYMENT_PENDING: 'info', PARTIAL: 'warning', REVERSED: 'neutral',
 }
-const STATUS_TEXT: Record<string, string> = {
-  SETTLED: '已完成', PRICED: '待收款', PAYMENT_PENDING: '支付中', PARTIAL: '部分付款', REVERSED: '已冲正',
-}
 const NON_STAFF_SCENES = new Set(['SELF_SERVICE', 'MOBILE', 'ONLINE'])
-const NON_STAFF_OPERATOR: Record<string, string> = { SELF_SERVICE: '自助机', MOBILE: '移动端（患者本人）', ONLINE: '线上缴费（系统）' }
 /** 费用类别：按结算单持久化的结算方式判断；医保结算基金支付为 0 元（全部自付）时仍是医保，冲正单继承原结算方式。 */
 function feeCategory(record: Pick<SettlementRecord, 'settlementMode'>) {
   return record.settlementMode === 'MEDICAL_INSURANCE' ? 'INSURANCE' : 'SELF'
@@ -55,9 +51,9 @@ const FEE_CATEGORY_OPTIONS = [
   { value: 'INSURANCE', label: '医保' },
 ]
 
-function operatorLabel(record: Pick<SettlementRecord, 'cashierName' | 'cashierUsername' | 'finalizedBy' | 'terminalScene'>, unrecorded: string) {
+function operatorLabel(record: Pick<SettlementRecord, 'cashierName' | 'cashierUsername' | 'finalizedBy' | 'terminalScene' | 'terminalSceneText'>, unrecorded: string) {
   return record.cashierName ?? record.cashierUsername ?? (record.finalizedBy ? `人员 ${record.finalizedBy}`
-    : NON_STAFF_OPERATOR[record.terminalScene ?? ''] ?? unrecorded)
+    : (NON_STAFF_SCENES.has(record.terminalScene ?? '') ? record.terminalSceneText ?? record.terminalScene : unrecorded))
 }
 
 export function BillingQueryWorkspace({ api, clinicalContext }: {
@@ -449,7 +445,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
                       <td>{operatorLabel(record, '未记录办理人')}</td>
                       <td>
                         <StatusBadge tone={STATUS_TONE[record.status] ?? 'neutral'}>
-                          {record.statusText ?? STATUS_TEXT[record.status] ?? record.status}
+                          {record.statusText ?? record.status}
                         </StatusBadge>
                       </td>
                       <td>

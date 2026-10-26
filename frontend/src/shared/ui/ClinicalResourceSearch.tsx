@@ -2,13 +2,16 @@ import { clinicalReferencePrices, clinicalMedicationType, clinicalStockText } fr
 import { useCallback } from 'react'
 import type { DiseaseConcept, ItemGroup, MedicationKnowledge, ServiceCatalogItem } from '../api/masterDataApi'
 import type { OrderableMedicationKnowledge } from '../api/encountersApi'
+import { outpatientPlanTemplateScopeLabel, type OutpatientPlanTemplate } from '../api/outpatientPlanTemplatesApi'
 import { errorMessage } from '../api/httpClient'
 import type { RhnApi } from '../rhnApi'
 import { RemoteSearchSelect, type RemoteSearchOption, type RemoteSearchSelectProps } from './RemoteSearchSelect'
 import { matchesPinyinOrText } from './pinyinInitials'
 
 export type ClinicalResourceType = 'diagnosis' | 'medication' | 'service' | 'mixed'
+/** OutpatientPlanTemplate 仅指医嘱组套（templateKind=ORDER_SET）：临床模板库里的新组套。 */
 export type ClinicalResource = DiseaseConcept | MedicationKnowledge | ServiceCatalogItem | OrderableMedicationKnowledge | ItemGroup
+  | OutpatientPlanTemplate
 export type ClinicalResourceOption<T extends ClinicalResource = ClinicalResource> = RemoteSearchOption<T>
 export type OrderSearchMode = 'smart' | 'prefix'
 
@@ -84,6 +87,23 @@ function matchServiceItem(item: ServiceCatalogItem, query: string): boolean {
     matchesPinyinOrText(item.sdServiceTypeText, query) ||
     matchesPinyinOrText(item.serviceSubtypeText, query)
   )
+}
+
+/** 新医嘱组套（临床模板）检索：服务端按关键字过滤；纯字母数字查询无结果时，按同一上下文的全量列表做拼音补充。 */
+async function searchOrderSetTemplates(api: RhnApi, query: string): Promise<OutpatientPlanTemplate[]> {
+  const load = async (keyword: string) => {
+    const rows = await api.outpatientPlanTemplates.list(keyword, 'ORDER_SET')
+    if (!Array.isArray(rows) || rows.some(row => !row || typeof row.id !== 'string' || !row.id.trim()
+      || typeof row.name !== 'string' || !row.name.trim()) || new Set(rows.map(row => row.id)).size !== rows.length) {
+      throw new Error('返回目录数据不完整或包含重复记录')
+    }
+    return rows.filter(row => row.status === 'ACTIVE' && row.templateKind === 'ORDER_SET')
+  }
+  try {
+    const values = await load(query)
+    if (values.length || !query || !/^[a-zA-Z0-9\s.]+$/.test(query)) return values
+    return (await load('')).filter(value => matchesPinyinOrText(value.name, query))
+  } catch (error) { throw new Error(`医嘱组套检索失败：${errorMessage(error)}`) }
 }
 
 function matchItemGroupItem(item: ItemGroup, query: string): boolean {
@@ -172,9 +192,12 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
     if (searchSrv) tasks.push(searchClinicalList('项目', actualQuery,
       value => api.masterData.services(value, '', 'ACTIVE', organizationId), matchServiceItem)
       .then(values => values.map(item => mapResourceOption('service', item, organizationId))))
-    if (searchGrp) tasks.push(searchClinicalList('组套', actualQuery,
-      value => api.masterData.itemGroups(value, 'ORDER_SET', 'ACTIVE'), matchItemGroupItem)
-      .then(values => values.map(mapItemGroupOption)))
+    if (searchGrp) {
+      tasks.push(searchClinicalList('医嘱组套', actualQuery,
+        value => api.masterData.itemGroups(value, 'ORDER_SET', 'ACTIVE'), matchItemGroupItem)
+        .then(values => values.map(mapItemGroupOption)))
+      tasks.push(searchOrderSetTemplates(api, actualQuery).then(values => values.map(mapOrderSetTemplateOption)))
+    }
 
     const settled = await Promise.all(tasks)
     const combined = settled.flat()
@@ -232,13 +255,13 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
             </span>
             <span className="doctor-order-hint-item">
               <kbd className="doctor-order-hint-kbd">/</kbd>
-              <span className="doctor-order-hint-text">组套</span>
+              <span className="doctor-order-hint-text">医嘱组套</span>
             </span>
           </>
         ) : (
           <span className="doctor-order-hint-item">
             <span className="doctor-order-hint-tag">全库混搜</span>
-            <span className="doctor-order-hint-text">药品 / 项目 / 组套自适应识别</span>
+            <span className="doctor-order-hint-text">药品 / 项目 / 医嘱组套自适应识别</span>
           </span>
         )}
       </div>
@@ -369,8 +392,24 @@ function mapItemGroupOption(item: ItemGroup): RemoteSearchOption<ClinicalResourc
     label: item.name,
     code: item.code,
     description,
-    tags: ['组套', membersKnown ? `${memberCount}项` : '明细待确认'],
+    tags: ['医嘱组套', membersKnown ? `${memberCount}项` : '明细待确认'],
     disabled: !membersKnown,
+    raw: item,
+  }
+}
+
+/** 新医嘱组套：标注“医嘱组套”与范围；选中后由上层打开抽屉预览，不在检索框内直接展开。 */
+function mapOrderSetTemplateOption(item: OutpatientPlanTemplate): RemoteSearchOption<ClinicalResource> {
+  const names = [...(item.medications ?? []).map(value => value.medicationName), ...(item.services ?? []).map(value => value.itemName)]
+    .filter(Boolean)
+  const description = names.length
+    ? `包含 ${names.length} 项明细: ${names.slice(0, 4).join('、')}${names.length > 4 ? ' 等' : ''}` : '医嘱组套（无明细）'
+  return {
+    value: `order-set-template:${item.id}`,
+    label: item.name,
+    code: '',
+    description,
+    tags: ['医嘱组套', outpatientPlanTemplateScopeLabel(item.scopeType)],
     raw: item,
   }
 }

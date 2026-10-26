@@ -8,6 +8,7 @@ import type { MedicationKnowledge } from '../../../shared/api/masterDataApi'
 import { IconButton, Button, Icon, Select } from '../../../shared/ui'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from './MedicalInsertViewerModal'
 import { ServiceInsertButton } from './ServiceInsertButton'
+import { examinationSiteSummary } from './examinationSiteSummary'
 import { calculatePackageQuantity, defaultPackageQuantity, hasNoDailyRate } from '../orders/medicationQuantity'
 import { clinicalAiTreatmentKey } from '../orders/orderDraftTypes'
 import {
@@ -168,7 +169,8 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
       const serviceExecution = [resolved?.specification, details.instruction?.trim() && `目的：${details.instruction.trim()}`].filter(Boolean).join('；')
       const secondaryText = medication
         ? resolved?.specification || item.specification || (shouldDisplayOrderCode(item.code) ? item.code : undefined)
-        : (shouldDisplayOrderCode(item.code) ? item.code : undefined)
+        : [examinationSiteSummary(item.examinationSites), shouldDisplayOrderCode(item.code) ? item.code : undefined]
+          .filter(Boolean).join(' · ') || undefined
       const open = editingKey === key
       const doseUnits = [...new Set([details.doseUnit, resolved?.medication?.strengthUnit, resolved?.medication?.preparationUnit,
         resolved?.medication?.defaultDoseUnit].map((value) => value?.trim()).filter((value): value is string => Boolean(value)))]

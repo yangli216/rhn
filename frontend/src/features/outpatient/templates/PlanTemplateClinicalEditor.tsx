@@ -9,19 +9,22 @@ import { editorMedicationValidation, editorServiceAdopted, requireEditorDiagnosi
   requireEditorPage, requireEditorService, requireEditorStandards } from './templateEditorFacts'
 import {
   Alert, Button, ClinicalResourceSearch, EditableCell, EditableRow, EditableTable, Icon, Panel, PanelHead,
-  RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass,
+  RemoteSearchSelect, Select, StatusBadge, Switch, UnitNumberInput, tableCellClass,
   type ClinicalResourceOption, type RemoteSearchOption,
 } from '../../../shared/ui'
 import { MedicalInsertViewerModal, type MedicalInsertTarget } from '../ai/MedicalInsertViewerModal'
+import { isActiveExecutionDepartment } from '../orders/orderExecutionDepartment'
 import { ServiceInsertButton } from '../ai/ServiceInsertButton'
 import { diagnosisKey, moveDiagnosis, normalizeDiagnosisOrder } from '../record/clinicalRecordDraft'
 
 type OrderKind = 'MEDICATION' | 'SERVICE'
 
-export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, setDiagnoses, medications,
+export function PlanTemplateClinicalEditor({ api, organizationId, mode = 'PROTOCOL', diagnoses, setDiagnoses, medications,
   setMedications, services, setServices, onError, onValidationChange }: {
   api: RhnApi
   organizationId?: string
+  /** ORDER_SET：医嘱组套，隐藏诊断区，每行可设“默认勾选”，项目行可设执行科室。 */
+  mode?: 'PROTOCOL' | 'ORDER_SET'
   diagnoses: DiagnosisInput[]
   setDiagnoses: Dispatch<SetStateAction<DiagnosisInput[]>>
   medications: CompiledPlanMedicationItem[]
@@ -39,6 +42,21 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   const currentDirectory = directory?.api === api && directory.organizationId === organizationId ? directory : undefined
   const standards = currentDirectory?.data
   const validation = editorMedicationValidation(medications, standards)
+  const orderSet = mode === 'ORDER_SET'
+  const [departments, setDepartments] = useState<{ api: RhnApi; organizationId?: string; options?: { value: string; label: string }[]; error?: string }>()
+  const currentDepartments = departments?.api === api && departments.organizationId === organizationId ? departments : undefined
+  const departmentOptions = currentDepartments?.options ?? []
+  // 组套项目行可固定执行科室；这里只读取当前机构可开立的科室，不与组套保存耦合。
+  useEffect(() => {
+    if (!orderSet || !organizationId) return
+    let active = true
+    void Promise.resolve().then(() => api.organization.departments(organizationId)).then((rows) => {
+      if (!Array.isArray(rows)) throw new Error('科室目录返回异常')
+      if (active) setDepartments({ api, organizationId, options: rows.filter(row => isActiveExecutionDepartment(row, organizationId))
+        .map(row => ({ value: row.id, label: row.name })) })
+    }).catch(cause => { if (active) setDepartments({ api, organizationId, error: errorMessage(cause) }) })
+    return () => { active = false }
+  }, [api, orderSet, organizationId])
   useEffect(() => { onValidationChange(validation) }, [onValidationChange, validation])
 
   useEffect(() => {
@@ -104,7 +122,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
     if (!item) return
     try { requireEditorMedication(item) } catch (cause) { onError(errorMessage(cause)); return }
     if (medications.some((value) => value.medicationId === item.id)) {
-      onError(`药品“${item.name}”已经加入方案。`)
+      onError(`药品“${item.name}”已经加入${orderSet ? '组套' : '方案'}。`)
       return
     }
     onError('')
@@ -120,6 +138,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
       quantityUnit: item.preparationUnit,
       substitutionAllowed: true,
       selfProvided: false,
+      ...(orderSet ? { defaultSelected: true } : {}),
     }])
   }
 
@@ -128,15 +147,15 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
     if (!item) return
     try {
       requireEditorService(item)
-      if (!editorServiceAdopted(item, organizationId)) throw new Error('项目在当前机构暂无有效可开立采用，不能加入方案。')
+      if (!editorServiceAdopted(item, organizationId)) throw new Error(`项目在当前机构暂无有效可开立采用，不能加入${orderSet ? '组套' : '方案'}。`)
     } catch (cause) { onError(errorMessage(cause)); return }
     const catalogItemId = item?.organizationAdoption?.catalogItemId
     if (!item || !catalogItemId) {
-      if (item) onError(`项目“${item.name}”尚未匹配当前机构目录，不能加入方案。`)
+      if (item) onError(`项目“${item.name}”尚未匹配当前机构目录，不能加入${orderSet ? '组套' : '方案'}。`)
       return
     }
     if (services.some((value) => value.catalogItemId === catalogItemId)) {
-      onError(`项目“${item.name}”已经加入方案。`)
+      onError(`项目“${item.name}”已经加入${orderSet ? '组套' : '方案'}。`)
       return
     }
     onError('')
@@ -148,6 +167,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
       quantity: 1,
       unitCode: item.unitCode,
       pricingRequired: true,
+      ...(orderSet ? { defaultSelected: true } : {}),
     }])
   }
 
@@ -166,8 +186,8 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   const frequencyOptions = standards?.frequencies.map((value) => ({ value: value.code, label: value.name })) ?? []
   const doseUnitOptions = standards?.doseUnits.map((value) => ({ value: value.code, label: value.display })) ?? []
 
-  return <div className="plan-template-clinical-editor">
-    <Panel className="plan-template-entry-section">
+  return <div className={`plan-template-clinical-editor ${orderSet ? 'is-order-set' : ''}`}>
+    {!orderSet && <Panel className="plan-template-entry-section">
       <PanelHead title="诊断" meta={<StatusBadge tone={diagnoses.length ? 'info' : 'warning'}>{diagnoses.length} 项</StatusBadge>} />
       <div className="plan-template-entry-section__body">
         <div className="plan-template-diagnosis-composer">
@@ -211,10 +231,10 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
           })}
         </div>
       </div>
-    </Panel>
+    </Panel>}
 
     <Panel className="plan-template-entry-section">
-      <PanelHead title="医嘱" meta={<StatusBadge tone="info">{medications.length + services.length} 项</StatusBadge>} />
+      <PanelHead title={orderSet ? '药品与项目' : '医嘱'} meta={<StatusBadge tone="info">{medications.length + services.length} 项</StatusBadge>} />
       <div className="plan-template-entry-section__body">
         <div className="plan-template-order-composer">
           <Select aria-label="医嘱类型" value={orderKind} clearable={false} searchable={false}
@@ -231,7 +251,7 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
         <div className="plan-template-order-source-hint" role="note">
           <Icon name="info" />
           <span>{orderKind === 'MEDICATION'
-            ? '模板药品来自通用主数据，应用方案时再校验机构目录、库存与价格。'
+            ? `模板药品来自通用主数据，应用${orderSet ? '组套' : '方案'}时再校验机构目录、库存与价格。`
             : '仅可加入当前机构已采用的检验、检查和治疗项目。'}</span>
         </div>
 
@@ -242,7 +262,8 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
         {validation && <Alert duration={null}>{validation}</Alert>}
         <div className="plan-template-order-list">
           {!medications.length && !services.length && <div className="plan-template-entry-empty">检索并选择医嘱后，可在列表内继续完善用法与数量</div>}
-          {!!(medications.length || services.length) && <EditableTable className="plan-template-order-table" aria-label="方案医嘱列表">
+          {!!(medications.length || services.length) && <EditableTable className={`plan-template-order-table ${orderSet ? 'is-order-set' : ''}`}
+            aria-label={orderSet ? '组套医嘱列表' : '方案医嘱列表'}>
             <colgroup>
               <col className="plan-template-order-table__type" />
               <col className="plan-template-order-table__name" />
@@ -252,6 +273,8 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
               <col className="plan-template-order-table__duration" />
               <col className="plan-template-order-table__quantity" />
               <col className="plan-template-order-table__instruction" />
+              {orderSet && <col className="plan-template-order-table__department" />}
+              {orderSet && <col className="plan-template-order-table__selected" />}
               <col className="plan-template-order-table__actions" />
             </colgroup>
             <thead><tr>
@@ -263,14 +286,19 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
               <th>疗程</th>
               <th>开立数量</th>
               <th>嘱托 / 临床要求</th>
+              {orderSet && <th>执行科室</th>}
+              {orderSet && <th>默认勾选</th>}
               <th className={tableCellClass('actions')}>操作</th>
             </tr></thead>
             <tbody>
               {medications.map((item, index) => <MedicationTemplateRow key={`${item.medicationId || 'med'}-${index}`}
                 item={item} index={index} standardsReady={Boolean(standards)} doseUnitOptions={doseUnitOptions}
-                routeOptions={routeOptions} frequencyOptions={frequencyOptions} setMedications={setMedications} />)}
+                routeOptions={routeOptions} frequencyOptions={frequencyOptions} setMedications={setMedications}
+                orderSet={orderSet} />)}
               {services.map((item, index) => <ServiceTemplateRow key={`${item.catalogItemId}-${index}`}
-                item={item} index={index} setServices={setServices} onInspect={setInspectTarget} />)}
+                item={item} index={index} setServices={setServices} onInspect={setInspectTarget}
+                orderSet={orderSet} departmentOptions={departmentOptions} departmentsReady={Boolean(currentDepartments?.options)}
+                departmentsFailed={Boolean(currentDepartments?.error)} />)}
             </tbody>
           </EditableTable>}
         </div>
@@ -281,7 +309,8 @@ export function PlanTemplateClinicalEditor({ api, organizationId, diagnoses, set
   </div>
 }
 
-function MedicationTemplateRow({ item, index, standardsReady, doseUnitOptions, routeOptions, frequencyOptions, setMedications }: {
+function MedicationTemplateRow({ item, index, standardsReady, doseUnitOptions, routeOptions, frequencyOptions, setMedications, orderSet }: {
+  orderSet: boolean
   item: CompiledPlanMedicationItem
   index: number
   standardsReady: boolean
@@ -337,12 +366,19 @@ function MedicationTemplateRow({ item, index, standardsReady, doseUnitOptions, r
         placeholder="选填" maxLength={500}
         onChange={(event) => updateAt(setMedications, index, { medicationInstruction: event.target.value })} />
     </EditableCell>
+    {orderSet && <td>—</td>}
+    {orderSet && <td><DefaultSelectedSwitch name={name} checked={item.defaultSelected !== false}
+      onChange={(value) => updateAt(setMedications, index, { defaultSelected: value })} /></td>}
     <td className={tableCellClass('actions')}><Button type="button" size="sm" variant="text"
       aria-label={`移除药品 ${name}`} onClick={() => setMedications((current) => current.filter((_, target) => target !== index))}>移除</Button></td>
   </EditableRow>
 }
 
-function ServiceTemplateRow({ item, index, setServices, onInspect }: {
+function ServiceTemplateRow({ item, index, setServices, onInspect, orderSet, departmentOptions, departmentsReady, departmentsFailed }: {
+  orderSet: boolean
+  departmentOptions: { value: string; label: string }[]
+  departmentsReady: boolean
+  departmentsFailed: boolean
   item: CompiledPlanServiceItem
   index: number
   setServices: Dispatch<SetStateAction<CompiledPlanServiceItem[]>>
@@ -374,9 +410,23 @@ function ServiceTemplateRow({ item, index, setServices, onInspect }: {
         placeholder="选填，例如空腹、检查部位" maxLength={500}
         onChange={(event) => updateAt(setServices, index, { clinicalDescription: event.target.value })} />
     </EditableCell>
+    {orderSet && <EditableCell display={item.executionDepartmentId
+      ? optionLabel(departmentOptions, item.executionDepartmentId) : '按项目默认'}>
+      <Select aria-label={`${name} 执行科室`} value={item.executionDepartmentId || ''} clearable searchable
+        disabled={!departmentsReady && !item.executionDepartmentId}
+        options={departmentOptions} placeholder={departmentsFailed ? '科室加载失败' : '按项目默认'}
+        onChange={(value) => updateAt(setServices, index, { executionDepartmentId: value || undefined })} />
+    </EditableCell>}
+    {orderSet && <td><DefaultSelectedSwitch name={name} checked={item.defaultSelected !== false}
+      onChange={(value) => updateAt(setServices, index, { defaultSelected: value })} /></td>}
     <td className={tableCellClass('actions')}><Button type="button" size="sm" variant="text"
       aria-label={`移除项目 ${name}`} onClick={() => setServices((current) => current.filter((_, target) => target !== index))}>移除</Button></td>
   </EditableRow>
+}
+
+function DefaultSelectedSwitch({ name, checked, onChange }: { name: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return <Switch size="sm" checked={checked} onChange={onChange} aria-label={`${name} 默认勾选`}
+    checkedText="勾选" uncheckedText="不勾" title="带入预览时是否默认勾选此行" />
 }
 
 const durationUnitOptions = [{ value: 'd', label: '天' }, { value: 'w', label: '周' }, { value: 'm', label: '月' }]

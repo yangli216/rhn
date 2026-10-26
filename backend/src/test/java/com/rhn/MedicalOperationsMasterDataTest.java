@@ -17,6 +17,45 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
     @org.springframework.beans.factory.annotation.Autowired
     com.rhn.platform.masterdata.infrastructure.UnitDefinitionRepository unitRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Test
+    void item_group_query_is_open_to_authenticated_users_without_master_data_manage_but_writes_stay_protected() throws Exception {
+        try {
+            // 模拟只有门诊医生类权限（OUTPATIENT_RECEPTION.ACCESS）、没有 MASTER_DATA.MANAGE 的用户
+            setPermissionActive("MASTER_DATA.MANAGE", false);
+            // 方法级 isAuthenticated() 覆盖类级 MASTER_DATA.MANAGE：查询放开
+            mockMvc.perform(get("/api/platform/master-data/operations/item-groups").with(rhnWorkContext()))
+                    .andExpect(status().isOk());
+            // 其他读接口仍沿用类级权限，证明覆盖只作用于该方法
+            mockMvc.perform(get("/api/platform/master-data/operations/units").with(rhnWorkContext()))
+                    .andExpect(status().isForbidden());
+            // 写操作仍需 MASTER_DATA.MANAGE
+            mockMvc.perform(post("/api/platform/master-data/operations/item-groups")
+                            .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                            {"code":"LIS-NOPERM","name":"无权限组套","groupType":"LIS","pointOfCare":false,
+                             "status":"ACTIVE","validFrom":"2026-01-01","members":[
+                               {"catalogItemId":"362387869795101","sortOrder":10,"quantity":1,"requiredMember":true}]}
+                            """))
+                    .andExpect(status().isForbidden());
+        } finally {
+            setPermissionActive("MASTER_DATA.MANAGE", true);
+        }
+    }
+
+    private void setPermissionActive(String code, boolean active) {
+        String validTo = active ? "null" : "current_timestamp - interval '1' day";
+        jdbcTemplate.update("""
+                update RHN_SYS_ROLE_PERM_ASSIGN
+                   set DT_VALID_TO = %s
+                 where ID_TNT = ?
+                   and ID_ACC_PERM in (
+                       select ID_ACC_PERM from RHN_SYS_ACC_PERM where ID_TNT = ? and CD_ACC_PERM = ?
+                   )
+                """.formatted(validTo), Long.valueOf(TENANT), Long.valueOf(TENANT), code);
+    }
+
     @Test
     void unit_names_are_tenant_scoped_and_include_inactive_history() {
         Long tenant = Long.valueOf(TENANT);

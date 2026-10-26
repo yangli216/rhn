@@ -27,6 +27,7 @@ import { actionableRelief, SettlementReliefPanel, type SettlementReliefPlan } fr
 import { cancellableSettlements, lockedSettlementHint } from './unpaidSettlements'
 import { RecentSettlements, recentSettlementsQueryKey } from './RecentSettlements'
 import '../../styles/features/billing-settlement.css'
+import { orderChargeLineIds } from '../../shared/billing/orderChargeLines'
 
 const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
 const draftSettlementId = '__CURRENT_UNINVOICED_CHARGES__'
@@ -452,10 +453,12 @@ export function BillingWorkspace({ api, clinicalContext, authorities = [], usern
   }, [statement.data?.accountId, statement.data?.revision, activeCharges, invoicedChargeIds])
 
   const toggleCharge = (id: string) => {
+    // 检查申请的多行收费须整单结算：勾选或取消一行时同步同一申请的其余未结算行。
+    const lineIds = orderChargeLineIds(activeCharges.filter((c) => !invoicedChargeIds.has(c.id)), id)
     setSelectedChargeIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) lineIds.forEach((lineId) => next.delete(lineId))
+      else lineIds.forEach((lineId) => next.add(lineId))
       return next
     })
   }

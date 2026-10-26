@@ -40,6 +40,8 @@ public class ChargeItem {
     @Column(name = "DT_OCCRD", nullable = false) private Instant occurredAt;
     @Column(name = "ID_USER_ENTERED", nullable = false) private Long enteredBy;
     @Column(name = "ID_CHARGE_ITEM_RVRS") private Long reversesChargeItemId;
+    @Column(name = "SN_CHG_LINE", nullable = false) private int chargeLineNo = 1;
+    @Column(name = "SD_CHG_ROLE") private String chargeRole;
 
     protected ChargeItem() {}
 
@@ -89,6 +91,14 @@ public class ChargeItem {
         this.accountingCategory = accountingCategory;
     }
 
+    /** 同一来源多行收费（检查申请按收费方案落账）时，在保存前标注行号与行类型。 */
+    public ChargeItem asChargeLine(int lineNo, String role) {
+        if (lineNo < 1) throw new IllegalArgumentException("收费行号必须从 1 开始");
+        this.chargeLineNo = lineNo;
+        this.chargeRole = role;
+        return this;
+    }
+
     public void bindEncounter(Long encounterId) {
         if (this.encounterId != null && !this.encounterId.equals(encounterId)) {
             throw new IllegalStateException("收费事项已经绑定其他就诊");
@@ -112,6 +122,8 @@ public class ChargeItem {
     public Long catalogItemId() { return catalogItemId; }
     public String sourceType() { return sourceType; }
     public Long sourceId() { return sourceId; }
+    public int chargeLineNo() { return chargeLineNo; }
+    public String chargeRole() { return chargeRole; }
     public String requestCode() { return requestCode; }
     public String status() { return status; }
     public BigDecimal quantity() { return quantity; }

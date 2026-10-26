@@ -4,6 +4,12 @@ import type { CreateMedicationRequestInput, CreateServiceRequestInput, Diagnosis
 import type { ApiClient } from './httpClient'
 
 export type OutpatientPlanTemplateScope = 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL'
+/** 医生可见的范围叫法：我的 / 科室 / 全院。 */
+export function outpatientPlanTemplateScopeLabel(scope: OutpatientPlanTemplateScope): string {
+  return scope === 'PERSONAL' ? '我的' : scope === 'DEPARTMENT' ? '科室' : '全院'
+}
+/** PROTOCOL 诊疗方案；ORDER_SET 医嘱组套（只含药品与项目，不含诊断、任务、病历关联）。 */
+export type OutpatientPlanTemplateKind = 'PROTOCOL' | 'ORDER_SET'
 export type OutpatientPlanTemplateSourceType = 'MANUAL' | 'AI_INPUT' | 'AI_MINED' | 'AI_GUIDELINE'
 
 export interface OutpatientPlanTask {
@@ -27,15 +33,23 @@ export interface OutpatientPlanTemplateMedication extends Omit<CreateMedicationR
   productName?: string
   routeName?: string
   routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
+  /** 带入预览中是否默认勾选；服务端缺省 true。 */
+  defaultSelected?: boolean
 }
 
 export interface OutpatientPlanTemplateService extends CreateServiceRequestInput {
   itemCode: string
   itemName: string
   serviceType: 'LABORATORY' | 'EXAMINATION' | 'TREATMENT' | 'OTHER'
+  /** 带入预览中是否默认勾选；服务端缺省 true。 */
+  defaultSelected?: boolean
+  /** 默认执行科室；为空时沿用项目默认执行科室规则。 */
+  executionDepartmentId?: string
 }
 
 export interface OutpatientPlanTemplate {
+  /** 模板类型；服务端始终返回，缺省按 PROTOCOL 处理。 */
+  templateKind?: OutpatientPlanTemplateKind
   searchProfile?: {
     schemaVersion: number
     contentHash: string
@@ -69,15 +83,20 @@ export interface CompiledPlanMedicationItem extends Omit<CreateMedicationRequest
   'prescriptionId' | 'parentRequestId' | 'allergyReviewConfirmed' | 'allergyOverrideReason'> {
   medicationName?: string
   preparationSpec?: string
+  defaultSelected?: boolean
 }
 
 export interface CompiledPlanServiceItem extends CreateServiceRequestInput {
   itemCode?: string
   itemName?: string
   serviceType?: 'LABORATORY' | 'EXAMINATION' | 'TREATMENT' | 'OTHER'
+  defaultSelected?: boolean
+  executionDepartmentId?: string
 }
 
 export interface SaveOutpatientPlanTemplateInput {
+  /** 缺省 PROTOCOL；ORDER_SET 不允许诊断、任务、病历关联，且至少一条药品或项目。 */
+  templateKind?: OutpatientPlanTemplateKind
   scopeType: OutpatientPlanTemplateScope
   name: string
   description?: string
@@ -388,6 +407,8 @@ export interface HistoricalPlanComparison {
 
 export interface UpdateOutpatientPlanTemplateInput {
   expectedRevision: number
+  /** 可空；若提供必须与已保存类型一致，类型创建后不能变更。 */
+  templateKind?: OutpatientPlanTemplateKind
   scopeType: OutpatientPlanTemplateScope
   name: string
   description?: string
@@ -402,8 +423,12 @@ export interface UpdateOutpatientPlanTemplateInput {
 
 export function createOutpatientPlanTemplatesApi(client: ApiClient) {
   return {
-    list: (keyword = '') => client.request<OutpatientPlanTemplate[]>(
-      `/api/outpatient/plan-templates${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`),
+    /** kind 缺省只返回 PROTOCOL（诊疗方案）；医嘱组套需显式传 ORDER_SET。 */
+    list: (keyword = '', kind?: OutpatientPlanTemplateKind) => {
+      const query = [keyword ? `keyword=${encodeURIComponent(keyword)}` : '', kind ? `kind=${kind}` : '']
+        .filter(Boolean).join('&')
+      return client.request<OutpatientPlanTemplate[]>(`/api/outpatient/plan-templates${query ? `?${query}` : ''}`)
+    },
     create: (input: SaveOutpatientPlanTemplateInput) => client.request<OutpatientPlanTemplate>(
       '/api/outpatient/plan-templates', { method: 'POST', body: JSON.stringify(input) }),
     update: (id: string, input: UpdateOutpatientPlanTemplateInput) => client.request<OutpatientPlanTemplate>(

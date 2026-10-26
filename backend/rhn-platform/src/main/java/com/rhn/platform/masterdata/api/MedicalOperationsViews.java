@@ -28,12 +28,17 @@ public final class MedicalOperationsViews {
             BigDecimal additionalSitePrice, Long additionalSiteItemId,
             String additionalSiteItemCode, String additionalSiteItemName,
             BigDecimal additionalSiteQuantity, Integer maxChargeableSiteCount,
+            Long baseChargeItemId, String baseChargeItemCode, String baseChargeItemName,
+            List<ExaminationPriceTierView> priceTiers, String examinationTechnique, String contrastPhase,
             List<ExaminationVariant> variants, List<ExaminationAttachment> attachments) {}
-    public record ExaminationVariant(Long id, long revision, Long bodySiteConceptId, String code,
+    public record ExaminationPriceTierView(Long id, int siteFrom, Integer siteTo, Long chargeItemId,
+            String chargeItemCode, String chargeItemName, BigDecimal chargeQuantity) {}
+    public record ExaminationVariant(Long id, long revision, Long bodySiteConceptId,
+            String bodySiteCode, String bodySiteName, String code,
             String name,
             @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_VARIANT_METHOD) String methodType,
             boolean bodySiteRequired, String mutualRecognitionCode,
-            int sortOrder, String status) {}
+            int sortOrder, String status, int chargeableSiteUnits) {}
     public record ExaminationAttachment(Long id, long revision, Long attachmentCatalogItemId,
             String attachmentItemCode, String attachmentItemName, String triggerType,
             String quantityBasis, BigDecimal quantity, boolean requiredAttachment,
@@ -75,8 +80,12 @@ public final class MedicalOperationsViews {
     public record DiagnosticChargeLine(Long catalogItemId, String itemCode, String itemName,
             BigDecimal quantity, String unitCode, String sourceType, boolean separatelyChargeable,
             BigDecimal fixedAmount, String description) {}
-    public record ExaminationChargePlan(Long serviceId, int siteCount, String sitePricingMode,
-            int includedSiteCount, int extraSiteCount, List<DiagnosticChargeLine> lines) {}
+    /**
+     * 检查收费方案。siteCount 为所选部位方式个数，chargeableSiteCount 为按部位方式计费部位数折算、
+     * 封顶后的计费部位数（至少 1），extraSiteCount 为超出包含部位数的计费部位数。
+     */
+    public record ExaminationChargePlan(Long serviceId, int siteCount, int chargeableSiteCount,
+            String sitePricingMode, int includedSiteCount, int extraSiteCount, List<DiagnosticChargeLine> lines) {}
     public record LaboratoryTubeGroup(String groupCode, Long specimenItemId, String specimenCode,
             String specimenName, Long containerItemId, String containerCode, String containerName,
             String sharingMode, int tubeCount, List<Long> serviceIds,

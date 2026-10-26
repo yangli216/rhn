@@ -18,7 +18,8 @@ export function requireClinicalConfiguration(value: ClinicalConfiguration, servi
       || typeof value.laboratory!.fastingRequired !== 'boolean' || typeof value.laboratory!.pointOfCare !== 'boolean'))
     || (!laboratory && (!Array.isArray(value.examination!.variants) || !Array.isArray(value.examination!.attachments)
       || typeof value.examination!.bodySiteRequired !== 'boolean' || typeof value.examination!.multiBodySite !== 'boolean'
-      || !['SINGLE', 'PER_SITE', 'BASE_PLUS_FIXED', 'BASE_PLUS_ITEM'].includes(value.examination!.sitePricingMode)))) {
+      || !Array.isArray(value.examination!.priceTiers)
+      || !['SINGLE', 'PER_SITE', 'BASE_PLUS_FIXED', 'BASE_PLUS_ITEM', 'TIERED_ITEM'].includes(value.examination!.sitePricingMode)))) {
     throw new Error('执行与收费配置返回不完整，无法确认当前配置，请刷新后重试。')
   }
   const ex = value.examination
@@ -30,7 +31,8 @@ export function requireClinicalConfiguration(value: ClinicalConfiguration, servi
       || (ex.maxBodySiteCount != null && ex.maxChargeableSiteCount > ex.maxBodySiteCount)))
     || (ex.sitePricingMode === 'BASE_PLUS_FIXED' && (ex.additionalSitePrice == null
       || !Number.isFinite(ex.additionalSitePrice) || ex.additionalSitePrice < 0))
-    || (ex.sitePricingMode === 'BASE_PLUS_ITEM' && !ex.additionalSiteItemId))) {
+    || (ex.sitePricingMode === 'BASE_PLUS_ITEM' && !ex.additionalSiteItemId)
+    || (ex.sitePricingMode === 'TIERED_ITEM' && (!ex.priceTiers.length || ex.baseChargeItemId)))) {
     throw new Error('检查收费规则缺失或数值无效，无法确认费用，请联系管理员修复配置。')
   }
   return value

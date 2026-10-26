@@ -97,7 +97,7 @@ describe('AI plan resolves all facts before one local commit', () => {
   it('rejects late catalog resolution after a manual record change', async () => {
     const h = setup()
     let complete!: (value: unknown) => void
-    h.f.medications.mockImplementation(() => new Promise(done => { complete = done }))
+    h.f.medicationsByCodes.mockImplementation(() => new Promise(done => { complete = done }))
     const work = h.result.current.prepare(h.request())
     const rejected = expect(work).rejects.toThrow(/本次未带入/)
     await act(async () => { await Promise.resolve() })

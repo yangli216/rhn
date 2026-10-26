@@ -265,7 +265,16 @@ public final class ClinicalAssistantContracts {
                                           String code, String name, String specification, String rationale,
                                           TreatmentUsageSuggestion usageSuggestion,
                                           /** Brief examination purpose (laboratory/examination only), prefilled for physician review. */
-                                          String purpose) {
+                                          String purpose,
+                                          /** 检查结构化意图（检查方式、超声方式、增强方式、临床部位、侧别）；只在意图上出现，不来自目录。 */
+                                          ExaminationIntent examination,
+                                          /** 服务端按开立项目解析的部位与收费预览；只在院内候选上出现，模型不能提供。 */
+                                          ExaminationSitePlan examinationSites) {
+        public TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
+                                       String code, String name, String specification, String rationale,
+                                       TreatmentUsageSuggestion usageSuggestion, String purpose) {
+            this(type, catalogItemId, medicationId, code, name, specification, rationale, usageSuggestion, purpose, null, null);
+        }
         public TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
                                        String code, String name, String specification, String rationale,
                                        TreatmentUsageSuggestion usageSuggestion) {
@@ -276,6 +285,38 @@ public final class ClinicalAssistantContracts {
             this(type, catalogItemId, medicationId, code, name, specification, rationale, null, null);
         }
     }
+
+    /**
+     * 模型给出的检查意图。modality：US / CT / MR / DR / MG / ECG / ENDOSCOPY / FUNCTION / OTHER；technique：超声
+     * B_MODE / COLOR_DOPPLER；contrastPhase：CT/MR 的 PLAIN / ENHANCED / PLAIN_ENHANCED；bodySites 为临床部位名称，
+     * 不写物价档位；laterality：LEFT / RIGHT / BILATERAL。
+     */
+    public record ExaminationIntent(
+            @jakarta.validation.constraints.Pattern(regexp = "US|CT|MR|DR|MG|ECG|ENDOSCOPY|FUNCTION|OTHER") String modality,
+            @jakarta.validation.constraints.Pattern(regexp = "B_MODE|COLOR_DOPPLER") String technique,
+            @jakarta.validation.constraints.Pattern(regexp = "PLAIN|ENHANCED|PLAIN_ENHANCED") String contrastPhase,
+            @Size(max = 6) List<@NotBlank @Size(max = 30) String> bodySites,
+            @jakarta.validation.constraints.Pattern(regexp = "LEFT|RIGHT|BILATERAL") String laterality) {}
+
+    /**
+     * 开立项目下的部位解析结果。resolution：MATCHED 全部部位对应唯一部位方式；PARTIAL 部分对应或含需核对的上下级部位；
+     * UNRESOLVED 都未对应；NOT_REQUIRED 项目不需要部位。chargePreview 只在部位全部确定时按收费方案与院内价格计算，
+     * 从不取自模型输出。
+     */
+    public record ExaminationSitePlan(String resolution, List<ExaminationSitePrefill> bodySites,
+                                      List<String> unresolvedSites, String note,
+                                      ExaminationChargePreview chargePreview) {}
+
+    /** 一个预填部位：code 为部位方式编码；requiresReview 表示经上下级部位推断，需医生核对。 */
+    public record ExaminationSitePrefill(String code, String name, Long variantId, String requestedName,
+                                        boolean requiresReview) {}
+
+    /** 收费预览；任一明细缺少院内价格时 totalAmount 为空。 */
+    public record ExaminationChargePreview(List<ExaminationChargePreviewLine> lines, java.math.BigDecimal totalAmount) {}
+
+    public record ExaminationChargePreviewLine(String role, Long catalogItemId, String itemCode, String itemName,
+                                               java.math.BigDecimal quantity, java.math.BigDecimal unitPrice,
+                                               java.math.BigDecimal amount) {}
 
     /** AI-prefilled usage draft. Present only when it maps onto the hospital catalog and currently active
      * route/frequency; it never replaces physician review. */
@@ -306,9 +347,15 @@ public final class ClinicalAssistantContracts {
                                        @Size(max = 100) String specification,
                                        @Size(max = 500) String rationale,
                                        @jakarta.validation.constraints.Positive Long catalogItemId,
-                                       @jakarta.validation.constraints.Positive Long medicationId) {
+                                       @jakarta.validation.constraints.Positive Long medicationId,
+                                       /** 可选的检查结构化意图；缺省时服务端从 name 推导。 */
+                                       @Valid ExaminationIntent examination) {
         public TreatmentSearchIntent(String type, String name, String specification, String rationale) {
-            this(type, name, specification, rationale, null, null);
+            this(type, name, specification, rationale, null, null, null);
+        }
+        public TreatmentSearchIntent(String type, String name, String specification, String rationale,
+                                     Long catalogItemId, Long medicationId) {
+            this(type, name, specification, rationale, catalogItemId, medicationId, null);
         }
     }
 

@@ -13,7 +13,7 @@
 | 标准映射、导入批次 | StandardMappingDialog.tsx、MasterDataImportDialog.tsx |
 | 表单/表格适配与公共类型 | masterDataShared.tsx（禁止反向依赖业务维护单元） |
 | 检验检查规格、标本、规则和试算 | ../operations/ClinicalServiceConfiguration.tsx、SpecimenConfigurationDialog.tsx、ExaminationRules.tsx、LaboratoryTubeSimulator.tsx、ExaminationChargeSimulator.tsx |
-| 组合/组套、耗材、单位、频次 | ../operations/ItemGroupDialog.tsx、SupplyDialog.tsx、UnitMaintenance.tsx、FrequencyMaintenance.tsx |
+| 项目组合、耗材、单位、频次 | ../operations/ItemGroupDialog.tsx、SupplyDialog.tsx、UnitMaintenance.tsx、FrequencyMaintenance.tsx |
 
 诊疗项目子类（`SD_SVC_SUBTYPE`）取字典 `BD_SERVICE_SUBTYPE` 的末级项，父级即项目类型，表单按所选类型过滤，后端拒绝跨类型或分组项；显示用响应中的 `serviceSubtypeText`。规则读字典项属性而不判断子类编码：门诊排班与直接挂号只认 `outpatientSchedulable`（属性 `OUTPATIENT_SCHEDULABLE`），执行科室按检查类型（`SD_EXAM_TYPE`）路由。导入或生成目录时不得把收费清单的中文类别写入子类，映射见 `scripts/build-primary-medical-services.py` 与迁移 `V1_129_0`、`V1_129_5`。同名同类型的启用项目只保留一个，重复项按目录生命周期停用，不改名共存。
 

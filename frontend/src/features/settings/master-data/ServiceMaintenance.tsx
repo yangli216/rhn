@@ -6,6 +6,7 @@ import type { Organization } from "../../../shared/model";
 import { type RhnApi, type ServiceCatalogItem, type ServiceInput } from "../../../shared/rhnApi";
 import { Alert, Button, DictionarySelect, EmptyState, FormField, LoadingState, StatusBadge } from "../../../shared/ui";
 import { Table, serviceDuplicateRuleLabel, accountingCategoryLabel, serviceTypeTone, Flag, DataStatus, RowActions, preloadOperationalMasterData, type DictionaryMap, today, DataFormDialog, text, optionalText, checked, FormSection, FormGrid, SelectField, StaticSelectControl, Checkboxes, Checkbox, DateRangeFields } from './masterDataShared'
+import { ServiceAliasSection } from './ServiceAliasSection'
 import { validateAttributeChanges, DynamicItemAttributesSection } from './AttributeMaintenance'
 
 export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes: _onAttributes }: {
@@ -131,6 +132,9 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
   const [accountingCategory, setAccountingCategory] = useState(value?.accountingCategory ?? '')
   const [serviceType, setServiceType] = useState(value?.sdServiceType ?? 'EXAMINATION')
   const [serviceSubtype, setServiceSubtype] = useState(value?.serviceSubtype ?? '')
+  const [orderable, setOrderable] = useState(value?.orderable ?? true)
+  const [chargeable, setChargeable] = useState(value?.chargeable ?? true)
+  const role = catalogRole(serviceType, orderable, chargeable)
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
   const maintenanceQuery = useQuery({
     queryKey: ['master-data-item-attributes', 'CATALOG_ITEM', value?.id, today()],
@@ -156,8 +160,10 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
   }
 
   return <DataFormDialog title={value ? '编辑诊疗项目' : '新增诊疗项目'} eyebrow="临床服务目录" onClose={onClose}
-    size="xwide" description="维护项目主档身份和目录属性；检验检查的执行、部位与收费规则从项目列表的“执行与收费”进入。"
+    size="xwide" className="service-catalog-dialog"
+    description="维护项目主档；检验检查的部位、计价与附加收费在项目列表的“执行与收费”中维护。"
     onSubmit={async (form) => {
+      if (role.blocking) throw new Error(role.text)
       if (api && value?.id) {
         if (!maintenanceQuery.isSuccess) throw new Error('扩展属性尚未加载成功，请重试后保存')
         validateAttributeChanges(maintenanceQuery.data, attrValues)
@@ -168,7 +174,7 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
         validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: value?.sdServiceType || text(form, 'sdServiceType'),
         serviceSubtype: optionalText(form, 'serviceSubtype'), sdUsageType: text(form, 'sdUsageType'),
         medicalTechnology: checked(form, 'medicalTechnology'), combinationItem: checked(form, 'combinationItem'),
-        singleOrder: checked(form, 'singleOrder'), specimenType: value?.specimenType,
+        singleOrder: orderable && checked(form, 'singleOrder'), specimenType: value?.specimenType,
         examinationType: value?.examinationType, accountingCategory: optionalText(form, 'accountingCategory'),
         sdDuplicateRule: optionalText(form, 'sdDuplicateRule'), multiSitePrice: value?.multiSitePrice,
         freeSiteCount: value?.freeSiteCount, maxBodySiteCount: value?.maxBodySiteCount,
@@ -178,14 +184,14 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
       setAttributeProgress('')
     }}>
     {attributeProgress && <Alert tone="warning">{attributeProgress}</Alert>}
-    <FormSection title="标准身份" description="编码创建后保持稳定，名称与目录属性可继续维护。">
+    <FormSection title="标准身份" description="编码创建后不可修改。">
       <FormGrid columns={3}>
         <FormField label="项目编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
           placeholder="如 EXAM_BLOOD_ROUTINE" autoFocus={!value} required /></FormField>
         {value && <input type="hidden" name="code" value={value.code} />}
         <FormField label="项目名称" required className="span-2"><input name="name" defaultValue={value?.name}
           placeholder="录入统一项目名称" required /></FormField>
-        <FormField label={value ? '项目类型（创建后不可修改）' : '项目类型'} required>
+        <FormField label={value ? '项目类型（不可修改）' : '项目类型'} required>
           <StaticSelectControl name="sdServiceType" value={serviceType} disabled={Boolean(value)} required placeholder="请选择"
             options={(dictionaries.BD_SERVICE_TYPE ?? []).map((item) => ({ value: item.code, label: item.name }))}
             onChange={(next) => { setServiceType(next); setServiceSubtype('') }} />
@@ -197,7 +203,7 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
           defaultValue={value?.sdUsageType ?? 'COMMON'} />
       </FormGrid>
     </FormSection>
-    <FormSection title="目录属性与能力" description="这里只维护中心级目录属性；检验标本、检查部位、多部位计价与附加收费在该项目的“执行与收费”中统一维护。">
+    <FormSection title="目录属性" description="费用归并决定收费汇总到哪一类费用。">
       <FormGrid columns={4}>
         <FormField label="计价单位"><input name="unitCode" defaultValue={value?.unitCode ?? '次'} /></FormField>
         <FormField label="费用归并"><DictionarySelect api={api.dictionaries} dictionaryCode="BD_ACCOUNTING_CATEGORY"
@@ -207,24 +213,32 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
           defaultValue={value?.sdDuplicateRule ?? 'WARN'} />
         <FormField label="互认编码"><input name="mutualRecognitionCode" defaultValue={value?.mutualRecognitionCode}
           placeholder="区域检查检验互认编码" /></FormField>
-        <Checkboxes title="中心能力">
-          <Checkbox name="orderable" label="允许开立" defaultChecked={value?.orderable ?? true} />
-          <Checkbox name="chargeable" label="允许收费" defaultChecked={value?.chargeable ?? true} />
-          <Checkbox name="medicalTechnology" label="医技项目" defaultChecked={value?.medicalTechnology ?? true} />
-          <Checkbox name="singleOrder" label="允许单开" defaultChecked={value?.singleOrder ?? true} />
+      </FormGrid>
+    </FormSection>
+    <FormSection title="开立与收费" description="决定医生能否直接开立、本项目是否产生收费。">
+      <div className="service-role">
+        <Checkboxes title="目录角色" className="service-role__group">
+          <Checkbox name="orderable" label="允许开立" checked={orderable} onChange={setOrderable} />
+          <Checkbox name="chargeable" label="允许收费" checked={chargeable} onChange={setChargeable} />
+        </Checkboxes>
+        <Checkboxes title="开立约束" className="service-role__group">
+          <Checkbox name="singleOrder" label="允许单开" defaultChecked={value?.singleOrder ?? true} disabled={!orderable} />
           <Checkbox name="combinationItem" label="组合项目" defaultChecked={value?.combinationItem} />
+          <Checkbox name="medicalTechnology" label="医技项目" defaultChecked={value?.medicalTechnology ?? true} />
           <Checkbox name="pregnancyAlert" label="孕期提醒" defaultChecked={value?.pregnancyAlert} />
         </Checkboxes>
-      </FormGrid>
+        <p className={`service-role__hint is-${role.tone}`} role="status"><strong>{role.title}</strong>{role.text}</p>
+      </div>
     </FormSection>
-    <FormSection title="生命周期与说明" description="失效日期为空表示持续有效。">
-      <FormGrid>
+    <FormSection title="有效期与说明" description="失效日期为空表示持续有效。">
+      <FormGrid columns={4}>
         <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="生效日期" toLabel="失效日期"
           fromDefault={value?.validFrom} toDefault={value?.validTo} />
-        <FormField label="注意事项"><textarea name="attention" defaultValue={value?.attention}
-          placeholder="录入开立或执行时需要关注的事项" rows={2} /></FormField>
+        <FormField label="注意事项" className="span-2"><textarea name="attention" defaultValue={value?.attention}
+          placeholder="开立或执行时需要提示的事项" rows={2} /></FormField>
       </FormGrid>
     </FormSection>
+    {value?.id && api && <ServiceAliasSection api={api} serviceId={value.id} />}
     {value?.id && (
       <DynamicItemAttributesSection
         api={api}
@@ -238,4 +252,17 @@ export function ServiceDialog({ api, organization, dictionaries, value, onClose,
       />
     )}
   </DataFormDialog>
+}
+
+/** 目录角色：开立项目与物价项分层后，“允许开立 / 允许收费”的组合决定项目在开单与计费中的用途。 */
+function catalogRole(serviceType: string, orderable: boolean, chargeable: boolean) {
+  const diagnostic = ['LABORATORY', 'EXAMINATION'].includes(serviceType)
+  if (orderable && chargeable) return { tone: 'info', blocking: false, title: '开立即收费：',
+    text: diagnostic ? '医生开立后按本项目价格收费；“执行与收费”中可再配置部位、附加收费。' : '医生开立后按本项目价格收费。' }
+  if (orderable) return diagnostic
+    ? { tone: 'info', blocking: false, title: '开立项目：', text: '医生开立本项目，本身不收费；收费按“执行与收费”中的计价规则带出物价项。' }
+    : { tone: 'warning', blocking: false, title: '开立后不收费：', text: '本项目没有计价规则，开立后不会产生任何费用，请确认。' }
+  if (chargeable) return { tone: 'info', blocking: false, title: '物价项：',
+    text: '只用于收费，医生不能直接开立；由检查计价规则、附加收费或组套引用。' }
+  return { tone: 'danger', blocking: true, title: '无法使用：', text: '项目既不能开立也不能收费，请至少勾选“允许开立”或“允许收费”。' }
 }

@@ -124,19 +124,8 @@
 .diagnostic-report-document__table th:nth-child(4) { width: 20%; }
 .diagnostic-report-document__table th:nth-child(5) { width: 14%; }
 
-.diagnostic-report-document__table td:first-child small {
-  display: block;
-}
-
 .diagnostic-report-document__table td:first-child {
   font-weight: var(--font-weight-semibold);
-}
-
-.diagnostic-report-document__table td:first-child small {
-  margin-top: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-regular);
 }
 
 .diagnostic-report-document__table tr.is-abnormal {
@@ -251,3 +240,11 @@
 .diagnostic-report-document__context > summary > span { margin-inline-end: var(--space-3); }
 .diagnostic-report-document__context-toggle { color: var(--color-text-secondary); }
 .diagnostic-report-document__context .diagnostic-report-document__facts { border-bottom: 0; }
+
+.diagnostic-report-document.has-sticky-header { overflow: clip; }
+.diagnostic-report-document.has-sticky-header .diagnostic-report-document__header {
+  position: sticky;
+  top: calc(-1 * var(--space-2));
+  z-index: var(--z-sticky);
+  background: var(--color-surface);
+}

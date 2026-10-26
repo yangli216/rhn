@@ -7,9 +7,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ClinicalConfiguration, DictionaryValue, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationAttachmentConfiguration, LaboratoryProfile, RhnApi, ServiceCatalogItem, SpecimenConfiguration, UnitDefinition } from "../../../shared/rhnApi";
 import { errorMessage } from "../../../shared/rhnApi";
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from "../../../shared/ui";
-import { requireOperationalRows, sitePricingLabel, ClinicalDataTable, tubeDotColor, tubeRuleLabel, State, sitePricingDetail, attachmentTriggerLabel, attachmentQuantityLabel, unitOption, Check, FormDialog } from './operationalShared'
+import { requireOperationalRows, sitePricingLabel, siteConstraintLabel, ClinicalDataTable, tubeDotColor, tubeRuleLabel, State, sitePricingDetail, attachmentTriggerLabel, attachmentQuantityLabel, unitOption, Check, FormDialog, priceTierRange } from './operationalShared'
 import { SpecimenDialog } from './SpecimenConfigurationDialog'
-import { VariantDialog, AttachmentDialog } from './ExaminationRules'
+import { VariantDialog, AttachmentDialog, PriceTierDialog } from './ExaminationRules'
 import { LaboratoryTubeSimulator } from './LaboratoryTubeSimulator'
 import { ExaminationChargeSimulator } from './ExaminationChargeSimulator'
 
@@ -21,29 +21,22 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   const [dialog, setDialog] = useState<ReactNode>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
-  const [aliasNames, setAliasNames] = useState<string[]>([])
-  const [aliasInput, setAliasInput] = useState('')
-  const [savingAliases, setSavingAliases] = useState(false)
   const configuration = useQuery({
     queryKey: ['master-data-clinical-configuration', service.id],
     queryFn: async () => requireClinicalConfiguration(await api.masterData.clinicalConfiguration(service.id), service),
   })
-  const aliases = useQuery({
-    queryKey: ['master-data-service-aliases', service.id],
-    queryFn: async () => requireOperationalRows(await api.masterData.serviceAliases(service.id), '项目别名'),
-  })
-  useEffect(() => {
-    setAliasNames((aliases.data ?? []).map((value) => value.aliasName))
-  }, [aliases.data])
   const services = useQuery({
     queryKey: ['master-data-services-project-configuration', organizationId],
     queryFn: () => api.masterData.services('', '', '', organizationId),
   })
   const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: () => api.masterData.units() })
+  const bodySites = useQuery({
+    queryKey: ['terminology-body-sites'], enabled: service.sdServiceType === 'EXAMINATION',
+    queryFn: () => api.masterData.bodySites(),
+  })
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
     await client.invalidateQueries({ queryKey: ['master-data-clinical-configuration', service.id] })
-    await client.invalidateQueries({ queryKey: ['master-data-service-aliases', service.id] })
     await client.invalidateQueries({ queryKey: ['master-data-services'] })
   }
   const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message))
@@ -60,7 +53,7 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   const supportedType = laboratory || examination
   const description = laboratory
     ? '统一维护检验方法、报告要求、标本容器、分管规则和试管加收；这里是该检验项目的唯一业务配置入口。'
-    : '统一维护检查准备、允许部位与方式、多部位计价和附加收费；这里是该检查项目的唯一业务配置入口。'
+    : '维护医生可选的检查部位、计价规则、附加收费和检查准备；开单与计费都按这里已保存的配置执行。'
 
   if (dialog) return <>{dialog}</>
   return <Dialog title={`${service.name} · 执行与收费`} eyebrow="诊疗项目 · 执行与收费" size="xwide"
@@ -70,8 +63,8 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
       onClick={() => setDialog(<DiagnosticTemplateDialog api={api} service={service} organizationId={organizationId} onClose={() => setDialog(undefined)} />)}>报告模板与规则</Button>}</>}>
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {operationError && <Alert>{operationError}</Alert>}
-    {(configuration.error || aliases.error || services.error || units.error) && <Alert>
-      {errorMessage(configuration.error || aliases.error || services.error || units.error)}
+    {(configuration.error || services.error || units.error) && <Alert>
+      {errorMessage(configuration.error || services.error || units.error)}
     </Alert>}
     {configuration.isError || services.isError || units.isError
       ? <EmptyState icon="clinical" title="执行与收费配置不可用" copy="数据加载失败或配置不完整，请刷新重试；确认配置前无法编辑或试算。"
@@ -79,7 +72,7 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
       : configuration.isPending || services.isPending || units.isPending
         ? <LoadingState label="正在加载项目执行与收费配置…" />
         : !supportedType ? <Alert>当前项目类型不支持检验检查业务配置。</Alert>
-          : value && <ClinicalWorkspace api={api} value={value} serviceStatus={service.sdStatus} serviceStatusText={service.sdStatusText} services={allServices} dictionaries={dictionaries}
+          : value && <ClinicalWorkspace api={api} organizationId={organizationId} value={value} serviceStatus={service.sdStatus} serviceStatusText={service.sdStatusText} services={allServices} dictionaries={dictionaries}
           unitCodes={allUnits.filter((item) => item.status === 'ACTIVE')}
           onSaveLaboratoryProfile={(input) => saveProfile('检验项目基本配置已更新',
             api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))}
@@ -98,7 +91,10 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
             onSave={(input) => execute(row ? '标本配置已更新' : '标本配置已新增', row
               ? api.masterData.updateSpecimenConfiguration(service.id, row, input)
               : api.masterData.createSpecimenConfiguration(service.id, input))} />)}
-          onVariant={(row) => setDialog(<VariantDialog value={row} dictionaries={dictionaries}
+          onPriceTiers={() => setDialog(<PriceTierDialog tiers={value.examination!.priceTiers} services={allServices}
+            onClose={() => setDialog(undefined)} onSave={(tiers) => saveProfile('阶梯计价档位已保存',
+              api.masterData.replaceExaminationPriceTiers(service.id, value.examination!.revision, tiers))} />)}
+          onVariant={(row) => setDialog(<VariantDialog value={row} dictionaries={dictionaries} bodySites={bodySites.data ?? []}
             onClose={() => setDialog(undefined)} onSave={(input) => execute(row ? '检查部位或方式已更新' : '检查部位或方式已新增', row
               ? api.masterData.updateExaminationVariant(service.id, row, input)
               : api.masterData.createExaminationVariant(service.id, input))} />)}
@@ -107,54 +103,23 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
           onSave={(input) => execute(row ? '附加收费规则已更新' : '附加收费规则已新增', row
             ? api.masterData.updateExaminationAttachment(service.id, row, input)
             : api.masterData.createExaminationAttachment(service.id, input))} />)} />}
-    <section className="clinical-project-aliases" aria-label="项目别名维护">
-      <div className="operational-master-data__toolbar">
-        <div><h3>项目别名</h3><p>别名只作为检索入口，匹配后仍归一到当前标准项目，不改变收费和执行配置。</p></div>
-        <Button disabled={aliases.isPending || aliases.isError || savingAliases} busy={savingAliases} busyLabel="保存中" onClick={async () => {
-          setSavingAliases(true)
-          try {
-            await execute('项目别名已更新', api.masterData.replaceServiceAliases(service.id, aliasNames.map((aliasName, index) => ({
-              aliasType: 'SYNONYM', aliasName, primaryAlias: index === 0, status: 'ACTIVE',
-            }))))
-          } catch (error) { setOperationError(errorMessage(error)) }
-          finally { setSavingAliases(false) }
-        }}>保存别名</Button>
-      </div>
-      <div className="master-data-form-grid master-data-form-grid--2">
-        <FormField label="新增别名"><input value={aliasInput} disabled={aliases.isPending || aliases.isError || savingAliases} aria-label="新增项目别名" placeholder="支持逗号分隔多个别名"
-          onChange={(event) => setAliasInput(event.target.value)} /></FormField>
-        <div className="row-actions" style={{ alignItems: 'end' }}><Button variant="secondary" disabled={aliases.isPending || aliases.isError || savingAliases} onClick={() => {
-          const additions = aliasInput.split(/[,，、]/).map((value) => value.trim()).filter(Boolean)
-          setAliasNames((current) => [...new Set([...current, ...additions])])
-          setAliasInput('')
-        }}>加入列表</Button></div>
-      </div>
-      <div className="clinical-project-aliases__list">
-        {aliases.isError ? <EmptyState icon="clinical" title="项目别名加载失败" copy="尚无法确认已配置的别名，请重新加载。"
-          action={<Button variant="secondary" onClick={() => { void aliases.refetch() }}>重新加载别名</Button>} />
-          : aliases.isPending ? <LoadingState label="正在加载项目别名…" /> : aliasNames.length === 0
-          ? <span className="muted">暂未配置别名</span>
-          : aliasNames.map((aliasName) => <span className="clinical-project-aliases__item" key={aliasName}>
-            {aliasName}<Button size="sm" variant="text" aria-label={`移除别名${aliasName}`} disabled={savingAliases} onClick={() => setAliasNames((current) => current.filter((value) => value !== aliasName))}>×</Button>
-          </span>)}
-      </div>
-    </section>
   </Dialog>
 }
 
-export function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText, services, dictionaries, unitCodes, onEditProfile, onSaveLaboratoryProfile, onSaveExaminationProfile, onSpecimen, onVariant, onAttachment }: {
-  api: RhnApi; value: ClinicalConfiguration; serviceStatus: string; serviceStatusText?: string; services: ServiceCatalogItem[]
+export function ClinicalWorkspace({ api, organizationId, value, serviceStatus, serviceStatusText, services, dictionaries, unitCodes, onEditProfile, onSaveLaboratoryProfile, onSaveExaminationProfile, onSpecimen, onPriceTiers, onVariant, onAttachment }: {
+  api: RhnApi; organizationId?: string; value: ClinicalConfiguration; serviceStatus: string; serviceStatusText?: string; services: ServiceCatalogItem[]
   dictionaries: Record<string, DictionaryValue[]>; unitCodes: UnitDefinition[]
   onEditProfile?: () => void
   onSaveLaboratoryProfile?: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => Promise<void>
   onSaveExaminationProfile?: (input: ExaminationProfileInput) => Promise<void>
   onSpecimen: (value?: SpecimenConfiguration) => void
+  onPriceTiers?: () => void
   onVariant: (value?: ExaminationVariantConfiguration) => void
   onAttachment: (value?: ExaminationAttachmentConfiguration) => void
 }) {
   void unitCodes
   const laboratory = value.serviceType === 'LABORATORY'
-  const [tab, setTab] = useState<'options' | 'requirements' | 'attachments'>('options')
+  const [tab, setTab] = useState<'options' | 'requirements' | 'attachments' | 'simulator'>('options')
   const [editingProfile, setEditingProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -173,8 +138,13 @@ export function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText
     code ? dictionaries[dictionaryCode]?.find((item) => item.code === code)?.name ?? '未匹配字典项' : '未设置'
 
   const tabs = laboratory
-    ? ([['options', '标本容器与分管加收'], ['requirements', '报告与执行要求']] as const)
-    : ([['options', '允许部位与阶梯计费'], ['attachments', '连带附加收费规则'], ['requirements', '检查前准备与要求']] as const)
+    ? ([['options', '标本容器与分管加收'], ['requirements', '报告与执行要求'], ['simulator', '规则试算']] as const)
+    : ([['options', '部位与计价'], ['attachments', `附加收费（${value.examination?.attachments.length ?? 0}）`],
+      ['requirements', '检查准备'], ['simulator', '收费试算']] as const)
+  const exam = value.examination
+  const examAttribute = exam?.examinationTechnique
+    ? ['超声方式', EXAM_TECHNIQUE_OPTIONS.find((item) => item.value === exam.examinationTechnique)?.label]
+    : exam?.contrastPhase ? ['增强方式', CONTRAST_PHASE_OPTIONS.find((item) => item.value === exam.contrastPhase)?.label] : undefined
 
   return <div className="clinical-configuration">
     {/* 紧凑现代临床头部看板 */}
@@ -193,9 +163,10 @@ export function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText
           <span className="clinical-fact-pill">报告时长: <strong>{value.laboratory!.reportDuration ? `${value.laboratory!.reportDuration} ${value.laboratory!.reportDurationUnit ?? ''}`.trim() : '未设置'}</strong></span>
           <span className="clinical-fact-pill">执行属性: <strong>{[value.laboratory!.fastingRequired && '空腹', value.laboratory!.pointOfCare && 'POCT'].filter(Boolean).join(' · ') || '常规'}</strong></span>
         </> : <>
-          <span className="clinical-fact-pill">检查类型: <strong>{dictionaryName('BD_EXAM_TYPE', value.examination?.examinationType)}</strong></span>
-          <span className="clinical-fact-pill">部位约束: <strong>{value.examination?.bodySiteRequired ? `必选(最多${value.examination.maxBodySiteCount ? `${value.examination.maxBodySiteCount}个` : '不限'})` : '不限'}</strong></span>
-          <span className="clinical-fact-pill">计费模式: <strong>{sitePricingLabel(value.examination!)}</strong></span>
+          <span className="clinical-fact-pill">检查类型 <strong>{dictionaryName('BD_EXAM_TYPE', exam?.examinationType)}</strong></span>
+          {examAttribute && <span className="clinical-fact-pill">{examAttribute[0]} <strong>{examAttribute[1]}</strong></span>}
+          <span className="clinical-fact-pill">部位 <strong>{siteConstraintLabel(exam!)}</strong></span>
+          <span className="clinical-fact-pill">计价 <strong>{sitePricingLabel(exam!)}</strong></span>
         </>}
       </div>
 
@@ -250,9 +221,8 @@ export function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText
       )}
     </fieldset>}
 
-    {/* PC 端宽屏双栏工作台布局 */}
-    <div className="clinical-workbench-grid" style={{ marginTop: 'var(--space-3)' }}>
-      {/* 左栏：核心业务规则配置 */}
+    {/* 配置内容按页签切换，整行展示 */}
+    <div className="clinical-workbench-grid clinical-workbench-grid--stacked" style={{ marginTop: 'var(--space-3)' }}>
       <div className="clinical-workbench-grid__main">
         <nav className="clinical-configuration__tabs" aria-label="项目配置内容" style={{ marginTop: 0 }}>
           {tabs.map(([key, label]) => (
@@ -305,98 +275,37 @@ export function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText
           </div>
         )}
 
-        {/* 检查：允许部位与阶梯计费看板 */}
-        {!laboratory && tab === 'options' && value.examination && (
-          <>
-            {/* 多部位阶梯计费看板 */}
-            <div className="site-pricing-dashboard">
-              <div className="site-pricing-dashboard__header">
-                <div>
-                  <h4>多部位阶梯计费矩阵</h4>
-                  <p style={{ margin: 0 } as CSSProperties} className="clinical-content-8">
-                    国内主流三甲医院标准多部位计费策略：区分首部位基础价与次部位加收
-                  </p>
-                </div>
-                <Button size="sm" variant="secondary" onClick={() => setEditingProfile(true)}>
-                  调整阶梯规则
-                </Button>
-              </div>
-              <div className="site-pricing-steps">
-                <div className="site-pricing-step site-pricing-step--tier1">
-                  <strong>阶梯 1 · 首部位 / 包含部位</strong>
-                  <p>前 {value.examination.includedSiteCount} 个部位按主项目基准价收取（100%）</p>
-                  <small>基础部位涵盖常规扫描与主要诊断要求</small>
-                </div>
-                <div className="site-pricing-step site-pricing-step--tier2">
-                  <strong>阶梯 2 · 超出部位加收规则</strong>
-                  <p>{sitePricingDetail(value.examination)}</p>
-                  <small>{value.examination.maxChargeableSiteCount ? `最多累计计费 ${value.examination.maxChargeableSiteCount} 个部位` : '计费部位不限上限'}</small>
-                </div>
-              </div>
-            </div>
+        {/* 检查：计价规则与允许部位 */}
+        {!laboratory && tab === 'options' && exam && <>
+          <ExaminationPricingCard value={exam} onPriceTiers={onPriceTiers} onEditPricing={() => setEditingProfile(true)} />
+          <ExaminationVariantSection value={exam} methodName={(code) => dictionaryName('BD_SERVICE_VARIANT_METHOD', code)}
+            onVariant={onVariant} />
+        </>}
 
-            {/* 允许部位与方式列表 */}
-            <div className="clinical-configuration__section" style={{ marginTop: 'var(--space-2)' }}>
-              <div className="section-heading">
-                <div>
-                  <h4>允许部位与检查方式</h4>
-                  <p>维护医生开单可选的解剖部位或技术方式；支持通过常用解剖标签快速维护。</p>
-                </div>
-                <Button size="sm" onClick={() => onVariant()}><Icon name="add" />新增部位或方式</Button>
-              </div>
-              {!value.examination.variants.length ? (
-                <EmptyState icon="clinical" title="暂未配置允许部位" copy="请点击上方按钮添加允许执行的解剖部位（如头颅、胸部、全腹部）。" />
-              ) : (
-                <ClinicalDataTable
-                  headers={['部位/选项', '检查方式', '标准部位要求', '排序', '状态', '操作']}
-                  colWidths={['30%', '20%', '24%', '10%', '8%', '8%']}
-                  rows={value.examination.variants.map((row) => [
-                    <div>
-                      <strong style={{ display: 'block' } as CSSProperties} title={`配置编码：${row.code}`} className="clinical-content-9">{row.name}</strong>
-                    </div>,
-                    <span className="clinical-tag-pill clinical-tag-pill--primary">
-                      {dictionaryName('BD_SERVICE_VARIANT_METHOD', row.methodType)}
-                    </span>,
-                    row.bodySiteRequired ? (
-                      <span className="clinical-tag-pill clinical-tag-pill--purple">需选择标准部位</span>
-                    ) : (
-                      <span className="clinical-tag-pill">无需另选部位</span>
-                    ),
-                    row.sortOrder,
-                    <State value={row.status} />,
-                    <Button size="sm" variant="text" onClick={() => onVariant(row)}>编辑</Button>,
-                  ])} />
-              )}
-            </div>
-          </>
-        )}
-
-        {/* 检查：连带附加收费规则 */}
-        {!laboratory && tab === 'attachments' && value.examination && (
-          <div className="clinical-configuration__section" style={{ marginTop: 'var(--space-2)' }}>
+        {/* 检查：附加收费 */}
+        {!laboratory && tab === 'attachments' && exam && (
+          <div className="clinical-configuration__section">
             <div className="section-heading">
               <div>
-                <h4>连带附加收费规则（胶片、造影剂、耗材）</h4>
-                <p>以“业务场景向导”引导维护：胶片（按部位倍增）、造影剂（单次固定）、穿刺或特殊服务等。</p>
+                <h4>附加收费</h4>
+                <p>随检查带出的其他收费项，如胶片、造影剂、设备加收；按触发条件和数量依据计算。</p>
               </div>
-              <Button size="sm" onClick={() => onAttachment()}><Icon name="add" />新增收费规则</Button>
+              <Button size="sm" onClick={() => onAttachment()}><Icon name="add" />新增附加收费</Button>
             </div>
-            {!value.examination.attachments.length ? (
-              <EmptyState icon="clinical" title="暂无附加收费规则" copy="可配置胶片耗材（按部位倍增）或造影推注费（单次固定）等。" />
+            {!exam.attachments.length ? (
+              <EmptyState icon="clinical" title="暂无附加收费" copy="检查本身的收费已由计价规则决定；只有需要另收的胶片、耗材或加收项才在这里配置。" />
             ) : (
               <ClinicalDataTable
-                headers={['连带项目', '触发场景条件', '数量计算依据', '约束属性', '状态', '操作']}
-                colWidths={['28%', '20%', '22%', '16%', '7%', '7%']}
-                rows={value.examination.attachments.map((row) => [
-                  <div>
-                    <strong style={{ display: 'block' } as CSSProperties} className="clinical-content-10">{row.attachmentItemName}</strong>
-                    <code  className="clinical-content-11">{row.attachmentItemCode}</code>
+                fixed
+                headers={['收费项目', '带出规则', '医生可否取消', '状态', '操作']}
+                colWidths={['32%', '30%', '16%', '11%', '11%']}
+                rows={exam.attachments.map((row) => [
+                  <div className="exam-cell-title exam-cell-title--stack">
+                    <strong title={row.attachmentItemName}>{row.attachmentItemName}</strong>
+                    <code>{row.attachmentItemCode}</code>
                   </div>,
-                  <span className="clinical-tag-pill clinical-tag-pill--primary">{attachmentTriggerLabel(row.triggerType)}</span>,
-                  <span  className="clinical-content-12">{`${attachmentQuantityLabel(row.quantityBasis)} × ${row.quantity}`}</span>,
-                  <span  className="clinical-content-13">
-                    {[row.requiredAttachment && '强制带出', row.separatelyChargeable ? '独立收费行' : '合并计价'].filter(Boolean).join(' · ')}
-                  </span>,
+                  `${attachmentTriggerLabel(row.triggerType)} · ${attachmentQuantityLabel(row.quantityBasis)} × ${row.quantity}`,
+                  `${row.requiredAttachment ? '不可取消' : '可取消'}${row.separatelyChargeable ? '' : ' · 不单独收费'}`,
                   <State value={row.status} />,
                   <Button size="sm" variant="text" onClick={() => onAttachment(row)}>编辑</Button>,
                 ])} />
@@ -404,31 +313,109 @@ export function ClinicalWorkspace({ api, value, serviceStatus, serviceStatusText
           </div>
         )}
 
-        {/* 通用：执行与准备要求 */}
-        {tab === 'requirements' && (
-          <div className="clinical-requirement-card" style={{ marginTop: 'var(--space-2)' }}>
+        {/* 试算沙盒：独立页签，按已保存配置计算 */}
+        {tab === 'simulator' && (laboratory
+          ? <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} configuration={value} />
+          : <ExaminationChargeSimulator api={api} value={value} organizationId={organizationId} />)}
+
+        {/* 检验：报告与执行要求；检查：检查准备 */}
+        {tab === 'requirements' && (laboratory ? (
+          <div className="clinical-requirement-card">
             <div>
-              <span>开立与执行准备说明</span>
-              <strong>{laboratory ? value.laboratory!.collectionDescription || '暂未维护采样说明' : value.examination!.preparationDescription || '暂未维护检查准备说明'}</strong>
+              <span>采样与执行说明</span>
+              <strong>{value.laboratory!.collectionDescription || '暂未维护采样说明'}</strong>
             </div>
             <div>
               <span>项目配置完整度</span>
               <strong>{profile ? '已建立专业业务配置' : '待初始化配置'}</strong>
             </div>
-            <p>执行要求直接用于门诊/住院医生开立时的安全核验与患者指引；计费与分管结果请在右侧沙盒中实时核对验证。</p>
           </div>
-        )}
+        ) : (
+          <div className="clinical-configuration__section">
+            <div className="section-heading">
+              <div>
+                <h4>检查准备</h4>
+                <p>医生开单时提示给患者，并打印在检查申请单上。</p>
+              </div>
+              <Button size="sm" variant="secondary" onClick={() => setEditingProfile(true)}>编辑</Button>
+            </div>
+            <p className="exam-preparation-text">{exam?.preparationDescription || '暂未维护检查准备说明。'}</p>
+          </div>
+        ))}
       </div>
 
-      {/* 右栏：即时联动试算沙盒（Live Sandbox） */}
-      <div className="clinical-workbench-grid__aside">
-        {laboratory ? (
-          <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} configuration={value} />
-        ) : (
-          <ExaminationChargeSimulator api={api} value={value} />
-        )}
-      </div>
     </div>
+  </div>
+}
+
+/** 计价规则：阶梯档位逐档列出，其他模式写明主收费与超出部位的收法；未配置完整时直接提示开单后果。 */
+function ExaminationPricingCard({ value, onPriceTiers, onEditPricing }: {
+  value: NonNullable<ClinicalConfiguration['examination']>; onPriceTiers?: () => void; onEditPricing: () => void
+}) {
+  const tiered = value.sitePricingMode === 'TIERED_ITEM'
+  const multiSite = value.bodySiteRequired && value.multiBodySite
+  const baseCharge = value.baseChargeItemId
+    ? `${value.baseChargeItemName ?? '主收费物价项'}（${value.baseChargeItemCode ?? value.baseChargeItemId}）`
+    : '本项目自身'
+  return <section className="exam-pricing" aria-label="计价规则">
+    <header className="exam-pricing__head">
+      <div>
+        <h4>计价规则 · {sitePricingLabel(value)}</h4>
+        <p>{tiered ? '按计费部位数命中一档，收该档物价项；检查项目本身不收费。' : `主收费：${baseCharge}`}</p>
+      </div>
+      <div className="row-actions">
+        {tiered && onPriceTiers && <Button size="sm" variant="secondary" onClick={onPriceTiers}>维护档位</Button>}
+        <Button size="sm" variant="secondary" onClick={onEditPricing}>修改计价方式</Button>
+      </div>
+    </header>
+    {tiered ? (value.priceTiers.length ? <ol className="exam-tier-list">
+      {value.priceTiers.map((tier) => <li key={tier.id}>
+        <span className="exam-tier-list__range">{priceTierRange(tier)}</span>
+        <strong>{tier.chargeItemName}</strong>
+        <code>{tier.chargeItemCode}</code>
+        <span className="exam-tier-list__qty">× {tier.chargeQuantity}</span>
+      </li>)}
+    </ol> : <Alert tone="warning" duration={null}>尚未维护计价档位，医生开立该检查时将无法计费。</Alert>)
+      : <p className="exam-pricing__rule">{multiSite ? sitePricingDetail(value) : '只允许选择 1 个部位，按主收费收 1 次。'}
+        {multiSite && value.maxChargeableSiteCount ? `；最多按 ${value.maxChargeableSiteCount} 个部位计费` : ''}</p>}
+  </section>
+}
+
+/** 允许部位：计费部位数决定命中哪一档；未对应标准部位的选项 AI 无法自动预填，单独提示。 */
+function ExaminationVariantSection({ value, methodName, onVariant }: {
+  value: NonNullable<ClinicalConfiguration['examination']>; methodName: (code?: string) => string
+  onVariant: (value?: ExaminationVariantConfiguration) => void
+}) {
+  const unmapped = value.variants.filter((row) => row.status === 'ACTIVE' && !row.bodySiteConceptId).length
+  return <div className="clinical-configuration__section">
+    <div className="section-heading">
+      <div>
+        <h4>允许部位（{value.variants.length}）</h4>
+        <p>医生开单时可选；“计费部位数”用于判断命中哪一档或超出几个部位。</p>
+      </div>
+      <Button size="sm" onClick={() => onVariant()}><Icon name="add" />新增部位</Button>
+    </div>
+    {unmapped > 0 && <p className="exam-section-hint">{unmapped} 个启用部位未对应标准部位，AI 推荐检查时无法自动预填这些部位。</p>}
+    {!value.variants.length ? (
+      <EmptyState icon="clinical" title="暂未配置允许部位" copy={value.bodySiteRequired ? '该检查要求选择部位，未配置部位前医生无法开立。' : '如需让医生选择部位，请新增部位。'} />
+    ) : (
+      <ClinicalDataTable
+        fixed
+        headers={['部位', '标准部位', '计费部位数', '检查方式', '状态', '操作']}
+        colWidths={['30%', '18%', '13%', '15%', '12%', '12%']}
+        rows={value.variants.map((row) => [
+          <div className="exam-cell-title">
+            <strong title={row.name}>{row.name}</strong>
+            <code>{row.code}</code>
+          </div>,
+          row.bodySiteName ? <span title={row.bodySiteCode}>{row.bodySiteName}</span>
+            : <span className="clinical-tag-pill clinical-tag-pill--warning">未对应</span>,
+          row.chargeableSiteUnits === 0 ? <span className="muted">不计入</span> : row.chargeableSiteUnits,
+          methodName(row.methodType),
+          <State value={row.status} />,
+          <Button size="sm" variant="text" onClick={() => onVariant(row)}>编辑</Button>,
+        ])} />
+    )}
   </div>
 }
 
@@ -546,6 +533,11 @@ export function LaboratoryProfileInlineEditor({ value, dictionaries, units, onCl
   )
 }
 
+const EXAM_TECHNIQUE_OPTIONS = [{ value: '', label: '不区分' }, { value: 'COLOR_DOPPLER', label: '彩色多普勒（彩超）' },
+  { value: 'B_MODE', label: '常规 B 超' }]
+const CONTRAST_PHASE_OPTIONS = [{ value: '', label: '不区分' }, { value: 'PLAIN', label: '平扫' },
+  { value: 'ENHANCED', label: '增强' }, { value: 'PLAIN_ENHANCED', label: '平扫加增强' }]
+
 export function ExaminationProfileInlineEditor({
   value,
   dictionaries,
@@ -591,6 +583,11 @@ export function ExaminationProfileInlineEditor({
       title: '基础部位 + 加收项目',
       desc: '含首批部位，超出部位自动带出指定收费项目',
     },
+    {
+      mode: 'TIERED_ITEM' as const,
+      title: '按部位数阶梯计价',
+      desc: '按计费部位数命中档位，收对应物价项（如一个部位 / ≥二个部位）',
+    },
   ]
 
   const ruleSummaryText = useMemo(() => {
@@ -613,18 +610,20 @@ export function ExaminationProfileInlineEditor({
         const item = services.find((s) => s.id === form.additionalSiteItemId)
         return `包含前 ${form.includedSiteCount} 个部位；超出部位每部位加收【${item ? item.name : '加收项目'}】× ${form.additionalSiteQuantity}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
       }
+      case 'TIERED_ITEM':
+        return `按计费部位数命中阶梯档位收费（当前 ${value.priceTiers.length} 档），档位在“维护阶梯档位”中整组保存${form.maxChargeableSiteCount ? `；计费部位数最多按 ${form.maxChargeableSiteCount} 个计` : ''}。`
       default:
         return ''
     }
-  }, [form, services])
+  }, [form, services, value.priceTiers.length])
 
   return (
     <div className="clinical-inline-profile-editor">
       <div className="clinical-inline-profile-editor__header">
         <div>
-          <h4>检查项目执行属性与多部位阶梯计价规则</h4>
+          <h4>基本配置与计价方式</h4>
           <span  className="clinical-content-16">
-            维护检查类型、部位选择约束与超部位计价规则；保存成功后，右侧试算按已保存配置更新。
+            检查类型、部位约束与计价方式；保存后右侧试算按新配置计算。
           </span>
         </div>
         <Button size="sm" variant="text" onClick={onClose} type="button">
@@ -728,14 +727,14 @@ export function ExaminationProfileInlineEditor({
                 })}
               </div>
 
-              <FormField label="主项价格包含部位数" required>
+              {['BASE_PLUS_FIXED', 'BASE_PLUS_ITEM'].includes(pricingMode) && <FormField label="主收费包含部位数" required>
                 <input
                   type="number"
                   min="1"
                   value={form.includedSiteCount}
                   onChange={(e) => setForm({ ...form, includedSiteCount: e.target.value })}
                 />
-              </FormField>
+              </FormField>}
 
               {pricingMode === 'BASE_PLUS_FIXED' && (
                 <FormField label="每超出部位加收金额 (元)" required>
@@ -772,6 +771,26 @@ export function ExaminationProfileInlineEditor({
                 </div>
               )}
             </>
+          )}
+
+          {form.examinationType === 'ULTRASOUND' && (
+            <FormField label="超声方式" hint="彩超与 B 超建成两个开立项目时区分，AI 据此定位开立项目">
+              <Select value={form.examinationTechnique} onChange={(v) => setForm({ ...form, examinationTechnique: v })}
+                options={EXAM_TECHNIQUE_OPTIONS} />
+            </FormField>
+          )}
+          {['CT', 'MRI'].includes(form.examinationType) && (
+            <FormField label="增强方式" hint="平扫、增强、平扫加增强分别建开立项目时区分，AI 据此定位开立项目">
+              <Select value={form.contrastPhase} onChange={(v) => setForm({ ...form, contrastPhase: v })}
+                options={CONTRAST_PHASE_OPTIONS} />
+            </FormField>
+          )}
+
+          {pricingMode !== 'TIERED_ITEM' && (
+            <FormField label="主收费物价项" hint="检查项目本身不收费时选择实际收费的物价项；留空则收检查项目自身">
+              <Select value={form.baseChargeItemId} onChange={(v) => setForm({ ...form, baseChargeItemId: v })}
+                placeholder="收检查项目自身" options={[{ value: '', label: '收检查项目自身' }, ...itemOptions]} />
+            </FormField>
           )}
 
           <div className="clinical-inline-profile-editor__rule-callout">
@@ -825,7 +844,11 @@ export function ExaminationProfileDialog({ value, dictionaries, services, curren
     <FormField label="多部位计价"><Select disabled={!form.multiBodySite} value={pricingMode} onChange={(v) => setForm({ ...form, sitePricingMode: v as typeof form.sitePricingMode })} options={[
       { value: 'SINGLE', label: '主项目只计一次' }, { value: 'PER_SITE', label: '主项目按部位数量计费' },
       { value: 'BASE_PLUS_FIXED', label: '基础部位 + 固定金额' }, { value: 'BASE_PLUS_ITEM', label: '基础部位 + 加收项目' },
+      { value: 'TIERED_ITEM', label: '按部位数阶梯计价' },
     ]} /></FormField>
+    {form.examinationType === 'ULTRASOUND' && <FormField label="超声方式"><Select value={form.examinationTechnique} onChange={(v) => setForm({ ...form, examinationTechnique: v })} options={EXAM_TECHNIQUE_OPTIONS} /></FormField>}
+    {['CT', 'MRI'].includes(form.examinationType) && <FormField label="增强方式"><Select value={form.contrastPhase} onChange={(v) => setForm({ ...form, contrastPhase: v })} options={CONTRAST_PHASE_OPTIONS} /></FormField>}
+    {pricingMode !== 'TIERED_ITEM' && <FormField label="主收费物价项"><Select value={form.baseChargeItemId} onChange={(v) => setForm({ ...form, baseChargeItemId: v })} placeholder="收检查项目自身" options={[{ value: '', label: '收检查项目自身' }, ...itemOptions]} /></FormField>}
     <FormField label="价格包含部位数"><input type="number" min="1" disabled={!form.multiBodySite} value={form.includedSiteCount} onChange={(e) => setForm({ ...form, includedSiteCount: e.target.value })} /></FormField>
     {pricingMode === 'BASE_PLUS_FIXED' && <FormField label="每超出部位加收金额" required><input type="number" min="0" step="0.01" value={form.additionalSitePrice} onChange={(e) => setForm({ ...form, additionalSitePrice: e.target.value })} /></FormField>}
     {pricingMode === 'BASE_PLUS_ITEM' && <FormField label="多部位加收项目" required><Select value={form.additionalSiteItemId} onChange={(v) => setForm({ ...form, additionalSiteItemId: v })} options={itemOptions} /></FormField>}

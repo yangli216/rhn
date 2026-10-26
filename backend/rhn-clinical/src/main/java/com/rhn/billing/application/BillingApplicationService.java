@@ -404,10 +404,13 @@ public class BillingApplicationService {
         if (charges.isEmpty()) throw conflict("INVOICE_NO_UNINVOICED_CHARGES", "当前费用账户没有待结算收费事项");
         if (input.chargeItemIds() != null && !input.chargeItemIds().isEmpty()) {
             Set<Long> selectedIds = new HashSet<>(input.chargeItemIds());
+            List<ChargeItem> uninvoiced = charges;
             charges = charges.stream().filter(value -> selectedIds.contains(value.id())).toList();
             if (charges.isEmpty()) {
                 throw conflict("INVOICE_NO_SELECTED_CHARGES", "所选收费事项已结算或不存在");
             }
+            OrderChargeLines.requireWholeOrders(charges, uninvoiced, ChargeItem::sourceType, ChargeItem::sourceId,
+                    "INVOICE_ORDER_LINES_INCOMPLETE", "同一检查申请的收费明细须一并结算");
         }
         if (charges.stream().anyMatch(value -> !account.currencyCode().equals(value.currencyCode()))) {
             throw conflict("INVOICE_CURRENCY_MISMATCH", "结算凭证内收费事项币种不一致");

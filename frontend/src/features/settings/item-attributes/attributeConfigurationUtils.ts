@@ -35,12 +35,17 @@ export function dataTypeLabel(value: ItemAttributeDataType): string {
   return dataTypeOptions.find((item) => item.value === value)?.label ?? value
 }
 
+export const variabilityOptions = [
+  { value: 'BASE_ONLY', label: '仅公共基线' },
+  { value: 'SCOPE_OVERRIDE', label: '允许作用域覆盖' },
+  { value: 'LOCAL_ONLY', label: '必须本地配置' },
+]
+export const scopeOptions: Array<{ value: Scope; label: string }> = [
+  { value: 'TENANT', label: '租户' }, { value: 'ORGANIZATION', label: '机构' }, { value: 'DEPARTMENT', label: '科室' },
+]
+
 export function variabilityLabel(value: ItemAttributeDefinitionConfiguration['variability']): string {
-  return {
-    BASE_ONLY: '仅公共基线',
-    SCOPE_OVERRIDE: '允许作用域覆盖',
-    LOCAL_ONLY: '必须本地配置',
-  }[value] ?? value
+  return variabilityOptions.find(item => item.value === value)?.label ?? value
 }
 
 export function variabilityHint(value: ItemAttributeDefinitionConfiguration['variability']): string {
@@ -76,25 +81,25 @@ export function contextHint(value: ItemAttributeDefinitionConfiguration['context
 }
 
 export function scopeLabel(value: Scope): string {
-  return { TENANT: '租户', ORGANIZATION: '机构', DEPARTMENT: '科室' }[value] ?? value
+  return scopeOptions.find(item => item.value === value)?.label ?? value
 }
 
+const widgets = [
+  { value: 'TEXT', label: '单行文本' },
+  { value: 'INPUT', label: '单行输入' },
+  { value: 'TEXTAREA', label: '多行文本' },
+  { value: 'SWITCH', label: '开关' },
+  { value: 'SELECT', label: '下拉单选' },
+  { value: 'RADIO', label: '单选组' },
+  { value: 'DATE', label: '日期选择' },
+  { value: 'DATETIME', label: '日期时间' },
+  { value: 'NUMBER', label: '数值输入' },
+  { value: 'DICT_SELECT', label: '字典下拉' },
+  { value: 'MULTI_SELECT', label: '多选下拉' },
+  { value: 'JSON', label: '结构化对象' },
+]
 export function widgetLabel(value: string): string {
-  const labels: Record<string, string> = {
-    TEXT: '单行文本',
-    INPUT: '单行输入',
-    TEXTAREA: '多行文本',
-    SWITCH: '开关',
-    SELECT: '下拉单选',
-    RADIO: '单选组',
-    DATE: '日期选择',
-    DATETIME: '日期时间',
-    NUMBER: '数值输入',
-    DICT_SELECT: '字典下拉',
-    MULTI_SELECT: '多选下拉',
-    JSON: '结构化对象',
-  }
-  return labels[value] ?? value
+  return widgets.find(item => item.value === value)?.label ?? value
 }
 
 export function suggestedWidget(value: ItemAttributeDefinitionConfiguration): string {
@@ -111,10 +116,10 @@ export function suggestedWidget(value: ItemAttributeDefinitionConfiguration): st
 
 export function widgetOptions(value: ItemAttributeDefinitionConfiguration): Array<{ value: string; label: string }> {
   const suggested = suggestedWidget(value)
-  const all = [{ value: suggested, label: widgetLabel(suggested) }]
-  if (value.dataType === 'TEXT') all.push({ value: 'TEXTAREA', label: '多行文本' })
-  if (value.dataType === 'ENUM') all.push({ value: 'RADIO', label: '单选组' })
-  return all
+  const allowed = new Set([suggested])
+  if (value.dataType === 'TEXT') allowed.add('TEXTAREA')
+  if (value.dataType === 'ENUM') allowed.add('RADIO')
+  return widgets.filter(item => allowed.has(item.value))
 }
 
 export function buildSchema(

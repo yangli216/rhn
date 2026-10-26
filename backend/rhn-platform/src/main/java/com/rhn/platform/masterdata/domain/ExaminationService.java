@@ -26,6 +26,9 @@ public class ExaminationService {
     @Column(name = "ID_CATALOG_ITEM_ADDL_SITE") private Long additionalSiteItemId;
     @Column(name = "QTY_ADDL_SITE", nullable = false) private BigDecimal additionalSiteQuantity;
     @Column(name = "QTY_MAX_CHGBL_SITE") private Integer maxChargeableSiteCount;
+    @Column(name = "ID_CATALOG_ITEM_BASE_CHG") private Long baseChargeItemId;
+    @Column(name = "SD_EXAM_TECHNIQUE") private String examinationTechnique;
+    @Column(name = "SD_CONTRAST_PHASE") private String contrastPhase;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
@@ -85,18 +88,35 @@ public class ExaminationService {
                        String preparationDescription, Long actorId) {
         update(expectedRevision, examinationType, bodySiteRequired, multiBodySite, maxBodySiteCount,
                 preparationDescription, sitePricingMode, includedSiteCount, additionalSitePrice,
-                additionalSiteItemId, additionalSiteQuantity, maxChargeableSiteCount, actorId);
+                additionalSiteItemId, additionalSiteQuantity, maxChargeableSiteCount, baseChargeItemId, actorId);
     }
 
     public void update(long expectedRevision, String examinationType, boolean bodySiteRequired,
                        boolean multiBodySite, Integer maxBodySiteCount, String preparationDescription,
                        String sitePricingMode, int includedSiteCount, BigDecimal additionalSitePrice,
                        Long additionalSiteItemId, BigDecimal additionalSiteQuantity,
-                       Integer maxChargeableSiteCount, Long actorId) {
+                       Integer maxChargeableSiteCount, Long baseChargeItemId, Long actorId) {
         requireRevision(expectedRevision);
+        if ("TIERED_ITEM".equals(sitePricingMode) && baseChargeItemId != null) {
+            throw new IllegalArgumentException("阶梯计价模式不能配置主收费物价项");
+        }
         updateValues(examinationType, bodySiteRequired, multiBodySite, maxBodySiteCount,
                 preparationDescription, sitePricingMode, includedSiteCount, additionalSitePrice,
                 additionalSiteItemId, additionalSiteQuantity, maxChargeableSiteCount, actorId);
+        this.baseChargeItemId = baseChargeItemId;
+    }
+
+    /** 超声方式与增强方式只用于 AI 按检查方式定位开立项目，不影响计价。 */
+    public void changeOrderingAttributes(String examinationTechnique, String contrastPhase) {
+        this.examinationTechnique = examinationTechnique;
+        this.contrastPhase = contrastPhase;
+    }
+
+    /** 阶梯档位整组替换时推进配置修订号，使档位与配置共用同一乐观锁。 */
+    public void touchPricing(long expectedRevision, Long actorId) {
+        requireRevision(expectedRevision);
+        this.updatedAt = Instant.now();
+        this.updatedBy = actorId;
     }
 
     private void updateValues(String examinationType, boolean bodySiteRequired,
@@ -153,6 +173,9 @@ public class ExaminationService {
     public Long additionalSiteItemId() { return additionalSiteItemId; }
     public BigDecimal additionalSiteQuantity() { return additionalSiteQuantity; }
     public Integer maxChargeableSiteCount() { return maxChargeableSiteCount; }
+    public Long baseChargeItemId() { return baseChargeItemId; }
+    public String examinationTechnique() { return examinationTechnique; }
+    public String contrastPhase() { return contrastPhase; }
 
     private void requireRevision(long expectedRevision) {
         if (revision != expectedRevision) throw new IllegalStateException("检查项目配置已被其他用户修改，请刷新后重试");

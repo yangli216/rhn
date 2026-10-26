@@ -80,6 +80,30 @@ class DiagnosticSpecimenWorkflowTest extends SettlementWaivedDiagnosticsTestSupp
     }
 
     @Test
+    void tube_plan_preview_matches_the_tubes_actually_generated_and_creates_nothing() throws Exception {
+        var task = readyTask(2); String id = task.get("id").asString();
+        String planBody = "{\"tasks\":[{\"taskId\":\"" + id + "\"}]}";
+        var plan = postJson("/api/diagnostics/specimens/plan", planBody);
+        assertEquals(plan, postJson("/api/diagnostics/specimens/plan", planBody));
+        var existing = json(mockMvc.perform(get("/api/diagnostics/tasks/{id}/specimens", id).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(0, existing.size());
+        var tubes = postJson("/api/diagnostics/specimens", batch(task, UUID.randomUUID().toString()));
+        int planned = 0;
+        for (var group : plan.get("groups")) {
+            planned += group.get("tubeCount").asInt();
+            assertTrue(group.get("taskIds").toString().contains(id));
+            for (var tube : tubes) {
+                assertEquals(group.get("containerCode"), tube.get("containerCode"));
+                assertEquals(group.get("specimenName"), tube.get("specimenName"));
+            }
+        }
+        assertEquals(planned, tubes.size());
+        mockMvc.perform(post("/api/diagnostics/specimens/plan").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(planBody))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DIAGNOSTIC_SPECIMEN_ALREADY_PLANNED"));
+    }
+
+    @Test
     void single_tube_collection_test() throws Exception {
         var task = readyTask(1); String id = task.get("id").asString();
         String body = batch(task, UUID.randomUUID().toString());

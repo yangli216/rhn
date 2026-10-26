@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../shared/clinical/workContext'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Icon, PageHeader, Panel } from '../../shared/ui'
+import { Alert, Button, Icon, PageHeader, Panel, Tabs } from '../../shared/ui'
 import { money } from './BillingShared'
 import { SETTLEMENT_EXCEPTIONS_KEY, SettlementExceptionList, useSettlementExceptions } from './settlementExceptions'
 import './settlement-exceptions.css'
@@ -15,7 +15,7 @@ export function SettlementExceptionWorkspace({ api, clinicalContext }: {
   const queryClient = useQueryClient()
   const contextKey = `${clinicalContext.organization.id}:${clinicalContext.department.id}`
   const exceptions = useSettlementExceptions(api, true, contextKey)
-  const items = exceptions.data ?? []
+  const items = useMemo(() => exceptions.data ?? [], [exceptions.data])
 
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'OTHER'>('ALL')
 
@@ -79,34 +79,11 @@ export function SettlementExceptionWorkspace({ api, clinicalContext }: {
 
       {/* 过滤切换 */}
       {items.length > 0 && (
-        <div className="settlement-exception-filters" role="tablist" aria-label="异常分类筛选">
-          <div className="settlement-exception-filter-pills">
-            <Button
-              variant={filterType === 'ALL' ? 'primary' : 'secondary'}
-              role="tab"
-              aria-selected={filterType === 'ALL'}
-              onClick={() => setFilterType('ALL')}
-            >
-              全部异常（{items.length}）
-            </Button>
-            <Button
-              variant={filterType === 'CRITICAL' ? 'primary' : 'secondary'}
-              role="tab"
-              aria-selected={filterType === 'CRITICAL'}
-              onClick={() => setFilterType('CRITICAL')}
-            >
-              紧急单边账（{criticalItems.length}）
-            </Button>
-            <Button
-              variant={filterType === 'OTHER' ? 'primary' : 'secondary'}
-              role="tab"
-              aria-selected={filterType === 'OTHER'}
-              onClick={() => setFilterType('OTHER')}
-            >
-              一般异常（{otherItems.length}）
-            </Button>
-          </div>
-        </div>
+        <Tabs label="异常分类筛选" value={filterType} onChange={setFilterType} items={[
+          { value: 'ALL', label: `全部异常（${items.length}）` },
+          { value: 'CRITICAL', label: `紧急单边账（${criticalItems.length}）` },
+          { value: 'OTHER', label: `一般异常（${otherItems.length}）` },
+        ]} />
       )}
 
       {/* 待办卡片列表 */}

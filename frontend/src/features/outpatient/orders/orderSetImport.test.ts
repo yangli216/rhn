@@ -1,6 +1,6 @@
 import { groupApi, groupFixture } from './orderSetImport.testFixtures'
 import { describe, expect, it, vi } from 'vitest'
-import { resolveOrderSetImport } from './orderSetImport'
+import { orderSetStaticIssue, resolveOrderSetImport, resolveOrderSetRows } from './orderSetImport'
 import { persistOrderDrafts } from './persistOrderDrafts'
 
 const encounter = { organizationId: 'org', departmentId: 'doctor-dept' }
@@ -71,9 +71,67 @@ describe('order-set import facts', () => {
     department.id = encounter.departmentId
     expect((await resolveOrderSetImport(group, encounter, api)).drafts[0].performerDepartmentId).toBe(encounter.departmentId)
   })
+  it('resolves each member by its own default department when the group sets none', async () => {
+    const group = groupFixture(), { api, services } = groupApi(group)
+    Object.assign(group, { executionDepartmentId: null })
+    Object.assign(services[0], { defaultExecutionDepartment: { departmentId: 'lis-dept', departmentName: '检验科', source: 'CONFIGURED' } })
+    Object.assign(services[1], { organizationAdoption: { ...services[1].organizationAdoption, defaultDepartmentId: 'pacs-dept' } })
+    const base = { organizationId: 'org', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null }
+    vi.mocked(api.organization.department).mockImplementation(async (id: string) => ({ department: { ...base, id, name: `${id}名称` } }) as never)
+    const { drafts } = await resolveOrderSetImport(group, encounter, api)
+    expect(drafts.map(draft => draft.performerDepartmentId)).toEqual(['lis-dept', 'pacs-dept'])
+    expect(drafts[0].performerDepartmentName).toBe('lis-dept名称')
+  })
+  it('keeps an explicit group department over member defaults', async () => {
+    const group = groupFixture(), { api, services } = groupApi(group)
+    Object.assign(services[0], { defaultExecutionDepartment: { departmentId: 'lis-dept', departmentName: '检验科', source: 'CONFIGURED' } })
+    const { drafts } = await resolveOrderSetImport(group, encounter, api)
+    expect(drafts.map(draft => draft.performerDepartmentId)).toEqual(['lab-dept', 'lab-dept'])
+  })
+  it('skips only the member whose own default department is invalid', async () => {
+    const group = groupFixture(), { api, services } = groupApi(group)
+    Object.assign(group, { executionDepartmentId: null })
+    Object.assign(services[0], { defaultExecutionDepartment: { departmentId: null, departmentName: null, source: 'AMBIGUOUS' } })
+    Object.assign(services[1], { defaultExecutionDepartment: { departmentId: 'gone', departmentName: null, source: 'CONFIGURED' } })
+    vi.mocked(api.organization.department).mockResolvedValue({ department: { id: 'gone', organizationId: 'org', name: '停用科室', sdOrgStatus: 'INACTIVE', validFrom: '2020-01-01', validTo: null } } as never)
+    const result = await resolveOrderSetRows(group, encounter, api)
+    expect(result.drafts).toEqual([])
+    expect(result.skipped.map(item => item.memberId)).toEqual(['m1', 'm2'])
+  })
   it('does not swallow a directory request failure', async () => {
     const { api } = groupApi()
     vi.mocked(api.masterData.searchServices).mockRejectedValue(new Error('目录服务不可用'))
     await expect(resolveOrderSetImport(groupFixture(), encounter, api)).rejects.toThrow('目录服务不可用')
+  })
+})
+
+describe('order-set rows tolerate member-level defects only', () => {
+  it('imports valid members and lists the defective one with a reason', async () => {
+    const group = groupFixture(), { api, services } = groupApi(group)
+    services[1].prices = []
+    const result = await resolveOrderSetRows(group, encounter, api)
+    expect(result.drafts.map(draft => draft.itemCode)).toEqual(['S1'])
+    expect(result.skipped).toEqual([{ memberId: 'm2', label: '检查项目', reason: expect.stringContaining('销售价格') }])
+    await expect(resolveOrderSetImport(group, encounter, api)).rejects.toThrow(/检查项目：/)
+  })
+  it('imports only the requested members but still validates the whole group', async () => {
+    const group = groupFixture(), { api } = groupApi(group)
+    const result = await resolveOrderSetRows(group, encounter, api, new Set(['m2']))
+    expect(result.drafts.map(draft => draft.itemCode)).toEqual(['S2'])
+    expect(api.masterData.searchServices).toHaveBeenCalledTimes(1)
+    Object.assign(group.members[1], { catalogItemId: group.members[0].catalogItemId })
+    await expect(resolveOrderSetRows(group, encounter, api, new Set(['m2']))).rejects.toThrow(/重复/)
+  })
+  it('does not turn a directory outage into skipped members', async () => {
+    const { api } = groupApi()
+    vi.mocked(api.masterData.searchServices).mockRejectedValue(new Error('目录服务不可用'))
+    await expect(resolveOrderSetRows(groupFixture(), encounter, api)).rejects.toThrow('目录服务不可用')
+  })
+  it.each<[Partial<ReturnType<typeof groupFixture>>, string]>([[{ status: 'INACTIVE' }, '停用'], [{ members: [] }, '没有成员'],
+    [{ validFrom: '2999-01-01' }, '有效期'], [{ organizationId: 'other' }, '机构']])('flags statically unavailable groups before any request: %j', (patch, reason) => {
+    expect(orderSetStaticIssue({ ...groupFixture(), ...patch }, encounter)).toContain(reason)
+  })
+  it('accepts an effective group of the current organization', () => {
+    expect(orderSetStaticIssue(groupFixture(), encounter)).toBeUndefined()
   })
 })

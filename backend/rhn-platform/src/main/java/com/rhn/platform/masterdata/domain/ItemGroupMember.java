@@ -26,8 +26,8 @@ public class ItemGroupMember {
     public ItemGroupMember(Long tenantId, Long itemGroupId, Long catalogItemId, int sortOrder,
                            BigDecimal quantity, String unitCode, boolean requiredMember,
                            String memberDescription) {
-        if (quantity == null || quantity.signum() <= 0) throw new IllegalArgumentException("组套成员数量必须大于0");
-        if (sortOrder < 0) throw new IllegalArgumentException("组套成员排序号不能小于0");
+        if (quantity == null || quantity.signum() <= 0) throw new IllegalArgumentException("组合成员数量必须大于0");
+        if (sortOrder < 0) throw new IllegalArgumentException("组合成员排序号不能小于0");
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.itemGroupId = itemGroupId;

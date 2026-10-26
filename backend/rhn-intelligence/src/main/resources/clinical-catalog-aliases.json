@@ -10,7 +10,11 @@
   {"type":"LABORATORY","name":"肝肾功能","aliases":["肝肾功能检查","肝肾功能检测"],"queries":["肝功能","肾功能","血清丙氨酸氨基转移酶","血清天门冬氨酸氨基转移酶","肌酐","尿素"],"broad":false,"reviewNames":["血清丙氨酸氨基转移酶测定","血清天门冬氨酸氨基转移酶测定","肌酐测定","尿素测定","尿素氮测定"]},
   {"type":"LABORATORY","name":"痰涂片革兰染色","aliases":["痰涂片革兰染色检查","痰革兰染色"],"queries":["一般细菌涂片检查","细菌涂片"],"broad":false,"reviewNames":["一般细菌涂片检查"]},
   {"type":"LABORATORY","name":"痰培养","aliases":["痰细菌培养","痰细菌培养及鉴定"],"queries":["一般细菌培养及鉴定","细菌培养"],"broad":false,"reviewNames":["一般细菌培养及鉴定"]},
-  {"type":"EXAMINATION","name":"胸部CT","aliases":["胸部CT检查"],"queries":["胸部CT","胸部","CT"],"broad":false,"reviewNames":["胸部CT平扫","胸部CT增强扫描","胸部CT平扫及增强扫描","CT平扫（一个部位）","CT增强扫描（一个部位）","螺旋CT平扫（一个部位）","螺旋CT增强扫描（一个部位）"]},
+  {"type":"LABORATORY","name":"血清人绒毛膜促性腺激素测定","aliases":["血人绒毛膜促性腺激素测定","人绒毛膜促性腺激素测定","血清人绒毛膜促性腺激素","血人绒毛膜促性腺激素","血hCG","血清hCG","血β-hCG","血清β-hCG","血hCG测定"],"queries":["人绒毛膜促性腺激素"],"broad":false},
+  {"type":"LABORATORY","name":"性激素六项","aliases":["性激素六项检查","性激素6项","女性激素六项","生殖激素六项","性六项"],"queries":["卵泡刺激素","黄体生成素","雌二醇","孕酮","睾酮","泌乳素"],"broad":false,"reviewNames":["血清促卵泡刺激素测定","血清促黄体生成素测定","雌二醇测定","孕酮测定","睾酮测定","血清泌乳素测定"]},
+  {"type":"LABORATORY","name":"甲状腺功能三项","aliases":["甲功三项","甲状腺功能3项","甲功3项","甲状腺功能三项检查"],"queries":["促甲状腺激素","游离甲状腺素","游离三碘甲状原氨酸"],"broad":false,"reviewNames":["血清促甲状腺激素测定","血清游离甲状腺素（FT4）测定","血清游离三碘甲状原氨酸（FT3）测定"]},
+  {"type":"EXAMINATION","name":"妇科经阴道超声检查","aliases":["经阴道超声检查","经阴道超声","阴道超声","阴超","妇科阴道超声","经阴道妇科超声检查","妇科经阴道B超","妇科经阴道彩超"],"queries":["经阴道"],"broad":false,"reviewNames":["经阴道B超检查","经阴道彩色多普勒超声检查"]},
+  {"type":"EXAMINATION","name":"胸部CT","aliases":["胸部CT检查"],"queries":["胸部CT","胸部","CT"],"broad":false,"reviewNames":["胸部CT平扫","胸部CT增强扫描","胸部CT平扫及增强扫描"]},
   {"type":"EXAMINATION","name":"肺功能检查","aliases":["肺功能检测","肺功能测定"],"queries":["肺功能"],"broad":false},
   {"type":"EXAMINATION","name":"心电图","aliases":["心电图检查","ECG"],"queries":["心电图","心电"],"broad":false,"reviewNames":["常规心电图","常规心电图检查","常规心电图检查（十二导联）","十二导联心电图","十二导联心电图检查","12导联心电图","12导联心电图检查"]},
   {"type":"EXAMINATION","name":"指脉氧饱和度监测","aliases":["指脉氧监测","指脉氧饱和度测定","指脉氧饱和度检测"],"queries":["指脉氧","脉氧"],"broad":false}

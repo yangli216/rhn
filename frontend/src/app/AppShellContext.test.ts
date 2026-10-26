@@ -28,6 +28,13 @@ describe('AppShell work context routing', () => {
     expect(outpatientChildren).not.toContain('clinical-printing')
   })
 
+  it('matches diagnostic workbench menus exactly so report queries do not select both entries', () => {
+    const nodes = NAVIGATION_NODES.find(node => node.id === 'medtech-services')!.children!
+    for (const category of ['laboratory', 'examination']) {
+      expect(nodes.find(node => node.id === category)).toMatchObject({ to: `/diagnostics/${category}`, end: true })
+    }
+  })
+
   it('keeps menu groups cohesive: front desk vs clinic, billing owns inpatient fees, settings merged', () => {
     const ids = (gid: string) => NAVIGATION_NODES.find((node) => node.id === gid)?.children?.map((c) => c.id) ?? []
     expect(ids('outpatient-front')).toEqual(['outpatient-triage', 'outpatient-flow', 'outpatient-registration',

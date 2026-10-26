@@ -25,7 +25,7 @@ describe('diagnostic preview truth', () => {
     expect(requireTubePlan({ groups: [], chargeLines: [] })).toEqual({ groups: [], chargeLines: [] })
   })
   it('rejects a response for a different examination', () => {
-    expect(() => requireExaminationPlan({ serviceId: 'other', siteCount: 1, includedSiteCount: 1,
+    expect(() => requireExaminationPlan({ serviceId: 'other', siteCount: 1, chargeableSiteCount: 1, includedSiteCount: 1,
       extraSiteCount: 0, sitePricingMode: 'SINGLE', lines: [line] }, 'current')).toThrow()
   })
 })

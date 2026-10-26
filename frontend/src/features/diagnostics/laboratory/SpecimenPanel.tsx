@@ -9,8 +9,8 @@ import { SpecimenThermalLabelModal } from './SpecimenThermalLabelModal'
 import {
   SPECIMEN_REJECTION_REASONS,
   findSpecimenTubeByCode,
-  recommendSpecimenTubeByItemName,
 } from '../../../shared/clinical/specimenTubeStandards'
+import { useSpecimenTubePlan } from './useSpecimenTubePlan'
 
 const labels = { READY: '待采集', COLLECTED: '待接收', RECEIVED: '已接收', REJECTED: '已拒收' }
 
@@ -47,39 +47,44 @@ export function SpecimenPanel({ api, task, candidates, onRefresh, refreshing, ca
   const eligible = candidates.filter((item) => item.requestType === 'LABORATORY' && item.status === 'READY'
     && item.residentId === task.residentId && item.encounterId === task.encounterId
     && item.organizationId === task.organizationId && item.departmentId === task.departmentId)
+  const selectedTasks = eligible.filter((item) => selected.includes(item.id))
+  const plan = useSpecimenTubePlan(api, selectedTasks, task.status === 'READY' && specimens.isSuccess && specimens.data.length === 0)
+  const plannedTubes = plan.data?.groups.reduce((count, group) => count + group.tubeCount, 0) ?? 0
   const run = (specimen: DiagnosticSpecimen, operation: string) => action.mutate({ specimen, operation })
   return <section aria-label="标本采集管理" className="diagnostic-specimens">
-    {(specimens.error || generate.error || (!rejecting && action.error)) && <Alert>{errorMessage(specimens.error || generate.error || action.error)}</Alert>}
+    {(specimens.error || generate.error || plan.error || (!rejecting && action.error)) && <Alert>{errorMessage(specimens.error || generate.error || plan.error || action.error)}</Alert>}
     {specimens.isPending ? <LoadingState label="正在读取标本…" /> : specimens.isError
       ? <Button onClick={() => void specimens.refetch()}>重新读取标本</Button> : <>
         {task.status === 'READY' && specimens.data?.length === 0 && <div className="diagnostic-specimen-generate-block">
           <DataTable compact aria-label="待生成标本申请"><thead><tr><th className={tableCellClass('control')}>选择</th>
             <th className={tableCellClass('text')}>申请项目</th>
-            <th className={tableCellClass('text')}>推荐采血管/耗材</th>
+            <th className={tableCellClass('text')}>分管容器（系统试算）</th>
             <th className={tableCellClass('text')}>申请单号</th></tr></thead>
             <tbody>{eligible.map((item) => {
-              const tube = recommendSpecimenTubeByItemName(item.itemName)
+              const group = plan.data?.groups.find((value) => value.taskIds.includes(item.id))
+              const tube = group ? findSpecimenTubeByCode(group.containerCode, group.containerName) : undefined
               return <tr key={item.id}><td className={tableCellClass('control')}><input type="checkbox"
                 aria-label={`生成标本：${item.itemName} ${item.requestNo}`} checked={selected.includes(item.id)} disabled={busy}
                 onChange={(event) => { setCommand(crypto.randomUUID()); setSelected((previous) => event.target.checked ? [...previous, item.id] : previous.filter((id) => id !== item.id)) }} /></td>
                 <td className={tableCellClass('text')}><strong>{item.itemName}</strong></td>
                 <td className={tableCellClass('text')}>
-                  <span className="diagnostic-tube-badge">
-                    <span className={`diagnostic-tube-dot diagnostic-tube-dot--${tube.capColorKey}`} aria-hidden="true" />
-                    <span>{tube.tubeName}</span>
-                    <small>({tube.additive})</small>
-                  </span>
+                  {group ? <span className="diagnostic-tube-badge">
+                    <span className={`diagnostic-tube-dot diagnostic-tube-dot--${tube?.capColorKey ?? 'default'}`} aria-hidden="true" />
+                    <span>{group.containerName || tube?.tubeName || group.specimenName}</span>
+                    <small>{group.specimenName}{group.taskIds.length > 1 ? ` · 与另 ${group.taskIds.length - 1} 项合管` : ''}</small>
+                  </span> : <small>{!selected.includes(item.id) ? '未选择' : plan.isError ? '试算失败' : '试算中…'}</small>}
                 </td>
                 <td className={tableCellClass('text')}>{item.requestNo}</td></tr>
             })}</tbody></DataTable>
-          <div className="diagnostic-specimen-generate"><span>已选 <strong>{eligible.filter((item) => selected.includes(item.id)).length}</strong> 项待采集申请</span>
-            <Button disabled={busy || !eligible.some((item) => selected.includes(item.id))} busy={generate.isPending} onClick={() => generate.mutate()}>生成标本条码</Button></div>
+          <div className="diagnostic-specimen-generate"><span>已选 <strong>{selectedTasks.length}</strong> 项待采集申请
+            <small>{plan.isSuccess ? `预计生成 ${plannedTubes} 管，按项目分管规则合并，以实际条码为准。` : '系统按项目分管规则试算管数。'}</small></span>
+            <Button disabled={busy || !selectedTasks.length} busy={generate.isPending} onClick={() => generate.mutate()}>生成标本条码</Button></div>
         </div>}
         {!!specimens.data?.length && <DataTable compact aria-label="标本列表" className="diagnostic-specimen-table"><thead><tr>
           <th className={tableCellClass('text')}>标本 / 容器</th><th className={tableCellClass('text')}>采集 / 接收时间</th>
           <th className={tableCellClass('status')}>状态</th><th className={tableCellClass('actions')}>操作</th></tr></thead>
           <tbody>{specimens.data.map((item) => {
-            const tube = findSpecimenTubeByCode(item.containerCode) ?? recommendSpecimenTubeByItemName(item.specimenName)
+            const tube = findSpecimenTubeByCode(item.containerCode, item.containerName)
             return <tr key={item.id}><td className={tableCellClass('text')}>
               <div className="diagnostic-tube-item">
                 <span

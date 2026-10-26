@@ -10,12 +10,17 @@ const rule = (overrides: Partial<ExaminationSiteOptions> = {}): ExaminationSiteO
 })
 
 describe('examination body sites', () => {
-  it('derives quantity like the server: per site, capped by chargeable count, otherwise one', () => {
-    expect(examinationSiteQuantity(rule(), 1)).toBe(1)
-    expect(examinationSiteQuantity(rule(), 2)).toBe(2)
-    expect(examinationSiteQuantity(rule(), 3)).toBe(2)
-    expect(examinationSiteQuantity(rule({ sitePricingMode: 'BASE_PLUS_ITEM' }), 3)).toBe(1)
-    expect(examinationSiteQuantity(rule({ maxChargeableSiteCount: null }), 3)).toBe(3)
+  it('derives quantity like the server: chargeable site units, capped by chargeable count, otherwise one', () => {
+    const picked = (...codes: string[]) => codes.map(code => ({ code }))
+    expect(examinationSiteQuantity(rule(), picked('A'))).toBe(1)
+    expect(examinationSiteQuantity(rule(), picked('A', 'B'))).toBe(2)
+    expect(examinationSiteQuantity(rule(), picked('A', 'B', 'C'))).toBe(2)
+    expect(examinationSiteQuantity(rule({ sitePricingMode: 'BASE_PLUS_ITEM' }), picked('A', 'B', 'C'))).toBe(1)
+    expect(examinationSiteQuantity(rule({ maxChargeableSiteCount: null }), picked('A', 'B', 'C'))).toBe(3)
+    const weighted = rule({ maxChargeableSiteCount: null, sites: [{ code: 'A', name: '肝胆脾胰', chargeableSiteUnits: 2 },
+      { code: 'B', name: '附加体位', chargeableSiteUnits: 0 }] })
+    expect(examinationSiteQuantity(weighted, picked('A'))).toBe(2)
+    expect(examinationSiteQuantity(weighted, picked('B'))).toBe(1)
   })
 
   it('locks quantity only when the item is configured and sites are required or chosen', () => {

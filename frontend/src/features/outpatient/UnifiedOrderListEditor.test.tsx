@@ -36,6 +36,7 @@ describe('UnifiedOrderListEditor', () => {
       searchServices: vi.fn().mockResolvedValue({ content: [] }),
       itemGroups: vi.fn().mockResolvedValue([]),
     },
+    outpatientPlanTemplates: { list: vi.fn().mockResolvedValue([]) },
     clinicalAi: {
       getWikiDoc: vi.fn().mockResolvedValue({
         id: 'doc-1',
@@ -258,6 +259,31 @@ describe('UnifiedOrderListEditor', () => {
     await userEvent.click(edit)
     expect(onOpenDocument).toHaveBeenCalledWith('service:s1')
     expect(setServiceDrafts).not.toHaveBeenCalled()
+  })
+
+  it('keeps a saved order in its original position while it is being revised', async () => {
+    const services = [
+      { id: 'sv1', serviceType: 'LABORATORY', itemName: '甲项目', quantity: 1, unitCode: '次', status: 'DRAFT', revision: 1,
+        catalogItemId: 'c1', itemCode: 'C1', performerOrganizationId: 'org-1', performerDepartmentId: 'dept-1', authoredAt: '2026-09-19T01:00:00Z' },
+      { id: 'sv2', serviceType: 'LABORATORY', itemName: '乙项目', quantity: 1, unitCode: '次', status: 'DRAFT', revision: 1,
+        catalogItemId: 'c2', itemCode: 'C2', performerOrganizationId: 'org-1', performerDepartmentId: 'dept-1', authoredAt: '2026-09-19T01:00:01Z' },
+    ]
+    function Harness() {
+      const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
+      return <UnifiedOrderListEditor encounter={mockEncounter} api={mockApi} orderMode="SIMPLE" services={services as never}
+        medicationDrafts={[]} setMedicationDrafts={vi.fn()} serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} allergies={[]} />
+    }
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Harness /></QueryClientProvider>)
+    const order = () => screen.getAllByRole('row').map(row => row.textContent ?? '')
+      .filter(text => text.includes('甲项目') || text.includes('乙项目')).map(text => text.includes('甲项目') ? '甲' : '乙')
+    expect(order()).toEqual(['甲', '乙'])
+    await userEvent.click(screen.getAllByRole('button', { name: '修改' })[0])
+    // 修改中的甲项目仍在乙项目之前，不会被移到列表最下方。
+    expect(await screen.findByRole('row', { name: '编辑待确认医嘱 甲项目' })).toBeInTheDocument()
+    const rows = screen.getAllByRole('row'), editIndex = rows.findIndex(row => row.getAttribute('aria-label') === '编辑待确认医嘱 甲项目')
+    const otherIndex = rows.findIndex(row => (row.textContent ?? '').includes('乙项目'))
+    expect(editIndex).toBeGreaterThanOrEqual(0)
+    expect(editIndex).toBeLessThan(otherIndex)
   })
 
   it('opens the correct saved prescription from its group edit action', async () => {
@@ -1023,6 +1049,35 @@ describe('UnifiedOrderListEditor', () => {
 
     // 验证界面显示一键调入成功的 Toast 提示
     expect(screen.getByText(/已成功调入组套【高血压常规检查组套】共 2 项项目/).closest('[role="status"]')).not.toBeNull()
+  })
+
+  it('shows a new order-set template in the "/" search and opens it for preview instead of expanding it', async () => {
+    const user = userEvent.setup()
+    const setServiceDrafts = vi.fn(), setMedicationDrafts = vi.fn(), onOpenOrderSetTemplate = vi.fn()
+    vi.mocked(mockApi.outpatientPlanTemplates.list).mockResolvedValue([{
+      id: 'tpl-set-1', revision: 1, templateKind: 'ORDER_SET', scopeType: 'DEPARTMENT', name: '血常规复查组套', status: 'ACTIVE',
+      sortOrder: 0, useCount: 0, createdAt: '', updatedAt: '', diagnoses: [], tasks: [],
+      medications: [{ lineId: 'l1', medicationId: 'm1', medicationName: '阿莫西林胶囊' }],
+      services: [{ catalogItemId: 'srv-1', itemCode: 'LAB001', itemName: '血常规五分类' }],
+    }] as never)
+    renderComponent({ setServiceDrafts, setMedicationDrafts, onOpenOrderSetTemplate })
+
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.click(screen.getByRole('tab', { name: /前缀模式/ }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '/血常规')
+    const option = await screen.findByRole('option', { name: /血常规复查组套/ })
+    expect(option).toHaveTextContent('医嘱组套')
+    expect(option).toHaveTextContent('科室')
+    expect(option).toHaveTextContent('包含 2 项明细')
+    expect(mockApi.outpatientPlanTemplates.list).toHaveBeenCalledWith('血常规', 'ORDER_SET')
+    await user.click(option)
+
+    expect(onOpenOrderSetTemplate).toHaveBeenCalledExactlyOnceWith('tpl-set-1')
+    // 不立即展开：没有任何草稿被加入，也没有请求组套项目目录
+    expect(setServiceDrafts).not.toHaveBeenCalled()
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+    expect(screen.queryByText(/已成功调入组套/)).not.toBeInTheDocument()
   })
 
   it('keeps composer open with a new empty row and focused after importing an order set', async () => {

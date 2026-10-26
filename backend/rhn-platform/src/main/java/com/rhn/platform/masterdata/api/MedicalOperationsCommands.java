@@ -19,10 +19,14 @@ public final class MedicalOperationsCommands {
             boolean multiBodySite, Integer maxBodySiteCount, String preparationDescription,
             String sitePricingMode, Integer includedSiteCount, BigDecimal additionalSitePrice,
             Long additionalSiteItemId, BigDecimal additionalSiteQuantity,
-            Integer maxChargeableSiteCount) {}
+            Integer maxChargeableSiteCount, Long baseChargeItemId, String examinationTechnique,
+            String contrastPhase) {}
     public record ExaminationVariantCommand(Long bodySiteConceptId, String code, String name,
             String methodType, boolean bodySiteRequired, String mutualRecognitionCode,
-            int sortOrder, String status) {}
+            int sortOrder, String status, int chargeableSiteUnits) {}
+    /** 一个阶梯计价档位；siteTo 为空表示无上限。 */
+    public record ExaminationPriceTierCommand(int siteFrom, Integer siteTo, Long chargeItemId,
+            BigDecimal chargeQuantity) {}
     public record ExaminationAttachmentCommand(Long attachmentCatalogItemId, String triggerType,
             String quantityBasis, BigDecimal quantity, boolean requiredAttachment,
             boolean separatelyChargeable, int sortOrder, String description, String status) {}

@@ -443,6 +443,20 @@ button.doctor-plan-item-card,
 .plan-template-order-table__instruction { width: 16%; }
 .plan-template-order-table__actions { width: 5.5%; }
 
+/* 医嘱组套：多出“执行科室”“默认勾选”两列，整体放宽并重新分配列宽。 */
+.plan-template-order-table.is-order-set { min-width: 88rem; }
+.plan-template-order-table.is-order-set .plan-template-order-table__type { width: 5.5%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__name { width: 14%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__dose { width: 11%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__route { width: 8%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__frequency { width: 8%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__duration { width: 9%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__quantity { width: 11%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__instruction { width: 11%; }
+.plan-template-order-table__department { width: 12%; }
+.plan-template-order-table__selected { width: 8%; }
+.plan-template-order-table.is-order-set .plan-template-order-table__actions { width: 5%; }
+
 .plan-template-order-table th {
   white-space: nowrap;
 }
@@ -589,6 +603,76 @@ button.doctor-plan-item-card,
   align-items: center;
   gap: var(--space-1);
   line-height: var(--line-height-body);
+}
+
+/* 统一带入预览：病历 / 诊断 / 医嘱三区，医嘱按来源分组 */
+.doctor-plan-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.doctor-plan-zone__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-primary);
+}
+
+.doctor-plan-zone__head small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.doctor-plan-order-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.doctor-plan-order-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-plan-order-group small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.doctor-plan-row-flags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.doctor-plan-row-badge {
+  margin-left: var(--space-2);
+}
+
+.doctor-plan-linked-note {
+  color: var(--color-text-primary);
+}
+
+.doctor-plan-pool-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
 }
 
 .doctor-plan-table-shell {
@@ -988,4 +1072,78 @@ button.doctor-plan-item-card,
   margin: var(--space-1) 0 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
+}
+
+/* 新建临床模板：先选类型，每个类型一句话说明 */
+.template-type-choice {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.template-type-choice__option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.template-type-choice__option.is-selected {
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--shadow-focus);
+}
+
+.template-type-choice__option > span {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.template-type-choice__option small {
+  color: var(--color-text-secondary);
+}
+
+/* 存为组套：按来源分组的医嘱行勾选列表 */
+.save-order-set__rows {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.save-order-set__group {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.save-order-set__group-title {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.save-order-set__row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.save-order-set__row.is-unchecked {
+  color: var(--color-text-secondary);
+}
+
+.save-order-set__meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.doctor-plan-legacy-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }

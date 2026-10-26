@@ -150,6 +150,7 @@ const mockExamConfiguration: ClinicalConfiguration = {
     additionalSitePrice: 80,
     additionalSiteQuantity: 1,
     maxChargeableSiteCount: 3,
+    priceTiers: [],
     variants: [
       {
         id: 'var-1',
@@ -160,6 +161,7 @@ const mockExamConfiguration: ClinicalConfiguration = {
         bodySiteRequired: true,
         sortOrder: 10,
         status: 'ACTIVE',
+        chargeableSiteUnits: 1,
       },
       {
         id: 'var-2',
@@ -170,6 +172,7 @@ const mockExamConfiguration: ClinicalConfiguration = {
         bodySiteRequired: true,
         sortOrder: 20,
         status: 'ACTIVE',
+        chargeableSiteUnits: 1,
       },
     ],
     attachments: [
@@ -258,7 +261,7 @@ function createMockApi(): RhnApi {
 describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () => {
   it('keeps examination preview tied to current inputs across late responses, failures and clearing', async () => {
     const api = createMockApi()
-    const plan = (name: string) => ({ serviceId: 'srv-exam-1', siteCount: 2, sitePricingMode: 'SINGLE' as const,
+    const plan = (name: string) => ({ serviceId: 'srv-exam-1', siteCount: 2, chargeableSiteCount: 2, sitePricingMode: 'SINGLE' as const,
       includedSiteCount: 1, extraSiteCount: 1, lines: [{ catalogItemId: 'srv-exam-1', itemCode: 'EXAM001',
         itemName: name, quantity: 1, sourceType: 'BASE_SERVICE', separatelyChargeable: true }] })
     let finishOld!: (value: ReturnType<typeof plan>) => void
@@ -267,20 +270,20 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       .mockResolvedValue(plan('当前输入的收费项目'))
     renderClinical(api, mockServices[3])
     const region = await screen.findByRole('region', { name: '检查收费规则试算' })
-    fireEvent.click(within(region).getByRole('checkbox', { name: '双肺 (LUNG)' }))
+    fireEvent.click(within(region).getByRole('checkbox', { name: '双肺' }))
     expect(await within(region).findByText('当前输入的收费项目')).toBeInTheDocument()
     await act(async () => { finishOld(plan('旧输入的收费项目')) })
     expect(within(region).queryByText('旧输入的收费项目')).not.toBeInTheDocument()
-    expect(within(region).getByText('部分项目尚未计价，当前无法确认费用合计。')).toBeInTheDocument()
+    expect(await within(region).findByText('有收费项目未取到本院价格，无法确认合计。')).toBeInTheDocument()
     vi.mocked(api.masterData.examinationChargePlan).mockRejectedValueOnce(new Error('收费试算失败'))
-    fireEvent.click(within(region).getByRole('button', { name: '刷新试算' }))
+    fireEvent.click(within(region).getByRole('button', { name: '重新计算' }))
     expect(await screen.findByText('收费试算失败')).toBeInTheDocument()
     expect(within(region).queryByText('当前输入的收费项目')).not.toBeInTheDocument()
-    fireEvent.click(within(region).getByRole('button', { name: '刷新试算' }))
+    fireEvent.click(within(region).getByRole('button', { name: '重新计算' }))
     expect(await within(region).findByText('当前输入的收费项目')).toBeInTheDocument()
     fireEvent.click(within(region).getByRole('button', { name: '清空' }))
     expect(within(region).queryByText('当前输入的收费项目')).not.toBeInTheDocument()
-    expect(within(region).getByRole('button', { name: '刷新试算' })).toBeDisabled()
+    expect(within(region).getByRole('button', { name: '重新计算' })).toBeDisabled()
   })
 
   it('does not use late tube results or replace a blank quantity with one', async () => {
@@ -312,13 +315,13 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
         sourceType: 'TUBE_SURCHARGE', separatelyChargeable: true }],
     })
     renderOperational(api)
-    fireEvent.click(await screen.findByRole('button', { name: '新增组套' }))
+    fireEvent.click(await screen.findByRole('button', { name: '新增组合' }))
     fireEvent.click(screen.getAllByRole('button', { name: '加入' })[0])
     expect(await screen.findByText('金额待计价')).toBeInTheDocument()
     expect(screen.queryByText('¥ 0.00')).not.toBeInTheDocument()
-    vi.mocked(api.masterData.laboratoryTubePlan).mockRejectedValueOnce(new Error('组套分管试算失败'))
+    vi.mocked(api.masterData.laboratoryTubePlan).mockRejectedValueOnce(new Error('组合分管试算失败'))
     fireEvent.click(screen.getByRole('button', { name: '重新试算分管' }))
-    expect(await screen.findByText('组套分管试算失败')).toBeInTheDocument()
+    expect(await screen.findByText('组合分管试算失败')).toBeInTheDocument()
     expect(screen.queryByText('金额待计价')).not.toBeInTheDocument()
     expect(screen.queryByText('预计生成采血管')).not.toBeInTheDocument()
   })
@@ -361,7 +364,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
   })
 
   it.each([
-    ['itemGroups', '项目组套'], ['services', '项目组套'], ['units', '项目组套'],
+    ['itemGroups', '项目组合'], ['services', '项目组合'], ['units', '项目组合'],
     ['supplies', '耗材与器械'], ['unitConversions', '计量与换算'],
     ['orderFrequencies', '医嘱频次'], ['departments', '医嘱频次'],
   ] as const)('shows %s query failure instead of an empty operational list', async (source, tab) => {
@@ -372,22 +375,22 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     fireEvent.click(screen.getByText(tab))
     expect(await screen.findByText('运营主数据加载失败')).toBeInTheDocument()
     expect(screen.getByText('业务数据读取失败')).toBeInTheDocument()
-    expect(screen.queryByText(/暂无项目组套|暂无耗材\/器械资料|暂无医嘱频次/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /新增组套|新增耗材|新增频次|新增单位|新增换算/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/暂无项目组合|暂无耗材\/器械资料|暂无医嘱频次/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /新增组合|新增耗材|新增频次|新增单位|新增换算/ })).not.toBeInTheDocument()
     vi.mocked(query).mockResolvedValue([])
     fireEvent.click(screen.getByRole('button', { name: '重新加载' }))
     await waitFor(() => expect(screen.queryByText('运营主数据加载失败')).not.toBeInTheDocument())
-    expect(await screen.findByRole('button', { name: /新增组套|新增耗材|新增频次|新增单位/ })).toBeEnabled()
+    expect(await screen.findByRole('button', { name: /新增组合|新增耗材|新增频次|新增单位/ })).toBeEnabled()
   })
 
   it('does not display stale groups when reloading them fails', async () => {
     const api = createMockApi()
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    client.setQueryData(['master-data-operational-groups'], [{ id: 'old', name: '缓存组套', groupType: 'LIS', members: [], status: 'ACTIVE' }])
+    client.setQueryData(['master-data-operational-groups'], [{ id: 'old', name: '缓存组合', groupType: 'LIS', members: [], status: 'ACTIVE' }])
     vi.mocked(api.masterData.itemGroups).mockRejectedValue(new Error('刷新失败'))
     renderOperational(api, client)
     expect(await screen.findByText('运营主数据加载失败')).toBeInTheDocument()
-    expect(screen.queryByText('缓存组套')).not.toBeInTheDocument()
+    expect(screen.queryByText('缓存组合')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
   })
 
@@ -395,8 +398,8 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     const api = createMockApi()
     vi.mocked(api.masterData.itemGroups).mockResolvedValue({} as never)
     renderOperational(api)
-    expect(await screen.findByText('项目组套返回的数据格式不正确，请重新加载。')).toBeInTheDocument()
-    expect(screen.queryByText('暂无项目组套')).not.toBeInTheDocument()
+    expect(await screen.findByText('项目组合返回的数据格式不正确，请重新加载。')).toBeInTheDocument()
+    expect(screen.queryByText('暂无项目组合')).not.toBeInTheDocument()
   })
 
   it('loads required units before offering group maintenance and preserves real empty results', async () => {
@@ -405,10 +408,10 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     vi.mocked(api.masterData.units).mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     renderOperational(api)
     expect(screen.getByText('正在加载运营主数据…')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '新增组套' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '新增组合' })).not.toBeInTheDocument()
     finish([])
-    expect(await screen.findByText('暂无项目组套')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '新增组套' })).toBeEnabled()
+    expect(await screen.findByText('暂无项目组合')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '新增组合' })).toBeEnabled()
   })
 
   it('keeps unit form input on failure and prevents duplicate submit or dismissal while saving', async () => {
@@ -442,17 +445,17 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
   it('propagates group save failures into the open form', async () => {
     const api = createMockApi()
-    api.masterData.createItemGroup = vi.fn().mockRejectedValue(new Error('组套保存失败'))
+    api.masterData.createItemGroup = vi.fn().mockRejectedValue(new Error('组合保存失败'))
     renderOperational(api)
-    fireEvent.click(await screen.findByRole('button', { name: '新增组套' }))
-    const code = screen.getByLabelText(/组套编码/)
+    fireEvent.click(await screen.findByRole('button', { name: '新增组合' }))
+    const code = screen.getByLabelText(/组合编码/)
     fireEvent.change(code, { target: { value: 'TEST_GROUP' } })
-    fireEvent.change(screen.getByLabelText(/组套名称/), { target: { value: '实际组套' } })
+    fireEvent.change(screen.getByLabelText(/组合名称/), { target: { value: '实际组合' } })
     fireEvent.submit(code.closest('form')!)
-    expect(await screen.findByText('组套保存失败')).toBeInTheDocument()
+    expect(await screen.findByText('组合保存失败')).toBeInTheDocument()
     expect(code).toHaveValue('TEST_GROUP')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.queryByText('项目组套已新增')).not.toBeInTheDocument()
+    expect(screen.queryByText('项目组合已新增')).not.toBeInTheDocument()
   })
 
   function renderOperational(api: RhnApi, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
@@ -663,6 +666,11 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
   it('renders examination clinical configuration with multi-site pricing matrix and charge simulator', async () => {
     const api = createMockApi()
+    ;(api.masterData as unknown as Record<string, unknown>).catalogLifecycle = vi.fn().mockResolvedValue({
+      catalogItemId: 'srv-exam-1', businessDate: '2026-10-26', adoptionHistory: [], priceHistory: [],
+      currentPrices: [{ id: 'p1', revision: 0, sdPriceType: 'SALE', sdPriceTypeText: '销售价', price: 300, currencyCode: 'CNY',
+        validFrom: '2026-01-01', sdStatus: 'ACTIVE', sdStatusText: '有效' }],
+    })
     const queryClient = new QueryClient()
 
     render(
@@ -682,19 +690,21 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
     // 等待检查项目配置与阶梯计费矩阵加载完成
     await waitFor(() => {
-      expect(screen.getByText('多部位阶梯计费矩阵')).toBeInTheDocument()
+      expect(screen.getByText(/计价规则 · /)).toBeInTheDocument()
     })
 
     expect(screen.getByText('胸部多层螺旋CT平扫 · 执行与收费')).toBeInTheDocument()
-    expect(screen.getByText(/阶梯 1 · 首部位/)).toBeInTheDocument()
-    expect(screen.getByText(/阶梯 2 · 超出部位加收规则/)).toBeInTheDocument()
+    expect(screen.getByText(/前 1 个部位含在主收费内，之后每多 1 个部位加收/)).toBeInTheDocument()
 
-    // 检查右侧阶梯收费实时试算沙盒
-    expect(screen.getByText('⚡ 阶梯收费实时试算沙盒')).toBeInTheDocument()
+    // 检查右侧收费试算
+    expect(screen.getByText('收费试算')).toBeInTheDocument()
 
     await waitFor(() => {
       expect(api.masterData.examinationChargePlan).toHaveBeenCalled()
     })
+    // 主收费按本院销售价计价，与固定加收合计
+    expect(await screen.findByText('¥ 380.00')).toBeInTheDocument()
+    expect(screen.getByText('1 次 × ¥300.00')).toBeInTheDocument()
   })
 
   it('opens item group dialog with dual-pane transfer picker and live tube perspective for LIS', async () => {
@@ -713,14 +723,14 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     )
 
     await waitFor(() => {
-      expect(screen.getByText('新增组套')).toBeInTheDocument()
+      expect(screen.getByText('新增组合')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByText('新增组套'))
+    await user.click(screen.getByText('新增组合'))
 
     // 确认弹窗弹出且展示双栏穿梭选择器
     await waitFor(() => {
-      expect(screen.getByText('新增项目组套')).toBeInTheDocument()
+      expect(screen.getByText('新增项目组合')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('输入项目名称或编码过滤…')).toBeInTheDocument()
     })
 
@@ -731,7 +741,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
     // 验证实时试算透视挂件已出现并触发调用
     await waitFor(() => {
-      expect(screen.getByText('组套采血与试管加收实时透视')).toBeInTheDocument()
+      expect(screen.getByText('组合采血与试管加收实时透视')).toBeInTheDocument()
     })
   })
 
@@ -756,7 +766,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     )
 
     await waitFor(() => {
-      expect(screen.getByText('多部位阶梯计费矩阵')).toBeInTheDocument()
+      expect(screen.getByText(/计价规则 · /)).toBeInTheDocument()
     })
 
     // 点击“编辑项目基本配置”按钮
@@ -765,7 +775,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
     // 验证内联展开卡片出现，且带有4个计费模式卡片
     await waitFor(() => {
-      expect(screen.getByText('检查项目执行属性与多部位阶梯计价规则')).toBeInTheDocument()
+      expect(screen.getByText('基本配置与计价方式')).toBeInTheDocument()
       expect(screen.getByText(/主项单次计费/)).toBeInTheDocument()
       expect(screen.getByText(/按部位数计主项/)).toBeInTheDocument()
       expect(screen.getByText(/基础部位 \+ 固定加收/)).toBeInTheDocument()
@@ -786,21 +796,21 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
     // 验证保存后内联卡片收起
     await waitFor(() => {
-      expect(screen.queryByText('检查项目执行属性与多部位阶梯计价规则')).not.toBeInTheDocument()
+      expect(screen.queryByText('基本配置与计价方式')).not.toBeInTheDocument()
     })
 
-    // 再次点击阶梯矩阵上的“调整阶梯规则”按钮，验证同样就地展开内联编辑卡片
-    const adjustRuleBtn = screen.getByRole('button', { name: '调整阶梯规则' })
+    // 再次点击计价规则上的“修改计价方式”按钮，验证同样就地展开内联编辑卡片
+    const adjustRuleBtn = screen.getByRole('button', { name: '修改计价方式' })
     await user.click(adjustRuleBtn)
 
     await waitFor(() => {
-      expect(screen.getByText('检查项目执行属性与多部位阶梯计价规则')).toBeInTheDocument()
+      expect(screen.getByText('基本配置与计价方式')).toBeInTheDocument()
     })
 
     // 点击右上角“收起”按钮，平滑关闭内联卡片
     await user.click(screen.getByRole('button', { name: '收起' }))
     await waitFor(() => {
-      expect(screen.queryByText('检查项目执行属性与多部位阶梯计价规则')).not.toBeInTheDocument()
+      expect(screen.queryByText('基本配置与计价方式')).not.toBeInTheDocument()
     })
   })
 
@@ -1082,7 +1092,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     const user = userEvent.setup()
     const api = createMockApi()
     api.masterData.itemGroups = vi.fn().mockResolvedValue([{
-      id: 'group-1', code: 'LAB_SET', name: '常规检验组套', groupType: 'LIS',
+      id: 'group-1', code: 'LAB_SET', name: '常规检验组合', groupType: 'LIS',
       members: [], status: 'ACTIVE',
     }])
     api.masterData.units = vi.fn().mockResolvedValue([
@@ -1097,9 +1107,9 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       <OperationalMasterDataPanel api={api} organization={mockOrganization as any} manufacturers={[]} />
     </QueryClientProvider>)
 
-    expect(await screen.findByText('检验组套')).toBeInTheDocument()
+    expect(await screen.findByText('检验组合')).toBeInTheDocument()
     expect(screen.queryByText('LIS')).not.toBeInTheDocument()
-    expect(screen.getByTitle('组套编码：LAB_SET')).toHaveTextContent('常规检验组套')
+    expect(screen.getByTitle('组合编码：LAB_SET')).toHaveTextContent('常规检验组合')
     await user.click(screen.getByText('计量与换算'))
     expect(await screen.findByText('1 毫升 = 0.001 升')).toBeInTheDocument()
     expect(screen.getByTitle('单位编码：ML')).toHaveTextContent('毫升')

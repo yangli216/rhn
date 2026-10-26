@@ -12,6 +12,8 @@ import java.util.List;
 record ExaminationSiteOptionsResponse(Long catalogItemId, boolean configured, boolean bodySiteRequired,
                                       boolean multiBodySite, Integer maxBodySiteCount, String sitePricingMode,
                                       Integer maxChargeableSiteCount, List<ExaminationSiteChoice> sites) {
+    /** chargeableSiteUnits 为该部位方式折算的计费部位数，前端据此预估按部位计价的数量。 */
     record ExaminationSiteChoice(String code, String name,
-            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_VARIANT_METHOD) String methodType) {}
+            @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_VARIANT_METHOD) String methodType,
+            int chargeableSiteUnits) {}
 }

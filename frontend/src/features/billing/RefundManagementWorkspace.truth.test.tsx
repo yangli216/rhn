@@ -158,7 +158,7 @@ describe('refund evidence and failure states', () => {
       expect.objectContaining({ page: 0, size: 20, dateFrom: expect.any(String), dateTo: expect.any(String) })))
     await screen.findByLabelText('患者05，SETTLED')
     expect(screen.getByText('共 45 条记录')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /已收费就诊 \(45\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /已收费就诊 \(45\)/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '下一页' }))
     await waitFor(() => expect(billing.settledEncounters).toHaveBeenCalledWith(expect.objectContaining({ page: 1, size: 20 })))

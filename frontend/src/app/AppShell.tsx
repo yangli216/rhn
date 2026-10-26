@@ -267,9 +267,9 @@ export const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'medtech-services', label: '医技管理', icon: 'flask', children: [
-      { id: 'laboratory', label: '检验工作台', icon: 'flask', to: '/diagnostics/laboratory', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'laboratory', label: '检验工作台', icon: 'flask', to: '/diagnostics/laboratory', end: true, requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'laboratory-reports', label: '检验报告查询', icon: 'flask', to: '/diagnostics/laboratory/reports', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
-      { id: 'examination', label: '检查工作台', icon: 'clinical', to: '/diagnostics/examination', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'examination', label: '检查工作台', icon: 'clinical', to: '/diagnostics/examination', end: true, requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'examination-reports', label: '检查报告查询', icon: 'clinical', to: '/diagnostics/examination/reports', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'treatments', label: '治疗执行', icon: 'syringe', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },

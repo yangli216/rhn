@@ -79,7 +79,7 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
         payload.put("submittedBy", prescription.submittedBy());
         OrderDocumentInfo docInfo = documentInfoSupport.read(prescription.documentInfoJson());
         payload.put("documentInfo", docInfo);
-        payload.put("note", documentInfoSupport.appendSummary(prescription.note(), prescription.documentInfoJson()));
+        payload.put("note", documentInfoSupport.appendPrescriptionSummary(prescription.note(), prescription.documentInfoJson()));
 
         List<Map<String, Object>> diagnosesList = new ArrayList<>();
         if (docInfo.diagnoses() != null && !docInfo.diagnoses().isEmpty()) {
@@ -125,7 +125,11 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
             value.put("productName", item.localNameSnapshot());
             value.put("specification", item.packageSpecSnapshot() == null ? item.preparationSpecSnapshot() : item.packageSpecSnapshot());
             value.put("quantity", item.quantity());
-            value.put("quantityUnit", item.quantityUnit());
+            String unit = item.packageUnitNameSnapshot();
+            if (unit == null || unit.isBlank() || unit.matches("[A-Za-z_]+")) {
+                unit = resolveUnitName(item.quantityUnit());
+            }
+            value.put("quantityUnit", unit);
             value.put("doseValue", item.doseValue());
             value.put("doseUnit", item.doseUnit());
             value.put("durationValue", item.durationValue());
@@ -138,6 +142,29 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
             result.add(value);
         });
         return List.copyOf(result);
+    }
+
+    private static String resolveUnitName(String rawUnit) {
+        if (rawUnit == null || rawUnit.isBlank()) return "单位";
+        String trimmed = rawUnit.trim();
+        if (trimmed.chars().anyMatch(c -> Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN)) {
+            return trimmed;
+        }
+        return switch (trimmed.toUpperCase(java.util.Locale.ROOT)) {
+            case "BOX" -> "盒";
+            case "BOTTLE" -> "瓶";
+            case "BAG" -> "袋";
+            case "VIAL", "TUBE" -> "支";
+            case "AMP", "AMPOULE" -> "支";
+            case "PIECE", "TAB", "TABLET" -> "片";
+            case "CAP", "CAPSULE" -> "粒";
+            case "STRIP" -> "板";
+            case "PACK", "PKG" -> "包";
+            case "DOSE" -> "剂";
+            case "ITEM" -> "项";
+            case "EA" -> "个";
+            default -> trimmed;
+        };
     }
 
     private Map<String, Object> residentMap(ResidentDirectory.ResidentSnapshot resident) {

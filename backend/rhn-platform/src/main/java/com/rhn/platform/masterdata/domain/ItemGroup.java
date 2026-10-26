@@ -39,7 +39,7 @@ public class ItemGroup {
                      boolean pointOfCare, String status, LocalDate validFrom, LocalDate validTo) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
-        this.code = require(code, "组套编码");
+        this.code = require(code, "组合编码");
         this.createdAt = Instant.now();
         this.createdBy = actorId;
         updateValues(actorId, organizationId, executionDepartmentId, name, groupType, usageType,
@@ -66,14 +66,14 @@ public class ItemGroup {
                               String status, LocalDate validFrom, LocalDate validTo) {
         ServiceCatalogItem.requirePeriod(validFrom, validTo);
         if (!java.util.Set.of("LIS", "PACS", "ORDER_SET", "PACKAGE").contains(groupType)) {
-            throw new IllegalArgumentException("不支持的组套类型");
+            throw new IllegalArgumentException("不支持的组合类型");
         }
         if (executionDepartmentId != null && organizationId == null) {
             throw new IllegalArgumentException("指定执行科室时必须同时指定机构");
         }
         this.organizationId = organizationId;
         this.executionDepartmentId = executionDepartmentId;
-        this.name = require(name, "组套名称");
+        this.name = require(name, "组合名称");
         this.groupType = groupType;
         this.usageType = Strings.trimToNull(usageType);
         this.pointOfCare = pointOfCare;
@@ -89,7 +89,7 @@ public class ItemGroup {
         return value.trim();
     }
     private void requireRevision(long expected) {
-        if (revision != expected) throw new IllegalStateException("项目组套已被其他用户修改，请刷新后重试");
+        if (revision != expected) throw new IllegalStateException("项目组合已被其他用户修改，请刷新后重试");
     }
 
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }

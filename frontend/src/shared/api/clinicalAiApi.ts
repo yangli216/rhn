@@ -143,6 +143,28 @@ export interface ClinicalAiRecommendedPlan {
   rationale: string
 }
 
+/** AI 检查结构化意图：检查方式、超声方式、增强方式、临床部位与侧别。 */
+export interface ClinicalAiExaminationIntent {
+  modality?: 'US' | 'CT' | 'MR' | 'DR' | 'MG' | 'ECG' | 'ENDOSCOPY' | 'FUNCTION' | 'OTHER' | null
+  technique?: 'B_MODE' | 'COLOR_DOPPLER' | null
+  contrastPhase?: 'PLAIN' | 'ENHANCED' | 'PLAIN_ENHANCED' | null
+  bodySites?: string[] | null
+  laterality?: 'LEFT' | 'RIGHT' | 'BILATERAL' | null
+}
+
+/** 服务端在开立项目下解析的部位与收费预览；收费预览只在部位全部确定时给出，从不取自 AI。 */
+export interface ClinicalAiExaminationSitePlan {
+  resolution: 'MATCHED' | 'PARTIAL' | 'UNRESOLVED' | 'NOT_REQUIRED'
+  bodySites: { code: string; name: string; variantId?: string | null; requestedName?: string | null; requiresReview: boolean }[]
+  unresolvedSites: string[]
+  note?: string | null
+  chargePreview?: {
+    lines: { role: string; catalogItemId: string; itemCode: string; itemName: string; quantity: number;
+      unitPrice?: number | null; amount?: number | null }[]
+    totalAmount?: number | null
+  } | null
+}
+
 export interface ClinicalAiTreatmentRecommendation {
   type: 'MEDICATION' | 'LABORATORY' | 'EXAMINATION'
   catalogItemId: string
@@ -155,6 +177,8 @@ export interface ClinicalAiTreatmentRecommendation {
   aiOriginalName?: string
   /** Brief examination purpose (LABORATORY/EXAMINATION only, ~30 chars); prefills the editable purpose. */
   purpose?: string
+  /** 检查候选的部位解析与收费预览；带入医嘱时预填部位。 */
+  examinationSites?: ClinicalAiExaminationSitePlan | null
   /** AI-prefilled usage draft; every field is independently optional and still needs physician review. */
   usageSuggestion?: { doseValue?: number; doseUnit?: string; routeCode?: string; frequencyCode?: string; durationDays?: number }
   /** Catalog-backed, physician-editable details; revalidated when accepting into order drafts. */
@@ -174,7 +198,8 @@ export interface ClinicalAiTreatmentRecommendation {
 
 export interface ClinicalAiTreatmentMatch {
   key: string
-  intent: { type: string; name: string; specification?: string; rationale?: string | null; catalogItemId?: string; medicationId?: string }
+  intent: { type: string; name: string; specification?: string; rationale?: string | null; catalogItemId?: string; medicationId?: string
+    examination?: ClinicalAiExaminationIntent | null }
   status: string
   reason: string
   candidates: ClinicalAiTreatmentRecommendation[]

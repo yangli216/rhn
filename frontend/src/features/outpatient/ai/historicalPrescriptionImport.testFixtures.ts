@@ -19,7 +19,9 @@ export function historicalImportFixture() {
         catalogItemId: 'product', packageId: 'box', doseValue: 5, doseUnit: 'mg', routeCode: 'PO', routeExecutionType: 'NONE',
         frequencyCode: 'QD', frequencyRule: { ...frequencyRule }, durationValue: 5, durationUnit: 'd', quantity: 2, quantityUnit: 'BOX',
         baseQuantity: 20, packageFactor: 10, baseUnit: '片', medicationInstruction: '明确嘱托',
-        antimicrobial: false, skinTestRequired: false, substitutionAllowed: true, selfProvided: false },
+        antimicrobial: false, skinTestRequired: false, substitutionAllowed: true, selfProvided: false,
+        // 历史价格快照与当前目录价格不同，用于证明带入不复制历史价格
+        priceId: 'old-price', unitPrice: 9.99, totalAmount: 19.98 },
     ] }
   const medication = { id: 'm', code: 'TEST', name: '当前测试药', sdStatus: 'ACTIVE', sdMedicationType: 'WESTERN',
     antimicrobial: false, skinTestRequired: false, stockSiteId: 'pharmacy', stockSiteName: '当前药房',

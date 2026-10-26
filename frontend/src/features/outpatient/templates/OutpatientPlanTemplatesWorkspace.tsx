@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { RhnApi } from '../../../shared/api'
 import type { MinedPlanSuggestion, OutpatientPlanTemplate } from '../../../shared/api/outpatientPlanTemplatesApi'
+import type { ItemGroup } from '../../../shared/api/masterDataApi'
 import type { OutpatientNoteTemplate } from '../../../shared/api/outpatientNoteTemplatesApi'
 import { noteTemplateFields } from '../record/NoteTemplateBar'
 import { formatTime } from '../../../shared/format'
@@ -32,6 +33,13 @@ import { errorMessage } from '../../../shared/api/httpClient'
 import { AiPlanTemplateDraftModal } from './AiPlanTemplateDraftModal'
 import { ManualClinicalTemplateDialog } from './ManualClinicalTemplateDialog'
 import { planSourceReferenceLabel } from './planTaskPresentation'
+import { NewTemplateTypeDialog } from './NewTemplateTypeDialog'
+import { LegacyOrderSetDetail, OrderSetTemplateDetail } from './OrderSetTemplateDetail'
+import { useOrderExecutionDepartments } from '../orders/useOrderExecutionDepartments'
+import {
+  legacyOrderSetOwnerLabel, templateScopeLabel, templateScopeTone, templateTypeHint, templateTypeLabel,
+  type ClinicalTemplateType,
+} from './orderSetTemplate'
 
 export interface OutpatientPlanTemplatesWorkspaceProps {
   api: RhnApi
@@ -40,7 +48,8 @@ export interface OutpatientPlanTemplatesWorkspaceProps {
 
 export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: OutpatientPlanTemplatesWorkspaceProps) {
   const queryClient = useQueryClient()
-  const [templateType, setTemplateType] = useState<'NOTE' | 'PLAN'>('PLAN')
+  const [templateType, setTemplateType] = useState<ClinicalTemplateType>('PLAN')
+  const [newTypeOpen, setNewTypeOpen] = useState(false)
   const [scopeFilter, setScopeFilter] = useState<'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'MINED'>('ALL')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [selectedId, setSelectedId] = useState('')
@@ -48,15 +57,38 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
   const [aiCompilerOpen, setAiCompilerOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<OutpatientPlanTemplate | null>(null)
   const [manualEditor, setManualEditor] = useState<{
-    kind: 'NOTE' | 'PLAN'; note?: OutpatientNoteTemplate; plan?: OutpatientPlanTemplate
+    kind: ClinicalTemplateType; note?: OutpatientNoteTemplate; plan?: OutpatientPlanTemplate; copyFrom?: OutpatientPlanTemplate
   } | null>(null)
   const [notice, setNotice] = useState('')
   const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
 
+  // 诊疗方案：接口缺省只返回 PROTOCOL；再按 templateKind 防御性过滤，组套只在“医嘱组套”页签出现。
   const templatesQuery = useQuery({
     queryKey: ['outpatient-plan-templates'],
     queryFn: () => api.outpatientPlanTemplates.list(),
+    select: (values) => values.filter((value) => value.templateKind !== 'ORDER_SET'),
   })
+
+  // 医嘱组套：新模板（kind=ORDER_SET）与主数据里尚未迁移的旧组合（只读）；打开“医嘱组套”页签时才读取。
+  const orderSetTemplatesQuery = useQuery({
+    queryKey: ['outpatient-plan-templates', 'ORDER_SET'],
+    queryFn: () => api.outpatientPlanTemplates.list('', 'ORDER_SET'),
+    select: (values) => values.filter((value) => value.templateKind === 'ORDER_SET'),
+    enabled: templateType === 'ORDER_SET',
+  })
+  const legacyOrderSetsQuery = useQuery({
+    queryKey: ['outpatient-order-set-legacy'],
+    queryFn: async () => {
+      const rows = await api.masterData.itemGroups('', 'ORDER_SET', 'ACTIVE')
+      if (!Array.isArray(rows)) throw new Error('旧组合目录返回异常，请重试')
+      return rows
+    },
+    enabled: templateType === 'ORDER_SET',
+    retry: false,
+  })
+  const executionDepartments = useOrderExecutionDepartments(api, clinicalContext?.organization.id ?? '',
+    templateType === 'ORDER_SET' && Boolean(clinicalContext?.organization.id))
+  const departmentName = (departmentId: string) => executionDepartments.data?.find((value) => value.id === departmentId)?.name
 
   const noteTemplatesQuery = useQuery({
     queryKey: ['outpatient-note-templates', 'GENERAL_PRACTICE'],
@@ -101,6 +133,23 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       || noteTemplateFields.some(({ key }) => value.content[key]?.toLowerCase().includes(keyword)))
   }, [noteTemplatesQuery.data, searchKeyword])
 
+  type OrderSetEntry = { id: string; template?: OutpatientPlanTemplate; legacy?: ItemGroup }
+  const orderSetEntries = useMemo<OrderSetEntry[]>(() => {
+    const keyword = searchKeyword.trim().toLowerCase()
+    const templates = (orderSetTemplatesQuery.data ?? []).filter((value) => (scopeFilter === 'ALL' || value.scopeType === scopeFilter)
+      && (!keyword || value.name.toLowerCase().includes(keyword) || value.description?.toLowerCase().includes(keyword)
+        || value.medications.some((item) => item.medicationName.toLowerCase().includes(keyword))
+        || value.services.some((item) => item.itemName.toLowerCase().includes(keyword) || item.itemCode.toLowerCase().includes(keyword))))
+    // 旧组合固定为全院范围，只在“全部”和“全院”下出现。
+    const legacy = scopeFilter === 'ALL' || scopeFilter === 'HOSPITAL'
+      ? (legacyOrderSetsQuery.data ?? []).filter((value) => value.groupType === 'ORDER_SET' && value.status === 'ACTIVE'
+        && (!keyword || value.name.toLowerCase().includes(keyword) || value.code.toLowerCase().includes(keyword)
+          || value.members.some((member) => member.itemName.toLowerCase().includes(keyword) || member.itemCode.toLowerCase().includes(keyword)))) : []
+    return [...templates.map((template) => ({ id: template.id, template })), ...legacy.map((group) => ({ id: group.id, legacy: group }))]
+  }, [legacyOrderSetsQuery.data, orderSetTemplatesQuery.data, scopeFilter, searchKeyword])
+  const selectedOrderSet = useMemo(() => orderSetEntries.find((value) => value.id === selectedId) || orderSetEntries[0] || null,
+    [orderSetEntries, selectedId])
+
   const selectedNoteTemplate = useMemo(() => filteredNoteTemplates.find((value) => value.id === selectedId)
     || filteredNoteTemplates[0] || null, [filteredNoteTemplates, selectedId])
   const selectedLinkedNoteTemplate = useMemo(() => selectedTemplate?.noteTemplateId
@@ -116,6 +165,12 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       setSelectedId(selectedTemplate.id)
     }
   }, [selectedTemplate, selectedId, templateType])
+
+  useEffect(() => {
+    if (templateType === 'ORDER_SET' && selectedOrderSet && selectedOrderSet.id !== selectedId) {
+      setSelectedId(selectedOrderSet.id)
+    }
+  }, [selectedId, selectedOrderSet, templateType])
 
   useEffect(() => {
     if (templateType === 'NOTE' && selectedNoteTemplate && selectedNoteTemplate.id !== selectedId) {
@@ -141,7 +196,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       queryClient.setQueriesData<OutpatientPlanTemplate[]>({ queryKey: ['outpatient-plan-templates'] },
         (current) => current?.filter((template) => template.id !== updated.id))
       await queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
-      setNotice(`已成功停用方案“${updated.name}”。`)
+      setNotice(updated.templateKind === 'ORDER_SET' ? `已停用医嘱组套“${updated.name}”。` : `已成功停用方案“${updated.name}”。`)
     },
   })
 
@@ -170,28 +225,38 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       await queryClient.invalidateQueries({ queryKey: ['outpatient-plan-templates'] })
       setSelectedId(created.id)
       setScopeFilter('PERSONAL')
-      setNotice(`已成功将开方习惯固化为个人常用方案“${created.name}”！`)
+      setNotice(`已成功将开方习惯固化为我的诊疗方案“${created.name}”！`)
     },
   })
 
+  // 范围页签对诊疗方案和医嘱组套通用；旧组合固定算作“全院”。
+  const scopeSource: Array<{ scopeType: OutpatientPlanTemplate['scopeType'] }> = templateType === 'ORDER_SET'
+    ? [...(orderSetTemplatesQuery.data ?? []), ...(legacyOrderSetsQuery.data ?? []).map(() => ({ scopeType: 'HOSPITAL' as const }))]
+    : templatesQuery.data ?? []
+  const scopeCount = (scope?: OutpatientPlanTemplate['scopeType']) => {
+    const count = scope ? scopeSource.filter((value) => value.scopeType === scope).length : scopeSource.length
+    return count ? `(${count})` : undefined
+  }
   const scopeTabs: Array<{ value: 'ALL' | 'PERSONAL' | 'DEPARTMENT' | 'HOSPITAL' | 'MINED'; label: string; meta?: string }> = [
-    { value: 'ALL', label: '全部方案', meta: templatesQuery.data?.length ? `(${templatesQuery.data.length})` : undefined },
-    { value: 'PERSONAL', label: '个人高频', meta: templatesQuery.data?.some((t) => t.scopeType === 'PERSONAL') ? `(${templatesQuery.data.filter((t) => t.scopeType === 'PERSONAL').length})` : undefined },
-    { value: 'DEPARTMENT', label: '科室路径', meta: templatesQuery.data?.some((t) => t.scopeType === 'DEPARTMENT') ? `(${templatesQuery.data.filter((t) => t.scopeType === 'DEPARTMENT').length})` : undefined },
-    { value: 'HOSPITAL', label: '全院/指南', meta: templatesQuery.data?.some((t) => t.scopeType === 'HOSPITAL') ? `(${templatesQuery.data.filter((t) => t.scopeType === 'HOSPITAL').length})` : undefined },
+    { value: 'ALL', label: '全部', meta: scopeCount() },
+    { value: 'PERSONAL', label: templateScopeLabel('PERSONAL'), meta: scopeCount('PERSONAL') },
+    { value: 'DEPARTMENT', label: templateScopeLabel('DEPARTMENT'), meta: scopeCount('DEPARTMENT') },
+    { value: 'HOSPITAL', label: templateScopeLabel('HOSPITAL'), meta: scopeCount('HOSPITAL') },
   ]
+  const orderSetCount = (orderSetTemplatesQuery.data?.length ?? 0) + (legacyOrderSetsQuery.data?.length ?? 0)
 
   const error = templatesQuery.error || noteTemplatesQuery.error || minedQuery.error || disableMutation.error
+    || orderSetTemplatesQuery.error || legacyOrderSetsQuery.error
     || disableNoteMutation.error || solidifyMinedMutation.error
 
   return (
     <MasterDetailPage
       title="临床模板库"
-      eyebrow="病历书写与诊疗方案 · 统一维护"
-      description="统一查看病历书写模板与结构化诊疗方案；两类模板分别保存，使用时按临床安全边界带入对应草稿。"
+      eyebrow="诊疗方案、医嘱组套与病历模板 · 统一维护"
+      description="统一维护诊疗方案、医嘱组套和病历模板；三类模板分别保存，使用时按临床安全边界带入对应草稿。"
       actions={<div className="doctor-plan-header-actions">
-        <Button variant="secondary" onClick={() => setManualEditor({ kind: templateType })}>
-          <Icon name="add" />{templateType === 'NOTE' ? '新建病历模板' : '新建诊疗方案'}
+        <Button variant="secondary" onClick={() => setNewTypeOpen(true)}>
+          <Icon name="add" />新建模板
         </Button>
         {templateType === 'PLAN' && <Button variant="primary" onClick={() => { setEditingTemplate(null); setAiCompilerOpen(true) }}>
           <Icon name="sparkles" />AI 智能建方
@@ -205,49 +270,78 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
             actions={
               <StatusBadge tone="neutral">
                 {templateType === 'NOTE' ? `${filteredNoteTemplates.length} 个病历模板`
-                  : scopeFilter === 'MINED' ? `${minedQuery.data?.length ?? 0} 项推荐` : `${filteredTemplates.length} 个方案`}
+                  : templateType === 'ORDER_SET' ? `${orderSetEntries.length} 个医嘱组套`
+                    : scopeFilter === 'MINED' ? `${minedQuery.data?.length ?? 0} 项推荐` : `${filteredTemplates.length} 个方案`}
               </StatusBadge>
             }
           />
           <Tabs value={templateType} onChange={(tabId) => {
             setTemplateType(tabId); setScopeFilter('ALL'); setSearchKeyword(''); setSelectedId(''); setNotice('')
           }} label="模板类型" variant="line" items={[
-            { value: 'NOTE', label: '病历模板', meta: noteTemplatesQuery.data?.length ? `(${noteTemplatesQuery.data.length})` : undefined },
-            { value: 'PLAN', label: '诊疗方案', meta: templatesQuery.data?.length ? `(${templatesQuery.data.length})` : undefined },
+            { value: 'PLAN', label: templateTypeLabel('PLAN'), meta: templatesQuery.data?.length ? `(${templatesQuery.data.length})` : undefined },
+            { value: 'ORDER_SET', label: templateTypeLabel('ORDER_SET'), meta: orderSetCount ? `(${orderSetCount})` : undefined },
+            { value: 'NOTE', label: templateTypeLabel('NOTE'), meta: noteTemplatesQuery.data?.length ? `(${noteTemplatesQuery.data.length})` : undefined },
           ]} />
-          {templateType === 'PLAN' && <Tabs
+          {templateType !== 'NOTE' && <Tabs
             value={scopeFilter}
             onChange={(tabId) => { setScopeFilter(tabId); setNotice('') }}
-            label="方案作用域分类"
+            label={templateType === 'ORDER_SET' ? '医嘱组套范围分类' : '方案作用域分类'}
             variant="line"
             items={scopeTabs}
           />}
-          {(templateType === 'NOTE' || scopeFilter !== 'MINED') && (
+          {(templateType !== 'PLAN' || scopeFilter !== 'MINED') && (
             <SearchField
               label="搜索模板"
               value={searchKeyword}
               onChange={setSearchKeyword}
-              placeholder={templateType === 'NOTE' ? '搜索名称或病历内容...' : '搜索方案名称、诊断或药品...'}
+              placeholder={templateType === 'NOTE' ? '搜索名称或病历内容...'
+                : templateType === 'ORDER_SET' ? '搜索组套名称、药品或项目...' : '搜索方案名称、诊断或药品...'}
             />
           )}
         </>
       }
       navigationResetScrollKey={`${templateType}:${scopeFilter}:${searchKeyword}`}
-      detailResetScrollKey={templateType === 'NOTE' ? selectedNoteTemplate?.id : scopeFilter === 'MINED' ? selectedMinedKey : selectedId}
+      detailResetScrollKey={templateType === 'NOTE' ? selectedNoteTemplate?.id
+        : templateType === 'PLAN' && scopeFilter === 'MINED' ? selectedMinedKey : selectedId}
       detailLabel="模板明细"
       detailHeader={
         <PanelHead
           title={
             templateType === 'NOTE' ? (selectedNoteTemplate?.name || '病历模板详情')
+              : templateType === 'ORDER_SET' ? (selectedOrderSet?.template?.name ?? selectedOrderSet?.legacy?.name ?? '医嘱组套详情')
               : scopeFilter === 'MINED'
               ? (selectedMined?.suggestedName || 'AI 开方习惯推荐详情')
               : (selectedTemplate?.name || '诊疗方案详情')
           }
           actions={
-            templateType === 'NOTE' ? (selectedNoteTemplate ? <div className="doctor-plan-detail-head-actions">
+            templateType === 'ORDER_SET' ? (selectedOrderSet?.template ? <div className="doctor-plan-detail-head-actions">
               <div className="doctor-plan-card-badges">
-                <StatusBadge tone="info">病历模板</StatusBadge>
-                <StatusBadge tone="neutral">{selectedNoteTemplate.scopeType === 'PERSONAL' ? '医生个人' : '科室共享'}</StatusBadge>
+                <StatusBadge tone="warning">{templateTypeLabel('ORDER_SET')}</StatusBadge>
+                <StatusBadge tone={templateScopeTone(selectedOrderSet.template.scopeType)}>{templateScopeLabel(selectedOrderSet.template.scopeType)}</StatusBadge>
+                <StatusBadge tone={selectedOrderSet.template.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                  {selectedOrderSet.template.status === 'ACTIVE' ? '启用中' : '已停用'}
+                </StatusBadge>
+              </div>
+              <div className="doctor-plan-detail-head-buttons">
+                {selectedOrderSet.template.status === 'ACTIVE' && <Button size="sm" variant="secondary"
+                  onClick={() => setManualEditor({ kind: 'ORDER_SET', plan: selectedOrderSet.template })}>编辑组套</Button>}
+                <Button size="sm" variant="secondary"
+                  onClick={() => setManualEditor({ kind: 'ORDER_SET', copyFrom: selectedOrderSet.template })}>复制为我的</Button>
+                {selectedOrderSet.template.status === 'ACTIVE' && <Popconfirm
+                  title={`确认停用医嘱组套“${selectedOrderSet.template.name}”？`}
+                  description="停用后医生站不再提供该组套，历史使用记录仍会保留。"
+                  okText="确认停用" onConfirm={() => disableMutation.mutate(selectedOrderSet.template!)}>
+                  <Button size="sm" variant="secondary" busy={disableMutation.isPending}>停用组套</Button>
+                </Popconfirm>}
+              </div>
+            </div> : selectedOrderSet?.legacy ? <div className="doctor-plan-card-badges">
+              <StatusBadge tone="warning">{templateTypeLabel('ORDER_SET')}</StatusBadge>
+              <StatusBadge tone="success">{legacyOrderSetOwnerLabel}</StatusBadge>
+            </div> : undefined)
+            : templateType === 'NOTE' ? (selectedNoteTemplate ? <div className="doctor-plan-detail-head-actions">
+              <div className="doctor-plan-card-badges">
+                <StatusBadge tone="info">{templateTypeLabel('NOTE')}</StatusBadge>
+                <StatusBadge tone="neutral">{templateScopeLabel(selectedNoteTemplate.scopeType)}</StatusBadge>
                 <StatusBadge tone={selectedNoteTemplate.status === 'ACTIVE' ? 'success' : 'neutral'}>
                   {selectedNoteTemplate.status === 'ACTIVE' ? '启用中' : '已停用'}
                 </StatusBadge>
@@ -266,11 +360,11 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
               <div className="doctor-plan-detail-head-actions">
                 <div className="doctor-plan-card-badges">
                   <StatusBadge tone={selectedTemplate.scopeType === 'PERSONAL' ? 'neutral' : selectedTemplate.scopeType === 'DEPARTMENT' ? 'info' : 'success'}>
-                    {selectedTemplate.scopeType === 'PERSONAL' ? '医生个人方案' : selectedTemplate.scopeType === 'DEPARTMENT' ? '科室临床路径' : '全院/指南标准方案'}
+                    {templateScopeLabel(selectedTemplate.scopeType)}
                   </StatusBadge>
                   {selectedTemplate.sourceType === 'AI_GUIDELINE' && <StatusBadge tone="warning">指南结构化抽取</StatusBadge>}
                   {selectedTemplate.sourceType === 'AI_INPUT' && <StatusBadge tone="info">AI 智能速记</StatusBadge>}
-                  {selectedTemplate.sourceType === 'AI_MINED' && <StatusBadge tone="info">开方习惯沉淀</StatusBadge>}
+                  {selectedTemplate.sourceType === 'AI_MINED' && <StatusBadge tone="info">开方沉淀</StatusBadge>}
                   <StatusBadge tone={selectedTemplate.status === 'ACTIVE' ? 'success' : 'neutral'}>
                     {selectedTemplate.status === 'ACTIVE' ? '启用中' : '已停用'}
                   </StatusBadge>
@@ -305,11 +399,18 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
         />
       }
       detailFooter={
-        templateType === 'NOTE' && selectedNoteTemplate ? <div className="doctor-plan-pool-detail__footer">
+        templateType === 'ORDER_SET' ? (selectedOrderSet ? <div className="doctor-plan-pool-detail__footer">
+          <span className="doctor-plan-footer-hint">
+            {selectedOrderSet.template
+              ? `累计已使用 ${selectedOrderSet.template.useCount} 次${selectedOrderSet.template.updatedAt ? ` · 更新于 ${formatTime(selectedOrderSet.template.updatedAt)}` : ''}`
+              : '由医务科在主数据维护；迁入临床模板库后可在此编辑'}
+          </span>
+        </div> : undefined)
+        : templateType === 'NOTE' && selectedNoteTemplate ? <div className="doctor-plan-pool-detail__footer">
           <span className="doctor-plan-footer-hint">
             累计已使用 {selectedNoteTemplate.useCount} 次{selectedNoteTemplate.updatedAt ? ` · 更新于 ${formatTime(selectedNoteTemplate.updatedAt)}` : ''}
           </span>
-        </div> : scopeFilter === 'MINED' && selectedMined ? (
+        </div> : templateType === 'PLAN' && scopeFilter === 'MINED' && selectedMined ? (
           <div className="doctor-plan-pool-detail__footer">
             <span className="doctor-plan-footer-hint">AI 依据近 30 天门诊历史开方行为聚类生成，固化后将收录为医生个人常用方案。</span>
             <Button
@@ -333,7 +434,31 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
           {error && <Alert>{errorMessage(error)}</Alert>}
           {notice && <div className="doctor-plan-pool-notice">{notice}</div>}
 
-          {templateType === 'NOTE' ? (
+          {templateType === 'ORDER_SET' ? (
+            (orderSetTemplatesQuery.isPending || legacyOrderSetsQuery.isPending) && !orderSetEntries.length
+              ? <LoadingState label="正在加载医嘱组套..." />
+              : orderSetEntries.length ? orderSetEntries.map(({ id, template, legacy }) => (
+                <Button variant="text" size="sm" key={id} type="button"
+                  className={`doctor-plan-item-card ${selectedOrderSet?.id === id ? 'is-selected' : ''}`}
+                  onClick={() => setSelectedId(id)}>
+                  <div className="doctor-plan-item-card__top">
+                    <div className="doctor-plan-card-badges">
+                      <StatusBadge tone="warning">{templateTypeLabel('ORDER_SET')}</StatusBadge>
+                      <StatusBadge tone={template ? templateScopeTone(template.scopeType) : 'success'}>
+                        {template ? templateScopeLabel(template.scopeType) : templateScopeLabel('HOSPITAL')}
+                      </StatusBadge>
+                    </div>
+                    <small className="doctor-plan-card-meta-text">{template ? `已用 ${template.useCount} 次` : legacy?.code}</small>
+                  </div>
+                  <div className="doctor-plan-item-card__title">{template?.name ?? legacy?.name}</div>
+                  {template?.description && <div className="doctor-plan-item-card__desc">{template.description}</div>}
+                  <div className="doctor-plan-item-card__meta">
+                    {template ? <><span>药品 {template.medications.length}</span><span>·</span><span>项目 {template.services.length}</span></>
+                      : <><span>项目 {legacy?.members.length ?? 0}</span><span>·</span><span>由医务科维护</span></>}
+                  </div>
+                </Button>
+              )) : <div className="doctor-plan-pool-empty-text">未找到匹配的医嘱组套</div>
+          ) : templateType === 'NOTE' ? (
             noteTemplatesQuery.isPending ? <LoadingState label="正在加载病历模板..." />
               : filteredNoteTemplates.length ? filteredNoteTemplates.map((item) => (
                 <Button variant="text" size="sm" key={item.id} type="button"
@@ -342,7 +467,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                   <div className="doctor-plan-item-card__top">
                     <div className="doctor-plan-card-badges">
                       <StatusBadge tone="info">病历模板</StatusBadge>
-                      <StatusBadge tone="neutral">{item.scopeType === 'PERSONAL' ? '个人' : '科室'}</StatusBadge>
+                      <StatusBadge tone="neutral">{templateScopeLabel(item.scopeType)}</StatusBadge>
                     </div>
                     <small className="doctor-plan-card-meta-text">已用 {item.useCount} 次</small>
                   </div>
@@ -353,7 +478,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                   </div>
                 </Button>
               )) : <div className="doctor-plan-pool-empty-text">未找到匹配的病历模板</div>
-          ) : scopeFilter === 'MINED' ? (
+          ) : templateType === 'PLAN' && scopeFilter === 'MINED' ? (
             minedQuery.isPending ? (
               <LoadingState label="正在聚类开方习惯..." />
             ) : minedQuery.data?.length ? (
@@ -392,8 +517,8 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
               >
                 <div className="doctor-plan-item-card__top">
                   <div className="doctor-plan-card-badges">
-                    <StatusBadge tone={item.scopeType === 'PERSONAL' ? 'neutral' : item.scopeType === 'DEPARTMENT' ? 'info' : 'success'}>
-                      {item.scopeType === 'PERSONAL' ? '个人' : item.scopeType === 'DEPARTMENT' ? '科室' : '全院指南'}
+                    <StatusBadge tone={templateScopeTone(item.scopeType)}>
+                      {templateScopeLabel(item.scopeType)}
                     </StatusBadge>
                     {item.sourceType === 'AI_INPUT' && <StatusBadge tone="info">速记</StatusBadge>}
                     {item.sourceType === 'AI_GUIDELINE' && <StatusBadge tone="warning">指南抽取</StatusBadge>}
@@ -425,7 +550,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       }
     >
       <div className="doctor-plan-pool-detail__body">
-        {templateType === 'NOTE' ? (
+        {templateType === 'ORDER_SET' ? (
+          selectedOrderSet?.template ? <OrderSetTemplateDetail template={selectedOrderSet.template}
+            departmentName={departmentName} onInspect={setInspectTarget} />
+            : selectedOrderSet?.legacy ? <LegacyOrderSetDetail group={selectedOrderSet.legacy} onInspect={setInspectTarget} />
+              : <EmptyState icon="clinical" title="请选择医嘱组套"
+                copy={`${templateTypeHint('ORDER_SET')}。可点击上方“新建模板”创建，或在医嘱区把当前医嘱存为组套。`} />
+        ) : templateType === 'NOTE' ? (
           selectedNoteTemplate ? <>
             {(selectedNoteTemplate.description || selectedNoteTemplate.lastUsedAt) && <div className="doctor-plan-detail-hero">
               {selectedNoteTemplate.description && <p className="doctor-plan-detail-desc">{selectedNoteTemplate.description}</p>}
@@ -729,6 +860,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
         )}
       </div>
 
+      {newTypeOpen && <NewTemplateTypeDialog initialType={templateType} onCancel={() => setNewTypeOpen(false)}
+        onConfirm={(type) => {
+          setNewTypeOpen(false)
+          if (type !== templateType) { setTemplateType(type); setScopeFilter('ALL'); setSearchKeyword(''); setSelectedId('') }
+          setNotice('')
+          setManualEditor({ kind: type })
+        }} />}
       {templateType === 'PLAN' && aiCompilerOpen && (
         <AiPlanTemplateDraftModal
           api={api}
@@ -750,12 +888,13 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
       )}
       {manualEditor && <ManualClinicalTemplateDialog api={api}
         organizationId={clinicalContext?.organization.id}
-        kind={manualEditor.kind} editingNote={manualEditor.note} editingPlan={manualEditor.plan}
+        kind={manualEditor.kind} editingNote={manualEditor.note} editingPlan={manualEditor.plan} copyFrom={manualEditor.copyFrom}
         onClose={() => setManualEditor(null)} onSaved={(saved) => {
           const isNote = manualEditor.kind === 'NOTE'
           void queryClient.invalidateQueries({ queryKey: [isNote ? 'outpatient-note-templates' : 'outpatient-plan-templates'] })
           setSelectedId(saved.id)
-          setNotice(`${isNote ? '病历模板' : '诊疗方案'}“${saved.name}”已保存。`)
+          setScopeFilter('ALL')
+          setNotice(`${templateTypeLabel(manualEditor.kind)}“${saved.name}”已保存。`)
           setManualEditor(null)
         }} />}
       <MedicalInsertViewerModal isOpen={Boolean(inspectTarget)} onClose={() => setInspectTarget(null)}

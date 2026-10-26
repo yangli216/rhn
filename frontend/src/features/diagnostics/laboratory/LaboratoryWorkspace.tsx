@@ -38,10 +38,11 @@ import {
   type DiagnosticForm,
   type DiagnosticView,
 } from '../shared/diagnosticWorkbenchModel'
-import {
-  recommendSpecimenTubeByItemName,
-} from '../../../shared/clinical/specimenTubeStandards'
+import { findSpecimenTubeByCode, type SpecimenTubeStandard } from '../../../shared/clinical/specimenTubeStandards'
+import { loadDiagnosticSpecimens } from './SpecimenPanel'
+import { useSpecimenTubePlan } from './useSpecimenTubePlan'
 import { DiagnosticPrintAction } from '../../../shared/clinical/DiagnosticPrintAction'
+import { DiagnosticQueueNote } from '../shared/DiagnosticQueueNote'
 import '../../../styles/features/diagnostic-execution.css'
 import '../shared/diagnostic-workbench.css'
 
@@ -222,8 +223,19 @@ export function LaboratoryWorkspace({
   const formKey = `${scope}:${selected?.id || ''}`
   const view = views[formKey] || 'work'
 
-  // 当前选中项目的耗材推荐
-  const recommendedTube = selected ? recommendSpecimenTubeByItemName(selected.itemName) : undefined
+  // 当前选中申请实际使用的容器：已生成标本取实际容器，否则取后端分管试算结果，不再按项目名称猜测
+  const selectedSpecimens = useQuery({
+    queryKey: ['diagnostic-specimens', selected?.id, selected?.organizationId, selected?.departmentId],
+    queryFn: () => loadDiagnosticSpecimens(api, selected!), enabled: Boolean(selected), retry: false })
+  const tubePlan = useSpecimenTubePlan(api, selected ? [selected] : [],
+    selected?.status === 'READY' && selectedSpecimens.isSuccess && selectedSpecimens.data.length === 0)
+  const referenceContainers = (selectedSpecimens.data?.length
+    ? selectedSpecimens.data.map((item) => ({ code: item.containerCode, name: item.containerName }))
+    : tubePlan.data?.groups.map((item) => ({ code: item.containerCode, name: item.containerName })) ?? [])
+  const referenceTubes = [...new Map(referenceContainers.flatMap((item) => {
+    const tube = findSpecimenTubeByCode(item.code, item.name)
+    return tube ? [[tube.tubeCode, tube] as const] : []
+  })).values()] as SpecimenTubeStandard[]
 
   const [scannedAlert, setScannedAlert] = useState<string | null>(null)
 
@@ -305,11 +317,9 @@ export function LaboratoryWorkspace({
                   重置
                 </Button>
               </div>
+              <DiagnosticQueueNote reportPath="/diagnostics/laboratory/reports" onNavigate={onNavigate} />
             </div>
             {filterError && <Alert placement="inline">{filterError}</Alert>}
-            <Alert tone="info" placement="inline">队列显示全部未完成任务及近7天已完成、取消记录。
-              <Button variant="text" onClick={() => onNavigate('/diagnostics/laboratory/reports')}>查询历史报告</Button>
-            </Alert>
             {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}
             {worklist.error && <Alert>{errorMessage(worklist.error)}</Alert>}
             {(params.get('encounterId') || params.get('residentId')) && (
@@ -379,8 +389,8 @@ export function LaboratoryWorkspace({
             <EmptyState icon="clinical" title="标本耗材与质控指南" copy="选中检验申请后查看标准耗材规格与质控历史。" />
           ) : (
             <div className="diagnostic-scroll" tabIndex={0} role="region" aria-label="辅助参考与质控信息">
-              {recommendedTube && (
-                <section className="diagnostic-tube-reference-card">
+              {referenceTubes.map((recommendedTube) => (
+                <section key={recommendedTube.tubeCode} className="diagnostic-tube-reference-card">
                   <PanelHead title="标准采血管规格 (YY/T 0314)" />
                   <div className="diagnostic-tube-reference-body">
                     <div className="diagnostic-tube-badge">
@@ -420,7 +430,7 @@ export function LaboratoryWorkspace({
                     </dl>
                   </div>
                 </section>
-              )}
+              ))}
 
               <section className="diagnostic-tube-reference-card">
                 <PanelHead title="检验报告单打印与历史" />

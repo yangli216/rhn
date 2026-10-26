@@ -4,7 +4,7 @@ import { examinationProfileForm, examinationProfileInput } from './examinationPr
 
 const profile = { serviceId: 'exam1', revision: 1, bodySiteRequired: true, multiBodySite: true,
   sitePricingMode: 'BASE_PLUS_FIXED' as const, includedSiteCount: 1, additionalSitePrice: 80,
-  additionalSiteQuantity: 1, variants: [], attachments: [] }
+  additionalSiteQuantity: 1, priceTiers: [], variants: [], attachments: [] }
 
 describe('examination pricing form truth', () => {
   it.each(['', ' ', 'NaN', 'Infinity', '-1'])('does not turn invalid price %s into free pricing', (price) => {
@@ -35,5 +35,13 @@ describe('examination pricing form truth', () => {
     expect(() => examinationProfileInput(form)).toThrow('请选择多部位加收项目')
     expect(examinationProfileInput({ ...form, additionalSiteItemId: 'actual-item', additionalSiteQuantity: '2' }))
       .toMatchObject({ additionalSiteItemId: 'actual-item', additionalSiteQuantity: 2, additionalSitePrice: undefined })
+  })
+  it('sends the base charge item except in tiered mode, where tiers decide the charge item', () => {
+    const form = { ...examinationProfileForm(profile), baseChargeItemId: 'price-item' }
+    expect(examinationProfileInput(form)).toMatchObject({ baseChargeItemId: 'price-item' })
+    const tiered = { ...form, sitePricingMode: 'TIERED_ITEM' as ExaminationProfileInput['sitePricingMode'] }
+    expect(() => examinationProfileInput(tiered)).toThrow('阶梯计价按档位收费')
+    expect(examinationProfileInput({ ...tiered, baseChargeItemId: '' }))
+      .toMatchObject({ sitePricingMode: 'TIERED_ITEM', baseChargeItemId: undefined, additionalSitePrice: undefined })
   })
 })

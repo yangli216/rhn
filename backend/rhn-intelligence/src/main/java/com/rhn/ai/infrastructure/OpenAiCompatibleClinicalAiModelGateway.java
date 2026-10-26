@@ -150,6 +150,14 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             LABORATORY 与 EXAMINATION 项必须输出 purpose：一句简短中文（不超过30字），写明本项需要明确或排除的临床问题，例如“排除过敏性鼻炎的致敏原”；
             purpose 会预填为医生核对的“检查目的”，不得重复项目名称，不得复述 rationale，不得写检查结果或编造患者事实。MEDICATION 项不输出 purpose。
             """;
+    private static final String TREATMENT_RULES_EXAMINATION = """
+            EXAMINATION 项必须输出 examination 对象：{modality,technique,contrastPhase,bodySites,laterality}。系统据此在院内目录定位开立项目和部位，name 仅供展示。
+            modality 仅允许 US（超声）、CT、MR（磁共振）、DR（X线摄影）、MG（乳腺钼靶）、ECG（心电图）、ENDOSCOPY（内镜）、FUNCTION（其他功能检查）、OTHER；
+            technique 仅超声填写：COLOR_DOPPLER（彩超）或 B_MODE（常规B超），无法区分时为 null；contrastPhase 仅 CT/MR 填写：PLAIN（平扫）、ENHANCED（增强）、PLAIN_ENHANCED（平扫加增强），其余为 null。
+            bodySites 写 1 至 6 个常用中文临床部位名称（如“头颅”“胸部”“肝胆脾胰”“甲状腺”“腰椎”“膝关节”），不写投照体位，不写收费档位（不得写“一个部位”“≥二个部位”）；
+            laterality 为 LEFT、RIGHT、BILATERAL 或 null，左右侧不要写进部位名称。心电图、肺功能等无部位检查 bodySites 为空数组。
+            同一检查方式、同一超声方式或增强方式的多个部位合并成一条 EXAMINATION，bodySites 列出多个部位；不同检查方式或平扫与增强分别成条。
+            """;
     private static final String DIAGNOSIS_RULES = """
             diagnosisCandidates 最多 3 项，differentialDiagnoses 最多 5 项；编码必须使用 ICD-10。
             诊断数量是上限，不是目标。每条 diagnosisCandidates 必须有独立的本次患者事实依据；不能仅因编码存在、病种相关或拟开某项检查而加入诊断。
@@ -183,7 +191,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             有效临床要点需生成初步诊断方向，即使无法确定病因也可给症状诊断，不能因用户仅要求病历而省略。
             """ + TREATMENT_RULES_INTENT + """
             RECORD_DIAGNOSIS 阶段每项输出 type、name、rationale；MEDICATION 可额外输出待匹配的 specification 和可选 usage，检验检查不输出 specification 与 usage。
-            """ + TREATMENT_RULES_DETAIL + TREATMENT_RULES_USAGE + TREATMENT_RULES_PURPOSE + """
+            """ + TREATMENT_RULES_DETAIL + TREATMENT_RULES_USAGE + TREATMENT_RULES_PURPOSE + TREATMENT_RULES_EXAMINATION + """
             generationStage=CATALOG_TREATMENT 时依据 priorSuggestion 中已映射的诊断和病历，从 availableTreatments 精确选择，
             返回 treatmentRecommendations（最多8项），每项只输出与目录条目一致的 type、catalogItemId。
             只完成目录选择，不输出 rationale、usage 或重复目录名称、编码、规格，也不输出 purpose；目录不匹配则不推荐，不得把检索候选自动全部推荐。
@@ -258,7 +266,7 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             diagnosisCandidates[{code,display,type,confidence,rationale}]；
             differentialDiagnoses[{code,display,type,confidence,rationale}]；missingInformation[string]；
             safetyAlerts[{level,title,detail}]；recommendedPlans[{templateId,name,description,rationale}]；
-            treatmentRecommendations：RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale,purpose?,usage?}]（purpose 仅 LABORATORY/EXAMINATION 输出；usage 仅 MEDICATION 且有把握时输出），CATALOG_TREATMENT 使用 [{type,catalogItemId}]；disclaimer。
+            treatmentRecommendations：RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale,purpose?,usage?,examination?}]（purpose 仅 LABORATORY/EXAMINATION 输出；usage 仅 MEDICATION 且有把握时输出；examination 仅 EXAMINATION 且必须输出），CATALOG_TREATMENT 使用 [{type,catalogItemId}]；disclaimer。
             空内容使用 null 或空数组。level 仅允许 INFO、WARNING、CRITICAL；诊断的 type 仅允许 PRIMARY、SECONDARY，治疗推荐的 type 仅允许 MEDICATION、LABORATORY、EXAMINATION；confidence 为 0 到 1。
             """;
 
@@ -332,12 +340,12 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             不得自由生成药品剂量、用法或医嘱，药品用法仅可按 usage 规则给出预填草稿。
             """ + TREATMENT_RULES_INTENT + """
             TREATMENT_ONLY 阶段每项输出 type、name、rationale；MEDICATION 可额外输出待匹配的 specification 和可选 usage，检验检查不输出 specification 与 usage。
-            """ + TREATMENT_RULES_DETAIL + TREATMENT_RULES_USAGE + TREATMENT_RULES_PURPOSE + TREATMENT_RULES_REVISIT + REPORT_RULES + TREATMENT_SAFETY_RULES + """
+            """ + TREATMENT_RULES_DETAIL + TREATMENT_RULES_USAGE + TREATMENT_RULES_PURPOSE + TREATMENT_RULES_EXAMINATION + TREATMENT_RULES_REVISIT + REPORT_RULES + TREATMENT_SAFETY_RULES + """
             医嘱必须围绕 draft.diagnoses 中已确认的诊断及本次已知症状；本次明确事实优先于历史资料，历史诊断、历史处方及历史检查不自动成为本次确诊、正在用药或本次已完成检查。信息不足时把所缺事实写入 missingInformation，使用医生可直接提问的短句，最多 5 项。
             summary 一句话概述本次医嘱建议的思路（不超过 60 字）；safetyAlerts 仅表达需要医生核对的风险（过敏、禁忌、相互作用核对等），不得声称已经完成处置；level 仅允许 INFO、WARNING、CRITICAL。
 
             必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。JSON 字段为：
-            summary；treatmentRecommendations[{type,name,specification,rationale,purpose?,usage?}]（最多 12 项；purpose 仅 LABORATORY/EXAMINATION 输出；usage 仅 MEDICATION 且有把握时输出）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
+            summary；treatmentRecommendations[{type,name,specification,rationale,purpose?,usage?,examination?}]（最多 12 项；purpose 仅 LABORATORY/EXAMINATION 输出；usage 仅 MEDICATION 且有把握时输出；examination 仅 EXAMINATION 且必须输出）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
             治疗推荐的 type 仅允许 MEDICATION、LABORATORY、EXAMINATION。空内容使用 null 或空数组。
             """;
 

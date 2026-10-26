@@ -8,6 +8,7 @@ import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DateRangePicker, EmptyState, FormField, LoadingState, Pagination, PanelHead, SearchField, Select, Tabs } from '../../../shared/ui'
 import { MasterDetailPage } from '../../../shared/ui/templates/PageTemplates'
 import { DiagnosticQueue, DiagnosticTaskContext, DiagnosticRequestDetails, TaskReports } from './DiagnosticTaskPanels'
+import { DiagnosticQueueNote } from './DiagnosticQueueNote'
 import { DiagnosticTaskOperations } from './DiagnosticTaskOperations'
 import { diagnosticDateBoundary, diagnosticStatusOptions, type DiagnosticForm, type DiagnosticView } from './diagnosticWorkbenchModel'
 import '../../../styles/features/diagnostic-execution.css'
@@ -109,10 +110,8 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
         startAriaLabel="申请开始日期" endAriaLabel="申请结束日期" /></FormField>
       <div className="ui-query-filters__actions"><Button variant="secondary" onClick={applyFilters}>查询</Button>
         <Button variant="text" onClick={resetFilters}>重置</Button></div>
+      <DiagnosticQueueNote reportPath={`/diagnostics/${laboratory ? 'laboratory' : 'examination'}/reports`} onNavigate={onNavigate} />
     </div>{filterError && <Alert placement="inline">{filterError}</Alert>}
-    <Alert tone="info" placement="inline">队列显示全部未完成任务及近7天已完成、取消记录。
-      <Button variant="text" onClick={() => onNavigate(`/diagnostics/${requestType === 'LABORATORY' ? 'laboratory' : 'examination'}/reports`)}>查询历史报告</Button>
-    </Alert>
     {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}
     {worklist.error && <Alert>{errorMessage(worklist.error)}</Alert>}
     {(params.get('encounterId') || params.get('residentId')) && <Alert tone="info" placement="inline">当前限定为临床入口关联的患者申请。

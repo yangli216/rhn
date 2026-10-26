@@ -19,13 +19,13 @@ const history = [visit('first', 'org-a', 'same-dept-id'), visit('second', 'org-b
 const content = { presentIllness: '这是需要按需展开的完整现病史。', medicalHistory: '明确记录的既往病史。',
   physicalExam: '实际查体结果。', healthEducation: '历史健康宣教。', followUp: '历史复诊建议。' }
 
-function setup(copyDisabled = false) {
+function setup(copyDisabled = false, status = 'DRAFT') {
   const api = { organization: {
     list: vi.fn().mockResolvedValue([{ id: 'org-a', name: '当前机构' }, { id: 'org-b', name: '外院机构' }]),
     departments: vi.fn().mockImplementation(async id => [{ id: 'same-dept-id', organizationId: id,
       name: id === 'org-a' ? '心内科' : '呼吸科' }]),
   }, clinicalDocuments: { byEncounter: vi.fn().mockImplementation(async id => [{ id: `note-${id}`,
-    documentType: 'OUTPATIENT_NOTE', status: 'DRAFT', currentVersion: 1, content }]) },
+    documentType: 'OUTPATIENT_NOTE', status, currentVersion: 1, content }]) },
   printing: { recordsByEncounter: vi.fn().mockResolvedValue([]) },
   } as unknown as RhnApi
   const onCopy = vi.fn()
@@ -47,6 +47,13 @@ describe('history panel compact reading and selection', () => {
     expect(list).not.toHaveTextContent('历史主诉')
     expect(list).not.toHaveTextContent('当前机构')
     expect(within(list).getAllByText('测试诊断')).toHaveLength(2)
+  })
+
+  it('shows the status and the download / print action directly without expanding anything', async () => {
+    setup(false, 'SIGNED')
+    const section = await screen.findByRole('region', { name: '病历下载与打印' })
+    expect(section.closest('details')).toBeNull()
+    expect(within(section).getByRole('button', { name: /下载 \/ 打印病历/ })).toBeVisible()
   })
 
   it('keeps the chief complaint open and other record fields folded without changing copied content', async () => {

@@ -2,6 +2,7 @@ package com.rhn.platform.masterdata.application;
 
 import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.platform.dictionary.api.DictionaryItemReference;
+import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationOrderingProfile;
 import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationSiteOption;
 import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationSiteRule;
 import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
@@ -38,6 +39,8 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
     private final ExaminationServiceRepository examinationRepository;
     private final ServiceVariantRepository variantRepository;
     private final ExaminationAttachmentItemRepository attachmentRepository;
+    private final ExaminationPriceTierRepository priceTierRepository;
+    private final com.rhn.platform.terminology.api.BodySiteDirectory bodySiteDirectory;
     private final SupplyItemRepository supplyRepository;
     private final ManufacturerRepository manufacturerRepository;
     private final ItemAttributeSubjectRepository attributeSubjectRepository;
@@ -57,6 +60,8 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
             ExaminationServiceRepository examinationRepository,
             ServiceVariantRepository variantRepository,
             ExaminationAttachmentItemRepository attachmentRepository,
+            ExaminationPriceTierRepository priceTierRepository,
+            com.rhn.platform.terminology.api.BodySiteDirectory bodySiteDirectory,
             SupplyItemRepository supplyRepository,
             ManufacturerRepository manufacturerRepository,
             ItemAttributeSubjectRepository attributeSubjectRepository,
@@ -71,6 +76,8 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         this.examinationRepository = examinationRepository;
         this.variantRepository = variantRepository;
         this.attachmentRepository = attachmentRepository;
+        this.priceTierRepository = priceTierRepository;
+        this.bodySiteDirectory = bodySiteDirectory;
         this.supplyRepository = supplyRepository;
         this.manufacturerRepository = manufacturerRepository;
         this.attributeSubjectRepository = attributeSubjectRepository;
@@ -210,15 +217,89 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
                 ? value.additionalSiteQuantity() : command.additionalSiteQuantity();
         Integer maxChargeableSiteCount = command.maxChargeableSiteCount() == null
                 ? command.maxBodySiteCount() : command.maxChargeableSiteCount();
+        Long baseChargeItemId = "TIERED_ITEM".equals(pricingMode) || Objects.equals(command.baseChargeItemId(), serviceId)
+                ? null : command.baseChargeItemId();
         validateSitePricing(context.tenantId(), serviceId, command.bodySiteRequired(), command.multiBodySite(),
                 command.maxBodySiteCount(), pricingMode, includedSiteCount, additionalSitePrice,
                 additionalSiteItemId, additionalSiteQuantity, maxChargeableSiteCount);
+        if (baseChargeItemId != null) requireChargeableCatalogItem(context.tenantId(), baseChargeItemId);
+        if ("TIERED_ITEM".equals(pricingMode)) {
+            List<ExaminationPriceTier> tiers = activeTiers(context.tenantId(), serviceId);
+            if (tiers.isEmpty()) throw badRequest("EXAM_PRICE_TIER_REQUIRED", "阶梯计价模式需先维护计价档位");
+            requireTierCoverage(tiers.getLast().siteTo(), maxChargeableSiteCount);
+        }
+        String technique = text(command.examinationTechnique());
+        String contrastPhase = text(command.contrastPhase());
+        if (technique != null && !"ULTRASOUND".equals(text(command.examinationType()))) {
+            throw badRequest("EXAM_TECHNIQUE_NOT_ALLOWED", "只有超声检查可以设置超声方式");
+        }
+        if (contrastPhase != null && !Set.of("CT", "MRI").contains(String.valueOf(text(command.examinationType())))) {
+            throw badRequest("EXAM_CONTRAST_PHASE_NOT_ALLOWED", "只有 CT、MRI 检查可以设置增强方式");
+        }
         value.update(expectedRevision, text(command.examinationType()), command.bodySiteRequired(),
                 command.multiBodySite(), command.maxBodySiteCount(), text(command.preparationDescription()),
                 pricingMode, includedSiteCount, additionalSitePrice, additionalSiteItemId,
-                additionalSiteQuantity, maxChargeableSiteCount, context.subjectId());
+                additionalSiteQuantity, maxChargeableSiteCount, baseChargeItemId, context.subjectId());
+        value.changeOrderingAttributes(technique, contrastPhase);
         examinationRepository.save(value);
         return clinicalConfiguration(serviceId);
+    }
+
+    /**
+     * 整组替换阶梯计价档位：从 1 开始连续、不重叠，只有最后一档可以无上限；档位物价项须启用且可收费。
+     * 阶梯计价模式下档位不能为空，且须覆盖最大计费部位数。档位与检查配置共用修订号。
+     */
+    @Transactional
+    public ClinicalConfiguration replaceExaminationPriceTiers(Long serviceId, long expectedRevision,
+            List<ExaminationPriceTierCommand> tiers) {
+        ExecutionContext context = current();
+        requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
+        ExaminationService profile = requireExamination(context.tenantId(), serviceId);
+        requireRevision(profile.revision(), expectedRevision, "EXAM_PROFILE_REVISION_STALE");
+        List<ExaminationPriceTierCommand> sorted = tiers.stream()
+                .sorted(Comparator.comparingInt(ExaminationPriceTierCommand::siteFrom)).toList();
+        int expectedFrom = 1;
+        for (int i = 0; i < sorted.size(); i++) {
+            ExaminationPriceTierCommand tier = sorted.get(i);
+            boolean last = i == sorted.size() - 1;
+            if (tier.siteFrom() != expectedFrom) {
+                throw badRequest("EXAM_PRICE_TIER_GAP", "计价档位须从 1 开始连续，不能重叠或留空");
+            }
+            if (tier.siteTo() == null && !last) {
+                throw badRequest("EXAM_PRICE_TIER_OPEN_END", "只有最后一档可以不设上限");
+            }
+            if (tier.siteTo() != null && tier.siteTo() < tier.siteFrom()) {
+                throw badRequest("EXAM_PRICE_TIER_RANGE_INVALID", "档位上限不能小于下限");
+            }
+            if (tier.chargeQuantity() == null || tier.chargeQuantity().signum() <= 0) {
+                throw badRequest("EXAM_PRICE_TIER_QUANTITY_INVALID", "档位收费数量必须大于0");
+            }
+            requireChargeableCatalogItem(context.tenantId(), tier.chargeItemId());
+            expectedFrom = tier.siteTo() == null ? Integer.MAX_VALUE : tier.siteTo() + 1;
+        }
+        if ("TIERED_ITEM".equals(profile.sitePricingMode())) {
+            if (sorted.isEmpty()) throw badRequest("EXAM_PRICE_TIER_REQUIRED", "阶梯计价模式的计价档位不能为空");
+            requireTierCoverage(sorted.getLast().siteTo(), profile.maxChargeableSiteCount());
+        }
+        priceTierRepository.deleteAllInBatch(priceTierRepository
+                .findByTenantIdAndCatalogItemIdOrderBySiteFromAsc(context.tenantId(), serviceId));
+        priceTierRepository.saveAll(sorted.stream().map(tier -> new ExaminationPriceTier(context.tenantId(), serviceId,
+                tier.siteFrom(), tier.siteTo(), tier.chargeItemId(), tier.chargeQuantity(), context.subjectId())).toList());
+        profile.touchPricing(expectedRevision, context.subjectId());
+        examinationRepository.save(profile);
+        return clinicalConfiguration(serviceId);
+    }
+
+    private List<ExaminationPriceTier> activeTiers(Long tenantId, Long serviceId) {
+        return priceTierRepository.findByTenantIdAndCatalogItemIdOrderBySiteFromAsc(tenantId, serviceId).stream()
+                .filter(ExaminationPriceTier::active).toList();
+    }
+
+    /** 最后一档须无上限，或上限不小于最大计费部位数；未设最大计费部位数时最后一档必须无上限。 */
+    private void requireTierCoverage(Integer lastSiteTo, Integer maxChargeableSiteCount) {
+        if (lastSiteTo != null && (maxChargeableSiteCount == null || lastSiteTo < maxChargeableSiteCount)) {
+            throw badRequest("EXAM_PRICE_TIER_COVERAGE", "计价档位未覆盖最大计费部位数，请将最后一档设为无上限或调大上限");
+        }
     }
 
     @Transactional
@@ -227,10 +308,12 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
         requireExamination(context.tenantId(), serviceId);
         validateVariant(context.tenantId(), serviceId, null, command);
-        ServiceVariant value = variantRepository.save(new ServiceVariant(context.tenantId(), serviceId,
+        ServiceVariant created = new ServiceVariant(context.tenantId(), serviceId,
                 command.bodySiteConceptId(), command.code(), command.name(), text(command.methodType()),
                 command.bodySiteRequired(), text(command.mutualRecognitionCode()), command.sortOrder(),
-                requireStatus(command.status()), context.subjectId()));
+                requireStatus(command.status()), context.subjectId());
+        created.changeChargeableSiteUnits(command.chargeableSiteUnits());
+        ServiceVariant value = variantRepository.save(created);
         attributeSubjectRepository.save(ItemAttributeSubject.serviceVariant(context.tenantId(), value.id(), context.subjectId()));
         return clinicalConfiguration(serviceId);
     }
@@ -246,6 +329,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         value.update(expectedRevision, command.bodySiteConceptId(), command.code(), command.name(),
                 text(command.methodType()), command.bodySiteRequired(), text(command.mutualRecognitionCode()),
                 command.sortOrder(), requireStatus(command.status()), context.subjectId());
+        value.changeChargeableSiteUnits(command.chargeableSiteUnits());
         variantRepository.save(value);
         return clinicalConfiguration(serviceId);
     }
@@ -289,18 +373,29 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
                 .findByTenantIdAndCatalogItemId(context.tenantId(), serviceId)
                 .orElseThrow(() -> notFound("EXAM_PROFILE_NOT_FOUND", "未找到检查项目配置"));
         ExaminationSiteRule rule = siteRule(profile);
-        int siteCount = rule.select(bodySiteCodes).size();
-        int effectiveSiteCount = Math.max(1, siteCount);
-        if (profile.maxChargeableSiteCount() != null) {
-            effectiveSiteCount = Math.min(effectiveSiteCount, profile.maxChargeableSiteCount());
-        }
+        List<ExaminationSiteOption> sites = rule.select(bodySiteCodes);
+        int siteCount = sites.size();
+        int effectiveSiteCount = rule.chargeableSiteCount(sites);
         int extraSiteCount = Math.max(0, effectiveSiteCount - profile.includedSiteCount());
         List<DiagnosticChargeLine> lines = new ArrayList<>();
-        BigDecimal baseQuantity = rule.baseQuantity(siteCount);
-        lines.add(chargeLine(service, baseQuantity, "BASE_SERVICE", true, null, "检查主项目"));
+        CatalogReference mainItem = profile.baseChargeItemId() == null
+                ? new CatalogReference(service.id(), service.code(), service.name(), service.unitCode(),
+                        service.chargeable(), service.status())
+                : requireChargeableCatalogItem(context.tenantId(), profile.baseChargeItemId());
+        if ("TIERED_ITEM".equals(profile.sitePricingMode())) {
+            final int units = effectiveSiteCount;
+            ExaminationPriceTier tier = activeTiers(context.tenantId(), serviceId).stream()
+                    .filter(value -> value.covers(units)).findFirst()
+                    .orElseThrow(() -> conflict("EXAM_PRICE_TIER_NOT_FOUND", "计费部位数 " + units + " 未命中计价档位"));
+            lines.add(chargeLine(requireChargeableCatalogItem(context.tenantId(), tier.chargeItemId()),
+                    tier.chargeQuantity(), "TIER", true, null, "阶梯计价档位"));
+        } else {
+            lines.add(chargeLine(mainItem, rule.baseQuantity(effectiveSiteCount), "BASE_SERVICE", true, null,
+                    profile.baseChargeItemId() == null ? "检查主项目" : "主收费物价项"));
+        }
         if (extraSiteCount > 0 && "BASE_PLUS_FIXED".equals(profile.sitePricingMode())) {
             BigDecimal amount = profile.additionalSitePrice().multiply(BigDecimal.valueOf(extraSiteCount));
-            lines.add(chargeLine(service, BigDecimal.valueOf(extraSiteCount), "MULTI_SITE_FIXED", true,
+            lines.add(chargeLine(mainItem, BigDecimal.valueOf(extraSiteCount), "MULTI_SITE_FIXED", true,
                     amount, "超出包含部位数的固定加收金额"));
         } else if (extraSiteCount > 0 && "BASE_PLUS_ITEM".equals(profile.sitePricingMode())) {
             CatalogReference item = requireChargeableCatalogItem(context.tenantId(), profile.additionalSiteItemId());
@@ -318,7 +413,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         }
         for (ExaminationAttachmentItem attachment : attachments) {
             boolean applies = "ALWAYS".equals(attachment.triggerType())
-                    || "MULTI_SITE".equals(attachment.triggerType()) && siteCount > 1
+                    || "MULTI_SITE".equals(attachment.triggerType()) && effectiveSiteCount > 1
                     || "OPTIONAL".equals(attachment.triggerType()) && selected.contains(attachment.id());
             if (!applies) continue;
             BigDecimal multiplier = switch (attachment.quantityBasis()) {
@@ -332,7 +427,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
             lines.add(chargeLine(item, quantity, "ATTACHMENT", attachment.separatelyChargeable(), null,
                     attachment.description()));
         }
-        return new ExaminationChargePlan(serviceId, siteCount, profile.sitePricingMode(),
+        return new ExaminationChargePlan(serviceId, siteCount, effectiveSiteCount, profile.sitePricingMode(),
                 profile.includedSiteCount(), extraSiteCount, List.copyOf(lines));
     }
 
@@ -344,12 +439,33 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         return examinationRepository.findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).map(this::siteRule);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ExaminationChargePlan> chargePlan(Long serviceId, List<String> bodySiteCodes) {
+        ExecutionContext context = current();
+        requireServiceType(context.tenantId(), serviceId, "EXAMINATION");
+        if (examinationRepository.findByTenantIdAndCatalogItemId(context.tenantId(), serviceId).isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(examinationChargePlan(serviceId, bodySiteCodes, List.of()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ExaminationOrderingProfile> orderingProfiles(String examinationType) {
+        if (text(examinationType) == null) return List.of();
+        return examinationRepository.findByTenantIdAndExaminationType(current().tenantId(), examinationType).stream()
+                .map(v -> new ExaminationOrderingProfile(v.catalogItemId(), v.examinationType(),
+                        v.examinationTechnique(), v.contrastPhase()))
+                .toList();
+    }
+
     private ExaminationSiteRule siteRule(ExaminationService profile) {
         List<ExaminationSiteOption> sites = variantRepository
                 .findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(profile.tenantId(), profile.catalogItemId()).stream()
                 .filter(v -> "ACTIVE".equals(v.status()))
                 .map(v -> new ExaminationSiteOption(v.id(), v.code(), v.name(), v.bodySiteConceptId(),
-                        v.methodType(), v.mutualRecognitionCode()))
+                        v.methodType(), v.mutualRecognitionCode(), v.chargeableSiteUnits()))
                 .toList();
         return new ExaminationSiteRule(profile.catalogItemId(), profile.bodySiteRequired(), profile.multiBodySite(),
                 profile.maxBodySiteCount(), profile.sitePricingMode(), profile.includedSiteCount(),
@@ -624,15 +740,32 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
     private ExaminationProfile examinationView(ExaminationService value) {
         CatalogReference additionalItem = value.additionalSiteItemId() == null ? null
                 : requireCatalogItem(value.tenantId(), value.additionalSiteItemId());
+        CatalogReference baseItem = value.baseChargeItemId() == null ? null
+                : requireCatalogItem(value.tenantId(), value.baseChargeItemId());
+        Map<Long, com.rhn.platform.terminology.api.BodySiteDirectory.BodySite> bodySites = bodySiteDirectory
+                .listBodySites(value.tenantId(), LocalDate.now()).stream()
+                .collect(Collectors.toMap(com.rhn.platform.terminology.api.BodySiteDirectory.BodySite::conceptId,
+                        Function.identity()));
         return new ExaminationProfile(value.catalogItemId(), value.revision(), value.examinationType(),
                 value.bodySiteRequired(), value.multiBodySite(), value.maxBodySiteCount(), value.preparationDescription(),
                 value.sitePricingMode(), value.includedSiteCount(), value.additionalSitePrice(),
                 value.additionalSiteItemId(), additionalItem == null ? null : additionalItem.code(),
                 additionalItem == null ? null : additionalItem.name(), value.additionalSiteQuantity(),
-                value.maxChargeableSiteCount(),
+                value.maxChargeableSiteCount(), value.baseChargeItemId(),
+                baseItem == null ? null : baseItem.code(), baseItem == null ? null : baseItem.name(),
+                activeTiers(value.tenantId(), value.catalogItemId()).stream().map(tier -> {
+                    CatalogReference item = requireCatalogItem(value.tenantId(), tier.chargeItemId());
+                    return new ExaminationPriceTierView(tier.id(), tier.siteFrom(), tier.siteTo(), tier.chargeItemId(),
+                            item.code(), item.name(), tier.chargeQuantity());
+                }).toList(), value.examinationTechnique(), value.contrastPhase(),
                 variantRepository.findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(value.tenantId(), value.catalogItemId()).stream()
-                        .map(v -> new ExaminationVariant(v.id(), v.revision(), v.bodySiteConceptId(), v.code(), v.name(),
-                                v.methodType(), v.bodySiteRequired(), v.mutualRecognitionCode(), v.sortOrder(), v.status())).toList(),
+                        .map(v -> {
+                            var site = v.bodySiteConceptId() == null ? null : bodySites.get(v.bodySiteConceptId());
+                            return new ExaminationVariant(v.id(), v.revision(), v.bodySiteConceptId(),
+                                    site == null ? null : site.code(), site == null ? null : site.name(), v.code(), v.name(),
+                                    v.methodType(), v.bodySiteRequired(), v.mutualRecognitionCode(), v.sortOrder(), v.status(),
+                                    v.chargeableSiteUnits());
+                        }).toList(),
                 attachmentRepository.findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(value.tenantId(), value.catalogItemId()).stream()
                         .map(v -> {
                             CatalogReference item = requireCatalogItem(value.tenantId(), v.attachmentCatalogItemId());
@@ -724,7 +857,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
             boolean multiBodySite, Integer maxBodySiteCount, String mode, int includedSiteCount,
             BigDecimal additionalSitePrice, Long additionalSiteItemId,
             BigDecimal additionalSiteQuantity, Integer maxChargeableSiteCount) {
-        if (!Set.of("SINGLE", "PER_SITE", "BASE_PLUS_FIXED", "BASE_PLUS_ITEM").contains(mode)) {
+        if (!Set.of("SINGLE", "PER_SITE", "BASE_PLUS_FIXED", "BASE_PLUS_ITEM", "TIERED_ITEM").contains(mode)) {
             throw badRequest("EXAM_SITE_PRICING_MODE_INVALID", "多部位计价方式不受支持");
         }
         if (!multiBodySite && !"SINGLE".equals(mode)) {
@@ -783,6 +916,13 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
 
     private void validateVariant(Long tenantId, Long serviceId, Long currentId, ExaminationVariantCommand c) {
         if (text(c.methodType()) != null) requireDictionaryCode(tenantId, MasterDataDictionaryCodes.SERVICE_VARIANT_METHOD, c.methodType());
+        if (c.bodySiteConceptId() != null
+                && bodySiteDirectory.findBodySite(tenantId, c.bodySiteConceptId(), LocalDate.now()).isEmpty()) {
+            throw badRequest("EXAM_VARIANT_BODY_SITE_INVALID", "标准部位必须是检查部位词典中当前有效的部位");
+        }
+        if (c.chargeableSiteUnits() < 0 || c.chargeableSiteUnits() > 99) {
+            throw badRequest("EXAM_VARIANT_CHARGEABLE_UNITS_INVALID", "计费部位数必须在0到99之间");
+        }
         boolean duplicate = variantRepository.findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(tenantId, serviceId).stream()
                 .filter(v -> !Objects.equals(v.id(), currentId)).anyMatch(v -> v.code().equalsIgnoreCase(c.code()));
         if (duplicate) throw conflict("EXAM_VARIANT_CODE_DUPLICATE", "同一检查项目不能重复配置部位方式编码");
@@ -823,21 +963,21 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         if (c.executionDepartmentId() != null) organizationDirectory.requireDepartment(tenantId, c.organizationId(), c.executionDepartmentId());
         boolean duplicate = groupRepository.findByTenantIdOrderByName(tenantId).stream()
                 .filter(v -> !Objects.equals(v.id(), currentId)).anyMatch(v -> Objects.equals(v.organizationId(), c.organizationId()) && v.code().equalsIgnoreCase(c.code()));
-        if (duplicate) throw conflict("ITEM_GROUP_CODE_DUPLICATE", "当前范围已存在相同组套编码");
+        if (duplicate) throw conflict("ITEM_GROUP_CODE_DUPLICATE", "当前范围已存在相同组合编码");
         if (currentId != null) {
             ItemGroup current = requireGroup(tenantId, currentId);
             if (!current.code().equalsIgnoreCase(c.code())) {
-                throw badRequest("ITEM_GROUP_CODE_IMMUTABLE", "组套编码创建后不允许修改");
+                throw badRequest("ITEM_GROUP_CODE_IMMUTABLE", "组合编码创建后不允许修改");
             }
         }
         List<GroupMemberCommand> members = c.members() == null ? List.of() : c.members();
-        if (members.isEmpty()) throw badRequest("ITEM_GROUP_MEMBERS_REQUIRED", "组套至少需要一个成员");
-        if (members.stream().map(GroupMemberCommand::catalogItemId).distinct().count() != members.size()) throw conflict("ITEM_GROUP_MEMBER_DUPLICATE", "组套成员不能重复");
-        if (members.stream().map(GroupMemberCommand::sortOrder).distinct().count() != members.size()) throw conflict("ITEM_GROUP_SORT_DUPLICATE", "组套成员排序号不能重复");
+        if (members.isEmpty()) throw badRequest("ITEM_GROUP_MEMBERS_REQUIRED", "组合至少需要一个成员");
+        if (members.stream().map(GroupMemberCommand::catalogItemId).distinct().count() != members.size()) throw conflict("ITEM_GROUP_MEMBER_DUPLICATE", "组合成员不能重复");
+        if (members.stream().map(GroupMemberCommand::sortOrder).distinct().count() != members.size()) throw conflict("ITEM_GROUP_SORT_DUPLICATE", "组合成员排序号不能重复");
         for (GroupMemberCommand member : members) {
             ServiceCatalogItem item = requireService(tenantId, member.catalogItemId());
-            if ("LIS".equals(c.groupType()) && !"LABORATORY".equals(item.serviceType())) throw badRequest("LIS_GROUP_MEMBER_INVALID", "LIS 组套只允许加入检验项目");
-            if ("PACS".equals(c.groupType()) && !"EXAMINATION".equals(item.serviceType())) throw badRequest("PACS_GROUP_MEMBER_INVALID", "PACS 组套只允许加入检查项目");
+            if ("LIS".equals(c.groupType()) && !"LABORATORY".equals(item.serviceType())) throw badRequest("LIS_GROUP_MEMBER_INVALID", "LIS 组合只允许加入检验项目");
+            if ("PACS".equals(c.groupType()) && !"EXAMINATION".equals(item.serviceType())) throw badRequest("PACS_GROUP_MEMBER_INVALID", "PACS 组合只允许加入检查项目");
             if (text(member.unitCode()) != null) requireUnit(tenantId, member.unitCode(), true);
         }
     }
@@ -909,7 +1049,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
     private ServiceCatalogItem requireService(Long tenantId, Long id) { return serviceRepository.findByIdAndTenantIdAndItemType(id, tenantId, "SERVICE").orElseThrow(() -> notFound("SERVICE_NOT_FOUND", "未找到诊疗项目")); }
     private ServiceCatalogItem requireServiceType(Long tenantId, Long id, String type) { ServiceCatalogItem value = requireService(tenantId, id); if (!type.equals(value.serviceType())) throw badRequest("SERVICE_TYPE_MISMATCH", "诊疗项目类型不匹配"); return value; }
     private SupplyItem requireSupply(Long tenantId, Long id) { return supplyRepository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> notFound("SUPPLY_NOT_FOUND", "未找到耗材/器械资料")); }
-    private ItemGroup requireGroup(Long tenantId, Long id) { return groupRepository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> notFound("ITEM_GROUP_NOT_FOUND", "未找到项目组套")); }
+    private ItemGroup requireGroup(Long tenantId, Long id) { return groupRepository.findByIdAndTenantId(id, tenantId).orElseThrow(() -> notFound("ITEM_GROUP_NOT_FOUND", "未找到项目组合")); }
     private CatalogReference requireCatalogItem(Long tenantId, Long id) {
         if (id == null) throw badRequest("CATALOG_ITEM_REQUIRED", "目录项目不能为空");
         ServiceCatalogItem service = serviceRepository.findByIdAndTenantIdAndItemType(id, tenantId, "SERVICE").orElse(null);

@@ -197,7 +197,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
       : scope === 'disease'
         ? { eyebrow: '诊断概念与临床标准', title: '疾病与诊断标准', description: '统一维护版本化疾病诊断术语与慢病管理分类规则。' }
         : scope === 'operations'
-          ? { eyebrow: '运营主数据与属性体系', title: '耗材与运营主数据', description: '统一维护医用耗材主档、诊疗耗材组套、统一计量单位与扩展属性配置。' }
+          ? { eyebrow: '运营主数据与属性体系', title: '耗材与运营主数据', description: '统一维护医用耗材主档、诊疗耗材组合、统一计量单位与扩展属性配置。' }
           : { eyebrow: '中心治理 · 标准主数据', title: '基础数据中心', description: '统一维护集团/区域共享的疾病诊断术语、诊疗服务目录主档、通用药品知识库与医用耗材标准；机构开展项目与本院定价请至「机构项目管理」维护。' }
 
   return <div className="master-data-page">
@@ -222,7 +222,7 @@ export function BasicDataManagement({ api, organization, onNavigate, scope = 'al
             { value: 'disease', label: '疾病与术语', meta: '版本化标准' },
             { value: 'service', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
             { value: 'medication', label: '药品目录', meta: '知识 · 产品 · 包装' },
-            { value: 'operations', label: '运营主数据', meta: '组套 · 耗材 · 计量' },
+            { value: 'operations', label: '运营主数据', meta: '组合 · 耗材 · 计量' },
             { value: 'attribute', label: '扩展属性', meta: '定义 · 装配 · 继承' },
           ]} />
       )}

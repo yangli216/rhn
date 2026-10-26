@@ -55,6 +55,21 @@ describe('independent diagnostic report queries', () => {
     expect(screen.queryByRole('textbox', { name: '更正原因' })).not.toBeInTheDocument()
   })
 
+  it('keeps long reports in a keyboard-accessible reading region and resets it when switching versions', async () => {
+    setup({ history: [corrected, { ...old, conclusion: '长报告末尾内容\n'.repeat(100) }] })
+    fireEvent.click(await screen.findByRole('button', { name: '查看报告' }))
+    const reading = await screen.findByRole('region', { name: '报告正文内容' })
+    expect(reading).toHaveAttribute('tabindex', '0')
+    expect(within(reading).getByText(/长报告末尾内容/)).toBeInTheDocument()
+    const report = within(reading).getByRole('region', { name: '肝功能报告' })
+    expect(within(report.querySelector('header')!).getByRole('combobox', { name: '报告版本' })).toBeInTheDocument()
+    reading.scrollTop = 500
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('combobox'))
+    fireEvent.click(screen.getByRole('option', { name: /第 2 版/ }))
+    expect(reading.scrollTop).toBe(0)
+    expect(within(reading).getByText('更正结论')).toBeInTheDocument()
+  })
+
   it('keeps a withdrawn latest report and its previous versions visible without offering correction or printing', async () => {
     const cancelled: DiagnosticReport = { ...corrected, id: 'r3', reportVersion: 3, status: 'CANCELLED', replacesReportId: 'r2' }
     setup({ history: [cancelled, corrected, old], authorities: ['DIAGNOSTICS.LABORATORY.VIEW'] })

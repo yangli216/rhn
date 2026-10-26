@@ -62,6 +62,7 @@ class OutpatientPlanMedication {
     @Column(name = "SD_PRICE_TYPE") private String priceType;
     @Column(name = "FG_PRICING_RQD", nullable = false) private boolean pricingRequired;
     @Column(name = "DES_REASON") private String reason;
+    @Column(name = "FG_DEFAULT_SELCTD", nullable = false) private boolean defaultSelected = true;
 
     protected OutpatientPlanMedication() {}
     OutpatientPlanMedication(Long tenantId, Long templateId, int lineNo, Long medicationId, Long catalogItemId,
@@ -70,7 +71,8 @@ class OutpatientPlanMedication {
                              String routeCode, String frequencyCode, BigDecimal durationValue, String durationUnit,
                              BigDecimal quantity, String quantityUnit, boolean substitutionAllowed,
                              boolean selfProvided, String medicationInstruction, String priceType,
-                             boolean pricingRequired, String reason) {
+                             boolean pricingRequired, String reason, boolean defaultSelected) {
+        this.defaultSelected = defaultSelected;
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.templateId = templateId; this.lineNo = lineNo;
         this.medicationId = medicationId; this.catalogItemId = catalogItemId; this.packageId = packageId;
         this.categoryCode = categoryCode; this.medicationCode = medicationCode; this.medicationName = medicationName;
@@ -92,6 +94,7 @@ class OutpatientPlanMedication {
     String quantityUnit() { return quantityUnit; } boolean substitutionAllowed() { return substitutionAllowed; }
     boolean selfProvided() { return selfProvided; } String medicationInstruction() { return medicationInstruction; }
     String priceType() { return priceType; } boolean pricingRequired() { return pricingRequired; } String reason() { return reason; }
+    boolean defaultSelected() { return defaultSelected; }
 }
 
 @Entity
@@ -111,12 +114,15 @@ class OutpatientPlanServiceLine {
     @Column(name = "FG_PRICING_RQD", nullable = false) private boolean pricingRequired;
     @Column(name = "DES_REASON") private String reason;
     @Column(name = "DES_CLIN_DESCR") private String clinicalDescription;
+    @Column(name = "FG_DEFAULT_SELCTD", nullable = false) private boolean defaultSelected = true;
+    @Column(name = "ID_DEPT_EXEC") private Long executionDepartmentId;
 
     protected OutpatientPlanServiceLine() {}
     OutpatientPlanServiceLine(Long tenantId, Long templateId, int lineNo, Long catalogItemId,
                               String itemCode, String itemName, String serviceType, BigDecimal quantity,
                               String unitCode, String priceType, boolean pricingRequired, String reason,
-                              String clinicalDescription) {
+                              String clinicalDescription, boolean defaultSelected, Long executionDepartmentId) {
+        this.defaultSelected = defaultSelected; this.executionDepartmentId = executionDepartmentId;
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.templateId = templateId; this.lineNo = lineNo;
         this.catalogItemId = catalogItemId; this.itemCode = itemCode; this.itemName = itemName;
         this.serviceType = serviceType; this.quantity = quantity; this.unitCode = unitCode;
@@ -129,4 +135,5 @@ class OutpatientPlanServiceLine {
     BigDecimal quantity() { return quantity; } String unitCode() { return unitCode; } String priceType() { return priceType; }
     boolean pricingRequired() { return pricingRequired; } String reason() { return reason; }
     String clinicalDescription() { return clinicalDescription; }
+    boolean defaultSelected() { return defaultSelected; } Long executionDepartmentId() { return executionDepartmentId; }
 }

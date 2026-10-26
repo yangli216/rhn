@@ -98,7 +98,7 @@ export function PersonnelDrawer({ api, practitionerId, options, canManage, onCha
               const current = currentAssignment(item)
               return <tr key={item.id} className={item.primaryAssignment ? 'personnel-assignment-row--primary' : undefined}>
                 <td>{item.organizationName}</td><td>{item.departmentName}</td><td>{item.positionName}</td>
-                <td>{item.primaryAssignment ? <StatusBadge tone="accent">主任职</StatusBadge> : <span className="personnel-tag--muted">兼任</span>}</td>
+                <td>{item.primaryAssignment ? <StatusBadge tone="info">主任职</StatusBadge> : <span className="personnel-tag--muted">兼任</span>}</td>
                 <td>{(() => {
                   if (!access.data?.account) return <span className="personnel-muted">未开账号</span>
                   const grants = (access.data.assignments ?? []).filter(g => grantOpen(g) && (g.dataScopeType === 'TENANT' || g.departmentId === item.departmentId))

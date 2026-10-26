@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { OutpatientPlanTemplate, SaveOutpatientPlanTemplateInput } from '../../../shared/api/outpatientPlanTemplatesApi'
 import type { OutpatientNoteTemplate } from '../../../shared/api/outpatientNoteTemplatesApi'
-import { requireCreatedPlanReceipt, requireUsedPlanReceipt, requireUsedNoteReceipt, requireNoTemplateOrderConflicts, requirePlanCreationInput } from './templateApplicationReceipt'
+import { requireCreatedPlanReceipt, requireUsedPlanReceipt, requireUsedNoteReceipt, requireNoTemplateOrderConflicts, requirePlanCreationInput, describeTemplateApplication } from './templateApplicationReceipt'
 
 function plan(): OutpatientPlanTemplate {
   return { id: 'plan', revision: 2, name: '复诊方案', scopeType: 'PERSONAL', status: 'ACTIVE', sourceType: 'MANUAL',
@@ -88,5 +88,26 @@ describe('template application receipts', () => {
     const value = plan()
     expect(() => requireNoTemplateOrderConflicts(value, [], [{ id: 'draft', catalogItemId: 'service', itemCode: 'S1', itemName: '项目', quantity: 1 }]))
       .toThrow(/整批未带入/)
+  })
+
+  describe('unified application receipt', () => {
+    it('reports applied and skipped counts with the first reasons', () => {
+      const { message, changed } = describeTemplateApplication({ source: '复诊方案',
+        applied: { diagnoses: 1, medications: 2, services: 0, noteFields: 2 },
+        skipped: [{ label: '血常规', reason: '当前机构未配置销售价格' }, { label: '主诉', reason: '已有内容，未覆盖' }] })
+      expect(changed).toBe(true)
+      expect(message).toBe('已从“复诊方案”带入 5 项（诊断 1、药品 2、病历段落 2），跳过 2 项（血常规：当前机构未配置销售价格；主诉：已有内容，未覆盖），请核对后保存和开立。')
+    })
+    it('abbreviates long skip lists', () => {
+      const skipped = ['甲', '乙', '丙', '丁'].map(label => ({ label, reason: '失效' }))
+      expect(describeTemplateApplication({ source: '组套', applied: { services: 1 }, skipped }).message)
+        .toContain('跳过 4 项（甲：失效；乙：失效；丙：失效等）')
+    })
+    it('does not claim a change when everything was skipped or already present', () => {
+      const skipped = describeTemplateApplication({ source: '组套', applied: {}, skipped: [{ label: '血常规', reason: '失效' }] })
+      expect(skipped).toEqual({ changed: false, message: '“组套”未带入任何内容，跳过 1 项（血常规：失效）。' })
+      expect(describeTemplateApplication({ source: '组套', applied: { diagnoses: 0 }, skipped: [] }))
+        .toEqual({ changed: false, message: '所选内容已在当前草稿中，未新增内容。' })
+    })
   })
 })

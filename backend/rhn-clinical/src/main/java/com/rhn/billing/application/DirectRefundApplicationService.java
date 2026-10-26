@@ -150,6 +150,8 @@ public class DirectRefundApplicationService {
         List<RefundItemPreCheckView> itemsToCheck = preCheck.items().stream()
                 .filter(item -> targetItemIds.contains(item.chargeItemId()))
                 .toList();
+        OrderChargeLines.requireWholeOrders(itemsToCheck, preCheck.items(), RefundItemPreCheckView::sourceType,
+                RefundItemPreCheckView::sourceId, "REFUND_ORDER_LINES_INCOMPLETE", "同一检查申请的收费明细须一并退费");
 
         assertPreCheckPasses(preCheck, itemsToCheck);
         diagnostics.requireUnexecutedForRefund(context.tenantId(), itemsToCheck.stream()
@@ -280,7 +282,7 @@ public class DirectRefundApplicationService {
                 original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
                 original.itemNameSnapshot(), now, context.subjectId(), original.id(),
                 original.accountingCategory()
-        ));
+        ).asChargeLine(original.chargeLineNo(), original.chargeRole()));
 
         components.save(new ChargeItemComponent(
                 context.tenantId(), reversal.id(), original.catalogItemId(),

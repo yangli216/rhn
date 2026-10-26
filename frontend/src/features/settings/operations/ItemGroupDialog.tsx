@@ -87,8 +87,8 @@ export function GroupDialog({ api, value, services, organization, units, onClose
     return 'var(--color-brand-primary)'
   }
 
-  return <FormDialog title={value ? '编辑项目组套' : '新增项目组套'}
-    description="专业维护检验/检查组合项目与组套；支持双栏智能穿梭选择，并提供实时采血分管与加收透视。"
+  return <FormDialog title={value ? '编辑项目组合' : '新增项目组合'}
+    description="专业维护检验/检查组合与常用组合项目；支持双栏智能穿梭选择，并提供实时采血分管与加收透视。"
     size="xwide"
     className="group-dialog-modal"
     gridClassName="master-data-form-grid--4"
@@ -107,17 +107,17 @@ export function GroupDialog({ api, value, services, organization, units, onClose
         })),
       })
     }}>
-    <FormField label="组套编码" required>
+    <FormField label="组合编码" required>
       <input value={code} disabled={Boolean(value)} placeholder="如 CHEM_LIVER_12、ROUTINE_CBC"
         onChange={(e) => setCode(e.target.value.toUpperCase())} />
     </FormField>
-    <FormField label="组套名称" required>
+    <FormField label="组合名称" required>
       <input value={name} placeholder="如 肝功能十二项、全血细胞分析+CRP" onChange={(e) => setName(e.target.value)} />
     </FormField>
-    <FormField label="组套类型">
+    <FormField label="组合类型">
       <Select value={type} onChange={(v) => { setType(v as typeof type); setSelected([]); setMemberConfig({}) }} options={[
-        { value: 'LIS', label: '检验组套（LIS）' }, { value: 'PACS', label: '检查组套（PACS）' },
-        { value: 'ORDER_SET', label: '常用组合项目' }, { value: 'PACKAGE', label: '项目包' },
+        { value: 'LIS', label: '检验组合（LIS）' }, { value: 'PACS', label: '检查组合（PACS）' },
+        { value: 'ORDER_SET', label: '常用组合项目（将迁至临床模板库）' }, { value: 'PACKAGE', label: '项目包' },
       ]} />
     </FormField>
     <FormField label="状态">
@@ -140,7 +140,7 @@ export function GroupDialog({ api, value, services, organization, units, onClose
     </FormField>
 
     <div className="span-4 group-meta-options">
-      <Check label="院内快速检测组套（POCT / 床旁即时检验）" checked={pointOfCare} onChange={setPointOfCare} />
+      <Check label="院内快速检测组合（POCT / 床旁即时检验）" checked={pointOfCare} onChange={setPointOfCare} />
       <span className="group-meta-hint">勾选后标记为 POCT 床旁快检，在临床开立时将自动匹配即时检验路径</span>
     </div>
 
@@ -194,7 +194,7 @@ export function GroupDialog({ api, value, services, organization, units, onClose
         <div className="group-transfer-pane__header">
           <div className="group-transfer-pane__title">
             <div className="group-transfer-pane__label">
-              <span>已选组套成员</span>
+              <span>已选组合成员</span>
               <span className="group-count-badge group-count-badge--primary">{selected.length} 项</span>
             </div>
             {selected.length > 0 && (
@@ -209,7 +209,7 @@ export function GroupDialog({ api, value, services, organization, units, onClose
           {selected.length === 0 ? (
             <div className="group-transfer-empty-prompt">
               <Icon name="clinical" className="empty-prompt-icon" />
-              <p>请在左侧点击“加入”选定组套明细项目</p>
+              <p>请在左侧点击“加入”选定组合明细项目</p>
               <small>支持多项目合并开立，配置默认执行数量与单位约束</small>
             </div>
           ) : (
@@ -273,7 +273,7 @@ export function GroupDialog({ api, value, services, organization, units, onClose
       </div>
     </div>
 
-    {/* 实时采血分管与费用透视卡片 (仅检验组套) */}
+    {/* 实时采血分管与费用透视卡片 (仅检验组合) */}
     {type === 'LIS' && selected.length > 0 && (
       <div className="span-4 group-tube-insight">
         {tubePreview.isError && <Alert duration={null}>{errorMessage(tubePreview.error)}</Alert>}
@@ -285,7 +285,7 @@ export function GroupDialog({ api, value, services, organization, units, onClose
             </div>
             <div>
               <div className="group-tube-insight__title">
-                <span>组套采血与试管加收实时透视</span>
+                <span>组合采血与试管加收实时透视</span>
                 {loadingTubePlan && <span className="tube-calculating">（计算中…）</span>}
               </div>
               <div className="group-tube-insight__desc">

@@ -51,8 +51,10 @@ export function UnifiedOrderListEditor({
   currentDepartmentName, documentRows = {}, onOpenDocument, documentEditing = false,
   documents: propDocuments, selectedDocumentKey, onSelectDocument, onSavedDocument,
   onCancelMedication = () => {}, onCancelService = () => {}, onPrint = () => {}, onPrintService = () => {},
-  orderMode, onWithdrawMedication, onWithdrawService,
+  orderMode, onWithdrawMedication, onWithdrawService, onOpenOrderSetTemplate,
 }: {
+  /** 检索选中新医嘱组套（临床模板）时调用：由上层打开统一模板抽屉并预选，不在此直接展开。 */
+  onOpenOrderSetTemplate?: (templateId: string) => void
   /** 医嘱流转模式：决定已保存医嘱的修改、取消签署操作和状态名称；不传时只读展示通用口径。 */
   orderMode?: OrderWorkflowMode
   onWithdrawMedication?: (value: MedicationRequest) => void
@@ -116,7 +118,7 @@ export function UnifiedOrderListEditor({
   const serviceSiteRule = serviceSiteOptions.data
   const serviceQuantityBySites = usesSiteQuantity(serviceSiteRule, serviceSites.length)
   const effectiveServiceQuantity = serviceQuantityBySites && serviceSiteRule
-    ? examinationSiteQuantity(serviceSiteRule, serviceSites.length) : serviceQuantity
+    ? examinationSiteQuantity(serviceSiteRule, serviceSites) : serviceQuantity
   const [validationError, setValidationError] = useState('')
   const [inspectTarget, setInspectTarget] = useState<MedicalInsertTarget | null>(null)
   const setInspectMedicationName = useCallback((name: string | null) => setInspectTarget(name ? { name, type: 'medication' } : null), [])
@@ -313,11 +315,8 @@ export function UnifiedOrderListEditor({
     && typeof medicationEntry.quantity === 'number'
     && medicationEntry.quantity > medicationEntry.availablePackageQuantity
   )
-  // 修改中的原医嘱由编辑行代替显示；删除编辑行即放弃修改，原医嘱恢复显示。
-  const revisingIds = useMemo(() => new Set([...medicationDrafts, ...serviceDrafts]
-    .flatMap((draft) => draft.revises ? [draft.revises.id] : [])), [medicationDrafts, serviceDrafts])
-  const savedEntries = useMemo(() => savedOrderEntries(services, medications)
-    .filter((entry) => !revisingIds.has(entry.value.id)), [services, medications, revisingIds])
+  // 修改中的原医嘱仍留在已保存列表的原位置，由对应的编辑行/待保存行原地替换；不再从列表移除后追加到待确认区底部。
+  const savedEntries = useMemo(() => savedOrderEntries(services, medications), [services, medications])
   const editActionFor = (entry: SavedOrderEntry, performerDepartmentName?: string): SavedOrderEditAction | undefined => {
     if (!orderMode) return undefined
     if (readOnly) return { mode: orderMode }
@@ -342,7 +341,11 @@ export function UnifiedOrderListEditor({
       withdrawNotice: entry.kind === 'medication' ? '同一张处方的药品将一起退回未签署' : undefined,
     }
   }
-  const draftEntries = useMemo(() => draftOrderEntries(serviceDrafts, medicationDrafts), [serviceDrafts, medicationDrafts])
+  const allDraftEntries = useMemo(() => draftOrderEntries(serviceDrafts, medicationDrafts), [serviceDrafts, medicationDrafts])
+  // 待确认区只含新增行；修改中的草稿（带 revises）在已保存列表原位置渲染。
+  const draftEntries = useMemo(() => allDraftEntries.filter((entry) => !entry.value.revises), [allDraftEntries])
+  const revisionEntries = useMemo(() => new Map(allDraftEntries.flatMap((entry) =>
+    entry.value.revises ? [[entry.value.revises.id, entry] as const] : [])), [allDraftEntries])
 
   const hasOrders = savedEntries.length > 0 || draftEntries.length > 0
   const isComposerActive = !readOnly && (composerOpen || !hasOrders)
@@ -522,6 +525,12 @@ export function UnifiedOrderListEditor({
     }
 
     const raw = option.raw
+    // 0. 新医嘱组套（临床模板）：打开统一模板抽屉预览确认，不立即展开
+    if (raw && 'templateKind' in raw) {
+      setSuccessToast('')
+      onOpenOrderSetTemplate?.(raw.id)
+      return
+    }
     // 1. 组套 (ItemGroup) 一键批量展开
     if (raw && ('groupType' in raw || 'members' in raw)) {
       setSuccessToast('')
@@ -884,6 +893,25 @@ export function UnifiedOrderListEditor({
     setEditingDraft(null)
   }
 
+  /** 待确认区与“修改中的已保存医嘱原位行”共用同一套草稿行渲染与回调。 */
+  function renderDraftRows(entries: typeof draftEntries, inPlace = false) {
+    return <DraftStatusLabelContext.Provider value={orderMode === 'SIMPLE' ? '待保存' : '待确认'}>
+      <DraftOrderList draftEntries={entries} suppressHeaders={inPlace}
+        herbalFormula={{ herbalDoseCount: medicationEntry.herbalDoseCount, herbalMethod: medicationEntry.herbalMethod,
+          frequencyCode: medicationEntry.frequencyCode, instruction: medicationEntry.instruction }}
+        onHerbalFormulaChange={(formula) => setMedicationEntry((current) => ({ ...current, ...formula }))}
+        frequencyOptions={frequencyOptions} routeOptions={routeOptions} routes={routes.data ?? []}
+        frequencies={frequencies.data ?? []} administrationGroupOptions={administrationGroups.options} readOnly={readOnly} isComposerActive={isComposerActive}
+        entryType={entryType} setMedicationDrafts={setMedicationDrafts} setServiceDrafts={setServiceDrafts}
+        startHerbalGrouping={startHerbalGrouping} groupingComposerTarget={inPlace ? null : groupingComposerTarget}
+        composer={renderComposer()} editingDraft={editingDraft} setEditingDraft={setEditingDraft}
+        onEditDraft={(draft) => { setComposerOpen(false); setEditingDraft(draft) }}
+        onSaveMedicationDraft={saveMedicationDraft} continueGroupingFromDraft={continueGroupingFromDraft}
+        groupingSession={groupingSession} currentDept={currentDept} encounter={encounter} api={api}
+        allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} onInspectService={setInspectTarget} />
+    </DraftStatusLabelContext.Provider>
+  }
+
   function renderComposer() {
     return (
       <Fragment key="unified-inline-composer-fragment">
@@ -1099,21 +1127,10 @@ export function UnifiedOrderListEditor({
         groupingComposerTarget={groupingComposerTarget} groupingSession={groupingSession}
         onInspectMedication={setInspectMedicationName} onInspectService={setInspectTarget}
         isComposerActive={isComposerActive} composer={renderComposer()}
-        editActionFor={orderMode ? editActionFor : undefined} />
+        editActionFor={orderMode ? editActionFor : undefined}
+        revisionRows={readOnly ? undefined : new Map([...revisionEntries].map(([id, entry]) => [id, renderDraftRows([entry], true)]))} />
 
-      {!readOnly && <DraftStatusLabelContext.Provider value={orderMode === 'SIMPLE' ? '待保存' : '待确认'}><DraftOrderList draftEntries={draftEntries}
-        herbalFormula={{ herbalDoseCount: medicationEntry.herbalDoseCount, herbalMethod: medicationEntry.herbalMethod,
-          frequencyCode: medicationEntry.frequencyCode, instruction: medicationEntry.instruction }}
-        onHerbalFormulaChange={(formula) => setMedicationEntry((current) => ({ ...current, ...formula }))}
-        frequencyOptions={frequencyOptions} routeOptions={routeOptions} routes={routes.data ?? []}
-        frequencies={frequencies.data ?? []} administrationGroupOptions={administrationGroups.options} readOnly={readOnly} isComposerActive={isComposerActive}
-        entryType={entryType} setMedicationDrafts={setMedicationDrafts} setServiceDrafts={setServiceDrafts}
-        startHerbalGrouping={startHerbalGrouping} groupingComposerTarget={groupingComposerTarget}
-        composer={renderComposer()} editingDraft={editingDraft} setEditingDraft={setEditingDraft}
-        onEditDraft={(draft) => { setComposerOpen(false); setEditingDraft(draft) }}
-        onSaveMedicationDraft={saveMedicationDraft} continueGroupingFromDraft={continueGroupingFromDraft}
-        groupingSession={groupingSession} currentDept={currentDept} encounter={encounter} api={api}
-        allergies={allergies} skinTests={skinTests} onInspectMedication={setInspectMedicationName} onInspectService={setInspectTarget} /></DraftStatusLabelContext.Provider>}
+      {!readOnly && renderDraftRows(draftEntries)}
 
       {!readOnly && isComposerActive && !groupingComposerTarget && !(entryType === 'HERBAL' && draftHerbalCount > 0) && renderComposer()}
       </div>

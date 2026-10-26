@@ -920,9 +920,9 @@ export function AiPlanTemplateDraftModal({
                 <span className="ai-plan-scope-label">方案范围</span>
                 <div className="ai-plan-scope-pills">
                   {([
-                    { value: 'PERSONAL', label: '个人', title: '医生个人高频方案（仅本人可见）' },
-                    { value: 'DEPARTMENT', label: '科室', title: '专科/科室临床路径方案（本科室可见）' },
-                    { value: 'HOSPITAL', label: '全院', title: '全院临床指南标准方案（全院通用）' },
+                    { value: 'PERSONAL', label: '我的', title: '我的诊疗方案（仅本人可见）' },
+                    { value: 'DEPARTMENT', label: '科室', title: '科室诊疗方案（本科室可见）' },
+                    { value: 'HOSPITAL', label: '全院', title: '全院诊疗方案（全院通用）' },
                   ] as const).map((opt) => (
                     <Button variant="text" size="sm"
                       key={opt.value}

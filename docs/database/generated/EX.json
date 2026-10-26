@@ -1,5 +1,5 @@
 {
-  "fingerprint": "9d67ce5d52ee558eea83c6f1e5c3c71f477d8545df168f6e8fc957eed2005603",
+  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -1003,7 +1003,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 104
+          "line": 107
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ClinicalSemanticUsageService.java",
@@ -5424,11 +5424,15 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 135
+          "line": 138
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 245
+          "line": 161
+        },
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
+          "line": 273
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ClinicalSemanticUsageService.java",
@@ -5569,10 +5573,6 @@
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/MedicationRequest.java",
           "line": 101
-        },
-        {
-          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/MedicationRequest.java",
-          "line": 102
         }
       ]
     },
@@ -7746,11 +7746,11 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 146
+          "line": 174
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/inpatient/infrastructure/InpatientCareRequestStore.java",
-          "line": 268
+          "line": 296
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ServiceRequest.java",
@@ -9848,7 +9848,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/treatment/domain/TreatmentExecutionTask.java",
-          "line": 18
+          "line": 19
         }
       ]
     },

@@ -73,6 +73,13 @@ public class MedicalOperationsMasterDataController {
         return service.updateVariant(serviceId, variantId, revision(request.expectedRevision()), request.command());
     }
 
+    @PutMapping("/services/{serviceId}/examination-price-tiers")
+    ClinicalConfiguration examinationPriceTiers(@PathVariable Long serviceId,
+            @Valid @RequestBody PriceTiersRequest request) {
+        return service.replaceExaminationPriceTiers(serviceId, revision(request.expectedRevision()),
+                request.tiers().stream().map(PriceTierRequest::command).toList());
+    }
+
     @PostMapping("/services/{serviceId}/examination-attachments")
     @ResponseStatus(HttpStatus.CREATED)
     ClinicalConfiguration createAttachment(@PathVariable Long serviceId,
@@ -112,6 +119,8 @@ public class MedicalOperationsMasterDataController {
         return service.updateSupply(id, revision(request.expectedRevision()), request.command());
     }
 
+    // 临时放开供医生站组套检索（仍需登录），方法级注解覆盖类级 MASTER_DATA.MANAGE；P1 由临床模板库统一目录接管
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/item-groups")
     List<ItemGroupView> groups(@RequestParam(required = false) String query,
             @RequestParam(required = false) String groupType, @RequestParam(required = false) String status) {
@@ -210,30 +219,44 @@ public class MedicalOperationsMasterDataController {
     record ExaminationProfileRequest(@NotNull @Min(0) BigInteger expectedRevision,
             @Size(max = 64) String examinationType, boolean bodySiteRequired, boolean multiBodySite,
             @Min(1) Integer maxBodySiteCount, @Size(max = 2000) String preparationDescription,
-            @Pattern(regexp = "SINGLE|PER_SITE|BASE_PLUS_FIXED|BASE_PLUS_ITEM") String sitePricingMode,
+            @Pattern(regexp = "SINGLE|PER_SITE|BASE_PLUS_FIXED|BASE_PLUS_ITEM|TIERED_ITEM") String sitePricingMode,
             @Min(1) Integer includedSiteCount, @DecimalMin("0") BigDecimal additionalSitePrice,
             Long additionalSiteItemId,
             @DecimalMin(value = "0", inclusive = false) BigDecimal additionalSiteQuantity,
-            @Min(1) Integer maxChargeableSiteCount) {
+            @Min(1) Integer maxChargeableSiteCount, Long baseChargeItemId,
+            @Pattern(regexp = "B_MODE|COLOR_DOPPLER") String examinationTechnique,
+            @Pattern(regexp = "PLAIN|ENHANCED|PLAIN_ENHANCED") String contrastPhase) {
         ExaminationProfileCommand command() { return new ExaminationProfileCommand(examinationType,
                 bodySiteRequired, multiBodySite, maxBodySiteCount, preparationDescription,
                 sitePricingMode, includedSiteCount, additionalSitePrice, additionalSiteItemId,
-                additionalSiteQuantity, maxChargeableSiteCount); }
+                additionalSiteQuantity, maxChargeableSiteCount, baseChargeItemId, examinationTechnique,
+                contrastPhase); }
     }
+    record PriceTierRequest(@Min(1) int siteFrom, @Min(1) Integer siteTo, @NotNull Long chargeItemId,
+            @DecimalMin(value = "0", inclusive = false) BigDecimal chargeQuantity) {
+        ExaminationPriceTierCommand command() { return new ExaminationPriceTierCommand(siteFrom, siteTo,
+                chargeItemId, chargeQuantity == null ? BigDecimal.ONE : chargeQuantity); }
+    }
+    record PriceTiersRequest(@NotNull @Min(0) BigInteger expectedRevision,
+            @NotNull List<@Valid PriceTierRequest> tiers) {}
     record VariantRequest(Long bodySiteConceptId, @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name, @Size(max = 64) String methodType,
             boolean bodySiteRequired, @Size(max = 128) String mutualRecognitionCode, @Min(0) int sortOrder,
-            @NotBlank @Pattern(regexp = "ACTIVE|INACTIVE") String status) {
+            @NotBlank @Pattern(regexp = "ACTIVE|INACTIVE") String status,
+            @Min(0) @Max(99) Integer chargeableSiteUnits) {
         ExaminationVariantCommand command() { return new ExaminationVariantCommand(bodySiteConceptId, code, name,
-                methodType, bodySiteRequired, mutualRecognitionCode, sortOrder, status); }
+                methodType, bodySiteRequired, mutualRecognitionCode, sortOrder, status,
+                chargeableSiteUnits == null ? 1 : chargeableSiteUnits); }
     }
     record UpdateVariantRequest(@NotNull @Min(0) BigInteger expectedRevision, Long bodySiteConceptId,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code, @NotBlank @Size(max = 300) String name,
             @Size(max = 64) String methodType, boolean bodySiteRequired,
             @Size(max = 128) String mutualRecognitionCode, @Min(0) int sortOrder,
-            @NotBlank @Pattern(regexp = "ACTIVE|INACTIVE") String status) {
+            @NotBlank @Pattern(regexp = "ACTIVE|INACTIVE") String status,
+            @Min(0) @Max(99) Integer chargeableSiteUnits) {
         ExaminationVariantCommand command() { return new ExaminationVariantCommand(bodySiteConceptId, code, name,
-                methodType, bodySiteRequired, mutualRecognitionCode, sortOrder, status); }
+                methodType, bodySiteRequired, mutualRecognitionCode, sortOrder, status,
+                chargeableSiteUnits == null ? 1 : chargeableSiteUnits); }
     }
     record AttachmentRequest(@NotNull Long attachmentCatalogItemId,
             @NotBlank @Pattern(regexp = "ALWAYS|OPTIONAL|MULTI_SITE") String triggerType,

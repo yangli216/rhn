@@ -15,20 +15,26 @@ import type { DiagnosisInput, MedicationRequest, MedicationSafetyDecision, Order
 import type { AllergyIntolerance } from "../../../shared/api/residentsApi";
 import type { Encounter } from "../../../shared/model";
 import { errorMessage, type RhnApi } from "../../../shared/rhnApi";
-import { IconPrinter } from "@tabler/icons-react";
+import { IconPlaylistAdd, IconPrinter, IconStack2 } from "@tabler/icons-react";
 import { Alert, Button, Dialog, FormField, IconActionButton, LoadingState, Panel, PanelHead, StatusBadge } from "../../../shared/ui";
 import type { MedicationPlanDraft } from "./medicationDraft";
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from "../UnifiedOrderListEditor";
 import { medicationSafetyBlocksSubmission, medicationSafetyNeedsReason, medicationSafetySeverityLabel, medicationSafetyDecisionLabel, medicationSafetyRuleNames, prescriptionReviewTitle, serviceReviewTitle } from '../workstation/workstationShared'
 import { ControlledPrintDialog, prescriptionCategoryLabel, serviceApplicationLabel, BatchPrintDialog } from '../printing/EncounterPrintPanel'
 import { retryAfterReleasingUnpaidSettlements } from './releaseUnpaidSettlements'
+import { SaveOrderSetDialog } from '../templates/SaveOrderSetDialog'
+import { buildOrderSetCandidates, selectableCandidates } from '../templates/orderSetCandidates'
 
 /** ISSUED：已全部生效（或无可生效医嘱）；REVIEW：需医生在核查窗确认合理用药；FAILED：未生效，原因已在面板提示。 */
 export type OrderIssueOutcome = 'SKIPPED' | 'ISSUED' | 'REVIEW' | 'FAILED'
 
 export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveClinicalDraft, onEditInvalidRecord, allergies, api, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
-  aiSuggestionSurfaceRef, currentDepartmentName, onOpenPrintCenter: _onOpenPrintCenter, onRegisterIssueOrders, onUnissuedCountChange }: {
+  aiSuggestionSurfaceRef, currentDepartmentName, onOpenPrintCenter: _onOpenPrintCenter, onRegisterIssueOrders, onUnissuedCountChange, onOpenTemplateLibrary, onOpenOrderSetTemplate }: {
+  /** 打开统一模板抽屉（用途：开立医嘱）；同时决定“存为组套”是否可用（仅编辑中、未签署时由上层传入）。 */
+  onOpenTemplateLibrary?: () => void
+  /** 医嘱录入框检索选中新医嘱组套：以开立医嘱用途打开抽屉并预选该组套，不直接展开。 */
+  onOpenOrderSetTemplate?: (templateId: string) => void
   /** 简单模式“保存即生效”：病历保存成功后由工作区调用，标准模式返回 SKIPPED。 */
   onRegisterIssueOrders?: (handler: (() => Promise<OrderIssueOutcome>) | null) => void
   onUnissuedCountChange?: (count: number) => void
@@ -78,6 +84,8 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     }
   }, [reviewOpen])
   const [ordersHovered, setOrdersHovered] = useState(false)
+  const [saveOrderSetOpen, setSaveOrderSetOpen] = useState(false)
+  const [saveOrderSetNotice, setSaveOrderSetNotice] = useState('')
   const [printPrescription, setPrintPrescription] = useState<Prescription | null>(null)
   const [printServiceRequest, setPrintServiceRequest] = useState<ServiceRequest | null>(null)
   const [batchPrintOpen, setBatchPrintOpen] = useState(false)
@@ -104,6 +112,10 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     queryFn: () => api.masterData.activeMedicationRoutes('OUTPATIENT'),
     staleTime: 5 * 60 * 1000,
   })
+  // 存为组套的候选：待确认草稿 + 已保存的医嘱草稿 + 本次已开立，复用已加载的医嘱查询，不新增请求。
+  const orderSetCandidates = useMemo(() => buildOrderSetCandidates({ medicationDrafts, serviceDrafts,
+    medications: medications.data ?? [], services: services.data ?? [] }), [medicationDrafts, serviceDrafts, medications.data, services.data])
+  const orderSetCandidateCount = selectableCandidates(orderSetCandidates).length
   const treatmentKeys = [
     ...medicationDrafts.map((item) => `MEDICATION:${item.request.catalogItemId}`),
     ...serviceDrafts.map((item) => `${item.serviceType}:${item.catalogItemId}`),
@@ -395,9 +407,17 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
     onMouseLeave={() => setOrdersHovered(false)}>
     <PanelHead title="医嘱和费用"
       actions={<div className="doctor-order-head-actions">
+        {editing && onOpenTemplateLibrary && (
+          <IconActionButton label="组套 / 方案" icon={<IconStack2 />} title="组套 / 方案" onClick={onOpenTemplateLibrary} />
+        )}
+        {editing && onOpenTemplateLibrary && (
+          <IconActionButton label="存为组套" icon={<IconPlaylistAdd />} disabled={orderSetCandidateCount === 0}
+            title={orderSetCandidateCount === 0 ? '还没有可存为组套的药品或项目' : '存为组套'}
+            onClick={() => setSaveOrderSetOpen(true)} />
+        )}
         {hasActivePrintable && (
           <IconActionButton label="批量打印" icon={<IconPrinter />}
-            title="一键批量受控打印本次就诊已生效处方与单据"
+            title="批量打印"
             onClick={() => setBatchPrintOpen(true)}
           />
         )}
@@ -412,6 +432,13 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
           </>)}
       </div>} />
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
+    {saveOrderSetNotice && <Alert tone="success" onDismiss={() => setSaveOrderSetNotice('')}>{saveOrderSetNotice}</Alert>}
+    {saveOrderSetOpen && <SaveOrderSetDialog api={api} candidates={orderSetCandidates}
+      onClose={() => setSaveOrderSetOpen(false)}
+      onSaved={(saved) => {
+        setSaveOrderSetOpen(false)
+        setSaveOrderSetNotice(`已保存医嘱组套“${saved.name}”，可在“组套 / 方案”或医嘱检索中使用。`)
+      }} />}
     {!reviewOpen && submitError}
     {shadowNotice && <Alert tone="warning" duration={null}>{shadowNotice}</Alert>}
     <div className="doctor-orders-content">
@@ -419,6 +446,7 @@ export function OrdersPanel({ encounter: savedEncounter, draftDiagnoses, onSaveC
         // 简易模式：AI 推荐医嘱只落入草稿，随医生点“保存”生效，不自动弹出核查窗。
         : <UnifiedOrderListEditor aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
           onAiOrdersPrepared={() => { if (!documentDirty && !simpleReview) setReviewOpen(true) }}
+          onOpenOrderSetTemplate={onOpenOrderSetTemplate}
           documentRows={documentRows} onOpenDocument={openDocument} documentEditing={documentDirty}
           documents={documents} selectedDocumentKey={documentKey} onSelectDocument={setDocumentKey}
           onSavedDocument={refresh}

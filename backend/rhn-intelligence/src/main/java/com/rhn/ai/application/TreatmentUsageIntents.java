@@ -36,6 +36,7 @@ public final class TreatmentUsageIntents {
             object.remove("usageSuggestion");
             JsonNode type = object.get("type");
             sanitizePurpose(object, type);
+            sanitizeExamination(object, type);
             if (usage == null || !usage.isObject() || type == null || !type.isString()
                     || !"MEDICATION".equals(type.asString().trim().toUpperCase(Locale.ROOT))) continue;
             BigDecimal dose = decimal(usage.get("doseValue"));
@@ -51,6 +52,50 @@ public final class TreatmentUsageIntents {
             if (frequency != null) out.put("frequencyCode", frequency);
             if (days != null) out.put("durationDays", days);
         }
+    }
+
+    private static final java.util.Set<String> MODALITIES = java.util.Set.of(
+            "US", "CT", "MR", "DR", "MG", "ECG", "ENDOSCOPY", "FUNCTION", "OTHER");
+
+    /**
+     * The model {@code examination} object is kept only for EXAMINATION items. Unknown enum values become null, body sites
+     * are trimmed text (at most 6, 30 chars each); an object without a known modality is dropped so the server derives the
+     * intent from the name. Server-owned {@code examinationSites} is always removed.
+     */
+    static void sanitizeExamination(ObjectNode object, JsonNode type) {
+        object.remove("examinationSites");
+        JsonNode exam = object.get("examination");
+        if (exam == null) return;
+        String kind = type != null && type.isString() ? type.asString().trim().toUpperCase(Locale.ROOT) : "";
+        String modality = upper(exam.get("modality"));
+        if (!"EXAMINATION".equals(kind) || !exam.isObject() || !MODALITIES.contains(modality)) {
+            object.remove("examination");
+            return;
+        }
+        ObjectNode out = object.putObject("examination");
+        out.put("modality", modality);
+        String technique = upper(exam.get("technique"));
+        if ("US".equals(modality) && java.util.Set.of("B_MODE", "COLOR_DOPPLER").contains(technique)) out.put("technique", technique);
+        String contrast = upper(exam.get("contrastPhase"));
+        if (java.util.Set.of("CT", "MR").contains(modality) && java.util.Set.of("PLAIN", "ENHANCED", "PLAIN_ENHANCED").contains(contrast)) {
+            out.put("contrastPhase", contrast);
+        }
+        String laterality = upper(exam.get("laterality"));
+        if (java.util.Set.of("LEFT", "RIGHT", "BILATERAL").contains(laterality)) out.put("laterality", laterality);
+        var sites = out.putArray("bodySites");
+        JsonNode raw = exam.get("bodySites");
+        if (raw != null && raw.isArray()) {
+            for (JsonNode site : raw) {
+                if (sites.size() >= 6) break;
+                if (!site.isString()) continue;
+                String value = site.asString().trim();
+                if (!value.isEmpty() && value.length() <= 30) sites.add(value);
+            }
+        }
+    }
+
+    private static String upper(JsonNode node) {
+        return node != null && node.isString() ? node.asString().trim().toUpperCase(Locale.ROOT) : "";
     }
 
     /** Purpose is kept only for laboratory/examination items: trimmed, blank to null, capped at 60 chars, non-text to null. */

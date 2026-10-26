@@ -11,7 +11,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
+    /** 单行来源（挂号、发退药、住院任务等）的收费事项；检查申请可能多行，须用按行号排序的列表查询。 */
     Optional<ChargeItem> findByTenantIdAndSourceTypeAndSourceId(Long tenantId, String sourceType, Long sourceId);
+    List<ChargeItem> findByTenantIdAndSourceTypeAndSourceIdOrderByChargeLineNoAsc(Long tenantId, String sourceType,
+                                                                                 Long sourceId);
     Optional<ChargeItem> findByIdAndTenantId(Long id, Long tenantId);
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from ChargeItem c where c.id = :id and c.tenantId = :tenantId")

@@ -9,6 +9,7 @@ import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.ExaminationSiteDirectory;
 import com.rhn.platform.masterdata.api.ExaminationSiteDirectory.ExaminationSiteOption;
+import com.rhn.platform.masterdata.api.MedicalOperationsViews.ExaminationChargePlan;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
@@ -56,6 +57,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private final ServiceDocumentGroupingPolicy groupingPolicy;
     private final ExaminationSiteDirectory examinationSites;
     private final ServiceRequestSiteRepository siteRepository;
+    private final ServiceRequestChargeLineRepository chargeLineRepository;
 
     ServiceRequestService(ServiceRequestRepository repository, EncounterDirectory encounterDirectory,
                           CatalogLifecycleDirectory catalogDirectory,
@@ -67,9 +69,11 @@ class ServiceRequestService implements ServiceRequestDirectory {
                           com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments,
                           OrderCancellationPolicy cancellationPolicy, BusinessNumberGenerator numbers,
                           ServiceDocumentRepository documentRepository, ServiceDocumentGroupingPolicy groupingPolicy,
-                          ExaminationSiteDirectory examinationSites, ServiceRequestSiteRepository siteRepository) {
+                          ExaminationSiteDirectory examinationSites, ServiceRequestSiteRepository siteRepository,
+                          ServiceRequestChargeLineRepository chargeLineRepository) {
         this.examinationSites = examinationSites;
         this.siteRepository = siteRepository;
+        this.chargeLineRepository = chargeLineRepository;
         this.cancellationPolicy = cancellationPolicy;
         this.documentRepository = documentRepository;
         this.groupingPolicy = groupingPolicy;
@@ -136,7 +140,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private record Resolved(CreateServiceRequest input, LocalDate businessDate, Long performerOrganizationId,
                             Long performerDepartmentId, String unitCode,
                             com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot catalog,
-                            BigDecimal quantity, List<ExaminationSiteOption> sites, BigDecimal totalAmount) {}
+                            BigDecimal quantity, List<ExaminationSiteOption> sites, BigDecimal totalAmount,
+                            ServiceRequestChargeLine.PricedLine mainLine,
+                            List<ServiceRequestChargeLine.PricedLine> chargeLines) {}
 
     private record SiteSelection(BigDecimal quantity, List<ExaminationSiteOption> sites) {}
 
@@ -156,7 +162,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
         }
         List<ExaminationSiteOption> sites = rule.get().select(codes);
         if (sites.isEmpty()) return new SiteSelection(requested, List.of());
-        return new SiteSelection(rule.get().baseQuantity(sites.size()), sites);
+        return new SiteSelection(rule.get().baseQuantity(rule.get().chargeableSiteCount(sites)), sites);
     }
 
     private Resolved resolve(EncounterDirectory.EncounterSnapshot encounter, CreateServiceRequest input) {
@@ -217,6 +223,16 @@ class ServiceRequestService implements ServiceRequestDirectory {
             throw badRequest("SERVICE_REQUEST_UNIT_INVALID", "申请单位必须与目录项目单位一致");
         }
 
+        SiteSelection selection = selectSites(input.catalogItemId(), item.name(), item.serviceType(), input.sites(), input.quantity());
+        var plan = examinationPlan(item.serviceType(), item.id(), selection);
+        if (substitutesMainLine(plan, item.id())) {
+            // 主收费行是主收费物价项或阶梯档位：开立项目本身不收费，价格全部取自收费方案。
+            List<ServiceRequestChargeLine.PricedLine> lines = pricingRequired
+                    ? chargeLines(plan, null, true, performerOrganizationId, priceType, businessDate) : List.of();
+            return new Resolved(input, businessDate, performerOrganizationId, performerDepartmentId, unitCode, catalog,
+                    selection.quantity(), selection.sites(), lines.isEmpty() ? null : sum(lines),
+                    lines.isEmpty() ? null : lines.getFirst(), lines);
+        }
         var price = catalog.price();
         if (pricingRequired) {
             if (!item.chargeable() || !adoption.chargeable()) {
@@ -226,10 +242,79 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 throw conflict("CATALOG_PRICE_NOT_CONFIGURED", "业务日期内未配置可用的机构价格");
             }
         }
-        SiteSelection selection = selectSites(input.catalogItemId(), item.name(), item.serviceType(), input.sites(), input.quantity());
         BigDecimal totalAmount = price == null ? null : price.price().multiply(selection.quantity());
+        ServiceRequestChargeLine.PricedLine base = price == null ? null : new ServiceRequestChargeLine.PricedLine("BASE_SERVICE",
+                item.id(), item.code(), item.name(), unitCode, selection.quantity(), price.id(), price.revision(),
+                price.sdPriceType(), price.price(), totalAmount, price.currencyCode(), item.accountingCategory());
+        List<ServiceRequestChargeLine.PricedLine> chargeLines = base == null || plan == null ? List.of()
+                : chargeLines(plan, base, false, performerOrganizationId, priceType, businessDate);
+        if (!chargeLines.isEmpty()) totalAmount = sum(chargeLines);
         return new Resolved(input, businessDate, performerOrganizationId, performerDepartmentId, unitCode, catalog,
-                selection.quantity(), selection.sites(), totalAmount);
+                selection.quantity(), selection.sites(), totalAmount, base, chargeLines);
+    }
+
+    /** 检查项目已维护检查配置时按所选部位取收费方案；其余项目为空。 */
+    private ExaminationChargePlan examinationPlan(String serviceType, Long catalogItemId, SiteSelection selection) {
+        if (!"EXAMINATION".equals(serviceType)) return null;
+        return examinationSites.chargePlan(catalogItemId,
+                selection.sites().stream().map(ExaminationSiteOption::code).toList()).orElse(null);
+    }
+
+    /** 收费方案的主收费行不是开立项目自身：阶梯档位，或配置了主收费物价项。 */
+    private static boolean substitutesMainLine(ExaminationChargePlan plan, Long catalogItemId) {
+        if (plan == null) return false;
+        return plan.lines().stream()
+                .filter(line -> line.separatelyChargeable()
+                        && ("BASE_SERVICE".equals(line.sourceType()) || "TIER".equals(line.sourceType())))
+                .findFirst()
+                .map(line -> "TIER".equals(line.sourceType()) || !catalogItemId.equals(line.catalogItemId()))
+                .orElse(false);
+    }
+
+    /**
+     * 检查项目按收费方案定价：主收费行是开立项目自身时沿用已定价的 base，否则（主收费物价项、阶梯档位）与多部位加收、
+     * 附加项目一样按执行机构、价格类型和业务日期取价。主收费行是开立项目自身且方案只有一行时返回空，申请按单行收费；
+     * 任一明细未开放收费或无价格时拒绝开立，不静默漏收。
+     */
+    private List<ServiceRequestChargeLine.PricedLine> chargeLines(ExaminationChargePlan plan,
+            ServiceRequestChargeLine.PricedLine base, boolean substituted, Long performerOrganizationId,
+            String priceType, LocalDate businessDate) {
+        Long tenantId = TenantContext.requireTenantId();
+        List<ServiceRequestChargeLine.PricedLine> lines = new ArrayList<>();
+        for (var line : plan.lines()) {
+            if (!line.separatelyChargeable()) continue;
+            if ("BASE_SERVICE".equals(line.sourceType()) && base != null && base.catalogItemId().equals(line.catalogItemId())) {
+                lines.add(base);
+            } else if ("MULTI_SITE_FIXED".equals(line.sourceType())) {
+                var main = lines.getFirst();
+                lines.add(new ServiceRequestChargeLine.PricedLine(line.sourceType(),
+                        main.catalogItemId(), main.itemCode(), main.itemName(), main.unitCode(), line.quantity(),
+                        null, null, null, line.fixedAmount().divide(line.quantity(), 6, java.math.RoundingMode.HALF_UP),
+                        line.fixedAmount(), main.currencyCode(), main.accountingCategory()));
+            } else {
+                var catalog = catalogDirectory.resolve(tenantId, line.catalogItemId(), performerOrganizationId,
+                        null, priceType, businessDate);
+                var price = catalog.price();
+                if (!catalog.item().chargeable() || catalog.adoption() == null || !catalog.adoption().chargeable()
+                        || price == null) {
+                    throw conflict("EXAM_CHARGE_ITEM_UNAVAILABLE",
+                            "收费项目“" + line.itemName() + "”在执行机构未开放收费或未配置价格");
+                }
+                if (!lines.isEmpty() && !Objects.equals(price.currencyCode(), lines.getFirst().currencyCode())) {
+                    throw conflict("EXAM_CHARGE_CURRENCY_MISMATCH", "检查收费明细币种不一致");
+                }
+                lines.add(new ServiceRequestChargeLine.PricedLine(line.sourceType(), line.catalogItemId(),
+                        catalog.item().code(), catalog.item().name(), catalog.item().unitCode(), line.quantity(),
+                        price.id(), price.revision(), price.sdPriceType(), price.price(),
+                        price.price().multiply(line.quantity()), price.currencyCode(), catalog.item().accountingCategory()));
+            }
+        }
+        if (substituted) return List.copyOf(lines);
+        return lines.size() <= 1 ? List.of() : List.copyOf(lines);
+    }
+
+    private static BigDecimal sum(List<ServiceRequestChargeLine.PricedLine> lines) {
+        return lines.stream().map(ServiceRequestChargeLine.PricedLine::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private ServiceRequest persist(EncounterDirectory.EncounterSnapshot encounter, Resolved resolved, boolean draft) {
@@ -242,7 +327,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
         String unitCode = resolved.unitCode();
         var item = resolved.catalog().item();
         var adoption = resolved.catalog().adoption();
-        var price = resolved.catalog().price();
+        var main = resolved.mainLine();
         BigDecimal totalAmount = resolved.totalAmount();
         var contexts = new ItemAttributeSnapshotDirectory.AttributeContexts(
                 new ItemAttributeSnapshotDirectory.AttributeScope(encounter.organizationId(), encounter.departmentId()),
@@ -257,13 +342,14 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 encounter.id(), numbers.next("service-request", new BusinessNumberContext(tenantId, performerOrganizationId, performerDepartmentId)), input.catalogItemId(), input.packageId(), performerOrganizationId,
                 performerDepartmentId, encounter.organizationId(), encounter.departmentId(), businessDate, context.subjectId(), Strings.trimToNull(input.reason()), item.code(),
                 item.name(), unitCode, adoption.localCode(), adoption.localName(), adoption.id(), adoption.revision(),
-                price == null ? null : price.id(), price == null ? null : price.revision(),
-                price == null ? null : price.sdPriceType(), price == null ? null : price.price(), totalAmount,
-                price == null ? null : price.currencyCode(), jsonCodec.write(attributes.jsonItemAttrSnapshot()),
+                main == null ? null : main.priceId(), main == null ? null : main.priceRevision(),
+                main == null ? null : main.priceType(), main == null ? null : main.unitPrice(), totalAmount,
+                main == null ? null : main.currencyCode(), jsonCodec.write(attributes.jsonItemAttrSnapshot()),
                 attributes.hashItemAttrSnapshot(), attributes.resolvedAt(), jsonCodec.write(mappings),
                 item.serviceType(), item.specimenType(), item.examinationType(),
                 resolved.quantity(), Strings.trimToNull(input.clinicalDescription()), draft));
         saveSites(value, resolved.sites());
+        saveChargeLines(value, resolved.chargeLines());
         if (!draft) publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
                 financialEventDetails(value, encounter, item.accountingCategory(), false));
         return value;
@@ -274,6 +360,13 @@ class ServiceRequestService implements ServiceRequestDirectory {
             siteRepository.save(new ServiceRequestSite(value.tenantId(), value.id(), index + 1, sites.get(index)));
         }
         siteRepository.flush();
+    }
+
+    private void saveChargeLines(ServiceRequest value, List<ServiceRequestChargeLine.PricedLine> lines) {
+        for (int index = 0; index < lines.size(); index++) {
+            chargeLineRepository.save(new ServiceRequestChargeLine(value.tenantId(), value.id(), index + 1, lines.get(index)));
+        }
+        chargeLineRepository.flush();
     }
 
     List<ServiceRequest> submittableDrafts(Long tenantId, Long encounterId) {
@@ -362,7 +455,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 .map(rule -> new ExaminationSiteOptionsResponse(catalogItemId, true, rule.bodySiteRequired(),
                         rule.multiBodySite(), rule.maxBodySiteCount(), rule.sitePricingMode(), rule.maxChargeableSiteCount(),
                         rule.sites().stream().map(site -> new ExaminationSiteOptionsResponse.ExaminationSiteChoice(
-                                site.code(), site.name(), site.methodType())).toList()))
+                                site.code(), site.name(), site.methodType(), site.chargeableSiteUnits())).toList()))
                 .orElseGet(() -> new ExaminationSiteOptionsResponse(catalogItemId, false, false, false, null, null, null, List.of()));
     }
 
@@ -400,10 +493,30 @@ class ServiceRequestService implements ServiceRequestDirectory {
             throw badRequest("SERVICE_REQUEST_REVISION_ITEM_CHANGED", "修改不能更换项目，请删除后重新开立");
         }
         SiteSelection selection = selectSites(value.catalogItemId(), value.itemNameSnapshot(), value.serviceTypeSnapshot(), input.sites(), input.quantity());
-        value.reviseDraft(expectedRevision, selection.quantity(), Strings.trimToNull(input.clinicalDescription()));
+        String priceType = value.priceType() == null ? "SALE" : value.priceType();
+        var plan = value.unitPrice() == null ? null : examinationPlan(value.serviceTypeSnapshot(), value.catalogItemId(), selection);
+        List<ServiceRequestChargeLine.PricedLine> chargeLines;
+        if (substitutesMainLine(plan, value.catalogItemId())) {
+            // 部位变化可能换档：主收费行与其余明细全部按开立时的执行机构、价格类型和业务日期重新取价。
+            chargeLines = chargeLines(plan, null, true, value.performerOrganizationId(), priceType, value.businessDate());
+            var main = chargeLines.getFirst();
+            value.repriceMainLine(main.priceId(), main.priceRevision(), main.priceType(), main.unitPrice());
+        } else {
+            chargeLines = plan == null ? List.of() : chargeLines(plan, new ServiceRequestChargeLine.PricedLine("BASE_SERVICE",
+                    value.catalogItemId(), value.itemCodeSnapshot(), value.itemNameSnapshot(), value.unitCodeSnapshot(),
+                    selection.quantity(), value.priceId(), value.priceRevision(), value.priceType(), value.unitPrice(),
+                    value.unitPrice().multiply(selection.quantity()), value.currencyCode(),
+                    catalogDirectory.resolve(value.tenantId(), value.catalogItemId(), value.performerOrganizationId(), null,
+                            priceType, value.businessDate()).item().accountingCategory()),
+                    false, value.performerOrganizationId(), priceType, value.businessDate());
+        }
+        value.reviseDraft(expectedRevision, selection.quantity(), Strings.trimToNull(input.clinicalDescription()),
+                chargeLines.isEmpty() ? null : sum(chargeLines));
         repository.flush();
         siteRepository.deleteAllInBatch(siteRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()));
         saveSites(value, selection.sites());
+        chargeLineRepository.deleteAllInBatch(chargeLineRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(value.tenantId(), value.id()));
+        saveChargeLines(value, chargeLines);
         publish(value, "SERVICE_REQUEST_DRAFT_REVISED", "修改未签署诊疗项目", Map.of("quantity", value.quantity(),
                 "bodySiteCodes", selection.sites().stream().map(ExaminationSiteOption::code).toList()));
         return response(value);
@@ -636,6 +749,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
         if (value.unitPrice() != null) details.put("unitPrice", value.unitPrice());
         if (value.totalAmount() != null) details.put("totalAmount", value.totalAmount());
         if (value.currencyCode() != null) details.put("currencyCode", value.currencyCode());
+        List<ServiceRequestChargeLine> chargeLines = chargeLineRepository.findByTenantIdAndRequestIdOrderByLineNoAsc(
+                value.tenantId(), value.id());
+        if (!chargeLines.isEmpty()) details.put("chargeLines", chargeLines.stream().map(ServiceRequestChargeLine::eventFact).toList());
         return details;
     }
 

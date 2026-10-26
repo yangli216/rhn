@@ -52,6 +52,38 @@ class OutpatientDocumentPdfRendererTest {
         }
     }
 
+    @Test void prescription_formats_unit_to_chinese_and_filters_redundant_linked_diagnosis_from_note() throws Exception {
+        Map<String, Object> data = patient(); data.put("categoryCode", "WESTERN");
+        data.put("note", "门诊西药处方\n关联诊断：未特指的月经不规则（主要）");
+        data.put("medications", List.of(Map.of(
+                "medicationName", "头孢克肟分散片",
+                "specification", "100mg*10片/盒",
+                "quantity", 2,
+                "quantityUnit", "BOX",
+                "doseValue", 2,
+                "doseUnit", "片",
+                "durationValue", 7,
+                "durationUnit", "d",
+                "routeName", "口服",
+                "frequencyName", "每日一次"
+        )));
+        byte[] pdf = render("OUTPATIENT_PRESCRIPTION", data, 148, 210);
+        try (PdfReader reader = new PdfReader(pdf)) {
+            String text = allText(reader);
+            // 验证数量单位转换为中文
+            assertTrue(text.contains("× 2 盒"), "数量单位 BOX 应该转换为中文 盒");
+            assertFalse(text.contains("BOX"), "不应该出现英文单位 BOX");
+            // 验证疗程单位 d 转换为中文 天
+            assertTrue(text.contains("疗程 7 天"), "疗程单位 d 应该转换为中文 天");
+            // 验证顶部有临床诊断
+            assertTrue(text.contains("临床诊断"), "顶部应保留法定临床诊断标签");
+            assertTrue(text.contains("原发性高血压"), "顶部应保留临床诊断内容");
+            // 验证处方备注保留原备注，但移除底部的关联诊断
+            assertTrue(text.contains("门诊西药处方"), "应保留处方原有备注");
+            assertFalse(text.contains("关联诊断："), "应移除处方备注中重复的关联诊断");
+        }
+    }
+
     @Test void herbal_matrix_preserves_special_directions_and_does_not_invent_formula_instructions() throws Exception {
         Map<String, Object> data = patient(); data.put("categoryCode", "HERBAL");
         List<Map<String, Object>> herbs = new ArrayList<>();

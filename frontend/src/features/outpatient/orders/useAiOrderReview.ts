@@ -170,6 +170,9 @@ export function useAiOrderReview({ encounter, busy, readOnly, aiOrderReview, api
           clinicalDescription: item.orderDraft?.instruction?.trim() || undefined, unitPrice: activePrice?.price,
           currencyCode: activePrice?.currencyCode,
           performerOrganizationId, performerDepartmentId: department.id, performerDepartmentName: department.name,
+          // Sites resolved by the server for this exact item; the doctor still reviews them in the draft row.
+          ...(item.examinationSites?.bodySites.length
+            ? { bodySites: item.examinationSites.bodySites.map(({ code, name }) => ({ code, name })) } : {}),
         }
         return { item, serviceDraft }
       }))

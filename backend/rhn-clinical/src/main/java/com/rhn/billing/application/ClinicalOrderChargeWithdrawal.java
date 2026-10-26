@@ -46,16 +46,21 @@ public class ClinicalOrderChargeWithdrawal {
     private void apply(DomainEventEnvelope event) {
         String sourceType = event.eventType().startsWith("SERVICE_REQUEST") ? "SERVICE_REQUEST" : "MEDICATION_REQUEST";
         // 免费或自备药没有原收费，无需处理。
-        ChargeItem original = charges.findByTenantIdAndSourceTypeAndSourceId(event.tenantId(), sourceType, event.aggregateId())
-                .orElse(null);
-        if (original == null) return;
-        if (charges.findByTenantIdAndSourceTypeAndSourceId(event.tenantId(), sourceType + "_REVERSAL", event.aggregateId()).isPresent()
-                || !settlementLines.findByTenantIdAndChargeItemIdIn(event.tenantId(), List.of(original.id())).isEmpty()) {
+        // 检查申请可能按收费方案多行落账，取消签署整单删除，任一行进入结算或已冲销都整体阻断。
+        List<ChargeItem> originals = charges.findByTenantIdAndSourceTypeAndSourceIdOrderByChargeLineNoAsc(
+                event.tenantId(), sourceType, event.aggregateId());
+        if (originals.isEmpty()) return;
+        if (!charges.findByTenantIdAndSourceTypeAndSourceIdOrderByChargeLineNoAsc(event.tenantId(), sourceType + "_REVERSAL",
+                event.aggregateId()).isEmpty()
+                || !settlementLines.findByTenantIdAndChargeItemIdIn(event.tenantId(),
+                        originals.stream().map(ChargeItem::id).toList()).isEmpty()) {
             throw conflict("ORDER_SETTLEMENT_LOCKED", "收费已进入结算或已冲销，不能取消签署");
         }
-        components.deleteAll(components.findByTenantIdAndChargeItemId(event.tenantId(), original.id()));
-        ledger.findByTenantIdAndChargeItemId(event.tenantId(), original.id()).ifPresent(ledger::delete);
-        charges.delete(original);
+        for (ChargeItem original : originals) {
+            components.deleteAll(components.findByTenantIdAndChargeItemId(event.tenantId(), original.id()));
+            ledger.findByTenantIdAndChargeItemId(event.tenantId(), original.id()).ifPresent(ledger::delete);
+            charges.delete(original);
+        }
         charges.flush();
     }
 }

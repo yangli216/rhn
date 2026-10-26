@@ -10,5 +10,6 @@ import java.util.Optional;
 public interface ExaminationServiceRepository extends JpaRepository<ExaminationService, Long> {
     List<ExaminationService> findByTenantIdAndCatalogItemIdIn(Long tenantId, Collection<Long> catalogItemIds);
     Optional<ExaminationService> findByTenantIdAndCatalogItemId(Long tenantId, Long catalogItemId);
+    List<ExaminationService> findByTenantIdAndExaminationType(Long tenantId, String examinationType);
     void deleteByTenantIdAndCatalogItemId(Long tenantId, Long catalogItemId);
 }

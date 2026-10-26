@@ -155,6 +155,58 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals(2, explicit.size());
         assertTrue(explicit.stream().allMatch(match -> "MATCHED".equals(match.status())));
     }
+    @Test void bloodHcgWordingMatchesSerumHcgServiceDirectly() {
+        var hcg = lab(641, "血清人绒毛膜促性腺激素测定", "人绒毛膜促性腺激素");
+        var result = resolver.resolve(List.of(intent("LABORATORY", "血人绒毛膜促性腺激素测定")), LocalDate.now()).getFirst();
+        assertEquals("MATCHED", result.status());
+        assertEquals(List.of(hcg.id()), result.candidates().stream().map(TreatmentRecommendation::catalogItemId).toList());
+    }
+    @Test void bloodPrefixIsStrippedOnlyForSpecificAnalytes() {
+        lab(642, "血清总胆固醇测定", "总胆固醇");
+        lab(643, "尿常规", "常规");
+        var cholesterol = resolver.resolve(List.of(intent("LABORATORY", "血总胆固醇")), LocalDate.now()).getFirst();
+        assertEquals("AMBIGUOUS", cholesterol.status());
+        assertEquals(642L, cholesterol.candidates().getFirst().catalogItemId());
+        var unknown = resolver.resolve(List.of(intent("LABORATORY", "血常规检测")), LocalDate.now()).getFirst();
+        assertTrue(unknown.candidates().stream().noneMatch(item -> item.catalogItemId() == 643L));
+    }
+    @Test void sexHormonePanelRecallsOnlyItsSixIndicatorsForReview() {
+        var fsh = lab(651, "血清促卵泡刺激素测定", "卵泡刺激素");
+        var lh = lab(652, "血清促黄体生成素测定", "黄体生成素");
+        var estradiol = lab(653, "雌二醇测定", "雌二醇");
+        var progesterone = lab(654, "孕酮测定", "孕酮");
+        var hydroxy = mock(MasterDataViews.ServiceView.class);
+        when(hydroxy.id()).thenReturn(659L); when(hydroxy.name()).thenReturn("17α-羟孕酮测定");
+        when(services.searchOrderableServices(eq("孕酮"), eq("LABORATORY"), eq(3L), any()))
+                .thenReturn(List.of(progesterone, hydroxy));
+        var testosterone = lab(655, "睾酮测定", "睾酮");
+        var prolactin = lab(656, "血清泌乳素测定", "泌乳素");
+        var result = resolver.resolve(List.of(intent("LABORATORY", "性激素六项")), LocalDate.now()).getFirst();
+        assertEquals("AMBIGUOUS", result.status());
+        assertEquals(List.of(fsh.id(), lh.id(), estradiol.id(), progesterone.id(), testosterone.id(), prolactin.id()),
+                result.candidates().stream().map(TreatmentRecommendation::catalogItemId).toList());
+    }
+    @Test void thyroidPanelRecallsTshAndFreeHormonesWithoutTotalHormones() {
+        var tsh = lab(661, "血清促甲状腺激素测定", "促甲状腺激素");
+        var ft4 = lab(662, "血清游离甲状腺素（FT4）测定", "游离甲状腺素");
+        var ft3 = lab(663, "血清游离三碘甲状原氨酸（FT3）测定", "游离三碘甲状原氨酸");
+        var result = resolver.resolve(List.of(intent("LABORATORY", "甲状腺功能三项")), LocalDate.now()).getFirst();
+        assertEquals("AMBIGUOUS", result.status());
+        assertEquals(List.of(tsh.id(), ft4.id(), ft3.id()), result.candidates().stream()
+                .map(TreatmentRecommendation::catalogItemId).toList());
+    }
+    @Test void gynecologicTransvaginalUltrasoundOffersBothTransvaginalStudies() {
+        var bMode = mock(MasterDataViews.ServiceView.class);
+        when(bMode.id()).thenReturn(671L); when(bMode.name()).thenReturn("经阴道B超检查");
+        var doppler = mock(MasterDataViews.ServiceView.class);
+        when(doppler.id()).thenReturn(672L); when(doppler.name()).thenReturn("经阴道彩色多普勒超声检查");
+        when(services.searchOrderableServices(eq("经阴道"), eq("EXAMINATION"), eq(3L), any()))
+                .thenReturn(List.of(bMode, doppler));
+        var result = resolver.resolve(List.of(intent("EXAMINATION", "妇科经阴道超声检查")), LocalDate.now()).getFirst();
+        assertEquals("AMBIGUOUS", result.status());
+        assertEquals(List.of(671L, 672L), result.candidates().stream().map(TreatmentRecommendation::catalogItemId).toList());
+        assertTrue(result.reason().contains("部位、检查方式"));
+    }
     @Test void genericEcgRecallsRoutineStudyForReviewWithoutSubstitutingHolterOrExercise() {
         var routine = mock(MasterDataViews.ServiceView.class);
         when(routine.id()).thenReturn(631L); when(routine.name()).thenReturn("常规心电图检查");
@@ -221,7 +273,8 @@ class ClinicalTreatmentRecommendationServiceTest {
         assertEquals("AMBIGUOUS", specific.matches().getFirst().status());
         assertEquals(401L, specific.matches().getFirst().candidates().getFirst().catalogItemId());
     }
-    @Test void chestCtFindsSingleSiteMethodsForReviewWithoutSelectingExtrasOrOtherSites() {
+    /** 检查物价项（按部位档位、加收）不可单开，名称兜底不再把它们作为“胸部CT”的待核对候选，由开立项目两步匹配替代。 */
+    @Test void chestCtNameFallbackNoLongerOffersPerSitePriceItems() {
         var plain = mock(MasterDataViews.ServiceView.class);
         when(plain.id()).thenReturn(410L); when(plain.name()).thenReturn("CT平扫（一个部位）");
         var enhanced = mock(MasterDataViews.ServiceView.class);
@@ -237,9 +290,8 @@ class ClinicalTreatmentRecommendationServiceTest {
         var result = service.recommend(List.of(intent("EXAMINATION", "胸部CT")), request, null);
         assertTrue(result.items().isEmpty());
         var match = result.matches().getFirst();
-        assertEquals("AMBIGUOUS", match.status());
-        assertEquals(List.of(410L, 411L), match.candidates().stream().map(TreatmentRecommendation::catalogItemId).toList());
-        assertTrue(match.reason().contains("部位、检查方式"));
+        assertEquals("NO_ORDERABLE_SERVICE", match.status());
+        assertTrue(match.candidates().isEmpty());
     }
     @Test void chestXrayPositionIntentRecallsDigitalRadiographyCandidateForPhysicianReview() {
         var dr = mock(MasterDataViews.ServiceView.class);

@@ -26,8 +26,12 @@
 | 已保存医嘱原地修改、签署模式取消签署 | `editSavedOrder.ts`、`OrderReadRows.tsx`、`persistOrderDrafts.ts`（`revisedOrders`）、`OrdersPanel.tsx`（`withdrawSignature`） | `../DoctorWorkstation.test.tsx` |
 | 申请单合单预览与按单展示 | `useServiceDocumentPreview.ts`、`orderEntries.ts` 的 `serviceDocumentKey`、`../OrderDocuments.tsx` | `../OrderDocuments.test.tsx`、`../DoctorWorkstation.test.tsx` |
 | 历史处方续方与当前目录核对 | `../ai/historicalPrescriptionImport.ts`、`../ai/HistoryPrescriptionReference.tsx` | 同名测试、`../DoctorWorkstation.test.tsx` |
-| 临床模板回执、选择与异步带入 | `../templates/templateApplicationReceipt.ts`、`useTemplateApplication.ts`、`historicalPlanSelection.ts` | 同名测试、`../DoctorWorkstation.test.tsx` |
-| 临床模板的当前产品、价格、库存与执行科室 | `../templates/resolveTemplateOrders.ts`、`orderExecutionDepartment.ts` | `resolveTemplateOrders.test.ts`、`resolveTemplateOrders.api.test.ts`、`../DoctorWorkstation.test.tsx` |
+| 医嘱区“组套 / 方案”入口（`OrdersPanel` 标题栏按钮，以 `purpose=ORDERS` 打开统一模板抽屉；医嘱组套同时读新 `ORDER_SET` 模板和主数据旧组合，新组套沿用方案医嘱的预览、默认勾选、带入与 `use` 计数） | `OrdersPanel.tsx`、`../templates/TemplateLibraryDrawer.tsx`、`../templates/templateLibrary.ts`、`../workstation/PatientWorkspace.tsx` | `../templates/TemplateLibraryDrawer.test.tsx`、`../DoctorWorkstation.test.tsx` |
+| 医嘱区“存为组套”（`OrdersPanel` 标题栏按钮，仅编辑中、未签署时出现，没有可存候选时禁用；弹窗按来源分组勾选药品／项目，候选由 `../templates/orderSetCandidates.ts` 汇总：待确认草稿、已随病历保存的医嘱草稿（`doctor-medications`/`doctor-services` 查询里 status=DRAFT）、本次已开立（ACTIVE），CANCELLED 排除，持久化行复用 `editSavedOrder.ts` 的 `medicationRequestToDraft`/`serviceRequestToDraft`，同药品（medicationId+catalogItemId）／同项目（catalogItemId）只列一次且取最新来源，草药整方置灰，输液成组按单行保存；填写名称与范围（默认“我的”），经 `draftsToOrderSetInput` 转换后由 `saveMaintainedPlan` 保存为 `ORDER_SET`，保存后作废 `['outpatient-plan-templates']` 查询；草稿上的接诊科室不写入共享组套） | `OrdersPanel.tsx`、`../templates/SaveOrderSetDialog.tsx`、`../templates/orderSetCandidates.ts`、`../templates/orderSetTemplate.ts` | `../templates/SaveOrderSetDialog.test.tsx`、`../templates/orderSetCandidates.test.ts`、`../templates/orderSetTemplate.test.ts`、`../DoctorWorkstation.test.tsx` |
+| 医嘱录入框检索新医嘱组套（`/` 前缀或智能模式检索同时返回新组套，标注“医嘱组套”与范围；选中后不展开，经 `onOpenOrderSetTemplate` → `openTemplateLibrary('ORDERS', id)` 打开抽屉并预选该组套；主数据旧组合仍走原快捷导入） | `../../../shared/ui/ClinicalResourceSearch.tsx`、`../UnifiedOrderListEditor.tsx`（`handleOrderResourceSelect`）、`OrdersPanel.tsx` | `../UnifiedOrderListEditor.test.tsx`、`../../../shared/ui/ClinicalResourceSearch.truth.test.tsx`、`../DoctorWorkstation.test.tsx` |
+| 临床模板回执、选择与异步带入（统一回执“已带入 N 项，跳过 M 项（原因）”） | `../templates/templateApplicationReceipt.ts`、`useTemplateApplication.ts`、`historicalPlanSelection.ts` | 同名测试、`../DoctorWorkstation.test.tsx` |
+| 临床模板的当前产品、价格、库存与执行科室（`resolveTemplateOrdersTolerant` 逐行隔离失败行；组套项目行固定的 `executionDepartmentId` 失效只跳过该行） | `../templates/resolveTemplateOrders.ts`、`orderExecutionDepartment.ts` | `resolveTemplateOrders.test.ts`、`resolveTemplateOrders.api.test.ts`、`../DoctorWorkstation.test.tsx` |
+| 主数据旧组合（“常用组合项目”，尚未迁入临床模板库）展开校验（严格导入 `resolveOrderSetImport`；模板抽屉用 `resolveOrderSetRows` 逐成员跳过） | `orderSetImport.ts`、`useOrderSetImport.ts` | `orderSetImport.test.ts`、`orderSetImport.api.test.ts`、`useOrderSetImport.test.tsx` |
 
 ## 状态与依赖方向
 
@@ -55,7 +59,7 @@
 - **频次只用结构化规则**：PRN、ONCE、CALENDAR 等不提供固定日频次；药房使用保存的 `frequencyRule` 快照，不用当前目录或代码名称猜测（频次、数量预览与开立核查）。
 - **执行去向不冒充**：不按药品类型生成西药房／中药房，不按项目名称猜科室，不把接诊科室当执行科室；缺失显示待确认（检验检查默认执行科室；执行去向展示）。
 - **整批保存唯一入口**：`persistOrderDrafts` → `POST /api/encounters/{id}/order-drafts` 单事务；回执逐项核实后才清空草稿，重试沿用命令编码；病历与医嘱不是一个原子事务（整批医嘱保存与回执）。
-- **外部来源整体带入**：历史续方、临床模板、组套、AI 建议须全部核对成功才带入，与当前草稿重复时整批拒绝；患者、就诊、上下文或 API 变化作废迟到结果（历史处方续方；临床模板回执与带入边界；模板抽屉的当前目录核对；组套导入与执行科室）。
+- **外部来源整体带入**：历史续方、AI 建议以及医嘱录入框的组套检索导入须全部核对成功才带入，与当前草稿重复时整批拒绝；统一模板抽屉（方案、医嘱组套）改为逐行处理：单行自身的目录、价格、单位、库存失败只跳过该行并在回执写明原因，与草稿重复的行默认不勾选（医生可主动勾选），共性失败（就诊上下文、目录请求出错）仍整批不带入。所有来源遇患者、就诊、上下文或 API 变化均作废迟到结果（历史处方续方；临床模板回执与带入边界；模板抽屉的当前目录核对；组套导入与执行科室）。
 - **库存路由不兜底**：按已配置路由解析药房，不遍历其他药房；冻结使用保存时的 `baseQuantity`；已开立去向读取库存预留记录（门诊库存路由事实；库存换算与释放回执）。
 - **分方以后端为准**：预览与开立共用后端分方引擎，不用本地估算补单据数；预览不是开立成功凭据（分方预览与开立事实）。
 - **简单模式保存即生效**：工作区“保存”成功后由 `OrdersPanel` 注册的处理器立即开立（不再调用一次保存，避免过期草稿重复提交）；旁路合理用药提示自动确认，正式确认才弹核查窗；被拦下的医嘱显示“N 项未生效”，再次保存或诊毕时重试。“修改”只隐藏原行并打开编辑行，保存时在原医嘱上更新（`revisedOrders`），不新建也不撤销；已进结算单的不显示修改。签署模式（标准模式）按“未签署 / 已签署”称呼，已签署未进结算单的可取消签署。

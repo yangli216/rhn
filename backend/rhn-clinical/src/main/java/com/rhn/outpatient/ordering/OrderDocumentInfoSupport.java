@@ -40,9 +40,12 @@ class OrderDocumentInfoSupport {
                 Strings.trimToNull(input.specialDisease()), Strings.trimToNull(input.examinationPurpose())));
     }
     String printSummary(String jsonValue) {
+        return printSummary(jsonValue, true);
+    }
+    String printSummary(String jsonValue, boolean includeDiagnoses) {
         var info = read(jsonValue);
         var lines = new java.util.ArrayList<String>();
-        if (!info.diagnoses().isEmpty()) lines.add("关联诊断：" + info.diagnoses().stream()
+        if (includeDiagnoses && !info.diagnoses().isEmpty()) lines.add("关联诊断：" + info.diagnoses().stream()
                 .map(d -> d.display() + (d.primary() ? "（主要）" : ""))
                 .collect(java.util.stream.Collectors.joining("、")));
         if (info.externalPrescription()) lines.add("外配处方标记：是");
@@ -51,7 +54,11 @@ class OrderDocumentInfoSupport {
         return String.join("\n", lines);
     }
     String appendSummary(String text, String jsonValue) {
-        String summary = printSummary(jsonValue);
+        String summary = printSummary(jsonValue, true);
+        return summary.isBlank() ? text : (Strings.trimToNull(text) == null ? summary : text + "\n" + summary);
+    }
+    String appendPrescriptionSummary(String text, String jsonValue) {
+        String summary = printSummary(jsonValue, false);
         return summary.isBlank() ? text : (Strings.trimToNull(text) == null ? summary : text + "\n" + summary);
     }
 }

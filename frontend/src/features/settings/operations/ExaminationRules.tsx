@@ -1,19 +1,26 @@
 import { useState } from "react";
-import type { DictionaryValue, ExaminationVariantConfiguration, ExaminationVariantInput, ExaminationAttachmentConfiguration, ExaminationAttachmentInput, ServiceCatalogItem } from "../../../shared/rhnApi";
+import type { BodySite, DictionaryValue, ExaminationPriceTier, ExaminationPriceTierInput, ExaminationVariantConfiguration, ExaminationVariantInput, ExaminationAttachmentConfiguration, ExaminationAttachmentInput, ServiceCatalogItem } from "../../../shared/rhnApi";
 import { Button, FormField, Select } from "../../../shared/ui";
-import { FormDialog, activeStatus, Check } from './operationalShared'
+import { FormDialog, activeStatus, Check, priceTierRange } from './operationalShared'
 
 export const BODY_SITE_QUICK_TAGS = ['头颅', '脑部', '颌面五官', '颈部', '胸部', '肺部', '全腹部', '上腹部', '盆腔', '腰椎', '颈椎', '胸椎', '四肢关节']
 
-export function VariantDialog({ value, dictionaries, onClose, onSave }: {
+export function VariantDialog({ value, dictionaries, bodySites = [], onClose, onSave }: {
   value?: ExaminationVariantConfiguration; dictionaries: Record<string, DictionaryValue[]>
+  bodySites?: BodySite[]
   onClose: () => void; onSave: (input: ExaminationVariantInput) => Promise<void>
 }) {
   const [form, setForm] = useState({
     code: value?.code ?? '', name: value?.name ?? '', methodType: value?.methodType ?? '',
     bodySiteRequired: value?.bodySiteRequired ?? true, mutualRecognitionCode: value?.mutualRecognitionCode ?? '',
     sortOrder: String(value?.sortOrder ?? 10), status: value?.status ?? 'ACTIVE',
+    bodySiteConceptId: value?.bodySiteConceptId ?? '', chargeableSiteUnits: String(value?.chargeableSiteUnits ?? 1),
   })
+  const pickBodySite = (conceptId: string) => {
+    const site = bodySites.find((item) => item.conceptId === conceptId)
+    setForm((prev) => ({ ...prev, bodySiteConceptId: conceptId,
+      name: prev.name || site?.name || '', code: prev.code || (site ? site.code.replace(/^BS-/, '') : '') }))
+  }
 
   const pickTag = (tag: string) => {
     if (!form.name) {
@@ -27,10 +34,13 @@ export function VariantDialog({ value, dictionaries, onClose, onSave }: {
     description="维护检查项目允许选择的解剖部位与执行方式，编码用于申请与 PACS 执行交互。"
     onClose={onClose} onSubmit={(e) => {
       e.preventDefault()
+      const units = Number(form.chargeableSiteUnits)
+      if (!Number.isInteger(units) || units < 0 || units > 99) throw new Error('计费部位数必须是 0 到 99 的整数。')
       return onSave({
         code: form.code, name: form.name, methodType: form.methodType || undefined,
         bodySiteRequired: form.bodySiteRequired, mutualRecognitionCode: form.mutualRecognitionCode || undefined,
         sortOrder: Number(form.sortOrder), status: form.status as 'ACTIVE' | 'INACTIVE',
+        bodySiteConceptId: form.bodySiteConceptId || undefined, chargeableSiteUnits: units,
       })
     }}>
     <div className="span-2 form-section-card" style={{ padding: 'var(--space-3)' }}>
@@ -45,6 +55,15 @@ export function VariantDialog({ value, dictionaries, onClose, onSave }: {
         ))}
       </div>
     </div>
+    <FormField label="标准部位" hint="来自检查部位词典；AI 推荐和部位检索按标准部位及其别名匹配">
+      <Select value={form.bodySiteConceptId} onChange={pickBodySite} placeholder="未映射标准部位"
+        options={bodySites.map((site) => ({ value: site.conceptId, label: site.name,
+          secondaryText: [site.code, ...site.aliases].join(' · ') }))} />
+    </FormField>
+    <FormField label="计费部位数" hint="按物价口径折算，例如“肝胆脾胰”计 2 个；0 表示不计入部位数">
+      <input type="number" min="0" max="99" step="1" value={form.chargeableSiteUnits}
+        onChange={(e) => setForm({ ...form, chargeableSiteUnits: e.target.value })} />
+    </FormField>
     <FormField label="配置编码" required>
       <input value={form.code} disabled={Boolean(value)} placeholder="如 CHEST、ABDOMEN"
         onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
@@ -106,6 +125,57 @@ export const ATTACHMENT_SCENE_TEMPLATES = [
     keyword: '麻醉',
   },
 ]
+
+interface PriceTierRow { siteTo: string; chargeItemId: string; chargeQuantity: string }
+
+/** 整组维护阶梯计价档位：下限由上一档自动接续，只有最后一档可以不设上限。 */
+export function PriceTierDialog({ tiers, services, onClose, onSave }: {
+  tiers: ExaminationPriceTier[]; services: ServiceCatalogItem[]
+  onClose: () => void; onSave: (tiers: ExaminationPriceTierInput[]) => Promise<void>
+}) {
+  const [rows, setRows] = useState<PriceTierRow[]>(() => tiers.length
+    ? tiers.map((tier) => ({ siteTo: tier.siteTo?.toString() ?? '', chargeItemId: tier.chargeItemId, chargeQuantity: String(tier.chargeQuantity) }))
+    : [{ siteTo: '1', chargeItemId: '', chargeQuantity: '1' }, { siteTo: '', chargeItemId: '', chargeQuantity: '1' }])
+  const options = services.filter((v) => v.chargeable && v.sdStatus === 'ACTIVE')
+    .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
+  const froms = rows.reduce<number[]>((acc, _row, index) =>
+    [...acc, index === 0 ? 1 : (Number(rows[index - 1].siteTo) || acc[index - 1]) + 1], [])
+  const update = (index: number, patch: Partial<PriceTierRow>) =>
+    setRows((current) => current.map((row, i) => i === index ? { ...row, ...patch } : row))
+  return <FormDialog title="维护阶梯计价档位" size="wide"
+    description="按计费部位数命中一个物价项，例如 1 个部位收“B超常规检查（一个部位）”，2 个及以上收“（≥二个部位）”。档位整组保存。"
+    onClose={onClose} onSubmit={(e) => {
+      e.preventDefault()
+      const input = rows.map((row, index): ExaminationPriceTierInput => {
+        const last = index === rows.length - 1
+        const siteTo = row.siteTo.trim() ? Number(row.siteTo) : undefined
+        if (!last && siteTo == null) throw new Error('只有最后一档可以不设上限。')
+        if (siteTo != null && (!Number.isInteger(siteTo) || siteTo < froms[index])) throw new Error(`第 ${index + 1} 档上限必须是不小于 ${froms[index]} 的整数。`)
+        if (!row.chargeItemId) throw new Error(`请选择第 ${index + 1} 档的收费物价项。`)
+        const chargeQuantity = Number(row.chargeQuantity)
+        if (!Number.isFinite(chargeQuantity) || chargeQuantity <= 0) throw new Error(`第 ${index + 1} 档收费数量必须大于 0。`)
+        return { siteFrom: froms[index], siteTo, chargeItemId: row.chargeItemId, chargeQuantity }
+      })
+      return onSave(input)
+    }}>
+    <div className="span-2 price-tier-editor">
+      {rows.map((row, index) => (
+        <div key={index} className="price-tier-editor__row">
+          <strong>{priceTierRange({ siteFrom: froms[index], siteTo: row.siteTo.trim() ? Number(row.siteTo) : undefined })}</strong>
+          <FormField label="上限（含）"><input type="number" min={froms[index]} step="1" placeholder="不限" value={row.siteTo}
+            onChange={(e) => update(index, { siteTo: e.target.value })} /></FormField>
+          <FormField label="收费物价项" required><Select value={row.chargeItemId} placeholder="选择物价项"
+            onChange={(v) => update(index, { chargeItemId: v })} options={options} /></FormField>
+          <FormField label="数量"><input type="number" min="0.0001" step="any" value={row.chargeQuantity}
+            onChange={(e) => update(index, { chargeQuantity: e.target.value })} /></FormField>
+          <Button size="sm" variant="text" disabled={rows.length <= 1} aria-label={`删除第 ${index + 1} 档`}
+            onClick={() => setRows((current) => current.filter((_row, i) => i !== index))}>删除</Button>
+        </div>
+      ))}
+      <Button size="sm" variant="secondary" onClick={() => setRows((current) => [...current, { siteTo: '', chargeItemId: '', chargeQuantity: '1' }])}>新增档位</Button>
+    </div>
+  </FormDialog>
+}
 
 export function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }: {
   value?: ExaminationAttachmentConfiguration; services: ServiceCatalogItem[]; currentServiceId: string

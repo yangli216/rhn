@@ -6,12 +6,13 @@ import '../../styles/features/billing-settlement.css'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { BillingWorkItem, RefundItemPreCheckView } from '../../shared/api/billingApi'
-import { Alert, Button, DateRangePicker, EmptyState, FormField, LoadingState, PageHeader, Pagination, Panel, StatusBadge } from '../../shared/ui'
+import { Tabs, Alert, Button, DateRangePicker, EmptyState, FormField, LoadingState, PageHeader, Pagination, Panel, StatusBadge } from '../../shared/ui'
 import { getLast7DaysRange, type DateRange } from '../../shared/utils/dateRange'
 import { semanticTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 import { requireRefundPreCheck, requireRefundStatement } from './refundVerification'
 import { formatLocaleDateTime } from '../../shared/format'
+import { orderChargeLineIds } from '../../shared/billing/orderChargeLines'
 
 const SETTLED_PAGE_SIZE = 20
 const KEYWORD_DEBOUNCE_MS = 300
@@ -331,8 +332,12 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
   const handleToggleItem = (itemId: string, allowed: boolean) => {
     if (!allowed) return
+    // 检查申请的多行收费须整单退费：勾选或取消一行时同步同一申请的其余可退行。
+    const lineIds = orderChargeLineIds((verifiedPreCheck?.items ?? []).filter((item) => item.allowed).map((item) => ({
+      id: String(item.chargeItemId), sourceType: item.sourceType, sourceId: item.sourceId,
+    })), itemId)
     setSelectedChargeItemIds((prev) =>
-      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+      prev.includes(itemId) ? prev.filter((id) => !lineIds.includes(id)) : [...new Set([...prev, ...lineIds])]
     )
   }
 
@@ -383,22 +388,10 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
           <BillingQueue
             key="PENDING_REFUND"
             header={
-              <div className="billing-refund-queue-tabs">
-                <button
-                  type="button"
-                  className="billing-refund-queue-tab is-active"
-                  onClick={() => setQueueTab('PENDING_REFUND')}
-                >
-                  待退费队列 ({pendingItems.length})
-                </button>
-                <button
-                  type="button"
-                  className="billing-refund-queue-tab"
-                  onClick={() => setQueueTab('SETTLED')}
-                >
-                  已收费就诊{settled.data ? ` (${settled.data.totalElements})` : ''}
-                </button>
-              </div>
+              <Tabs label="退费队列" value={queueTab} onChange={setQueueTab} items={[
+                { value: 'PENDING_REFUND', label: `待退费队列 (${pendingItems.length})` },
+                { value: 'SETTLED', label: `已收费就诊${settled.data ? ` (${settled.data.totalElements})` : ''}` },
+              ]} />
             }
             items={pendingItems}
             selectedId={encounterId}
@@ -410,22 +403,10 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
           <BillingQueue
             key="SETTLED"
             header={
-              <div className="billing-refund-queue-tabs">
-                <button
-                  type="button"
-                  className="billing-refund-queue-tab"
-                  onClick={() => setQueueTab('PENDING_REFUND')}
-                >
-                  待退费队列 ({pendingItems.length})
-                </button>
-                <button
-                  type="button"
-                  className="billing-refund-queue-tab is-active"
-                  onClick={() => setQueueTab('SETTLED')}
-                >
-                  已收费就诊{settled.data ? ` (${settled.data.totalElements})` : ''}
-                </button>
-              </div>
+              <Tabs label="退费队列" value={queueTab} onChange={setQueueTab} items={[
+                { value: 'PENDING_REFUND', label: `待退费队列 (${pendingItems.length})` },
+                { value: 'SETTLED', label: `已收费就诊${settled.data ? ` (${settled.data.totalElements})` : ''}` },
+              ]} />
             }
             items={settledItems ?? []}
             selectedId={encounterId}

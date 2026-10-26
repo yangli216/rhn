@@ -27,24 +27,33 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
             @Size(max = 50) List<@Valid ServiceInput> services,
-            @Size(max = 30) List<@Valid PlanTaskInput> tasks) {
+            @Size(max = 30) List<@Valid PlanTaskInput> tasks,
+            /** 模板类型：PROTOCOL 诊疗方案（缺省）、ORDER_SET 医嘱组套。 */
+            @Size(max = 16) String templateKind) {
+        public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
+                           String sourceType, String guidelineReference, Long noteTemplateId,
+                           List<DiagnosisInput> diagnoses, List<MedicationInput> medications,
+                           List<ServiceInput> services, List<PlanTaskInput> tasks) {
+            this(scopeType, name, description, sortOrder, sourceType, guidelineReference,
+                    noteTemplateId, diagnoses, medications, services, tasks, null);
+        }
         public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
                            String sourceType, String guidelineReference, List<DiagnosisInput> diagnoses,
                            List<MedicationInput> medications, List<ServiceInput> services) {
             this(scopeType, name, description, sortOrder, sourceType, guidelineReference,
-                    null, diagnoses, medications, services, List.of());
+                    null, diagnoses, medications, services, List.of(), null);
         }
         public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
                            String sourceType, String guidelineReference, List<DiagnosisInput> diagnoses,
                            List<MedicationInput> medications, List<ServiceInput> services,
                            List<PlanTaskInput> tasks) {
             this(scopeType, name, description, sortOrder, sourceType, guidelineReference,
-                    null, diagnoses, medications, services, tasks);
+                    null, diagnoses, medications, services, tasks, null);
         }
         public SaveRequest(String scopeType, String name, String description, Integer sortOrder,
                            List<DiagnosisInput> diagnoses, List<MedicationInput> medications, List<ServiceInput> services) {
             this(scopeType, name, description, sortOrder, "MANUAL", null, null,
-                    diagnoses, medications, services, List.of());
+                    diagnoses, medications, services, List.of(), null);
         }
     }
 
@@ -81,7 +90,20 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 64) String quantityUnit, boolean substitutionAllowed, boolean selfProvided,
             @Size(max = 1000) String medicationInstruction,
             @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) @Size(max = 32) String priceType,
-            Boolean pricingRequired, @Size(max = 1000) String reason) {
+            Boolean pricingRequired, @Size(max = 1000) String reason,
+            /** 带入预览中是否默认勾选；缺省 true。 */
+            Boolean defaultSelected) {
+        public MedicationInput(Long medicationId, Long catalogItemId, Long packageId,
+                               String medicationName, String preparationSpec,
+                               BigDecimal doseValue, String doseUnit, String routeCode,
+                               String frequencyCode, BigDecimal durationValue, String durationUnit,
+                               BigDecimal quantity, String quantityUnit, boolean substitutionAllowed,
+                               boolean selfProvided, String medicationInstruction, String priceType,
+                               Boolean pricingRequired, String reason) {
+            this(medicationId, catalogItemId, packageId, medicationName, preparationSpec, doseValue, doseUnit,
+                    routeCode, frequencyCode, durationValue, durationUnit, quantity, quantityUnit,
+                    substitutionAllowed, selfProvided, medicationInstruction, priceType, pricingRequired, reason, null);
+        }
         public MedicationInput(Long medicationId, Long catalogItemId, Long packageId,
                                BigDecimal doseValue, String doseUnit, String routeCode,
                                String frequencyCode, BigDecimal durationValue, String durationUnit,
@@ -90,7 +112,7 @@ public final class OutpatientPlanTemplateContracts {
                                Boolean pricingRequired, String reason) {
             this(medicationId, catalogItemId, packageId, null, null, doseValue, doseUnit, routeCode,
                     frequencyCode, durationValue, durationUnit, quantity, quantityUnit, substitutionAllowed,
-                    selfProvided, medicationInstruction, priceType, pricingRequired, reason);
+                    selfProvided, medicationInstruction, priceType, pricingRequired, reason, null);
         }
     }
 
@@ -103,11 +125,21 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 64) String unitCode,
             @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) @Size(max = 32) String priceType,
             Boolean pricingRequired, @Size(max = 1000) String reason,
-            @Size(max = 2000) String clinicalDescription) {
+            @Size(max = 2000) String clinicalDescription,
+            /** 带入预览中是否默认勾选；缺省 true。 */
+            Boolean defaultSelected,
+            /** 默认执行科室；为空时沿用项目默认执行科室规则。 */
+            Long executionDepartmentId) {
+        public ServiceInput(Long catalogItemId, String itemCode, String itemName, String serviceType,
+                            BigDecimal quantity, String unitCode, String priceType, Boolean pricingRequired,
+                            String reason, String clinicalDescription) {
+            this(catalogItemId, itemCode, itemName, serviceType, quantity, unitCode, priceType, pricingRequired,
+                    reason, clinicalDescription, null, null);
+        }
         public ServiceInput(Long catalogItemId, BigDecimal quantity, String unitCode,
                             String priceType, Boolean pricingRequired, String reason,
                             String clinicalDescription) {
-            this(catalogItemId, null, null, null, quantity, unitCode, priceType, pricingRequired, reason, clinicalDescription);
+            this(catalogItemId, null, null, null, quantity, unitCode, priceType, pricingRequired, reason, clinicalDescription, null, null);
         }
     }
 
@@ -126,7 +158,17 @@ public final class OutpatientPlanTemplateContracts {
             @Size(max = 20) List<@Valid DiagnosisInput> diagnoses,
             @Size(max = 50) List<@Valid MedicationInput> medications,
             @Size(max = 50) List<@Valid ServiceInput> services,
-            @Size(max = 30) List<@Valid PlanTaskInput> tasks) {}
+            @Size(max = 30) List<@Valid PlanTaskInput> tasks,
+            /** 可空；若提供必须与已保存类型一致，模板类型创建后不能变更。 */
+            @Size(max = 16) String templateKind) {
+        public UpdateRequest(Long expectedRevision, String scopeType, String name, String description,
+                             Integer sortOrder, String guidelineReference, Long noteTemplateId,
+                             List<DiagnosisInput> diagnoses, List<MedicationInput> medications,
+                             List<ServiceInput> services, List<PlanTaskInput> tasks) {
+            this(expectedRevision, scopeType, name, description, sortOrder, guidelineReference, noteTemplateId,
+                    diagnoses, medications, services, tasks, null);
+        }
+    }
 
     @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateView")
     public record View(Long id, long revision, String scopeType, String name, String description,
@@ -135,7 +177,8 @@ public final class OutpatientPlanTemplateContracts {
                        int sortOrder, long useCount, Instant lastUsedAt,
                        List<DiagnosisView> diagnoses, List<MedicationView> medications,
                        List<ServiceView> services, List<PlanTaskInput> tasks,
-                       Instant createdAt, Instant updatedAt, PlanSearchProfile searchProfile) {}
+                       Instant createdAt, Instant updatedAt, PlanSearchProfile searchProfile,
+                       String templateKind) {}
 
     @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateDiagnosisView")
     public record DiagnosisView(String codeSystem,
@@ -152,11 +195,12 @@ public final class OutpatientPlanTemplateContracts {
                                  String medicationInstruction,
                                  @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
                                  boolean pricingRequired,
-                                 String reason) {}
+                                 String reason, boolean defaultSelected) {}
     @io.swagger.v3.oas.annotations.media.Schema(name = "OutpatientPlanTemplateServiceView")
     public record ServiceView(Long catalogItemId, String itemCode, String itemName,
                               @DictionaryBinding(MasterDataDictionaryCodes.SERVICE_TYPE) String serviceType,
                               BigDecimal quantity, String unitCode,
                               @DictionaryBinding(MasterDataDictionaryCodes.PRICE_TYPE) String priceType,
-                              boolean pricingRequired, String reason, String clinicalDescription) {}
+                              boolean pricingRequired, String reason, String clinicalDescription,
+                              boolean defaultSelected, Long executionDepartmentId) {}
 }

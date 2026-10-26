@@ -16,7 +16,7 @@ export const dimensions = [
 ].map(([value, label]) => ({ value, label }))
 
 export const groupTypeLabels: Record<ItemGroup['groupType'], string> = {
-  LIS: '检验组套', PACS: '检查组套', ORDER_SET: '常用组合项目', PACKAGE: '项目包',
+  LIS: '检验组合', PACS: '检查组合', ORDER_SET: '常用组合项目（将迁至临床模板库）', PACKAGE: '项目包',
 }
 
 export function requireOperationalRows<T>(rows: T[], name: string): T[] {
@@ -38,10 +38,10 @@ export function DataTable({ headers, rows }: { headers: string[]; rows: ReactNod
   </UiDataTable></TableShell>
 }
 
-export function ClinicalDataTable({ headers, rows, colWidths }: { headers: string[]; rows: ReactNode[][]; colWidths?: string[] }) {
+export function ClinicalDataTable({ headers, rows, colWidths, fixed = false }: { headers: string[]; rows: ReactNode[][]; colWidths?: string[]; fixed?: boolean }) {
   return (
     <div style={{ width: '100%', overflowX: 'hidden' }}>
-      <UiDataTable className="clinical-table">
+      <UiDataTable className={fixed ? 'clinical-table clinical-table--fixed' : 'clinical-table'}>
         {colWidths && (
           <colgroup>
             {colWidths.map((w, idx) => <col key={idx} style={{ width: w }} />)}
@@ -75,50 +75,70 @@ export function tubeDotColor(containerName: string, groupCode: string) {
 }
 
 export function sitePricingDetail(ex: NonNullable<ClinicalConfiguration['examination']>) {
-  if (ex.sitePricingMode === 'SINGLE') return '不论选择多少个部位，主项目仅收 1 次基准费用'
-  if (ex.sitePricingMode === 'PER_SITE') return '按选择的部位总数量，每个部位全额（100%）收取主项费用'
-  if (ex.sitePricingMode === 'BASE_PLUS_FIXED') return `超出基础部位后，每增加 1 个部位固定加收 ¥${ex.additionalSitePrice ?? '未配置'}`
-  if (ex.sitePricingMode === 'BASE_PLUS_ITEM') return `超出基础部位后，每增加 1 个部位加收项目【${ex.additionalSiteItemName || `项目 ${ex.additionalSiteItemId ?? '未配置'}`}】 × ${ex.additionalSiteQuantity ?? '未配置'}`
+  const included = `前 ${ex.includedSiteCount} 个部位含在主收费内`
+  if (ex.sitePricingMode === 'SINGLE') return '不论选几个部位，主收费只收 1 次'
+  if (ex.sitePricingMode === 'PER_SITE') return '主收费按计费部位数收取，每个部位收 1 次'
+  if (ex.sitePricingMode === 'BASE_PLUS_FIXED') return `${included}，之后每多 1 个部位加收 ¥${ex.additionalSitePrice ?? '未配置'}`
+  if (ex.sitePricingMode === 'BASE_PLUS_ITEM') return `${included}，之后每多 1 个部位加收【${ex.additionalSiteItemName || `项目 ${ex.additionalSiteItemId ?? '未配置'}`}】× ${ex.additionalSiteQuantity ?? '未配置'}`
+  if (ex.sitePricingMode === 'TIERED_ITEM') return ex.priceTiers.length
+    ? ex.priceTiers.map((tier) => `${priceTierRange(tier)} → ${tier.chargeItemName} × ${tier.chargeQuantity}`).join('；')
+    : '尚未维护计价档位'
   return '未设定多部位计价策略'
 }
 
-export function ChargeLines({ lines }: { lines: DiagnosticChargeLine[] }) {
+/** 开单时的部位约束，例如“必选，最多 6 个”。 */
+export const siteConstraintLabel = (ex: NonNullable<ClinicalConfiguration['examination']>) =>
+  !ex.bodySiteRequired ? '不需选择' : !ex.multiBodySite ? '必选 1 个'
+    : `必选，最多 ${ex.maxBodySiteCount ? `${ex.maxBodySiteCount} 个` : '不限'}`
+
+/** 收费明细：固定金额直接显示；按物价项收费的行有单价时显示单价与金额，任一收费行缺金额则不出合计。 */
+export function ChargeLines({ lines, unitPrices }: { lines: DiagnosticChargeLine[]; unitPrices?: Record<string, number | undefined> }) {
   if (!lines.length) return <p className="rule-simulator__empty">本次试算未返回收费明细。</p>
-  const totalAmount = knownChargeTotal(lines)
+  const amountOf = (line: DiagnosticChargeLine) => line.fixedAmount ?? (unitPrices?.[line.catalogItemId] == null
+    ? undefined : unitPrices[line.catalogItemId]! * line.quantity)
+  const billable = lines.filter((line) => line.separatelyChargeable)
+  const totalAmount = unitPrices ? (billable.some((line) => amountOf(line) == null) ? undefined
+    : billable.reduce((sum, line) => sum + amountOf(line)!, 0)) : knownChargeTotal(lines)
   return (
     <div className="sandbox-charge-wrap">
       <div className="sandbox-charge-list">
-        {lines.map((line, idx) => (
-          <div key={idx} className="sandbox-charge-item">
+        {lines.map((line, idx) => {
+          const amount = amountOf(line)
+          const unitPrice = line.fixedAmount == null ? unitPrices?.[line.catalogItemId] : undefined
+          return <div key={idx} className="sandbox-charge-item">
             <div className="sandbox-charge-item__main">
-              <strong>{line.itemName}</strong>
+              <strong title={line.itemName}>{line.itemName}</strong>
               <code>{line.itemCode} · {chargeSourceLabel(line.sourceType)}</code>
             </div>
             <div className="sandbox-charge-item__price">
-              <span>{line.quantity}{line.unitCode ? ` ${line.unitCode}` : ' 次'}</span>
-              {!line.separatelyChargeable ? <span>不单独计费</span> : line.fixedAmount != null ? (
-                <strong>¥ {line.fixedAmount.toFixed(2)}</strong>
-              ) : (
-                <span  className="clinical-content-25">按项目价格计费，金额待计价</span>
-              )}
+              <span>{line.quantity} {line.unitCode || '次'}{unitPrice != null ? ` × ¥${unitPrice.toFixed(2)}` : ''}</span>
+              {!line.separatelyChargeable ? <span>不单独收费</span> : amount != null ? (
+                <strong>¥ {amount.toFixed(2)}</strong>
+              ) : <span className="clinical-content-25">{unitPrices ? '未取到本院价格' : '按项目价格计费，金额待计价'}</span>}
             </div>
           </div>
-        ))}
+        })}
       </div>
       {totalAmount !== undefined ? (
         <div className="charge-total-bar">
-          <span>当前收费明细合计：</span>
+          <span>合计</span>
           <strong>¥ {totalAmount.toFixed(2)}</strong>
         </div>
-      ) : <p className="rule-simulator__empty">部分项目尚未计价，当前无法确认费用合计。</p>}
+      ) : <p className="rule-simulator__empty">{unitPrices ? '有收费项目未取到本院价格，无法确认合计。' : '部分项目尚未计价，当前无法确认费用合计。'}</p>}
     </div>
   )
 }
 
 export const sitePricingLabel = (value: NonNullable<ClinicalConfiguration['examination']>) => ({
-  SINGLE: '主项计费一次', PER_SITE: '按部位计主项', BASE_PLUS_FIXED: `含 ${value.includedSiteCount} 个 · 超出固定加收`,
-  BASE_PLUS_ITEM: `含 ${value.includedSiteCount} 个 · 超出加收项目`,
+  SINGLE: '只收一次', PER_SITE: '按部位计费', BASE_PLUS_FIXED: `含 ${value.includedSiteCount} 个部位，超出固定加收`,
+  BASE_PLUS_ITEM: `含 ${value.includedSiteCount} 个部位，超出加收项目`,
+  TIERED_ITEM: `阶梯计价 ${value.priceTiers.length} 档`,
 }[value.sitePricingMode])
+
+/** 档位的计费部位数区间文字，例如“1 个部位”“2–3 个部位”“≥4 个部位”。 */
+export const priceTierRange = (tier: { siteFrom: number; siteTo?: number | null }) =>
+  tier.siteTo == null ? `≥${tier.siteFrom} 个部位`
+    : tier.siteTo === tier.siteFrom ? `${tier.siteFrom} 个部位` : `${tier.siteFrom}–${tier.siteTo} 个部位`
 
 export const tubeRuleLabel = (value: SpecimenConfiguration) => {
   const sharing = { SEPARATE: '独立分管', SHARE: '同组共管', BY_TEST_COUNT: `每管最多 ${value.maxTestsPerTube} 项` }[value.tubeSharingMode]
@@ -132,7 +152,7 @@ export const attachmentQuantityLabel = (value: ExaminationAttachmentConfiguratio
 
 export const tubeSharingModeLabel = (value: SpecimenConfiguration['tubeSharingMode']) => ({ SEPARATE: '独立分管', SHARE: '同组共管', BY_TEST_COUNT: '按项目数拆管' }[value])
 
-export const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', MULTI_SITE_FIXED: '多部位固定加收', MULTI_SITE_ITEM: '多部位加收项目', ATTACHMENT: '附加收费规则', TUBE_SURCHARGE: '试管加收' }[value] ?? value)
+export const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', TIER: '阶梯档位', MULTI_SITE_FIXED: '多部位固定加收', MULTI_SITE_ITEM: '多部位加收项目', ATTACHMENT: '附加收费规则', TUBE_SURCHARGE: '试管加收' }[value] ?? value)
 
 export function FormDialog({
   title, description, onClose, onSubmit, size = 'wide', className = '',

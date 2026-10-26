@@ -1,6 +1,6 @@
 /* 临床项目紧凑头部看板 (Clinical Header Card) */
 .clinical-header-card {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -339,6 +339,25 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* 检查项目：配置在上、试算在下，各占满宽度，避免左右两条长栏 */
+.clinical-workbench-grid--stacked { grid-template-columns: minmax(0, 1fr); }
+.clinical-workbench-grid--stacked > .clinical-workbench-grid__aside { position: static; }
+.rule-simulator--wide .rule-simulator__body {
+  display: grid;
+  grid-template-columns: minmax(16rem, 2fr) minmax(0, 3fr);
+  align-items: stretch;
+}
+.rule-simulator--wide .rule-simulator__result { border-top: 0; border-left: 1px solid var(--color-border); }
+.rule-simulator--wide .rule-option-grid--sites {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  max-height: 14rem;
+}
+@media (max-width: 900px) {
+  .rule-simulator--wide .rule-simulator__body { grid-template-columns: minmax(0, 1fr); }
+  .rule-simulator--wide .rule-simulator__result { border-left: 0; border-top: 1px solid var(--color-border); }
 }
 
 /* 试算沙盒外框 */
@@ -779,6 +798,8 @@
   width: 100%;
   border-collapse: collapse;
 }
+.clinical-table--fixed { table-layout: fixed; }
+.clinical-table--fixed .clinical-tag-pill, .exam-pricing .clinical-tag-pill { white-space: nowrap; }
 .clinical-table th {
   padding: calc(var(--space-1) * 2.4) var(--space-3);
   background: var(--color-surface-subtle);
@@ -3005,11 +3026,20 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   margin: var(--space-2) 0;
 }
 
-.clinical-project-aliases {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
+.clinical-project-aliases { margin-top: var(--space-3); }
+.clinical-project-aliases__body { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.clinical-project-aliases__add { display: flex; align-items: center; gap: var(--space-2); max-width: 32rem; }
+.clinical-project-aliases__add input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-body);
 }
+.clinical-project-aliases__add input:focus-visible { border-color: var(--color-brand-primary); outline: 0; box-shadow: var(--shadow-focus); }
 
 .clinical-project-aliases__list {
   display: flex;
@@ -3037,3 +3067,114 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   cursor: pointer;
   line-height: var(--line-height-small);
 }
+
+/* 检查执行与收费：计价规则卡片 */
+.exam-pricing {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.exam-pricing__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.exam-pricing__head h4 { margin: 0; font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.exam-pricing__head p { margin: calc(var(--space-1) * 0.5) 0 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.exam-pricing__rule { margin: 0; font-size: var(--font-size-body); line-height: var(--line-height-body); color: var(--color-text-primary); }
+.exam-tier-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.exam-tier-list li {
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) auto 3.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-body);
+}
+.exam-tier-list li + li { border-top: 1px solid var(--color-border); }
+.exam-tier-list__range { color: var(--color-info-strong); font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.exam-tier-list strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--font-weight-medium); }
+.exam-tier-list code { font-family: var(--font-family-mono); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.exam-tier-list__qty { text-align: right; color: var(--color-text-secondary); white-space: nowrap; }
+
+/* 检查执行与收费：表格名称列、提示与准备说明 */
+.exam-cell-title { min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); overflow: hidden; }
+.exam-cell-title strong { min-width: 0; font-weight: var(--font-weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exam-cell-title code { font-family: var(--font-family-mono); font-size: var(--font-size-small); color: var(--color-text-secondary); white-space: nowrap; }
+.exam-section-hint {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-small);
+  color: var(--color-warning-strong);
+  background: var(--color-warning-soft);
+  border-bottom: 1px solid var(--color-warning-border);
+}
+.exam-preparation-text { margin: 0; padding: var(--space-3) var(--space-4); line-height: var(--line-height-body); white-space: pre-wrap; }
+.clinical-tag-pill--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-strong);
+  border-color: var(--color-warning-border);
+}
+/* 检查收费试算：部位选择 */
+.rule-simulator__label { margin-bottom: var(--space-1); display: flex; align-items: baseline; justify-content: space-between; }
+.rule-option-grid--sites { max-height: 12rem; overflow-y: auto; }
+
+/* 诊疗项目主档弹窗：分区紧凑，目录角色与约束并排，角色说明随勾选变化 */
+.service-catalog-dialog .master-data-form-section { padding: var(--space-4) 0; }
+.service-catalog-dialog .master-data-form-section > header { margin-bottom: var(--space-3); }
+.service-catalog-dialog .master-data-form-grid { gap: var(--space-3) var(--space-4); }
+.service-role {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 4fr);
+  gap: var(--space-3) var(--space-4);
+}
+.service-role__group.master-data-checkboxes { grid-column: auto; padding: var(--space-2) var(--space-4) var(--space-3); }
+.service-role__hint {
+  margin: 0;
+  grid-column: 1 / -1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-info-border);
+  background: var(--color-info-soft);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-body);
+}
+.service-role__hint strong { color: var(--color-info-strong); }
+.service-role__hint.is-warning { border-color: var(--color-warning-border); background: var(--color-warning-soft); }
+.service-role__hint.is-warning strong { color: var(--color-warning-strong); }
+.service-role__hint.is-danger { border-color: var(--color-danger-border); background: var(--color-danger-soft); }
+.service-role__hint.is-danger strong { color: var(--color-danger); }
+.service-catalog-dialog .master-data-attribute-editor { margin-top: var(--space-2); }
+.service-catalog-dialog .master-data-attribute-editor > input,
+.service-catalog-dialog .master-data-attribute-editor > textarea {
+  height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+}
+.service-catalog-dialog .master-data-attribute-editor > textarea { height: auto; padding: var(--space-2) var(--space-3); }
+.service-catalog-dialog .master-data-attribute-editor > input:focus-visible,
+.service-catalog-dialog .master-data-attribute-editor > textarea:focus-visible {
+  border-color: var(--color-brand-primary);
+  outline: 0;
+  box-shadow: var(--shadow-focus);
+}
+.exam-cell-title--stack { flex-direction: column; align-items: flex-start; gap: calc(var(--space-1) * 0.5); }
+.exam-cell-title--stack strong { white-space: normal; }

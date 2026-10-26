@@ -17,7 +17,8 @@ import {
   schemaEnum,
   schemaKeyword,
   schemaNullable,
-  scopeLabel,
+  scopeOptions,
+  variabilityOptions,
   stripCode,
   type Scope,
 } from './attributeConfigurationUtils'
@@ -246,11 +247,7 @@ export function AttributeDefinitionDialog({
               <Select
                 value={variability}
                 onChange={(item) => setVariability(item as ItemAttributeDefinitionInput['variability'])}
-                options={[
-                  { value: 'BASE_ONLY', label: '仅公共基线' },
-                  { value: 'SCOPE_OVERRIDE', label: '允许作用域覆盖' },
-                  { value: 'LOCAL_ONLY', label: '必须本地配置' },
-                ]}
+                options={variabilityOptions}
               />
             </FormField>
             <FormField label="上下文依据" required>
@@ -263,7 +260,7 @@ export function AttributeDefinitionDialog({
             {variability !== 'BASE_ONLY' && (
               <FormField label="允许作用域" required className="span-2">
                 <div className="attribute-scope-options">
-                  {(['TENANT', 'ORGANIZATION', 'DEPARTMENT'] as Scope[]).map((scope) => (
+                  {scopeOptions.map(({ value: scope, label }) => (
                     <label key={scope}>
                       <input
                         type="checkbox"
@@ -276,7 +273,7 @@ export function AttributeDefinitionDialog({
                           )
                         }
                       />
-                      <span>{scopeLabel(scope)}</span>
+                      <span>{label}</span>
                     </label>
                   ))}
                 </div>

@@ -26,6 +26,7 @@ import { type ClinicalAiDraftRequest } from "../ai/aiDraftAdapter";
 import { QueueCapsuleBar } from "../waiting/QueueCapsuleBar";
 import { QueuePeekDrawer } from "../waiting/QueuePeekDrawer";
 import type { EnhancedQueueItem } from "../waiting/queueTypes";
+import type { OrderSetPreselect, TemplatePurpose } from '../templates/templateLibrary'
 import { type QueueCommand, type WorkTool, type HistoryCopyDraft, type EncounterDraftState, emptyDraftState, type GuardedPatientAction, commandCode, draftStateLabels, AllergyContextValue, toggleTool, toolLabel, ToolButton } from './workstationShared'
 import { ClinicalRecordPanel } from '../record/ClinicalRecordPanel'
 import { HistoryPanel } from '../history/HistoryPanel'
@@ -95,6 +96,16 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
   const [aiDetail, setAiDetail] = useState<HTMLDivElement | null>(null)
   const [aiChiefComplaint, setAiChiefComplaint] = useState<HTMLDivElement | null>(null)
   const [recommendedPlanId, setRecommendedPlanId] = useState<string>()
+  // 统一模板抽屉的打开用途：临床模板工具钮和 AI 推荐为 DIAGNOSIS，病历区为 RECORD，医嘱区为 ORDERS。
+  const [templatePurpose, setTemplatePurpose] = useState<TemplatePurpose>('DIAGNOSIS')
+  // 医嘱录入框检索选中新医嘱组套时，随用途一并请求抽屉预选该组套（其余入口不带预选）。
+  const [templatePreselect, setTemplatePreselect] = useState<OrderSetPreselect>()
+  const preselectNonce = useRef(0)
+  const openTemplateLibrary = useCallback((purpose: TemplatePurpose, orderSetId?: string) => {
+    setTemplatePurpose(purpose)
+    setTemplatePreselect(orderSetId ? { id: orderSetId, nonce: ++preselectNonce.current } : undefined)
+    setActiveTool('plans')
+  }, [])
   const [planTemplateDrawerHost, setPlanTemplateDrawerHost] = useState<HTMLDivElement | null>(null)
   const workspaceDrawerRef = useRef<HTMLElement | null>(null)
   const aiSurfaceRefs = useMemo<ClinicalAiSurfaceRefs>(() => ({
@@ -530,8 +541,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
                 triageVitals={effectiveTriageVitals}
                 historyEncounters={encounters.data ?? []}
-                planTemplateDrawerHost={planTemplateDrawerHost} recommendedPlanId={recommendedPlanId}
-                onClosePlanDrawer={() => setActiveTool(null)} onOpenPrintCenter={() => setActiveTool('prints')} />
+                planTemplateDrawerHost={planTemplateDrawerHost} planTemplatePurpose={templatePurpose} planTemplatePreselect={templatePreselect} recommendedPlanId={recommendedPlanId}
+                onClosePlanDrawer={() => setActiveTool(null)} onOpenTemplateLibrary={openTemplateLibrary} onOpenPrintCenter={() => setActiveTool('prints')} />
           </main>
           {editing && encounter.status === 'IN_PROGRESS' && aiContext?.encounterId === encounter.id
             && aiContext.residentId === encounter.residentId && (
@@ -543,7 +554,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
                   surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail,
                     chiefComplaint: aiChiefComplaint }}
                   onOpenDetail={() => setActiveTool('assistant')}
-                  onReviewRecommendedPlan={(plan) => { setRecommendedPlanId(plan.templateId); setActiveTool('plans') }}
+                  onReviewRecommendedPlan={(plan) => { setRecommendedPlanId(plan.templateId); openTemplateLibrary('DIAGNOSIS') }}
                   onOpenHistory={() => setActiveTool('history')} onOpenResults={(ids) => {
                     setReportFocus({ encounterId: encounter.id, ids }); setActiveTool('results')
                   }}
@@ -582,7 +593,7 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
           <nav className="doctor-workspace-tools" aria-label="医生站扩展工具">
             {editing && encounter.status === 'IN_PROGRESS' && outpatientNote?.status !== 'SIGNED'
               && <ToolButton icon="stethoscope" label="临床模板" active={activeTool === 'plans'}
-                onClick={() => setActiveTool(toggleTool(activeTool, 'plans'))} />}
+                onClick={() => { setTemplatePurpose('DIAGNOSIS'); setTemplatePreselect(undefined); setActiveTool(toggleTool(activeTool, 'plans')) }} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
             <ToolButton icon="clinical" label="检验报告" active={activeTool === 'results'} onClick={() => {
               setReportFocus(undefined); setActiveTool(toggleTool(activeTool, 'results'))

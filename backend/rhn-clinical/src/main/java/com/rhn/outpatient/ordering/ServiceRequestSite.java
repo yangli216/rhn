@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** 检查申请开立时选择的一个部位；名称、标准概念和互认编码均为开立时快照。 */
+/** 检查申请开立时选择的一个部位；名称、标准概念、互认编码和计费部位数均为开立时快照。 */
 @Entity
 @Table(name = "RHN_EX_SVC_REQ_SITE")
 class ServiceRequestSite {
@@ -23,6 +23,7 @@ class ServiceRequestSite {
     @Column(name = "ID_CONCEPT_BODY_SITE") private Long bodySiteConceptId;
     @Column(name = "SD_METHOD_TYPE") private String methodType;
     @Column(name = "CD_MUTUAL_RECOG") private String mutualRecognitionCode;
+    @Column(name = "QTY_CHGBL_SITE_UNIT", nullable = false) private int chargeableSiteUnits;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected ServiceRequestSite() {}
@@ -38,6 +39,7 @@ class ServiceRequestSite {
         this.bodySiteConceptId = site.bodySiteConceptId();
         this.methodType = site.methodType();
         this.mutualRecognitionCode = site.mutualRecognitionCode();
+        this.chargeableSiteUnits = site.chargeableSiteUnits();
         this.createdAt = Instant.now();
     }
 

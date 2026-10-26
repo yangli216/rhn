@@ -736,7 +736,7 @@
 
 .pharmacy-queue-item__badge,
 .pharmacy-queue-item__badge-waiting {
-  padding: 1px var(--space-2);
+  padding: calc(var(--space-1) / 4) var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
@@ -1020,7 +1020,7 @@
 .pharmacy-prescription-card__status {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
-  padding: 2px var(--space-3);
+  padding: calc(var(--space-1) / 2) var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
@@ -1144,14 +1144,14 @@
 .pharmacy-prescription-table thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-sticky);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   white-space: nowrap;
   border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 1px 0 var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   letter-spacing: 0;
   height: 2.25rem;
   padding: var(--space-1) var(--space-3);

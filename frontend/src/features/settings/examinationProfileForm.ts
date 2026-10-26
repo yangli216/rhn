@@ -10,6 +10,8 @@ export function examinationProfileForm(value: ExaminationProfile) {
     includedSiteCount: value.includedSiteCount.toString(), additionalSitePrice: value.additionalSitePrice?.toString() ?? '',
     additionalSiteItemId: value.additionalSiteItemId ?? '', additionalSiteQuantity: value.additionalSiteQuantity.toString(),
     maxChargeableSiteCount: value.maxChargeableSiteCount?.toString() ?? '',
+    baseChargeItemId: value.baseChargeItemId ?? '',
+    examinationTechnique: value.examinationTechnique ?? '', contrastPhase: value.contrastPhase ?? '',
   }
 }
 
@@ -41,11 +43,17 @@ export function examinationProfileInput(form: ReturnType<typeof examinationProfi
   if (additionalSiteQuantity === 0) throw new Error('每超出部位加收数量必须大于 0。')
   const additionalSitePrice = mode === 'BASE_PLUS_FIXED' ? numberInput(form.additionalSitePrice, '每超出部位加收金额', 0) : undefined
   if (mode === 'BASE_PLUS_ITEM' && !form.additionalSiteItemId) throw new Error('请选择多部位加收项目。')
+  if (mode === 'TIERED_ITEM' && form.baseChargeItemId) throw new Error('阶梯计价按档位收费，不能再配置主收费物价项。')
   return {
     examinationType: form.examinationType || undefined, bodySiteRequired: form.bodySiteRequired, multiBodySite,
     maxBodySiteCount, preparationDescription: form.preparationDescription || undefined,
     sitePricingMode: mode, includedSiteCount, additionalSitePrice,
     additionalSiteItemId: mode === 'BASE_PLUS_ITEM' ? form.additionalSiteItemId : undefined,
     additionalSiteQuantity, maxChargeableSiteCount,
+    baseChargeItemId: mode === 'TIERED_ITEM' ? undefined : form.baseChargeItemId || undefined,
+    examinationTechnique: form.examinationType === 'ULTRASOUND' && form.examinationTechnique
+      ? form.examinationTechnique as ExaminationProfileInput['examinationTechnique'] : undefined,
+    contrastPhase: ['CT', 'MRI'].includes(form.examinationType) && form.contrastPhase
+      ? form.contrastPhase as ExaminationProfileInput['contrastPhase'] : undefined,
   }
 }

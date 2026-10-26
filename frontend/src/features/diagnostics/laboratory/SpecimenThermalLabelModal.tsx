@@ -3,7 +3,6 @@ import type { DiagnosticExecutionTask, DiagnosticSpecimen } from '../../../share
 import { formatTime } from '../../../shared/format'
 import { Alert, Button, Dialog } from '../../../shared/ui'
 import {
-  recommendSpecimenTubeByItemName,
   findSpecimenTubeByCode,
 } from '../../../shared/clinical/specimenTubeStandards'
 import { DiagnosticPrintAction } from '../../../shared/clinical/DiagnosticPrintAction'
@@ -33,7 +32,7 @@ export function SpecimenThermalLabelModal({
   onClose,
 }: SpecimenThermalLabelModalProps) {
   const [printSuccess, setPrintSuccess] = useState(false)
-  const tube = findSpecimenTubeByCode(specimen.containerCode) ?? recommendSpecimenTubeByItemName(specimen.specimenName)
+  const tube = findSpecimenTubeByCode(specimen.containerCode, specimen.containerName)
 
   const handlePrint = () => {
     window.print()
@@ -96,12 +95,12 @@ export function SpecimenThermalLabelModal({
 
             <div className="specimen-thermal-tube-row">
               <span className="diagnostic-tube-badge">
-                <span className={`diagnostic-tube-dot diagnostic-tube-dot--${tube.capColorKey}`} aria-hidden="true" />
+                <span className={`diagnostic-tube-dot diagnostic-tube-dot--${tube?.capColorKey ?? 'default'}`} aria-hidden="true" />
                 <span className="specimen-thermal-tube-name">
-                  {tube.specimenType} · {tube.tubeName}
+                  {specimen.specimenName} · {specimen.containerName || tube?.tubeName || '未指定容器'}
                 </span>
               </span>
-              {tube.drawVolumeMl && <small className="specimen-thermal-vol">{tube.drawVolumeMl}mL</small>}
+              {tube?.drawVolumeMl && <small className="specimen-thermal-vol">{tube.drawVolumeMl}mL</small>}
             </div>
 
             <div className="specimen-thermal-barcode-area">

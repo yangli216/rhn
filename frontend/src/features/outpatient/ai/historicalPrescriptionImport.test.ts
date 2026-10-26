@@ -46,6 +46,9 @@ describe('historical prescription import uses current facts', () => {
       unitPrice: 2.5, currencyCode: 'USD', availablePackageQuantity: 10, packageUnitName: '盒', quantityManuallySet: true,
       request: { doseValue: 5, quantity: 2, quantityUnit: 'BOX', medicationInstruction: '明确嘱托',
         substitutionAllowed: true, selfProvided: false, pricingRequired: true, allergyReviewConfirmed: true } })
+    expect(draft.unitPrice).not.toBe(9.99)
+    expect(draft.request).not.toHaveProperty('unitPrice')
+    expect(draft.request).not.toHaveProperty('priceId')
     expect(draft.request).not.toHaveProperty('prescriptionId')
     expect(draft.request).not.toHaveProperty('parentRequestId')
   })

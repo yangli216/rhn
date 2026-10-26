@@ -47,7 +47,7 @@ describe('record quality physician feedback', () => {
     expect(trigger).toHaveFocus()
     expect(screen.queryByRole('dialog', { name: '病历核查结果' })).not.toBeInTheDocument()
     await user.click(trigger)
-    await user.click(document.body)
+    await user.click(globalThis.document.body)
     expect(screen.queryByRole('dialog', { name: '病历核查结果' })).not.toBeInTheDocument()
     expect(client.assessRecordQuality).toHaveBeenCalledTimes(1)
   })

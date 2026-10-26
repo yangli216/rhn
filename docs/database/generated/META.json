@@ -1,5 +1,5 @@
 {
-  "fingerprint": "9d67ce5d52ee558eea83c6f1e5c3c71f477d8545df168f6e8fc957eed2005603",
+  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
   "tables": [
     {
       "logical": "meta.outpatient_note_form_version",
@@ -1478,6 +1478,18 @@
           "comment": "原因文本",
           "logical": "reason_text",
           "catalogComment": "原因文本"
+        },
+        {
+          "physical": "FG_DEFAULT_SELCTD",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "TRUE",
+          "ordinal": 27,
+          "comment": "带入预览中是否默认勾选；用于组套中的可选药品",
+          "logical": "default_selected",
+          "catalogComment": "带入预览中是否默认勾选；用于组套中的可选药品"
         }
       ],
       "previousPhysical": "RHN_META_OP_PLAN_MEDICAT",
@@ -1497,7 +1509,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_OP_PLAN_M_META_OP_OPM__INDEX_E",
+          "name": "FK_META_OP_PLAN_M_META_OP_OPM__INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -1513,7 +1525,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_ED",
+          "name": "PRIMARY_KEY_1A3",
           "columns": [
             {
               "position": 1,
@@ -1524,7 +1536,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_PLAN_MED_OPM_LINE_INDEX_E",
+          "name": "UK_META_OP_PLAN_MED_OPM_LINE_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -1749,6 +1761,30 @@
           "comment": "临床说明",
           "logical": "clinical_description",
           "catalogComment": "临床说明"
+        },
+        {
+          "physical": "FG_DEFAULT_SELCTD",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "TRUE",
+          "ordinal": 15,
+          "comment": "带入预览中是否默认勾选；用于组套中的可选项目",
+          "logical": "default_selected",
+          "catalogComment": "带入预览中是否默认勾选；用于组套中的可选项目"
+        },
+        {
+          "physical": "ID_DEPT_EXEC",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "默认执行科室；为空时沿用项目默认执行科室规则",
+          "logical": "execution_department_id",
+          "catalogComment": "默认执行科室；为空时沿用项目默认执行科室规则"
         }
       ],
       "kind": "BASE TABLE",
@@ -1767,7 +1803,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_META_OP_PLAN_S_META_OP_OPS__INDEX_E",
+          "name": "FK_META_OP_PLAN_S_META_OP_OPS__INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -1783,7 +1819,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_ED5",
+          "name": "PRIMARY_KEY_1BD8",
           "columns": [
             {
               "position": 1,
@@ -1794,7 +1830,7 @@
           "unique": true
         },
         {
-          "name": "UK_META_OP_PLAN_SVC_OPS_LINE_INDEX_E",
+          "name": "UK_META_OP_PLAN_SVC_OPS_LINE_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -1841,7 +1877,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/template/OutpatientPlanTemplateLines.java",
-          "line": 98
+          "line": 101
         }
       ]
     },
@@ -2115,6 +2151,18 @@
           "comment": "当前诊疗方案内容派生的检索摘要、条件、关键词及内容指纹",
           "logical": "search_profile",
           "catalogComment": "当前诊疗方案内容派生的检索摘要、条件、关键词及内容指纹"
+        },
+        {
+          "physical": "SD_TMPL_KIND",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "'PROTOCOL'",
+          "ordinal": 23,
+          "comment": "模板类型：PROTOCOL 诊疗方案、ORDER_SET 医嘱组套；存量均为诊疗方案",
+          "logical": "template_kind",
+          "catalogComment": "模板类型：PROTOCOL 诊疗方案、ORDER_SET 医嘱组套；存量均为诊疗方案"
         }
       ],
       "kind": "BASE TABLE",
@@ -2238,6 +2286,32 @@
           "unique": false
         },
         {
+          "name": "IDX_META_OP_PLAN_T_OPT_KIND",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_ORG",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_TMPL_KIND",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
           "name": "IDX_META_OP_PLAN_T_OPT_VISIBLE",
           "columns": [
             {
@@ -2279,7 +2353,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_EC",
+          "name": "PRIMARY_KEY_ECF",
           "columns": [
             {
               "position": 1,
@@ -2338,6 +2412,10 @@
         }
       ],
       "checks": [
+        {
+          "name": "CK_META_OP_PLAN_T_OPT_KIND",
+          "expression": "\"sd_tmpl_kind\" IN('PROTOCOL', 'ORDER_SET')"
+        },
         {
           "name": "CK_META_OP_PLAN_T_OPT_STATUS",
           "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"

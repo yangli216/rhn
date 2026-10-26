@@ -638,21 +638,39 @@ export interface LaboratoryProfile {
   collectionDescription?: string; specimens: SpecimenConfiguration[]
 }
 export interface ExaminationVariantConfiguration {
-  id: string; revision: number; bodySiteConceptId?: string; code: string; name: string
+  id: string; revision: number; bodySiteConceptId?: string; bodySiteCode?: string; bodySiteName?: string
+  code: string; name: string
   methodType?: string; bodySiteRequired: boolean; mutualRecognitionCode?: string
-  sortOrder: number; status: OperationalStatus
+  sortOrder: number; status: OperationalStatus; chargeableSiteUnits: number
+}
+/** 阶梯计价档位：计费部位数落在 [siteFrom, siteTo] 时收 chargeItem × chargeQuantity；siteTo 为空表示无上限。 */
+export interface ExaminationPriceTier {
+  id: string; siteFrom: number; siteTo?: number; chargeItemId: string; chargeItemCode: string
+  chargeItemName: string; chargeQuantity: number
+}
+export type ExaminationPriceTierInput = Pick<ExaminationPriceTier, 'siteFrom' | 'siteTo' | 'chargeItemId' | 'chargeQuantity'>
+/** 检查部位词典中的标准部位；parentConceptIds 为 PART_OF 上级部位。 */
+export interface BodySite {
+  conceptId: string; code: string; name: string; searchCode?: string; aliases: string[]; parentConceptIds: string[]
 }
 export interface ExaminationProfile {
   serviceId: string; revision: number; examinationType?: string; bodySiteRequired: boolean
   multiBodySite: boolean; maxBodySiteCount?: number; preparationDescription?: string
-  sitePricingMode: 'SINGLE' | 'PER_SITE' | 'BASE_PLUS_FIXED' | 'BASE_PLUS_ITEM'
+  sitePricingMode: 'SINGLE' | 'PER_SITE' | 'BASE_PLUS_FIXED' | 'BASE_PLUS_ITEM' | 'TIERED_ITEM'
   includedSiteCount: number; additionalSitePrice?: number; additionalSiteItemId?: string
   additionalSiteItemCode?: string; additionalSiteItemName?: string; additionalSiteQuantity: number
-  maxChargeableSiteCount?: number; variants: ExaminationVariantConfiguration[]
+  maxChargeableSiteCount?: number
+  /** 主收费物价项；为空时主收费行收检查项目自身，阶梯计价模式下为空。 */
+  baseChargeItemId?: string; baseChargeItemCode?: string; baseChargeItemName?: string
+  priceTiers: ExaminationPriceTier[]
+  /** 超声方式与增强方式，供 AI 按“彩超/B超”“平扫/增强”定位开立项目。 */
+  examinationTechnique?: 'B_MODE' | 'COLOR_DOPPLER'; contrastPhase?: 'PLAIN' | 'ENHANCED' | 'PLAIN_ENHANCED'
+  variants: ExaminationVariantConfiguration[]
   attachments: ExaminationAttachmentConfiguration[]
 }
 export type ExaminationProfileInput = Omit<ExaminationProfile,
-  'serviceId' | 'revision' | 'variants' | 'attachments' | 'additionalSiteItemCode' | 'additionalSiteItemName'>
+  'serviceId' | 'revision' | 'variants' | 'attachments' | 'additionalSiteItemCode' | 'additionalSiteItemName'
+  | 'baseChargeItemCode' | 'baseChargeItemName' | 'priceTiers'>
 export interface ExaminationAttachmentConfiguration {
   id: string; revision: number; attachmentCatalogItemId: string; attachmentItemCode: string
   attachmentItemName: string; triggerType: 'ALWAYS' | 'OPTIONAL' | 'MULTI_SITE'
@@ -680,7 +698,7 @@ export interface DiagnosticChargeLine {
   sourceType: string; separatelyChargeable: boolean; fixedAmount?: number; description?: string
 }
 export interface ExaminationChargePlan {
-  serviceId: string; siteCount: number; sitePricingMode: ExaminationProfile['sitePricingMode']
+  serviceId: string; siteCount: number; chargeableSiteCount: number; sitePricingMode: ExaminationProfile['sitePricingMode']
   includedSiteCount: number; extraSiteCount: number; lines: DiagnosticChargeLine[]
 }
 export interface LaboratoryTubePlan {
@@ -693,6 +711,7 @@ export interface LaboratoryTubePlan {
 export interface ExaminationVariantInput {
   bodySiteConceptId?: string; code: string; name: string; methodType?: string
   bodySiteRequired: boolean; mutualRecognitionCode?: string; sortOrder: number; status: OperationalStatus
+  chargeableSiteUnits: number
 }
 export interface SupplyItem {
   id: string; revision: number; itemTypeId: string; supplyType: 'CONSUMABLE' | 'DEVICE'
@@ -1579,6 +1598,12 @@ export function createMasterDataApi(client: ApiClient) {
         `/api/platform/master-data/operations/services/${serviceId}/examination-variants/${value.id}`,
         { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
       ),
+    replaceExaminationPriceTiers: (serviceId: string, revision: number, tiers: ExaminationPriceTierInput[]) =>
+      client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-price-tiers`,
+        { method: 'PUT', body: JSON.stringify({ expectedRevision: revision, tiers }) },
+      ),
+    bodySites: () => client.request<BodySite[]>('/api/platform/terminology/body-sites'),
     createExaminationAttachment: (serviceId: string, input: ExaminationAttachmentInput) =>
       client.request<ClinicalConfiguration>(
         `/api/platform/master-data/operations/services/${serviceId}/examination-attachments`,

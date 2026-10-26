@@ -16,7 +16,14 @@ import { requirePlanApplicationShape } from './templateApplicationReceipt'
 
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 const positive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0
+/** 单条明细自身的校验失败（药品停用、价格缺失等）；可以跳过该行并继续带入其余明细。 */
+export class TemplateRowError extends Error {
+  readonly detail: string
+  constructor(detail: string) { super(`模板医嘱未带入：${detail}`); this.detail = detail }
+}
+// 整批共性失败（就诊上下文、目录请求等）不可跳过，仍整批不带入。
 const fail = (detail: string): never => { throw new Error(`模板医嘱未带入：${detail}`) }
+const failRow = (detail: string): never => { throw new TemplateRowError(detail) }
 const sameUnit = (left: string | undefined, right: string | undefined) => text(left) && text(right) && left.trim().toLowerCase() === right.trim().toLowerCase()
 function effective(row: { validFrom: string; validTo?: string }, at: string) {
   return z.iso.date().safeParse(row.validFrom).success && row.validFrom <= at && (row.validTo == null
@@ -26,37 +33,37 @@ function effective(row: { validFrom: string; validTo?: string }, at: string) {
 function productFacts(item: OutpatientPlanTemplateMedication, medication: MedicationKnowledge, organizationId: string, at: string) {
   const priced = item.pricingRequired ?? Boolean(item.catalogItemId && !item.selfProvided)
   if (!item.catalogItemId) {
-    if (!item.selfProvided) return fail(`${medication.name}未指定院内发药产品，请在模板或医嘱区明确选择产品`)
+    if (!item.selfProvided) return failRow(`${medication.name}未指定院内发药产品，请在模板或医嘱区明确选择产品`)
     if (item.packageId || priced || !sameUnit(item.quantityUnit, medication.preparationUnit)) {
-      return fail(`${medication.name}的自备药包装、计价设置或数量单位未确认`)
+      return failRow(`${medication.name}的自备药包装、计价设置或数量单位未确认`)
     }
     return { product: undefined, itemPackage: undefined, unitCode: medication.preparationUnit!, unitName: medication.preparationUnit!,
       packageFactor: 1, price: undefined, currencyCode: undefined, priced }
   }
-  if (!Array.isArray(medication.products)) return fail(`${medication.name}的产品目录未确认`)
+  if (!Array.isArray(medication.products)) return failRow(`${medication.name}的产品目录未确认`)
   const products = medication.products.filter(product => product?.id === item.catalogItemId)
-  if (products.length !== 1) return fail(`${medication.name}的原产品已不可用或不唯一`)
+  if (products.length !== 1) return failRow(`${medication.name}的原产品已不可用或不唯一`)
   const product = products[0], adoption = product.organizationAdoption
   if (product.medicationId !== medication.id || !text(product.name) || !text(product.unitCode)
     || product.sdStatus !== 'ACTIVE' || product.orderable !== true || !effective(product, at)
     || !adoption || adoption.organizationId !== organizationId || adoption.sdStatus !== 'ACTIVE'
     || adoption.orderable !== true || !effective(adoption, at) || (!item.selfProvided && adoption.dispensable !== true)) {
-    return fail(`${medication.name}的产品归属、采用状态或有效期未确认`)
+    return failRow(`${medication.name}的产品归属、采用状态或有效期未确认`)
   }
   if (priced) {
-    if (item.priceType != null && item.priceType !== 'SALE') return fail(`${medication.name}的模板价格类型不适用于门诊销售，请核实模板`)
+    if (item.priceType != null && item.priceType !== 'SALE') return failRow(`${medication.name}的模板价格类型不适用于门诊销售，请核实模板`)
     const options = resolveDispensableOptions(medication, organizationId, !item.selfProvided).filter(option => option.product.id === product.id
       && (option.itemPackage?.id ?? null) === (item.packageId ?? null))
-    if (options.length !== 1) return fail(`${medication.name}的原包装或当前销售价格未确认`)
+    if (options.length !== 1) return failRow(`${medication.name}的原包装或当前销售价格未确认`)
     return { ...options[0], priced }
   }
   // Explicit non-priced/self-provided orders still require real product and package facts; they do not acquire a fabricated zero price.
-  if (!Array.isArray(product.packages)) return fail(`${medication.name}的包装目录未确认`)
+  if (!Array.isArray(product.packages)) return failRow(`${medication.name}的包装目录未确认`)
   const packages = product.packages.filter(row => row?.id === item.packageId)
   const itemPackage = item.packageId ? packages[0] : undefined
   if (item.packageId && (packages.length !== 1 || itemPackage!.sdStatus !== 'ACTIVE' || !effective(itemPackage!, at)
     || !positive(itemPackage!.quantityFactor) || !text(itemPackage!.unitCode) || !text(itemPackage!.unitName))) {
-    return fail(`${medication.name}的原包装或换算关系未确认`)
+    return failRow(`${medication.name}的原包装或换算关系未确认`)
   }
   return { product, itemPackage, unitCode: itemPackage?.unitCode ?? product.unitCode,
     unitName: itemPackage?.unitName ?? product.unitCode, packageFactor: itemPackage?.quantityFactor ?? 1,
@@ -89,22 +96,22 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
   if (!Array.isArray(medicationRows)) return fail('当前药品知识目录未确认')
   const facts = plan.medications.map((item, index) => {
     const rows = medicationRows.filter(row => row?.id === item.medicationId && row.code === item.medicationCode)
-    if (rows.length !== 1) return fail(`${item.medicationName}未匹配到唯一的当前药品`)
+    if (rows.length !== 1) return failRow(`${item.medicationName}未匹配到唯一的当前药品`)
     const medication = rows[0]
     if (medication.sdStatus !== 'ACTIVE' || medication.sdMedicationType !== item.categoryCode || !text(medication.name)
       || typeof medication.skinTestRequired !== 'boolean' || typeof medication.antimicrobial !== 'boolean'
       || !Array.isArray(medication.allergenConceptIds) || !medication.allergenConceptIds.every(text)
-      || (medication.sdMedicationType === 'HERBAL') !== (item.editorMode === 'herbal')) return fail(`${item.medicationName}的类别或用药风险资料未确认`)
+      || (medication.sdMedicationType === 'HERBAL') !== (item.editorMode === 'herbal')) return failRow(`${item.medicationName}的类别或用药风险资料未确认`)
     const route = routes.filter(row => row?.code === item.routeCode)
     const frequency = frequencies.filter(row => row?.code === item.frequencyCode)
     if (route.length !== 1 || !text(route[0].name) || !['NONE', 'ADMINISTRATION', 'INFUSION'].includes(route[0].executionType)
-      || frequency.length !== 1 || !text(frequency[0].name)) return fail(`${item.medicationName}的用法或频次当前不可用，请重新选择`)
-    if (item.routeExecutionType != null && item.routeExecutionType !== route[0].executionType) return fail(`${item.medicationName}的用法执行类型已变化，请重新核对模板`)
+      || frequency.length !== 1 || !text(frequency[0].name)) return failRow(`${item.medicationName}的用法或频次当前不可用，请重新选择`)
+    if (item.routeExecutionType != null && item.routeExecutionType !== route[0].executionType) return failRow(`${item.medicationName}的用法执行类型已变化，请重新核对模板`)
     if ((item.doseValue != null && (!positive(item.doseValue) || !text(item.doseUnit)))
-      || (item.durationValue != null && (!positive(item.durationValue) || !text(item.durationUnit)))) return fail(`${item.medicationName}的剂量或疗程信息不完整`)
+      || (item.durationValue != null && (!positive(item.durationValue) || !text(item.durationUnit)))) return failRow(`${item.medicationName}的剂量或疗程信息不完整`)
     const product = productFacts(item, medication, encounter.organizationId, at)
     if (!sameUnit(item.quantityUnit, product.unitCode) && !sameUnit(item.quantityUnit, product.unitName)) {
-      return fail(`${item.medicationName}的模板数量单位与当前包装不一致，请核对换算关系`)
+      return failRow(`${item.medicationName}的模板数量单位与当前包装不一致，请核对换算关系`)
     }
     return { index, item, medication, product, route: route[0], frequency: frequency[0] }
   })
@@ -116,7 +123,7 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
   const medicationFacts = facts.map(value => {
     const { index, item, medication, product, route, frequency } = value
     const inventory = (item.selfProvided ? [] : stockRows[medication.code]) as OrderableMedicationKnowledge[] | undefined
-    if (!Array.isArray(inventory)) return fail(`${item.medicationName}的当前库存未确认`)
+    if (!Array.isArray(inventory)) return failRow(`${item.medicationName}的当前库存未确认`)
     const draft: MedicationPlanDraft = {
       id: crypto.randomUUID(), sequence: Date.now() + index, editorMode: item.editorMode, categoryCode: medication.sdMedicationType,
       quantityManuallySet: true, medicationCode: medication.code, medicationName: medication.name,
@@ -144,19 +151,25 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
   const services = await Promise.all(plan.services.map(async (item, index): Promise<ServicePlanDraft> => {
     const matches = serviceRows.filter(row => row?.id === item.catalogItemId && row.code === item.itemCode
       && row.sdServiceType === item.serviceType)
-    if (matches.length !== 1) return fail(`${item.itemName}未匹配到唯一的当前项目`)
+    if (matches.length !== 1) return failRow(`${item.itemName}未匹配到唯一的当前项目`)
     const current = matches[0]
     if (current.code !== item.itemCode || current.sdServiceType !== item.serviceType || !text(current.name)
-      || (item.priceType != null && item.priceType !== 'SALE') || item.pricingRequired === false) return fail(`${item.itemName}的项目类型或计价设置不适用于当前门诊开立`)
+      || (item.priceType != null && item.priceType !== 'SALE') || item.pricingRequired === false) return failRow(`${item.itemName}的项目类型或计价设置不适用于当前门诊开立`)
     const pricing = resolveServicePricing(current, encounter.organizationId)
-    if (!pricing.price) return fail(`${item.itemName}：${pricing.error}`)
-    if (!sameUnit(item.unitCode, current.unitCode)) return fail(`${item.itemName}的模板单位与当前目录不一致`)
+    if (!pricing.price) return failRow(`${item.itemName}：${pricing.error}`)
+    if (!sameUnit(item.unitCode, current.unitCode)) return failRow(`${item.itemName}的模板单位与当前目录不一致`)
     const organizationId = item.performerOrganizationId ?? encounter.organizationId,
-      departmentId = item.performerDepartmentId ?? defaultServiceExecutionDepartment(current, encounter.departmentId)
-    if (!departmentId) return fail(`${item.itemName}的执行科室未配置或存在多个候选，请维护机构项目`)
+      departmentId = item.performerDepartmentId ?? item.executionDepartmentId ?? defaultServiceExecutionDepartment(current, encounter.departmentId)
+    if (!departmentId) return failRow(`${item.itemName}的执行科室未配置或存在多个候选，请维护机构项目`)
     const departmentKey = `${organizationId}|${departmentId}`
     if (!departments.has(departmentKey)) departments.set(departmentKey, resolveOrderExecutionDepartment(departmentId, organizationId, api))
-    const department = await departments.get(departmentKey)!
+    // 模板固定的执行科室失效只影响本行；项目默认科室的共性失败仍整批抛出。
+    const department = await departments.get(departmentKey)!.catch(error => {
+      if (item.executionDepartmentId && !item.performerDepartmentId && departmentId === item.executionDepartmentId) {
+        return failRow(`${item.itemName}的模板执行科室已不可用，请重新选择执行科室`)
+      }
+      throw error
+    })
     return { id: crypto.randomUUID(), sequence: Date.now() + index, serviceType: current.sdServiceType,
       catalogItemId: current.id, itemCode: current.code, itemName: current.name, quantity: item.quantity, unitCode: current.unitCode,
       clinicalDescription: item.clinicalDescription, unitPrice: pricing.price.price, currencyCode: pricing.price.currencyCode,
@@ -176,11 +189,11 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
       const rows = facts.inventory.filter(row => row?.id === draft.request.medicationId
         && row.stockSiteId === String(line.item.stockSiteId) && row.products?.some(product => product.id === draft.request.catalogItemId))
       if (rows.length !== 1 || rows[0].stockSiteName !== line.item.stockSiteName || rows[0].baseUnitCode !== facts.product.product?.unitCode
-        || !positive(rows[0].availableBaseQuantity)) return fail(`${draft.medicationName}的目标药房库存或基础单位未确认`)
+        || !positive(rows[0].availableBaseQuantity)) return failRow(`${draft.medicationName}的目标药房库存或基础单位未确认`)
       const amount = draft.request.quantity * facts.product.packageFactor, key = `${rows[0].stockSiteId}|${draft.request.catalogItemId}`
       const total = amount + (demand.get(key)?.amount ?? 0), available = Math.min(rows[0].availableBaseQuantity, demand.get(key)?.available ?? Infinity)
       if (!positive(amount) || !Number.isFinite(total) || total - available > Math.max(total, available) * Number.EPSILON * medications.length) {
-        return fail(`${draft.medicationName}的所选总量超过目标药房当前可用库存`)
+        return failRow(`${draft.medicationName}的所选总量超过目标药房当前可用库存`)
       }
       demand.set(key, { amount: total, available })
       draft.stockSiteId = rows[0].stockSiteId; draft.stockSiteName = rows[0].stockSiteName
@@ -188,4 +201,45 @@ export async function resolveTemplateOrders(plan: OutpatientPlanTemplate, encoun
     }
   }
   return { medications, services }
+}
+
+export interface SkippedTemplateOrder {
+  kind: 'MEDICATION' | 'SERVICE'
+  /** 在传入方案 medications / services 数组中的位置，用于回写预览行状态。 */
+  index: number
+  label: string
+  reason: string
+}
+export interface ToleratedTemplateOrders extends ResolvedTemplateOrders { skipped: SkippedTemplateOrder[] }
+
+/**
+ * 先整批校验；只有出现“单条明细自身”的失败（TemplateRowError）时，才逐条隔离校验，
+ * 跳过失败行并对其余行重新整批校验（库存、分方需要整批计算）。就诊上下文、目录请求等共性失败仍整批抛出。
+ */
+export async function resolveTemplateOrdersTolerant(plan: OutpatientPlanTemplate, encounter: Encounter, api: RhnApi,
+  allergies: AllergyIntolerance[], allergyReady: boolean): Promise<ToleratedTemplateOrders> {
+  try { return { ...(await resolveTemplateOrders(plan, encounter, api, allergies, allergyReady)), skipped: [] } } catch (error) {
+    if (!(error instanceof TemplateRowError)) throw error
+  }
+  type Entry = { kind: 'MEDICATION' | 'SERVICE'; index: number; label: string; slice: OutpatientPlanTemplate }
+  const entries: Entry[] = [
+    ...plan.medications.map((item, index): Entry => ({ kind: 'MEDICATION', index, label: item.medicationName,
+      slice: { ...plan, medications: [item], services: [] } })),
+    ...plan.services.map((item, index): Entry => ({ kind: 'SERVICE', index, label: item.itemName,
+      slice: { ...plan, medications: [], services: [item] } })),
+  ]
+  const outcomes = await Promise.all(entries.map(async entry => {
+    try { await resolveTemplateOrders(entry.slice, encounter, api, allergies, allergyReady); return { entry } } catch (error) {
+      if (error instanceof TemplateRowError) return { entry, reason: error.detail }
+      throw error
+    }
+  }))
+  const skipped = outcomes.flatMap(({ entry, reason }): SkippedTemplateOrder[] => reason === undefined ? []
+    : [{ kind: entry.kind, index: entry.index, label: entry.label, reason }])
+  const kept = outcomes.filter(({ reason }) => reason === undefined).map(({ entry }) => entry)
+  const survivors: OutpatientPlanTemplate = { ...plan,
+    medications: kept.filter(entry => entry.kind === 'MEDICATION').map(entry => plan.medications[entry.index]),
+    services: kept.filter(entry => entry.kind === 'SERVICE').map(entry => plan.services[entry.index]) }
+  if (!survivors.medications.length && !survivors.services.length) return { medications: [], services: [], skipped }
+  return { ...(await resolveTemplateOrders(survivors, encounter, api, allergies, allergyReady)), skipped }
 }

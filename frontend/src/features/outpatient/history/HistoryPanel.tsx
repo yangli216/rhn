@@ -1,10 +1,11 @@
 import './history-panel.css'
 import { WorkspacePane } from '../../../shared/ui/templates/PageTemplates'
-import { HistoryPrescriptionReference } from "../ai/HistoryPrescriptionReference";
+import { HistoryPrescriptionReference, type HistoryMedicationStager } from "../ai/HistoryPrescriptionReference";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PrintRecord } from "../../../shared/api/printingApi";
 import type { AllergyIntolerance } from "../../../shared/api/residentsApi";
+import type { MedicationPlanDraft } from '../PrescriptionListEditor'
 import type { Encounter } from "../../../shared/model";
 import { formatTime } from "../../../shared/format";
 import { clinicalDocumentStatusPresentation, encounterStatusPresentation } from "../../../shared/presentation";
@@ -120,6 +121,9 @@ export function HistoryPanel({ encounters, currentEncounter, api, copyDisabled =
   }
   const [selectedId, setSelectedId] = useState<string | null>(history[0]?.id ?? null)
   const [checked, setChecked] = useState<Set<HistoryCopyField>>(() => new Set())
+  const medicationStager = useRef<HistoryMedicationStager | null>(null)
+  const [medicationCount, setMedicationCount] = useState(0)
+  const [copying, setCopying] = useState(false)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
   const [reprintRecord, setReprintRecord] = useState<PrintRecord | null>(null)
   useEffect(() => {
@@ -185,8 +189,9 @@ export function HistoryPanel({ encounters, currentEncounter, api, copyDisabled =
     items.forEach((item) => { if (allSelected) next.delete(item.key); else next.add(item.key) })
     return next
   })
-  const copyToCurrent = () => {
-    if (!selected || !onCopy || selectedCount === 0) return
+  const totalCount = selectedCount + medicationCount
+  const copyToCurrent = async () => {
+    if (!selected || !onCopy || totalCount === 0 || copying) return
     const record: HistoryCopyRecord = {}
     if (checked.has('chiefComplaint') && selected.chiefComplaint) record.chiefComplaint = selected.chiefComplaint
     if (checked.has('presentIllness') && note?.content.presentIllness) record.presentIllness = note.content.presentIllness
@@ -198,9 +203,15 @@ export function HistoryPanel({ encounters, currentEncounter, api, copyDisabled =
     if (checked.has('healthEducation') && note?.content.healthEducation) record.healthEducation = note.content.healthEducation
     if (checked.has('followUp') && note?.content.followUp) record.followUp = note.content.followUp
 
+    let medicationDrafts: MedicationPlanDraft[] | undefined
+    if (medicationCount > 0) {
+      setCopying(true)
+      try { medicationDrafts = await medicationStager.current?.stage() ?? undefined } finally { setCopying(false) }
+      if (!medicationDrafts) return
+    }
     onCopy({ requestId: Date.now(), sourceEncounterNo: selected.encounterNo, sourceRegisteredAt: selected.registeredAt,
       record, diagnoses: selected.diagnoses.filter((item) => checked.has(historyDiagnosisKey(item.code)))
-        .map(({ code, display, type }) => ({ code, display, type })) })
+        .map(({ code, display, type }) => ({ code, display, type })), medicationDrafts })
   }
 
   return <Panel className="doctor-history-panel"><PanelHead title="门诊就诊历史" meta={`既往 ${history.length} 次`} />
@@ -227,9 +238,9 @@ export function HistoryPanel({ encounters, currentEncounter, api, copyDisabled =
                 {encounterStatusPresentation(selected.status).label}</StatusBadge>}</header>}
           footer={onCopy && (copyDisabled
             ? <p className="doctor-history-copy-disabled">当前病历不可编辑，历史内容仅供查阅。</p>
-            : <footer className="doctor-history-actions"><span>带入将覆盖对应病历草稿，请先核对</span>
-                <Button size="sm" disabled={selectedCount === 0} onClick={copyToCurrent}>
-                  带入本次 {selectedCount} 项</Button></footer>)}>
+            : <footer className="doctor-history-actions"><span>带入将覆盖对应病历草稿，所选历史用药将加入医嘱待确认草稿，请先核对</span>
+                <Button size="sm" disabled={totalCount === 0} busy={copying} onClick={() => void copyToCurrent()}>
+                  带入本次 {totalCount} 项</Button></footer>)}>
 
           {(documents.error || printRecords.error || downloadRecord.error) && <Alert>
             {errorMessage(documents.error || printRecords.error || downloadRecord.error)}</Alert>}
@@ -243,13 +254,15 @@ export function HistoryPanel({ encounters, currentEncounter, api, copyDisabled =
           </>}
           {selected && <HistoryPrescriptionReference key={selected.id} encounter={selected} targetEncounter={currentEncounter} api={api}
             disabled={copyDisabled || !onCopy} allergies={allergies} allergyReady={allergyReady}
-            onStage={(medicationDrafts) => onCopy?.({ requestId: Date.now(), sourceEncounterNo: selected.encounterNo,
-              sourceRegisteredAt: selected.registeredAt, record: {}, medicationDrafts })} />}
-          {note && <details className="doctor-history-documents">
-            <summary>病历下载与打印
+            stagerRef={medicationStager} onSelectedCountChange={setMedicationCount} />}
+          {note && <section className="doctor-history-documents" aria-label="病历下载与打印">
+            <header className="doctor-history-documents-head">
+              <strong>病历下载与打印</strong>
               <StatusBadge tone={clinicalDocumentStatusPresentation(note).tone}>
                 {clinicalDocumentStatusPresentation(note).label}</StatusBadge>
-            </summary>
+              {note.status === 'SIGNED' && !latestPrint && <Button size="sm" variant="secondary"
+                onClick={() => setNotePrintOpen(true)}><Icon name="print" />下载 / 打印病历</Button>}
+            </header>
             {printRecords.isPending ? <LoadingState label="正在读取病历文件…" />
               : notePrintRecords.length > 0 && <div className="doctor-history-print-list">
                 {notePrintRecords.map((record) => <article key={record.outputId}>
@@ -260,11 +273,7 @@ export function HistoryPanel({ encounters, currentEncounter, api, copyDisabled =
                     {record.sourceVersion === note.currentVersion && <Button size="sm" variant="secondary"
                       onClick={() => setReprintRecord(record)}>补打</Button>}</div>
                 </article>)}</div>}
-            {note.status === 'SIGNED' && !latestPrint && <div className="doctor-history-document-actions">
-              <Button size="sm" variant="secondary" onClick={() => setNotePrintOpen(true)}>
-                <Icon name="print" />下载 / 打印病历</Button>
-            </div>}
-          </details>}
+          </section>}
         </WorkspacePane>
       </div>}
     {notePrintOpen && note && <ControlledPrintDialog api={api} title="打印历史门诊病历"

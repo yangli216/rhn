@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { ItemAttributeDefinitionConfiguration } from '../../../shared/rhnApi'
 import {
-  Alert,
   Button,
   Dialog,
   FormField,

@@ -298,6 +298,7 @@ class DirectRefundApplicationServiceTest {
         when(originalCharge.catalogItemId()).thenReturn(9001L);
         when(originalCharge.sourceType()).thenReturn("MEDICATION_REQUEST");
         when(originalCharge.sourceId()).thenReturn(8001L);
+        when(originalCharge.chargeLineNo()).thenReturn(1);
         when(originalCharge.requestCode()).thenReturn("REQ-001");
         when(originalCharge.quantity()).thenReturn(new BigDecimal("2"));
         when(originalCharge.unitCode()).thenReturn("盒");

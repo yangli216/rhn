@@ -23,7 +23,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
   const services = useQuery({ queryKey: ['master-data-services-operational', organization.id],
     queryFn: async () => requireOperationalRows(await api.masterData.services('', '', '', organization.id), '诊疗项目'), enabled: area === 'group' || area === 'unit' })
   const supplies = useQuery({ queryKey: ['master-data-operational-supplies'], queryFn: async () => requireOperationalRows(await api.masterData.supplies(), '耗材'), enabled: area === 'supply' || area === 'unit' })
-  const groups = useQuery({ queryKey: ['master-data-operational-groups'], queryFn: async () => requireOperationalRows(await api.masterData.itemGroups(), '项目组套'), enabled: area === 'group' })
+  const groups = useQuery({ queryKey: ['master-data-operational-groups'], queryFn: async () => requireOperationalRows(await api.masterData.itemGroups(), '项目组合'), enabled: area === 'group' })
   const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: async () => requireOperationalRows(await api.masterData.units(), '计量单位'), enabled: area !== 'frequency' })
   const conversions = useQuery({ queryKey: ['master-data-operational-conversions'], queryFn: async () => requireOperationalRows(await api.masterData.unitConversions(), '换算规则'), enabled: area === 'unit' })
   const frequencies = useQuery({ queryKey: ['master-data-operational-frequencies'],
@@ -48,7 +48,7 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {operationError && <Alert>{operationError}</Alert>}
     <Tabs value={area} onChange={setArea} label="运营主数据类型" variant="cards" items={[
-      { value: 'group', label: '项目组套', meta: 'LIS/PACS 组套与组合项目' },
+      { value: 'group', label: '项目组合', meta: 'LIS/PACS 检验检查组合与常用组合项目' },
       { value: 'supply', label: '耗材与器械', meta: 'UDI、注册证、型号与库存属性' },
       { value: 'unit', label: '计量与换算', meta: '统一单位、全局/项目换算' },
       { value: 'frequency', label: '医嘱频次', meta: '规则语义、适用场景与执行时点' },
@@ -58,16 +58,16 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
       <EmptyState icon="clinical" title="运营主数据加载失败" copy="尚无法确认当前数据，请重新加载后再维护。"
         action={<Button variant="secondary" onClick={() => { void Promise.all(areaQueries.map((query) => query.refetch())) }}>重新加载</Button>} />
     </> : loadingArea ? <LoadingState label="正在加载运营主数据…" /> : <>
-    {area === 'group' && <ListSection title="项目组套与组合" copy="组套用于一次展开多个检验/检查项目；组合用于常用医嘱或套餐复用，服务端按类型校验成员。"
+    {area === 'group' && <ListSection title="项目组合" copy="检验/检查组合用于一次展开多个检验/检查项目；常用组合项目和项目包用于常用医嘱或套餐复用，服务端按类型校验成员。常用组合项目将迁至临床模板库的医嘱组套。"
       action={<Button onClick={() => setDialog(<GroupDialog api={api} services={services.data ?? []} organization={organization} units={units.data ?? []}
-        onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组套</Button>}>
-      {groups.isPending ? <LoadingState label="正在加载项目组套…" /> : !groups.data?.length
-        ? <EmptyState icon="clinical" title="暂无项目组套" copy="可建立检验组套、检查组套或常用组合项目。" />
-        : <DataTable headers={['组套/组合', '类型', '适用范围', '成员', '状态', '操作']} rows={groups.data.map((value) => [
-          <b title={`组套编码：${value.code}`}>{value.name}</b>, groupTypeLabels[value.groupType],
+        onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组合已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组合</Button>}>
+      {groups.isPending ? <LoadingState label="正在加载项目组合…" /> : !groups.data?.length
+        ? <EmptyState icon="clinical" title="暂无项目组合" copy="可建立检验组合、检查组合或常用组合项目。" />
+        : <DataTable headers={['组合', '类型', '适用范围', '成员', '状态', '操作']} rows={groups.data.map((value) => [
+          <b title={`组合编码：${value.code}`}>{value.name}</b>, groupTypeLabels[value.groupType],
           value.organizationId ? organization.name : '租户通用', `${value.members.length} 项`, <State value={value.status} />,
           <Button size="sm" variant="text" onClick={() => setDialog(<GroupDialog api={api} value={value} services={services.data ?? []} organization={organization} units={units.data ?? []}
-            onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已更新', api.masterData.updateItemGroup(value, input))} />)}>编辑</Button>,
+            onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组合已更新', api.masterData.updateItemGroup(value, input))} />)}>编辑</Button>,
         ])} />}
     </ListSection>}
     {area === 'supply' && <ListSection title="医用耗材/器械主数据" copy="统一维护编码、UDI-DI、注册信息、供应商和库存能力。"

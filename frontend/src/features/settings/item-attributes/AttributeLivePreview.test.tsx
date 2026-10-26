@@ -5,13 +5,13 @@ import type { ItemAttributeConfiguration } from '../../../shared/rhnApi'
 
 describe('AttributeLivePreview', () => {
   const mockConfig: ItemAttributeConfiguration = {
-    subjectType: 'MEDICATION',
-    itemTypeId: 'type-med',
+    tenantNamespace: 'test',
     itemTypes: [
-      { id: 'type-med', code: 'MEDICATION.ORAL', name: '口服药品', sdStatus: 'ACTIVE' },
+      { id: 'type-med', code: 'MEDICATION.ORAL', name: '口服药品', subjectType: 'MEDICATION', scopeType: 'TENANT', sortOrder: 1 },
     ],
     definitions: [
       {
+        revision: 1, overridePolicy: 'NO_OVERRIDE',
         id: 'def-skin-test',
         code: 'MED.SKIN_TEST.SOLUTION_MODE',
         name: '皮试液配置方式',
@@ -24,7 +24,7 @@ describe('AttributeLivePreview', () => {
         status: 'ACTIVE',
         scopeType: 'TENANT',
         allowedScopes: [],
-        storageMode: 'JSON_OVERRIDE',
+        storageMode: 'EXTENSION',
         editable: true,
         defaultValue: 'ORIGINAL_SOLUTION',
         schema: {
@@ -37,6 +37,7 @@ describe('AttributeLivePreview', () => {
         },
       },
       {
+        revision: 1, overridePolicy: 'NO_OVERRIDE',
         id: 'def-switch',
         code: 'MED.REQUIRES_DOUBLE_CHECK',
         name: '双人核对要求',
@@ -48,13 +49,14 @@ describe('AttributeLivePreview', () => {
         status: 'ACTIVE',
         scopeType: 'TENANT',
         allowedScopes: [],
-        storageMode: 'JSON_OVERRIDE',
+        storageMode: 'EXTENSION',
         editable: true,
-        defaultValue: false,
+        defaultValue: false, description: '', schema: { type: 'boolean' },
       },
     ],
     assignments: [
       {
+        revision: 1, searchable: false, listDisplay: false, editable: true,
         id: 'assign-1',
         itemTypeId: 'type-med',
         definitionId: 'def-skin-test',
@@ -66,6 +68,7 @@ describe('AttributeLivePreview', () => {
         status: 'ACTIVE',
       },
       {
+        revision: 1, searchable: false, listDisplay: false, editable: true,
         id: 'assign-2',
         itemTypeId: 'type-med',
         definitionId: 'def-switch',

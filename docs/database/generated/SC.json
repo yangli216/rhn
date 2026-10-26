@@ -1,5 +1,5 @@
 {
-  "fingerprint": "9d67ce5d52ee558eea83c6f1e5c3c71f477d8545df168f6e8fc957eed2005603",
+  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
   "tables": [
     {
       "logical": "sc.appointment_event",
@@ -3570,7 +3570,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 202
+          "line": 203
         }
       ]
     },
@@ -3930,7 +3930,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 247
+          "line": 249
         }
       ]
     },
@@ -4703,7 +4703,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 434
+          "line": 436
         }
       ]
     },
@@ -5681,7 +5681,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 549
+          "line": 551
         }
       ]
     },
@@ -6494,7 +6494,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 303
+          "line": 305
         }
       ]
     },
@@ -6862,7 +6862,7 @@
         },
         {
           "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/scheduling/SchedulingEntities.java",
-          "line": 592
+          "line": 594
         }
       ]
     }

@@ -132,7 +132,7 @@ final class OutpatientDocumentPdfRenderer {
                 nameAndSpec.add(new Chunk(++i + ". " + text(item, "medicationName", "药品名称未记录"), font(11, true)));
                 nameAndSpec.add(new Chunk("  " + text(item, "specification", "规格未记录"), font(9, false)));
                 nameCell.setPhrase(nameAndSpec); name.addCell(nameCell);
-                PdfPCell quantity = plain("× " + measure(item.get("quantity"), text(item, "quantityUnit", "（单位未记录）")), 10.5f, true);
+                PdfPCell quantity = plain("× " + measure(item.get("quantity"), formatUnit(text(item, "quantityUnit", "（单位未记录）"))), 10.5f, true);
                 quantity.setHorizontalAlignment(Element.ALIGN_RIGHT); name.addCell(quantity);
                 medicine.addCell(nested(name));
                 medicine.addCell(plain("用法：每次 " + measure(item.get("doseValue"), text(item, "doseUnit", "（单位未记录）"))
@@ -148,7 +148,7 @@ final class OutpatientDocumentPdfRenderer {
         if (items.isEmpty()) section(doc, "药品", "未记录药品明细");
         Paragraph end = new Paragraph("—— 以下空白 ——", font(8.5f, false));
         end.setAlignment(Element.ALIGN_CENTER); end.setSpacingBefore(3); end.setSpacingAfter(8); doc.add(end);
-        optionalSection(doc, "处方备注", text(data, "note", ""));
+        optionalSection(doc, "处方备注", filterPrescriptionNote(text(data, "note", "")));
         PdfPTable signatures = table(1, 1);
         signatures.setKeepTogether(true); signatures.setSpacingBefore(10);
         signatures.addCell(plain("医师：" + signer(data, "authoredBy"), 10, false));
@@ -270,7 +270,7 @@ final class OutpatientDocumentPdfRenderer {
     private static boolean herbal(Map<String, Object> data) { return Set.of("HERBAL", "HERBAL_MED").contains(text(data, "categoryCode", "")); }
     private static String route(Map<String, Object> item) { return text(item, "routeName", text(item, "routeCode", "途径未记录")); }
     private static String frequency(Map<String, Object> item) { return text(item, "frequencyName", text(item, "frequencyCode", "频次未记录")); }
-    private static String duration(Map<String, Object> item) { return item.get("durationValue") == null ? "" : "；疗程 " + measure(item.get("durationValue"), text(item, "durationUnit", "（单位未记录）")); }
+    private static String duration(Map<String, Object> item) { return item.get("durationValue") == null ? "" : "；疗程 " + measure(item.get("durationValue"), formatUnit(text(item, "durationUnit", "（单位未记录）"))); }
     private static String common(List<Map<String, Object>> items, String key, String fallback) {
         if (items.isEmpty()) return "";
         String value = text(items.getFirst(), key, text(items.getFirst(), fallback, ""));
@@ -311,6 +311,42 @@ final class OutpatientDocumentPdfRenderer {
     private static float decimal(Object value, float fallback) { try { return Float.parseFloat(value.toString()); } catch (RuntimeException ignored) { return fallback; } }
     @SuppressWarnings("unchecked") private static Map<String, Object> map(Object value) { return value instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of(); }
     private static List<?> list(Object value) { return value instanceof List<?> l ? l : List.of(); }
+    static String formatUnit(String rawUnit) {
+        if (rawUnit == null || rawUnit.isBlank()) return "（单位未记录）";
+        String trimmed = rawUnit.trim();
+        if (trimmed.chars().anyMatch(c -> Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN)) {
+            return trimmed;
+        }
+        return switch (trimmed.toUpperCase(Locale.ROOT)) {
+            case "BOX" -> "盒";
+            case "BOTTLE" -> "瓶";
+            case "BAG" -> "袋";
+            case "VIAL", "TUBE" -> "支";
+            case "AMP", "AMPOULE" -> "支";
+            case "PIECE", "TAB", "TABLET" -> "片";
+            case "CAP", "CAPSULE" -> "粒";
+            case "STRIP" -> "板";
+            case "PACK", "PKG" -> "包";
+            case "DOSE" -> "剂";
+            case "ITEM" -> "项";
+            case "EA" -> "个";
+            case "D", "DAY" -> "天";
+            case "WK", "WEEK" -> "周";
+            case "MO", "MONTH" -> "月";
+            case "H", "HOUR" -> "小时";
+            default -> trimmed;
+        };
+    }
+
+    static String filterPrescriptionNote(String note) {
+        if (note == null || note.isBlank()) return "";
+        return Arrays.stream(note.split("\n"))
+                .map(String::trim)
+                .filter(line -> !line.startsWith("关联诊断：") && !line.startsWith("关联诊断:"))
+                .filter(line -> !line.isBlank())
+                .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
     private static String text(Map<String, Object> data, String key, String fallback) { Object v = data.get(key); return v == null || v.toString().isBlank() ? fallback : v.toString(); }
 
     private final class RunningMatter extends PdfPageEventHelper {

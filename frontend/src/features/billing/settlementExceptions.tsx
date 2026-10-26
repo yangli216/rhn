@@ -64,10 +64,6 @@ export function SettlementExceptionBanner({ items, onOpen }: { items: Settlement
   </div>
 }
 
-const ACTION_LABEL: Record<SettlementExceptionAction, string> = {
-  COLLECT: '去收款', QUERY_PAYMENT: '查询支付结果', RETRY_COMPLETION: '业务完成重试',
-  QUERY_INSURANCE: '查询医保结果', CANCEL: '取消结算单', CANCEL_AND_REVERSE: '撤销医保结算',
-}
 
 export function SettlementExceptionList({ api, items, loading, error, onChanged }: {
   api: RhnApi; items: SettlementException[]; loading?: boolean; error?: unknown; onChanged: () => void
@@ -110,6 +106,14 @@ export function SettlementExceptionList({ api, items, loading, error, onChanged 
     else run.mutate({ item, action })
   }
 
+  const actions: Array<{ code: SettlementExceptionAction; label: string; run: (item: SettlementException) => void }> = [
+    { code: 'COLLECT', label: '去收款', run: item => act(item, 'COLLECT') },
+    { code: 'QUERY_PAYMENT', label: '查询支付结果', run: item => act(item, 'QUERY_PAYMENT') },
+    { code: 'RETRY_COMPLETION', label: '业务完成重试', run: item => act(item, 'RETRY_COMPLETION') },
+    { code: 'QUERY_INSURANCE', label: '查询医保结果', run: item => act(item, 'QUERY_INSURANCE') },
+    { code: 'CANCEL', label: '取消结算单', run: item => act(item, 'CANCEL') },
+    { code: 'CANCEL_AND_REVERSE', label: '撤销医保结算', run: item => act(item, 'CANCEL_AND_REVERSE') },
+  ]
   if (loading) return <p className="settlement-exception-empty">正在加载异常结算…</p>
   if (error) return <Alert tone="error" placement="inline">{errorMessage(error)}</Alert>
   if (!items.length) return <EmptyState icon="check" title="没有异常结算" copy="单边账、支付未完成和超时未付款的结算单会在这里出现，处理完成后自动消失。" />
@@ -131,8 +135,8 @@ export function SettlementExceptionList({ api, items, loading, error, onChanged 
       </dl>
       <p className="settlement-exception-card__hint">{item.suggestion}</p>
       <footer>
-        {item.actions.map(action => <Button key={action} variant={action === 'COLLECT' ? 'primary' : 'secondary'}
-          disabled={run.isPending} onClick={() => act(item, action)}>{ACTION_LABEL[action]}</Button>)}
+        {item.actions.map(code => actions.find(action => action.code === code)).filter(action => action !== undefined).map(action => <Button key={action.code} variant={action.code === 'COLLECT' ? 'primary' : 'secondary'}
+          disabled={run.isPending} onClick={() => action.run(item)}>{action.label}</Button>)}
       </footer>
     </article>)}
     {confirm && <Dialog title={confirm.action === 'CANCEL_AND_REVERSE' ? '撤销医保结算' : '取消结算单'}

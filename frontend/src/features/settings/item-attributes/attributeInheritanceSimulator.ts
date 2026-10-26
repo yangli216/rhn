@@ -1,6 +1,5 @@
 import type {
   ItemAttributeDefinitionConfiguration,
-  ItemAttributeJson,
 } from '../../../shared/rhnApi'
 
 export type ResolutionSourceLevel =
@@ -186,26 +185,19 @@ export function simulateAttributeResolution(
     effectiveValue = defDefaultStr
   }
 
-  const levelNameMap: Record<ResolutionSourceLevel, string> = {
-    DEPARTMENT: '科室级覆盖',
-    ORGANIZATION: '机构级覆盖',
-    TENANT: '租户公共值',
-    ITEM_TYPE: '项目类型默认值',
-    SYSTEM_DEFAULT: '属性定义默认值',
-    NONE: '未生效（无值）',
-  }
+  const sourceLevelName = steps.find(step => step.level === effectiveLevel)?.levelName ?? '未生效（无值）'
 
   let explanation = ''
   if (effectiveLevel === 'NONE') {
     explanation = '由于所有层级均未维护有效值且未设定默认值，当前运行时将解析为空。'
   } else {
-    explanation = `依据多级继承规则，最终在【${levelNameMap[effectiveLevel]}】层级命中生效，值为：“${effectiveValue}”。`
+    explanation = `依据多级继承规则，最终在【${sourceLevelName}】层级命中生效，值为：“${effectiveValue}”。`
   }
 
   return {
     effectiveValue,
     sourceLevel: effectiveLevel,
-    sourceLevelName: levelNameMap[effectiveLevel],
+    sourceLevelName: sourceLevelName,
     steps,
     explanation,
   }

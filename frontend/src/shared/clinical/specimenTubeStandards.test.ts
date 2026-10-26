@@ -3,7 +3,6 @@ import {
   SPECIMEN_REJECTION_REASONS,
   SPECIMEN_TUBE_STANDARDS,
   findSpecimenTubeByCode,
-  recommendSpecimenTubeByItemName,
 } from './specimenTubeStandards'
 
 describe('specimenTubeStandards (YY/T 0314-2007 / ISO 6710)', () => {
@@ -47,15 +46,10 @@ describe('specimenTubeStandards (YY/T 0314-2007 / ISO 6710)', () => {
     expect(findSpecimenTubeByCode(undefined)).toBeUndefined()
   })
 
-  it('accurately recommends standard tubes based on diagnostic request item names', () => {
-    expect(recommendSpecimenTubeByItemName('血常规五分类').tubeCode).toBe('TUBE_PURPLE_EDTA')
-    expect(recommendSpecimenTubeByItemName('糖化血红蛋白测定 (HbA1c)').tubeCode).toBe('TUBE_PURPLE_EDTA')
-    expect(recommendSpecimenTubeByItemName('尿液干化学+沉渣分析').tubeCode).toBe('CONTAINER_URINE_CUP')
-    expect(recommendSpecimenTubeByItemName('大便常规+隐血').tubeCode).toBe('CONTAINER_STOOL_CUP')
-    expect(recommendSpecimenTubeByItemName('凝血四项 (PT/APTT/TT/FIB)').tubeCode).toBe('TUBE_BLUE_CITRATE')
-    expect(recommendSpecimenTubeByItemName('空腹静脉血糖测定').tubeCode).toBe('TUBE_GRAY_NAF')
-    expect(recommendSpecimenTubeByItemName('红细胞沉降率 (ESR)').tubeCode).toBe('TUBE_BLACK_ESR')
-    expect(recommendSpecimenTubeByItemName('肝功能十一项').tubeCode).toBe('TUBE_YELLOW_SST')
-    expect(recommendSpecimenTubeByItemName('肾功能三项').tubeCode).toBe('TUBE_YELLOW_SST')
+  it('matches a standard tube from the hospital container code or name, never from the test item', () => {
+    expect(findSpecimenTubeByCode('EDTA_TUBE')?.tubeCode).toBe('TUBE_PURPLE_EDTA')
+    expect(findSpecimenTubeByCode('C001', '真空采血管（黄头，分离胶）')?.tubeCode).toBe('TUBE_YELLOW_SST')
+    expect(findSpecimenTubeByCode('C002', '枸橼酸钠凝血管（蓝）')?.tubeCode).toBe('TUBE_BLUE_CITRATE')
+    expect(findSpecimenTubeByCode('C003', '特殊容器')).toBeUndefined()
   })
 })

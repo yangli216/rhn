@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Icon, IconActionButton, IconActionGroup } from '.'
@@ -21,11 +21,27 @@ describe('IconActionButton', () => {
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('title', '已发药，不能撤销')
   })
+
   it('shows a positive count without changing the action name and hides an empty count', () => {
     const { rerender } = render(<IconActionButton label="病历核查" icon={<Icon name="check" />} count={3} />)
     expect(screen.getByRole('button', { name: '病历核查' })).toHaveTextContent('3')
     expect(screen.getByText('3')).toHaveAttribute('aria-hidden', 'true')
     rerender(<IconActionButton label="病历核查" icon={<Icon name="check" />} count={0} />)
     expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('renders a shared Tooltip on hover', () => {
+    vi.useFakeTimers()
+    render(<IconActionButton label="套用模板" icon={<Icon name="file-text" />} />)
+    const button = screen.getByRole('button', { name: '套用模板' })
+    const trigger = button.parentElement!
+    fireEvent.mouseEnter(trigger)
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    expect(screen.getByRole('tooltip')).toHaveTextContent('套用模板')
+    fireEvent.mouseLeave(trigger)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 })

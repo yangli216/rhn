@@ -116,17 +116,24 @@ export function IconButton({ icon, label, size = 'md', className = '', type = 'b
  * the header does not grow), brand-coloured 20px icon, tight horizontal padding. Pass any icon node; its size and
  * stroke are normalised by `.ui-icon-action`. Use inside `IconActionGroup` when several sit side by side.
  */
-export function IconActionButton({ label, icon, count, title, className = '', ...props }:
-  Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'> & {
-    label: string
-    icon: ReactNode
-    count?: number
-    busy?: boolean
-  }) {
-  return <Button size="sm" variant="text" className={`ui-icon-action ${className}`} aria-label={label}
-    title={title ?? label} {...props}>{icon}
-    {count != null && count > 0 && <span className="ui-icon-action__count" aria-hidden="true">{count}</span>}
-  </Button>
+export type IconActionButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'> & {
+  label: string
+  icon: ReactNode
+  count?: number
+  busy?: boolean
+  tooltip?: ReactNode | boolean
+}
+
+export function IconActionButton({ label, icon, count, title, tooltip = true, className = '', ...props }: IconActionButtonProps) {
+  const tooltipContent = tooltip === true ? (title ?? label) : tooltip
+  const button = (
+    <Button size="sm" variant="text" className={`ui-icon-action ${className}`} aria-label={label}
+      title={title ?? label} {...props}>{icon}
+      {count != null && count > 0 && <span className="ui-icon-action__count" aria-hidden="true">{count}</span>}
+    </Button>
+  )
+  if (!tooltipContent) return button
+  return <Tooltip content={tooltipContent}>{button}</Tooltip>
 }
 
 export function IconActionGroup({ children, className = '' }: PropsWithChildren<{ className?: string }>) {

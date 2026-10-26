@@ -63,4 +63,26 @@ class TreatmentUsageIntentsTest {
         assertTrue(items.get(4).get("purpose").isNull());
         assertTrue(items.get(5).get("purpose").isNull());
     }
+
+    @Test void examinationIntentIsKeptOnlyForExaminationsWithKnownValues() {
+        var root = mapper.readTree("""
+                {"treatmentRecommendations":[
+                 {"type":"EXAMINATION","name":"腹部彩超","examinationSites":{"resolution":"MATCHED"},"examination":
+                  {"modality":"us","technique":"COLOR_DOPPLER","contrastPhase":"ENHANCED","laterality":"UP",
+                   "bodySites":[" 肝胆脾胰 ","",5,"甲状腺","1","2","3","4","5"]}},
+                 {"type":"LABORATORY","name":"血常规","examination":{"modality":"US"}},
+                 {"type":"EXAMINATION","name":"头颅检查","examination":{"modality":"PET"}}]}""");
+        TreatmentUsageIntents.normalize(root);
+        var items = root.get("treatmentRecommendations");
+        var exam = items.get(0).get("examination");
+        assertFalse(items.get(0).has("examinationSites"));
+        assertEquals("US", exam.get("modality").asString());
+        assertEquals("COLOR_DOPPLER", exam.get("technique").asString());
+        assertFalse(exam.has("contrastPhase"));
+        assertFalse(exam.has("laterality"));
+        assertEquals(6, exam.get("bodySites").size());
+        assertEquals("肝胆脾胰", exam.get("bodySites").get(0).asString());
+        assertFalse(items.get(1).has("examination"));
+        assertFalse(items.get(2).has("examination"));
+    }
 }

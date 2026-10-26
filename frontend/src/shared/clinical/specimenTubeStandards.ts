@@ -253,12 +253,25 @@ export const SPECIMEN_REJECTION_REASONS: readonly SpecimenRejectionReason[] = [
   },
 ] as const
 
-/** 根据管码查找标准采血管定义 */
-export function findSpecimenTubeByCode(tubeCode?: string): SpecimenTubeStandard | undefined {
+/** 根据管码查找标准采血管定义；机构容器字典编码不规范时，再按容器名称兜底匹配 */
+export function findSpecimenTubeByCode(tubeCode?: string, tubeName?: string): SpecimenTubeStandard | undefined {
+  return matchTubeText(tubeCode) ?? matchTubeText(tubeName)
+}
+
+function matchTubeText(tubeCode?: string): SpecimenTubeStandard | undefined {
   if (!tubeCode) return undefined
   const direct = SPECIMEN_TUBE_STANDARDS.find((t) => t.tubeCode === tubeCode)
   if (direct) return direct
   const upper = tubeCode.toUpperCase()
+  if (/紫/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[0]
+  if (/黄|分离胶/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[1]
+  if (/红/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[2]
+  if (/蓝/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[3]
+  if (/绿/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[4]
+  if (/灰|氟化钠/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[5]
+  if (/黑|血沉/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[6]
+  if (/尿/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[7]
+  if (/粪|便/.test(tubeCode)) return SPECIMEN_TUBE_STANDARDS[8]
   if (upper.includes('EDTA') || upper === 'EDTA_TUBE') return SPECIMEN_TUBE_STANDARDS[0] // 紫头
   if (upper.includes('SERUM') || upper.includes('GEL') || upper === 'SST_TUBE') return SPECIMEN_TUBE_STANDARDS[1] // 黄头
   if (upper.includes('PLAIN') || upper === 'PLAIN_TUBE') return SPECIMEN_TUBE_STANDARDS[2] // 红头
@@ -269,33 +282,4 @@ export function findSpecimenTubeByCode(tubeCode?: string): SpecimenTubeStandard 
   if (upper.includes('URINE')) return SPECIMEN_TUBE_STANDARDS[7] // 尿杯
   if (upper.includes('STOOL') || upper.includes('FECES')) return SPECIMEN_TUBE_STANDARDS[8] // 便盒
   return undefined
-}
-
-/** 根据检验项目名称或关键词推荐国家标准采血管耗材 */
-export function recommendSpecimenTubeByItemName(itemName?: string): SpecimenTubeStandard {
-  if (!itemName) return SPECIMEN_TUBE_STANDARDS[0] // 默认紫色
-  const name = itemName.toUpperCase()
-  if (name.includes('血常规') || name.includes('CBC') || name.includes('全血') || name.includes('EDTA') || name.includes('糖化') || name.includes('HBA1C') || name.includes('血型')) {
-    return SPECIMEN_TUBE_STANDARDS[0] // 紫头
-  }
-  if (name.includes('尿') || name.includes('URIN')) {
-    return SPECIMEN_TUBE_STANDARDS[7] // 尿杯
-  }
-  if (name.includes('便') || name.includes('粪') || name.includes('STOOL')) {
-    return SPECIMEN_TUBE_STANDARDS[8] // 便盒
-  }
-  if (name.includes('凝血') || name.includes('PT') || name.includes('APTT') || name.includes('二聚体') || name.includes('DIMER')) {
-    return SPECIMEN_TUBE_STANDARDS[3] // 浅蓝
-  }
-  if (name.includes('急诊生化') || name.includes('血气') || (name.includes('心肌酶') && name.includes('急'))) {
-    return SPECIMEN_TUBE_STANDARDS[4] // 绿头
-  }
-  if (name.includes('糖耐量') || name.includes('OGTT') || (name.includes('血糖') && !name.includes('尿糖'))) {
-    return SPECIMEN_TUBE_STANDARDS[5] // 灰头
-  }
-  if (name.includes('血沉') || name.includes('ESR')) {
-    return SPECIMEN_TUBE_STANDARDS[6] // 黑头
-  }
-  // 默认生化/免疫黄头管
-  return SPECIMEN_TUBE_STANDARDS[1]
 }

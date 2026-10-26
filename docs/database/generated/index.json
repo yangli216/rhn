@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "9d67ce5d52ee558eea83c6f1e5c3c71f477d8545df168f6e8fc957eed2005603",
+  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -1257,21 +1257,21 @@
       "logical": "meta.outpatient_plan_medication",
       "domain": "META",
       "comment": "门诊方案药品；一行代表一条门诊方案药品记录",
-      "columns": 26
+      "columns": 27
     },
     {
       "physical": "RHN_META_OP_PLAN_SVC",
       "logical": "meta.outpatient_plan_service",
       "domain": "META",
       "comment": "门诊方案服务；一行代表一条门诊方案服务记录",
-      "columns": 14
+      "columns": 16
     },
     {
       "physical": "RHN_META_OP_PLAN_TMPL",
       "logical": "meta.outpatient_plan_template",
       "domain": "META",
       "comment": "门诊方案模板；一行代表一条门诊方案模板记录",
-      "columns": 22
+      "columns": 23
     },
     {
       "physical": "RHN_EX_OP_REFER_EVT",

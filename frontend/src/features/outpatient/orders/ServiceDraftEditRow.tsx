@@ -25,7 +25,7 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encount
   const siteOptions = useExaminationSiteOptions(api, encounter.id, value.catalogItemId, value.serviceType)
   const siteRule = siteOptions.data
   const quantityBySites = usesSiteQuantity(siteRule, sites.length)
-  const effectiveQuantity = quantityBySites && siteRule ? examinationSiteQuantity(siteRule, sites.length) : quantity
+  const effectiveQuantity = quantityBySites && siteRule ? examinationSiteQuantity(siteRule, sites) : quantity
   const siteInvalid = Boolean(examinationSiteError(siteRule, value.itemName, sites.length))
   const departments = useOrderExecutionDepartments(api, encounter.organizationId)
   const selectedDepartment = departments.data?.find(department => department.id === departmentId)

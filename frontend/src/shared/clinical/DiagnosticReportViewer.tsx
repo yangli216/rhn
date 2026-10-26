@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { savedReferenceGuidance } from './nationalStandardLabCatalog'
 import type { DiagnosticObservation, DiagnosticReport } from '../api/diagnosticsApi'
 import { formatTime } from '../format'
@@ -50,12 +51,14 @@ function renderReportObservationFlag(value: DiagnosticObservation) {
   return <StatusBadge tone="neutral">{code}</StatusBadge>
 }
 
-export function DiagnosticReportViewer({ report, historical = false, api, subject, compact = false }: {
+export function DiagnosticReportViewer({ report, historical = false, api, subject, compact = false, headerActions, stickyHeader = false }: {
   report: DiagnosticReport
   historical?: boolean
   api?: RhnApi
   subject?: DiagnosticReportSubject
   compact?: boolean
+  headerActions?: ReactNode
+  stickyHeader?: boolean
 }) {
   const status = diagnosticReportStatusPresentation(report.status)
   const isLab = report.reportType === 'LABORATORY' || (!report.reportType && report.observations.length > 0)
@@ -86,7 +89,7 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
     {(compact ? reportFacts : [...identityFacts, ...reportFacts]).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
   </dl>
 
-  return <section aria-label={report.reportName} className={`diagnostic-report-document${compact ? ' is-compact' : ''}`}>
+  return <section aria-label={report.reportName} className={`diagnostic-report-document${compact ? ' is-compact' : ''}${stickyHeader ? ' has-sticky-header' : ''}`}>
     <header className="diagnostic-report-document__header">
       {!compact && <div className="diagnostic-report-document__kind">{isLab ? '检验报告单' : '检查报告单'}</div>}
       <div className="diagnostic-report-document__title">
@@ -95,6 +98,7 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
         {!compact && <small>{report.reportVersion ? `第 ${report.reportVersion} 版` : '版本未记录'}</small>}
       </div>
       <div className="diagnostic-report-document__actions">
+        {headerActions}
         <StatusBadge tone={historical ? 'neutral' : status.tone}>{historical ? '历史版本' : status.label}</StatusBadge>
         {api && !historical && ['FINAL', 'CORRECTED'].includes(report.status) && <DiagnosticPrintAction key={report.id}
           api={api} encounterId={report.encounterId} sourceId={report.id}
@@ -113,7 +117,7 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
       <span>异常 {abnormalCount} 项</span>
       {criticalCount > 0 && <strong>危急 {criticalCount} 项</strong>}
     </div>}
-    {isLab && report.observations.length > 0 && <div className="diagnostic-report-document__table"><DataTable aria-label="检验结果明细"><thead><tr>
+    {isLab && report.observations.length > 0 && <div className="diagnostic-report-document__table"><DataTable compact={compact} aria-label="检验结果明细"><thead><tr>
       <th>检验项目</th>
       <th className={tableCellClass('numeric')}>结果</th>
       <th className={tableCellClass('status')}>提示</th>
@@ -127,7 +131,7 @@ export function DiagnosticReportViewer({ report, historical = false, api, subjec
       const valueCellClass = isCritical ? 'diagnostic-obs-val--critical' : isAbnormal ? 'diagnostic-obs-val--abnormal' : undefined
 
       return <tr key={value.id} className={rowClass}>
-        <td>{value.observationName}{value.observationCode && <small>{value.observationCode}</small>}</td>
+        <td>{value.observationName}</td>
         <td className={`${tableCellClass('numeric')} ${valueCellClass ?? ''}`.trim()}>{diagnosticObservationValue(value)}</td>
         <td className={tableCellClass('status')}>{renderReportObservationFlag(value)}</td>
         <td className={tableCellClass('numeric')}>{value.referenceRangeLow == null && value.referenceRangeHigh == null ? savedReferenceGuidance(value.ruleSnapshot) ?? '—' : `${value.referenceRangeLow ?? '—'}～${value.referenceRangeHigh ?? '—'}`}</td>

@@ -97,6 +97,9 @@
 .doctor-history-visit-content strong, .doctor-history-visit-content small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doctor-history-visit-content > strong { font-size: var(--font-size-body); }
 .doctor-history-visit-content small { font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }
+.doctor-history-visits button { color: var(--color-text-primary); }
+.doctor-history-visits button .doctor-history-visit-content > small { color: var(--color-text-secondary); }
+.doctor-history-visits button.is-selected, .doctor-history-visits button.is-selected .doctor-history-visit-content > small { color: var(--color-brand-primary); }
 .doctor-history-detail .ui-page-template__pane-body { padding: 0; }
 .doctor-history-detail header { min-width: 0; }
 .doctor-history-context { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
@@ -124,10 +127,10 @@
 .doctor-history-renewal-actions > .ui-field { width: 100%; }
 .doctor-history-renewal-actions > button { margin-left: auto; }
 
-.doctor-history-documents { margin: var(--space-3); border-top: 1px solid var(--color-border); }
-.doctor-history-documents > summary { padding-block: var(--space-3); cursor: pointer; font-size: var(--font-size-small); color: var(--color-text-secondary); }
-.doctor-history-documents > summary .ui-badge { margin-left: var(--space-2); }
-.doctor-history-document-actions { padding-block: var(--space-2); }
+.doctor-history-documents { margin: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
+.doctor-history-documents-head { display: flex; align-items: center; gap: var(--space-2); }
+.doctor-history-documents-head > strong { font-size: var(--font-size-small); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
+.doctor-history-documents-head > button { margin-left: auto; }
 .doctor-history-prescriptions .doctor-history-medication.is-reference { grid-template-columns: minmax(0, 1fr); }
 .doctor-history-medication-content { min-width: 0; display: grid; gap: var(--space-1); }
 .doctor-history-medication-content > strong { font-weight: var(--font-weight-medium); }

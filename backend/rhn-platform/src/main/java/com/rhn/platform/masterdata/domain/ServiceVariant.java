@@ -23,6 +23,7 @@ public class ServiceVariant {
     @Column(name = "FG_BODY_SITE_RQD", nullable = false) private boolean bodySiteRequired;
     @Column(name = "CD_MUTUAL_RECOG") private String mutualRecognitionCode;
     @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "QTY_CHGBL_SITE_UNIT", nullable = false) private int chargeableSiteUnits = 1;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
@@ -50,6 +51,12 @@ public class ServiceVariant {
         requireRevision(expectedRevision);
         updateValues(bodySiteConceptId, code, name, methodType, bodySiteRequired,
                 mutualRecognitionCode, sortOrder, status, actorId);
+    }
+
+    /** 计费部位数按物价口径折算：0 表示不计入部位数，例如附加体位。 */
+    public void changeChargeableSiteUnits(int chargeableSiteUnits) {
+        if (chargeableSiteUnits < 0 || chargeableSiteUnits > 99) throw new IllegalArgumentException("计费部位数必须在0到99之间");
+        this.chargeableSiteUnits = chargeableSiteUnits;
     }
 
     public void changeStatus(long expectedRevision, String status, Long actorId) {
@@ -90,6 +97,7 @@ public class ServiceVariant {
     public boolean bodySiteRequired() { return bodySiteRequired; }
     public String mutualRecognitionCode() { return mutualRecognitionCode; }
     public int sortOrder() { return sortOrder; }
+    public int chargeableSiteUnits() { return chargeableSiteUnits; }
     public String status() { return status; }
 
     private void requireRevision(long expectedRevision) {

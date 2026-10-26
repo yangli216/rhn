@@ -16,34 +16,41 @@ import { PlanTemplateClinicalEditor } from './PlanTemplateClinicalEditor'
 import { planTaskKindLabel } from './planTaskPresentation'
 import { requireNoteTemplateList, templateApiScope } from './templateApplicationReceipt'
 import { saveMaintainedNote, saveMaintainedPlan } from './maintainedTemplateSave'
+import { copyOrderSetInput, rethrowTemplateSaveError, templateTypeHint, templateTypeLabel } from './orderSetTemplate'
 import { useTemplateApplication } from './useTemplateApplication'
 import { rebaseAnnotations } from '../record/recordAnnotations'
 import { recordTextFields } from '../../../shared/api/recordAnnotations'
 import { AnnotatedRecordField } from '../record/AnnotatedRecordField'
 import { RecordAnnotationLegend } from '../record/RecordAnnotationLegend'
 
-type TemplateKind = 'NOTE' | 'PLAN'
+type TemplateKind = 'NOTE' | 'PLAN' | 'ORDER_SET'
 const auxiliaryTaskKinds = new Set<OutpatientPlanTask['kind']>(['EDUCATION', 'FOLLOW_UP', 'CONDITION'])
 
-export function ManualClinicalTemplateDialog({ api, organizationId, kind, editingNote, editingPlan, onClose, onSaved }: {
+export function ManualClinicalTemplateDialog({ api, organizationId, kind, editingNote, editingPlan, copyFrom, onClose, onSaved }: {
   api: RhnApi
   organizationId?: string
   kind: TemplateKind
   editingNote?: OutpatientNoteTemplate | null
+  /** 编辑诊疗方案或医嘱组套；ORDER_SET 与 PLAN 共用同一入参。 */
   editingPlan?: OutpatientPlanTemplate | null
+  /** 复制为我的：以该医嘱组套的药品与项目为初始内容新建，范围固定从“我的”开始。 */
+  copyFrom?: OutpatientPlanTemplate | null
   onClose: () => void
   onSaved: (value: OutpatientNoteTemplate | OutpatientPlanTemplate) => void
 }) {
   const noteEditing = kind === 'NOTE' ? editingNote : null
-  const planEditing = kind === 'PLAN' ? editingPlan : null
-  const [name, setName] = useState(noteEditing?.name || planEditing?.name || '')
-  const [description, setDescription] = useState(noteEditing?.description || planEditing?.description || '')
+  const planEditing = kind !== 'NOTE' ? editingPlan : null
+  const orderSet = kind === 'ORDER_SET'
+  const copySeed = useMemo(() => orderSet && !editingPlan && copyFrom ? copyOrderSetInput(copyFrom) : undefined,
+    [copyFrom, editingPlan, orderSet])
+  const [name, setName] = useState(noteEditing?.name || planEditing?.name || copySeed?.name || '')
+  const [description, setDescription] = useState(noteEditing?.description || planEditing?.description || copySeed?.description || '')
   const [noteScope, setNoteScope] = useState<OutpatientNoteTemplateScope>(noteEditing?.scopeType || 'PERSONAL')
   const [planScope, setPlanScope] = useState<OutpatientPlanTemplateScope>(planEditing?.scopeType || 'PERSONAL')
   const [noteContent, setNoteContent] = useState<OutpatientNoteTemplateContent>(noteEditing?.content || {})
   const [diagnoses, setDiagnoses] = useState<DiagnosisInput[]>(planEditing?.diagnoses || [])
-  const [medications, setMedications] = useState<CompiledPlanMedicationItem[]>(planEditing?.medications || [])
-  const [services, setServices] = useState<CompiledPlanServiceItem[]>(planEditing?.services || [])
+  const [medications, setMedications] = useState<CompiledPlanMedicationItem[]>(planEditing?.medications || copySeed?.medications || [])
+  const [services, setServices] = useState<CompiledPlanServiceItem[]>(planEditing?.services || copySeed?.services || [])
   const [tasks, setTasks] = useState<OutpatientPlanTask[]>(planEditing?.tasks || [])
   const [noteTemplateId, setNoteTemplateId] = useState(planEditing?.noteTemplateId || '')
   const [directory, setDirectory] = useState<{ api: RhnApi; data?: OutpatientNoteTemplate[]; error?: string }>()
@@ -58,10 +65,11 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
   const saving = operation.pending
   const [error, setError] = useState('')
 
-  const [clinicalValidation, setClinicalValidation] = useState(planEditing?.medications.length ? '用法字典尚未确认' : '')
+  const [clinicalValidation, setClinicalValidation] = useState(planEditing?.medications.length || copySeed?.medications.length ? '用法字典尚未确认' : '')
 
   const noteHasContent = recordTextFields.some(key => noteContent[key]?.trim())
-  const valid = name.trim() && (kind === 'NOTE' ? noteHasContent : diagnoses.length > 0 && !clinicalValidation)
+  const valid = name.trim() && (kind === 'NOTE' ? noteHasContent
+    : orderSet ? medications.length + services.length > 0 && !clinicalValidation : diagnoses.length > 0 && !clinicalValidation)
   const compatibleNoteTemplates = useMemo(() => noteTemplates.filter((value) =>
     planScope === 'PERSONAL' || planScope === 'DEPARTMENT' && value.scopeType === 'DEPARTMENT'),
   [noteTemplates, planScope])
@@ -96,6 +104,11 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
         scopeType: noteScope, name, description, specialtyCode: noteEditing?.specialtyCode ?? 'GENERAL_PRACTICE',
         sortOrder: noteEditing?.sortOrder ?? 0, content: noteContent,
       }, noteEditing)
+      if (orderSet) return saveMaintainedPlan(api, {
+        templateKind: 'ORDER_SET', scopeType: planScope, name, description,
+        sourceType: planEditing ? planEditing.sourceType : 'MANUAL', sortOrder: planEditing?.sortOrder ?? 0,
+        diagnoses: [], medications, services, tasks: [],
+      }, planEditing).catch(rethrowTemplateSaveError)
       if (noteTemplateId && (!notesReady || !compatibleNoteTemplates.some(note => note.id === noteTemplateId))) {
         throw new Error('配套病历模板尚未确认或已不可用，请重新加载核对。')
       }
@@ -103,29 +116,30 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
         scopeType: planScope, name, description, noteTemplateId: noteTemplateId || undefined,
         sourceType: planEditing ? planEditing.sourceType : 'MANUAL', guidelineReference: planEditing?.guidelineReference,
         sortOrder: planEditing?.sortOrder ?? 0, diagnoses, medications, services, tasks,
-      }, planEditing)
+      }, planEditing).catch(rethrowTemplateSaveError)
     }, onSaved)
   }
 
   return <Dialog
-    title={`${noteEditing || planEditing ? '编辑' : '新建'}${kind === 'NOTE' ? '病历模板' : '诊疗方案'}`}
+    title={`${noteEditing || planEditing ? '编辑' : '新建'}${templateTypeLabel(kind)}`}
     eyebrow="人工维护 · 标准目录"
-    description={kind === 'NOTE' ? '直接维护可复用病历段落，不包含诊断和医嘱。' : undefined}
-    size="xwide" className={kind === 'PLAN' ? 'manual-plan-template-dialog' : 'manual-note-template-dialog'}
+    description={kind === 'NOTE' ? '直接维护可复用病历段落，不包含诊断和医嘱。'
+      : orderSet ? `${templateTypeHint('ORDER_SET')}；只包含药品和诊疗项目，带入时医生可逐行取消勾选。` : undefined}
+    size="xwide" className={kind !== 'NOTE' ? 'manual-plan-template-dialog' : 'manual-note-template-dialog'}
     closeOnBackdrop={false} onClose={() => !saving && onClose()}
     footer={<>
       <Button variant="secondary" disabled={saving} onClick={onClose}>取消</Button>
       <Button busy={saving} disabled={!valid} onClick={() => void save()}>保存模板</Button>
     </>}>
     {(error || operation.error) && <Alert>{error || operation.error}</Alert>}
-    <div inert={saving} className={`manual-template-dialog ${kind === 'PLAN' ? 'is-plan' : 'is-note'}`}>
-      <div className={`ui-form-grid ${kind === 'PLAN' ? 'manual-template-plan-meta' : ''}`}>
+    <div inert={saving} className={`manual-template-dialog ${kind !== 'NOTE' ? 'is-plan' : 'is-note'}`}>
+      <div className={`ui-form-grid ${kind !== 'NOTE' ? 'manual-template-plan-meta' : ''}`}>
         <FormField label="模板名称" required><input value={name} maxLength={100}
           onChange={(event) => setName(event.target.value)} placeholder="输入便于识别的模板名称" /></FormField>
         <FormField label="使用范围"><Select value={kind === 'NOTE' ? noteScope : planScope} clearable={false}
           options={kind === 'NOTE'
-            ? [{ value: 'PERSONAL', label: '仅本人' }, { value: 'DEPARTMENT', label: '本科室' }]
-            : [{ value: 'PERSONAL', label: '仅本人' }, { value: 'DEPARTMENT', label: '本科室' }, { value: 'HOSPITAL', label: '全院' }]}
+            ? [{ value: 'PERSONAL', label: '我的' }, { value: 'DEPARTMENT', label: '科室' }]
+            : [{ value: 'PERSONAL', label: '我的' }, { value: 'DEPARTMENT', label: '科室' }, { value: 'HOSPITAL', label: '全院' }]}
           onChange={(value) => kind === 'NOTE'
             ? setNoteScope(value as OutpatientNoteTemplateScope)
             : changePlanScope(value)} /></FormField>
@@ -148,6 +162,11 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
           </FormField>)}
         </div>
         {(noteContent.annotations?.length ?? 0) > 0 && <RecordAnnotationLegend />}
+      </div> : orderSet ? <div className="manual-template-plan-grid">
+        <PlanTemplateClinicalEditor api={api} organizationId={organizationId} mode="ORDER_SET"
+          diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+          medications={medications} setMedications={setMedications}
+          services={services} setServices={setServices} onError={setError} onValidationChange={setClinicalValidation} />
       </div> : <div className="manual-template-plan-grid">
         <section className="plan-template-note-link">
           <div className="plan-template-note-link__copy">
@@ -160,7 +179,7 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
             options={compatibleNoteTemplates.map((value) => ({
               value: value.id,
               label: value.name,
-              secondaryText: `${value.scopeType === 'PERSONAL' ? '个人' : '科室'} · ${noteTemplateFields.filter(({ key }) => value.content[key]?.trim()).length} 个段落`,
+              secondaryText: `${value.scopeType === 'PERSONAL' ? '我的' : '科室'} · ${noteTemplateFields.filter(({ key }) => value.content[key]?.trim()).length} 个段落`,
             }))}
             onChange={setNoteTemplateId} />
           {!notesReady && (notesError

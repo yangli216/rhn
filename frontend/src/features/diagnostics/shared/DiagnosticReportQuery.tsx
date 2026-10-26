@@ -7,7 +7,8 @@ import { formatTime } from '../../../shared/format'
 import { diagnosticReportStatusPresentation } from '../../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, DataTable, DateRangePicker, Dialog, EmptyState, FormField, LoadingState, Pagination, SearchField, Select, StatusBadge, tableCellClass } from '../../../shared/ui'
-import { ListPage } from '../../../shared/ui/templates/PageTemplates'
+import './diagnostic-report-query.css'
+import { ListPage, WorkspacePane } from '../../../shared/ui/templates/PageTemplates'
 import { getLast30DaysRange } from '../../../shared/utils/dateRange'
 import { diagnosticDateBoundary } from './diagnosticWorkbenchModel'
 
@@ -29,18 +30,19 @@ function ReportHistory({ api, row, scope, clinicalContext, onNavigate, canCorrec
   return <>
     {reports.isPending ? <LoadingState label="正在读取报告和更正记录…" /> : reports.isError
       ? <Alert>{errorMessage(reports.error)}<Button variant="secondary" onClick={() => void reports.refetch()}>重新加载</Button></Alert>
-      : <>
-        <div className="ui-query-filters">
-          <FormField label="报告版本"><Select value={versionId} clearable={false} onChange={setVersionId}
-            options={reports.data.map((report, index) => ({ value: report.id,
-              label: `第 ${report.reportVersion} 版 · ${index === 0 ? '最新记录' : '历史记录'} · ${formatTime(report.issuedAt)}` }))} /></FormField>
-          {row.taskId && canCorrect && current && ['FINAL', 'CORRECTED'].includes(current.status) && <Button variant="secondary"
-            onClick={() => onNavigate(`/diagnostics/${row.reportType === 'LABORATORY' ? 'laboratory' : 'examination'}?taskId=${encodeURIComponent(row.taskId!)}`)}>进入报告更正</Button>}
-        </div>
-        {selected && <DiagnosticReportViewer report={selected} historical={selected.id !== current?.id} api={api}
+      : <WorkspacePane label="报告正文" resetScrollKey={versionId}>
+        {selected && <DiagnosticReportViewer compact stickyHeader report={selected} historical={selected.id !== current?.id} api={api}
+          headerActions={<>
+            <div className="diagnostic-report-query__version"><Select aria-label="报告版本" size="sm"
+              value={versionId} clearable={false} onChange={setVersionId}
+              options={reports.data.map((report, index) => ({ value: report.id,
+                label: `第 ${report.reportVersion} 版 · ${index === 0 ? '最新记录' : '历史记录'} · ${formatTime(report.issuedAt)}` }))} /></div>
+            {row.taskId && canCorrect && current && ['FINAL', 'CORRECTED'].includes(current.status) && <Button size="sm" variant="secondary"
+              onClick={() => onNavigate(`/diagnostics/${row.reportType === 'LABORATORY' ? 'laboratory' : 'examination'}?taskId=${encodeURIComponent(row.taskId!)}`)}>进入报告更正</Button>}
+          </>}
           subject={{ patientName: row.residentName, healthRecordNo: row.healthRecordNo, requestNo: row.requestNo,
             specimenOrExam: row.specimenNo, organizationName: clinicalContext.organization.name }} />}
-      </>}
+      </WorkspacePane>}
   </>
 }
 
@@ -115,7 +117,7 @@ export function DiagnosticReportQuery({ api, clinicalContext, requestType, onNav
               </tr> })}</tbody>
             </DataTable>}
     </ListPage>
-    {opened?.scope === scope && canRead && <Dialog title="报告及更正记录" presentation="drawer" size="xwide" onClose={() => setOpened(undefined)}>
+    {opened?.scope === scope && canRead && <Dialog title="报告及更正记录" className="diagnostic-report-query-dialog" size="xwide" onClose={() => setOpened(undefined)}>
       <ReportHistory key={`${scope}:${opened.row.id}`} api={api} row={opened.row} scope={scope} clinicalContext={clinicalContext}
         onNavigate={(path) => { setOpened(undefined); onNavigate(path) }} canCorrect={canCorrect} />
     </Dialog>}

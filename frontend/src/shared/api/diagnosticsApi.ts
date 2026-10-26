@@ -233,6 +233,13 @@ export interface DiagnosticSpecimen {
   collectedAt?: string; receivedAt?: string; rejectionReason?: string; previousSpecimenId?: string; taskIds: string[]
 }
 
+/** 后端按主数据分管规则试算的标本容器与管数，与生成条码时实际结果一致。 */
+export interface DiagnosticSpecimenPlanGroup {
+  groupCode: string; specimenCode?: string; specimenName: string; containerCode?: string; containerName?: string
+  sharingMode: string; tubeCount: number; taskIds: string[]
+}
+export interface DiagnosticSpecimenPlan { groups: DiagnosticSpecimenPlanGroup[] }
+
 export interface DiagnosticImage {
   id: string; contentHash: string; mediaType: 'image/jpeg' | 'image/png'; byteSize: number
   width: number; height: number; caption?: string; uploadedBy: string; uploadedAt: string
@@ -262,6 +269,8 @@ export function createDiagnosticsApi(client: ApiClient) {
     scanSpecimen: (specimenNo: string) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/scan?${new URLSearchParams({ specimenNo })}`),
     generateSpecimens: (tasks: { taskId: string; expectedRevision: number; specimenConfigurationId?: string }[], commandId: string) =>
       client.request<DiagnosticSpecimen[]>('/api/diagnostics/specimens', { method: 'POST', body: JSON.stringify({ tasks, commandId }) }),
+    specimenPlan: (tasks: { taskId: string; specimenConfigurationId?: string }[]) =>
+      client.request<DiagnosticSpecimenPlan>('/api/diagnostics/specimens/plan', { method: 'POST', body: JSON.stringify({ tasks }) }),
     collectSpecimen: (id: string, expectedRevision: number) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/${id}/collection`, {
       method: 'POST', body: JSON.stringify({ expectedRevision }) }),
     receiveSpecimen: (id: string, expectedRevision: number) => client.request<DiagnosticSpecimen>(`/api/diagnostics/specimens/${id}/receipt`, {

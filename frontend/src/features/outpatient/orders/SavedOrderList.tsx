@@ -20,7 +20,9 @@ import { useSavedOrderDepartmentNames } from './useOrderExecutionDepartments'
 export function SavedOrderList({ savedEntries, draftEntries, allDocuments, prescriptions,
   documentRows, activeDocKey, handleSelectDoc, onSavedDocument: _onSavedDocument, encounter: _encounter, api, readOnly, busy,
   documentEditing, currentDept, onCancelService, onPrintService, onCancelMedication, onPrint, onInspectMedication, onInspectService,
-  skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer, editActionFor }: {
+  skinTestByRequest, groupingComposerTarget, groupingSession, isComposerActive, composer, editActionFor, revisionRows }: {
+  /** 修改中的已保存医嘱：以原医嘱 id 为键，在原位置渲染编辑行/待保存行，保持列表顺序不变。 */
+  revisionRows?: ReadonlyMap<string, ReactNode>
   /** 简单模式下的行内修改；标准模式不提供。 */
   editActionFor?: (entry: SavedOrderEntry, performerDepartmentName?: string) => SavedOrderEditAction | undefined
   savedEntries: SavedOrderEntry[]
@@ -186,7 +188,10 @@ export function SavedOrderList({ savedEntries, draftEntries, allDocuments, presc
         }
 
         let rowNode: React.ReactNode
-        if (entry.kind === 'service') {
+        const revisionRow = revisionRows?.get(entry.value.id)
+        if (revisionRow) {
+          rowNode = <Fragment key={`revision-${entry.value.id}`}>{revisionRow}</Fragment>
+        } else if (entry.kind === 'service') {
           rowNode = <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
             performerDepartmentName={departmentName(entry.value)}
             busy={busy || Boolean(documentEditing && documentRows[entry.value.id]?.selected)} readOnly={readOnly} currentDept={currentDept}

@@ -1,6 +1,8 @@
 .diagnostic-workbench { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .diagnostic-workbench .ui-page-template__master-detail { grid-template-columns: clamp(20rem, 28%, 27rem) minmax(0, 1fr); }
 .diagnostic-query { padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.diagnostic-query__note { display: flex; flex: 1 1 16rem; align-items: center; justify-content: flex-end; gap: var(--space-2); min-width: 0; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.diagnostic-query__note > span { min-width: 0; }
 .diagnostic-queue-list { list-style: none; padding: 0; margin: 0; }
 .diagnostic-queue-entry { display: block; border-bottom: 1px solid var(--color-border); border-left: 3px solid transparent; transition: background var(--motion-normal) var(--ease-standard); }
 .diagnostic-queue-entry:hover { background: var(--color-surface-subtle); }
@@ -56,6 +58,8 @@
 .diagnostic-specimen-table th:nth-child(3) { width: 7rem; }
 .diagnostic-specimen-table th:last-child { width: 38%; }
 .diagnostic-specimen-table td { overflow-wrap: anywhere; }
+.diagnostic-specimen-generate > span { display: flex; flex-direction: column; gap: var(--space-1); }
+.diagnostic-specimen-generate small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .diagnostic-specimen-generate { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--color-surface-subtle); border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-top: var(--space-3); }
 .diagnostic-workbench .diagnostic-indicator-table { flex: 1; min-height: 0; overflow-y: auto; overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); }
 .diagnostic-workbench .diagnostic-indicator-table .ui-data-table { min-width: 620px; width: 100%; table-layout: fixed; }

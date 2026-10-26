@@ -1,0 +1,11 @@
+.diagnostic-report-query-dialog {
+  height: min(58rem, calc(100dvh - var(--space-5) * 2));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diagnostic-report-query-dialog > .ui-dialog__head { flex: none; }
+.diagnostic-report-query-dialog > .ui-page-template__pane-frame { flex: 1; min-height: 0; }
+
+.diagnostic-report-query__version { width: 17rem; max-width: 100%; }

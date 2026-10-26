@@ -15,7 +15,7 @@ describe('DiagnosticReportViewer', () => {
   it('uses the common laboratory report column order and highlights abnormal facts', () => {
     const report = { ...base, reportType: 'LABORATORY', observations: [{
       id: 'observation-1', sortOrder: 1, codeSystemUri: 'local', observationCode: 'GLU',
-      observationName: '葡萄糖', status: 'FINAL', valueType: 'NUMBER', effectiveAt: base.issuedAt,
+      observationName: '葡萄糖（GLU）', status: 'FINAL', valueType: 'NUMBER', effectiveAt: base.issuedAt,
       valueNumber: 12.6, unitCode: 'mmol/L', referenceRangeLow: 3.9, referenceRangeHigh: 6.1,
       interpretationCode: 'H',
     }] } as DiagnosticReport
@@ -25,7 +25,8 @@ describe('DiagnosticReportViewer', () => {
     expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
       '检验项目', '结果', '提示', '参考范围', '单位',
     ])
-    expect(within(table).getByText('葡萄糖').closest('tr')).toHaveTextContent('偏高')
+    expect(within(table).getByText('葡萄糖（GLU）').closest('tr')).toHaveTextContent('偏高')
+    expect(within(table).queryByText('GLU', { exact: true })).not.toBeInTheDocument()
     expect(screen.getByText('异常 1 项')).toBeInTheDocument()
     expect(screen.getByText('王某')).toBeInTheDocument()
   })

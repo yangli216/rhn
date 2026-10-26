@@ -73,23 +73,8 @@ public class DiagnosticSpecimenService {
             if(!ids.equals(selected.stream().map(TaskSelection::taskId).toList()) || existing.stream().anyMatch(s->!commandHash.equals(s.commandHash()))) throw conflict("DIAGNOSTIC_COMMAND_CONTENT_CONFLICT","同一标本请求不能用于不同内容");
             return existing.stream().map(this::view).toList();
         }
-        var owner=locked.getFirst(); var orders=new ArrayList<LaboratoryOrderItemCommand>();
-        var byService=new HashMap<Long,DiagnosticExecutionTask>();
-        for(int i=0;i<locked.size();i++) {
-            var task=locked.get(i); task.requireReadySpecimen();
-            if(task.revision()!=selected.get(i).expectedRevision()) throw conflict("DIAGNOSTIC_TASK_REVISION_CONFLICT","申请已被更新，请刷新");
-            if(!Objects.equals(owner.residentId(),task.residentId()) || !Objects.equals(owner.encounterId(),task.encounterId()))
-                throw conflict("DIAGNOSTIC_SPECIMEN_PATIENT_MISMATCH","只能为同一患者同次就诊共同分管");
-            if(!specimens.findForTask(task.tenantId(),task.id()).isEmpty())
-                throw conflict("DIAGNOSTIC_SPECIMEN_ALREADY_PLANNED","申请已有标本，请继续采集或重采");
-            var request=requests.requireForDiagnosticExchange(task.requestId());
-            if(byService.put(request.catalogItemId(),task)!=null) throw badRequest("DIAGNOSTIC_SPECIMEN_AMBIGUOUS_REQUEST","同一项目的多张申请请分批采集");
-            int quantity;try { quantity=request.quantity().intValueExact(); } catch(ArithmeticException error) { throw badRequest("DIAGNOSTIC_SPECIMEN_QUANTITY_INVALID","检验次数必须为整数"); }
-            orders.add(new LaboratoryOrderItemCommand(request.catalogItemId(),selected.get(i).specimenConfigurationId(),quantity));
-        }
-        var plan=catalog.laboratoryTubePlan(orders); var result=new ArrayList<DiagnosticSpecimen>();
-        if(plan.groups().isEmpty() || plan.groups().stream().mapToLong(group->group.tubeCount()).sum()>100)
-            throw badRequest("DIAGNOSTIC_SPECIMEN_TUBE_LIMIT","单批标本必须为1至100管");
+        var planned=plan(locked,selected,true); var owner=planned.owner(); var byService=planned.byService(); var plan=planned.plan();
+        var result=new ArrayList<DiagnosticSpecimen>();
         batches.saveAndFlush(new DiagnosticSpecimenBatch(context.tenantId(),context.organizationId(),input.commandId(),commandHash));
         for(var group:plan.groups()) for(int i=0;i<group.tubeCount();i++) {
             var specimen=specimens.save(new DiagnosticSpecimen(owner,numbers.next("diagnostic-specimen",new BusinessNumberContext(owner.tenantId(),owner.organizationId(),owner.departmentId())),
@@ -99,6 +84,41 @@ public class DiagnosticSpecimenService {
         }
         specimens.flush(); return result.stream().map(this::view).toList();
     }
+    /** 与生成条码同一套分管规则的只读试算，供作业前展示实际将生成的容器与管数。 */
+    public TubePlanView preview(List<TaskSelection> input) {
+        if(input==null || input.isEmpty() || input.size()>50) throw badRequest("DIAGNOSTIC_SPECIMEN_TASKS_REQUIRED","请选1至50项申请");
+        var context=contexts.requireCurrent();
+        com.rhn.diagnostics.api.DiagnosticPermissions.requireRead(context,"LABORATORY");
+        var selected=input.stream().sorted(java.util.Comparator.comparing(TaskSelection::taskId)).toList();
+        if(selected.stream().map(TaskSelection::taskId).distinct().count()!=selected.size()) throw badRequest("DIAGNOSTIC_SPECIMEN_DUPLICATE_TASK","不能重复选择相同申请");
+        var locked=new ArrayList<DiagnosticExecutionTask>();
+        for(var item:selected) locked.add(execution.requireLocalTask(item.taskId()));
+        var planned=plan(locked,selected,false);
+        return new TubePlanView(planned.plan().groups().stream().map(group->new TubeGroupView(group.groupCode(),group.specimenCode(),group.specimenName(),
+            group.containerCode(),group.containerName(),group.sharingMode(),group.tubeCount(),
+            group.serviceIds().stream().map(serviceId->planned.byService().get(serviceId).id()).toList())).toList());
+    }
+    private PlannedTubes plan(List<DiagnosticExecutionTask> locked,List<TaskSelection> selected,boolean checkRevision) {
+        var owner=locked.getFirst(); var orders=new ArrayList<LaboratoryOrderItemCommand>();
+        var byService=new HashMap<Long,DiagnosticExecutionTask>();
+        for(int i=0;i<locked.size();i++) {
+            var task=locked.get(i); task.requireReadySpecimen();
+            if(checkRevision && task.revision()!=selected.get(i).expectedRevision()) throw conflict("DIAGNOSTIC_TASK_REVISION_CONFLICT","申请已被更新，请刷新");
+            if(!Objects.equals(owner.residentId(),task.residentId()) || !Objects.equals(owner.encounterId(),task.encounterId()))
+                throw conflict("DIAGNOSTIC_SPECIMEN_PATIENT_MISMATCH","只能为同一患者同次就诊共同分管");
+            if(!specimens.findForTask(task.tenantId(),task.id()).isEmpty())
+                throw conflict("DIAGNOSTIC_SPECIMEN_ALREADY_PLANNED","申请已有标本，请继续采集或重采");
+            var request=requests.requireForDiagnosticExchange(task.requestId());
+            if(byService.put(request.catalogItemId(),task)!=null) throw badRequest("DIAGNOSTIC_SPECIMEN_AMBIGUOUS_REQUEST","同一项目的多张申请请分批采集");
+            int quantity;try { quantity=request.quantity().intValueExact(); } catch(ArithmeticException error) { throw badRequest("DIAGNOSTIC_SPECIMEN_QUANTITY_INVALID","检验次数必须为整数"); }
+            orders.add(new LaboratoryOrderItemCommand(request.catalogItemId(),selected.get(i).specimenConfigurationId(),quantity));
+        }
+        var plan=catalog.laboratoryTubePlan(orders);
+        if(plan.groups().isEmpty() || plan.groups().stream().mapToLong(group->group.tubeCount()).sum()>100)
+            throw badRequest("DIAGNOSTIC_SPECIMEN_TUBE_LIMIT","单批标本必须为1至100管");
+        return new PlannedTubes(owner,byService,plan);
+    }
+    private record PlannedTubes(DiagnosticExecutionTask owner,HashMap<Long,DiagnosticExecutionTask> byService,com.rhn.platform.masterdata.api.MedicalOperationsViews.LaboratoryTubePlan plan) {}
     public SpecimenView collect(Long id,long expectedRevision) {
         requireExecute();
         var context = contexts.requireCurrent();
@@ -175,6 +195,8 @@ public class DiagnosticSpecimenService {
             specimen.previousSpecimenId(),links.findByTenantIdAndSpecimenId(specimen.tenantId(),specimen.id()).stream().map(DiagnosticSpecimenTask::taskId).toList());
     }
     public record TaskSelection(Long taskId,long expectedRevision,Long specimenConfigurationId) {}
+    public record TubeGroupView(String groupCode,String specimenCode,String specimenName,String containerCode,String containerName,String sharingMode,int tubeCount,List<Long> taskIds) {}
+    public record TubePlanView(List<TubeGroupView> groups) {}
     public record GenerateCommand(List<TaskSelection> tasks,String commandId) {}
     public record SpecimenView(Long id,long revision,String specimenNo,String specimenType,String specimenName,String containerCode,String containerName,
         String status,Instant collectedAt,Instant receivedAt,String rejectionReason,Long previousSpecimenId,List<Long> taskIds) {}

@@ -90,7 +90,15 @@
         "src/features/outpatient/templates/resolveTemplateOrders.test.ts",
         "src/features/outpatient/templates/resolveTemplateOrders.api.test.ts",
         "src/features/outpatient/templates/useTemplateApplication.test.tsx",
-        "src/features/outpatient/templates/historicalPlanSelection.test.ts"
+        "src/features/outpatient/templates/historicalPlanSelection.test.ts",
+        "src/features/outpatient/templates/TemplateLibraryDrawer.test.tsx",
+        "src/features/outpatient/templates/templateLibrary.test.ts",
+        "src/features/outpatient/templates/orderSetTemplate.test.ts",
+        "src/features/outpatient/templates/OrderSetTemplatesWorkspace.test.tsx",
+        "src/features/outpatient/templates/SaveOrderSetDialog.test.tsx",
+        "src/features/outpatient/orders/orderSetImport.test.ts",
+        "src/features/outpatient/orders/orderSetImport.api.test.ts",
+        "src/features/outpatient/orders/useOrderSetImport.test.tsx"
       ],
       "backend": [
         "ArchitectureTest",
@@ -205,7 +213,15 @@
         "src/features/outpatient/templates/resolveTemplateOrders.test.ts",
         "src/features/outpatient/templates/resolveTemplateOrders.api.test.ts",
         "src/features/outpatient/templates/useTemplateApplication.test.tsx",
-        "src/features/outpatient/templates/historicalPlanSelection.test.ts"
+        "src/features/outpatient/templates/historicalPlanSelection.test.ts",
+        "src/features/outpatient/templates/TemplateLibraryDrawer.test.tsx",
+        "src/features/outpatient/templates/templateLibrary.test.ts",
+        "src/features/outpatient/templates/orderSetTemplate.test.ts",
+        "src/features/outpatient/templates/OrderSetTemplatesWorkspace.test.tsx",
+        "src/features/outpatient/templates/SaveOrderSetDialog.test.tsx",
+        "src/features/outpatient/orders/orderSetImport.test.ts",
+        "src/features/outpatient/orders/orderSetImport.api.test.ts",
+        "src/features/outpatient/orders/useOrderSetImport.test.tsx"
       ],
       "backend": [
         "ArchitectureTest",

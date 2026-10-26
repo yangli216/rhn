@@ -23,6 +23,10 @@ public class DiagnosticSpecimenController {
         return specimens.generate(new GenerateCommand(input.tasks().stream()
                 .map(task->new TaskSelection(task.taskId(),task.expectedRevision(),task.specimenConfigurationId())).toList(),input.commandId()));
     }
+    @PostMapping("/specimens/plan")
+    TubePlanView specimenPlan(@Valid @RequestBody SpecimenPlanRequest input) {
+        return specimens.preview(input.tasks().stream().map(task->new TaskSelection(task.taskId(),0L,task.specimenConfigurationId())).toList());
+    }
     @PostMapping("/specimens/{id}/collection")
     SpecimenView collect(@PathVariable Long id,@Valid @RequestBody VersionRequest input) { return specimens.collect(id,input.expectedRevision()); }
     @PostMapping("/specimens/{id}/receipt")
@@ -33,6 +37,8 @@ public class DiagnosticSpecimenController {
     SpecimenView recollect(@PathVariable Long id,@Valid @RequestBody RecollectRequest input) { return specimens.recollect(id,input.expectedRevision(),input.commandId()); }
     record TaskRequest(@NotNull Long taskId,@NotNull Long expectedRevision,Long specimenConfigurationId) {}
     record GenerateRequest(@NotEmpty @Size(max=50) List<@Valid TaskRequest> tasks,@NotBlank @Size(max=64) String commandId) {}
+    record SpecimenPlanTaskRequest(@NotNull Long taskId,Long specimenConfigurationId) {}
+    record SpecimenPlanRequest(@NotEmpty @Size(max=50) List<@Valid SpecimenPlanTaskRequest> tasks) {}
     record VersionRequest(@NotNull Long expectedRevision) {}
     record RejectRequest(@NotNull Long expectedRevision,@NotBlank @Size(max=1000) String reason) {}
     record RecollectRequest(@NotNull Long expectedRevision,@NotBlank @Size(max=64) String commandId) {}

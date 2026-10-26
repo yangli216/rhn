@@ -262,7 +262,7 @@ class ClinicalPdfRenderer {
             String instruction = text(item, "instruction", "");
             medications.addCell(bodyCell(usage + (instruction.isBlank() ? "" : "\n" + instruction), Element.ALIGN_LEFT));
 
-            String quantity = number(item.get("quantity")) + " " + text(item, "quantityUnit", "");
+            String quantity = number(item.get("quantity")) + " " + OutpatientDocumentPdfRenderer.formatUnit(text(item, "quantityUnit", ""));
             medications.addCell(bodyCell(quantity, Element.ALIGN_CENTER));
         }
 
@@ -279,7 +279,7 @@ class ClinicalPdfRenderer {
         document.add(medications);
 
         // 处方特别说明（如有）
-        String note = text(snapshot, "note", "");
+        String note = OutpatientDocumentPdfRenderer.filterPrescriptionNote(text(snapshot, "note", ""));
         if (!note.isBlank() && !"无".equals(note)) {
             addInlineSection(document, "处方备注", note);
         }

@@ -196,7 +196,7 @@ export interface ExaminationSiteOptions {
   maxBodySiteCount?: number | null
   sitePricingMode?: string | null
   maxChargeableSiteCount?: number | null
-  sites: { code: string; name: string; methodType?: string | null }[]
+  sites: { code: string; name: string; methodType?: string | null; chargeableSiteUnits?: number }[]
 }
 
 export interface CreateServiceRequestInput {

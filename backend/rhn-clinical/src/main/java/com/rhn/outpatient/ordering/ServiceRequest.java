@@ -171,14 +171,26 @@ class ServiceRequest {
     }
 
     /** 未签署申请原地修改数量与临床说明；项目不变，金额按原单价重算。 */
-    void reviseDraft(long expectedRevision, BigDecimal quantity, String clinicalDescription) {
+    /** chargeTotal 为按收费方案多行定价的合计；为空时按主项目单价乘数量。 */
+    void reviseDraft(long expectedRevision, BigDecimal quantity, String clinicalDescription, BigDecimal chargeTotal) {
         requireRevision(expectedRevision);
         if (status != ServiceRequestStatus.DRAFT) {
             throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有未签署的诊疗请求可以直接修改", HttpStatus.CONFLICT);
         }
         this.quantity = quantity;
-        this.totalAmount = unitPrice == null ? null : unitPrice.multiply(quantity);
+        this.totalAmount = unitPrice == null ? null : chargeTotal == null ? unitPrice.multiply(quantity) : chargeTotal;
         this.clinicalDescription = clinicalDescription;
+    }
+
+    /** 未签署检查申请换档时，主收费行的价格快照随收费方案更新；主收费行不是开立项目自身。 */
+    void repriceMainLine(Long priceId, Long priceRevision, String priceType, BigDecimal unitPrice) {
+        if (status != ServiceRequestStatus.DRAFT) {
+            throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "只有未签署的诊疗请求可以直接修改", HttpStatus.CONFLICT);
+        }
+        this.priceId = priceId;
+        this.priceRevision = priceRevision;
+        this.priceType = priceType;
+        this.unitPrice = unitPrice;
     }
 
     private void requireRevision(long expectedRevision) {

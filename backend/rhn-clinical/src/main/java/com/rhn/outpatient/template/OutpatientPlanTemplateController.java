@@ -26,8 +26,9 @@ class OutpatientPlanTemplateController {
 
     @Operation(operationId = "listOutpatientPlanTemplates")
     @GetMapping
-    List<OutpatientPlanTemplateContracts.View> list(@RequestParam(required = false) String keyword) {
-        return service.visible(keyword);
+    List<OutpatientPlanTemplateContracts.View> list(@RequestParam(required = false) String keyword,
+                                                     @RequestParam(required = false) String kind) {
+        return service.visible(keyword, kind);
     }
 
     @Operation(operationId = "createOutpatientPlanTemplate")

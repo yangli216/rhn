@@ -5,10 +5,14 @@ export function usesSiteQuantity(rule: ExaminationSiteOptions | undefined, siteC
   return Boolean(rule?.configured && (rule.bodySiteRequired || siteCount > 0))
 }
 
-/** 与服务端 ExaminationSiteRule.baseQuantity 一致：按部位计价时为计费部位数，其余方式为 1。 */
-export function examinationSiteQuantity(rule: ExaminationSiteOptions, siteCount: number) {
+/**
+ * 与服务端 ExaminationSiteRule 一致：按部位计价时为计费部位数（所选部位方式的计费部位数之和，至少 1，受最大计费部位数封顶），
+ * 其余方式为 1。
+ */
+export function examinationSiteQuantity(rule: ExaminationSiteOptions, sites: readonly { code: string }[]) {
   if (rule.sitePricingMode !== 'PER_SITE') return 1
-  const effective = Math.max(1, siteCount)
+  const units = sites.reduce((sum, site) => sum + (rule.sites.find(option => option.code === site.code)?.chargeableSiteUnits ?? 1), 0)
+  const effective = Math.max(1, units)
   return rule.maxChargeableSiteCount == null ? effective : Math.min(effective, rule.maxChargeableSiteCount)
 }
 

@@ -2258,6 +2258,16 @@
         "logical": "department_id",
         "physical": "ID_DEPT",
         "comment": "科室标识"
+      },
+      {
+        "logical": "charge_line_no",
+        "physical": "SN_CHG_LINE",
+        "comment": "同一来源内的收费行号；检查申请按收费方案逐行落账，其余来源为 1"
+      },
+      {
+        "logical": "charge_role",
+        "physical": "SD_CHG_ROLE",
+        "comment": "收费行类型，与检查申请收费方案一致；非检查申请为空"
       }
     ]
   },
@@ -2760,6 +2770,65 @@
         "logical": "updated_at",
         "physical": "DT_UPDATED",
         "comment": "更新时间"
+      }
+    ]
+  },
+  {
+    "logical": "bd.concept_relation",
+    "legacy": "concept_relations",
+    "physical": "RHN_BD_CONCEPT_REL",
+    "domain": "BD",
+    "comment": "概念关系；一行代表两个术语概念之间的一条有向关系，目前用于部位层级",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_CONCEPT_REL",
+        "comment": "概念关系主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "concept_id",
+        "physical": "ID_CONCEPT",
+        "comment": "源概念标识（子部位）"
+      },
+      {
+        "logical": "target_concept_id",
+        "physical": "ID_CONCEPT_TARGET",
+        "comment": "目标概念标识（上级部位）"
+      },
+      {
+        "logical": "relation_type",
+        "physical": "SD_REL_TYPE",
+        "comment": "关系类型：PART_OF 表示源概念是目标概念的一部分"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "状态"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
       }
     ]
   },
@@ -6375,6 +6444,95 @@
         "physical": "QTY_MAX_CHGBL_SITE",
         "comment": "最大chargeable库房盘点",
         "previousPhysical": "MAX_CHARGEABLE_SITE_COUNT"
+      },
+      {
+        "logical": "base_charge_item_id",
+        "physical": "ID_CATALOG_ITEM_BASE_CHG",
+        "comment": "主收费物价项目标识；为空时主收费行收开立项目自身，阶梯计价模式下必须为空"
+      },
+      {
+        "logical": "examination_technique",
+        "physical": "SD_EXAM_TECHNIQUE",
+        "comment": "超声方式：B_MODE 常规 B 超，COLOR_DOPPLER 彩色多普勒；非超声为空"
+      },
+      {
+        "logical": "contrast_phase",
+        "physical": "SD_CONTRAST_PHASE",
+        "comment": "增强方式：PLAIN 平扫，ENHANCED 增强，PLAIN_ENHANCED 平扫加增强；非 CT/MR 为空"
+      }
+    ]
+  },
+  {
+    "logical": "bd.examination_price_tier",
+    "legacy": "examination_price_tiers",
+    "physical": "RHN_BD_EXAM_PRICE_TIER",
+    "domain": "BD",
+    "comment": "检查阶梯计价档位；一行代表开立项目在一个计费部位数区间内对应的物价项",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_EXAM_PRICE_TIER",
+        "comment": "阶梯档位主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "catalog_item_id",
+        "physical": "ID_CATALOG_ITEM",
+        "comment": "开立项目标识"
+      },
+      {
+        "logical": "site_from",
+        "physical": "QTY_SITE_FROM",
+        "comment": "计费部位数下限（含），从 1 开始"
+      },
+      {
+        "logical": "site_to",
+        "physical": "QTY_SITE_TO",
+        "comment": "计费部位数上限（含），为空表示无上限"
+      },
+      {
+        "logical": "charge_item_id",
+        "physical": "ID_CATALOG_ITEM_CHG",
+        "comment": "本档收费物价项目标识"
+      },
+      {
+        "logical": "charge_quantity",
+        "physical": "QTY_CHG",
+        "comment": "本档收费数量"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "状态"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
       }
     ]
   },
@@ -16055,6 +16213,11 @@
         "physical": "DES_REASON",
         "comment": "原因文本",
         "previousPhysical": "REASON_TEXT"
+      },
+      {
+        "logical": "default_selected",
+        "physical": "FG_DEFAULT_SELCTD",
+        "comment": "带入预览中是否默认勾选；用于组套中的可选药品"
       }
     ],
     "previousPhysical": "RHN_META_OP_PLAN_MEDICAT"
@@ -16137,6 +16300,16 @@
         "logical": "clinical_description",
         "physical": "DES_CLIN_DESCR",
         "comment": "临床说明"
+      },
+      {
+        "logical": "default_selected",
+        "physical": "FG_DEFAULT_SELCTD",
+        "comment": "带入预览中是否默认勾选；用于组套中的可选项目"
+      },
+      {
+        "logical": "execution_department_id",
+        "physical": "ID_DEPT_EXEC",
+        "comment": "默认执行科室；为空时沿用项目默认执行科室规则"
       }
     ]
   },
@@ -16257,6 +16430,11 @@
         "logical": "search_profile",
         "physical": "JSON_SEARCH_PROFILE",
         "comment": "当前诊疗方案内容派生的检索摘要、条件、关键词及内容指纹"
+      },
+      {
+        "logical": "template_kind",
+        "physical": "SD_TMPL_KIND",
+        "comment": "模板类型：PROTOCOL 诊疗方案、ORDER_SET 医嘱组套；存量均为诊疗方案"
       }
     ]
   },
@@ -22064,6 +22242,105 @@
     ]
   },
   {
+    "logical": "ex.service_request_charge_line",
+    "legacy": "service_request_charge_lines",
+    "physical": "RHN_EX_SVC_REQ_CHG",
+    "domain": "EX",
+    "comment": "检查申请收费方案；一行代表开立时快照的一条收费明细，计费按行生成收费事项",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SVC_REQ_CHG",
+        "comment": "申请收费明细主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "service_request_id",
+        "physical": "ID_CARE_REQ",
+        "comment": "服务请求标识"
+      },
+      {
+        "logical": "line_no",
+        "physical": "SN_LINE",
+        "comment": "收费行号，从 1 开始，与收费事项行号一致"
+      },
+      {
+        "logical": "charge_role",
+        "physical": "SD_CHG_ROLE",
+        "comment": "收费行类型：主项目、阶梯档位、多部位固定加收、多部位加收项目、附加项目"
+      },
+      {
+        "logical": "catalog_item_id",
+        "physical": "ID_CATALOG_ITEM",
+        "comment": "收费物价项目标识"
+      },
+      {
+        "logical": "item_code_snapshot",
+        "physical": "CD_ITEM_SNAP",
+        "comment": "物价项目编码快照"
+      },
+      {
+        "logical": "item_name_snapshot",
+        "physical": "NA_ITEM_SNAP",
+        "comment": "物价项目名称快照"
+      },
+      {
+        "logical": "unit_code",
+        "physical": "CD_UNIT",
+        "comment": "收费单位"
+      },
+      {
+        "logical": "quantity",
+        "physical": "QTY_CHARGE",
+        "comment": "收费数量"
+      },
+      {
+        "logical": "price_id",
+        "physical": "ID_PRICE",
+        "comment": "价格版本标识；多部位固定加收取检查配置金额，为空"
+      },
+      {
+        "logical": "price_revision",
+        "physical": "SN_PRICE_VER",
+        "comment": "价格修订号"
+      },
+      {
+        "logical": "price_type",
+        "physical": "SD_PRICE_TYPE",
+        "comment": "价格类型"
+      },
+      {
+        "logical": "unit_price",
+        "physical": "PRICE_UNIT",
+        "comment": "单价快照"
+      },
+      {
+        "logical": "total_amount",
+        "physical": "AMT_TOTAL",
+        "comment": "金额，等于单价乘数量"
+      },
+      {
+        "logical": "currency_code",
+        "physical": "CD_CCY",
+        "comment": "币种"
+      },
+      {
+        "logical": "accounting_category",
+        "physical": "SD_ACCTG_CAT",
+        "comment": "核算分类快照"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      }
+    ]
+  },
+  {
     "logical": "ex.service_request_site",
     "legacy": "service_request_sites",
     "physical": "RHN_EX_SVC_REQ_SITE",
@@ -22124,6 +22401,11 @@
         "logical": "created_at",
         "physical": "DT_CREATED",
         "comment": "创建时间"
+      },
+      {
+        "logical": "chargeable_site_units",
+        "physical": "QTY_CHGBL_SITE_UNIT",
+        "comment": "开立时的计费部位数快照"
       }
     ]
   },
@@ -22608,6 +22890,11 @@
         "logical": "updated_by",
         "physical": "ID_USER_UPDATED",
         "comment": "更新人标识"
+      },
+      {
+        "logical": "chargeable_site_units",
+        "physical": "QTY_CHGBL_SITE_UNIT",
+        "comment": "计费部位数；按物价口径配置该部位方式折算的部位数，0 表示不计入部位数"
       }
     ]
   },

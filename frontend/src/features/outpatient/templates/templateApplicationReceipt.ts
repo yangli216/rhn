@@ -116,6 +116,7 @@ export function requireCreatedPlanReceipt(receipt: OutpatientPlanTemplate, input
   requirePlanApplicationShape(receipt)
   if (receipt.scopeType !== input.scopeType || receipt.name !== input.name.trim()
     || (input.sourceType != null && receipt.sourceType !== input.sourceType)
+    || (receipt.templateKind ?? 'PROTOCOL') !== (input.templateKind ?? 'PROTOCOL')
     || !equal(receipt.noteTemplateId, input.noteTemplateId)) return fail('保存的方案与本次请求不一致')
   function matches(inputRows: object[], actualRows: object[], fields: string[]) {
     return inputRows.length === actualRows.length && inputRows.every((row, index) =>
@@ -125,9 +126,9 @@ export function requireCreatedPlanReceipt(receipt: OutpatientPlanTemplate, input
   if (!matches(input.diagnoses, receipt.diagnoses, ['codeSystem', 'diagnosisDomain', 'code', 'display', 'type'])
     || !matches(input.medications, receipt.medications, ['medicationId', 'catalogItemId', 'packageId', 'doseValue', 'doseUnit',
       'routeCode', 'frequencyCode', 'durationValue', 'durationUnit', 'quantity', 'quantityUnit', 'substitutionAllowed',
-      'selfProvided', 'medicationInstruction', 'priceType', 'pricingRequired', 'reason'])
+      'selfProvided', 'medicationInstruction', 'priceType', 'pricingRequired', 'reason', 'defaultSelected'])
     || !matches(input.services, receipt.services, ['catalogItemId', 'quantity', 'unitCode', 'priceType', 'pricingRequired',
-      'reason', 'clinicalDescription', 'performerOrganizationId', 'performerDepartmentId'])
+      'reason', 'clinicalDescription', 'performerOrganizationId', 'performerDepartmentId', 'defaultSelected', 'executionDepartmentId'])
     || (input.tasks && !equal(input.tasks, receipt.tasks))) {
     return fail('保存回执缺少所选明细或改变了请求内容')
   }
@@ -154,4 +155,29 @@ let nextApiScope = 0
 export function templateApiScope(api: object): number {
   if (!apiScopes.has(api)) apiScopes.set(api, ++nextApiScope)
   return apiScopes.get(api)!
+}
+
+export interface SkippedTemplateItem { label: string; reason: string }
+export interface TemplateApplicationOutcome {
+  /** 模板或组套名称 */
+  source: string
+  /** 实际带入数量（诊断为去重后的新增数，病历为实际改变的段落数）。 */
+  applied: { diagnoses?: number; medications?: number; services?: number; noteFields?: number }
+  skipped: SkippedTemplateItem[]
+}
+
+/**
+ * 统一带入回执：已带入 N 项，跳过 M 项（原因）。
+ * changed 表示草稿确实发生变化；全部跳过时 changed 为 false，调用方应作为未完成提示展示。
+ */
+export function describeTemplateApplication({ source, applied, skipped }: TemplateApplicationOutcome): { message: string; changed: boolean } {
+  const parts = [['诊断', applied.diagnoses], ['药品', applied.medications], ['诊疗项目', applied.services], ['病历段落', applied.noteFields]]
+    .filter((part): part is [string, number] => typeof part[1] === 'number' && part[1] > 0)
+  const total = parts.reduce((sum, [, count]) => sum + count, 0)
+  const detail = parts.map(([name, count]) => `${name} ${count}`).join('、')
+  const reasons = skipped.slice(0, 3).map(item => `${item.label}：${item.reason}`).join('；') + (skipped.length > 3 ? '等' : '')
+  if (!total && !skipped.length) return { message: '所选内容已在当前草稿中，未新增内容。', changed: false }
+  if (!total) return { message: `“${source}”未带入任何内容，跳过 ${skipped.length} 项（${reasons}）。`, changed: false }
+  return { changed: true, message: `已从“${source}”带入 ${total} 项（${detail}）${skipped.length
+    ? `，跳过 ${skipped.length} 项（${reasons}）` : ''}，请核对后保存和开立。` }
 }

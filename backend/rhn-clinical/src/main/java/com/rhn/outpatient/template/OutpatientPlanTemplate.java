@@ -32,6 +32,7 @@ class OutpatientPlanTemplate {
     @org.hibernate.annotations.OptimisticLock(excluded = true)
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LONG32VARCHAR)
     @Column(name = "JSON_SEARCH_PROFILE") private String searchProfile;
+    @Column(name = "SD_TMPL_KIND", nullable = false) private String templateKind = "PROTOCOL";
     @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
@@ -43,6 +44,15 @@ class OutpatientPlanTemplate {
                            Long ownerId, String name, String description, int sortOrder,
                            String sourceType, String guidelineReference, Long noteTemplateId,
                            Long actorId, Instant now) {
+        this(tenantId, organizationId, departmentId, scopeType, ownerId, name, description, sortOrder,
+                sourceType, guidelineReference, noteTemplateId, "PROTOCOL", actorId, now);
+    }
+
+    OutpatientPlanTemplate(Long tenantId, Long organizationId, Long departmentId, String scopeType,
+                           Long ownerId, String name, String description, int sortOrder,
+                           String sourceType, String guidelineReference, Long noteTemplateId,
+                           String templateKind, Long actorId, Instant now) {
+        this.templateKind = templateKind == null || templateKind.isBlank() ? "PROTOCOL" : templateKind;
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
         this.departmentId = departmentId; this.scopeType = scopeType; this.ownerId = ownerId;
         this.name = name; this.description = description; this.sortOrder = sortOrder;
@@ -92,6 +102,8 @@ class OutpatientPlanTemplate {
     String name() { return name; }
     String description() { return description; }
     String status() { return status; }
+    String templateKind() { return templateKind; }
+    boolean isOrderSet() { return "ORDER_SET".equals(templateKind); }
     String sourceType() { return sourceType; }
     String guidelineReference() { return guidelineReference; }
     Long noteTemplateId() { return noteTemplateId; }

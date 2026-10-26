@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { errorMessage, type RhnApi, type StandardMedicationDetail, type StandardMedicationSpecification } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { DataTable, Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './standard-medication-catalog.css'
 import { StandardCatalogSourceReviewDialog } from './StandardCatalogSourceReviewDialog'
 import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
@@ -264,7 +264,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
       <div className="standard-medication__list">
         {list.isPending ? <LoadingState /> : <>
           {/* 表头在滚动区域之外，滚动条只出现在列表内容区。 */}
-          <div className="standard-medication__table-head"><table className="master-data-table">
+          <div className="standard-medication__table-head"><DataTable className="master-data-table">
             <colgroup><col style={{ width: '37%' }} /><col style={{ width: '37%' }} /><col style={{ width: '11%' }} /><col style={{ width: '15%' }} /></colgroup>
             <thead>
               <tr>
@@ -274,8 +274,8 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                 <th className="ui-table-cell--status">条目核对</th>
               </tr>
             </thead>
-          </table></div>
-          <div className="standard-medication__table-scroll"><table className="master-data-table">
+          </DataTable></div>
+          <div className="standard-medication__table-scroll"><DataTable className="master-data-table">
             <colgroup><col style={{ width: '37%' }} /><col style={{ width: '37%' }} /><col style={{ width: '11%' }} /><col style={{ width: '15%' }} /></colgroup>
             <tbody>{list.data?.content.map(entry => (
               <tr
@@ -302,7 +302,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                 })()}</td>
               </tr>
             ))}</tbody>
-          </table></div>
+          </DataTable></div>
           {!list.data?.content.length && <EmptyState icon="pharmacy" title="没有匹配的目录条目" copy="请调整名称、分类或核验筛选条件。" />}
           <Pagination page={page} totalPages={Math.max(1,list.data?.totalPages ?? 1)} total={list.data?.totalElements ?? 0}
             pageSize={size} onPageSizeChange={setSize} onChange={setPage} label="标准药品目录分页" />
@@ -394,7 +394,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
               <span className="standard-medication__section-sub">按规格建立本院药品</span>
             </div>
             <div className="standard-medication__spec-table-wrap">
-              <div className="standard-medication__spec-head"><table className="standard-medication__spec-table">
+              <div className="standard-medication__spec-head"><DataTable className="standard-medication__spec-table">
                 {specColgroup}
                 <thead>
                   <tr>
@@ -404,8 +404,8 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                     {specHasAction && <th style={{ textAlign: 'right' }}>操作</th>}
                   </tr>
                 </thead>
-              </table></div>
-              <div className="standard-medication__spec-scroll"><table className="standard-medication__spec-table">
+              </DataTable></div>
+              <div className="standard-medication__spec-scroll"><DataTable className="standard-medication__spec-table">
                 {specColgroup}
                 <tbody>
                   {detail.data.specifications.map(spec => {
@@ -480,7 +480,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                     </tr>
                   })}
                 </tbody>
-              </table></div>
+              </DataTable></div>
             </div>
 
             {groupedIssues.length > 0 && (

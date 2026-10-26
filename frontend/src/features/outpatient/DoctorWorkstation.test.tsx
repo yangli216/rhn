@@ -507,7 +507,7 @@ it('does not stage any plan lines when its selected linked note receipt fails va
   renderStation(api)
   await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
   await user.click(screen.getByRole('button', { name: '临床模板' }))
-  await user.click(await screen.findByRole('button', { name: '带入当前草稿 (2)' }))
+  await user.click(await screen.findByRole('button', { name: '带入当前草稿 (3)' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('病历模板')
   await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
   expect(screen.queryByText('回执测试诊断')).not.toBeInTheDocument()
@@ -548,7 +548,7 @@ it.each(['catalog-error', 'record-changed'])('keeps the whole template unapplied
   renderStation(api)
   await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
   await user.click(screen.getByRole('button', { name: '临床模板' }))
-  await user.click(await screen.findByRole('button', { name: '带入当前草稿 (3)' }))
+  await user.click(await screen.findByRole('button', { name: '带入当前草稿 (4)' }))
   await waitFor(() => expect(api.masterData.servicesByCodes).toHaveBeenCalledTimes(1))
   if (failure === 'record-changed') await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '核对中的手工输入')
   await act(async () => {
@@ -597,14 +597,14 @@ it('rechecks historical renewal against the current encounter and rejects a dupl
   await screen.findByRole('heading', { name: '门诊病历' })
   const bring = async () => {
     await user.click(screen.getByRole('button', { name: '就诊历史' }))
-    await user.click(await screen.findByRole('checkbox', { name: /历史测试药/ }))
-    await user.click(screen.getByRole('checkbox', { name: /已核对当前病情/ }))
-    await user.click(screen.getByRole('button', { name: /加入续方草稿/ }))
+    expect(await screen.findByRole('checkbox', { name: /历史测试药/ })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: /带入本次/ }))
   }
   await bring()
   await waitFor(() => expect(screen.queryByRole('complementary', { name: '就诊历史' })).not.toBeInTheDocument())
   expect(f.orderableMedicationsBatch).toHaveBeenCalledWith('encounter-101', ['TEST'])
   expect(await screen.findByText('当前产品')).toBeInTheDocument()
+  expect(screen.getByText(/1 项历史用药已加入医嘱待确认草稿/)).toBeInTheDocument()
   expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
   await bring()
   expect(await screen.findByText('所选历史用药与当前待确认医嘱重复，本次未带入，请先核对已有草稿。')).toBeInTheDocument()
@@ -1024,13 +1024,81 @@ describe('DoctorWorkstation reception flow', () => {
 
     expect(within(drawer).getByText('配套病历模板')).toBeInTheDocument()
     expect(within(drawer).getAllByText('常规复诊').length).toBeGreaterThan(0)
-    await user.click(within(drawer).getByRole('button', { name: '带入当前草稿 (2)' }))
+    await user.click(within(drawer).getByRole('button', { name: '带入当前草稿 (3)' }))
 
     await waitFor(() => expect(api.outpatientPlanTemplates.use).toHaveBeenCalledWith('plan-with-note'))
     await waitFor(() => expect(api.outpatientNoteTemplates.use).toHaveBeenCalledWith('note-template-1'))
     expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('复诊')
     expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('病情平稳')
     expect(screen.getByText('原发性高血压')).toBeInTheDocument()
+  })
+
+  it('opens one unified template drawer from the record, order and toolbar entries with the matching purpose', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([{
+      id: 'plan-entry', revision: 1, scopeType: 'PERSONAL', name: '含病历方案', status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 0,
+      noteTemplateId: 'note-template-1', diagnoses: [], medications: [], services: [], tasks: [],
+      createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z' }])
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+
+    // 病历区“套用模板”：病历用途，只列病历模板与含病历的方案
+    await user.click(await screen.findByRole('button', { name: '套用模板' }))
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+    expect(await within(drawer).findByText(/当前用途：病历书写/)).toBeInTheDocument()
+    expect(within(drawer).getByRole('button', { name: '带入病历草稿 (2)' })).toBeEnabled()
+    // 不重新弹出旧的病历选择弹层
+    expect(screen.queryByRole('dialog', { name: '调入病历模板' })).not.toBeInTheDocument()
+
+    // 医嘱区“组套 / 方案”：同一抽屉按医嘱用途重新打开，不需要先关闭
+    await user.click(screen.getByRole('button', { name: '组套 / 方案' }))
+    expect(await within(screen.getByRole('complementary', { name: '临床模板' })).findByText(/当前用途：开立医嘱/)).toBeInTheDocument()
+    expect(screen.getAllByRole('complementary', { name: '临床模板' })).toHaveLength(1)
+
+    // 现有“临床模板”工具钮：诊断与方案用途，打开在诊疗方案页签；再次点击关闭
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    expect(screen.queryByRole('complementary', { name: '临床模板' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '临床模板' }))
+    const plans = await screen.findByRole('complementary', { name: '临床模板' })
+    expect(within(plans).queryByText(/当前用途/)).not.toBeInTheDocument()
+    expect(within(plans).getByRole('tab', { name: /诊疗方案/ })).toHaveAttribute('aria-selected', 'true')
+    expect(within(plans).getByRole('tab', { name: /医嘱组套/ })).toBeInTheDocument()
+  })
+
+  it('picks a new order set from the order search into the unified drawer (orders purpose) without expanding it; 存为组套 is disabled without drafts', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const orderSet: OutpatientPlanTemplate = { id: 'set-9', revision: 1, templateKind: 'ORDER_SET', scopeType: 'DEPARTMENT', name: '血常规复查组套',
+      status: 'ACTIVE', sourceType: 'MANUAL', sortOrder: 0, useCount: 0, createdAt: '', updatedAt: '', diagnoses: [], tasks: [], medications: [],
+      services: [{ catalogItemId: 'srv-1', itemCode: 'LAB001', itemName: '血常规五分类', serviceType: 'LABORATORY', quantity: 1, unitCode: '次', defaultSelected: false }] }
+    vi.mocked(api.outpatientPlanTemplates.list).mockImplementation(async (_keyword, kind) => kind === 'ORDER_SET' ? [orderSet] : [])
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+
+    // 没有可存候选时“存为组套”可见但禁用，并说明原因
+    const saveAsSet = await screen.findByRole('button', { name: '存为组套' })
+    expect(saveAsSet).toBeDisabled()
+    expect(saveAsSet).toHaveAttribute('title', expect.stringContaining('还没有可存为组套的药品或项目'))
+
+    const launcher = screen.queryByRole('button', { name: '新增医嘱' })
+    if (launcher) await user.click(launcher)
+    await user.click(await screen.findByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.click(screen.getByRole('tab', { name: /前缀模式/ }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '/血常规')
+    const option = await screen.findByRole('option', { name: /血常规复查组套/ })
+    expect(option).toHaveTextContent('医嘱组套')
+    await user.click(option)
+
+    const drawer = await screen.findByRole('complementary', { name: '临床模板' })
+    expect((await within(drawer).findAllByText('血常规复查组套')).length).toBeGreaterThan(0)
+    expect(within(drawer).getByRole('tab', { name: /医嘱组套/ })).toHaveAttribute('aria-selected', 'true')
+    // 预选该组套：详情与按钮可用；defaultSelected=false 的行初始不勾
+    expect(await within(drawer).findByRole('checkbox', { name: '选择项目 血常规五分类' })).not.toBeChecked()
+    expect(within(drawer).getByRole('button', { name: '带入医嘱草稿' })).toBeDisabled()
+    // 没有直接展开成医嘱草稿
+    expect(api.encounters.saveOrderDrafts).not.toHaveBeenCalled()
+    expect(screen.queryByText(/已成功调入组套/)).not.toBeInTheDocument()
   })
 
   it.each(['MISSING_IN_HISTORY', 'NEEDS_REVIEW', 'LOAD_ERROR', 'UNRESOLVED_HISTORY', 'MISSING_METADATA'] as const)('merges only confirmed historical and standard differences: %s', async (serviceStatus) => {
@@ -3011,7 +3079,7 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(await screen.findByRole('button', { name: '核对整体方案' }))
     const drawer = await screen.findByRole('complementary', { name: '临床模板' })
     expect(await within(drawer).findByText('配套病历模板')).toBeInTheDocument()
-    await user.click(await within(drawer).findByRole('button', { name: '带入当前草稿 (3)' }))
+    await user.click(await within(drawer).findByRole('button', { name: '带入当前草稿 (4)' }))
     await waitFor(() => expect(api.outpatientNoteTemplates.use).toHaveBeenCalledWith('note-template-1'))
     await waitFor(() => expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('复诊'))
     expect(api.clinicalAi.generate).not.toHaveBeenCalled()
@@ -3818,10 +3886,12 @@ it("keeps the doctor's deselected template diagnosis after a refresh with the sa
   expect(checkbox).toBeChecked()
   await user.click(checkbox)
   expect(checkbox).not.toBeChecked()
-  const previousCalls = vi.mocked(api.outpatientPlanTemplates.list).mock.calls.length
+  // 前缀失效会同时刷新诊疗方案与医嘱组套两个列表；这里只核对诊疗方案列表（不带 kind）的刷新次数。
+  const planListCalls = () => vi.mocked(api.outpatientPlanTemplates.list).mock.calls.filter(([, kind]) => !kind).length
+  const previousCalls = planListCalls()
   vi.mocked(api.outpatientPlanTemplates.list).mockResolvedValue([{ ...plan, name: '刷新后的回执核对方案' }])
   await act(async () => { await view.client.invalidateQueries({ queryKey: ['outpatient-plan-templates'] }) })
-  await waitFor(() => expect(api.outpatientPlanTemplates.list).toHaveBeenCalledTimes(previousCalls + 1))
+  await waitFor(() => expect(planListCalls()).toBe(previousCalls + 1))
   await waitFor(() => expect(screen.queryAllByText('刷新后的回执核对方案').length).toBeGreaterThan(0))
   expect(screen.getByRole('checkbox', { name: '选择诊断 回执测试诊断' })).not.toBeChecked()
 })

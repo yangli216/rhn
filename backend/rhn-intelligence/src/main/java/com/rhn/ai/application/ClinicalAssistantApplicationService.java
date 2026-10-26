@@ -237,7 +237,8 @@ public class ClinicalAssistantApplicationService {
             throw new BusinessException("AI_CATALOG_CONTEXT_MISMATCH", "请切换到本次就诊机构后核对医嘱。", HttpStatus.CONFLICT);
         }
         var intents = input.intents().stream().map(item -> new TreatmentRecommendation(item.type(), item.catalogItemId(), item.medicationId(),
-                null, item.name(), item.specification(), item.rationale())).toList();
+                null, item.name(), item.specification(), item.rationale(), null, null,
+                "EXAMINATION".equalsIgnoreCase(item.type()) ? item.examination() : null, null)).toList();
         return treatmentService.resolve(intents, LocalDate.now(ClinicalAiModelGateway.TemporalContext.ZONE));
     }
 

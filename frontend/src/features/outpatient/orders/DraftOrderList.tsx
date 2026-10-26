@@ -24,7 +24,9 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
   routeOptions, administrationGroupOptions, routes, frequencies, readOnly, isComposerActive, entryType, setMedicationDrafts,
   setServiceDrafts, startHerbalGrouping, groupingComposerTarget, composer, editingDraft,
   setEditingDraft, onEditDraft, onSaveMedicationDraft, continueGroupingFromDraft, groupingSession,
-  currentDept, encounter, api, allergies, skinTests, onInspectMedication, onInspectService }: {
+  currentDept, encounter, api, allergies, skinTests, onInspectMedication, onInspectService, suppressHeaders = false }: {
+  /** 在已保存医嘱原位置渲染“修改中”的行时不再另加分类表头。 */
+  suppressHeaders?: boolean
   draftEntries: DraftOrderEntry[]
   herbalFormula: HerbalComposerFormula
   onHerbalFormulaChange: (formula: HerbalComposerFormula) => void
@@ -67,7 +69,7 @@ export function DraftOrderList({ draftEntries, herbalFormula, onHerbalFormulaCha
           e.kind === 'medication' ? e.value.request.quantity : e.value.quantity
 
         let headerNode: React.ReactNode = null
-        if (isFirstOfDraftCat) {
+        if (isFirstOfDraftCat && !suppressHeaders) {
           if (currCat === 'herbal') {
             const subtotal = draftOrderSubtotal(catDrafts.map(e => ({ unitPrice: e.value.unitPrice, currencyCode: e.value.currencyCode, quantity: getDraftQuantity(e) })))
             const firstHerbDraft = catDrafts[0]?.value as MedicationPlanDraft

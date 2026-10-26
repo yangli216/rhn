@@ -9,7 +9,8 @@ const service = { id: 'service', code: 'SRV', name: '血常规', prices: [] }
 const group = { id: 'group', code: 'GROUP', name: '体检组套', members: [] }
 function fixture() {
   return { masterData: { diseases: vi.fn().mockResolvedValue([]), medications: vi.fn().mockResolvedValue([]),
-    services: vi.fn().mockResolvedValue([]), itemGroups: vi.fn().mockResolvedValue([]) }, encounters: { orderableMedications: vi.fn().mockResolvedValue([]) } }
+    services: vi.fn().mockResolvedValue([]), itemGroups: vi.fn().mockResolvedValue([]) }, encounters: { orderableMedications: vi.fn().mockResolvedValue([]) },
+    outpatientPlanTemplates: { list: vi.fn().mockResolvedValue([]) } }
 }
 function setup(resource: ClinicalResourceType, api = fixture(), encounterId?: string, searchMode: 'smart' | 'prefix' = 'smart') {
   const onChange = vi.fn()
@@ -123,6 +124,27 @@ describe('clinical search failures never become business results', () => {
     expect(option).toHaveTextContent('库存待确认')
     expect(option).not.toHaveTextContent('西药')
     expect(option).not.toHaveTextContent('缺药')
+  })
+  it('reports a failed order-set template directory instead of showing only the legacy groups', async () => {
+    const api = fixture(); api.outpatientPlanTemplates.list.mockRejectedValueOnce(new Error('组套目录不可用'))
+    api.masterData.itemGroups.mockResolvedValue([{ ...group, members: [{ itemName: '旧项目' }] }])
+    setup('mixed', api); query('/体检')
+    expect(await screen.findByRole('alert')).toHaveTextContent('医嘱组套检索失败：组套目录不可用')
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(api.outpatientPlanTemplates.list).toHaveBeenCalledWith('体检', 'ORDER_SET')
+  })
+  it('lists active new order sets next to legacy groups, labelled with type and scope, and never lists protocols', async () => {
+    const api = fixture()
+    const template = (id: string, extra: object) => ({ id, name: `组套${id}`, status: 'ACTIVE', templateKind: 'ORDER_SET', scopeType: 'PERSONAL',
+      medications: [], services: [], ...extra })
+    api.outpatientPlanTemplates.list.mockResolvedValue([template('a', {}), template('b', { status: 'INACTIVE' }),
+      template('c', { templateKind: 'PROTOCOL' })])
+    api.masterData.itemGroups.mockResolvedValue([{ ...group, members: [{ itemName: '旧项目' }] }])
+    setup('mixed', api); query('/组')
+    const options = await screen.findAllByRole('option')
+    expect(options.map(option => option.textContent)).toEqual([expect.stringContaining('体检组套'), expect.stringContaining('组套a')])
+    expect(options[1]).toHaveTextContent('医嘱组套')
+    expect(options[1]).toHaveTextContent('我的')
   })
   it.each([undefined, {}])('does not represent unknown group members as zero selectable items %#', async members => {
     const api = fixture(); api.masterData.itemGroups.mockResolvedValue([{ ...group, members }])

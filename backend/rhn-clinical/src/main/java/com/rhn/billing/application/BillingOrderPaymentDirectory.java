@@ -31,11 +31,12 @@ class BillingOrderPaymentDirectory implements OrderPaymentDirectory {
     @Override
     @Transactional(readOnly = true)
     public SettlementLock settlementLock(OrderRef order, boolean forUpdate) {
-        ChargeItem charge = charges.findByTenantIdAndSourceTypeAndSourceId(order.tenantId(), order.sourceType(), order.requestId())
-                .orElse(null);
-        if (charge == null) return SettlementLock.NONE;
-        if (forUpdate) charges.lockByIdAndTenantId(charge.id(), order.tenantId());
-        List<Long> settlementIds = lines.findByTenantIdAndChargeItemIdIn(order.tenantId(), List.of(charge.id())).stream()
+        // 检查申请可能多行收费：锁住全部行，任一行所在结算决定整单的结算状态。
+        List<Long> chargeIds = charges.findByTenantIdAndSourceTypeAndSourceIdOrderByChargeLineNoAsc(
+                order.tenantId(), order.sourceType(), order.requestId()).stream().map(ChargeItem::id).toList();
+        if (chargeIds.isEmpty()) return SettlementLock.NONE;
+        if (forUpdate) chargeIds.forEach(id -> charges.lockByIdAndTenantId(id, order.tenantId()));
+        List<Long> settlementIds = lines.findByTenantIdAndChargeItemIdIn(order.tenantId(), chargeIds).stream()
                 .map(SettlementLine::settlementId).distinct().toList();
         if (settlementIds.isEmpty()) return SettlementLock.NONE;
         boolean cancellable = settlementIds.stream().allMatch(id -> settlements.findByIdAndTenantId(id, order.tenantId())

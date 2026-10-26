@@ -217,7 +217,7 @@
 .doctor-note-template-bar > div:first-child { min-width: 0; display: flex; align-items: center; gap: var(--space-1); }
 .doctor-note-template-select { min-width: 10rem; width: 13rem; }
 .doctor-note-template-select .ui-select__trigger { height: var(--control-height-sm); min-height: var(--control-height-sm); font-size: var(--font-size-small); background: color-mix(in srgb, var(--color-surface) 86%, transparent); }
-.doctor-record-heading .doctor-note-template-bar .ui-button { min-height: var(--control-height-sm); padding-inline: var(--space-2); }
+.doctor-record-heading .doctor-note-template-bar .ui-button:not(.ui-icon-action) { min-height: var(--control-height-sm); padding-inline: var(--space-2); }
 .doctor-note-template-bar > small { min-width: 0; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .doctor-note-template-bar > span { min-width: 0; overflow: hidden; color: var(--color-brand-strong); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .doctor-note-template-bar > .ui-alert { margin: 0; }
@@ -1489,7 +1489,6 @@
 }
 .doctor-fee-stat__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-completion-payment-section { display: flex; flex-direction: column; overflow: hidden; border-color: var(--color-border-strong, var(--color-border)); }
-.doctor-completion-payment-section > .ui-panel__head { background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border); }
 .doctor-completion-payment { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-4); overflow-y: auto; }
 .doctor-completion-payment > .settlement-payment-panel { flex: 1; display: flex; flex-direction: column; gap: var(--space-4); }
 /* 发起收款按钮固定在面板底部并占满宽度，成为明确的主操作。 */
@@ -1524,14 +1523,7 @@
 .doctor-completion-main > .doctor-completion-workflow { display: flex; flex-direction: column; }
 /* 诊毕确认配色：图标徽标 + 语义色金额，克制使用柔和底色。 */
 .doctor-completion-modal .ui-panel__head { gap: var(--space-2); }
-.doctor-completion-modal .ui-panel__icon {
-  width: 1.75rem; height: 1.75rem; flex: none; display: inline-grid; place-items: center;
-  border-radius: var(--radius-md); color: var(--color-brand-primary); background: var(--color-brand-soft);
-}
-.doctor-completion-modal .ui-panel__icon .ui-icon { width: 1rem; height: 1rem; }
 .doctor-completion-modal .ui-panel__meta { margin-left: auto; }
-.doctor-completion-payment-section .ui-panel__icon { color: var(--color-success); background: var(--color-success-soft); }
-.doctor-completion-workflow .ui-panel__icon { color: var(--color-violet, var(--color-brand-primary)); background: var(--color-violet-soft, var(--color-brand-soft)); }
 .doctor-overview-stat__header { display: flex; align-items: center; gap: var(--space-2); }
 .doctor-overview-stat__icon {
   width: 1.5rem; height: 1.5rem; display: inline-grid; place-items: center; border-radius: var(--radius-sm);
@@ -1553,10 +1545,10 @@
   color: var(--color-info); background: var(--color-info-soft);
 }
 .doctor-checklist-chip.is-ready .ui-icon {
-  box-sizing: content-box; padding: 0.15rem; border-radius: 50%; color: var(--color-success); background: var(--color-success-soft);
+  color: var(--color-success);
 }
 .doctor-checklist-chip.is-missing .ui-icon {
-  box-sizing: content-box; padding: 0.15rem; border-radius: 50%; background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 .doctor-checklist-chip {
   min-height: 2.75rem;

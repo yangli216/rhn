@@ -93,7 +93,9 @@ export function ClinicalAiCatalogReview({ matches, api, encounterId, organizatio
     setBusy(true)
     try {
       const checked = await api.clinicalAi.resolveTreatments(encounterId, selected.map((item, index) => ({ type: item!.type,
-        name: item!.name, specification: item!.specification, catalogItemId: item!.catalogItemId, medicationId: item!.medicationId, rationale: group[index].intent.rationale })))
+        name: item!.name, specification: item!.specification, catalogItemId: item!.catalogItemId, medicationId: item!.medicationId, rationale: group[index].intent.rationale,
+        // Keep the AI's structured sites so the chosen examination item re-resolves them instead of guessing from its name.
+        ...(item!.type === 'EXAMINATION' && group[index].intent.examination ? { examination: group[index].intent.examination } : {}) })))
       if (epoch.current !== requestEpoch) return undefined
       if (checked.length !== selected.length || checked.some(match => match.status !== 'MATCHED' || match.candidates.length !== 1)
         || checked.some((match, index) => match.candidates[0].catalogItemId !== selected[index]?.catalogItemId

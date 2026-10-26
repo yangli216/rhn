@@ -422,7 +422,7 @@ export function RemoteSearchSelect<T>({
                     <span
                       key={tag}
                       className={`ui-remote-search__tag ${
-                        tag === '组套'
+                        tag === '医嘱组套' || tag === '组套'
                           ? 'is-orderset'
                           : tag === '西药'
                           ? 'is-type is-med'

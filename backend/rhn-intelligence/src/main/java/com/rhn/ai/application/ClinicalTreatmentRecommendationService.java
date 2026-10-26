@@ -97,7 +97,8 @@ public class ClinicalTreatmentRecommendationService {
         var searchIntents = intents.stream().map(item -> item == null ? null : new TreatmentRecommendation(
                 item.type(), null, null, null, item.name(), item.specification(), item.rationale(),
                 adult && "MEDICATION".equalsIgnoreCase(item.type()) ? item.usageSuggestion() : null,
-                "MEDICATION".equalsIgnoreCase(item.type()) ? null : item.purpose())).toList();
+                "MEDICATION".equalsIgnoreCase(item.type()) ? null : item.purpose(),
+                "EXAMINATION".equalsIgnoreCase(item.type()) ? item.examination() : null, null)).toList();
         var matches = resolve(searchIntents, date);
         var items = matches.stream().filter(match -> "MATCHED".equals(match.status()))
                 .flatMap(match -> match.candidates().stream())
