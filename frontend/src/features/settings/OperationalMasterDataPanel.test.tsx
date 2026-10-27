@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalConfiguration, OrderFrequency, RhnApi, ServiceCatalogItem } from '../../shared/rhnApi'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
+import { ServiceAliasSection } from './master-data/ItemAliasSection'
 
 const mockOrganization = {
   id: 'org-1',
@@ -269,6 +270,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve }))
       .mockResolvedValue(plan('当前输入的收费项目'))
     renderClinical(api, mockServices[3])
+    fireEvent.click(await screen.findByRole('button', { name: '收费试算' }))
     const region = await screen.findByRole('region', { name: '检查收费规则试算' })
     fireEvent.click(within(region).getByRole('checkbox', { name: '双肺' }))
     expect(await within(region).findByText('当前输入的收费项目')).toBeInTheDocument()
@@ -295,6 +297,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve }))
       .mockResolvedValue(plan('当前数量的分管加收'))
     renderClinical(api)
+    fireEvent.click(await screen.findByRole('button', { name: '规则试算' }))
     const quantity = await screen.findByLabelText('全血细胞分析+CRP数量')
     fireEvent.change(quantity, { target: { value: '2' } })
     expect(await screen.findByText('当前数量的分管加收')).toBeInTheDocument()
@@ -599,15 +602,13 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     vi.mocked(api.masterData.serviceAliases).mockImplementationOnce(() => new Promise((resolve) => { resolveAliases = resolve }))
     vi.mocked(api.masterData.replaceServiceAliases).mockRejectedValueOnce(new Error('保存失败，请重试')).mockResolvedValue([])
     render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <ClinicalServiceConfigurationDialog api={api} service={mockServices[0]} organizationId={mockOrganization.id}
-        dictionaries={{}} onClose={vi.fn()} />
+      <ServiceAliasSection api={api} serviceId={mockServices[0].id} />
     </QueryClientProvider>)
     const save = screen.getByRole('button', { name: '保存别名' })
     expect(save).toBeDisabled()
     resolveAliases([])
     await waitFor(() => expect(save).toBeEnabled())
-    fireEvent.change(screen.getByLabelText('新增项目别名'), { target: { value: '血常规，血常规' } })
-    fireEvent.click(screen.getByRole('button', { name: '加入列表' }))
+    fireEvent.change(screen.getByLabelText('新增项目别名'), { target: { value: '血常规，血常规，' } })
     fireEvent.click(save)
     expect(await screen.findByText('保存失败，请重试')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '移除别名血常规' })).toBeInTheDocument()
@@ -622,14 +623,16 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
   it('does not present failed alias loading as an empty alias list', async () => {
     const api = createMockApi()
     vi.mocked(api.masterData.serviceAliases).mockRejectedValue(new Error('别名读取失败'))
-    renderClinical(api)
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ServiceAliasSection api={api} serviceId={mockServices[0].id} />
+    </QueryClientProvider>)
     expect(await screen.findByText('项目别名加载失败')).toBeInTheDocument()
-    expect(screen.queryByText('暂未配置别名')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('新增项目别名')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '保存别名' })).toBeDisabled()
     expect(api.masterData.replaceServiceAliases).not.toHaveBeenCalled()
     vi.mocked(api.masterData.serviceAliases).mockResolvedValue([])
     fireEvent.click(screen.getByRole('button', { name: '重新加载别名' }))
-    expect(await screen.findByText('暂未配置别名')).toBeInTheDocument()
+    expect(await screen.findByLabelText('新增项目别名')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '保存别名' })).toBeEnabled()
   })
 
@@ -656,9 +659,10 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
 
     expect(screen.getByText('全血细胞分析+CRP · 执行与收费')).toBeInTheDocument()
     expect(screen.getByText('EDTA抗凝采血管(紫色)')).toBeInTheDocument()
-    expect(screen.getByText('⚡ 同次采血分管沙盒')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '规则试算' }))
+    expect(await screen.findByText('⚡ 同次采血分管沙盒')).toBeInTheDocument()
 
-    // 检查右侧实时沙盒调用
+    // 检查试算页签的沙盒调用
     await waitFor(() => {
       expect(api.masterData.laboratoryTubePlan).toHaveBeenCalled()
     })
@@ -696,8 +700,9 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     expect(screen.getByText('胸部多层螺旋CT平扫 · 执行与收费')).toBeInTheDocument()
     expect(screen.getByText(/前 1 个部位含在主收费内，之后每多 1 个部位加收/)).toBeInTheDocument()
 
-    // 检查右侧收费试算
-    expect(screen.getByText('收费试算')).toBeInTheDocument()
+    // 收费试算在独立页签
+    fireEvent.click(screen.getByRole('button', { name: '收费试算' }))
+    expect(await screen.findByRole('region', { name: '检查收费规则试算' })).toBeInTheDocument()
 
     await waitFor(() => {
       expect(api.masterData.examinationChargePlan).toHaveBeenCalled()
@@ -897,6 +902,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       </QueryClientProvider>,
     )
 
+    fireEvent.click(await screen.findByRole('button', { name: '规则试算' }))
     await waitFor(() => {
       expect(screen.getByText('⚡ 同次采血分管沙盒')).toBeInTheDocument()
     })

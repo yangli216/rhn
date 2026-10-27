@@ -13,7 +13,7 @@ public final class RegistrationBillingViews {
             Long appointmentId, Long scheduleId, Long catalogItemId, Long slotHoldId, Long patientAccountId,
             Long settlementId, Long paymentOrderId, Long encounterId, String idempotencyCode,
             @DictionaryBinding("SC_REGISTRATION_SOURCE") String registrationSource,
-            @DictionaryBinding("SC_VISIT_TYPE") String visitType, String settlementMode, Long coverageId,
+            @DictionaryBinding("SC_VISIT_TYPE") String visitType, @DictionaryBinding("BIL_SETTLEMENT_MODE") String settlementMode, Long coverageId,
             String coverageTypeCode, String coveragePayerName, String status, BigDecimal feeAmount,
             String currencyCode, String itemCode, String itemName, Instant expiresAt,
             int completionAttempts, String lastErrorCode, String lastErrorMessage,

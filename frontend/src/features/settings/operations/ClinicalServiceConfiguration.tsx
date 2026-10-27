@@ -3,11 +3,11 @@ import type { CSSProperties } from 'react'
 import { requireClinicalConfiguration } from "../clinicalConfigurationTruth";
 import { examinationProfileForm, examinationProfileInput } from "../examinationProfileForm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { ClinicalConfiguration, DictionaryValue, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationAttachmentConfiguration, LaboratoryProfile, RhnApi, ServiceCatalogItem, SpecimenConfiguration, UnitDefinition } from "../../../shared/rhnApi";
 import { errorMessage } from "../../../shared/rhnApi";
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from "../../../shared/ui";
-import { requireOperationalRows, sitePricingLabel, siteConstraintLabel, ClinicalDataTable, tubeDotColor, tubeRuleLabel, State, sitePricingDetail, attachmentTriggerLabel, attachmentQuantityLabel, unitOption, Check, FormDialog, priceTierRange } from './operationalShared'
+import { sitePricingLabel, siteConstraintLabel, ClinicalDataTable, tubeDotColor, tubeRuleLabel, State, sitePricingDetail, attachmentTriggerLabel, attachmentQuantityLabel, unitOption, Check, FormDialog, priceTierRange } from './operationalShared'
 import { SpecimenDialog } from './SpecimenConfigurationDialog'
 import { VariantDialog, AttachmentDialog, PriceTierDialog } from './ExaminationRules'
 import { LaboratoryTubeSimulator } from './LaboratoryTubeSimulator'

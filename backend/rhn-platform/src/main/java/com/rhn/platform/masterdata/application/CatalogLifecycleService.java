@@ -80,6 +80,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     private final SupplyItemRepository supplyRepository;
     private final ManufacturerRepository manufacturerRepository;
     private final MedicationRepository medicationRepository;
+    private final MedicationAliasNames medicationAliasNames;
     private final ItemPackageRepository packageRepository;
     private final DictionaryDirectory dictionaryDirectory;
     private final OrganizationDirectory organizationDirectory;
@@ -102,7 +103,9 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                    OrganizationDirectory organizationDirectory,
                                    ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
                                    MasterDataApplicationService masterDataApplicationService,
-                                   SearchEntryProjectionService searchProjections) {
+                                   SearchEntryProjectionService searchProjections,
+                                   MedicationAliasNames medicationAliasNames) {
+        this.medicationAliasNames = medicationAliasNames;
         this.adoptionRepository = adoptionRepository; this.priceRepository = priceRepository;
         this.batchRepository = batchRepository; this.batchRowRepository = batchRowRepository;
         this.serviceRepository = serviceRepository; this.productRepository = productRepository;
@@ -239,10 +242,12 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                 : byId(packageRepository.findByTenantIdAndIdIn(tenantId, packageIds), ItemPackage::id);
         Set<Long> medicationIds = products.values().stream().map(MedicationProduct::medicationId)
                 .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        Map<Long, String> medicationAliases = medicationAliasNames.joined(tenantId, medicationIds);
         Map<Long, MedicationSnapshot> medications = medicationIds.isEmpty() ? Map.of()
                 : byId(medicationRepository.findByTenantIdAndIdIn(tenantId, medicationIds), Medication::id).entrySet()
                         .stream().collect(java.util.stream.Collectors.toMap(Map.Entry::getKey,
-                                entry -> MedicationSemanticsService.snapshot(entry.getValue())));
+                                entry -> MedicationSemanticsService.snapshot(entry.getValue(),
+                                        medicationAliases.get(entry.getKey()))));
         Map<Long, List<OrganizationCatalogItem>> adoptionHistory = adoptionHistory(tenantId, organizationId, ids);
         Long sourceOrganizationId = organizationId == null ? null
                 : organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
@@ -396,7 +401,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     private MedicationSnapshot medicationSnapshot(Long tenantId, Long medicationId) {
         var value = medicationRepository.findByIdAndTenantId(medicationId, tenantId)
                 .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到药品知识"));
-        return MedicationSemanticsService.snapshot(value);
+        return MedicationSemanticsService.snapshot(value, medicationAliasNames.joined(tenantId, medicationId));
     }
 
     @Transactional

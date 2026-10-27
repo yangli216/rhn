@@ -1514,9 +1514,14 @@
 .master-data-form-section { padding: var(--space-5) 0; border-top: 1px solid var(--color-border); }
 .master-data-form-section:first-child { padding-top: 0; border-top: 0; }
 .master-data-form-section:last-of-type { padding-bottom: var(--space-6); }
-.master-data-form-section > header { margin-bottom: var(--space-4); display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-5); }
-.master-data-form-section > header h3 { margin: 0; color: var(--color-text-primary); font-size: var(--font-size-h3); }
-.master-data-form-section > header p { max-width: 34rem; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: right; }
+/* 表单分组统一规范：竖条标题 + 紧随说明 + 右侧可选操作 */
+.master-data-form-section > header { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-3); min-height: 1.75rem; }
+.master-data-form-section > header h3 {
+  margin: 0; padding-left: var(--space-2); border-left: 3px solid var(--color-brand-primary); line-height: 1.125rem;
+  color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-bold); white-space: nowrap;
+}
+.master-data-form-section > header p { flex: 1; min-width: 0; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: left; }
+.master-data-form-section > header .master-data-form-section__action { margin-left: auto; flex: none; }
 .master-data-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .master-data-form-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .master-data-form-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2719,21 +2724,13 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   gap: var(--space-4);
 }
 
-.medication-knowledge-dialog .master-data-form-section > header h3 {
-  font-size: var(--font-size-body);
-}
-
-.medication-knowledge-dialog .master-data-form-section > header p {
-  max-width: 40rem;
-  line-height: var(--line-height-body);
-}
 
 .medication-knowledge-dialog .master-data-form-grid {
   gap: var(--space-3) var(--space-4);
 }
 
 .medication-knowledge-dialog__spec {
-  grid-column: span 3;
+  grid-column: 1 / -1;
 }
 
 .medication-knowledge-dialog .master-data-checkboxes {
@@ -3135,15 +3132,8 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .service-catalog-dialog .master-data-form-section { padding: var(--space-4) 0; }
 .service-catalog-dialog .master-data-form-section > header { margin-bottom: var(--space-3); }
 .service-catalog-dialog .master-data-form-grid { gap: var(--space-3) var(--space-4); }
-.service-role {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 4fr);
-  gap: var(--space-3) var(--space-4);
-}
-.service-role__group.master-data-checkboxes { grid-column: auto; padding: var(--space-2) var(--space-4) var(--space-3); }
 .service-role__hint {
   margin: 0;
-  grid-column: 1 / -1;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-info-border);
@@ -3178,3 +3168,41 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 }
 .exam-cell-title--stack { flex-direction: column; align-items: flex-start; gap: calc(var(--space-1) * 0.5); }
 .exam-cell-title--stack strong { white-space: normal; }
+
+/* 诊疗项目主档：目录角色单行、别名单行维护 */
+.service-role { display: flex; align-items: center; gap: var(--space-4); }
+.service-role__checks { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-4); }
+.service-role__checks label { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; cursor: pointer; }
+.service-catalog-dialog .service-role__hint { flex: 1; min-width: 0; }
+.service-alias-section__row { display: grid; grid-template-columns: minmax(12rem, 18rem) auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
+.service-alias-section__row > input {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-body);
+}
+.service-alias-section__row > input:focus-visible { border-color: var(--color-brand-primary); outline: 0; box-shadow: var(--shadow-focus); }
+.service-alias-section__row .clinical-project-aliases__list { min-height: 0; }
+.service-alias-section__error { color: var(--color-danger); font-size: var(--font-size-small); }
+.service-catalog-dialog textarea[name="attention"] { min-height: 4rem; }
+
+/* 别名标签编辑器：药品与诊疗项目共用 */
+.alias-tag-editor {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1);
+  min-height: var(--control-height-md); padding: calc(var(--space-1) * 0.5) var(--space-2);
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.alias-tag-editor:focus-within { border-color: var(--color-brand-primary); box-shadow: var(--shadow-focus); }
+.alias-tag-editor.is-disabled { background: var(--color-surface-subtle); }
+.alias-tag-editor__tag {
+  display: inline-flex; align-items: center; gap: calc(var(--space-1) * 0.5);
+  padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border); font-size: var(--font-size-small); line-height: 1.5rem;
+}
+.alias-tag-editor__tag button { min-height: 0; padding: 0 var(--space-1); }
+.alias-tag-editor > input {
+  flex: 1; min-width: 8rem; height: 1.75rem; padding: 0; border: 0; outline: 0; background: transparent;
+  font-size: var(--font-size-body);
+}

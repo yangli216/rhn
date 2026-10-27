@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
+  "fingerprint": "5fd649c3879e972bad74dd5cf0b2ad066758427a72ac0c8e7a406a23810adb22",
   "tables": [
     {
       "logical": "sys.access_permission",
@@ -18145,6 +18145,23 @@
     {
       "id": "FK_BD_MED_SYS_TNT_MEDICATION_T",
       "sourceTable": "RHN_BD_MED",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BD_MED_ALIAS_TNT",
+      "sourceTable": "RHN_BD_MED_ALIAS",
       "sourceColumns": [
         "ID_TNT"
       ],

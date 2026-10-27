@@ -15,13 +15,16 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 @Service
 public class MedicationStandardReadinessService {
     private final MedicationRepository medications;
+    private final MedicationAliasNames aliasNames;
     private final MedicationStandardService standards;
     private final StandardMedicationCatalogService catalog;
     private final com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository sources;
     private static final List<String> MATCHING_STATUSES = List.of("UNIQUE_MATCH", "MULTIPLE_MATCHES", "DUPLICATE_LOCAL", "TARGET_IN_USE", "IDENTITY_MISMATCH", "NO_CANDIDATE");
 
     public MedicationStandardReadinessService(MedicationRepository medications, MedicationStandardService standards, StandardMedicationCatalogService catalog,
-            com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository sources) {
+            com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository sources,
+            MedicationAliasNames aliasNames) {
+        this.aliasNames = aliasNames;
         this.medications = medications;
         this.standards = standards; this.catalog = catalog; this.sources = sources;
     }
@@ -40,9 +43,10 @@ public class MedicationStandardReadinessService {
         var candidates = new HashMap<Long, List<tools.jackson.databind.JsonNode>>();
         var consistent = new HashMap<Long, List<String>>();
         var claims = new HashMap<String, Integer>();
+        var aliasByMedication = aliasNames.joinedForTenant(tenant);
         for (var medication : active) {
             if (!"UNMAPPED".equals(references.get(medication.id()).status())) continue;
-            var options = catalog.identityCandidates(medication.code(), medication.name(), medication.aliasName());
+            var options = catalog.identityCandidates(medication.code(), medication.name(), aliasByMedication.get(medication.id()));
             candidates.put(medication.id(), options);
             var matches = options.stream().filter(spec -> standards.identityIssues(medication, spec).isEmpty())
                     .map(spec -> spec.path("id").asString()).toList();

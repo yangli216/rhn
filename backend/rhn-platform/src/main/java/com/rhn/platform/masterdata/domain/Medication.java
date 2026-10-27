@@ -20,7 +20,6 @@ public class Medication {
     @Column(name = "ID_ITEM_MASTER") private Long itemMasterId;
     @Column(name = "CD_MED", nullable = false) private String code;
     @Column(name = "NA_MED", nullable = false) private String name;
-    @Column(name = "NA_ALIAS") private String aliasName;
     @Column(name = "SD_MED_TYPE", nullable = false) private String medicationType;
     @Column(name = "DOSE_FORM") private String doseForm;
     @Column(name = "PREP_SPEC") private String preparationSpec;
@@ -58,7 +57,7 @@ public class Medication {
 
     protected Medication() {}
 
-    public Medication(Long tenantId, Long actorId, Long itemTypeId, String code, String name, String aliasName,
+    public Medication(Long tenantId, Long actorId, Long itemTypeId, String code, String name,
                       String medicationType, String doseForm, String preparationSpec, String preparationUnit,
                       BigDecimal strengthValue, String strengthUnit, String storageType,
                       boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
@@ -71,7 +70,7 @@ public class Medication {
                       boolean chronicDiseaseDrug, boolean singleOrder, String status) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.itemTypeId = itemTypeId; this.code = code;
         this.createdAt = Instant.now(); this.createdBy = actorId;
-        updateValues(actorId, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
+        updateValues(actorId, name, medicationType, doseForm, preparationSpec, preparationUnit,
                 strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial,
                 antimicrobialLevel, antimicrobialOutpatientAllowed, antimicrobialConsultationRequired,
                 antimicrobialEmergencyAllowed, antimicrobialMaxDays, skinTestRequired, skinTestMethod,
@@ -80,7 +79,7 @@ public class Medication {
                 chronicDiseaseDrug, singleOrder, status);
     }
 
-    public void update(long expectedRevision, Long actorId, Long itemTypeId, String name, String aliasName,
+    public void update(long expectedRevision, Long actorId, Long itemTypeId, String name,
                        String medicationType, String doseForm, String preparationSpec, String preparationUnit,
                        BigDecimal strengthValue, String strengthUnit, String storageType,
                        boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
@@ -93,7 +92,7 @@ public class Medication {
                        boolean chronicDiseaseDrug, boolean singleOrder, String status) {
         requireRevision(expectedRevision);
         this.itemTypeId = itemTypeId;
-        updateValues(actorId, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
+        updateValues(actorId, name, medicationType, doseForm, preparationSpec, preparationUnit,
                 strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial,
                 antimicrobialLevel, antimicrobialOutpatientAllowed, antimicrobialConsultationRequired,
                 antimicrobialEmergencyAllowed, antimicrobialMaxDays, skinTestRequired, skinTestMethod,
@@ -111,7 +110,7 @@ public class Medication {
         this.defaultRoute = routeCode;
     }
 
-    private void updateValues(Long actorId, String name, String aliasName, String medicationType, String doseForm,
+    private void updateValues(Long actorId, String name, String medicationType, String doseForm,
                               String preparationSpec, String preparationUnit, BigDecimal strengthValue,
                               String strengthUnit, String storageType, boolean prescriptionDrug,
                               boolean essentialDrug, boolean antimicrobial, String antimicrobialLevel,
@@ -125,7 +124,7 @@ public class Medication {
         if (strengthValue != null && strengthValue.signum() <= 0) throw new IllegalArgumentException("含量必须大于0");
         if (defaultDose != null && defaultDose.signum() <= 0) throw new IllegalArgumentException("默认剂量必须大于0");
         if (!antimicrobial && antimicrobialLevel != null) throw new IllegalArgumentException("非抗菌药物不能设置抗菌药等级");
-        this.name = name; this.aliasName = aliasName; this.medicationType = medicationType; this.doseForm = doseForm;
+        this.name = name; this.medicationType = medicationType; this.doseForm = doseForm;
         this.preparationSpec = preparationSpec; this.preparationUnit = preparationUnit;
         this.strengthValue = strengthValue; this.strengthUnit = strengthUnit; this.storageType = storageType;
         this.prescriptionDrug = prescriptionDrug; this.essentialDrug = essentialDrug;
@@ -151,7 +150,7 @@ public class Medication {
 
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
     public Long itemTypeId() { return itemTypeId; } public Long itemMasterId() { return itemMasterId; }
-    public String code() { return code; } public String name() { return name; } public String aliasName() { return aliasName; }
+    public String code() { return code; } public String name() { return name; }
     public String medicationType() { return medicationType; } public String doseForm() { return doseForm; }
     public String preparationSpec() { return preparationSpec; } public String preparationUnit() { return preparationUnit; }
     public BigDecimal strengthValue() { return strengthValue; } public String strengthUnit() { return strengthUnit; }

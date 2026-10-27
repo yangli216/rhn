@@ -135,7 +135,8 @@ class MedicationStandardBindingTest extends StubbedExecutionContextTestSupport {
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> SPEC.equals(c.specification().path("id").asString()))
                 .singleElement().satisfies(c -> {assertThat(c.canBind()).isFalse(); assertThat(c.issues()).contains("STANDARD_REFERENCE_STRENGTH_MISMATCH");});
         assertThatThrownBy(() -> bindings.bind(MED, input)).hasMessageContaining("身份不一致");
-        jdbc.update("update RHN_BD_MED set CD_MED='NO-CLUE', NA_MED='没有身份线索', NA_ALIAS=null where ID_MED=?", MED);
+        jdbc.update("delete from RHN_BD_MED_ALIAS where ID_MED=?", MED);
+        jdbc.update("update RHN_BD_MED set CD_MED='NO-CLUE', NA_MED='没有身份线索' where ID_MED=?", MED);
         assertThat(bindings.preview(MED).candidates()).isEmpty();
         assertThatThrownBy(() -> bindings.bind(MED, input)).hasMessageContaining("身份不一致");
     }
@@ -155,7 +156,8 @@ class MedicationStandardBindingTest extends StubbedExecutionContextTestSupport {
         String id = specification.path("id").asString();
         String text = specification.path("specification").asString();
         assertThat(text).contains(":");
-        jdbc.update("update RHN_BD_MED set CD_MED='MED-2026-W016-TEST', NA_MED=?, NA_ALIAS=null, DOSE_FORM=?, PREP_SPEC=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
+        jdbc.update("delete from RHN_BD_MED_ALIAS where ID_MED=?", MED);
+        jdbc.update("update RHN_BD_MED set CD_MED='MED-2026-W016-TEST', NA_MED=?, DOSE_FORM=?, PREP_SPEC=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
                 specification.path("name").asString(), specification.path("doseForm").asString(), text.replace(":", "∶"), MED);
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> id.equals(c.specification().path("id").asString()))
                 .singleElement().satisfies(c -> assertThat(c.canBind()).isTrue());
@@ -166,7 +168,8 @@ class MedicationStandardBindingTest extends StubbedExecutionContextTestSupport {
     @Test void a_matching_legacy_fragment_is_not_an_eligible_standard_identity() {
         String incomplete = "STD-E5ECB24E5709FE98BDD02477";
         var specification = medicationReferences.specification(incomplete);
-        jdbc.update("update RHN_BD_MED set CD_MED=?, NA_MED=?, NA_ALIAS=null, DOSE_FORM=?, PREP_SPEC=?, PREP_UNIT=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
+        jdbc.update("delete from RHN_BD_MED_ALIAS where ID_MED=?", MED);
+        jdbc.update("update RHN_BD_MED set CD_MED=?, NA_MED=?, DOSE_FORM=?, PREP_SPEC=?, PREP_UNIT=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
                 specification.path("legacyCode").asString() + "-TEST", specification.path("name").asString(),
                 specification.path("doseForm").asString(), specification.path("specification").asString(), specification.path("presentationUnit").asString(null), MED);
         assertThat(bindings.preview(MED).candidates()).filteredOn(c -> incomplete.equals(c.specification().path("id").asString()))

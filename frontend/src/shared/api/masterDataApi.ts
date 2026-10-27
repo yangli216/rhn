@@ -1374,6 +1374,14 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<ServiceAlias[]>(`/api/platform/master-data/services/${serviceId}/aliases`, {
         method: 'PUT', body: JSON.stringify({ aliases }),
       }),
+    medicationAliases: (medicationId: string) => client.request<ServiceAlias[]>(
+      `/api/platform/master-data/medications/${medicationId}/aliases`,
+    ),
+    replaceMedicationAliases: (medicationId: string,
+      aliases: Array<Pick<ServiceAlias, 'aliasType' | 'aliasName' | 'primaryAlias' | 'status'>>) =>
+      client.request<ServiceAlias[]>(`/api/platform/master-data/medications/${medicationId}/aliases`, {
+        method: 'PUT', body: JSON.stringify({ aliases }),
+      }),
     medications: (query = '', medicationType = '', status = '', organizationId = '') =>
       client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
         query, medicationType, status, organizationId,

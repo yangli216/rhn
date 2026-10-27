@@ -27,8 +27,8 @@ public class ExaminationService {
     @Column(name = "QTY_ADDL_SITE", nullable = false) private BigDecimal additionalSiteQuantity;
     @Column(name = "QTY_MAX_CHGBL_SITE") private Integer maxChargeableSiteCount;
     @Column(name = "ID_CATALOG_ITEM_BASE_CHG") private Long baseChargeItemId;
-    @Column(name = "SD_EXAM_TECHNIQUE") private String examinationTechnique;
-    @Column(name = "SD_CONTRAST_PHASE") private String contrastPhase;
+    @Column(name = "SD_EXAM_TECHNIQ") private String examinationTechnique;
+    @Column(name = "SD_CNTRST_PHASE") private String contrastPhase;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
     @Column(name = "ID_USER_CREATED") private Long createdBy;
     @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;

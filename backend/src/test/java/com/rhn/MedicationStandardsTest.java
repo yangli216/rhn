@@ -67,7 +67,8 @@ class MedicationStandardsTest extends RhnIntegrationTestSupport {
         long original = 362387880000024L;
         long other = jdbc.queryForObject("select min(ID_MED) from RHN_BD_MED where ID_TNT=? and ID_MED<>?", Long.class, Long.valueOf(TENANT), original);
         var spec = references.specification(SPEC);
-        jdbc.update("update RHN_BD_MED set CD_MED='DUPLICATE-LOCAL', NA_MED=?, NA_ALIAS=null, SD_MED_TYPE=?, DOSE_FORM=?, PREP_SPEC=?, PREP_UNIT=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
+        jdbc.update("delete from RHN_BD_MED_ALIAS where ID_MED=?", other);
+        jdbc.update("update RHN_BD_MED set CD_MED='DUPLICATE-LOCAL', NA_MED=?, SD_MED_TYPE=?, DOSE_FORM=?, PREP_SPEC=?, PREP_UNIT=?, QTY_STRNTH_VAL=null, STRNTH_UNIT=null where ID_MED=?",
                 spec.path("name").asString(), spec.path("medicationType").asString(), spec.path("doseForm").asString(),
                 spec.path("specification").asString(), spec.path("presentationUnit").asString(), other);
         var duplicate = readiness.inspect(Long.valueOf(TENANT), "DUPLICATE-LOCAL", "DUPLICATE_LOCAL", 0, 1);

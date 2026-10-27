@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
+  "fingerprint": "5fd649c3879e972bad74dd5cf0b2ad066758427a72ac0c8e7a406a23810adb22",
   "tables": [
     {
       "logical": "bil.cashier_close_event",
@@ -1879,6 +1879,30 @@
           "comment": "费用核算归并大类(SD_ACCTG_CAT)",
           "logical": "accounting_category",
           "catalogComment": "费用核算归并大类(SD_ACCTG_CAT)"
+        },
+        {
+          "physical": "SN_CHG_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "1",
+          "ordinal": 29,
+          "comment": "同一来源内的收费行号；检查申请按收费方案逐行落账，其余来源为 1",
+          "logical": "charge_line_no",
+          "catalogComment": "同一来源内的收费行号；检查申请按收费方案逐行落账，其余来源为 1"
+        },
+        {
+          "physical": "SD_CHG_ROLE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 30,
+          "comment": "收费行类型，与检查申请收费方案一致；非检查申请为空",
+          "logical": "charge_role",
+          "catalogComment": "收费行类型，与检查申请收费方案一致；非检查申请为空"
         }
       ],
       "kind": "BASE TABLE",
@@ -1887,18 +1911,19 @@
       ],
       "uniqueKeys": [
         {
-          "name": "UK_BIL_CHARGE_ITE_CHARGE_SOURC",
-          "columns": [
-            "ID_TNT",
-            "SD_SRC_TYPE",
-            "ID_SRC"
-          ]
-        },
-        {
           "name": "UK_BIL_CHARGE_ITE_CHARGE_TENAN",
           "columns": [
             "ID_TNT",
             "ID_CHARGE_ITEM"
+          ]
+        },
+        {
+          "name": "UK_BIL_CHARGE_ITEM_SRC_LINE",
+          "columns": [
+            "ID_TNT",
+            "SD_SRC_TYPE",
+            "ID_SRC",
+            "SN_CHG_LINE"
           ]
         }
       ],
@@ -2143,7 +2168,7 @@
           "unique": true
         },
         {
-          "name": "UK_BIL_CHARGE_ITE_CHARGE_SOURC_INDEX_B",
+          "name": "UK_BIL_CHARGE_ITEM_SRC_LINE_INDEX_9",
           "columns": [
             {
               "position": 1,
@@ -2158,6 +2183,11 @@
             {
               "position": 3,
               "name": "ID_SRC",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "SN_CHG_LINE",
               "direction": "A"
             }
           ],
@@ -2192,6 +2222,10 @@
         {
           "name": "CK_BIL_CHARGE_ITE_CHARGE_UNIT_",
           "expression": "\"price_unit\" >= CAST(0 AS NUMERIC(1))"
+        },
+        {
+          "name": "CK_BIL_CHARGE_ITEM_CHG_LINE",
+          "expression": "\"sn_chg_line\" > 0"
         },
         {
           "name": "CK_BIL_CHARGE_ITEM_SRC_TYPE",

@@ -49,7 +49,9 @@ import com.rhn.platform.masterdata.infrastructure.ExaminationAttachmentItemRepos
 import com.rhn.platform.masterdata.infrastructure.ServiceVariantRepository;
 import com.rhn.platform.masterdata.infrastructure.ManufacturerRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationProductRepository;
+import com.rhn.platform.masterdata.infrastructure.MedicationAliasRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
+import com.rhn.platform.masterdata.domain.MedicationAlias;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemRepository;
 import com.rhn.platform.masterdata.infrastructure.ServiceCatalogItemRepository;
 import com.rhn.platform.masterdata.infrastructure.SupplyItemRepository;
@@ -87,6 +89,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final ServiceCatalogItemRepository serviceRepository;
     private final SupplyItemRepository supplyRepository;
     private final MedicationRepository medicationRepository;
+    private final MedicationAliasRepository medicationAliasRepository;
+    private final MedicationAliasNames medicationAliasNames;
     private final ManufacturerRepository manufacturerRepository;
     private final MedicationProductRepository productRepository;
     private final ItemPackageRepository packageRepository;
@@ -132,7 +136,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         MedicationTerminologyDirectory medicationTerminologyDirectory, MedicationSemanticsService medicationSemantics,
                                         MedicationStandardService medicationStandards,
                                         MasterDataSearchDirectory searchDirectory,
-                                        SearchEntryProjectionService searchProjections) {
+                                        SearchEntryProjectionService searchProjections,
+                                        MedicationAliasRepository medicationAliasRepository,
+                                        MedicationAliasNames medicationAliasNames) {
+        this.medicationAliasRepository = medicationAliasRepository;
+        this.medicationAliasNames = medicationAliasNames;
         this.validation = validation;
         this.medicationStandards = medicationStandards;
         this.searchDirectory = searchDirectory;
@@ -400,10 +408,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                                 Long organizationId) {
         ExecutionContext context = current();
         Set<Long> searchIds = matchingIds("MEDICATION", query, organizationId, context);
+        Map<Long, String> aliasByMedication = medicationAliasNames.joinedForTenant(context.tenantId());
         List<Medication> items = medicationRepository.findByTenantIdOrderByName(context.tenantId()).stream()
                 .filter(value -> blank(medicationType) || medicationType.equals(value.medicationType()))
                 .filter(value -> blank(status) || status.equals(value.status()))
-                .filter(value -> matches(query, value.code(), value.name(), value.aliasName(), value.doseForm(),
+                .filter(value -> matches(query, value.code(), value.name(), aliasByMedication.get(value.id()), value.doseForm(),
                         value.preparationSpec()) || searchIds.contains(value.id()))
                 .limit(500).toList();
         return medicationViews(context.tenantId(), items, organizationId);
@@ -496,7 +505,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         }
         Medication item = new Medication(context.tenantId(), context.subjectId(),
                 MasterDataItemTypes.forMedication(command.medicationType()), command.code(), command.name(),
-                command.aliasName(), command.medicationType(), command.doseForm(),
+                command.medicationType(), command.doseForm(),
                 command.preparationSpec(), command.preparationUnit(), command.strengthValue(), command.strengthUnit(),
                 command.storageType(), command.prescriptionDrug(), command.essentialDrug(), command.antimicrobial(),
                 command.antimicrobialLevel(), validation.antimicrobialOutpatientAllowed(command),
@@ -509,6 +518,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.chronicDiseaseDrug(), command.singleOrder(), command.status());
         item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
         item = medicationRepository.saveAndFlush(item);
+        seedAliases(context.tenantId(), item.id(), command.aliasName());
         if (!blank(command.standardSpecificationId())) {
             medicationStandards.link(context.tenantId(), item.id(), command.standardSpecificationId(), context.subjectId());
         }
@@ -531,6 +541,16 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         }
     }
 
+    /** 创建与导入时的初始别名：逐个落为别名行，第一个为主要别名；创建后别名由药品别名接口维护。 */
+    private void seedAliases(Long tenantId, Long medicationId, String aliasText) {
+        List<String> names = MedicationAliasNames.parse(aliasText);
+        for (int index = 0; index < names.size(); index++) {
+            medicationAliasRepository.save(new MedicationAlias(tenantId, medicationId, "SYNONYM", names.get(index),
+                    null, index == 0, "ACTIVE"));
+        }
+        medicationAliasRepository.flush();
+    }
+
     @Transactional
     public MedicationView updateMedication(Long id, long expectedRevision, MedicationCommand command,
                                            Long organizationId) {
@@ -551,7 +571,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         var route = validation.resolveMedicationRoute(context, command.defaultRoute());
         medicationSemantics.captureMedication(item);
         item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forMedication(command.medicationType()),
-                command.name(), command.aliasName(),
+                command.name(),
                 command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
                 command.strengthValue(), command.strengthUnit(), command.storageType(), command.prescriptionDrug(),
                 command.essentialDrug(), command.antimicrobial(), command.antimicrobialLevel(),
@@ -928,9 +948,10 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         // 标准关联一次批量解析：按药品逐个调用会重复查询关联来源与审核摘要，整页检索时形成 N+1。
         Map<Long, com.rhn.platform.masterdata.api.MedicationStandardReference> standards =
                 medicationStandards.references(tenantId, items);
+        Map<Long, String> aliasByMedication = medicationAliasNames.joined(tenantId, medicationIds);
         return items.stream().map(value -> new MedicationView(value.id(), value.revision(), value.itemTypeId(),
                 value.itemMasterId(), value.code(), value.name(),
-                value.aliasName(), value.medicationType(), value.doseForm(), value.preparationSpec(),
+                aliasByMedication.get(value.id()), value.medicationType(), value.doseForm(), value.preparationSpec(),
                 value.preparationUnit(), value.strengthValue(), value.strengthUnit(), value.storageType(),
                 value.prescriptionDrug(), value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(),
                 value.antimicrobialOutpatientAllowed(), value.antimicrobialConsultationRequired(),

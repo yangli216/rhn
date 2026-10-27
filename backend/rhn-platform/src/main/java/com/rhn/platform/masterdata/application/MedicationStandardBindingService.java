@@ -21,6 +21,7 @@ import static com.rhn.shared.api.BusinessErrors.*;
 @Service
 public class MedicationStandardBindingService {
     private final MedicationRepository medications;
+    private final MedicationAliasNames aliasNames;
     private final MedicationStandardSourceRepository sources;
     private final StandardMedicationCatalogService catalog;
     private final StandardCatalogReviewService reviews;
@@ -31,7 +32,9 @@ public class MedicationStandardBindingService {
     private final JsonCodec json;
     public MedicationStandardBindingService(MedicationRepository medications, MedicationStandardSourceRepository sources,
             StandardMedicationCatalogService catalog, StandardCatalogReviewService reviews, MedicationStandardService standards,
-            MedicationSemanticsService semantics, ClinicalSemanticHistory history, ExecutionContextProvider contexts, JsonCodec json) {
+            MedicationSemanticsService semantics, ClinicalSemanticHistory history, ExecutionContextProvider contexts, JsonCodec json,
+            MedicationAliasNames aliasNames) {
+        this.aliasNames = aliasNames;
         this.medications = medications; this.sources = sources; this.catalog = catalog; this.reviews = reviews;
         this.standards = standards; this.semantics = semantics; this.history = history; this.contexts = contexts; this.json = json;
     }
@@ -45,7 +48,7 @@ public class MedicationStandardBindingService {
     private Preview preview(Medication medication) {
         var context = contexts.requireCurrent(); var identity = reviews.identity();
         var reference = standards.reference(context.tenantId(), medication.id());
-        var candidates = catalog.identityCandidates(medication.code(), medication.name(), medication.aliasName()).stream().map(spec -> {
+        var candidates = catalog.identityCandidates(medication.code(), medication.name(), aliasNames.joined(context.tenantId(), medication.id())).stream().map(spec -> {
             var issues = standards.identityIssues(medication, spec);
             var owner = sources.findFirstByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCodeOrderByMedicationIdAsc(context.tenantId(),
                     identity.catalogId(), identity.catalogVersion(), spec.path("id").asString()).map(s -> s.medicationId()).orElse(null);

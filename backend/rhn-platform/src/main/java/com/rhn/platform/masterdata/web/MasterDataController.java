@@ -317,7 +317,7 @@ public class MasterDataController {
     record MedicationRequest(
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Schema(nullable = true) @Size(max = 300) String aliasName,
+            @Schema(nullable = true, description = "创建时的初始别名，多个用逗号分隔；创建后在药品别名接口维护") @Size(max = 300) String aliasName,
             @NotBlank @Size(max = 32) String sdMedicationType,
             @Schema(nullable = true) @Size(max = 64) String sdDoseForm,
             @Schema(nullable = true) @Size(max = 300) String preparationSpec,
@@ -356,7 +356,6 @@ public class MasterDataController {
             @NotNull @Min(0) BigInteger expectedRevision,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
-            @Schema(nullable = true) @Size(max = 300) String aliasName,
             @NotBlank @Size(max = 32) String sdMedicationType,
             @Schema(nullable = true) @Size(max = 64) String sdDoseForm,
             @Schema(nullable = true) @Size(max = 300) String preparationSpec,
@@ -379,7 +378,7 @@ public class MasterDataController {
             @Schema(nullable = true) @Size(max = 64) String defaultFrequency,
             @NotNull Boolean chronicDiseaseDrug, @NotNull Boolean singleOrder,
             @NotBlank @Size(max = 32) String sdStatus, @Schema(nullable = true) @Size(max = 64) String standardSpecificationId) {
-        MedicationCommand command() { return new MedicationCommand(Strings.trim(code), Strings.trim(name), Strings.trimToNull(aliasName),
+        MedicationCommand command() { return new MedicationCommand(Strings.trim(code), Strings.trim(name), null,
                 sdMedicationType, Strings.trimToNull(sdDoseForm), Strings.trimToNull(preparationSpec), Strings.trimToNull(preparationUnit),
                 strengthValue, Strings.trimToNull(strengthUnit), Strings.trimToNull(sdStorageType), prescriptionDrug, essentialDrug,
                 antimicrobial, Strings.trimToNull(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,

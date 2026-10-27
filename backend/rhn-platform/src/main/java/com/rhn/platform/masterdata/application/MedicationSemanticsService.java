@@ -24,10 +24,12 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
     private final ExecutionContextProvider contexts;
     private final JsonCodec json;
     private final MedicationStandardService standards;
+    private final MedicationAliasNames aliasNames;
 
     public MedicationSemanticsService(ClinicalSemanticHistory history, MedicationRepository medications,
-                                     ExecutionContextProvider contexts, JsonCodec json, MedicationStandardService standards) {
-        this.standards = standards;
+                                     ExecutionContextProvider contexts, JsonCodec json, MedicationStandardService standards,
+                                     MedicationAliasNames aliasNames) {
+        this.standards = standards; this.aliasNames = aliasNames;
         this.history = history; this.medications = medications; this.contexts = contexts; this.json = json;
     }
 
@@ -131,7 +133,8 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
 
     /** Called in the same transaction as master-data maintenance, including before the first legacy edit. */
     public void captureMedication(Medication medication) {
-        medicationVersion(medication.tenantId(), snapshot(medication));
+        medicationVersion(medication.tenantId(),
+                snapshot(medication, aliasNames.joined(medication.tenantId(), medication.id())));
     }
 
     /** Preserve definitions and configuration changes even if they have not yet been used in an order. */
@@ -268,8 +271,8 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
         return value.trim();
     }
 
-    public static CatalogLifecycleDirectory.MedicationSnapshot snapshot(Medication value) {
-        return new CatalogLifecycleDirectory.MedicationSnapshot(value.id(), value.itemTypeId(), value.code(), value.name(), value.aliasName(),
+    public static CatalogLifecycleDirectory.MedicationSnapshot snapshot(Medication value, String aliasName) {
+        return new CatalogLifecycleDirectory.MedicationSnapshot(value.id(), value.itemTypeId(), value.code(), value.name(), aliasName,
                 value.medicationType(), value.doseForm(), value.preparationSpec(), value.preparationUnit(),
                 value.strengthValue(), value.strengthUnit(), value.storageType(), value.prescriptionDrug(),
                 value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(),

@@ -1,6 +1,8 @@
 import { loadAttributeMaintenance } from "../ItemAttributeValueEditor";
 import { saveMasterDataAttributes } from "../saveMasterDataAttributes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AliasTagEditor, parseAliases } from './AliasTagEditor'
+import { MedicationAliasSection } from './ItemAliasSection'
 import { useRef, useState } from "react";
 import type { Organization } from "../../../shared/model";
 import { errorMessage, type Manufacturer, type MedicationInput, type MedicationKnowledge, type RhnApi, type ActiveOrderFrequency, type MedicationRoute, type StandardMedicationDetail, type StandardMedicationSpecification } from "../../../shared/rhnApi";
@@ -104,6 +106,8 @@ export function MedicationDialog({
   }
 
   const initial = value ?? initialValue
+  // 仅新建时使用：随创建请求作为初始别名；已建档药品的别名走独立的别名接口保存。
+  const [aliasNames, setAliasNames] = useState(() => parseAliases(initialValue?.aliasName))
   const standardId = initialValue?.standardSpecificationId ?? value?.standardReference?.specificationId
   const standardLocked = Boolean(standardId)
   const [medicationType, setMedicationType] = useState(initial?.sdMedicationType ?? 'WESTERN')
@@ -200,7 +204,7 @@ export function MedicationDialog({
         throw new Error('储藏方式不在当前有效字典中，请重新选择或维护字典')
       }
       await saveAttributes()
-      await onSave({ standardSpecificationId: standardId, code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
+      await onSave({ standardSpecificationId: standardId, code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: !value && aliasNames.length ? aliasNames.join('；') : undefined,
         sdMedicationType: medicationType, sdDoseForm: standardLocked ? initialValue?.sdDoseForm ?? initial?.sdDoseForm : optionalText(form, 'sdDoseForm'),
         preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
         preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
@@ -240,8 +244,6 @@ export function MedicationDialog({
           placeholder="如 MED_AMOXICILLIN" autoFocus={!value} required /></FormField>
         <FormField label="通用名称" required><input name="name" defaultValue={initial?.name}
           placeholder="录入药品通用名称" required /></FormField>
-        <FormField label="别名"><input name="aliasName" defaultValue={initial?.aliasName}
-          placeholder="如历史名称或常用简称" /></FormField>
         <FormField label={value ? '药品类型（创建后不可修改）' : '药品类型'} required>
           <StaticSelectControl name="sdMedicationType" value={medicationType}
             onChange={(next) => { setMedicationType(next); if (next !== 'WESTERN') setAntimicrobial(false) }}
@@ -387,6 +389,11 @@ export function MedicationDialog({
           defaultValue={initial?.skinTestInstructions} placeholder="如：稀释配制浓度（如青霉素 500U/ml）、试验推注剂量（0.1ml）、注射部位及阴阳性判定或复试要求" /></FormField>
       </FormGrid>
     </FormSection>}
+    {value?.id && api
+      ? <MedicationAliasSection api={api} medicationId={value.id} />
+      : <FormSection title="药品别名" description="历史名称或常用简称，只作检索入口；创建后可在编辑中继续维护。">
+        <AliasTagEditor names={aliasNames} onChange={setAliasNames} label="新增药品别名" placeholder="输入别名，回车添加" />
+      </FormSection>}
     {!knownType && <Alert>当前药品类型尚未建立专属模板，本次仅按通用字段维护；请在扩展属性配置中补充类型规则。</Alert>}
     {value?.id && (
       <DynamicItemAttributesSection

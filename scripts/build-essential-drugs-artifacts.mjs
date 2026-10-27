@@ -548,7 +548,7 @@ for (let i = 0; i < items.length; i++) {
 
   // PostgreSQL values
   const pgMedCols = [
-    medId, 0, tenantId, sqlStr(it.code), sqlStr(it.name), sqlStr(it.aliasName),
+    medId, 0, tenantId, sqlStr(it.code), sqlStr(it.name),
     sqlStr(it.medicationType), sqlStr(it.doseForm), sqlStr(it.preparationSpec), sqlStr(it.preparationUnit),
     sqlNum(it.strengthValue), sqlStr(it.strengthUnit), sqlStr(it.storageType),
     it.prescriptionDrug ? "true" : "false", "true",
@@ -571,6 +571,11 @@ for (let i = 0; i < items.length; i++) {
 
   pgLines.push(`insert into RHN_BD_MED select ${pgMedCols.join(", ")} where not exists (select 1 from RHN_BD_MED where ID_MED = ${medId});`);
 
+  // 药品别名独立成表（RHN_BD_MED_ALIAS），别名主键复用药品主键
+  if (it.aliasName) {
+    pgLines.push(`insert into RHN_BD_MED_ALIAS (ID_MED_ALIAS, ID_TNT, ID_MED, SD_ALIAS_TYPE, NA_ALIAS, CD_MNEM, FG_PRIMARY_ALIAS, SD_STATUS) select ${medId}, ${tenantId}, ${medId}, 'SYNONYM', ${sqlStr(it.aliasName)}, null, true, 'ACTIVE' where not exists (select 1 from RHN_BD_MED_ALIAS where ID_MED_ALIAS = ${medId});`);
+  }
+
   if (it.medicationType === "WESTERN") {
     pgLines.push(`insert into RHN_BD_MED_WESTERN (ID_MED, ID_TNT, ACTIVE_INGR, FG_BIOL, FG_BIOSIM) select ${medId}, ${tenantId}, ${sqlStr(it.name)}, false, false where not exists (select 1 from RHN_BD_MED_WESTERN where ID_MED = ${medId});`);
   }
@@ -579,7 +584,7 @@ for (let i = 0; i < items.length; i++) {
 
   // Oracle values
   const oraMedCols = [
-    medId, 0, tenantId, sqlStr(it.code), sqlStr(it.name), sqlStr(it.aliasName),
+    medId, 0, tenantId, sqlStr(it.code), sqlStr(it.name),
     sqlStr(it.medicationType), sqlStr(it.doseForm), sqlStr(it.preparationSpec), sqlStr(it.preparationUnit),
     sqlNum(it.strengthValue), sqlStr(it.strengthUnit), sqlStr(it.storageType),
     it.prescriptionDrug ? 1 : 0, 1,
@@ -601,8 +606,13 @@ for (let i = 0; i < items.length; i++) {
   ];
 
   oraLines.push(`merge into RHN_BD_MED t using (select ${medId} as ID_MED from dual) s on (t.ID_MED = s.ID_MED)`);
-  oraLines.push(`when not matched then insert (ID_MED, REVISION, ID_TNT, CD_MED, NA_MED, NA_ALIAS, SD_MED_TYPE, DOSE_FORM, PREPARATION_SPEC, PREPARATION_UNIT, QTY_STRENGTH_VAL, STRENGTH_UNIT, SD_STORAGE_TYPE, FG_PRESCRIPTION_DRUG, FG_ESSENTIAL_DRUG, FG_ANTIMICROBIAL, SD_ANTIMICROBIAL_LEVEL, FG_SKIN_TEST_REQUIRED, QTY_DEFAULT_DOSE, DEFAULT_DOSE_UNIT, DEFAULT_ROUTE, DEFAULT_FREQUENCY, FG_CHRONIC_DISEASE_DRUG, FG_SINGLE_ORDER, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, ID_ITEM_TYPE, ID_ITEM_MASTER, ID_ORDER_FREQ_DEFAULT, ID_CONCEPT_DEFAULT_ROUTE, FG_ANTIMICROBIAL_OUTPATIENT, FG_ANTIMICROBIAL_CONSULT, FG_ANTIMICROBIAL_EMERGENCY, QTY_ANTIMICROBIAL_MAX_DAYS, SD_SKIN_TEST_METHOD, SD_SKIN_TEST_SOLUTION_MODE, QTY_SKIN_TEST_OBS_MINUTES, QTY_SKIN_TEST_VALID_HOURS, DES_SKIN_TEST_INSTRUCTION)`);
+  oraLines.push(`when not matched then insert (ID_MED, REVISION, ID_TNT, CD_MED, NA_MED, SD_MED_TYPE, DOSE_FORM, PREPARATION_SPEC, PREPARATION_UNIT, QTY_STRENGTH_VAL, STRENGTH_UNIT, SD_STORAGE_TYPE, FG_PRESCRIPTION_DRUG, FG_ESSENTIAL_DRUG, FG_ANTIMICROBIAL, SD_ANTIMICROBIAL_LEVEL, FG_SKIN_TEST_REQUIRED, QTY_DEFAULT_DOSE, DEFAULT_DOSE_UNIT, DEFAULT_ROUTE, DEFAULT_FREQUENCY, FG_CHRONIC_DISEASE_DRUG, FG_SINGLE_ORDER, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, ID_ITEM_TYPE, ID_ITEM_MASTER, ID_ORDER_FREQ_DEFAULT, ID_CONCEPT_DEFAULT_ROUTE, FG_ANTIMICROBIAL_OUTPATIENT, FG_ANTIMICROBIAL_CONSULT, FG_ANTIMICROBIAL_EMERGENCY, QTY_ANTIMICROBIAL_MAX_DAYS, SD_SKIN_TEST_METHOD, SD_SKIN_TEST_SOLUTION_MODE, QTY_SKIN_TEST_OBS_MINUTES, QTY_SKIN_TEST_VALID_HOURS, DES_SKIN_TEST_INSTRUCTION)`);
   oraLines.push(`values (${oraMedCols.join(", ")});`);
+
+  if (it.aliasName) {
+    oraLines.push(`merge into RHN_BD_MED_ALIAS t using (select ${medId} as ID_MED_ALIAS from dual) s on (t.ID_MED_ALIAS = s.ID_MED_ALIAS)`);
+    oraLines.push(`when not matched then insert (ID_MED_ALIAS, ID_TNT, ID_MED, SD_ALIAS_TYPE, NA_ALIAS, CD_MNEM, FG_PRIMARY_ALIAS, SD_STATUS) values (${medId}, ${tenantId}, ${medId}, 'SYNONYM', ${sqlStr(it.aliasName)}, null, 1, 'ACTIVE');`);
+  }
 
   if (it.medicationType === "WESTERN") {
     oraLines.push(`merge into RHN_BD_MED_WESTERN t using (select ${medId} as ID_MED from dual) s on (t.ID_MED = s.ID_MED)`);

@@ -146,7 +146,7 @@ export function ProductEditDialog({ product, medication, manufacturers, dictiona
   onEditPackage: (value: ItemPackage) => void
 }) {
   return <DataFormDialog title="编辑药品产品" eyebrow={`${medication.name} · ${product.code}`} onClose={onClose}
-    size="xwide" description="维护厂家、批准文号、监管标识与中心层业务能力；当前包装如下，点击可直接维护包装规格，机构目录与价格在各自入口维护。"
+    size="xwide"
     onSubmit={(form) => onSave({
       medicationId: product.medicationId, manufacturerId: text(form, 'manufacturerId'), code: product.code,
       tradeName: optionalText(form, 'tradeName'), approvalCode: optionalText(form, 'approvalCode'),
@@ -163,23 +163,16 @@ export function ProductEditDialog({ product, medication, manufacturers, dictiona
       sdStatus: product.sdStatus, validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'),
       indication: optionalText(form, 'indication'), instruction: optionalText(form, 'instruction'),
     })}>
-    <FormSection title="产品身份" description="产品编码、名称与最小单位来自通用药品知识，创建后不可在产品层修改。">
-      <FormGrid columns={3}>
+    <FormSection title="产品信息">
+      <FormGrid columns={4}>
         <StaticSelectField name="manufacturerId" label="生产厂家"
           options={manufacturers.map((item) => ({ value: item.id, label: item.name }))}
           defaultValue={product.manufacturerId} />
-        <FormField label="产品编码" hint="创建后不可修改。"><input value={product.code} readOnly aria-readonly="true" /></FormField>
         <FormField label="商品名"><input name="tradeName" defaultValue={product.tradeName} placeholder="无商品名可留空" autoFocus /></FormField>
-        <FormField label="产品名称" className="span-2" hint="来自药品通用信息；如需调整，请返回通用信息维护。">
-          <input value={product.name} readOnly aria-readonly="true" /></FormField>
-        <FormField label="最小单位" hint="来自药品通用信息；厂家产品不可单独修改。"><input
-          value={medication.preparationUnit || product.unitCode || ''} placeholder="请先维护药品通用信息" readOnly aria-readonly="true" /></FormField>
         <FormField label="批准文号"><input name="approvalCode" defaultValue={product.approvalCode} placeholder="国药准字或注册证编号" /></FormField>
-        <FormField label="追溯码" hint="通常为7位数字，用于标识厂家产品。"><input name="traceCode" defaultValue={product.traceCode}
-          inputMode="numeric" maxLength={7} pattern="[0-9]{7}" placeholder="如 8690001" /></FormField>
+        <FormField label="追溯码"><input name="traceCode" defaultValue={product.traceCode}
+          inputMode="numeric" maxLength={7} pattern="[0-9]{7}" placeholder="7位数字，如 8690001" /></FormField>
       </FormGrid>
-    </FormSection>
-    <FormSection title="包装与规格" description="产品当前已建档的包装，在此查看；点击任意包装可打开包装维护。">
       <div className="master-data-package-list">
         {product.packages.length ? product.packages.map((item) => {
           const marks = [item.defaultPurchase && '默认采购', item.defaultSale && '默认销售',
@@ -192,20 +185,21 @@ export function ProductEditDialog({ product, medication, manufacturers, dictiona
         }) : <p className="master-data-package-list__empty">暂无包装，请通过列表“加包装”建档。</p>}
       </div>
     </FormSection>
-    <FormSection title="中心层业务能力" description="控制产品在中心目录的可开立、可收费与库存属性；机构级开关请在“机构目录与价格”维护。">
-      <FormGrid>
-        <Checkboxes title="中心层能力">
+    <FormSection title="业务与监管">
+      <FormGrid columns={4}>
+        <Checkboxes title="中心层能力" className="span-2">
           <Checkbox name="orderable" label="允许开立" defaultChecked={product.orderable} />
           <Checkbox name="chargeable" label="允许收费" defaultChecked={product.chargeable} />
           <Checkbox name="stocked" label="库存商品" defaultChecked={product.stocked} />
           <Checkbox name="traceSplitRequired" label="拆零需处理追溯码" defaultChecked={product.traceSplitRequired} />
         </Checkboxes>
+        <Checkboxes title="监管标识" className="span-2">
+          <Checkbox name="otc" label="OTC" defaultChecked={product.otc} />
+          <Checkbox name="centralPurchase" label="国家/省级集采" defaultChecked={product.centralPurchase} />
+          <Checkbox name="importAllowed" label="允许进口" defaultChecked={product.importAllowed} />
+        </Checkboxes>
         <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="生效日期" toLabel="失效日期"
           fromDefault={product.validFrom} toDefault={product.validTo} />
-      </FormGrid>
-    </FormSection>
-    <FormSection title="监管与产品补充信息" description="上市状态、生产地与有效期等监管字段。">
-      <FormGrid columns={3}>
         <SelectField name="sdMarketStatus" label="上市状态" values={dictionaries.BD_PRODUCT_MARKET_STATUS}
           defaultValue={product.sdMarketStatus} required={false} />
         <SelectField name="sdProductionPlace" label="产品生产地" values={dictionaries.BD_PRODUCTION_PLACE}
@@ -214,16 +208,11 @@ export function ProductEditDialog({ product, medication, manufacturers, dictiona
           defaultValue={product.shelfLifeValue} placeholder="如 24" /></FormField>
         <SelectField name="sdShelfLifeUnit" label="产品有效期单位" values={dictionaries.BD_SHELF_LIFE_UNIT}
           defaultValue={product.sdShelfLifeUnit} required={false} />
-        <Checkboxes title="监管标识">
-          <Checkbox name="otc" label="OTC" defaultChecked={product.otc} />
-          <Checkbox name="centralPurchase" label="国家/省级集采" defaultChecked={product.centralPurchase} />
-          <Checkbox name="importAllowed" label="允许进口" defaultChecked={product.importAllowed} />
-        </Checkboxes>
       </FormGrid>
     </FormSection>
     <details className="master-data-advanced-fields">
       <summary>批准 / 注册 / 说明书信息（非日常维护）</summary>
-      <FormGrid columns={3}>
+      <FormGrid columns={4}>
         <DateRangeFields fromName="approvalFrom" toName="approvalTo" fromLabel="批准生效日期" toLabel="批准失效日期"
           fromDefault={product.approvalFrom} toDefault={product.approvalTo} required={false} />
         <FormField label="注册证号"><input name="registrationCode" defaultValue={product.registrationCode} placeholder="进口药品或器械适用" /></FormField>

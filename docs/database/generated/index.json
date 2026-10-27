@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
+  "fingerprint": "5fd649c3879e972bad74dd5cf0b2ad066758427a72ac0c8e7a406a23810adb22",
   "semanticAsset": "backend/rhn-analytics/src/main/resources/semantic/outpatient-ontology.v1.yaml",
   "domains": [
     {
@@ -26,7 +26,7 @@
     {
       "code": "BD",
       "name": "基础数据与术语",
-      "count": 63
+      "count": 66
     },
     {
       "code": "BIL",
@@ -36,7 +36,7 @@
     {
       "code": "EX",
       "name": "医疗请求与执行",
-      "count": 26
+      "count": 27
     },
     {
       "code": "HPL",
@@ -249,7 +249,7 @@
       "logical": "bil.charge_item",
       "domain": "BIL",
       "comment": "收费项目；一行代表一条收费项目记录",
-      "columns": 28
+      "columns": 30
     },
     {
       "physical": "RHN_VIS_CLIN_DOC_VER",
@@ -292,6 +292,13 @@
       "domain": "BD",
       "comment": "概念；一行代表一条概念记录",
       "columns": 18
+    },
+    {
+      "physical": "RHN_BD_CONCEPT_REL",
+      "logical": "bd.concept_relation",
+      "domain": "BD",
+      "comment": "概念关系；一行代表两个术语概念之间的一条有向关系，目前用于部位层级",
+      "columns": 10
     },
     {
       "physical": "RHN_HPL_COND",
@@ -564,7 +571,14 @@
       "logical": "bd.examination_service",
       "domain": "BD",
       "comment": "检查服务；一行代表一条检查服务记录",
-      "columns": 18
+      "columns": 21
+    },
+    {
+      "physical": "RHN_BD_EXAM_PRICE_TIER",
+      "logical": "bd.examination_price_tier",
+      "domain": "BD",
+      "comment": "检查阶梯计价档位；一行代表开立项目在一个计费部位数区间内对应的物价项",
+      "columns": 13
     },
     {
       "physical": "RHN_INT_EXT_MSG",
@@ -1138,7 +1152,14 @@
       "logical": "bd.medication",
       "domain": "BD",
       "comment": "药品；一行代表一条药品记录",
-      "columns": 42
+      "columns": 41
+    },
+    {
+      "physical": "RHN_BD_MED_ALIAS",
+      "logical": "bd.medication_alias",
+      "domain": "BD",
+      "comment": "药品别名；一行代表一条通用药品别名，检索简码由检索表按别名名称生成",
+      "columns": 8
     },
     {
       "physical": "RHN_VIS_OBS",
@@ -1722,11 +1743,18 @@
       "columns": 13
     },
     {
+      "physical": "RHN_EX_SVC_REQ_CHG",
+      "logical": "ex.service_request_charge_line",
+      "domain": "EX",
+      "comment": "检查申请收费方案；一行代表开立时快照的一条收费明细，计费按行生成收费事项",
+      "columns": 18
+    },
+    {
       "physical": "RHN_EX_SVC_REQ_SITE",
       "logical": "ex.service_request_site",
       "domain": "EX",
       "comment": "检查申请部位；一行代表一条服务请求开立时选择的一个检查部位快照",
-      "columns": 11
+      "columns": 12
     },
     {
       "physical": "RHN_EX_SVC_REQ",
@@ -1761,7 +1789,7 @@
       "logical": "bd.service_variant",
       "domain": "BD",
       "comment": "服务变体；一行代表一条服务变体记录",
-      "columns": 16
+      "columns": 17
     },
     {
       "physical": "RHN_BIL_STL_CAT_SUM",

@@ -110,8 +110,9 @@ export function DataFormDialog({ title, eyebrow, description, size = 'wide', cla
     <Button type="submit" disabled={saving}>{saving ? '正在保存…' : '保存'}</Button></div></form></Dialog>
 }
 
-export function FormSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return <section className="master-data-form-section"><header><h3>{title}</h3><p>{description}</p></header>{children}</section>
+/** 表单分组统一样式：标题带品牌色竖条，说明紧随其后，action 为右侧可选操作（如单独保存）。 */
+export function FormSection({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) {
+  return <section className="master-data-form-section"><header><h3>{title}</h3>{description && <p>{description}</p>}{action && <div className="master-data-form-section__action">{action}</div>}</header>{children}</section>
 }
 
 export function FormGrid({ children, columns = 2 }: { children: ReactNode; columns?: 2 | 3 | 4 }) {

@@ -6452,12 +6452,12 @@
       },
       {
         "logical": "examination_technique",
-        "physical": "SD_EXAM_TECHNIQUE",
+        "physical": "SD_EXAM_TECHNIQ",
         "comment": "超声方式：B_MODE 常规 B 超，COLOR_DOPPLER 彩色多普勒；非超声为空"
       },
       {
         "logical": "contrast_phase",
-        "physical": "SD_CONTRAST_PHASE",
+        "physical": "SD_CNTRST_PHASE",
         "comment": "增强方式：PLAIN 平扫，ENHANCED 增强，PLAIN_ENHANCED 平扫加增强；非 CT/MR 为空"
       }
     ]
@@ -14343,11 +14343,6 @@
         "previousPhysical": "NA_MEDICAT"
       },
       {
-        "logical": "alias_name",
-        "physical": "NA_ALIAS",
-        "comment": "别名名称"
-      },
-      {
         "logical": "medication_type",
         "physical": "SD_MED_TYPE",
         "comment": "药品类型"
@@ -14532,6 +14527,55 @@
       }
     ],
     "previousPhysical": "RHN_BD_MEDICAT"
+  },
+  {
+    "logical": "bd.medication_alias",
+    "legacy": "medication_aliases",
+    "physical": "RHN_BD_MED_ALIAS",
+    "domain": "BD",
+    "comment": "药品别名；一行代表一条通用药品别名，检索简码由检索表按别名名称生成",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MED_ALIAS",
+        "comment": "药品别名主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "medication_id",
+        "physical": "ID_MED",
+        "comment": "通用药品标识"
+      },
+      {
+        "logical": "alias_type",
+        "physical": "SD_ALIAS_TYPE",
+        "comment": "别名类型"
+      },
+      {
+        "logical": "alias_name",
+        "physical": "NA_ALIAS",
+        "comment": "别名名称"
+      },
+      {
+        "logical": "mnemonic_code",
+        "physical": "CD_MNEM",
+        "comment": "人工指定的助记码；为空时仅按别名名称生成拼音与五笔检索码"
+      },
+      {
+        "logical": "primary_alias",
+        "physical": "FG_PRIMARY_ALIAS",
+        "comment": "是否主要别名"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "状态"
+      }
+    ]
   },
   {
     "logical": "vis.observation",

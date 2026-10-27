@@ -10,7 +10,9 @@ import com.rhn.platform.masterdata.infrastructure.MedicationProductRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemKey;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemRepository;
+import com.rhn.platform.masterdata.domain.MedicationAlias;
 import com.rhn.platform.masterdata.infrastructure.ItemAliasRepository;
+import com.rhn.platform.masterdata.infrastructure.MedicationAliasRepository;
 import com.rhn.platform.masterdata.infrastructure.ItemGroupRepository;
 import com.rhn.platform.masterdata.infrastructure.ServiceCatalogItemRepository;
 import com.rhn.platform.search.domain.SearchEntry;
@@ -54,6 +56,7 @@ public class SearchEntryProjectionService {
     private final OrganizationCatalogItemRepository adoptions;
     private final ItemAliasRepository itemAliases;
     private final ItemGroupRepository itemGroups;
+    private final MedicationAliasRepository medicationAliases;
     private final EntityManager entityManager;
     private final int rebuildBatchSize;
     private final ZoneId effectiveZone;
@@ -63,7 +66,7 @@ public class SearchEntryProjectionService {
                                         ConceptAliasRepository conceptAliases, MedicationRepository medications,
                                         MedicationProductRepository products, ServiceCatalogItemRepository services,
                                         OrganizationCatalogItemRepository adoptions, ItemAliasRepository itemAliases,
-                                        ItemGroupRepository itemGroups, EntityManager entityManager,
+                                        ItemGroupRepository itemGroups, MedicationAliasRepository medicationAliases, EntityManager entityManager,
                                         @Value("${rhn.search.projection.rebuild-batch-size:500}") int rebuildBatchSize,
                                         @Value("${rhn.search.projection.effective-refresh-zone:Asia/Shanghai}")
                                         String effectiveZone) {
@@ -78,6 +81,7 @@ public class SearchEntryProjectionService {
         this.adoptions = adoptions;
         this.itemAliases = itemAliases;
         this.itemGroups = itemGroups;
+        this.medicationAliases = medicationAliases;
         this.entityManager = entityManager;
         this.rebuildBatchSize = Math.max(50, Math.min(rebuildBatchSize, 2000));
         this.effectiveZone = ZoneId.of(effectiveZone);
@@ -109,7 +113,13 @@ public class SearchEntryProjectionService {
         for (int page = 0; ; page++) {
             List<Medication> batch = medications.findAll(batchPage(page)).getContent();
             if (batch.isEmpty()) break;
-            batch.forEach(value -> result.add(synchronizeTarget(medicationSpecs(value), "TENANT",
+            Map<Long, List<MedicationAlias>> aliasesByMedication = batch.stream()
+                    .collect(Collectors.groupingBy(Medication::tenantId)).entrySet().stream()
+                    .flatMap(tenant -> medicationAliases.findByTenantIdAndMedicationIdInAndStatusOrderByAliasName(
+                            tenant.getKey(), tenant.getValue().stream().map(Medication::id).toList(), "ACTIVE").stream())
+                    .collect(Collectors.groupingBy(MedicationAlias::medicationId));
+            batch.forEach(value -> result.add(synchronizeTarget(medicationSpecs(value,
+                            aliasesByMedication.getOrDefault(value.id(), List.of())), "TENANT",
                     value.tenantId(), "MEDICATION", value.id(), null)));
             flushBatch();
             if (batch.size() < rebuildBatchSize) break;
@@ -231,7 +241,9 @@ public class SearchEntryProjectionService {
 
     @Transactional
     public void synchronizeMedication(Medication medication, Long actorId) {
-        synchronizeTarget(medicationSpecs(medication), "TENANT", medication.tenantId(),
+        synchronizeTarget(medicationSpecs(medication, medicationAliases
+                        .findByTenantIdAndMedicationIdAndStatusOrderByAliasName(medication.tenantId(), medication.id(), "ACTIVE")),
+                "TENANT", medication.tenantId(),
                 "MEDICATION", medication.id(), actorId);
     }
 
@@ -326,13 +338,16 @@ public class SearchEntryProjectionService {
         return result;
     }
 
-    private List<EntrySpec> medicationSpecs(Medication value) {
+    private List<EntrySpec> medicationSpecs(Medication value, List<MedicationAlias> aliases) {
         List<EntrySpec> result = new ArrayList<>();
         String status = active(value.status());
         add(result, "TENANT", value.tenantId(), value.tenantId(), "MEDICATION", value.id(), "CANONICAL",
                 "MEDICATION:NAME", value.name(), null, true, status);
-        add(result, "TENANT", value.tenantId(), value.tenantId(), "MEDICATION", value.id(), "ALIAS",
-                "MEDICATION:ALIAS", value.aliasName(), null, false, status);
+        for (MedicationAlias alias : aliases) {
+            add(result, "TENANT", value.tenantId(), value.tenantId(), "MEDICATION", value.id(), "ALIAS",
+                    "MEDICATION_ALIAS:" + alias.id(), alias.aliasName(), alias.mnemonicCode(), alias.primaryAlias(),
+                    "ACTIVE".equals(alias.status()) ? status : "INACTIVE");
+        }
         return result;
     }
 

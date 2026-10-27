@@ -16,6 +16,7 @@ public final class MasterDataCommands {
             String mutualRecognitionCode, boolean pregnancyAlert,
             String attention, String examinationNotes) {}
 
+    /** aliasName 仅用于创建与导入时的初始别名（多个用逗号分隔）；更新时忽略，别名由药品别名接口维护。 */
     public record MedicationCommand(
             String code, String name, String aliasName, String medicationType, String doseForm,
             String preparationSpec, String preparationUnit, BigDecimal strengthValue, String strengthUnit,

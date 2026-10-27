@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
+  "fingerprint": "5fd649c3879e972bad74dd5cf0b2ad066758427a72ac0c8e7a406a23810adb22",
   "tables": [
     {
       "logical": "bd.catalog_change_batch_row",
@@ -1160,7 +1160,7 @@
       "codeReferences": [
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/MasterDataApplicationService.java",
-          "line": 738
+          "line": 758
         },
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/application/OrganizationCatalogInitializationParticipant.java",
@@ -2826,6 +2826,259 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/terminology/domain/Concept.java",
           "line": 16
+        }
+      ]
+    },
+    {
+      "logical": "bd.concept_relation",
+      "legacy": "concept_relations",
+      "physical": "RHN_BD_CONCEPT_REL",
+      "domain": "BD",
+      "comment": "概念关系；一行代表两个术语概念之间的一条有向关系，目前用于部位层级",
+      "columns": [
+        {
+          "physical": "ID_CONCEPT_REL",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "概念关系主键",
+          "logical": "id",
+          "catalogComment": "概念关系主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_CONCEPT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "源概念标识（子部位）",
+          "logical": "concept_id",
+          "catalogComment": "源概念标识（子部位）"
+        },
+        {
+          "physical": "ID_CONCEPT_TARGET",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "目标概念标识（上级部位）",
+          "logical": "target_concept_id",
+          "catalogComment": "目标概念标识（上级部位）"
+        },
+        {
+          "physical": "SD_REL_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "关系类型：PART_OF 表示源概念是目标概念的一部分",
+          "logical": "relation_type",
+          "catalogComment": "关系类型：PART_OF 表示源概念是目标概念的一部分"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_CONCEPT_REL"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BD_CONCEPT_REL",
+          "columns": [
+            "ID_CONCEPT",
+            "ID_CONCEPT_TARGET",
+            "SD_REL_TYPE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BD_CONCEPT_REL_SRC_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BD_CONCEPT_REL_TARGET_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT_TARGET",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BD_CONCEPT_REL_TARGET",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT_TARGET",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "SD_REL_TYPE",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_165",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT_REL",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BD_CONCEPT_REL_INDEX_1",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_CONCEPT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CONCEPT_TARGET",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_REL_TYPE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BD_CONCEPT_REL_SELF",
+          "expression": "\"id_concept\" <> \"id_concept_target\""
+        },
+        {
+          "name": "CK_BD_CONCEPT_REL_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_BD_CONCEPT_REL_TYPE",
+          "expression": "\"sd_rel_type\" = 'PART_OF'"
+        }
+      ],
+      "catalogComment": "概念关系；一行代表两个术语概念之间的一条有向关系，目前用于部位层级",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/terminology/domain/ConceptRelation.java",
+          "line": 14
         }
       ]
     },
@@ -5367,6 +5620,42 @@
           "comment": "最大chargeable库房盘点",
           "logical": "max_chargeable_site_count",
           "catalogComment": "最大chargeable库房盘点"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM_BASE_CHG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 19,
+          "comment": "主收费物价项目标识；为空时主收费行收开立项目自身，阶梯计价模式下必须为空",
+          "logical": "base_charge_item_id",
+          "catalogComment": "主收费物价项目标识；为空时主收费行收开立项目自身，阶梯计价模式下必须为空"
+        },
+        {
+          "physical": "SD_EXAM_TECHNIQ",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 20,
+          "comment": "超声方式：B_MODE 常规 B 超，COLOR_DOPPLER 彩色多普勒；非超声为空",
+          "logical": "examination_technique",
+          "catalogComment": "超声方式：B_MODE 常规 B 超，COLOR_DOPPLER 彩色多普勒；非超声为空"
+        },
+        {
+          "physical": "SD_CNTRST_PHASE",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 21,
+          "comment": "增强方式：PLAIN 平扫，ENHANCED 增强，PLAIN_ENHANCED 平扫加增强；非 CT/MR 为空",
+          "logical": "contrast_phase",
+          "catalogComment": "增强方式：PLAIN 平扫，ENHANCED 增强，PLAIN_ENHANCED 平扫加增强；非 CT/MR 为空"
         }
       ],
       "kind": "BASE TABLE",
@@ -5384,7 +5673,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_EXAM_SVC_BD_CATAL_EXAM_A_INDEX_2",
+          "name": "FK_BD_EXAM_SVC_BD_CATAL_EXAM_A_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -5421,7 +5710,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_2",
+          "name": "PRIMARY_KEY_C5",
           "columns": [
             {
               "position": 1,
@@ -5432,7 +5721,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_EXAM_SVC_EXAM_SERVICE_TE_INDEX_2",
+          "name": "UK_BD_EXAM_SVC_EXAM_SERVICE_TE_INDEX_C",
           "columns": [
             {
               "position": 1,
@@ -5449,6 +5738,10 @@
         }
       ],
       "checks": [
+        {
+          "name": "CK_BD_EXAM_SVC_CONTRAST",
+          "expression": "(\"sd_cntrst_phase\" IN('PLAIN', 'ENHANCED', 'PLAIN_ENHANCED'))\n    OR (\"sd_cntrst_phase\" IS NULL)"
+        },
         {
           "name": "CK_BD_EXAM_SVC_EXAM_ADDITION_1",
           "expression": "\"qty_addl_site\" > CAST(0 AS NUMERIC(1))"
@@ -5470,8 +5763,16 @@
           "expression": "\"qty_incld_site\" >= 1"
         },
         {
-          "name": "CK_BD_EXAM_SVC_EXAM_SITE_PRICI",
-          "expression": "\"sd_site_pricing_mode\" IN('SINGLE', 'PER_SITE', 'BASE_PLUS_FIXED', 'BASE_PLUS_ITEM')"
+          "name": "CK_BD_EXAM_SVC_SITE_PRICING",
+          "expression": "\"sd_site_pricing_mode\" IN('SINGLE', 'PER_SITE', 'BASE_PLUS_FIXED', 'BASE_PLUS_ITEM', 'TIERED_ITEM')"
+        },
+        {
+          "name": "CK_BD_EXAM_SVC_TECHNIQUE",
+          "expression": "(\"sd_exam_techniq\" IN('B_MODE', 'COLOR_DOPPLER'))\n    OR (\"sd_exam_techniq\" IS NULL)"
+        },
+        {
+          "name": "CK_BD_EXAM_SVC_TIER_BASE_CHG",
+          "expression": "(\"sd_site_pricing_mode\" <> 'TIERED_ITEM')\n    OR (\"id_catalog_item_base_chg\" IS NULL)"
         }
       ],
       "catalogComment": "检查服务；一行代表一条检查服务记录",
@@ -5496,6 +5797,268 @@
         {
           "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ExaminationService.java",
           "line": 13
+        }
+      ]
+    },
+    {
+      "logical": "bd.examination_price_tier",
+      "legacy": "examination_price_tiers",
+      "physical": "RHN_BD_EXAM_PRICE_TIER",
+      "domain": "BD",
+      "comment": "检查阶梯计价档位；一行代表开立项目在一个计费部位数区间内对应的物价项",
+      "columns": [
+        {
+          "physical": "ID_EXAM_PRICE_TIER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "阶梯档位主键",
+          "logical": "id",
+          "catalogComment": "阶梯档位主键"
+        },
+        {
+          "physical": "REVISION",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "0",
+          "ordinal": 2,
+          "comment": "乐观锁修订号",
+          "logical": "revision",
+          "catalogComment": "乐观锁修订号"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "开立项目标识",
+          "logical": "catalog_item_id",
+          "catalogComment": "开立项目标识"
+        },
+        {
+          "physical": "QTY_SITE_FROM",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "计费部位数下限（含），从 1 开始",
+          "logical": "site_from",
+          "catalogComment": "计费部位数下限（含），从 1 开始"
+        },
+        {
+          "physical": "QTY_SITE_TO",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "计费部位数上限（含），为空表示无上限",
+          "logical": "site_to",
+          "catalogComment": "计费部位数上限（含），为空表示无上限"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM_CHG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "本档收费物价项目标识",
+          "logical": "charge_item_id",
+          "catalogComment": "本档收费物价项目标识"
+        },
+        {
+          "physical": "QTY_CHG",
+          "type": "DECIMAL",
+          "size": 28,
+          "scale": 8,
+          "nullable": false,
+          "defaultValue": "1",
+          "ordinal": 8,
+          "comment": "本档收费数量",
+          "logical": "charge_quantity",
+          "catalogComment": "本档收费数量"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 16,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        },
+        {
+          "physical": "ID_USER_CREATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "创建人标识",
+          "logical": "created_by",
+          "catalogComment": "创建人标识"
+        },
+        {
+          "physical": "DT_UPDATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "更新时间",
+          "logical": "updated_at",
+          "catalogComment": "更新时间"
+        },
+        {
+          "physical": "ID_USER_UPDATED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "更新人标识",
+          "logical": "updated_by",
+          "catalogComment": "更新人标识"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_EXAM_PRICE_TIER"
+      ],
+      "uniqueKeys": [],
+      "indexes": [
+        {
+          "name": "FK_BD_EXAM_PRICE_TIER_EXAM_INDEX_3",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CATALOG_ITEM",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BD_EXAM_PRICE_TIER_ITEM",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CATALOG_ITEM",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_3A4",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_EXAM_PRICE_TIER",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BD_EXAM_PRICE_TIER_FROM",
+          "expression": "\"qty_site_from\" >= 1"
+        },
+        {
+          "name": "CK_BD_EXAM_PRICE_TIER_QTY",
+          "expression": "\"qty_chg\" > CAST(0 AS NUMERIC(1))"
+        },
+        {
+          "name": "CK_BD_EXAM_PRICE_TIER_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        },
+        {
+          "name": "CK_BD_EXAM_PRICE_TIER_TO",
+          "expression": "(\"qty_site_to\" IS NULL)\n    OR (\"qty_site_to\" >= \"qty_site_from\")"
+        }
+      ],
+      "catalogComment": "检查阶梯计价档位；一行代表开立项目在一个计费部位数区间内对应的物价项",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/ExaminationPriceTier.java",
+          "line": 15
         }
       ]
     },
@@ -13228,25 +13791,13 @@
           "catalogComment": "名称"
         },
         {
-          "physical": "NA_ALIAS",
-          "type": "CHARACTER VARYING",
-          "size": 300,
-          "scale": 0,
-          "nullable": true,
-          "defaultValue": null,
-          "ordinal": 6,
-          "comment": "别名名称",
-          "logical": "alias_name",
-          "catalogComment": "别名名称"
-        },
-        {
           "physical": "SD_MED_TYPE",
           "type": "CHARACTER VARYING",
           "size": 32,
           "scale": 0,
           "nullable": false,
           "defaultValue": null,
-          "ordinal": 7,
+          "ordinal": 6,
           "comment": "药品类型",
           "logical": "medication_type",
           "catalogComment": "药品类型"
@@ -13258,7 +13809,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 8,
+          "ordinal": 7,
           "comment": "剂量表单",
           "logical": "dose_form",
           "catalogComment": "剂量表单"
@@ -13270,7 +13821,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 9,
+          "ordinal": 8,
           "comment": "制剂规格",
           "logical": "preparation_spec",
           "catalogComment": "制剂规格"
@@ -13282,7 +13833,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 10,
+          "ordinal": 9,
           "comment": "制剂单位",
           "logical": "preparation_unit",
           "catalogComment": "制剂单位"
@@ -13294,7 +13845,7 @@
           "scale": 8,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 11,
+          "ordinal": 10,
           "comment": "strength值",
           "logical": "strength_value",
           "catalogComment": "strength值"
@@ -13306,7 +13857,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 12,
+          "ordinal": 11,
           "comment": "strength单位",
           "logical": "strength_unit",
           "catalogComment": "strength单位"
@@ -13318,7 +13869,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 13,
+          "ordinal": 12,
           "comment": "storage类型",
           "logical": "storage_type",
           "catalogComment": "storage类型"
@@ -13330,7 +13881,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 14,
+          "ordinal": 13,
           "comment": "是否prescriptiondrug",
           "logical": "prescription_drug",
           "catalogComment": "是否prescriptiondrug"
@@ -13342,7 +13893,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 15,
+          "ordinal": 14,
           "comment": "是否essentialdrug",
           "logical": "essential_drug",
           "catalogComment": "是否essentialdrug"
@@ -13354,7 +13905,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 16,
+          "ordinal": 15,
           "comment": "是否抗菌药物",
           "logical": "antimicrobial",
           "catalogComment": "是否抗菌药物"
@@ -13366,7 +13917,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 17,
+          "ordinal": 16,
           "comment": "抗菌药物等级",
           "logical": "antimicrobial_level",
           "catalogComment": "抗菌药物等级"
@@ -13378,7 +13929,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 18,
+          "ordinal": 17,
           "comment": "是否皮试检测应需",
           "logical": "skin_test_required",
           "catalogComment": "是否皮试检测应需"
@@ -13390,7 +13941,7 @@
           "scale": 8,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 19,
+          "ordinal": 18,
           "comment": "默认剂量",
           "logical": "default_dose",
           "catalogComment": "默认剂量"
@@ -13402,7 +13953,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 20,
+          "ordinal": 19,
           "comment": "默认剂量单位",
           "logical": "default_dose_unit",
           "catalogComment": "默认剂量单位"
@@ -13414,7 +13965,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 21,
+          "ordinal": 20,
           "comment": "默认途径",
           "logical": "default_route",
           "catalogComment": "默认途径"
@@ -13426,7 +13977,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 22,
+          "ordinal": 21,
           "comment": "默认频次",
           "logical": "default_frequency",
           "catalogComment": "默认频次"
@@ -13438,7 +13989,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 23,
+          "ordinal": 22,
           "comment": "是否chronic疾病drug",
           "logical": "chronic_disease_drug",
           "catalogComment": "是否chronic疾病drug"
@@ -13450,7 +14001,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 24,
+          "ordinal": 23,
           "comment": "是否单列医嘱（一药一方）",
           "logical": "single_order",
           "catalogComment": "是否single医嘱"
@@ -13462,7 +14013,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": null,
-          "ordinal": 25,
+          "ordinal": 24,
           "comment": "状态",
           "logical": "status",
           "catalogComment": "状态"
@@ -13474,7 +14025,7 @@
           "scale": 6,
           "nullable": false,
           "defaultValue": null,
-          "ordinal": 26,
+          "ordinal": 25,
           "comment": "创建时间",
           "logical": "created_at",
           "catalogComment": "创建时间"
@@ -13486,7 +14037,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 27,
+          "ordinal": 26,
           "comment": "创建人标识",
           "logical": "created_by",
           "catalogComment": "创建人标识"
@@ -13498,7 +14049,7 @@
           "scale": 6,
           "nullable": false,
           "defaultValue": null,
-          "ordinal": 28,
+          "ordinal": 27,
           "comment": "更新时间",
           "logical": "updated_at",
           "catalogComment": "更新时间"
@@ -13510,7 +14061,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 29,
+          "ordinal": 28,
           "comment": "更新人标识",
           "logical": "updated_by",
           "catalogComment": "更新人标识"
@@ -13522,7 +14073,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": null,
-          "ordinal": 30,
+          "ordinal": 29,
           "comment": "项目类型标识",
           "logical": "item_type_id",
           "catalogComment": "项目类型标识"
@@ -13534,7 +14085,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 31,
+          "ordinal": 30,
           "comment": "项目主数据标识",
           "logical": "item_master_id",
           "catalogComment": "项目主数据标识"
@@ -13546,7 +14097,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 32,
+          "ordinal": 31,
           "comment": "默认频次标识",
           "logical": "default_frequency_id",
           "catalogComment": "默认频次标识"
@@ -13558,7 +14109,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 33,
+          "ordinal": 32,
           "comment": "默认途径标识",
           "logical": "default_route_id",
           "catalogComment": "默认途径标识"
@@ -13570,7 +14121,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 34,
+          "ordinal": 33,
           "comment": "抗菌药是否允许门诊常规开立",
           "logical": "fg_antimicrobial_outpatient",
           "catalogComment": "抗菌药是否允许门诊常规开立"
@@ -13582,7 +14133,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 35,
+          "ordinal": 34,
           "comment": "抗菌药是否要求会诊或审批",
           "logical": "fg_antimicrobial_consult",
           "catalogComment": "抗菌药是否要求会诊或审批"
@@ -13594,7 +14145,7 @@
           "scale": 0,
           "nullable": false,
           "defaultValue": "FALSE",
-          "ordinal": 36,
+          "ordinal": 35,
           "comment": "抗菌药是否允许紧急使用后补审批",
           "logical": "fg_antimicrobial_emergency",
           "catalogComment": "抗菌药是否允许紧急使用后补审批"
@@ -13606,7 +14157,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 37,
+          "ordinal": 36,
           "comment": "抗菌药门诊疗程上限天数",
           "logical": "qty_antimicrobial_max_days",
           "catalogComment": "抗菌药门诊疗程上限天数"
@@ -13618,7 +14169,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 38,
+          "ordinal": 37,
           "comment": "药品默认皮试方式",
           "logical": "sd_skin_test_method",
           "catalogComment": "药品默认皮试方式"
@@ -13630,7 +14181,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 39,
+          "ordinal": 38,
           "comment": "药品默认皮试液配置方式",
           "logical": "sd_skin_test_solution_mode",
           "catalogComment": "药品默认皮试液配置方式"
@@ -13642,7 +14193,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 40,
+          "ordinal": 39,
           "comment": "药品默认皮试观察分钟数",
           "logical": "qty_skin_test_obs_minutes",
           "catalogComment": "药品默认皮试观察分钟数"
@@ -13654,7 +14205,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 41,
+          "ordinal": 40,
           "comment": "阴性皮试结果默认有效小时数",
           "logical": "qty_skin_test_valid_hours",
           "catalogComment": "阴性皮试结果默认有效小时数"
@@ -13666,7 +14217,7 @@
           "scale": 0,
           "nullable": true,
           "defaultValue": null,
-          "ordinal": 42,
+          "ordinal": 41,
           "comment": "皮试液配制与执行说明",
           "logical": "des_skin_test_instruction",
           "catalogComment": "皮试液配制与执行说明"
@@ -13695,7 +14246,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_MED_BD_CONCE_MEDICATION__INDEX_F",
+          "name": "FK_BD_MED_BD_CONCE_MEDICATION__INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13706,7 +14257,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_MED_BD_ITEM_MEDICATION_1_INDEX_F",
+          "name": "FK_BD_MED_BD_ITEM_MEDICATION_1_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13717,7 +14268,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_MED_BD_ITEM_MEDICATION_I_INDEX_F",
+          "name": "FK_BD_MED_BD_ITEM_MEDICATION_I_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13728,7 +14279,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_MED_BD_ORDER_MEDICATION__INDEX_F",
+          "name": "FK_BD_MED_BD_ORDER_MEDICATION__INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13744,7 +14295,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_MED_SYS_TNT_MEDICATION_T_INDEX_F",
+          "name": "FK_BD_MED_SYS_TNT_MEDICATION_T_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13807,7 +14358,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_F5",
+          "name": "PRIMARY_KEY_14E",
           "columns": [
             {
               "position": 1,
@@ -13818,7 +14369,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_MED_MEDICATION_CODE_INDEX_F",
+          "name": "UK_BD_MED_MEDICATION_CODE_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13834,7 +14385,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_MED_MEDICATION_TENANT_ID_INDEX_F",
+          "name": "UK_BD_MED_MEDICATION_TENANT_ID_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -13910,6 +14461,264 @@
         {
           "path": "backend/rhn-quality/src/main/java/com/rhn/quality/medication/infrastructure/MedicationSafetyCategoryStore.java",
           "line": 277
+        }
+      ]
+    },
+    {
+      "logical": "bd.medication_alias",
+      "legacy": "medication_aliases",
+      "physical": "RHN_BD_MED_ALIAS",
+      "domain": "BD",
+      "comment": "药品别名；一行代表一条通用药品别名，检索简码由检索表按别名名称生成",
+      "columns": [
+        {
+          "physical": "ID_MED_ALIAS",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "药品别名主键",
+          "logical": "id",
+          "catalogComment": "药品别名主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_MED",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "通用药品标识",
+          "logical": "medication_id",
+          "catalogComment": "通用药品标识"
+        },
+        {
+          "physical": "SD_ALIAS_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "别名类型",
+          "logical": "alias_type",
+          "catalogComment": "别名类型"
+        },
+        {
+          "physical": "NA_ALIAS",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "别名名称",
+          "logical": "alias_name",
+          "catalogComment": "别名名称"
+        },
+        {
+          "physical": "CD_MNEM",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "人工指定的助记码；为空时仅按别名名称生成拼音与五笔检索码",
+          "logical": "mnemonic_code",
+          "catalogComment": "人工指定的助记码；为空时仅按别名名称生成拼音与五笔检索码"
+        },
+        {
+          "physical": "FG_PRIMARY_ALIAS",
+          "type": "BOOLEAN",
+          "size": 1,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "FALSE",
+          "ordinal": 7,
+          "comment": "是否主要别名",
+          "logical": "primary_alias",
+          "catalogComment": "是否主要别名"
+        },
+        {
+          "physical": "SD_STATUS",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "状态",
+          "logical": "status",
+          "catalogComment": "状态"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_MED_ALIAS"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_BD_MED_ALIAS_NAME",
+          "columns": [
+            "ID_TNT",
+            "ID_MED",
+            "SD_ALIAS_TYPE",
+            "NA_ALIAS"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_BD_MED_ALIAS_MED_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_MED",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "FK_BD_MED_ALIAS_TNT_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BD_MED_ALIAS_MED",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_MED",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "IX_BD_MED_ALIAS_NAME",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "NA_ALIAS",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_STATUS",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_B52",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_MED_ALIAS",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_BD_MED_ALIAS_NAME_INDEX_B",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_MED",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SD_ALIAS_TYPE",
+              "direction": "A"
+            },
+            {
+              "position": 4,
+              "name": "NA_ALIAS",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_BD_MED_ALIAS_STATUS",
+          "expression": "\"sd_status\" IN('ACTIVE', 'INACTIVE')"
+        }
+      ],
+      "catalogComment": "药品别名；一行代表一条通用药品别名，检索简码由检索表按别名名称生成",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-platform/src/main/java/com/rhn/platform/masterdata/domain/MedicationAlias.java",
+          "line": 11
         }
       ]
     },
@@ -16404,6 +17213,18 @@
           "comment": "更新人标识",
           "logical": "updated_by",
           "catalogComment": "更新人标识"
+        },
+        {
+          "physical": "QTY_CHGBL_SITE_UNIT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "1",
+          "ordinal": 17,
+          "comment": "计费部位数；按物价口径配置该部位方式折算的部位数，0 表示不计入部位数",
+          "logical": "chargeable_site_units",
+          "catalogComment": "计费部位数；按物价口径配置该部位方式折算的部位数，0 表示不计入部位数"
         }
       ],
       "kind": "BASE TABLE",
@@ -16429,7 +17250,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_BD_SVC_VAR_BD_CONCE_SERVICE_INDEX_9",
+          "name": "FK_BD_SVC_VAR_BD_CONCE_SERVICE_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -16440,7 +17261,7 @@
           "unique": false
         },
         {
-          "name": "FK_BD_SVC_VAR_BD_EXAM_SERVICE__INDEX_9",
+          "name": "FK_BD_SVC_VAR_BD_EXAM_SERVICE__INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -16482,7 +17303,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_970",
+          "name": "PRIMARY_KEY_147",
           "columns": [
             {
               "position": 1,
@@ -16493,7 +17314,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_SVC_VAR_SERVICE_VARIANT__INDEX_9",
+          "name": "UK_BD_SVC_VAR_SERVICE_VARIANT__INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -16514,7 +17335,7 @@
           "unique": true
         },
         {
-          "name": "UK_BD_SVC_VAR_SERVICE_VARIAN_1_INDEX_9",
+          "name": "UK_BD_SVC_VAR_SERVICE_VARIAN_1_INDEX_1",
           "columns": [
             {
               "position": 1,
@@ -16530,7 +17351,12 @@
           "unique": true
         }
       ],
-      "checks": [],
+      "checks": [
+        {
+          "name": "CK_BD_SVC_VAR_CHGBL_SITE_UNIT",
+          "expression": "\"qty_chgbl_site_unit\" BETWEEN 0 AND 99"
+        }
+      ],
       "catalogComment": "服务变体；一行代表一条服务变体记录",
       "catalogAvailable": true,
       "structureAvailable": true,
@@ -21742,6 +22568,40 @@
       "description": ""
     },
     {
+      "id": "FK_BD_CONCEPT_REL_SRC",
+      "sourceTable": "RHN_BD_CONCEPT_REL",
+      "sourceColumns": [
+        "ID_CONCEPT"
+      ],
+      "targetColumns": [
+        "ID_CONCEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_CONCEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BD_CONCEPT_REL_TARGET",
+      "sourceTable": "RHN_BD_CONCEPT_REL",
+      "sourceColumns": [
+        "ID_CONCEPT_TARGET"
+      ],
+      "targetColumns": [
+        "ID_CONCEPT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_CONCEPT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
       "id": "FK_BD_DIAG_TPL_ITEM",
       "sourceTable": "RHN_BD_DIAG_TPL",
       "sourceColumns": [
@@ -22198,6 +23058,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_SYS_USER_ACCT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BD_EXAM_PRICE_TIER_EXAM",
+      "sourceTable": "RHN_BD_EXAM_PRICE_TIER",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CATALOG_ITEM"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CATALOG_ITEM"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_EXAM_SVC",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
@@ -23135,6 +24014,42 @@
     {
       "id": "FK_BD_MED_SYS_TNT_MEDICATION_T",
       "sourceTable": "RHN_BD_MED",
+      "sourceColumns": [
+        "ID_TNT"
+      ],
+      "targetColumns": [
+        "ID_TNT"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_SYS_TNT",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BD_MED_ALIAS_MED",
+      "sourceTable": "RHN_BD_MED_ALIAS",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_MED"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_MED"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_BD_MED",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_BD_MED_ALIAS_TNT",
+      "sourceTable": "RHN_BD_MED_ALIAS",
       "sourceColumns": [
         "ID_TNT"
       ],

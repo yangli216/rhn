@@ -1,5 +1,5 @@
 {
-  "fingerprint": "0be89d99eaa67cbb08d7aa72f96be4c260ca204b49bab37a139dbaf0d9186c5d",
+  "fingerprint": "5fd649c3879e972bad74dd5cf0b2ad066758427a72ac0c8e7a406a23810adb22",
   "tables": [
     {
       "logical": "ex.care_request",
@@ -7274,6 +7274,333 @@
       ]
     },
     {
+      "logical": "ex.service_request_charge_line",
+      "legacy": "service_request_charge_lines",
+      "physical": "RHN_EX_SVC_REQ_CHG",
+      "domain": "EX",
+      "comment": "检查申请收费方案；一行代表开立时快照的一条收费明细，计费按行生成收费事项",
+      "columns": [
+        {
+          "physical": "ID_SVC_REQ_CHG",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 1,
+          "comment": "申请收费明细主键",
+          "logical": "id",
+          "catalogComment": "申请收费明细主键"
+        },
+        {
+          "physical": "ID_TNT",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 2,
+          "comment": "租户标识",
+          "logical": "tenant_id",
+          "catalogComment": "租户标识"
+        },
+        {
+          "physical": "ID_CARE_REQ",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 3,
+          "comment": "服务请求标识",
+          "logical": "service_request_id",
+          "catalogComment": "服务请求标识"
+        },
+        {
+          "physical": "SN_LINE",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 4,
+          "comment": "收费行号，从 1 开始，与收费事项行号一致",
+          "logical": "line_no",
+          "catalogComment": "收费行号，从 1 开始，与收费事项行号一致"
+        },
+        {
+          "physical": "SD_CHG_ROLE",
+          "type": "CHARACTER VARYING",
+          "size": 24,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 5,
+          "comment": "收费行类型：主项目、阶梯档位、多部位固定加收、多部位加收项目、附加项目",
+          "logical": "charge_role",
+          "catalogComment": "收费行类型：主项目、阶梯档位、多部位固定加收、多部位加收项目、附加项目"
+        },
+        {
+          "physical": "ID_CATALOG_ITEM",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 6,
+          "comment": "收费物价项目标识",
+          "logical": "catalog_item_id",
+          "catalogComment": "收费物价项目标识"
+        },
+        {
+          "physical": "CD_ITEM_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 128,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 7,
+          "comment": "物价项目编码快照",
+          "logical": "item_code_snapshot",
+          "catalogComment": "物价项目编码快照"
+        },
+        {
+          "physical": "NA_ITEM_SNAP",
+          "type": "CHARACTER VARYING",
+          "size": 300,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 8,
+          "comment": "物价项目名称快照",
+          "logical": "item_name_snapshot",
+          "catalogComment": "物价项目名称快照"
+        },
+        {
+          "physical": "CD_UNIT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 9,
+          "comment": "收费单位",
+          "logical": "unit_code",
+          "catalogComment": "收费单位"
+        },
+        {
+          "physical": "QTY_CHARGE",
+          "type": "DECIMAL",
+          "size": 28,
+          "scale": 8,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 10,
+          "comment": "收费数量",
+          "logical": "quantity",
+          "catalogComment": "收费数量"
+        },
+        {
+          "physical": "ID_PRICE",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 11,
+          "comment": "价格版本标识；多部位固定加收取检查配置金额，为空",
+          "logical": "price_id",
+          "catalogComment": "价格版本标识；多部位固定加收取检查配置金额，为空"
+        },
+        {
+          "physical": "SN_PRICE_VER",
+          "type": "BIGINT",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 12,
+          "comment": "价格修订号",
+          "logical": "price_revision",
+          "catalogComment": "价格修订号"
+        },
+        {
+          "physical": "SD_PRICE_TYPE",
+          "type": "CHARACTER VARYING",
+          "size": 32,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 13,
+          "comment": "价格类型",
+          "logical": "price_type",
+          "catalogComment": "价格类型"
+        },
+        {
+          "physical": "PRICE_UNIT",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 14,
+          "comment": "单价快照",
+          "logical": "unit_price",
+          "catalogComment": "单价快照"
+        },
+        {
+          "physical": "AMT_TOTAL",
+          "type": "DECIMAL",
+          "size": 24,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 15,
+          "comment": "金额，等于单价乘数量",
+          "logical": "total_amount",
+          "catalogComment": "金额，等于单价乘数量"
+        },
+        {
+          "physical": "CD_CCY",
+          "type": "CHARACTER VARYING",
+          "size": 8,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 16,
+          "comment": "币种",
+          "logical": "currency_code",
+          "catalogComment": "币种"
+        },
+        {
+          "physical": "SD_ACCTG_CAT",
+          "type": "CHARACTER VARYING",
+          "size": 64,
+          "scale": 0,
+          "nullable": true,
+          "defaultValue": null,
+          "ordinal": 17,
+          "comment": "核算分类快照",
+          "logical": "accounting_category",
+          "catalogComment": "核算分类快照"
+        },
+        {
+          "physical": "DT_CREATED",
+          "type": "TIMESTAMP WITH TIME ZONE",
+          "size": 32,
+          "scale": 6,
+          "nullable": false,
+          "defaultValue": null,
+          "ordinal": 18,
+          "comment": "创建时间",
+          "logical": "created_at",
+          "catalogComment": "创建时间"
+        }
+      ],
+      "kind": "BASE TABLE",
+      "primaryKey": [
+        "ID_SVC_REQ_CHG"
+      ],
+      "uniqueKeys": [
+        {
+          "name": "UK_EX_SVC_REQ_CHG_LINE",
+          "columns": [
+            "ID_TNT",
+            "ID_CARE_REQ",
+            "SN_LINE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "name": "FK_EX_SVC_REQ_CHG_REQ_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_REQ",
+              "direction": "A"
+            }
+          ],
+          "unique": false
+        },
+        {
+          "name": "PRIMARY_KEY_F8C",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_SVC_REQ_CHG",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        },
+        {
+          "name": "UK_EX_SVC_REQ_CHG_LINE_INDEX_F",
+          "columns": [
+            {
+              "position": 1,
+              "name": "ID_TNT",
+              "direction": "A"
+            },
+            {
+              "position": 2,
+              "name": "ID_CARE_REQ",
+              "direction": "A"
+            },
+            {
+              "position": 3,
+              "name": "SN_LINE",
+              "direction": "A"
+            }
+          ],
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_EX_SVC_REQ_CHG_LINE",
+          "expression": "\"sn_line\" > 0"
+        },
+        {
+          "name": "CK_EX_SVC_REQ_CHG_QTY",
+          "expression": "\"qty_charge\" > CAST(0 AS NUMERIC(1))"
+        },
+        {
+          "name": "CK_EX_SVC_REQ_CHG_ROLE",
+          "expression": "\"sd_chg_role\" IN('BASE_SERVICE', 'TIER', 'MULTI_SITE_FIXED', 'MULTI_SITE_ITEM', 'ATTACHMENT')"
+        }
+      ],
+      "catalogComment": "检查申请收费方案；一行代表开立时快照的一条收费明细，计费按行生成收费事项",
+      "catalogAvailable": true,
+      "structureAvailable": true,
+      "catalogMissingColumns": [],
+      "annotation": {
+        "revision": 0,
+        "owner": "",
+        "purpose": "",
+        "grain": "",
+        "lifecycle": "",
+        "writeEntry": "",
+        "notes": "",
+        "reviewState": "draft",
+        "reviewer": "",
+        "reviewedAt": null,
+        "relations": [],
+        "fieldNotes": []
+      },
+      "codeReferences": [
+        {
+          "path": "backend/rhn-clinical/src/main/java/com/rhn/outpatient/ordering/ServiceRequestChargeLine.java",
+          "line": 16
+        }
+      ]
+    },
+    {
       "logical": "ex.service_request_site",
       "legacy": "service_request_sites",
       "physical": "RHN_EX_SVC_REQ_SITE",
@@ -7411,6 +7738,18 @@
           "comment": "创建时间",
           "logical": "created_at",
           "catalogComment": "创建时间"
+        },
+        {
+          "physical": "QTY_CHGBL_SITE_UNIT",
+          "type": "INTEGER",
+          "size": 32,
+          "scale": 0,
+          "nullable": false,
+          "defaultValue": "1",
+          "ordinal": 12,
+          "comment": "开立时的计费部位数快照",
+          "logical": "chargeable_site_units",
+          "catalogComment": "开立时的计费部位数快照"
         }
       ],
       "kind": "BASE TABLE",
@@ -7437,7 +7776,7 @@
       ],
       "indexes": [
         {
-          "name": "FK_EX_SVC_REQ_SITE_REQ_INDEX_2",
+          "name": "FK_EX_SVC_REQ_SITE_REQ_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -7453,7 +7792,7 @@
           "unique": false
         },
         {
-          "name": "PRIMARY_KEY_20C",
+          "name": "PRIMARY_KEY_36A",
           "columns": [
             {
               "position": 1,
@@ -7464,7 +7803,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_SVC_REQ_SITE_CODE_INDEX_2",
+          "name": "UK_EX_SVC_REQ_SITE_CODE_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -7485,7 +7824,7 @@
           "unique": true
         },
         {
-          "name": "UK_EX_SVC_REQ_SITE_LINE_INDEX_2",
+          "name": "UK_EX_SVC_REQ_SITE_LINE_INDEX_3",
           "columns": [
             {
               "position": 1,
@@ -13207,6 +13546,25 @@
       ],
       "kind": "foreign-key",
       "targetTable": "RHN_EX_SVC_DOC",
+      "deleteRule": "NO ACTION",
+      "cardinality": "MANY_TO_ONE",
+      "reviewState": "database",
+      "evidence": "迁移验证库外键",
+      "description": ""
+    },
+    {
+      "id": "FK_EX_SVC_REQ_CHG_REQ",
+      "sourceTable": "RHN_EX_SVC_REQ_CHG",
+      "sourceColumns": [
+        "ID_TNT",
+        "ID_CARE_REQ"
+      ],
+      "targetColumns": [
+        "ID_TNT",
+        "ID_CARE_REQ"
+      ],
+      "kind": "foreign-key",
+      "targetTable": "RHN_EX_SVC_REQ",
       "deleteRule": "NO ACTION",
       "cardinality": "MANY_TO_ONE",
       "reviewState": "database",
