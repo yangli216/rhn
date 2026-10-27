@@ -1,7 +1,7 @@
 import { clinicalReferencePrices, clinicalMedicationType, clinicalStockText } from './clinicalResourceFacts'
 import { useCallback } from 'react'
 import type { DiseaseConcept, ItemGroup, MedicationKnowledge, ServiceCatalogItem } from '../api/masterDataApi'
-import type { OrderableMedicationKnowledge } from '../api/encountersApi'
+import type { ExaminationOrderCandidate, OrderableMedicationKnowledge } from '../api/encountersApi'
 import { outpatientPlanTemplateScopeLabel, type OutpatientPlanTemplate } from '../api/outpatientPlanTemplatesApi'
 import { errorMessage } from '../api/httpClient'
 import type { RhnApi } from '../rhnApi'
@@ -12,7 +12,7 @@ export type ClinicalResourceType = 'diagnosis' | 'medication' | 'service' | 'mix
 /** OutpatientPlanTemplate 仅指医嘱组套（templateKind=ORDER_SET）：临床模板库里的新组套。 */
 export type ClinicalResource = DiseaseConcept | MedicationKnowledge | ServiceCatalogItem | OrderableMedicationKnowledge | ItemGroup
   | OutpatientPlanTemplate
-export type ClinicalResourceOption<T extends ClinicalResource = ClinicalResource> = RemoteSearchOption<T>
+export type ClinicalResourceOption<T extends ClinicalResource = ClinicalResource> = RemoteSearchOption<T> & { examinationSite?: ExaminationOrderCandidate['site'] }
 export type OrderSearchMode = 'smart' | 'prefix'
 
 export interface ClinicalResourceSearchProps<T extends ClinicalResource = ClinicalResource>
@@ -21,6 +21,8 @@ export interface ClinicalResourceSearchProps<T extends ClinicalResource = Clinic
   resource: ClinicalResourceType
   organizationId?: string
   encounterId?: string
+  /** 仅医嘱录入启用，其他目录选择保持原行为。 */
+  includeExaminationSites?: boolean
   searchMode?: OrderSearchMode
   onSearchModeChange?: (mode: OrderSearchMode) => void
   filterResult?: (item: T) => boolean
@@ -116,6 +118,7 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
   organizationId,
   encounterId,
   searchMode = 'smart',
+  includeExaminationSites = false,
   onSearchModeChange,
   filterResult,
   placeholder,
@@ -125,6 +128,16 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
   const loadOptions = useCallback(async (query: string): Promise<RemoteSearchOption<T>[]> => {
     const trimmed = query.trim()
     if (!trimmed) return []
+
+    const serviceOptions = async (query: string): Promise<ClinicalResourceOption<ClinicalResource>[]> => {
+      const withSites = includeExaminationSites && Boolean(encounterId)
+      const [services, combinations] = await Promise.all([
+        searchClinicalList('项目', query, value => api.masterData.services(value, '', 'ACTIVE', organizationId),
+          withSites ? undefined : matchServiceItem),
+        withSites ? searchExaminationOptions(api, encounterId!, query, organizationId) : Promise.resolve([]),
+      ])
+      return [...combinations, ...services.map(item => mapResourceOption('service', item, organizationId))]
+    }
 
     const medicationSearch = () => searchClinicalList('药品', trimmed,
       value => encounterId ? api.encounters.orderableMedications(encounterId, value)
@@ -140,9 +153,8 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
         .map(item => mapResourceOption('medication', item, organizationId) as RemoteSearchOption<T>)
     }
     if (resource === 'service') {
-      const values = await searchClinicalList('项目', trimmed, value => api.masterData.services(value, '', 'ACTIVE', organizationId), matchServiceItem)
-      return values.filter(item => !filterResult || filterResult(item as T))
-        .map(item => mapResourceOption('service', item, organizationId) as RemoteSearchOption<T>)
+      const options = await serviceOptions(trimmed)
+      return options.filter(item => !filterResult || filterResult(item.raw as T)) as ClinicalResourceOption<T>[]
     }
 
     // --- resource === 'mixed' 混合检索 ---
@@ -189,9 +201,7 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
       value => encounterId ? api.encounters.orderableMedications(encounterId, value)
         : api.masterData.medications(value, '', 'ACTIVE', organizationId), matchMedicationItem)
       .then(values => values.map(item => mapResourceOption('medication', item, organizationId))))
-    if (searchSrv) tasks.push(searchClinicalList('项目', actualQuery,
-      value => api.masterData.services(value, '', 'ACTIVE', organizationId), matchServiceItem)
-      .then(values => values.map(item => mapResourceOption('service', item, organizationId))))
+    if (searchSrv) tasks.push(serviceOptions(actualQuery))
     if (searchGrp) {
       tasks.push(searchClinicalList('医嘱组套', actualQuery,
         value => api.masterData.itemGroups(value, 'ORDER_SET', 'ACTIVE'), matchItemGroupItem)
@@ -205,7 +215,7 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
 
     return combined
       .filter((item) => !filterResult || filterResult(item.raw as T)) as RemoteSearchOption<T>[]
-  }, [api, encounterId, filterResult, organizationId, resource, searchMode])
+  }, [api, encounterId, filterResult, includeExaminationSites, organizationId, resource, searchMode])
 
   const copy = resourceCopy[resource]
   const defaultSearchPlaceholder = copy.searchPlaceholder
@@ -280,6 +290,28 @@ export function ClinicalResourceSearch<T extends ClinicalResource = ClinicalReso
     searchPlaceholder={searchPlaceholder ?? defaultSearchPlaceholder}
     loadOptions={loadOptions}
   />
+}
+
+/** 组合候选由后端前缀索引返回；无结果不拉取全量部位，也不在下拉列表试算收费。 */
+async function searchExaminationOptions(api: RhnApi, encounterId: string, query: string, organizationId?: string): Promise<ClinicalResourceOption[]> {
+  try {
+    const result = await api.encounters.searchExaminationOrders(encounterId, query)
+    const services = requireClinicalList<ServiceCatalogItem>(result?.services, 'name')
+    const byId = new Map(services.map(service => [service.id, service]))
+    if (!Array.isArray(result?.candidates) || result.candidates.length > 30) throw new Error('返回检查组合数据不完整')
+    const options = result.candidates.map(value => {
+      const service = byId.get(value?.catalogItemId)
+      if (!service) throw new Error('返回检查组合缺少项目详情')
+      const site = value?.site
+      if (service.sdServiceType !== 'EXAMINATION' || !site || [site.variantId, site.code, site.name]
+        .some(text => typeof text !== 'string' || !text.trim())) throw new Error('返回检查部位数据不完整')
+      const option = mapResourceOption('service', service, organizationId)
+      return { ...option, value: `examination-site:${service.id}:${site.variantId}`, label: `${site.name} · ${option.label}`,
+        examinationSite: site, tags: [...(option.tags ?? []), '带入部位'] }
+    })
+    if (new Set(options.map(value => value.value)).size !== options.length) throw new Error('返回检查组合包含重复记录')
+    return options
+  } catch (error) { throw new Error(`检查组合检索失败：${errorMessage(error)}`) }
 }
 
 function mapResourceOption(

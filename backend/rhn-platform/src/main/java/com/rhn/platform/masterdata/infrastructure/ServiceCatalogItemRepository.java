@@ -15,6 +15,9 @@ public interface ServiceCatalogItemRepository extends JpaRepository<ServiceCatal
     @Query("select s from ServiceCatalogItem s where s.tenantId = :tenantId and s.id = :id and s.itemType = 'SERVICE'")
     Optional<ServiceCatalogItem> lockDiagnosticCatalog(@Param("tenantId") Long tenantId, @Param("id") Long id);
 
+    @Query("select s from ServiceCatalogItem s where s.itemType = 'SERVICE' and s.serviceType = 'EXAMINATION'")
+    Page<ServiceCatalogItem> findExaminationServices(Pageable pageable);
+
     @Query("select s from ServiceCatalogItem s where s.itemType = 'SERVICE'")
     List<ServiceCatalogItem> findAllServices();
 

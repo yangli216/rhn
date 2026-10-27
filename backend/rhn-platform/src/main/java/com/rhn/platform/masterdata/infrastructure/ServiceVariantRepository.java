@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ServiceVariantRepository extends JpaRepository<ServiceVariant, Long> {
+    List<ServiceVariant> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
     List<ServiceVariant> findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscSortOrderAsc(
             Long tenantId, Collection<Long> catalogItemIds);
     List<ServiceVariant> findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(Long tenantId, Long catalogItemId);

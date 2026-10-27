@@ -2,7 +2,7 @@ import type { RecordAnnotation } from './recordAnnotations'
 import type { Encounter } from '../model'
 import type { components } from './generated'
 import type { ApiClient } from './httpClient'
-import type { MedicationKnowledge } from './masterDataApi'
+import type { MedicationKnowledge, ServiceCatalogItem } from './masterDataApi'
 
 export interface OrderableMedicationKnowledge extends MedicationKnowledge {
   stockSiteId: string
@@ -185,6 +185,17 @@ export interface ServiceRequestBodySite {
   name: string
   methodType?: string | null
   mutualRecognitionCode?: string | null
+}
+
+/** 有界的项目＋单部位检索候选；service 保留原目录事实，site 仅供预填。 */
+export interface ExaminationOrderCandidate {
+  catalogItemId: string
+  site: { variantId: string; code: string; name: string }
+}
+
+export interface ExaminationOrderSearchResult {
+  services: ServiceCatalogItem[]
+  candidates: ExaminationOrderCandidate[]
 }
 
 /** 检查项目可选部位与数量换算规则；configured=false 表示项目未维护检查部位配置。 */
@@ -509,6 +520,9 @@ export function createEncountersApi(client: ApiClient) {
     ),
     submitOrders: (encounterId: string, input: OrderSubmissionInput) => client.request<OrderSubmissionResult>(
       `/api/encounters/${encounterId}/order-submissions`, { method: 'POST', body: JSON.stringify(input) },
+    ),
+    searchExaminationOrders: (encounterId: string, query: string) => client.request<ExaminationOrderSearchResult>(
+      `/api/encounters/${encodeURIComponent(encounterId)}/service-requests/examination-search?query=${encodeURIComponent(query)}`,
     ),
     examinationSiteOptions: (encounterId: string, catalogItemId: string) => client.request<ExaminationSiteOptions>(
       `/api/encounters/${encodeURIComponent(encounterId)}/service-requests/examination-sites?catalogItemId=${encodeURIComponent(catalogItemId)}`),

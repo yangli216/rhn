@@ -242,6 +242,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
                 additionalSiteQuantity, maxChargeableSiteCount, baseChargeItemId, context.subjectId());
         value.changeOrderingAttributes(technique, contrastPhase);
         examinationRepository.save(value);
+        searchProjections.synchronizeService(requireService(context.tenantId(), serviceId), context.subjectId());
         return clinicalConfiguration(serviceId);
     }
 
@@ -315,6 +316,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
         created.changeChargeableSiteUnits(command.chargeableSiteUnits());
         ServiceVariant value = variantRepository.save(created);
         attributeSubjectRepository.save(ItemAttributeSubject.serviceVariant(context.tenantId(), value.id(), context.subjectId()));
+        searchProjections.synchronizeService(requireService(context.tenantId(), serviceId), context.subjectId());
         return clinicalConfiguration(serviceId);
     }
 
@@ -331,6 +333,7 @@ public class MedicalOperationsMasterDataService implements com.rhn.platform.mast
                 command.sortOrder(), requireStatus(command.status()), context.subjectId());
         value.changeChargeableSiteUnits(command.chargeableSiteUnits());
         variantRepository.save(value);
+        searchProjections.synchronizeService(requireService(context.tenantId(), serviceId), context.subjectId());
         return clinicalConfiguration(serviceId);
     }
 

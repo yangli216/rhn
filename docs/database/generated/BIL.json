@@ -1,5 +1,5 @@
 {
-  "fingerprint": "5fd649c3879e972bad74dd5cf0b2ad066758427a72ac0c8e7a406a23810adb22",
+  "fingerprint": "2ac44c59c09d47ce55feecb682bbf03adca39e330143972ee177665e32405279",
   "tables": [
     {
       "logical": "bil.cashier_close_event",

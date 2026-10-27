@@ -14,6 +14,7 @@ describe('UnifiedOrderListEditor', () => {
   const mockApi = {
     encounters: {
       orderableMedications: vi.fn().mockResolvedValue([]),
+      searchExaminationOrders: vi.fn().mockResolvedValue({ services: [], candidates: [] }),
     },
     organization: {
       department: vi.fn().mockResolvedValue({ department: { id: 'dept-1', organizationId: 'org-1', name: '真实执行科室', sdOrgStatus: 'ACTIVE', validFrom: '2020-01-01', validTo: null } }),
@@ -55,6 +56,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.clearAllMocks()
     vi.mocked(mockApi.masterData.medications).mockResolvedValue([])
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([])
+    vi.mocked(mockApi.encounters.searchExaminationOrders).mockResolvedValue({ services: [], candidates: [] })
     vi.mocked(mockApi.masterData.services).mockResolvedValue([])
     vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([])
     vi.mocked(mockApi.organization.departments).mockResolvedValue([
@@ -882,6 +884,55 @@ describe('UnifiedOrderListEditor', () => {
     expect(within(serviceEditorRow).queryByText('编辑中')).not.toBeInTheDocument()
     expect(screen.getAllByText('执行科室待确认').length).toBeGreaterThan(0)
     expect(screen.queryByText('放射影像科')).not.toBeInTheDocument()
+  })
+
+  it.each(['头部CT', 'tbct', 'stale', 'plain'])('prefills and validates a single examination site for %s', async scenario => {
+    const query = scenario === 'tbct' ? 'tbct' : '头部CT'
+    const user = userEvent.setup(), setServiceDrafts = vi.fn()
+    const service = { id: 'ct-prefill', code: 'CT01', name: 'CT平扫', sdServiceType: 'EXAMINATION',
+      sdServiceTypeText: '检查', unitCode: '部位', orderable: true, chargeable: true, sdStatus: 'ACTIVE',
+      sdUsageType: 'OUTPATIENT', validFrom: '2020-01-01',
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, validFrom: '2020-01-01' },
+      prices: [{ id: 'p-ct', price: 100, currencyCode: 'CNY', sdStatus: 'ACTIVE', sdPriceType: 'SALE', organizationId: 'org-1', validFrom: '2020-01-01' }] }
+    vi.mocked(mockApi.encounters.searchExaminationOrders).mockResolvedValue({ services: [service],
+      candidates: [{ catalogItemId: service.id, site: { variantId: 'head', code: 'HEAD', name: '头部' } }] } as never)
+    const examinationSiteOptions = vi.fn().mockResolvedValue({ catalogItemId: service.id, configured: true,
+      bodySiteRequired: true, multiBodySite: false, sitePricingMode: 'PER_SITE',
+      sites: scenario === 'stale' ? [] : [{ code: 'HEAD', name: '头部', chargeableSiteUnits: 2 }] })
+    const api = { ...mockApi, encounters: { ...mockApi.encounters, examinationSiteOptions } } as unknown as RhnApi
+    renderComponent({ api, setServiceDrafts })
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    fireEvent.change(screen.getByPlaceholderText('输入通用名、编码或别名'), { target: { value: query } })
+    await user.click(await screen.findByRole('option', { name: /头部 · CT平扫/ }))
+    if (scenario === 'stale') {
+      await waitFor(() => expect(examinationSiteOptions).toHaveBeenCalled())
+      await user.click(screen.getByLabelText('加入医嘱'))
+      expect(await screen.findByText('所选检查部位已停用或配置已变更，请重新选择检查部位')).toBeInTheDocument()
+      expect(setServiceDrafts).not.toHaveBeenCalled()
+      return
+    }
+    expect(await screen.findByRole('combobox', { name: '检查部位' })).toHaveTextContent('头部')
+    if (scenario === 'plain') {
+      vi.mocked(mockApi.masterData.services).mockResolvedValue([service] as never)
+      vi.mocked(mockApi.encounters.searchExaminationOrders).mockResolvedValue({ services: [], candidates: [] })
+      await user.click(screen.getByRole('combobox', { name: '搜索检查项目名称/拼音' }))
+      fireEvent.change(screen.getByPlaceholderText('输入项目名称、编码或项目类型'), { target: { value: 'CT' } })
+      await user.click(await screen.findByRole('option', { name: /CT平扫/ }))
+      expect(screen.getByRole('combobox', { name: '检查部位' })).not.toHaveTextContent('头部')
+      await user.click(screen.getByLabelText('加入医嘱'))
+      expect(await screen.findByText('“CT平扫”必须选择检查部位')).toBeInTheDocument()
+      expect(setServiceDrafts).not.toHaveBeenCalled()
+      return
+    }
+    expect(screen.getByLabelText('项目数量')).toHaveValue(2)
+    await user.click(screen.getByLabelText('加入医嘱'))
+    await waitFor(() => expect(setServiceDrafts).toHaveBeenCalled())
+    const update = setServiceDrafts.mock.calls.at(-1)?.[0]
+    const [draft] = typeof update === 'function' ? update([]) : update
+    expect(draft).toMatchObject({ catalogItemId: service.id, itemName: 'CT平扫', quantity: 2,
+      bodySites: [{ code: 'HEAD', name: '头部' }], unitPrice: 100 })
+    expect(mockApi.masterData.services).toHaveBeenCalledExactlyOnceWith(query, '', 'ACTIVE', 'org-1')
   })
 
   it('edits examination body sites and derives the per-site quantity before saving the draft', async () => {

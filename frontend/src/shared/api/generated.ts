@@ -13430,6 +13430,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/encounters/{encounterId}/service-requests/examination-search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchOutpatientExaminationOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -30817,6 +30833,21 @@ export interface components {
             selected?: string[];
             baseline?: string[];
             exceptionType?: string;
+        };
+        ExaminationOrderCandidate: {
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            site?: components["schemas"]["ExaminationSite"];
+        };
+        ExaminationOrderSearchResult: {
+            services?: components["schemas"]["ServiceView"][];
+            candidates?: components["schemas"]["ExaminationOrderCandidate"][];
+        };
+        ExaminationSite: {
+            /** @example 824633720832983041 */
+            variantId?: string;
+            code?: string;
+            name?: string;
         };
     };
     responses: never;
@@ -62718,6 +62749,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    searchOutpatientExaminationOrders: {
+        parameters: {
+            query: {
+                query: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExaminationOrderSearchResult"];
+                };
             };
         };
     };

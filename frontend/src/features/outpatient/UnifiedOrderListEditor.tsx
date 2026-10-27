@@ -364,6 +364,7 @@ export function UnifiedOrderListEditor({
     setService(undefined)
     setServiceQuantity(1)
     setServiceDescription('')
+    setServiceSites([])
     setValidationError('')
   }
 
@@ -521,6 +522,7 @@ export function UnifiedOrderListEditor({
     if (!option) {
       selectMedication(undefined)
       setService(undefined)
+      setServiceSites([])
       return
     }
 
@@ -556,7 +558,7 @@ export function UnifiedOrderListEditor({
         ? sType : 'TREATMENT'
       setEntryType(srvType)
       setService(option as ClinicalResourceOption<ServiceCatalogItem>)
-      setServiceSites([])
+      setServiceSites(option.examinationSite ? [{ code: option.examinationSite.code, name: option.examinationSite.name }] : [])
       setValidationError('')
       // 选中后直接定位数量；嘱托/临床说明多数情况下不填，不在默认流程中。
       focusControlAfterSelection('doctor-unified-quantity')
@@ -651,6 +653,9 @@ export function UnifiedOrderListEditor({
       if (selected.sdServiceType === 'EXAMINATION') {
         if (serviceSiteOptions.isPending) { setValidationError('正在读取检查部位配置，请稍候'); return }
         if (serviceSiteOptions.isError) { setValidationError('检查部位配置读取失败，请重新选择项目'); return }
+        if (serviceSites.some(site => !serviceSiteRule?.configured || !serviceSiteRule.sites.some(current => current.code === site.code))) {
+          setValidationError('所选检查部位已停用或配置已变更，请重新选择检查部位'); return
+        }
         const siteError = examinationSiteError(serviceSiteRule, selected.name, serviceSites.length)
         if (siteError) { setValidationError(siteError); return }
       }

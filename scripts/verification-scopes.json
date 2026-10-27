@@ -23,6 +23,7 @@
         "src/shared/ui/Dialog.test.tsx",
         "src/shared/ui/Select.test.tsx",
         "src/features/outpatient/UnifiedOrderListEditor.test.tsx",
+        "src/shared/ui/ClinicalResourceSearch.examination.test.tsx",
         "src/features/pharmacy/medicationDisplay.test.ts",
         "src/features/pharmacy/PharmacyWorkspace.test.tsx"
       ],
@@ -162,6 +163,7 @@
         "src/shared/ui/Dialog.test.tsx",
         "src/shared/ui/Select.test.tsx",
         "src/features/outpatient/UnifiedOrderListEditor.test.tsx",
+        "src/shared/ui/ClinicalResourceSearch.examination.test.tsx",
         "src/features/pharmacy/medicationDisplay.test.ts",
         "src/features/pharmacy/PharmacyWorkspace.test.tsx",
         "src/features/outpatient/record/saveClinicalDraft.test.ts",
@@ -355,7 +357,8 @@
         "src/features/settings/StandardMappingDialog.test.tsx",
         "src/features/settings/CatalogLifecycleDialog.test.tsx",
         "src/features/settings/ItemAttributeValueEditor.test.tsx",
-        "src/shared/ui/AnchoredPanel.test.tsx"
+        "src/shared/ui/AnchoredPanel.test.tsx",
+        "src/shared/ui/ClinicalResourceSearch.examination.test.tsx"
       ],
       "backend": [
         "ArchitectureTest",
@@ -363,6 +366,7 @@
         "MedicalOperationsMasterDataTest",
         "MedicationStandardsTest",
         "MasterDataSearchIntegrationTest",
+        "ExaminationOrderSearchTest",
         "MedicationCatalogIntegrityTest",
         "RepresentativeMasterDataSeedTest",
         "MedicationStandardBindingTest",

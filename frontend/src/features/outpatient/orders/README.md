@@ -11,6 +11,7 @@
 | 已开立单据、打印／撤销、单据编辑插槽 | `SavedOrderList.tsx` | `../UnifiedOrderListEditor.test.tsx` |
 | 待确认分类、整方更新、编辑行切换 | `DraftOrderList.tsx` | `../UnifiedOrderListEditor.test.tsx` |
 | 药品／项目待确认行编辑 | `MedicationDraftEditRow.tsx`、`ServiceDraftEditRow.tsx` | `../UnifiedOrderListEditor.test.tsx` |
+| 检查项目＋单部位中文／拼音前缀检索、选择预填（最多 30 候选；项目详情去重批量返回，查询不加载全目录或试算收费） | `../../../shared/ui/ClinicalResourceSearch.tsx`、`OrderComposerResource.tsx`、`../UnifiedOrderListEditor.tsx`；后端 `ExaminationOrderSearchDirectory`、`ExaminationSearchEntryRepository` | `../../../shared/ui/ClinicalResourceSearch.examination.test.tsx`、`../UnifiedOrderListEditor.test.tsx`、后端 `ExaminationOrderSearchTest` |
 | 检查部位选择与按部位计数量 | `ExaminationSiteSelect.tsx`、`examinationSites.ts`、`useExaminationSiteOptions.ts`；后端 `ServiceRequestService.selectSites`、平台 `ExaminationSiteDirectory` | `examinationSites.test.ts`、`../UnifiedOrderListEditor.test.tsx`、后端 `ExaminationBodySiteOrderingTest` |
 | 失焦保存、滚动／弹层保护、快捷键 | `useDraftRowInteractions.ts` | `useDraftRowInteractions.test.tsx` |
 | 输液组识别、标签、组内同步 | `administrationGroups.ts` | `orderEntries.test.ts`、`medicationQuantity.test.ts` |

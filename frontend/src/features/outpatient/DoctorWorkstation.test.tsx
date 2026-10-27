@@ -215,6 +215,7 @@ function createMockApi({
         Promise.resolve(members.map(member => ({ id: member.id, revision: member.expectedRevision + 1, documentInfo })))),
       medicationRequests: vi.fn().mockResolvedValue([]),
       orderableMedications: vi.fn().mockResolvedValue([]),
+      searchExaminationOrders: vi.fn().mockResolvedValue({ services: [], candidates: [] }),
       orderableMedicationsBatch: vi.fn().mockResolvedValue({}),
     },
     clinicalDocuments: {

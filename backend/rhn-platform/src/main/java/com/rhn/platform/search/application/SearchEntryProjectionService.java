@@ -6,6 +6,10 @@ import com.rhn.platform.masterdata.domain.ItemAlias;
 import com.rhn.platform.masterdata.domain.ItemGroup;
 import com.rhn.platform.masterdata.domain.OrganizationCatalogItem;
 import com.rhn.platform.masterdata.domain.ServiceCatalogItem;
+import com.rhn.platform.masterdata.domain.ServiceVariant;
+import com.rhn.platform.masterdata.domain.ExaminationService;
+import com.rhn.platform.masterdata.infrastructure.ServiceVariantRepository;
+import com.rhn.platform.masterdata.infrastructure.ExaminationServiceRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationProductRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemKey;
@@ -57,6 +61,8 @@ public class SearchEntryProjectionService {
     private final ItemAliasRepository itemAliases;
     private final ItemGroupRepository itemGroups;
     private final MedicationAliasRepository medicationAliases;
+    private final ServiceVariantRepository variants;
+    private final ExaminationServiceRepository examinations;
     private final EntityManager entityManager;
     private final int rebuildBatchSize;
     private final ZoneId effectiveZone;
@@ -66,7 +72,9 @@ public class SearchEntryProjectionService {
                                         ConceptAliasRepository conceptAliases, MedicationRepository medications,
                                         MedicationProductRepository products, ServiceCatalogItemRepository services,
                                         OrganizationCatalogItemRepository adoptions, ItemAliasRepository itemAliases,
-                                        ItemGroupRepository itemGroups, MedicationAliasRepository medicationAliases, EntityManager entityManager,
+                                        ItemGroupRepository itemGroups, MedicationAliasRepository medicationAliases,
+                                        ServiceVariantRepository variants, ExaminationServiceRepository examinations,
+                                        EntityManager entityManager,
                                         @Value("${rhn.search.projection.rebuild-batch-size:500}") int rebuildBatchSize,
                                         @Value("${rhn.search.projection.effective-refresh-zone:Asia/Shanghai}")
                                         String effectiveZone) {
@@ -82,6 +90,8 @@ public class SearchEntryProjectionService {
         this.itemAliases = itemAliases;
         this.itemGroups = itemGroups;
         this.medicationAliases = medicationAliases;
+        this.variants = variants;
+        this.examinations = examinations;
         this.entityManager = entityManager;
         this.rebuildBatchSize = Math.max(50, Math.min(rebuildBatchSize, 2000));
         this.effectiveZone = ZoneId.of(effectiveZone);
@@ -137,8 +147,11 @@ public class SearchEntryProjectionService {
         for (int page = 0; ; page++) {
             List<ServiceCatalogItem> batch = services.findAllServices(batchPage(page)).getContent();
             if (batch.isEmpty()) break;
-            batch.forEach(value -> result.add(synchronizeTarget(serviceSpecs(value, at), "TENANT",
-                    value.tenantId(), "CATALOG_ITEM", value.id(), null)));
+            batch.forEach(value -> {
+                result.add(synchronizeTarget(serviceSpecs(value, at), "TENANT",
+                        value.tenantId(), "CATALOG_ITEM", value.id(), null));
+                synchronizeExaminationSites(value, at, null);
+            });
             flushBatch();
             if (batch.size() < rebuildBatchSize) break;
         }
@@ -169,6 +182,7 @@ public class SearchEntryProjectionService {
         result.deleted += entries.deleteOrphanedCatalogItemEntries();
         result.deleted += entries.deleteOrphanedOrganizationEntries();
         result.deleted += entries.deleteOrphanedItemGroupEntries();
+        result.deleted += entries.deleteOrphanedServiceVariantEntries();
         return result.toResult();
     }
 
@@ -209,8 +223,11 @@ public class SearchEntryProjectionService {
             List<ServiceCatalogItem> batch = services
                     .findSearchProjectionTransitions(at, expiredOn, batchPage(page)).getContent();
             if (batch.isEmpty()) break;
-            batch.forEach(value -> result.add(synchronizeTarget(serviceSpecs(value, at), "TENANT",
-                    value.tenantId(), "CATALOG_ITEM", value.id(), null)));
+            batch.forEach(value -> {
+                result.add(synchronizeTarget(serviceSpecs(value, at), "TENANT",
+                        value.tenantId(), "CATALOG_ITEM", value.id(), null));
+                synchronizeExaminationSites(value, at, null);
+            });
             flushBatch();
             if (batch.size() < rebuildBatchSize) break;
         }
@@ -257,6 +274,7 @@ public class SearchEntryProjectionService {
     public void synchronizeService(ServiceCatalogItem service, Long actorId) {
         synchronizeTarget(serviceSpecs(service, currentDate()), "TENANT", service.tenantId(),
                 "CATALOG_ITEM", service.id(), actorId);
+        synchronizeExaminationSites(service, currentDate(), actorId);
     }
 
     @Transactional
@@ -376,6 +394,80 @@ public class SearchEntryProjectionService {
             }
         }
         return result;
+    }
+
+    /** 组合词条的全量补齐只在启动/重建时执行；录入检索绝不触发目录扫描。 */
+    @Transactional
+    public void rebuildExaminationSites() {
+        LocalDate at = currentDate();
+        for (int page = 0; ; page++) {
+            List<ServiceCatalogItem> batch = services.findExaminationServices(batchPage(page)).getContent();
+            if (batch.isEmpty()) break;
+            batch.forEach(value -> synchronizeExaminationSites(value, at, null));
+            flushBatch();
+            if (batch.size() < rebuildBatchSize) break;
+        }
+        entries.deleteOrphanedServiceVariantEntries();
+    }
+
+    private void synchronizeExaminationSites(ServiceCatalogItem service, LocalDate at, Long actorId) {
+        // 同一父项目下包含停用部位，确保改名/停用后旧组合词条也被删除。
+        List<ServiceVariant> sites = variants.findByTenantIdAndCatalogItemIdOrderBySortOrderAsc(service.tenantId(), service.id());
+        if (sites.isEmpty()) return;
+        ExaminationService profile = examinations.findByTenantIdAndCatalogItemId(service.tenantId(), service.id()).orElse(null);
+        Map<String, String> names = new java.util.LinkedHashMap<>();
+        boolean active = "EXAMINATION".equals(service.serviceType()) && profile != null
+                && "ACTIVE".equals(activeAt(service.status(), service.validFrom(), service.validTo(), at));
+        if (active) {
+            names.put("NAME", service.name());
+            for (ItemAlias alias : itemAliases.findByTenantIdAndCatalogItemIdAndStatusOrderByAliasName(service.tenantId(), service.id(), "ACTIVE")) {
+                names.put("ALIAS:" + alias.id(), alias.aliasName());
+            }
+            String modality = examinationSearchName(profile);
+            if (modality != null) {
+                names.put("MODALITY", modality);
+                String phase = switch (java.util.Objects.toString(profile.contrastPhase(), "")) {
+                    case "PLAIN" -> "平扫";
+                    case "ENHANCED" -> "增强";
+                    case "PLAIN_ENHANCED" -> "平扫加增强";
+                    default -> "";
+                };
+                if (!phase.isEmpty()) names.put("MODALITY_PHASE", modality + phase);
+            }
+        }
+        for (ServiceVariant site : sites) {
+            List<EntrySpec> desired = new ArrayList<>();
+            if (active && "ACTIVE".equals(site.status())) {
+                names.forEach((key, name) -> {
+                    addCombination(desired, service, site, key + ":SITE_FIRST", site.name() + name);
+                    addCombination(desired, service, site, key + ":ITEM_FIRST", name + site.name());
+                });
+            }
+            synchronizeTarget(desired, "TENANT", service.tenantId(), "SERVICE_VARIANT", site.id(), actorId);
+        }
+    }
+
+    private String examinationSearchName(ExaminationService profile) {
+        return switch (java.util.Objects.toString(profile.examinationType(), "")) {
+            case "CT" -> "CT";
+            case "MRI" -> "MRI";
+            case "RADIOGRAPHY" -> "DR";
+            case "ULTRASOUND" -> switch (java.util.Objects.toString(profile.examinationTechnique(), "")) {
+                case "B_MODE" -> "B超";
+                case "COLOR_DOPPLER" -> "彩超";
+                default -> "超声";
+            };
+            default -> null;
+        };
+    }
+
+    private void addCombination(List<EntrySpec> desired, ServiceCatalogItem service, ServiceVariant site,
+                                String sourceKey, String name) {
+        String compact = name.replaceAll("\\s+", "");
+        // 源名称各自允许 300 字；过长的拼接不截断，保留短检查方式词条以避免伪造名称。
+        if (compact.length() > 300) return;
+        add(desired, "TENANT", service.tenantId(), service.tenantId(), "SERVICE_VARIANT", site.id(),
+                "SHORT_NAME", sourceKey, compact, null, false, "ACTIVE");
     }
 
     private List<EntrySpec> adoptionSpecs(Collection<OrganizationCatalogItem> history, LocalDate at) {

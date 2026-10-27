@@ -73,6 +73,7 @@ export function OrderComposerResource({
           onSearchModeChange={changeSearchMode}
           organizationId={encounter.organizationId}
           encounterId={encounter.id}
+          includeExaminationSites={entryType === 'ALL' || entryType === 'EXAMINATION'}
           value={isMedication ? medicationOption : service}
           aria-label={
             entryType === 'HERBAL' ? '搜索中草药名称/拼音'

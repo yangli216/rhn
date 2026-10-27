@@ -91,6 +91,18 @@ public interface SearchEntryRepository extends JpaRepository<SearchEntry, Long> 
     @Modifying
     @Query(value = """
             delete from RHN_BD_SEARCH_ENTRY
+            where SD_TARGET_TYPE = 'SERVICE_VARIANT'
+              and not exists (
+                select 1 from RHN_BD_SVC_VAR source
+                where source.ID_SVC_VAR = RHN_BD_SEARCH_ENTRY.ID_TARGET
+                  and source.ID_TNT = RHN_BD_SEARCH_ENTRY.ID_TNT
+              )
+            """, nativeQuery = true)
+    int deleteOrphanedServiceVariantEntries();
+
+    @Modifying
+    @Query(value = """
+            delete from RHN_BD_SEARCH_ENTRY
             where SD_TARGET_TYPE = 'CONCEPT'
               and not exists (
                 select 1 from RHN_BD_CONCEPT source
