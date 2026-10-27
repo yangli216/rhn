@@ -42,6 +42,12 @@ export function AnnotatedTextarea({ value, onValueChange, annotations, showAnnot
   const canEdit = !disabled && !readOnly
   const options = active && canEdit && !active.result ? (quickActions?.(active.mark.text) ?? []) : []
   const preview = marks.length > 0 && !editing
+  useEffect(() => {
+    const el = editor.current
+    if (!el) return
+    el.style.height = 'auto'
+    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`
+  }, [value, editing, preview])
   useEffect(() => { if (editing) editor.current?.focus() }, [editing])
   useEffect(() => { if (active) (firstQuick.current ?? popup.current)?.focus() }, [active])
   useEffect(() => {
@@ -115,7 +121,13 @@ export function AnnotatedTextarea({ value, onValueChange, annotations, showAnnot
       onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === 'Enter') { event.preventDefault(); editAll() } }}>
       {parts}{value.slice(cursor)}
     </div> : <textarea {...props} id={controlId} className={className} ref={editor} value={value}
-      disabled={disabled} readOnly={readOnly} onChange={(event) => onValueChange(event.target.value)}
+      disabled={disabled} readOnly={readOnly}
+      onChange={(event) => {
+        onValueChange(event.target.value)
+        const target = event.currentTarget
+        target.style.height = 'auto'
+        if (target.scrollHeight > 0) target.style.height = `${target.scrollHeight}px`
+      }}
       onFocus={(event) => { setEditing(true); props.onFocus?.(event) }}
       onBlur={(event) => { props.onBlur?.(event); setEditing(false) }} />}
     {active && createPortal(<div ref={popup} role="dialog" aria-modal="false" aria-label={active.mark.label}

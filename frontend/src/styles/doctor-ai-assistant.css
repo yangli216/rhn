@@ -1288,6 +1288,94 @@
   color: var(--color-text-secondary);
 }
 
+.doctor-ai-refill-quick__reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.doctor-ai-refill-quick__report-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+}
+
+.doctor-ai-refill-quick__report-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: 2px;
+}
+
+.doctor-ai-refill-quick__report-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-ai-refill-quick__report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  padding: 1px 0;
+}
+
+.doctor-ai-refill-quick__indicator-name {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-ai-refill-quick__indicator-val {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.doctor-ai-refill-quick__indicator-num {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+}
+
+.doctor-ai-refill-quick__indicator-flag {
+  font-weight: var(--font-weight-bold);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+}
+
+.doctor-ai-refill-quick__indicator-flag.is-high {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+}
+
+.doctor-ai-refill-quick__indicator-flag.is-low {
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
+}
+
+.doctor-ai-refill-quick__indicator-flag.is-abnormal {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-strong);
+}
+
 .doctor-ai-refill-quick__actions {
   display: flex;
   align-items: center;
@@ -1476,6 +1564,99 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.doctor-ai-insight-card__report-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.doctor-ai-report-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+}
+
+.doctor-ai-report-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: var(--space-1);
+}
+
+.doctor-ai-report-group__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-ai-report-group__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.doctor-ai-report-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+
+.doctor-ai-report-indicator__name {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-ai-report-indicator__value {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+}
+
+.doctor-ai-report-indicator__flag {
+  flex-shrink: 0;
+  font-weight: var(--font-weight-bold);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+}
+
+.doctor-ai-report-indicator__flag.is-high {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+}
+
+.doctor-ai-report-indicator__flag.is-low {
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
+}
+
+.doctor-ai-report-indicator__flag.is-abnormal {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-strong);
 }
 
 .doctor-ai-report-highlight-pill {

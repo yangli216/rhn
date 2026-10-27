@@ -303,7 +303,8 @@ describe('ClinicalAiAssistantPanel focused next-step results', () => {
     expect(await screen.findByText('急性上呼吸道感染')).toBeInTheDocument()
     // An empty recordDraft yields only the diagnosis rows: no record diff and no order rows.
     expect(await screen.findByRole('button', { name: /确认所选诊断/ })).toBeEnabled()
-    expect(screen.queryByRole('button', { name: /丢弃本轮推荐/ })).not.toBeInTheDocument()
+    expect(within(surfaces.plans).queryByRole('button', { name: /丢弃本轮推荐/ })).not.toBeInTheDocument()
+    expect(within(surfaces.diagnoses).getByRole('button', { name: /丢弃本轮推荐/ })).toBeInTheDocument()
     expect(onApply).not.toHaveBeenCalled()
   })
 

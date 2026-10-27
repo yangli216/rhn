@@ -238,7 +238,7 @@
 .doctor-note-template-facts { margin-top: var(--space-3); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .doctor-note-template-facts > span { padding: var(--space-2); border-radius: var(--radius-sm); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
 .doctor-note-template-facts > span.is-ready { color: var(--color-success-strong); background: var(--color-success-soft); }
-.doctor-record-form { --doctor-record-label-width: 5.5em; --record-annotation-legend-offset: calc(var(--doctor-record-label-width) + var(--space-2)); padding: var(--space-2) var(--space-3) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-2); background: var(--color-surface); line-height: var(--line-height-body); border-bottom-left-radius: calc(var(--radius-md) - var(--radius-sm)); border-bottom-right-radius: calc(var(--radius-md) - var(--radius-sm)); }
+.doctor-record-form { --doctor-record-label-width: 5.5em; --record-annotation-legend-offset: calc(var(--doctor-record-label-width) + var(--space-2)); padding: var(--space-2) var(--space-3) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-2); background: transparent; line-height: var(--line-height-body); border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
 .doctor-clinical-cockpit.is-editing .doctor-record-form { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; flex: 1; display: flex; flex-direction: column; align-items: stretch; }
 .doctor-clinical-cockpit.is-editing .doctor-record-form > .ui-field { flex: 0 0 auto; }
 .doctor-record-annotation-footer {
@@ -254,6 +254,13 @@
 
 .doctor-record-form > .doctor-record-narrative { grid-template-columns: var(--doctor-record-label-width) minmax(0, 1fr); }
 .doctor-record-form .ui-field--document .ui-field__label-row, .doctor-record-form .ui-field--document .ui-field__label { justify-content: flex-start; text-align: left; }
+
+.doctor-record-form textarea.ui-field__control,
+.doctor-record-narrative textarea.ui-field__control {
+  resize: none;
+  field-sizing: content;
+  overflow-y: hidden;
+}
 
 .doctor-record-field--chief textarea.ui-field__control { min-height: 1lh; }
 .doctor-record-field--present textarea.ui-field__control { min-height: 4.25rem; }
@@ -344,7 +351,7 @@
 .doctor-structured-note__number { display: flex; align-items: center; }
 .doctor-structured-note__number input { min-width: 0; flex: 1; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .doctor-structured-note__number small { min-width: 3.5rem; height: var(--control-height-md); padding: 0 var(--space-2); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-border-strong); border-left: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-small); }
-.doctor-record-read { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior-y: contain; padding: var(--space-2) var(--space-4) var(--space-4); }
+.doctor-record-read { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior-y: contain; padding: var(--space-2) var(--space-4) var(--space-4); border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
 .doctor-record-read__body { display: grid; gap: 0; }
 .doctor-record-read__body > section { padding: var(--space-1) 0; }
 .doctor-record-read__body h3 { margin: 0 0 var(--space-1); color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-bold); display: inline; }
@@ -468,7 +475,7 @@
 .doctor-diagnosis-management-alert { margin-top: var(--space-2); display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--font-size-body); }
 
 /* 医嘱模块与连续录入表格 */
-.doctor-orders-content { min-width: 0; max-width: 100%; min-height: 0; overflow: hidden; padding: var(--space-3) var(--space-3) calc(var(--space-1) * 7); flex: 1; display: flex; flex-direction: column; gap: var(--space-2); background: var(--color-surface); }
+.doctor-orders-content { min-width: 0; max-width: 100%; min-height: 0; overflow: hidden; padding: var(--space-3) var(--space-3) calc(var(--space-1) * 7); flex: 1; display: flex; flex-direction: column; gap: var(--space-2); background: transparent; border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
 .doctor-order-head-actions { display: flex; align-items: center; gap: var(--space-2); }
 .doctor-unified-orders { min-width: 0; max-width: 100%; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
 

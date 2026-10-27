@@ -50,4 +50,35 @@ describe('clinical AI streaming', () => {
     await expect(consumeClinicalAiStream(new Response('event: error\ndata: {"code":"AI_MODEL_UNAVAILABLE","message":"超时"}\n\n'), vi.fn()))
       .rejects.toMatchObject({ code: 'AI_MODEL_UNAVAILABLE', message: '超时' })
   })
+
+  it('previews incremental diagnosis candidates and treatment recommendations from streaming deltas', () => {
+    const json = '{"diagnosisCandidates":[{"code":"J06.9","display":"急性上呼吸道感染","type":"PRIMARY","confidence":0.95,"rationale":"发热咽痛"}],' +
+      '"treatmentRecommendations":[{"type":"MEDICATION","name":"布洛芬缓释胶囊","specification":"0.3g"}'
+    const preview = clinicalAiPreview(json)
+    expect(preview.diagnosisCandidates).toHaveLength(1)
+    expect(preview.diagnosisCandidates?.[0]).toMatchObject({
+      code: 'J06.9',
+      display: '急性上呼吸道感染',
+      type: 'PRIMARY',
+      confidence: 0.95,
+      rationale: '发热咽痛',
+    })
+    expect(preview.treatmentRecommendations).toHaveLength(1)
+    expect(preview.treatmentRecommendations?.[0]).toMatchObject({
+      type: 'MEDICATION',
+      name: '布洛芬缓释胶囊',
+      specification: '0.3g',
+    })
+  })
+
+  it('previews partial diagnosis candidate before the item is fully closed', () => {
+    const partial = '{"diagnosisCandidates":[{"code":"J06.9","display":"急性上呼吸道感染"'
+    const preview = clinicalAiPreview(partial)
+    expect(preview.diagnosisCandidates).toHaveLength(1)
+    expect(preview.diagnosisCandidates?.[0]).toMatchObject({
+      code: 'J06.9',
+      display: '急性上呼吸道感染',
+      type: 'PRIMARY',
+    })
+  })
 })

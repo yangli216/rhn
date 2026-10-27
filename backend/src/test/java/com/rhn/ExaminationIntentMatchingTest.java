@@ -91,6 +91,21 @@ class ExaminationIntentMatchingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].candidates[0].examinationSites.chargePreview.lines[0].catalogItemId").value("362387890000235"))
                 .andExpect(jsonPath("$[0].candidates[0].examinationSites.chargePreview.lines[1].catalogItemId").value("362387890000233"))
                 .andExpect(jsonPath("$[0].candidates[0].examinationSites.chargePreview.lines[1].quantity").value(2));
+
+        match(encounterId, """
+                [{"type":"EXAMINATION","name":"腹股沟区超声","examination":{"modality":"US","technique":"COLOR_DOPPLER",
+                  "bodySites":["腹股沟区"]}}]""")
+                .andExpect(jsonPath("$[0].status").value("MATCHED"))
+                .andExpect(jsonPath("$[0].candidates[0].catalogItemId").value(COLOR_DOPPLER))
+                .andExpect(jsonPath("$[0].candidates[0].examinationSites.resolution").value("MATCHED"))
+                .andExpect(jsonPath("$[0].candidates[0].examinationSites.bodySites[0].code").value("INGUINAL"))
+                .andExpect(jsonPath("$[0].candidates[0].examinationSites.chargePreview.lines[0].catalogItemId").value(ONE_SITE_ITEM));
+
+        match(encounterId, "[{\"type\":\"EXAMINATION\",\"name\":\"腹股沟彩超\"}]")
+                .andExpect(jsonPath("$[0].status").value("MATCHED"))
+                .andExpect(jsonPath("$[0].candidates[0].catalogItemId").value(COLOR_DOPPLER))
+                .andExpect(jsonPath("$[0].candidates[0].examinationSites.resolution").value("MATCHED"))
+                .andExpect(jsonPath("$[0].candidates[0].examinationSites.bodySites[0].code").value("INGUINAL"));
     }
 
     private ResultActions match(String encounterId, String intents) throws Exception {

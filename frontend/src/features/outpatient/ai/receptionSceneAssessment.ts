@@ -26,6 +26,18 @@ export const CHRONIC_GROUPS: ChronicGroup[] = [
   { name: '慢性肾脏病', keywords: ['慢性肾脏病', '肾功能不全'], icdPrefixes: ['N18'] },
 ]
 
+export interface ReportHighlightItem {
+  observationName: string
+  valueText: string
+  direction: '↑' | '↓' | '异常' | ''
+  fullText: string
+}
+
+export interface ReportHighlightGroup {
+  reportName: string
+  items: ReportHighlightItem[]
+}
+
 export interface ReceptionSceneAssessment {
   scene: ReceptionSceneType
   sceneLabel: string
@@ -33,12 +45,88 @@ export interface ReceptionSceneAssessment {
   summaryText: string
   matchedConditions: string[]
   reportHighlights: string[]
+  reportHighlightGroups?: ReportHighlightGroup[]
   selectedReportIds: string[]
   chronicEncounterIds: string[]
   /** Earlier visit whose orders produced the reports being brought back (report follow-up only). */
   followUpOf?: { encounterId: string; registeredAt: string; diagnoses: string[] }
   /** Reports finished at the earlier visit and, among them, those with no abnormal item. */
   reportCount?: number
+}
+
+export function formatObservationValueAndUnit(valStr: string, unitCode?: string | null): string {
+  if (!unitCode || !unitCode.trim()) return valStr
+  const unit = unitCode.trim()
+  if (/^10\^/.test(unit)) {
+    return `${valStr} × ${unit}`
+  }
+  if (/^[a-zA-Z]/.test(unit)) {
+    return `${valStr} ${unit}`
+  }
+  return `${valStr}${unit}`
+}
+
+export function parseReportHighlightGroups(highlights: string[]): ReportHighlightGroup[] {
+  const groups: ReportHighlightGroup[] = []
+  const groupMap = new Map<string, ReportHighlightItem[]>()
+
+  for (const hl of highlights) {
+    const colonIdx = hl.indexOf('：')
+    let reportName = '检查检验'
+    let rest = hl
+    if (colonIdx > 0) {
+      reportName = hl.slice(0, colonIdx).trim()
+      rest = hl.slice(colonIdx + 1).trim()
+    }
+
+    let direction: '↑' | '↓' | '异常' | '' = ''
+    if (rest.endsWith(' ↑') || rest.endsWith('↑')) {
+      direction = '↑'
+      rest = rest.replace(/\s*↑$/, '').trim()
+    } else if (rest.endsWith(' ↓') || rest.endsWith('↓')) {
+      direction = '↓'
+      rest = rest.replace(/\s*↓$/, '').trim()
+    } else if (rest.endsWith(' 异常') || rest.endsWith('异常')) {
+      direction = '异常'
+      rest = rest.replace(/\s*异常$/, '').trim()
+    }
+
+    const lastSpace = rest.lastIndexOf(' ')
+    let observationName = rest
+    let valueText = ''
+    if (lastSpace > 0) {
+      const timesIdx = rest.indexOf(' × ')
+      if (timesIdx > 0) {
+        const valStart = rest.lastIndexOf(' ', timesIdx - 1)
+        if (valStart > 0) {
+          observationName = rest.slice(0, valStart).trim()
+          valueText = rest.slice(valStart + 1).trim()
+        } else {
+          observationName = rest.slice(0, timesIdx).trim()
+          valueText = rest.slice(timesIdx + 3).trim()
+        }
+      } else {
+        observationName = rest.slice(0, lastSpace).trim()
+        valueText = rest.slice(lastSpace + 1).trim()
+      }
+    }
+
+    const item: ReportHighlightItem = {
+      observationName,
+      valueText,
+      direction,
+      fullText: rest + (direction ? ` ${direction}` : '')
+    }
+
+    if (!groupMap.has(reportName)) {
+      const items: ReportHighlightItem[] = []
+      groupMap.set(reportName, items)
+      groups.push({ reportName, items })
+    }
+    groupMap.get(reportName)!.push(item)
+  }
+
+  return groups
 }
 
 const DAY = 86_400_000
@@ -93,11 +181,35 @@ export function assessReceptionScene({ encounter, historyEncounters = [], diagno
     && !diagnosticReports.some((other) => other.requestId === report.requestId
       && other.reportCode === report.reportCode && other.reportVersion > report.reportVersion))
     .sort((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt)).slice(0, 50)
-  const reportHighlights = eligibleReports.flatMap((report) => report.observations.filter(isAbnormalObservation).map((obs) => {
-    const direction = obs.valueNumber != null && obs.referenceRangeHigh != null && obs.valueNumber > obs.referenceRangeHigh ? ' ↑'
-      : obs.valueNumber != null && obs.referenceRangeLow != null && obs.valueNumber < obs.referenceRangeLow ? ' ↓' : ' 异常'
-    return `${report.reportName}：${obs.observationName} ${diagnosticObservationValue(obs)}${obs.unitCode ?? ''}${direction}`
-  }))
+  const rawHighlights: Array<{ reportName: string; item: ReportHighlightItem }> = []
+  eligibleReports.forEach((report) => {
+    report.observations.filter(isAbnormalObservation).forEach((obs) => {
+      const direction: '↑' | '↓' | '异常' = obs.valueNumber != null && obs.referenceRangeHigh != null && obs.valueNumber > obs.referenceRangeHigh ? '↑'
+        : obs.valueNumber != null && obs.referenceRangeLow != null && obs.valueNumber < obs.referenceRangeLow ? '↓' : '异常'
+      const formattedVal = formatObservationValueAndUnit(diagnosticObservationValue(obs), obs.unitCode)
+      rawHighlights.push({
+        reportName: report.reportName,
+        item: {
+          observationName: obs.observationName,
+          valueText: formattedVal,
+          direction,
+          fullText: `${obs.observationName} ${formattedVal} ${direction}`,
+        },
+      })
+    })
+  })
+  const slicedRaw = rawHighlights.slice(0, 5)
+  const reportHighlights = slicedRaw.map(({ reportName, item }) => `${reportName}：${item.fullText}`)
+  const groupMap = new Map<string, ReportHighlightItem[]>()
+  const reportHighlightGroups: ReportHighlightGroup[] = []
+  slicedRaw.forEach(({ reportName, item }) => {
+    if (!groupMap.has(reportName)) {
+      const items: ReportHighlightItem[] = []
+      groupMap.set(reportName, items)
+      reportHighlightGroups.push({ reportName, items })
+    }
+    groupMap.get(reportName)!.push(item)
+  })
   const chief = currentDraft?.chiefComplaint || encounter.chiefComplaint || ''
   const intent = [chief, currentDraft?.presentIllness].filter(Boolean).join('；')
   const reportIntent = /(看|咨询|解读|复核).{0,8}(报告|结果|化验单)|(报告|结果).{0,8}(回诊|复诊|咨询)/.test(intent)
@@ -113,7 +225,7 @@ export function assessReceptionScene({ encounter, historyEncounters = [], diagno
   // Reports finished after an earlier visit: the patient is most likely back to have them read, normal or not.
   const priorReports = eligibleReports.filter((report) => report.encounterId !== encounter.id)
   const sourceVisit = history.find((item) => priorReports.some((report) => report.encounterId === item.id))
-  const shared = { matchedConditions, chronicEncounterIds, reportHighlights: reportHighlights.slice(0, 5),
+  const shared = { matchedConditions, chronicEncounterIds, reportHighlights, reportHighlightGroups,
     selectedReportIds: eligibleReports.map((report) => report.id) }
   if (eligibleReports.length && (reportHighlights.length || reportIntent || (priorReports.length && !newSymptoms))) {
     const names = [...new Set(eligibleReports.map((r) => r.reportName))].join('、')

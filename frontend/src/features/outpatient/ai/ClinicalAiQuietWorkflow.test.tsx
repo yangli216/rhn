@@ -603,10 +603,25 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
     expect(within(surfaces.plans).getByText('血常规')).toBeInTheDocument()
     expect(within(surfaces.plans).getByText('未匹配检查')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '丢弃本轮推荐' }))
+    fireEvent.click(within(surfaces.plans).getByRole('button', { name: '丢弃本轮推荐' }))
     expect(within(surfaces.plans).queryByText('血常规')).not.toBeInTheDocument()
     expect(within(surfaces.plans).queryByText('未匹配检查')).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: '选择 测试诊断甲' })).toBeInTheDocument()
+    expect(within(surfaces.note).getByText('待核对的测试主诉')).toBeInTheDocument()
+  })
+
+  it('discards diagnosis recommendations while preserving record and treatment suggestions', async () => {
+    const { openHub, surfaces } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+      diagnosisCandidates: [{ code: 'J06.9', display: '测试诊断甲', type: 'PRIMARY', rationale: '本次症状支持' }],
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规' }],
+    })), true)
+    await advance(20); openHub()
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' })); await advance(100)
+    expect(screen.getByRole('checkbox', { name: '选择 测试诊断甲' })).toBeInTheDocument()
+    expect(within(surfaces.plans).getByText('血常规')).toBeInTheDocument()
+    fireEvent.click(within(surfaces.diagnoses).getByRole('button', { name: '丢弃本轮推荐' }))
+    expect(screen.queryByRole('checkbox', { name: '选择 测试诊断甲' })).not.toBeInTheDocument()
+    expect(within(surfaces.plans).getByText('血常规')).toBeInTheDocument()
     expect(within(surfaces.note).getByText('待核对的测试主诉')).toBeInTheDocument()
   })
 

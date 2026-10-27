@@ -405,7 +405,7 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(writingPrompt.contains("不输出 rationale、usage 或重复目录名称、编码、规格"));
         assertTrue(writingPrompt.contains("diagnosisCandidates[{code,display,type,confidence,rationale}]"));
         assertTrue(writingPrompt.contains("CATALOG_TREATMENT 使用 [{type,catalogItemId}]"));
-        assertTrue(writingPrompt.contains("RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale,purpose?,usage?}]"));
+        assertTrue(writingPrompt.contains("RECORD_DIAGNOSIS 使用 [{type,name,specification,rationale,purpose?,usage?,examination?}]"));
         assertTrue(writingPrompt.contains("已有结果能覆盖本次目的时优先复用"));
         assertFalse(writingPrompt.contains("同时必须在 treatmentRecommendations"));
         assertTrue(writingPrompt.contains("没有依据时返回空数组"));

@@ -66,9 +66,29 @@ export interface ClinicalAiPreview {
 const fields = new Set(['chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam', 'treatmentPlan',
   'allergyHistory', 'medicationHistory', 'auxiliaryExaminations', 'healthEducation', 'followUp'])
 
+interface InterimDiagnosis {
+  code?: string
+  display?: string
+  type?: 'PRIMARY' | 'SECONDARY'
+  confidence?: number
+  rationale?: string
+}
+
+interface InterimTreatment {
+  type?: 'MEDICATION' | 'LABORATORY' | 'EXAMINATION'
+  catalogItemId?: string
+  code?: string
+  name?: string
+  specification?: string
+  rationale?: string
+  purpose?: string
+}
+
 /** A small incremental JSON reader: never treats JSON embedded inside quoted text as a field. */
 export function clinicalAiPreview(source: string): ClinicalAiPreview {
   const result: ClinicalAiPreview = { recordDraft: {} }
+  const rawDiagnoses: InterimDiagnosis[] = []
+  const rawTreatments: InterimTreatment[] = []
   let position = 0
   const whitespace = () => { while (/\s/.test(source[position] ?? '') && position < source.length) position++ }
   function string(): { value: string; complete: boolean } {
@@ -100,18 +120,46 @@ export function clinicalAiPreview(source: string): ClinicalAiPreview {
       if (path.length === 2 && path[0] === 'recordDraft' && fields.has(path[1])) {
         result.recordDraft[path[1] as keyof ClinicalAiRecordText] = text.value
       }
+      if (path.length === 3 && path[0] === 'diagnosisCandidates') {
+        const index = parseInt(path[1], 10)
+        if (!Number.isNaN(index)) {
+          const item = (rawDiagnoses[index] ??= {})
+          const prop = path[2]
+          if (prop === 'code') item.code = text.value
+          else if (prop === 'display') item.display = text.value
+          else if (prop === 'type') item.type = text.value === 'SECONDARY' ? 'SECONDARY' : 'PRIMARY'
+          else if (prop === 'rationale') item.rationale = text.value
+        }
+      }
+      if (path.length === 3 && path[0] === 'treatmentRecommendations') {
+        const index = parseInt(path[1], 10)
+        if (!Number.isNaN(index)) {
+          const item = (rawTreatments[index] ??= {})
+          const prop = path[2]
+          if (prop === 'type') {
+            const upper = text.value.toUpperCase()
+            item.type = (upper === 'LABORATORY' || upper === 'EXAMINATION') ? upper : 'MEDICATION'
+          } else if (prop === 'name') item.name = text.value
+          else if (prop === 'specification') item.specification = text.value
+          else if (prop === 'rationale') item.rationale = text.value
+          else if (prop === 'purpose') item.purpose = text.value
+        }
+      }
       return text.complete
     }
     if (source[position] === '{' || source[position] === '[') {
       const object = source[position++] === '{', closing = object ? '}' : ']'
       whitespace()
       if (source[position] === closing) { position++; return true }
+      let itemIndex = 0
       while (position < source.length) {
         let key = '*'
         if (object) {
           whitespace(); if (source[position] !== '"') return false
           const name = string(); if (!name.complete) return false
           key = name.value; whitespace(); if (source[position++] !== ':') return false
+        } else {
+          key = String(itemIndex++)
         }
         if (!read([...path, key], depth + 1)) return false
         whitespace()
@@ -120,9 +168,44 @@ export function clinicalAiPreview(source: string): ClinicalAiPreview {
       }
       return false
     }
+    const primStart = position
     while (position < source.length && !/[\s,}\]]/.test(source[position])) position++
+    const primitiveText = source.slice(primStart, position)
+    if (path.length === 3 && path[0] === 'diagnosisCandidates' && path[2] === 'confidence') {
+      const num = parseFloat(primitiveText)
+      const index = parseInt(path[1], 10)
+      if (!Number.isNaN(index) && !Number.isNaN(num)) {
+        const item = (rawDiagnoses[index] ??= {})
+        item.confidence = num
+      }
+    }
     return position < source.length
   }
   read([])
+
+  const candidates = rawDiagnoses
+    .filter(item => item.code?.trim() && item.display?.trim())
+    .map(item => ({
+      code: item.code!.trim(),
+      display: item.display!.trim(),
+      type: item.type === 'SECONDARY' ? 'SECONDARY' as const : 'PRIMARY' as const,
+      confidence: typeof item.confidence === 'number' ? item.confidence : 0.85,
+      rationale: item.rationale?.trim() || null,
+    }))
+  if (candidates.length > 0) result.diagnosisCandidates = candidates
+
+  const treatments = rawTreatments
+    .filter(item => item.name?.trim())
+    .map((item, index) => ({
+      type: item.type || 'MEDICATION' as const,
+      catalogItemId: item.catalogItemId || `intent-${index}`,
+      code: item.code || '',
+      name: item.name!.trim(),
+      specification: item.specification?.trim() || '',
+      rationale: item.rationale?.trim() || null,
+      purpose: item.purpose?.trim() || undefined,
+    }))
+  if (treatments.length > 0) result.treatmentRecommendations = treatments
+
   return result
 }

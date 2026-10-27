@@ -1,5 +1,10 @@
 .ui-annotated-field { min-width: 0; width: 100%; }
-.ui-annotated-field > textarea { width: 100%; }
+.ui-annotated-field > textarea {
+  width: 100%;
+  resize: none;
+  field-sizing: content;
+  overflow-y: hidden;
+}
 .ui-annotated-preview { white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; min-height: calc(var(--line-height-body) * 2em); }
 .ui-text-annotation { display: inline; padding: 0; border: 0; background: none; font: inherit; color: inherit; line-height: inherit; text-align: inherit; white-space: inherit; cursor: pointer; text-decoration: underline dashed; text-underline-offset: .2em; }
 .ui-text-annotation.is-variable { color: var(--color-brand-primary); }

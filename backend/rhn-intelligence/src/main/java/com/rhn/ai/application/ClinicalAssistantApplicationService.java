@@ -739,8 +739,9 @@ public class ClinicalAssistantApplicationService {
         var intents = raw.treatmentRecommendations().stream().filter(java.util.Objects::nonNull)
                 .limit(TREATMENT_RECOMMENDATION_MAX_ITEMS).toList();
         SuggestionContent content = new SuggestionContent(summary, emptyRecordDraft(), List.of(), List.of(), missing,
-                alerts, List.of(), MODEL_DISCLAIMER);
+                alerts, List.of(), MODEL_DISCLAIMER, intents, List.of());
         timing.treatmentIntents = intents.size();
+        if (onStage != null) onStage.accept(new GenerationStage("TREATMENTS", input.clientContextFingerprint().trim(), content));
         if (!intents.isEmpty()) {
             var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, Strings.trimToNull(input.question()),
                     Strings.trimToNull(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),

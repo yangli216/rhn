@@ -42,7 +42,7 @@ export interface InlineAiSelection {
 /** One analysis session, rendered beside the clinical objects it can help edit. */
 export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, capability, suggestion, current, busy,
   generating, generatingTarget, inputBusy, preview, diagnosisOnlyRun = false, diagnosisRunError = '', diagnosisBatchDismissed = false, treatmentBatchDismissed = false, onView, disabled, canAdopt, error, diagnosisError, treatmentError, voiceInput, interimTranscript, question, onQuestionChange, onClearVoice, onGenerate, onApply,
-  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading, chronicRefill }: {
+  onFindPlans, planInputKey, stableVoiceTranscript, onReviewRecommendedPlan, onReviewTreatment, onDiscardTreatments, onDiscardDiagnoses, existingTreatmentKeys = [], onOpenDetail, onOpenHistory, onOpenResults, onOpenEvidenceChain, sceneAssessment, sceneLoading, chronicRefill }: {
   api: RhnApi
   encounter: Encounter
   surfaces: ClinicalAiSurfaces
@@ -76,6 +76,7 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   onApply: (selection: InlineAiSelection) => void
   onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[]) => void
   onDiscardTreatments?: () => void
+  onDiscardDiagnoses?: () => void
   existingTreatmentKeys?: string[]
   stableVoiceTranscript?: string
   planInputKey?: string
@@ -109,8 +110,9 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
   const differentials = (suggestion?.differentialDiagnoses ?? []).filter(item => !alreadyEntered(item.code)).slice(0, 5)
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
   const planFeature = capability.features.includes('PLAN_RECOMMENDATIONS')
+  const streamingIntents = generating ? (preview.treatmentRecommendations ?? []) : []
   const treatmentItems = !generating && treatmentBatchDismissed ? []
-    : [...(generating ? preview.treatmentRecommendations ?? [] : suggestion?.treatmentRecommendations ?? []), ...resolvedCatalog.items]
+    : [...(generating ? (preview.treatmentRecommendations ?? []).filter(item => !item.catalogItemId?.startsWith('intent-')) : suggestion?.treatmentRecommendations ?? []), ...resolvedCatalog.items]
   const availableTreatmentItems = planFeature
     ? [...new Map(treatmentItems.map(item => [treatmentKey(item), item])).values()]
       .filter((item) => !existingTreatmentKeys.includes(treatmentKey(item))) : []
@@ -168,14 +170,22 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
 
     {generatingTarget === 'DIAGNOSES' && diagnosisFeature && diagnoses.length === 0 && portal(
       <GeneratingRow text="AI 正在依据病历推荐诊断，完成后可逐项核对确认。" />, surfaces.diagnoses, 'diagnoses-loading')}
-    {generatingTarget === 'TREATMENTS' && planFeature && availableTreatmentItems.length === 0 && portal(
-      <GeneratingRow text="AI 正在依据病历和诊断推荐医嘱，完成后可逐项核对确认。" />, surfaces.plans, 'treatments-loading')}
+    {(generatingTarget === 'TREATMENTS' || (generating && streamingIntents.length > 0)) && planFeature && availableTreatmentItems.length === 0 && portal(
+      <GeneratingRow text={streamingIntents.length > 0
+        ? `AI 推荐意向：${streamingIntents.map(i => `${i.name}${i.specification ? ` (${i.specification})` : ''}`).join('、')} · 正在核对院内品规与库存…`
+        : 'AI 正在依据病历和诊断推荐医嘱，完成后可逐项核对确认。'} />, surfaces.plans, 'treatments-loading')}
 
     {diagnosisFeature && diagnosisRunError && !generating && portal(
       <p className="doctor-ai-inline__stale" role="alert">AI 推荐诊断失败：{diagnosisRunError}</p>, surfaces.diagnoses, 'diagnoses-error')}
 
     {current && !generating && diagnosisOnlyRun && !diagnosisBatchDismissed && suggestion && diagnosisFeature && diagnoses.length === 0 && portal(
       <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断未给出可确认项">
+        {onDiscardDiagnoses && (
+          <div className="doctor-ai-order-batch">
+            <span>本轮诊断推荐未给出可直接确认的主诊断。</span>
+            <Button size="sm" variant="text" disabled={disabled || busy} onClick={onDiscardDiagnoses}>丢弃本轮推荐</Button>
+          </div>
+        )}
         <p className="doctor-ai-inline__stale" role="status">{diagnosisCandidates.length > 0 ? 'AI 推荐的诊断已全部在诊断列表中。'
           : suggestion.summary?.trim() || 'AI 未给出可确认的初步诊断，请补充病史后重试。'}</p>
         {differentials.map(item => <div className="doctor-diagnosis-row is-ai-suggestion" role="row" key={item.code}>
@@ -201,6 +211,12 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
 
     {(current || generating) && diagnosisFeature && diagnoses.length > 0 && portal(
       <div className="doctor-ai-diagnosis-suggestions" aria-label="AI 诊断待确认">
+        {!generating && onDiscardDiagnoses && (
+          <div className="doctor-ai-order-batch">
+            <span>本轮诊断推荐，确认所选后其余未勾选项将自动丢弃。</span>
+            <Button size="sm" variant="text" disabled={disabled || busy} onClick={onDiscardDiagnoses}>丢弃本轮推荐</Button>
+          </div>
+        )}
         {diagnosisCandidates.map((item) => {
           const exists = alreadyEntered(item.code)
           if (exists) return null

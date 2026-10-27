@@ -198,6 +198,52 @@ describe('reception evidence boundaries', () => {
 
 
 describe('report highlight source values', () => {
+  it('formats scientific notation units and groups highlights by report', () => {
+    const report1 = {
+      id: 'report1',
+      residentId: baseEncounter.residentId,
+      encounterId: baseEncounter.id,
+      requestId: 'req1',
+      reportVersion: 1,
+      reportCode: 'LAB',
+      status: 'FINAL',
+      reportName: '血常规（五分类）报告',
+      issuedAt: baseEncounter.registeredAt,
+      observations: [
+        {
+          id: 'obs1',
+          observationName: '白细胞计数',
+          status: 'FINAL',
+          valueType: 'NUMBER',
+          valueNumber: 21,
+          unitCode: '10^9/L',
+          referenceRangeHigh: 9.5,
+        },
+        {
+          id: 'obs2',
+          observationName: '血红蛋白测定',
+          status: 'FINAL',
+          valueType: 'NUMBER',
+          valueNumber: 199,
+          unitCode: 'g/L',
+          referenceRangeHigh: 175,
+        },
+      ],
+    } as DiagnosticReport
+    const result = assessReceptionScene({ encounter: baseEncounter, diagnosticReports: [report1] })
+    expect(result.reportHighlights[0]).toBe('血常规（五分类）报告：白细胞计数 21 × 10^9/L ↑')
+    expect(result.reportHighlights[1]).toBe('血常规（五分类）报告：血红蛋白测定 199 g/L ↑')
+    expect(result.reportHighlightGroups).toHaveLength(1)
+    expect(result.reportHighlightGroups![0].reportName).toBe('血常规（五分类）报告')
+    expect(result.reportHighlightGroups![0].items).toHaveLength(2)
+    expect(result.reportHighlightGroups![0].items[0]).toEqual({
+      observationName: '白细胞计数',
+      valueText: '21 × 10^9/L',
+      direction: '↑',
+      fullText: '白细胞计数 21 × 10^9/L ↑',
+    })
+  })
+
   it.each([
     [{ valueType: 'BOOLEAN', valueBoolean: false }, '布尔结果 否'],
     [{ valueType: 'BOOLEAN', valueBoolean: null }, '布尔结果 结果缺失'],

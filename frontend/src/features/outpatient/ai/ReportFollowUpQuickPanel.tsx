@@ -1,5 +1,5 @@
 import { Button, Icon, IconButton } from '../../../shared/ui'
-import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
+import { parseReportHighlightGroups, type ReceptionSceneAssessment } from './receptionSceneAssessment'
 
 const VISIBLE_HIGHLIGHTS = 3
 
@@ -19,6 +19,10 @@ export function ReportFollowUpQuickPanel({ scene, generateDisabled, onGenerateRe
   const hidden = Math.max(0, scene.reportHighlights.length - VISIBLE_HIGHLIGHTS)
   const earlier = scene.followUpOf
   const day = earlier ? new Date(earlier.registeredAt) : undefined
+  const groups = scene.reportHighlightGroups && scene.reportHighlightGroups.length > 0
+    ? scene.reportHighlightGroups
+    : parseReportHighlightGroups(scene.reportHighlights)
+
   return (
     <section className="doctor-ai-refill-quick is-warning" aria-label="报告回诊引导">
       <header className="doctor-ai-refill-quick__head">
@@ -30,11 +34,33 @@ export function ReportFollowUpQuickPanel({ scene, generateDisabled, onGenerateRe
         {day && !Number.isNaN(day.getTime()) ? `承接 ${day.getMonth() + 1}月${day.getDate()}日就诊${earlier?.diagnoses.length ? `（${earlier.diagnoses.join('、')}）` : ''}；` : ''}
         {scene.summaryText}
       </p>
-      {scene.reportHighlights.length > 0 && (
-        <ul className="doctor-ai-refill-quick__meds" aria-label="异常结果">
-          {scene.reportHighlights.slice(0, VISIBLE_HIGHLIGHTS).map((item) => <li key={item}>{item}</li>)}
-          {hidden > 0 && <li className="doctor-ai-refill-quick__more">另有 {hidden} 项异常，可在结果页核对</li>}
-        </ul>
+      {groups.length > 0 && (
+        <div className="doctor-ai-refill-quick__reports" aria-label="异常结果">
+          {groups.map((group, gIdx) => (
+            <div key={gIdx} className="doctor-ai-refill-quick__report-group">
+              <div className="doctor-ai-refill-quick__report-head">
+                <Icon name="document" />
+                <span className="doctor-ai-refill-quick__report-name">{group.reportName}</span>
+              </div>
+              <ul className="doctor-ai-refill-quick__meds">
+                {group.items.slice(0, VISIBLE_HIGHLIGHTS).map((item, idx) => (
+                  <li key={idx} className="doctor-ai-refill-quick__report-row" title={item.fullText}>
+                    <span className="doctor-ai-refill-quick__indicator-name">{item.observationName}</span>
+                    <span className="doctor-ai-refill-quick__indicator-val">
+                      {item.valueText && <span className="doctor-ai-refill-quick__indicator-num">{item.valueText}</span>}
+                      {item.direction && (
+                        <span className={`doctor-ai-refill-quick__indicator-flag is-${item.direction === '↑' ? 'high' : item.direction === '↓' ? 'low' : 'abnormal'}`}>
+                          {item.direction}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {hidden > 0 && <p className="doctor-ai-refill-quick__more">另有 {hidden} 项异常，可在结果页核对</p>}
+        </div>
       )}
       <footer className="doctor-ai-refill-quick__actions">
         <Button size="sm" variant="primary" disabled={generateDisabled} onClick={onGenerateRecord}>

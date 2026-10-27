@@ -125,7 +125,9 @@ describe('ChronicRefillQuickPanel in the copilot hub', () => {
       followUpOf: { encounterId: 'e0', registeredAt: '2026-09-06T08:00:00Z', diagnoses: ['急性上呼吸道感染'] } }
     const { rerender } = renderHub({ sceneAssessment: reportScene, chronicRefill: undefined, onGenerate, onOpenResults })
     expect(screen.getByRole('region', { name: '报告回诊引导' })).toBeInTheDocument()
-    expect(screen.getByText('血常规：白细胞计数 12 ↑')).toBeInTheDocument()
+    expect(screen.getByText('血常规')).toBeInTheDocument()
+    expect(screen.getByText('白细胞计数')).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /查看结果/ }))
     expect(onOpenResults).toHaveBeenCalled()
     expect(screen.queryByRole('region', { name: '报告回诊引导' })).not.toBeInTheDocument()

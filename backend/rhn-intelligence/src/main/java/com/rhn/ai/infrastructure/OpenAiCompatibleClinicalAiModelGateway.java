@@ -136,11 +136,11 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             不需要某类治疗时可以不推荐，不得为了完整而盲目使用抗菌药。搜索意图不是处方，catalogItemId 等标识留空，不输出总量、包装数量或已开立状态。
             """;
     private static final String TREATMENT_RULES_USAGE = """
-            药品用法用量仅限 MEDICATION 项的可选 usage：{doseValue（数值）,doseUnit,route（给药途径中文名或常用写法）,frequency（频次中文名或 QD/BID/TID 等常用写法）,durationDays（整数）}；
+            药品用法用量仅限 MEDICATION 项的 usage：{doseValue（数值）,doseUnit,route（给药途径中文名或常用写法）,frequency（频次中文名或 QD/BID/TID 等常用写法）,durationDays（整数）}；
             usage 只是“待医生核对的预填草稿”，不是处方、不代表已开立，也不得写入其他字段或自由文本医嘱。检验、检查项不输出 usage。
-            目标是让医生只需核对调整：除下方护栏排除的情形外，每个 MEDICATION 项都应尽量输出完整 usage，五个字段 doseValue/doseUnit/route/frequency/durationDays 都给全；
+            目标是让医生只需核对调整：除下方护栏排除的情形外，每个 MEDICATION 项都应尽量输出完整 usage，五个字段 doseValue/doseUnit/route/frequency/durationDays 都给全，严禁无故省略 usage；
             按说明书成人常规用法给出单次剂量、途径与频次；doseUnit 使用药品本身的给药单位（片、粒、袋、喷、揿、滴、mg、ml 等）；
-            durationDays 按本次适应证的常用首诊疗程给出（如急性对症用药 3–7 天、过敏性疾病 7–14 天、慢病维持按复诊间隔），最长 30 天；
+            durationDays 按本次适应证的常用首诊疗程给出（如急性对症用药 3–7 天、过敏性疾病 7–14 天、慢病维持按复诊间隔，如14或30天），最长 30 天；
             某个字段确实没把握才省略该字段，其余字段照常给出；不要编造说明书外的超常规剂量；
             usage 护栏：儿童（patient 年龄小于18岁）、孕妇/哺乳期、肝肾功能不全或需按体重/体表面积计算的药物，一律不给 usage；
             草药、输液、需皮试或抗菌药的用法不给 usage，仍需医生手工核对；
@@ -171,9 +171,9 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             检验意图使用规范项目名称，例如普通血糖化验写“葡萄糖测定”；如需空腹、餐后或症状时采样，在 rationale 说明本次采样目的，不把不同采样时点当成已完成事实。
             “肝肾功能”等检查组不能替代明确项目：依据本次目的分别提出所需的具体指标，不无依据地拆成全套；未明确组合内容时仅提示医生核对。心电图必须区分普通、动态或运动试验，不将不同方案作为同义词。
             【慢病复诊配药】主诉、问诊或选定场景表明是高血压、糖尿病等慢病的周期性复诊/配药/续方时：
-            1. 药品：clinicalHistory 或 draft 中有该慢病既往处方、正在用药时，以原方续配为主，只推荐同通用名，不新增药物、不自动沿用剂量与疗程，rationale 写明“沿用既往用药，请核对当前用法”。
+            1. 药品：clinicalHistory、draft、现病史或口述中有该慢病既往处方、正在用药或已知日常用量时，以原方续配为主，只推荐同通用名，不新增药物；必须将已知用量频次（如 5mg QD、80mg QD）直接作为 usage 预填草稿输出，疗程 durationDays 按慢病常用复诊周期（如 14 或 30 天，缺省 30 天）预填，供医生核对，rationale 写明“沿用既往用药，请核对当前用法”。
                没有任何既往用药记录（本系统无历史很常见）时，不得因缺少历史就返回空数组：按该慢病指南一线方案，结合年龄、过敏、已知合并症与禁忌，推荐 1 至 2 个最合适的单药选项供医生二选一（高血压如氨氯地平、缬沙坦、厄贝沙坦等一线单药），不默认联用；
-               rationale 注明“本系统无既往用药记录，按一线方案给出备选，请核对患者实际在用药物”，并在 missingInformation 加入“当前正在服用的药物及剂量”。这类无历史的备选按新开药处理，可按用法规则给 usage 预填草稿；护栏情形（儿童、孕妇哺乳期、肝肾功能不全、过敏冲突）仍不推荐或不给 usage。
+               rationale 注明“本系统无既往用药记录，按一线方案给出备选，请核对患者实际在用药物”，并在 missingInformation 加入“当前正在服用的药物及剂量”。这类无历史的备选按新开药处理，按说明书成人常规维持量给出 usage 预填草稿（如氨氯地平 5mg QD、缬沙坦 80mg QD，durationDays=30）；护栏情形（儿童、孕妇哺乳期、肝肾功能不全、过敏冲突）仍不推荐或不给 usage。
             2. 检验检查：周期性配药复诊默认不开检验检查。只在这些情况提出：本次有新发症状；已有报告提示异常需复核；启用或调整 ACEI/ARB/利尿剂等药物需要的用药安全监测（如血钾、肌酐）；医生在主诉或问诊中明确要求复查；患者没有任何既往检验记录且需建立基线（最多 2 至 3 项并在 rationale 注明为基线）。
                血脂、血糖、心电图、肝肾功能等年度或定期评估项目，在无法确认上次检查时间时，不放入 treatmentRecommendations，只在 summary 或一条 INFO 级 safetyAlerts 中写“可按随访周期酌情追加：……”。慢病复诊配药场景的检验检查合计不超过 3 项。
             """;
@@ -183,14 +183,14 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             """;
     private static final String TREATMENT_SAFETY_RULES = """
             药品和检查建议必须结合年龄、性别、明确过敏、已知用药及已有肝肾功能等事实；已知禁忌或明确冲突的方向不推荐。关键安全信息缺失时写入待核对信息，不能将未知过敏、妊娠状态或肝肾功能当作正常，也不能声称已完成相互作用或禁忌核查。
-            当前输入明确正在使用的药品不重复列为新增用药；有既往处方的复诊续方、调整或停药需要医生核对当前适应证、既往用法及本次安全依据，不自动沿用历史处方，此类情形不给 usage，不由模型自由生成新剂量；没有任何既往用药记录的慢病配药按“慢病复诊配药”规则给备选与 usage 草稿。
+            当前输入明确正在使用的药品不重复列为新增用药；有既往处方的复诊续方、调整或停药需要医生核对当前适应证、既往用法及本次安全依据，按“慢病复诊配药”规则将已知或常规维持用法作为 usage 预填草稿供核对，不可自由捏造超常规剂量；没有任何既往用药记录的慢病配药按“慢病复诊配药”规则给备选与 usage 草稿。
             """;
     private static final String SYSTEM_PROMPT = PROMPT_INPUT_BOUNDARY + """
             recommendedPlans 只能从 availablePlans 选择；不得自由生成药品剂量、用法或医嘱，药品用法仅可按 usage 规则给出预填草稿。
             generationStage=RECORD_DIAGNOSIS 时先输出 recordDraft，再输出 diagnosisCandidates、鉴别与方案。
             有效临床要点需生成初步诊断方向，即使无法确定病因也可给症状诊断，不能因用户仅要求病历而省略。
             """ + TREATMENT_RULES_INTENT + """
-            RECORD_DIAGNOSIS 阶段每项输出 type、name、rationale；MEDICATION 可额外输出待匹配的 specification 和可选 usage，检验检查不输出 specification 与 usage。
+            RECORD_DIAGNOSIS 阶段每项输出 type、name、rationale；MEDICATION 输出待匹配的 specification 与供医生核对的 usage 预填草稿，检验检查不输出 specification 与 usage。
             """ + TREATMENT_RULES_DETAIL + TREATMENT_RULES_USAGE + TREATMENT_RULES_PURPOSE + TREATMENT_RULES_EXAMINATION + """
             generationStage=CATALOG_TREATMENT 时依据 priorSuggestion 中已映射的诊断和病历，从 availableTreatments 精确选择，
             返回 treatmentRecommendations（最多8项），每项只输出与目录条目一致的 type、catalogItemId。
@@ -254,8 +254,12 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             FIRST_VISIT：侧重新发症状的时间线、补问要点、鉴别诊断支持/反对依据及有目的的检查建议。
             CHRONIC_REFILL：选定病种仅为归组，具体疾病名称与糖尿病分型必须保留原始诊断，不可擅自改型。依据已有确诊病史及选定病种拟写“xx病复诊配药”，组织控制情况、用药依从性和配药目的。
             控制平稳、规律服药、无不适或无不良反应只有明确证据时才能写入；存在新发症状须优先评估，不能默认续方适宜。
-            REPORT_FOLLOW_UP：按 selectedReportIds 对应的 diagnosticReports，结构化说明报告名称、日期、指标值、单位、
-            参考范围、异常方向/影像结论、临床意义与局限、待核实症状和后续建议；将已知结果及谨慎分析写入现病史。
+            REPORT_FOLLOW_UP：按 selectedReportIds 对应的 diagnosticReports 组织回诊病历：
+            a. 现病史结构：先简述初诊就诊病由及初诊治疗后的主观症状转归（如咳嗽、发热较前是否缓解，有无新发伴随症状），再交代本次回诊调阅报告；
+            b. 检验指标精简：详细列出明确异常指标（包含指标名称、数值、单位、参考区间及异常标识）；未见异常的正常指标严禁逐项罗列指标名称（严禁报菜名式罗列），统一概括为“余指标均在正常参考范围内”或“余项未见异常”；
+            c. 影像结论提炼：影像报告仅提炼核心诊断结论（如心肺膈正常、未见明确活动性病变），不抄录冗长技术描述；
+            d. 既往史去重：本次回诊承接的前次初诊诊断已作为现病史起始背景，严禁作为既往史重复输出；
+            e. 针对性随访：若存在白细胞明显升高等重要异常指标，随访复诊中须明确针对该指标的复查建议（如3-5天内复查血常规评估转归），宣教提醒警惕感染加重症状。
             不得将历史报告数值当作本次结果，不能凭单项异常确诊，也不能虚构就诊原因或检查开立经过。
 
             必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。JSON 字段为：
@@ -288,11 +292,12 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             未提供的持续时间、起病时间、最高体温等数值不得编造；缺少时省略该数值，并把需要追问的问题写入 missingInformation。
 
             【各段书写规范】
-            1. chiefComplaint：规范为“主要症状/体征＋（部位）＋持续时间”，原则上 20 字以内，不写诊断名称（慢病复诊可写“xx病复诊配药”）。医生原主诉已规范时原样保留；只能整理已录入的症状和时间，不得新增症状。
+            1. chiefComplaint：规范为“主要症状/体征＋（部位）＋持续时间”，原则上 20 字以内，不写诊断名称（慢病复诊可写“xx病复诊配药”；报告回诊可写“xx病初诊后x天，复核检查检验结果”或“主要症状缓解/好转，复核报告”）。医生原主诉已规范时原样保留；只能整理已录入的症状和时间，不得新增症状。
             2. presentIllness：按“起病时间及诱因—主要症状特点（部位、性质、程度、持续或发作规律、加重缓解因素）—病情演变—伴随症状—诊治经过—一般情况”的顺序写成连贯医学叙述。
                主诉中的事实写为确定内容；诱因不明时可写“无明显诱因”（不标记）。伴随症状部分按本主诉的鉴别要点列出必要的阴性症状，其中关键阴性症状按标记规则标记。诊治经过未知时可写“未经诊治”（不标记）；一般情况写“精神、食欲、睡眠可，二便正常，体重无明显变化”等（不标记）。
             3. medicalHistory：先写已知事实（草稿已有内容，clinicalHistory 中的慢性病、重要既往疾病、手术外伤史和长期用药）；其余按质控要求补全“否认高血压、糖尿病、心脏病等慢性病史，否认肝炎、结核等传染病史，否认手术、外伤及输血史”等常规表述，其中“否认……史”类表述按标记规则标记，有冲突的项目不得否认。
                clinicalHistory 中已痊愈的急性自限性疾病（如上呼吸道感染、急性胃肠炎）及其短期或按需用药不属于既往史，不写入；仅当与本次主诉直接相关（同一问题复诊或病程延续）时，在现病史“诊治经过”中简述。
+               本次就诊直接承接的前次初诊诊断（属于本次病程的起始背景）已在现病史交代，严禁作为既往史重复写入 medicalHistory。
                既往史写病名和长期用药药名即可，不写单次剂量、频次或“必要时”等医嘱用法，不照抄 ISO 日期（确需时间时写“x月前”“x年x月”等）；事实与否认表述用“；”连成一段，不分行。
             4. allergyHistory：allergies 有登记时如实写出过敏物质及反应（事实，不标记）；没有登记时写“否认药物及食物过敏史”并按标记规则标记。
             5. physicalExam：生命体征由结构化数值字段单独记录和打印，physicalExam 正文不写“生命体征”行，也不复述体温、血压等数值；任何项目都不得写“未测量”“未测”“未提供”“暂缺”等说明。正文直接从一般情况开始，随后写与本主诉相关的重点系统查体，按鉴别要点推荐必要的阴性体征（如发热咳嗽：咽部、扁桃体、双肺呼吸音及啰音、心率心律等；腹痛：腹部压痛、反跳痛、肌紧张、肝脾、墨菲征、麦氏点等），推荐的阴性体征按标记规则标记（每字段最多 3 条，只标关键短语）。不得写任何阳性体征，阳性发现由医生查体后补充。
@@ -305,7 +310,12 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
 
             【场景感知】receptionScene 只用于调整书写侧重，不是确诊事实。
             CHRONIC_REFILL：现病史侧重确诊时间、目前用药、控制情况和依从性；控制平稳、无不良反应等只有证据时才写为事实，否则作为推荐内容写入且不标记。
-            REPORT_FOLLOW_UP：可在现病史引用 diagnosticReports 中的报告名称、日期、指标值和结论（事实），不得把历史报告当作本次结果。
+            REPORT_FOLLOW_UP：按以下规范书写报告回诊病历：
+            a. 现病史先交代初诊就诊原因与前次治疗后的自觉症状转归（如症状是否有缓解、有无新发发热胸痛等），再引述本次复诊调阅报告；
+            b. 检验指标仅详细记录明确异常项（数值、单位、参考区间及异常标识）；未见异常的正常指标严禁逐项罗列指标全名（严禁报菜名式罗列），统一简写为“余指标均在正常参考范围内”或“余项未见异常”；
+            c. 影像检查直接提炼关键诊断结论，不抄录冗长技术描述；
+            d. 本次回诊承接的前次初诊诊断不得作为既往史重复写入；
+            e. 白细胞明显升高等重要指标异常时，随访复诊中须明确给出针对该指标的复查建议（如3-5天内复查血常规），宣教重点提示观察感染变化。不得把历史报告当作本次结果，不得凭单项异常直接确诊。
 
             missingInformation：最多 3 个最影响本次诊断的追问或查体要点，使用医生可直接提问的短句。
             safetyAlerts：仅在本次事实提示危险征象时给出，否则省略；level 仅允许 INFO、WARNING、CRITICAL。
@@ -327,8 +337,8 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             diagnosisCandidates 为待医生确认的初步诊断，至少 1 项，不得为空；依据不足时给出已知事实最能支持的症状/体征诊断（ICD-10 R 章，如腹痛 R10.4）作为 PRIMARY，并在 rationale 说明尚缺的依据，缺失事实同时写入 missingInformation；differentialDiagnoses 仅放备选方向，不得与 diagnosisCandidates 重复；rationale 用一句简短中文（建议60字以内）说明支持该条诊断的已知患者事实及尚待确认的边界，不能编造结果、用通用病种介绍替代依据，或以 ICD-10 目录匹配证明诊断成立。
             missingInformation 按对诊断影响排序，使用医生可直接提问的短句，最多 5 项。safetyAlerts 仅表达需要医生核对的风险，不得声称已经完成处置；level 仅允许 INFO、WARNING、CRITICAL。
 
-            必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。JSON 字段为：
-            summary（不超过 60 字）；diagnosisCandidates[{code,display,type,confidence,rationale}]（最多 3 项）；differentialDiagnoses[{code,display,type,confidence,rationale}]（最多 5 项）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
+            必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。必须严格按以下顺序输出，优先输出核心诊断供医生即时预览：
+            先完整输出 diagnosisCandidates[{code,display,type,confidence,rationale}]（最多 3 项，每项优先输出 code 与 display）；再输出 differentialDiagnoses[{code,display,type,confidence,rationale}]（最多 5 项）；随后输出 summary（不超过 60 字）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
             诊断的 type 仅允许 PRIMARY、SECONDARY；confidence 为 0 到 1。空内容使用 null 或空数组。
             """;
 
@@ -339,13 +349,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
             writingDraft 中来源未确认的模板/AI 预设只用于书写，不得作为本次症状、查体或推荐适用性的证据。
             不得自由生成药品剂量、用法或医嘱，药品用法仅可按 usage 规则给出预填草稿。
             """ + TREATMENT_RULES_INTENT + """
-            TREATMENT_ONLY 阶段每项输出 type、name、rationale；MEDICATION 可额外输出待匹配的 specification 和可选 usage，检验检查不输出 specification 与 usage。
+            TREATMENT_ONLY 阶段每项输出 type、name、rationale；MEDICATION 输出待匹配的 specification 与供医生核对的 usage 预填草稿，检验检查不输出 specification 与 usage。
             """ + TREATMENT_RULES_DETAIL + TREATMENT_RULES_USAGE + TREATMENT_RULES_PURPOSE + TREATMENT_RULES_EXAMINATION + TREATMENT_RULES_REVISIT + REPORT_RULES + TREATMENT_SAFETY_RULES + """
             医嘱必须围绕 draft.diagnoses 中已确认的诊断及本次已知症状；本次明确事实优先于历史资料，历史诊断、历史处方及历史检查不自动成为本次确诊、正在用药或本次已完成检查。信息不足时把所缺事实写入 missingInformation，使用医生可直接提问的短句，最多 5 项。
             summary 一句话概述本次医嘱建议的思路（不超过 60 字）；safetyAlerts 仅表达需要医生核对的风险（过敏、禁忌、相互作用核对等），不得声称已经完成处置；level 仅允许 INFO、WARNING、CRITICAL。
 
-            必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。JSON 字段为：
-            summary；treatmentRecommendations[{type,name,specification,rationale,purpose?,usage?,examination?}]（最多 12 项；purpose 仅 LABORATORY/EXAMINATION 输出；usage 仅 MEDICATION 且有把握时输出；examination 仅 EXAMINATION 且必须输出）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
+            必须只返回一个 JSON 对象，不要 Markdown、代码围栏或额外解释。必须严格按以下顺序输出，优先输出核心医嘱意向供医生即时预览：
+            先完整输出 treatmentRecommendations[{type,name,specification,rationale,purpose?,usage?,examination?}]（最多 12 项，每项优先输出 type、name 与 specification；purpose 仅 LABORATORY/EXAMINATION 输出；usage 仅 MEDICATION 输出（每个药品均应输出五字段预填草稿，除护栏排除外不可省略）；examination 仅 EXAMINATION 且必须输出）；随后输出 summary（不超过 60 字）；missingInformation[string]；safetyAlerts[{level,title,detail}]。
             治疗推荐的 type 仅允许 MEDICATION、LABORATORY、EXAMINATION。空内容使用 null 或空数组。
             """;
 

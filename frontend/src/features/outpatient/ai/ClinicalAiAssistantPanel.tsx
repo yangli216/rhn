@@ -974,6 +974,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       context={currentContext} capability={capability} suggestion={currentSuggestion} current={liveCurrent}
       diagnosisBatchDismissed={dismissedDiagnosisBatchId === currentSuggestion?.id}
       treatmentBatchDismissed={dismissedTreatmentBatchId === currentSuggestion?.id}
+      onDiscardDiagnoses={() => { if (currentSuggestion) setDismissedDiagnosisBatchId(currentSuggestion.id) }}
       onDiscardTreatments={() => { if (currentSuggestion) setDismissedTreatmentBatchId(currentSuggestion.id) }}
       busy={actionPending} inputBusy={inputBusy} generating={generate.isPending} generatingTarget={generatingTarget}
       preview={preview}

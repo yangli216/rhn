@@ -6,7 +6,7 @@ import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import { clinicalAiDraftStatusPresentation } from '../../../shared/presentation'
 import { aiRecordDraftFields, aiRecordDraftValue, aiVitalDefinitions, formatAiRecordDraftValue,
   isAiVitalField, recordDraftFieldLabels, type AiRecordDraftField } from './aiDraftAdapter'
-import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
+import { parseReportHighlightGroups, type ReceptionSceneAssessment } from './receptionSceneAssessment'
 import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
 import { useStableVoiceCopilot } from './useStableVoiceCopilot'
 import { clinicalAiContextFingerprint, stableClinicalAiFingerprint } from './aiDraftAdapter'
@@ -609,9 +609,39 @@ export function ClinicalAiCopilotHub({
                 {sceneAssessment.reportHighlights.length > 0 && (
                   <div className="doctor-ai-insight-card__reports">
                     <span className="doctor-ai-insight-card__label">异常指标：</span>
-                    <div className="doctor-ai-insight-card__report-list">
-                      {sceneAssessment.reportHighlights.map((hl, idx) => (
-                        <span key={idx} className="doctor-ai-report-highlight-pill">{hl}</span>
+                    <div className="doctor-ai-insight-card__report-groups" role="list" aria-label="异常指标列表">
+                      {(sceneAssessment.reportHighlightGroups && sceneAssessment.reportHighlightGroups.length > 0
+                        ? sceneAssessment.reportHighlightGroups
+                        : parseReportHighlightGroups(sceneAssessment.reportHighlights)
+                      ).map((group, gIdx) => (
+                        <div key={gIdx} className="doctor-ai-report-group" role="listitem">
+                          <div className="doctor-ai-report-group__header">
+                            <Icon name="document" />
+                            <span className="doctor-ai-report-group__title">{group.reportName}</span>
+                          </div>
+                          <div className="doctor-ai-report-group__items">
+                            {group.items.map((item, idx) => (
+                              <div
+                                key={idx}
+                                className={`doctor-ai-report-indicator is-${item.direction === '↑' ? 'high' : item.direction === '↓' ? 'low' : 'abnormal'}`}
+                                title={item.fullText}
+                              >
+                                <span className="doctor-ai-report-indicator__name">{item.observationName}</span>
+                                {item.valueText && (
+                                  <span className="doctor-ai-report-indicator__value">{item.valueText}</span>
+                                )}
+                                {item.direction && (
+                                  <span
+                                    className={`doctor-ai-report-indicator__flag is-${item.direction === '↑' ? 'high' : item.direction === '↓' ? 'low' : 'abnormal'}`}
+                                    title={item.direction === '↑' ? '偏高' : item.direction === '↓' ? '偏低' : '异常'}
+                                  >
+                                    {item.direction}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
