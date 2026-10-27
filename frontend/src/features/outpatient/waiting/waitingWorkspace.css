@@ -13,6 +13,15 @@
   flex-direction: column;
   gap: var(--layout-panel-gap);
   width: 100%;
+  /* 占满页面剩余高度：叫号中枢与筛选栏固定在上方，只有患者表格在内部滚动 */
+  flex: 1 1 0;
+  min-height: 24rem;
+}
+
+.dedicated-waiting-workspace > .calling-hub,
+.dedicated-waiting-workspace > .waiting-filter-bar,
+.dedicated-waiting-workspace > .waiting-search-summary {
+  flex: none;
 }
 
 /* 头部全景状态栏 */
@@ -376,7 +385,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .waiting-filter-left {
@@ -551,7 +560,7 @@
   display: flex;
   align-items: center;
   height: var(--control-height-sm);
-  width: 13rem;
+  width: 19rem;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -587,6 +596,107 @@
    -------------------------------------------------------------------------- */
 .waiting-card-container {
   width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.waiting-card-container > .ui-empty-state {
+  border: none;
+}
+
+/* 患者表格：表头固定，操作列固定在右侧，滚动只发生在表格内部 */
+.waiting-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 64rem;
+  font-size: var(--font-size-small);
+}
+
+.waiting-table .patient-name,
+.waiting-table .patient-demographics,
+.waiting-table td:nth-child(n + 4):not(:last-child) {
+  white-space: nowrap;
+}
+
+.waiting-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.waiting-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.waiting-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.waiting-row:hover td {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-surface));
+}
+
+.waiting-row.is-calling td {
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-surface));
+}
+
+.waiting-row.has-critical-vitals td:first-child {
+  box-shadow: inset 4px 0 0 var(--color-danger);
+}
+
+.waiting-table .waiting-card__ticket-col {
+  align-items: flex-start;
+  min-width: 4.5rem;
+}
+
+.waiting-table .waiting-card__ticket-badge {
+  width: auto;
+  font-size: var(--font-size-body);
+}
+
+.waiting-table .card-badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.waiting-table .card-badge-group:empty {
+  display: none;
+}
+
+.waiting-table__actions-col {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: -1px 0 0 var(--color-border);
+  white-space: nowrap;
+}
+
+.waiting-table th.waiting-table__actions-col {
+  z-index: 3;
+  background: var(--color-surface-subtle);
+}
+
+.waiting-table .waiting-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
 }
 
 .waiting-card-list {

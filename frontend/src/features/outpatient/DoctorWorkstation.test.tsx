@@ -678,7 +678,8 @@ describe('DoctorWorkstation reception flow', () => {
 
     // Patient appears in the today reception queue
     expect(await screen.findByText('张建国')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: '刷新队列' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: '刷新队列' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '查询' })).toBeEnabled()
 
     await user.click(screen.getByRole('button', { name: '查看 张建国' }))
 

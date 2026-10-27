@@ -353,6 +353,29 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     expect(screen.getByText('张建国')).toBeInTheDocument()
   })
 
+  it('treats the query button as refresh when nothing is typed', async () => {
+    const user = userEvent.setup()
+    const onRefresh = vi.fn()
+    render(
+      <DedicatedWaitingWorkspace
+        items={enhanceQueueList([mockItem1])}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={false}
+        onEnter={vi.fn()}
+        onView={vi.fn()}
+        onRefresh={onRefresh}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+    const query = screen.getByRole('button', { name: '查询' })
+    expect(query).toBeEnabled()
+    await user.click(query)
+    expect(onRefresh).toHaveBeenCalledTimes(1)
+  })
+
   it('hides calling controls and enters directly when queue calling is disabled', async () => {
     const user = userEvent.setup()
     const enterSpy = vi.fn()
@@ -445,7 +468,7 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     expect(screen.queryByText('张建国')).not.toBeInTheDocument()
     await user.click(screen.getByText('已接诊'))
     expect(screen.getByText('张建国')).toBeInTheDocument()
-    expect(screen.getByText('接诊医生: 李医生')).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: '李医生' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /接诊 张建国/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /呼叫 张建国/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /查看画像 张建国/ })).not.toBeInTheDocument()

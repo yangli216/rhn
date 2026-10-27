@@ -4,7 +4,7 @@ import type { Resident } from '../../../shared/model'
 import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../../shared/billing/insuranceMedia'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
-import { Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
+import { Button, EmptyState, Icon, StatusBadge, Switch } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
 import { formatLocaleDateTime } from '../../../shared/format'
@@ -91,6 +91,8 @@ export function DedicatedWaitingWorkspace({
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null)
   const submitSearch = () => {
     const term = searchInput.trim()
+    // 没有输入内容时点“查询”等同刷新列表
+    if (!term) { clearSearch(); onRefresh(); return }
     setSearchQuery(term)
     onSearchChange?.(term)
   }
@@ -299,11 +301,10 @@ export function DedicatedWaitingWorkspace({
               </button>
             )}
           </div>
-          <Button size="sm" variant="secondary" disabled={busy || !searchInput.trim()} onClick={submitSearch}>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={submitSearch}>
             <Icon name="search" /><span>查询</span>
           </Button>
           {api && <CardReadTools api={api} busy={busy} onLocate={(resident) => { clearSearch(); onLocateResident?.(resident) }} />}
-          <IconButton icon="refresh" label="刷新队列" onClick={onRefresh} />
         </div>
       </div>
 
@@ -325,7 +326,20 @@ export function DedicatedWaitingWorkspace({
               : '新挂号或回诊患者将自动进入当前视角的候诊队列。'}
           />
         ) : (
-          <div className="waiting-card-list">
+          <table className="waiting-table">
+            <thead>
+              <tr>
+                <th scope="col">排队号</th>
+                <th scope="col">患者</th>
+                <th scope="col">状态</th>
+                <th scope="col">就诊服务</th>
+                <th scope="col">接诊医生</th>
+                <th scope="col">挂号时间</th>
+                <th scope="col">{activeTab === 'COMPLETED' && !searchQuery ? '完成时间' : '效期至'}</th>
+                <th scope="col" className="waiting-table__actions-col">操作</th>
+              </tr>
+            </thead>
+            <tbody>
             {displayedItems.map((item) => {
               const isCalling = item.status === 'CALLED'
               const isCompleted = item.status === 'COMPLETED'
@@ -346,69 +360,35 @@ export function DedicatedWaitingWorkspace({
               ))
 
               return (
-                <article
+                <tr
                   key={item.registrationId}
-                  className={`waiting-card ${isCalling ? 'is-calling' : ''} ${isCritical ? 'has-critical-vitals' : ''}`}
+                  className={`waiting-row ${isCalling ? 'is-calling' : ''} ${isCritical ? 'has-critical-vitals' : ''}`}
                 >
-                  {/* 卡片左侧票号与排队类别 */}
-                  <div className="waiting-card__ticket-col">
-                    <span className="waiting-card__ticket-badge">{item.ticketNo}</span>
-                    <span className="waiting-card__seq">第 {item.sequenceNo} 号</span>
-                  </div>
-
-                  {/* 卡片主内容区 */}
-                  <div className="waiting-card__content">
-                    {/* 患者姓名与基础信息 */}
-                    <div className="waiting-card__header-line">
-                      <div className="patient-identity">
-                        <strong className="patient-name">{item.residentName}</strong>
-                        <span className="patient-demographics">
-                          {item.genderText ?? '未知'} ·{' '}
-                          {item.birthDate ? `${new Date().getFullYear() - parseInt(item.birthDate.slice(0, 4), 10)} 岁` : ''} ·{' '}
-                          {item.healthRecordNo}
-                        </span>
-                      </div>
-
-                      <div className="card-badge-group">
-                        <StatusBadge tone={['SERVING', 'COMPLETED'].includes(item.status) ? 'success' : ['SUSPENDED', 'MISSED'].includes(item.status) ? 'warning' : 'neutral'}>
-                          {statusLabel}
-                        </StatusBadge>
-
-                        {callingEnabled && item.calledCount > 0 && (
-                          <span className="category-pill category-pill--called" title={`已叫号 ${item.calledCount} 次`}>
-                            叫号 {item.calledCount} 次
-                          </span>
-                        )}
-
-                        {isCritical && (
-                          <span className="clinical-pulse-badge is-critical">
-                            危急抢救
-                          </span>
-                        )}
-                        {isUrgent && (
-                          <span className="clinical-pulse-badge is-urgent">
-                            重点关注
-                          </span>
-                        )}
-                        {item.queueCategory === 'RETURN_VISIT' && (
-                          <span className="category-pill category-pill--return">
-                            回诊
-                          </span>
-                        )}
-                        {item.queueCategory === 'PRIORITY' && (
-                          <span className="category-pill category-pill--priority">
-                            绿色通道
-                          </span>
-                        )}
-                        {item.publicHealthTags?.chronicLabel && (
-                          <span className="category-pill category-pill--chronic">
-                            {item.publicHealthTags.chronicLabel}
-                          </span>
-                        )}
-                      </div>
+                  <td>
+                    <div className="waiting-card__ticket-col">
+                      <span className="waiting-card__ticket-badge">{item.ticketNo}</span>
+                      <span className="waiting-card__seq">第 {item.sequenceNo} 号</span>
                     </div>
+                  </td>
 
-                    {/* 分诊生命体征透视 */}
+                  <td>
+                    <div className="patient-identity">
+                      <strong className="patient-name">{item.residentName}</strong>
+                      <span className="patient-demographics">
+                        {item.genderText ?? '未知'} ·{' '}
+                        {item.birthDate ? `${new Date().getFullYear() - parseInt(item.birthDate.slice(0, 4), 10)} 岁` : ''} ·{' '}
+                        {item.healthRecordNo}
+                      </span>
+                    </div>
+                    <div className="card-badge-group">
+                      {isCritical && <span className="clinical-pulse-badge is-critical">危急抢救</span>}
+                      {isUrgent && <span className="clinical-pulse-badge is-urgent">重点关注</span>}
+                      {item.queueCategory === 'RETURN_VISIT' && <span className="category-pill category-pill--return">回诊</span>}
+                      {item.queueCategory === 'PRIORITY' && <span className="category-pill category-pill--priority">绿色通道</span>}
+                      {item.publicHealthTags?.chronicLabel && (
+                        <span className="category-pill category-pill--chronic">{item.publicHealthTags.chronicLabel}</span>
+                      )}
+                    </div>
                     {item.vitals && (
                       <div className="waiting-card__vitals-line">
                         <span className="vitals-label">分诊体征:</span>
@@ -423,21 +403,15 @@ export function DedicatedWaitingWorkspace({
                         <span className={`vital-val ${item.vitals.temperature && item.vitals.temperature >= 37.3 ? 'is-danger' : ''}`}>
                           体温: {item.vitals.temperature} ℃
                         </span>
-                        {item.triageReason && (
-                          <span className="vitals-alert-text">({item.triageReason})</span>
-                        )}
+                        {item.triageReason && <span className="vitals-alert-text">({item.triageReason})</span>}
                       </div>
                     )}
-
-                    {/* AI 预问诊一句话主诉 */}
                     {item.aiPreConsultation && (
                       <div className="waiting-card__ai-line">
                         <span className="ai-icon"><Icon name="sparkles" /> AI主诉:</span>
                         <span className="ai-text">{item.aiPreConsultation.chiefComplaintSummary}</span>
                       </div>
                     )}
-
-                    {/* 检查检验报告回传就绪度 */}
                     {item.reportSummary && (
                       <div className="waiting-card__reports-line">
                         <span className="report-badge-pill">
@@ -450,103 +424,118 @@ export function DedicatedWaitingWorkspace({
                         ))}
                       </div>
                     )}
+                  </td>
 
-                    {/* 挂号与服务归属 */}
-                    <div className="waiting-card__footer-meta">
-                      <span>就诊服务: <strong>{item.serviceName || '普通门诊'}</strong></span>
-                      <span>接诊医生: {item.clinicianName || item.practitionerName || '现场接诊'}</span>
-                      <span>挂号时间: {item.registeredAt ? formatLocaleDateTime(item.registeredAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
-                      {isCompleted && <span>完成时间: {item.completedAt ? formatLocaleDateTime(item.completedAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>}
-                      {item.validUntil && <span>效期至: {formatLocaleDateTime(item.validUntil, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+                  <td>
+                    <div className="card-badge-group">
+                      <StatusBadge tone={['SERVING', 'COMPLETED'].includes(item.status) ? 'success' : ['SUSPENDED', 'MISSED'].includes(item.status) ? 'warning' : 'neutral'}>
+                        {statusLabel}
+                      </StatusBadge>
+                      {callingEnabled && item.calledCount > 0 && (
+                        <span className="category-pill category-pill--called" title={`已叫号 ${item.calledCount} 次`}>
+                          叫号 {item.calledCount} 次
+                        </span>
+                      )}
                     </div>
-                  </div>
+                  </td>
 
-                  {/* 卡片右侧快捷操作区 */}
-                  <div className="waiting-card__actions">
-                    {isCompleted ? <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      aria-label={`查看病历 ${item.residentName}`}
-                      onClick={() => {
-                        setPendingActionKey(itemKey)
-                        onView(item)
-                      }}
-                    >
-                      <Icon name="clinical" />
-                      <span>查看病历</span>
-                    </Button> : <>
-                    {callingEnabled && ['WAITING', 'CALLED'].includes(item.status) && <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        setPendingActionKey(itemKey)
-                        void handleCallItem(item)
-                      }}
-                      title={`${item.status === 'CALLED' ? '重呼' : '呼叫'} ${item.ticketNo} ${item.residentName}`}
-                      aria-label={`${item.status === 'CALLED' ? '重呼' : '呼叫'} ${item.residentName}`}
-                    >
-                      <Icon name={item.status === 'CALLED' ? 'refresh' : 'notification'} />
-                      <span>{item.status === 'CALLED' ? '重呼' : '呼叫'}</span>
-                    </Button>}
+                  <td>{item.serviceName || '普通门诊'}</td>
+                  <td>{item.clinicianName || item.practitionerName || '现场接诊'}</td>
+                  <td>{item.registeredAt ? formatLocaleDateTime(item.registeredAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
+                  <td>
+                    {isCompleted
+                      ? (item.completedAt ? formatLocaleDateTime(item.completedAt, { hour: '2-digit', minute: '2-digit' }) : '--:--')
+                      : item.validUntil ? formatLocaleDateTime(item.validUntil, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </td>
 
-                    {callingEnabled && item.status === 'CALLED' && <Button size="sm" variant="secondary" disabled={busy}
-                      onClick={() => {
-                        setPendingActionKey(itemKey)
-                        void onMissItem(item)
-                      }}>过号</Button>}
+                  <td className="waiting-table__actions-col">
+                    <div className="waiting-card__actions">
+                      {isCompleted ? <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        aria-label={`查看病历 ${item.residentName}`}
+                        onClick={() => {
+                          setPendingActionKey(itemKey)
+                          onView(item)
+                        }}
+                      >
+                        <Icon name="clinical" />
+                        <span>查看病历</span>
+                      </Button> : <>
+                      {callingEnabled && ['WAITING', 'CALLED'].includes(item.status) && <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setPendingActionKey(itemKey)
+                          void handleCallItem(item)
+                        }}
+                        title={`${item.status === 'CALLED' ? '重呼' : '呼叫'} ${item.ticketNo} ${item.residentName}`}
+                        aria-label={`${item.status === 'CALLED' ? '重呼' : '呼叫'} ${item.residentName}`}
+                      >
+                        <Icon name={item.status === 'CALLED' ? 'refresh' : 'notification'} />
+                        <span>{item.status === 'CALLED' ? '重呼' : '呼叫'}</span>
+                      </Button>}
 
-                    {callingEnabled && item.status === 'MISSED' && <Button size="sm" variant="secondary" disabled={busy}
-                      onClick={() => {
-                        setPendingActionKey(itemKey)
-                        void onRequeueItem(item)
-                      }}>回队</Button>}
+                      {callingEnabled && item.status === 'CALLED' && <Button size="sm" variant="secondary" disabled={busy}
+                        onClick={() => {
+                          setPendingActionKey(itemKey)
+                          void onMissItem(item)
+                        }}>过号</Button>}
 
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setBriefingPatient(item)}
-                      title="查看30秒临床透视画像"
-                      aria-label={`查看画像 ${item.residentName}`}
-                    >
-                      <Icon name="sparkles" />
-                      <span>画像</span>
-                    </Button>
+                      {callingEnabled && item.status === 'MISSED' && <Button size="sm" variant="secondary" disabled={busy}
+                        onClick={() => {
+                          setPendingActionKey(itemKey)
+                          void onRequeueItem(item)
+                        }}>回队</Button>}
 
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      aria-label={`查看 ${item.residentName}`}
-                      onClick={() => {
-                        setPendingActionKey(itemKey)
-                        onView(item)
-                      }}
-                    >
-                      查看
-                    </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setBriefingPatient(item)}
+                        title="查看30秒临床透视画像"
+                        aria-label={`查看画像 ${item.residentName}`}
+                      >
+                        <Icon name="sparkles" />
+                        <span>画像</span>
+                      </Button>
 
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      busy={isCurrentOperating}
-                      disabled={busy || !canEdit || item.status === 'MISSED'}
-                      title={canEdit ? `${entryLabel}${item.residentName}` : '当前账号没有病历编辑权限'}
-                      aria-label={`${entryLabel} ${item.residentName}`}
-                      onClick={() => {
-                        setPendingActionKey(itemKey)
-                        onEnter(item)
-                      }}
-                    >
-                      {entryLabel}
-                    </Button>
-                    </>}
-                  </div>
-                </article>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        aria-label={`查看 ${item.residentName}`}
+                        onClick={() => {
+                          setPendingActionKey(itemKey)
+                          onView(item)
+                        }}
+                      >
+                        查看
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        busy={isCurrentOperating}
+                        disabled={busy || !canEdit || item.status === 'MISSED'}
+                        title={canEdit ? `${entryLabel}${item.residentName}` : '当前账号没有病历编辑权限'}
+                        aria-label={`${entryLabel} ${item.residentName}`}
+                        onClick={() => {
+                          setPendingActionKey(itemKey)
+                          onEnter(item)
+                        }}
+                      >
+                        {entryLabel}
+                      </Button>
+                      </>}
+                    </div>
+                  </td>
+                </tr>
               )
             })}
-          </div>
+            </tbody>
+          </table>
         )}
       </div>
 
