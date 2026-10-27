@@ -47,6 +47,8 @@ public class EncounterService implements EncounterDirectory {
     private final BusinessNumberGenerator numbers;
     private static final String START_OPERATION = "OUTPATIENT.ENCOUNTER.START";
     private static final String SUSPEND_OPERATION = "OUTPATIENT.ENCOUNTER.SUSPEND";
+    public static final String TAKEOVER_ENABLED_KEY = "outpatient.encounter.takeover-enabled";
+    private static final String TAKEOVER_OPERATION = "OUTPATIENT.ENCOUNTER.TAKEOVER";
     private static final String RESUME_OPERATION = "OUTPATIENT.ENCOUNTER.RESUME";
     private static final String RECORD_OPERATION = "OUTPATIENT.ENCOUNTER.RECORD";
     private static final String COMPLETE_OPERATION = "OUTPATIENT.ENCOUNTER.COMPLETE";
@@ -79,6 +81,7 @@ public class EncounterService implements EncounterDirectory {
     private final OutpatientBloodPressurePolicy bloodPressurePolicy;
     private final RegistrationCancellationGate cancellationGate;
     private final RegistrationBillingGate registrationBillingGate;
+    private final com.rhn.platform.configuration.api.ConfigurationDirectory configuration;
 
     public EncounterService(EncounterRepository encounterRepository,
                             EncounterDiagnosisRepository diagnosisRepository,
@@ -106,7 +109,9 @@ public class EncounterService implements EncounterDirectory {
                             OutpatientBloodPressurePolicy bloodPressurePolicy,
                             com.rhn.outpatient.api.OrderSigningDirectory orderSigningDirectory,
                             RegistrationCancellationGate cancellationGate,
-                            RegistrationBillingGate registrationBillingGate) {
+                            RegistrationBillingGate registrationBillingGate,
+                            com.rhn.platform.configuration.api.ConfigurationDirectory configuration) {
+        this.configuration = configuration;
         this.orderSigningDirectory = orderSigningDirectory;
         this.cancellationGate = cancellationGate;
         this.registrationBillingGate = registrationBillingGate;
@@ -284,6 +289,44 @@ public class EncounterService implements EncounterDirectory {
         encounterRepository.flush();
         publish(encounter, "ENCOUNTER_SUSPENDED", "门诊接诊暂挂", Map.of("reason", reason));
         return completeCommand(SUSPEND_OPERATION, commandCode, encounter);
+    }
+
+    /** 接管他人的接诊：需科室未关闭接管开关并填写原因；原医生的工作会话关闭，号票按需恢复为服务中，全程留痕。 */
+    @Transactional
+    public EncounterResponse takeover(Long encounterId, TakeoverEncounterRequest request) {
+        Encounter encounter = requireEncounterWithLock(encounterId);
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        var enabled = configuration.resolveCurrent(context.tenantId(), null, context.organizationId(),
+                context.departmentId(), TAKEOVER_ENABLED_KEY);
+        if (enabled != null && enabled.value() != null && !enabled.value().isNull() && !enabled.value().asBoolean(true)) {
+            throw forbidden("ENCOUNTER_TAKEOVER_DISABLED", "当前科室未启用接管他人接诊");
+        }
+        String previousClinician = encounter.clinicianId();
+        if (encounter.status() == EncounterStatus.IN_PROGRESS && context.actor().equals(previousClinician)) {
+            return toResponse(encounter);
+        }
+        long expectedRevision = encounter.version();
+        String commandCode = Strings.trimToNull(request.commandCode()) == null
+                ? "TAKEOVER-" + encounterId + "-" + expectedRevision : Strings.trimToNull(request.commandCode());
+        String reason = request.reason().trim();
+        var reservation = idempotencyService.reserve(TAKEOVER_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        EncounterStatus previousStatus = encounter.status();
+        statusEventRepository.save(new EncounterStatusEvent(encounter, previousStatus.name(),
+                EncounterStatus.IN_PROGRESS.name(), expectedRevision, context.practitionerId(), context.subjectId(),
+                commandCode, "接管接诊（原接诊医生 " + (previousClinician == null ? "无" : previousClinician) + "）：" + reason));
+        workSessionRepository.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
+                encounter.tenantId(), encounter.id(), EncounterWorkSessionStatus.ACTIVE)
+                .ifPresent(session -> session.close("TAKEN_OVER"));
+        workSessionRepository.save(new EncounterWorkSession(encounter.tenantId(), encounter.id(),
+                context.practitionerId(), context.subjectId(), Strings.trimToNull(request.terminalCode())));
+        encounter.takeover(context.actor());
+        if (previousStatus == EncounterStatus.SUSPENDED) registrationDirectory.markResumed(encounterId, commandCode);
+        encounterRepository.flush();
+        publish(encounter, "ENCOUNTER_TAKEN_OVER", "门诊接诊被接管",
+                Map.of("clinician", context.actor(), "reason", reason));
+        return completeCommand(TAKEOVER_OPERATION, commandCode, encounter);
     }
 
     @Transactional

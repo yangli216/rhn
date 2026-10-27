@@ -1329,6 +1329,35 @@ describe('DoctorWorkstation reception flow', () => {
     expect(api.encounters.resume).not.toHaveBeenCalled()
   })
 
+  it('asks for confirmation and a reason before taking over a patient seen by another doctor', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const takeoverItem = { ...mockQueueItem, status: 'SERVING' as const, clinicianId: 'other-doctor', clinicianName: '李医生' }
+    api.scheduling.receptionQueue = vi.fn().mockResolvedValue([takeoverItem])
+    api.scheduling.locate = vi.fn().mockResolvedValue({
+      residentId: 'resident-1', takeoverEnabled: true, callingEnabled: true,
+      matches: [{ item: takeoverItem, ownership: 'OTHER', action: 'CONFIRM_TAKEOVER', reason: '该就诊正由其他医生接诊', outOfTurn: false }],
+    })
+    api.encounters.takeover = vi.fn().mockResolvedValue(mockInProgressEncounter)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const dialog = await screen.findByRole('dialog', { name: '接管他人接诊' })
+    expect(dialog).toHaveTextContent('李医生')
+    const confirm = screen.getByRole('button', { name: '确认接管' })
+    expect(confirm).toBeDisabled()
+    await user.type(screen.getByRole('textbox'), '原医生离岗')
+    await user.click(confirm)
+    await waitFor(() => expect(api.encounters.takeover).toHaveBeenCalledWith('encounter-101',
+      expect.objectContaining({ reason: '原医生离岗' })))
+  })
+
   it('keeps the record read-only when the current account has no edit permission', async () => {
     const user = userEvent.setup()
     const api = createMockApi()

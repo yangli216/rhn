@@ -6612,6 +6612,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/encounters/{encounterId}/takeover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["takeover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/encounters/{encounterId}/suspend": {
         parameters: {
             query?: never;
@@ -11813,6 +11829,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/outpatient/reception/locate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["locate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/outpatient/appointments/{appointmentId}": {
         parameters: {
             query?: never;
@@ -15322,6 +15354,7 @@ export interface components {
             empty?: boolean;
             null?: boolean;
             float?: boolean;
+            number?: boolean;
             valueNode?: boolean;
             container?: boolean;
             missingNode?: boolean;
@@ -15342,7 +15375,6 @@ export interface components {
             textual?: boolean;
             boolean?: boolean;
             binary?: boolean;
-            number?: boolean;
             embeddedValue?: boolean;
         };
         MedicationClassification: {
@@ -19069,6 +19101,8 @@ export interface components {
             chronicDiseaseDrug?: boolean;
             singleOrder?: boolean;
             status?: string;
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly priceTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly doseFormText?: string;
             /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
@@ -19077,8 +19111,6 @@ export interface components {
             readonly antimicrobialLevelText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly medicationTypeText?: string;
-            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
-            readonly priceTypeText?: string;
         };
         Program: {
             schemaVersion?: string;
@@ -22459,14 +22491,14 @@ export interface components {
             differenceAmount?: number;
             severity?: string;
             description?: string;
-            /** @description 字典 BIL_CHARGE_SOURCE_TYPE 的显示文本 */
-            readonly sourceTypeText?: string;
-            /** @description 字典 BIL_RECONCILIATION_LINE_STATUS 的显示文本 */
-            readonly statusText?: string;
             /** @description 字典 SUP_RECONCILIATION_ISSUE_TYPE 的显示文本 */
             readonly issueTypeText?: string;
             /** @description 字典 SUP_STOCK_STATUS 的显示文本 */
             readonly stockStatusText?: string;
+            /** @description 字典 BIL_CHARGE_SOURCE_TYPE 的显示文本 */
+            readonly sourceTypeText?: string;
+            /** @description 字典 BIL_RECONCILIATION_LINE_STATUS 的显示文本 */
+            readonly statusText?: string;
         };
         ReconciliationRunView: {
             /** @example 824633720832983041 */
@@ -24668,6 +24700,11 @@ export interface components {
             idempotencyCode?: string;
             registrationSource?: string;
             visitType?: string;
+        };
+        TakeoverEncounterRequest: {
+            commandCode?: string;
+            reason: string;
+            terminalCode?: string;
         };
         SuspendEncounterRequest: {
             commandCode?: string;
@@ -48231,6 +48268,41 @@ export interface operations {
             };
         };
     };
+    takeover: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                encounterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeoverEncounterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EncounterResponse"];
+                };
+            };
+        };
+    };
     suspend_1: {
         parameters: {
             query?: never;
@@ -59571,6 +59643,37 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RegistrationPageView"];
+                };
+            };
+        };
+    };
+    locate: {
+        parameters: {
+            query: {
+                residentId: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["View"];
                 };
             };
         };

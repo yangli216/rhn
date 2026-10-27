@@ -315,6 +315,44 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     await user.click(screen.getByRole('button', { name: '关闭设置' }))
   })
 
+  it('searches only after Enter across all visible items and statuses', async () => {
+    const user = userEvent.setup()
+    const onSearchChange = vi.fn()
+    const current = enhanceQueueList([mockItem1])
+    const everywhere = enhanceQueueList([mockItem1, { ...mockItem2, status: 'COMPLETED' as const }])
+    render(
+      <DedicatedWaitingWorkspace
+        items={current}
+        searchItems={everywhere}
+        onSearchChange={onSearchChange}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={false}
+        onEnter={vi.fn()}
+        onView={vi.fn()}
+        onRefresh={vi.fn()}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    const input = screen.getByLabelText('搜索门诊患者')
+    await user.type(input, '李翠华')
+    expect(onSearchChange).not.toHaveBeenCalled()
+    expect(screen.queryByText('李翠华')).not.toBeInTheDocument()
+
+    await user.type(input, '{Enter}')
+    expect(onSearchChange).toHaveBeenCalledWith('李翠华')
+    expect(screen.getByText('李翠华')).toBeInTheDocument()
+    expect(screen.queryByText('张建国')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('共 1 条')
+
+    await user.click(screen.getByRole('button', { name: '清除搜索' }))
+    expect(onSearchChange).toHaveBeenLastCalledWith('')
+    expect(screen.getByText('张建国')).toBeInTheDocument()
+  })
+
   it('hides calling controls and enters directly when queue calling is disabled', async () => {
     const user = userEvent.setup()
     const enterSpy = vi.fn()

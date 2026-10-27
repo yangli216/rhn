@@ -1690,3 +1690,45 @@
 .ai-banner-actions {
   flex-shrink: 0;
 }
+
+/* 读卡定位到多条就诊时的选择列表 */
+.locate-choice-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.locate-choice-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.locate-choice-list li > div {
+  display: grid;
+  gap: calc(var(--space-1) * 0.5);
+  min-width: 0;
+}
+
+.locate-choice-list li span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.waiting-search-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}

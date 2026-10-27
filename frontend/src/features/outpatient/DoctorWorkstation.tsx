@@ -2,8 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { ClinicalContext } from "../../shared/clinical/workContext";
-import type { ReceptionQueueItem, ReceptionQueueScope } from "../../shared/api/schedulingApi";
-import type { Encounter } from "../../shared/model";
+import type { ReceptionLocateMatch, ReceptionQueueItem, ReceptionQueueScope } from "../../shared/api/schedulingApi";
+import type { Encounter, Resident } from "../../shared/model";
 import { errorMessage, type RhnApi } from "../../shared/rhnApi";
 import { Alert, Button, Icon, LoadingState, PageHeader } from "../../shared/ui";
 import './waiting/waitingWorkspace.css'
@@ -11,6 +11,7 @@ import '../../styles/features/outpatient-doctor.css'
 import '../../styles/doctor-ai-assistant.css'
 import './templates/outpatient-plan-templates.css'
 import { DedicatedWaitingWorkspace } from "./waiting/DedicatedWaitingWorkspace";
+import { LocateChoiceDialog, OutOfTurnDialog, TakeoverDialog } from "./waiting/LocateDialogs";
 import { enhanceQueueList } from "./waiting/queueDataEnhancer";
 import type { EnhancedQueueItem } from "./waiting/queueTypes";
 import { type PatientSelection, businessDate, type QueueCommand, commandCode } from './workstation/workstationShared'
@@ -99,6 +100,69 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   })
 
   const refreshQueue = () => queryClient.invalidateQueries({ queryKey: ['outpatient-reception-queue'] })
+
+  // 搜索提交后才加载全部可见范围（本机构）的队列，不受当前视角限制。
+  const [searchTerm, setSearchTerm] = useState('')
+  const searchQueue = useQuery({
+    queryKey: ['outpatient-reception-queue', businessDate(), clinicalContext.department.id, 'SEARCH'],
+    queryFn: () => api.scheduling.receptionQueue(businessDate(), undefined, 'ORGANIZATION'),
+    enabled: Boolean(searchTerm),
+  })
+  const searchItems = useMemo(() => enhanceQueueList((searchQueue.data ?? []).filter((item) =>
+    ['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED'].includes(item.status))), [searchQueue.data])
+
+  // 读卡、扫码等精确识别：由后端判定有效就诊及建议动作，这里按动作分发。
+  const [notice, setNotice] = useState('')
+  const [choice, setChoice] = useState<{ resident: Resident; matches: ReceptionLocateMatch[] } | null>(null)
+  const [outOfTurn, setOutOfTurn] = useState<ReceptionLocateMatch | null>(null)
+  const [takeover, setTakeover] = useState<ReceptionLocateMatch | null>(null)
+  const takeoverMutation = useMutation({
+    mutationFn: ({ match, reason }: { match: ReceptionLocateMatch; reason: string }) =>
+      api.encounters.takeover(match.item.encounterId, {
+        commandCode: commandCode('TAKEOVER', match.item.encounterId), reason, terminalCode: 'WEB-DOCTOR-WORKSTATION',
+      }).then(() => match),
+    onSuccess: (match) => { setTakeover(null); void refreshQueue(); openPatient.mutate({ item: match.item, entryIntent: 'EDIT' }) },
+  })
+  const startMatch = async (match: ReceptionLocateMatch) => {
+    // 已过号的患者先回队，再进入接诊
+    if (match.item.status === 'MISSED') await handleQueueAction(match.item as EnhancedQueueItem, 'requeue')
+    openPatient.mutate({ item: match.item, entryIntent: 'EDIT' })
+  }
+  const actOnMatch = (match: ReceptionLocateMatch) => {
+    setChoice(null)
+    if (match.action === 'ENTER') {
+      if (match.outOfTurn) setOutOfTurn(match); else void startMatch(match)
+    } else if (match.action === 'CONFIRM_TAKEOVER') setTakeover(match)
+    else if (match.item.status === 'COMPLETED') openPatient.mutate({ item: match.item, entryIntent: 'READ' })
+    else setNotice(match.reason ?? '该就诊只能查看')
+  }
+  const locateResident = useMutation({
+    mutationFn: (resident: Resident) => api.scheduling.locate(resident.id).then((view) => ({ resident, view })),
+    onSuccess: ({ resident, view }) => {
+      setNotice('')
+      if (view.matches.length === 0) {
+        setNotice(`${resident.fullName} 在本机构没有有效的就诊记录，可使用“直接接诊”或先挂号。`)
+      } else if (view.matches.length === 1) actOnMatch(view.matches[0])
+      else setChoice({ resident, matches: view.matches })
+    },
+  })
+  // 列表里点击接诊：他人接诊或暂挂的患者先经后端判定，避免悄然抢占他人的接诊。
+  const enterItem = useMutation({
+    mutationFn: async (item: ReceptionQueueItem | EnhancedQueueItem) => {
+      setNotice('')
+      if (item.departmentId && item.departmentId !== clinicalContext.department.id) {
+        setNotice(`${item.residentName} 的挂号属于${item.departmentName ?? '其他科室'}，只能查看。`)
+        return
+      }
+      if (['SERVING', 'SUSPENDED'].includes(item.status) && api.scheduling.locate) {
+        const view = await api.scheduling.locate(item.residentId)
+        const match = view.matches.find((value) => value.item.registrationId === item.registrationId)
+        if (match && match.action !== 'ENTER') { actOnMatch(match); return }
+      }
+      openPatient.mutate({ item, entryIntent: 'EDIT' })
+    },
+  })
+
   const refreshInbox = () => queryClient.invalidateQueries({ queryKey: ['outpatient-referral-inbox'] })
 
   const enhancedItems = useMemo(() => enhanceQueueList((queue.data ?? []).filter((item) =>
@@ -141,6 +205,15 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
           }} />
       </Suspense>
     )}
+    {notice && <Alert tone="info" className="ui-page-feedback">{notice}</Alert>}
+    {choice && <LocateChoiceDialog residentName={choice.resident.fullName} matches={choice.matches}
+      onChoose={actOnMatch} onClose={() => setChoice(null)} />}
+    {outOfTurn && <OutOfTurnDialog match={outOfTurn} onClose={() => setOutOfTurn(null)}
+      onConfirm={() => { const match = outOfTurn; setOutOfTurn(null); void startMatch(match) }} />}
+    {takeover && <TakeoverDialog match={takeover} busy={takeoverMutation.isPending} error={takeoverMutation.error}
+      onClose={() => setTakeover(null)}
+      onViewOnly={() => { const match = takeover; setTakeover(null); openPatient.mutate({ item: match.item, entryIntent: 'READ' }) }}
+      onConfirm={(reason) => takeoverMutation.mutate({ match: takeover, reason })} />}
     {(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error) && <Alert className="ui-page-feedback">
       {errorMessage(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error)}</Alert>}
 
@@ -158,7 +231,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
         canEdit={canEdit}
         api={api}
         callingEnabled={callingEnabled}
-        busy={openPatient.isPending || queueAction.isPending || queue.isFetching}
+        busy={openPatient.isPending || queueAction.isPending || queue.isFetching || enterItem.isPending || locateResident.isPending}
         activeItemKey={
           openPatient.isPending
             ? (openPatient.variables?.item.registrationId ?? openPatient.variables?.item.encounterId)
@@ -166,7 +239,11 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
               ? (queueAction.variables?.item.registrationId ?? queueAction.variables?.item.encounterId)
               : null
         }
-        onEnter={(item) => openPatient.mutate({ item, entryIntent: 'EDIT' })}
+        searchItems={searchItems}
+        searchLoading={searchQueue.isFetching}
+        onSearchChange={setSearchTerm}
+        onLocateResident={(resident) => locateResident.mutate(resident)}
+        onEnter={(item) => enterItem.mutate(item)}
         onView={(item) => openPatient.mutate({ item, entryIntent: 'READ' })}
         onRefresh={() => void queue.refetch()}
         onCallItem={(item) => handleQueueAction(item, item.status === 'CALLED' ? 'recall' : 'call')}

@@ -94,6 +94,12 @@ export interface SuspendEncounterInput {
   reason: string
 }
 
+export interface TakeoverEncounterInput {
+  commandCode?: string
+  reason: string
+  terminalCode?: string
+}
+
 export interface ResumeEncounterInput {
   commandCode?: string
   terminalCode?: string
@@ -431,6 +437,11 @@ export function createEncountersApi(client: ApiClient) {
     ),
     suspend: (encounterId: string, input: SuspendEncounterInput) => client.request<Encounter>(
       `/api/encounters/${encounterId}/suspend`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    takeover: (encounterId: string, input: TakeoverEncounterInput) => client.request<Encounter>(
+      `/api/encounters/${encounterId}/takeover`, {
         method: 'POST', body: JSON.stringify(input),
       },
     ),

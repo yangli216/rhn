@@ -44,6 +44,12 @@ public class EncounterController {
         return encounterService.suspend(encounterId, request);
     }
 
+    @PostMapping("/{encounterId}/takeover")
+    EncounterResponse takeover(@PathVariable Long encounterId,
+                               @Valid @RequestBody TakeoverEncounterRequest request) {
+        return encounterService.takeover(encounterId, request);
+    }
+
     @PostMapping("/{encounterId}/resume")
     EncounterResponse resume(@PathVariable Long encounterId,
                              @Valid @RequestBody ResumeEncounterRequest request) {

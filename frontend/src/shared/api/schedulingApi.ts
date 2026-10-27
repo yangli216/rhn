@@ -221,6 +221,25 @@ export interface ReceptionQueueItem {
   completedAt?: string
 }
 
+/** 精确定位建议动作：ENTER 直接进入，CONFIRM_TAKEOVER 需确认接管，VIEW_ONLY 仅可查看。 */
+export type ReceptionLocateAction = 'ENTER' | 'CONFIRM_TAKEOVER' | 'VIEW_ONLY'
+
+export interface ReceptionLocateMatch {
+  item: ReceptionQueueItem
+  ownership: 'MINE' | 'OTHER' | 'UNASSIGNED'
+  action: ReceptionLocateAction
+  reason?: string | null
+  queuePosition?: number | null
+  outOfTurn: boolean
+}
+
+export interface ReceptionLocateView {
+  residentId: string
+  takeoverEnabled: boolean
+  callingEnabled: boolean
+  matches: ReceptionLocateMatch[]
+}
+
 // PERSONAL is clinical queue ownership; REGISTERED_BY_ME is the authenticated registration operator.
 export type ReceptionQueueScope = 'PERSONAL' | 'DEPARTMENT' | 'ORGANIZATION' | 'REGISTERED_BY_ME'
 
@@ -245,6 +264,8 @@ export function createSchedulingApi(client: ApiClient) {
     schedules: (dateFrom: string, dateTo: string) => client.request<ServiceSchedule[]>(
       `/api/outpatient/scheduling/schedules?${dates(dateFrom, dateTo)}`,
     ),
+    locate: (residentId: string) => client.request<ReceptionLocateView>(
+      `/api/outpatient/reception/locate?residentId=${encodeURIComponent(residentId)}`),
     queueSettings: () => client.request<{ callingEnabled: boolean }>('/api/outpatient/reception/queue-settings'),
     receptionQueue: (dateOrFrom?: string, dateTo?: string, scope?: ReceptionQueueScope) => {
       const params = new URLSearchParams()

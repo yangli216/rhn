@@ -108,6 +108,15 @@ class Encounter {
         this.status = EncounterStatus.SUSPENDED;
     }
 
+    /** 医生接管他人正在接诊或暂挂的就诊；接管后就诊为接诊中，接诊医生换为接管人。 */
+    void takeover(String clinicianId) {
+        if (status != EncounterStatus.IN_PROGRESS && status != EncounterStatus.SUSPENDED) {
+            requireStatus(EncounterStatus.IN_PROGRESS, "只有接诊中或已暂挂的就诊可以接管");
+        }
+        this.status = EncounterStatus.IN_PROGRESS;
+        this.clinicianId = clinicianId;
+    }
+
     void resume(String clinicianId) {
         requireStatus(EncounterStatus.SUSPENDED, "只有已暂挂的就诊可以恢复接诊");
         this.status = EncounterStatus.IN_PROGRESS;

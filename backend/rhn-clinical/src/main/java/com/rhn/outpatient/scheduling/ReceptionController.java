@@ -15,10 +15,20 @@ import java.util.List;
 class ReceptionController {
     private final RegistrationApplicationService service;
     private final ReceptionQueueSettings settings;
+    private final ReceptionLocateService locator;
 
-    ReceptionController(RegistrationApplicationService service, ReceptionQueueSettings settings) {
+    ReceptionController(RegistrationApplicationService service, ReceptionQueueSettings settings,
+                        ReceptionLocateService locator) {
         this.service = service;
+        this.locator = locator;
         this.settings = settings;
+    }
+
+    /** 读卡、扫码等精确识别后，返回该居民有效的就诊记录及建议动作。 */
+    @GetMapping("/locate")
+    @PreAuthorize("hasAnyAuthority('OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
+    ReceptionLocateService.View locate(@RequestParam Long residentId) {
+        return locator.locate(residentId);
     }
 
     @GetMapping("/queue-settings")

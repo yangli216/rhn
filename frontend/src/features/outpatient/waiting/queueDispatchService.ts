@@ -18,6 +18,12 @@ export interface NextCandidateResult {
   slotType: 'PRIORITY' | 'RETURN_VISIT' | 'INITIAL' | 'NORMAL'
 }
 
+/** 姓名、排队号、档案号、挂号单号、服务名任一包含关键词即命中（关键词需已转小写）。 */
+export function matchesQueueQuery(item: EnhancedQueueItem, normalizedQuery: string): boolean {
+  return [item.residentName, item.ticketNo, item.healthRecordNo, item.registrationNo, item.serviceName]
+    .some((value) => value?.toLowerCase().includes(normalizedQuery))
+}
+
 /**
  * 根据多 Tab 筛选与关键词过滤候诊列表
  */
@@ -41,17 +47,8 @@ export function filterQueueItems(
       if (item.queueCategory === 'SKIPPED') return false
     }
 
-    // 2. 搜索关键词过滤 (支持姓名、排队号、档案号、挂号单号、就诊号)
-    if (normalizedQuery) {
-      const matchName = item.residentName.toLowerCase().includes(normalizedQuery)
-      const matchTicket = item.ticketNo.toLowerCase().includes(normalizedQuery)
-      const matchRecord = item.healthRecordNo?.toLowerCase().includes(normalizedQuery)
-      const matchRegNo = item.registrationNo?.toLowerCase().includes(normalizedQuery)
-      const matchService = item.serviceName?.toLowerCase().includes(normalizedQuery)
-      if (!matchName && !matchTicket && !matchRecord && !matchRegNo && !matchService) {
-        return false
-      }
-    }
+    // 2. 搜索关键词过滤 (支持姓名、排队号、档案号、挂号单号、服务名)
+    if (normalizedQuery && !matchesQueueQuery(item, normalizedQuery)) return false
 
     return true
   })

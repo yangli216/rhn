@@ -105,6 +105,70 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
                 """, Integer.class, Long.valueOf(encounterId), "SUSPEND-" + suffix, "RESUME-" + suffix));
     }
 
+    @Test
+    void locate_flags_another_doctors_encounter_and_takeover_requires_a_reason_and_leaves_an_audit_trail() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
+        String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "fullName":"门诊接管患者%s","identifiers":[{"system":"9","value":"33010219890909%s","useType":"SECONDARY"}],
+                                  "gender":"1","birthDate":"1989-09-09","phone":"13800138001"
+                                }
+                                """.formatted(suffix, digits)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
+        String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"TAKEOVER-REG-%s"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
+
+        // 尚未接诊：可直接进入
+        mockMvc.perform(get("/api/outpatient/reception/locate").with(rhnWorkContext()).queryParam("residentId", residentId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matches[0].action").value("ENTER"))
+                .andExpect(jsonPath("$.matches[0].ownership").value("UNASSIGNED"));
+
+        mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
+        mockMvc.perform(get("/api/outpatient/reception/locate").with(rhnWorkContext()).queryParam("residentId", residentId))
+                .andExpect(jsonPath("$.matches[0].action").value("ENTER"))
+                .andExpect(jsonPath("$.matches[0].ownership").value("MINE"));
+
+        // 改为他人接诊后，必须确认接管
+        jdbc.update("update RHN_VIS_ENC set ID_CLNCN = 'another-doctor' where ID_ENC = ?", Long.valueOf(encounterId));
+        mockMvc.perform(get("/api/outpatient/reception/locate").with(rhnWorkContext()).queryParam("residentId", residentId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.takeoverEnabled").value(true))
+                .andExpect(jsonPath("$.matches[0].action").value("CONFIRM_TAKEOVER"))
+                .andExpect(jsonPath("$.matches[0].ownership").value("OTHER"));
+
+        mockMvc.perform(post("/api/encounters/{id}/takeover", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"commandCode":"TAKEOVER-%s","reason":" "}
+                                """.formatted(suffix)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/encounters/{id}/takeover", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"commandCode":"TAKEOVER-%s","reason":"原医生离岗","terminalCode":"TEST-DOCTOR"}
+                                """.formatted(suffix)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        mockMvc.perform(get("/api/outpatient/reception/locate").with(rhnWorkContext()).queryParam("residentId", residentId))
+                .andExpect(jsonPath("$.matches[0].action").value("ENTER"))
+                .andExpect(jsonPath("$.matches[0].ownership").value("MINE"));
+        assertEquals(1, jdbc.queryForObject("""
+                select count(*) from RHN_VIS_ENC_WORK_SESSION
+                where ID_ENC = ? and SD_STATUS = 'CLOSED' and DES_CLOSE_REASON = 'TAKEN_OVER'
+                """, Integer.class, Long.valueOf(encounterId)));
+        assertEquals(1, jdbc.queryForObject("""
+                select count(*) from RHN_VIS_ENC_STATUS_EVT
+                where ID_ENC = ? and CD_COMMAND = ? and DES_REASON like '%%原医生离岗%%'
+                """, Integer.class, Long.valueOf(encounterId), "TAKEOVER-" + suffix));
+    }
+
     private String clinicalRecord() {
         return """
                 {

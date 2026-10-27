@@ -1,0 +1,4 @@
+-- 允许医生接管他人正在接诊或暂挂的就诊（需填写原因并留痕）；默认启用，可按机构或科室关闭。
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796912, ID_PARAM_CAT, 'outpatient.encounter.takeover-enabled', '允许接管他人接诊', '启用后，医生读卡或扫码定位到正由其他医生接诊或暂挂的患者时，可确认并填写原因后接管；原接诊医生的工作会话关闭，全程留痕。关闭后只能只读查看。', 'BOOLEAN', 'SWITCH', '{"type":"boolean"}', 'true', '["ORGANIZATION","DEPARTMENT"]', 'BUSINESS', 1, 1, 0, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.direct-visit.enabled';

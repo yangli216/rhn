@@ -4,7 +4,7 @@ import type { Resident } from '../../../shared/model'
 import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../../shared/billing/insuranceMedia'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
-import { Alert, Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
+import { Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
 import { formatLocaleDateTime } from '../../../shared/format'
@@ -13,6 +13,7 @@ import {
   announceQueueCall,
   determineNextCallCandidate,
   filterQueueItems,
+  matchesQueueQuery,
 } from './queueDispatchService'
 import type {
   CallingState,
@@ -33,6 +34,13 @@ export interface DedicatedWaitingWorkspaceProps {
   callingEnabled?: boolean
   /** 传入后搜索栏提供读社保卡、医保码调入患者。 */
   api?: RhnApi
+  /** 搜索提交后覆盖所有可见范围的数据；未提供时只在当前列表内查找。 */
+  searchItems?: EnhancedQueueItem[]
+  searchLoading?: boolean
+  /** 提交（回车或点“查询”）或清空搜索时通知父级，由父级加载全范围数据。 */
+  onSearchChange?: (term: string) => void
+  /** 读卡、扫码唯一识别患者后交由父级定位就诊并决定进入方式。 */
+  onLocateResident?: (resident: Resident) => void
   onEnter: (item: EnhancedQueueItem) => void
   onView: (item: EnhancedQueueItem) => void
   onRefresh: () => void
@@ -61,6 +69,10 @@ export function DedicatedWaitingWorkspace({
   activeItemKey,
   callingEnabled = true,
   api,
+  searchItems,
+  searchLoading = false,
+  onSearchChange,
+  onLocateResident,
   onEnter,
   onView,
   onRefresh,
@@ -70,18 +82,22 @@ export function DedicatedWaitingWorkspace({
   onSuspendItem,
 }: DedicatedWaitingWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<QueueTabFilter>('ALL')
+  const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [rules, setRules] = useState<DispatchRuleConfig>(DEFAULT_DISPATCH_RULES)
   const [consecutiveInitialCalls, setConsecutiveInitialCalls] = useState(0)
   const [briefingPatient, setBriefingPatient] = useState<EnhancedQueueItem | null>(null)
   const [doctorStatus, setDoctorStatus] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE')
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null)
-  const [cardNotice, setCardNotice] = useState('')
-  const locateByCard = (resident: Resident) => {
-    const inQueue = items.some((item) => item.residentId === resident.id)
-    setActiveTab('ALL')
-    setSearchQuery(resident.healthRecordNo || resident.fullName)
-    setCardNotice(inQueue ? '' : `${resident.fullName} 不在当前候诊列表，可用“直接接诊”或切换到“本科室/本院”视角查找。`)
+  const submitSearch = () => {
+    const term = searchInput.trim()
+    setSearchQuery(term)
+    onSearchChange?.(term)
+  }
+  const clearSearch = () => {
+    setSearchInput('')
+    setSearchQuery('')
+    onSearchChange?.('')
   }
 
   useEffect(() => {
@@ -125,8 +141,13 @@ export function DedicatedWaitingWorkspace({
 
   // 经过 Tab 与关键词过滤后的列表
   const displayedItems = useMemo(() => {
-    return filterQueueItems(items, activeTab, searchQuery)
-  }, [items, activeTab, searchQuery])
+    if (!searchQuery) return filterQueueItems(items, activeTab)
+    // 搜索覆盖全部可见范围与全部状态，不受当前视角和标签限制
+    const normalized = searchQuery.toLowerCase()
+    const rank = (item: EnhancedQueueItem) => ['SERVING', 'SUSPENDED', 'CALLED', 'WAITING', 'MISSED', 'COMPLETED'].indexOf(item.status)
+    return (searchItems ?? items).filter((item) => matchesQueueQuery(item, normalized))
+      .sort((left, right) => rank(left) - rank(right))
+  }, [items, searchItems, activeTab, searchQuery])
 
   // 呼叫特定患者
   const handleCallItem = async (item: EnhancedQueueItem) => {
@@ -235,7 +256,7 @@ export function DedicatedWaitingWorkspace({
 
           <span className="waiting-bar-divider" aria-hidden="true" />
 
-          <div className="waiting-tabs" role="tablist" aria-label="候诊队列分类">
+          {!searchQuery && <div className="waiting-tabs" role="tablist" aria-label="候诊队列分类">
             {([
               ['ALL', '待诊', tabCounts.ALL],
               ['SUSPENDED', '暂挂', tabCounts.SUSPENDED],
@@ -253,7 +274,7 @@ export function DedicatedWaitingWorkspace({
                 {label} <span className="tab-badge">{count}</span>
               </button>
             ))}
-          </div>
+          </div>}
         </div>
 
         <div className="waiting-filter-tools">
@@ -261,28 +282,37 @@ export function DedicatedWaitingWorkspace({
             <Icon name="search" />
             <input
               type="search"
-              placeholder="搜索姓名 / 排队号 / 档案号..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="姓名 / 排队号 / 档案号，回车查询"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitSearch() } }}
               aria-label="搜索门诊患者"
             />
-            {searchQuery && (
+            {searchInput && (
               <button
                 type="button"
                 className="clear-search-btn"
-                onClick={() => setSearchQuery('')}
+                onClick={clearSearch}
                 aria-label="清空搜索"
               >
                 <Icon name="close" />
               </button>
             )}
           </div>
-          {api && <CardReadTools api={api} busy={busy} onLocate={locateByCard} />}
+          <Button size="sm" variant="secondary" disabled={busy || !searchInput.trim()} onClick={submitSearch}>
+            <Icon name="search" /><span>查询</span>
+          </Button>
+          {api && <CardReadTools api={api} busy={busy} onLocate={(resident) => { clearSearch(); onLocateResident?.(resident) }} />}
           <IconButton icon="refresh" label="刷新队列" onClick={onRefresh} />
         </div>
       </div>
 
-      {cardNotice && <Alert tone="info">{cardNotice}</Alert>}
+      {searchQuery && (
+        <div className="waiting-search-summary" role="status">
+          搜索“{searchQuery}”· 覆盖全部可见范围与状态 · {searchLoading ? '查找中…' : `共 ${displayedItems.length} 条`}
+          <Button size="sm" variant="text" onClick={clearSearch}>清除搜索</Button>
+        </div>
+      )}
 
       {/* 4. 富信息候诊卡片流 */}
       <div className="waiting-card-container">
