@@ -596,7 +596,8 @@
    -------------------------------------------------------------------------- */
 .waiting-card-container {
   width: 100%;
-  flex: 1 1 0;
+  /* 高度随内容增长，撑满可视区域后才在内部出现滚动条 */
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   background: var(--color-surface);
@@ -621,6 +622,15 @@
 .waiting-table .patient-name,
 .waiting-table .patient-demographics,
 .waiting-table td:nth-child(n + 4):not(:last-child) {
+  white-space: nowrap;
+}
+
+.waiting-table__head {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
 }
 

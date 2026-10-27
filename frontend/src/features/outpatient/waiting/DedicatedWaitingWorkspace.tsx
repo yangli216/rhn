@@ -327,7 +327,8 @@ export function DedicatedWaitingWorkspace({
           />
         ) : (
           <table className="waiting-table">
-            <thead>
+            {/* 无可见表头：列含义由内容自明，保留给读屏软件 */}
+            <thead className="waiting-table__head">
               <tr>
                 <th scope="col">排队号</th>
                 <th scope="col">患者</th>
