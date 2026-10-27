@@ -8,10 +8,10 @@ export { INSURANCE_MEDIA, InsuranceMockReadDialog, useInsuranceSimulator } from 
 export type { InsuranceMedia, InsuranceMediaRead, InsuranceReadHandler } from './InsuranceMockReadDialog'
 
 /** 挂号、收费共用的医保读卡入口；正式服务与 mock 服务的按钮完全一致，差异只在点击后的读取方式。 */
-export function InsuranceMediaButtons({ disabled, onRead }: { disabled?: boolean; onRead: (media: InsuranceMedia) => void }) {
+export function InsuranceMediaButtons({ disabled, size, onRead }: { disabled?: boolean; size?: 'sm'; onRead: (media: InsuranceMedia) => void }) {
   return <div className="insurance-media-buttons" role="group" aria-label="医保凭证读取">
     {(Object.keys(INSURANCE_MEDIA) as InsuranceMedia[]).map((media) =>
-      <Button key={media} variant="secondary" disabled={disabled} onClick={() => onRead(media)}>
+      <Button key={media} variant="secondary" size={size} disabled={disabled} onClick={() => onRead(media)}>
         <Icon name={INSURANCE_MEDIA[media].icon} /><span>{INSURANCE_MEDIA[media].label}</span>
       </Button>)}
   </div>

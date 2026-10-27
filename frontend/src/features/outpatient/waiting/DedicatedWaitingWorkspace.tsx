@@ -46,7 +46,7 @@ export interface DedicatedWaitingWorkspaceProps {
 function CardReadTools({ api, busy, onLocate }: { api: RhnApi; busy: boolean; onLocate: (resident: Resident) => void }) {
   const reader = useInsuranceMediaReader(api, ({ resident }) => { onLocate(resident); return undefined })
   return <>
-    <InsuranceMediaButtons disabled={busy} onRead={reader.open} />
+    <InsuranceMediaButtons size="sm" disabled={busy} onRead={reader.open} />
     {reader.dialog}
   </>
 }
