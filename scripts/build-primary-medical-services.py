@@ -15,7 +15,7 @@ from decimal import Decimal
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 EXCEL_PATH = os.path.join(ROOT, "docs", "基层医疗收费项目清单_综合医疗服务类.xlsx")
-# The published catalog is part of the squashed baseline (B1_128_0). Outputs go to .runtime/generated for review;
+# The published catalog is part of the squashed baseline (B1_130_0). Outputs go to .runtime/generated for review;
 # apply a change as a new migration with the next free version, never by rewriting a published file.
 PG_SQL_PATH = os.path.join(ROOT, ".runtime", "generated", "primary-medical-services", "migration", "V1_80_0__primary_care_medical_services.sql")
 ORA_SQL_PATH = os.path.join(ROOT, ".runtime", "generated", "primary-medical-services", "oracle", "V1_80_0__primary_care_medical_services.sql")

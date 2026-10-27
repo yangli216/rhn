@@ -1,4 +1,0 @@
--- 门诊排队叫号开关：默认启用；关闭后医生站隐藏叫号、重呼、过号操作，直接从候诊列表接诊（开始接诊时系统自动完成叫号）。
-insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
-select 362387869796911, ID_PARAM_CAT, 'outpatient.queue.calling-enabled', '启用排队叫号', '关闭后医生站不显示叫号、重呼、过号操作，医生直接从候诊列表选择患者接诊；开始接诊时系统自动完成叫号留痕。适用于不叫号的小型门诊。', 'BOOLEAN', 'SWITCH', '{"type":"boolean"}', 'true', '["ORGANIZATION","DEPARTMENT"]', 'BUSINESS', 1, 1, 0, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
-from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.direct-visit.enabled';

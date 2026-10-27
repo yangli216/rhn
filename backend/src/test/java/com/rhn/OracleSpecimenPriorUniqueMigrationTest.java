@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * H2/PostgreSQL 把空值视为互不相同，集成测试无法暴露，因此静态守护 Oracle 修复迁移。
  */
 class OracleSpecimenPriorUniqueMigrationTest {
-    private static final Path MIGRATION = Path.of("src/main/resources/db/oracle/V1_129_58__fix_specimen_prior_unique.sql");
+    private static final Path MIGRATION = Path.of("src/main/resources/db/oracle/B1_130_0__rhn_schema_and_metadata.sql");
 
     @Test
     void replaces_the_plain_unique_constraint_with_an_index_that_ignores_rows_without_a_prior_specimen() throws IOException {

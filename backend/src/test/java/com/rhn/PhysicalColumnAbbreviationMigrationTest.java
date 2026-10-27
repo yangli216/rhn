@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @ActiveProfiles("test")
 class PhysicalColumnAbbreviationMigrationTest {
-    private static final String BASELINE = "B1_128_0__rhn_schema_and_metadata.sql";
+    private static final String BASELINE = "B1_130_0__rhn_schema_and_metadata.sql";
 
     @Test
     void governed_abbreviation_renames_are_applied_by_the_flattened_baseline() throws Exception {
@@ -49,9 +49,8 @@ class PhysicalColumnAbbreviationMigrationTest {
                 + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
         var result = Flyway.configure().dataSource(url, "sa", "")
                 .locations("classpath:db/migration", "classpath:db/h2", "classpath:db/local")
-                // This manifest describes the flattened baseline. Later migrations may deliberately remove
-                // governed columns (e.g. SD_THERAP_CLASS); their final state is checked by DictionaryConformanceTest.
-                .target("1.128.0")
+                // Later migrations squashed into baseline deliberately removed governed columns (e.g. SD_THERAP_CLASS);
+                // their final state is checked by DictionaryConformanceTest.
                 .load().migrate();
         assertTrue(result.migrationsExecuted > 0, "重建基线必须执行迁移");
         try (Connection connection = DriverManager.getConnection(url, "sa", "")) {
@@ -69,10 +68,16 @@ class PhysicalColumnAbbreviationMigrationTest {
                 String table = row.get("table").asString().toUpperCase(Locale.ROOT);
                 var actual = columns.getOrDefault(table, new TreeSet<>());
                 assertFalse(actual.isEmpty(), () -> "重建库缺少重命名清单涉及的表：" + table);
-                assertTrue(actual.contains(row.get("after").asString().toUpperCase(Locale.ROOT)),
-                        () -> "重建库缺少重命名后的列：" + table + "." + row.get("after").asString());
-                assertFalse(actual.contains(row.get("before").asString().toUpperCase(Locale.ROOT)),
-                        () -> "重建库仍残留重命名前的列：" + table + "." + row.get("before").asString());
+                String before = row.get("before").asString().toUpperCase(Locale.ROOT);
+                String after = row.get("after").asString().toUpperCase(Locale.ROOT);
+                if ("RHN_BD_MED_WESTERN".equals(table) && "SD_THERAP_CLASS".equals(after)) {
+                    assertFalse(actual.contains(before), () -> "重建库仍残留重命名前的列：" + table + "." + before);
+                    continue;
+                }
+                assertTrue(actual.contains(after),
+                        () -> "重建库缺少重命名后的列：" + table + "." + after);
+                assertFalse(actual.contains(before),
+                        () -> "重建库仍残留重命名前的列：" + table + "." + before);
             }
         }
     }

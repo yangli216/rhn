@@ -2,49 +2,56 @@
 -- GENERATED FILE. Regenerate with scripts/schema-squash/SquashMigrations.java; do not edit by hand.
 -- Applies only to empty schemas; existing databases keep their applied history.
 -- Scope: schema plus standard metadata only; runtime business rows are excluded.
--- Target migration version: 1.128.0
+-- Target migration version: 1.130.0
 -- Source migrations:
---   backend/src/main/resources/db/migration/B1_84_0__rhn_schema_and_metadata.sql sha256=0072623fadfa0a1397aadf9015e2222525d600ce706e07e458cbb63bb30c699c
---   backend/src/main/resources/db/migration/V1_85_0__national_healthcare_security_icd10_catalog.sql sha256=39ec711939999819556a9564e0b8745add01f18c3c6f7884a3bbb33896daf0a9
---   backend/src/main/resources/db/migration/V1_86_0__backfill_clinical_service_profiles.sql sha256=c535eb9e804725153f072af3bd412ee650eff1a2c0e87be8a3a2d1aa8727362a
---   backend/src/main/resources/db/migration/V1_87_0__outpatient_plan_diagnosis_identity.sql sha256=ea0c30fa2df650ecc4e566267b3d86a7031689787e3cf83f9a32fb99bfb4bfc4
---   backend/src/main/resources/db/migration/V1_88_0__standard_specification_disposition.sql sha256=63b7bd46b018d861d8b0c5e2bb61d65faa8ea873cbbdc9bb3133707524cdc300
---   backend/src/main/resources/db/migration/V1_89_0__outpatient_plan_note_template_link.sql sha256=29bcceb8f0dd8d8598cdc96b47d377ec3412b1f1eee4ffffccabd389aadccaf2
---   backend/src/main/resources/db/migration/V1_90_0__catalog_decision_configuration.sql sha256=5750860d372a2de258c9630c8ae946a4e6dc3b28728b0836a30024b19bb246ca
---   backend/src/main/resources/db/migration/V1_92_0__shared_decision_business_scenes.sql sha256=fc970964eeb03cccb895a3fcbbe99cc8511e1d9b66ce0e7c093e6e7302aec67e
---   backend/src/main/resources/db/migration/V1_93_0__catalog_alias_and_group_search.sql sha256=f05704a043dd0c0c8fe3704d55e27350bb970909703b86723e3bf862cdf93076
---   backend/src/main/resources/db/migration/V1_94_0__clinical_catalog_optimization.sql sha256=b6169bd22cf54375e72f1e1ea43197d7f43a79afb31a16b41e6214a9b86421f7
---   backend/src/main/resources/db/migration/V1_95_0__a5_landscape_print_templates.sql sha256=0496496162a2c649a95dd6172bc0cbdc9dc80966117b18cc9d8aead1cdddd846
---   backend/src/main/resources/db/migration/V1_96_0__outpatient_plan_search_profile.sql sha256=745bec5676e9a94c0c9535d359b5653fa94b22a13191aeb1768079b546ab46f8
---   backend/src/main/resources/db/migration/V1_97_0__triage_unknown_consciousness.sql sha256=5c5e7ff6d747379f7deea0c0823f7cd56d17eea0db98516c8b5fd9b248fb1854
---   backend/src/main/resources/db/migration/V1_98_0__treatment_unknown_assessment.sql sha256=7e16599187502678602a523420008d84585a703c1120211da115a4365d255459
---   backend/src/main/resources/db/migration/V1_99_0__outpatient_paper_print_templates.sql sha256=16d2e13533750d37f2c1878f59ac0722ae33a664da6cde14a6d3bf58f140333e
---   backend/src/main/resources/db/migration/V1_100_0__resident_identifier_systems.sql sha256=3a7211dac15fff4199f3cf46f0f56cfbc3cef9eed3a2d9d9b8e3836cbf8b9806
---   backend/src/main/resources/db/migration/V1_101_0__diagnosis_unknown_domain.sql sha256=ba7be6a2fd7ff8f8173e6d18857cb76de09c58bdcd34a1d2950b8b62d82625e8
---   backend/src/main/resources/db/migration/V1_102_0__insurance_response_amount_provenance.sql sha256=516e73c2fc346f0c8df3db47324e1302871392c17d91adcc879a52ed3f16bd0e
---   backend/src/main/resources/db/migration/V1_103_0__common_investigation_aliases.sql sha256=f00d866d655b9aefa385564d638bea7d68b27ced49a9e4d8e73eb942aa884ce8
---   backend/src/main/resources/db/migration/V1_104_0__medication_safety_categories.sql sha256=57363c4ae3a6a650ece514d4241852b3a73a24ade442d9f7450fae96bb7fb71a
---   backend/src/main/resources/db/migration/V1_104_2__safety_category_catalog_linkage.sql sha256=25f9803f2f8ff4c8a14b314cd386d1139a7e0d14b187125fe14693a97cf787ee
---   backend/src/main/resources/db/migration/V1_105_0__medication_safety_category_governance.sql sha256=17ab48c9d6dd2b7a5d53d811365f4ad4bad6acc0e0b1de56b8ca4f875719eb88
---   backend/src/main/resources/db/migration/V1_106_0__triage_decision_scene.sql sha256=206ecc41ce0807ca44ffc4b31a8d0020f9c12017e981408d420d079e6c54269c
---   backend/src/main/resources/db/migration/V1_107_0__decision_runtime_observation.sql sha256=b8307752f9b9230614fcb49269864997c798b8f11ae6c1fd855c2eed0e71a0f9
---   backend/src/main/resources/db/migration/V1_108_0__primary_care_medication_safety_categories.sql sha256=061d4fe0430088cb870129735760085781d9f8a807fe8cc06c0ccbf37911f0cc
---   backend/src/main/resources/db/migration/V1_109_0__register_primary_care_parameterized_rules.sql sha256=1c608b047c69cdc738bcb299b4c49139cab53d7c5ccdc921909a5ae8da3ab95b
---   backend/src/main/resources/db/migration/V1_110_0__register_pregnancy_contraindication_rule.sql sha256=edce435d1bbb697a69875d1e6d347342c6397319d52b7f064dd1ec338e0bdadc
---   backend/src/main/resources/db/migration/V1_111_0__business_number_command_identity.sql sha256=b98fc2c1e58a8f670723619fdba28a317018d629c839b923530b6a7dc15ce069
---   backend/src/main/resources/db/migration/V1_112_0__institution_document_numbering.sql sha256=d6d3f66ba27a93386ed35076bd15816a50f5fa18db31884addbf704abec02329
---   backend/src/main/resources/db/migration/V1_113_0__business_maintenance_foundation.sql sha256=b110b5a5f2ea45b055d1cb18ff16a98abab4795bd409d2e20ede4f562eed5664
---   backend/src/main/resources/db/migration/V1_114_0__chronic_refill_decision_scene.sql sha256=1fa9f2d33b647dab95a88c0a35d2ee456e894c1308a3f09b231da979bf38f672
---   backend/src/main/resources/db/migration/V1_121_0__diagnostic_report_working_copy.sql sha256=ccd249ca071e568b7a82cbc99d9de413a119697b0d8b8d4ded51e61ca40f5c0e
---   backend/src/main/resources/db/migration/V1_122_0__diagnostic_queue_identity.sql sha256=8c98d68b0e4b743a150a9d84cdae23f656a6efc670a26ef21002325d453d0297
---   backend/src/main/resources/db/migration/V1_123_0__diagnostic_specimens_and_commands.sql sha256=61c0ff3959f3e43ee214fe1ddaa923edb49b080f9a4a4c24e17ee84813bc5b7f
---   backend/src/main/resources/db/migration/V1_124_0__diagnostic_action_permissions.sql sha256=a933005241b36d04ce067763295d3b4fd5f7cc49a94b750c38cd8cd94d9354b2
---   backend/src/main/resources/db/migration/V1_125_0__diagnostic_version_images.sql sha256=63ad3c649d25d252244cb970789c63f8c9d9ff936776cfaa46d871a744d583a0
---   backend/src/main/resources/db/migration/V1_126_0__diagnostic_print_tasks.sql sha256=3524866ad46b705a457663c9602761a5ff32dcb56f89ea9d70b711e5674a3b5b
---   backend/src/main/resources/db/migration/V1_127_0__diagnostic_report_templates.sql sha256=d3d78566f403d0438f65aaf70884c4944418fb20b8b5e69c80e427c6dfba2add
+--   backend/src/main/resources/db/migration/B1_128_0__rhn_schema_and_metadata.sql sha256=791e85b68bd79dbbc35798f9bf6e48d8fe536f7b07606c923acd9fe9873ace31
+--   backend/src/main/resources/db/migration/V1_129_0__standardize_service_classification.sql sha256=dc1ddd74fd6fca87910629ce367e8fbf0b18b71187e44b3d1414d3d88ac22047
+--   backend/src/main/resources/db/migration/V1_129_2__dictionary_content_governance.sql sha256=94c2d8b3e452416335d0d72de41146949773b56c73a44b080932fa88094f46f1
+--   backend/src/main/resources/db/migration/V1_129_5__service_subtype_dictionary.sql sha256=911d3a1ecd439fc9d3ed87fd001862d8b973b017e240cd02b5a89c38c36a892f
+--   backend/src/main/resources/db/migration/V1_129_6__coded_free_text_columns.sql sha256=a1841e459047f4dabbdb0e6330f088b04e6fc27c53a34a09c510dd84344e6a6a
+--   backend/src/main/resources/db/migration/V1_129_8__billing_terminal_scene_and_tender_type.sql sha256=4fb5e051103dc34cf0dd8a0e34611e99172c7a0b462bb74934804ca8b934fa1d
+--   backend/src/main/resources/db/migration/V1_129_11__skin_test_solution_mode_labels.sql sha256=b509bb12f55e991d26d6aca3572d2ef43960bd00bffd618c2880209803aa74de
+--   backend/src/main/resources/db/migration/V1_129_12__outpatient_blood_pressure_requirement.sql sha256=91e680c33c4070328996bd9d0cb7f1cd399734bb6a3342612bbe5ee856296217
+--   backend/src/main/resources/db/migration/V1_129_13__organization_change_history.sql sha256=4439eab03e88bfb89bc6eaff4356b713440a1d2cf296fc53562a841c9a4f5757
+--   backend/src/main/resources/db/migration/V1_129_14__organization_confirmation_results.sql sha256=364818116dff9353fb8b7c3bda2d90b5726fa8171b1f1e3d074587ac0a783478
+--   backend/src/main/resources/db/migration/V1_129_15__billing_relief_policy.sql sha256=29c588b24df1299910c231e9bfed6d84991a5945910aa2c3cf23f84edd8fd9cd
+--   backend/src/main/resources/db/migration/V1_129_16__billing_relief_manual_and_query.sql sha256=6b28fbc105e366e097a71e03458dec3058205c4036f76cb13794edcc1a00ebce
+--   backend/src/main/resources/db/migration/V1_129_17__payment_channel_configuration.sql sha256=0552fe178ac3a1549cbccb8f8adacc0ae3a1baea0b25dd8b56dde2b12dabf61c
+--   backend/src/main/resources/db/migration/V1_129_20__cryptographic_ca_foundation.sql sha256=e2321903c211fb5d87b210f2c78b3ce40e7939657ef19fd26f3edc6899ecce27
+--   backend/src/main/resources/db/migration/V1_129_21__second_factor_login_policy.sql sha256=7d780a19179387ce838be0406e63d17eb9f2f4e9486ddda5e12db2c3d5b66327
+--   backend/src/main/resources/db/migration/V1_129_22__insurance_probe_permission.sql sha256=d9aff508200d429902ca9643b1d33c0ef942e87f31a0256a031fe4200f017a99
+--   backend/src/main/resources/db/migration/V1_129_23__registration_insurance_settlement_timing.sql sha256=79c639ba33450aed605dc98b63514782ed93526c0d1f24eda23261595c708bb7
+--   backend/src/main/resources/db/migration/V1_129_24__payment_transaction_reconciliation.sql sha256=79d03c07af001a18c9fa03d5ef1f3531f15aabf172c769caebdeff9c40d03523
+--   backend/src/main/resources/db/migration/V1_129_40__practitioner_qualification.sql sha256=b8a08bd8851a22c239f54938a9b1803e6171673b3f249c10780cafcbe1c2f37b
+--   backend/src/main/resources/db/migration/V1_129_41__organization_personnel_menu_split.sql sha256=747bde3687800ebcda5ae1a90ed675af77a51682299348d6bccea217c98cbe01
+--   backend/src/main/resources/db/migration/V1_129_42__department_default_roles.sql sha256=06681242340bce8aa923c42b76becf48b75c872340a03f9139fb0619cffad694
+--   backend/src/main/resources/db/migration/V1_129_45__outpatient_order_review_and_split_policy.sql sha256=b982424e9574b77713c98209ea02b83408d53787c09ca5cac422446a59951155
+--   backend/src/main/resources/db/migration/V1_129_46__outpatient_service_request_documents.sql sha256=29e08444e76b4c7f1979645e15a816e77dad32e7e648c92158b9a9e11e5b7991
+--   backend/src/main/resources/db/migration/V1_129_47__outpatient_select_parameter_dictionaries.sql sha256=96fb418091b583f91319c6146714366fbad20fb08711acf813d6c0b092046ac7
+--   backend/src/main/resources/db/migration/V1_129_48__medication_dispense_cancel_type.sql sha256=dcd5c137d571cb52c4ecb9790badf45f31133dcfc361c86a6000a90dc92650e2
+--   backend/src/main/resources/db/migration/V1_129_49__personnel_dictionary_category.sql sha256=1b70a7570ce9a6c0cec3f577618227993947dcadacbb53245eaaa40b7ba095bf
+--   backend/src/main/resources/db/migration/V1_129_50__desktop_link_print_delivery.sql sha256=a8276b8271655f14f8231dd779fa04ed8ba7f9d44e149a35db8e6c128c8e9b1a
+--   backend/src/main/resources/db/migration/V1_129_51__outpatient_service_request_body_sites.sql sha256=fa3d955afdf8b5fb21171f1d94046379942e42e490d44853e173ec2114b58d10
+--   backend/src/main/resources/db/migration/V1_129_52__position_type_billing.sql sha256=e6fd6868214388e41b7ff4db0e21850241b03a3250d1c1cb055d2d8ab47da764
+--   backend/src/main/resources/db/migration/V1_129_54__medication_single_order_default_and_correction.sql sha256=a08a368a0af37d6329ee13145101eac57e7d79e4f2738f867a4a2a9ddf6092f9
+--   backend/src/main/resources/db/migration/V1_129_55__lingdt_decision_provider.sql sha256=c66d114785149f62a74d18b7622cbc84104e6b3483e08c513c5149a770f0d8f3
+--   backend/src/main/resources/db/migration/V1_129_56__billing_settlement_mode.sql sha256=deb467d7338f9a4370ac757f86c4d5da12881920e25777b1001d93c8914e507d
+--   backend/src/main/resources/db/migration/V1_129_57__record_quality_decision_feedback.sql sha256=f696d58622ccb61c47c1c801832393b295383c9f955c5cab6816b70f5bb81e80
+--   backend/src/main/resources/db/migration/V1_129_63__sex_hormone_laboratory_services.sql sha256=af475270615b2f1ed337fb12704d525c6b3d692c307e91fe84c60a633e417d4e
+--   backend/src/main/resources/db/migration/V1_129_65__clinical_template_order_set.sql sha256=8571e1c38295c484052ba67ccd49ebe0a14ec23bbe6c2a5c907afe6b4f91119b
+--   backend/src/main/resources/db/migration/V1_129_67__examination_order_charge_lines.sql sha256=f73512539866392ebd181347fbf039a4ede1ce74d1b31c4d3827c0a40ce7982b
+--   backend/src/main/resources/db/migration/V1_129_68__examination_tiered_pricing_and_body_sites.sql sha256=2cf9185fd28f857b1617a210223deea67d036dc9c98a5c4ab54d9ade034d9350
+--   backend/src/main/resources/db/migration/V1_129_69__examination_technique_and_contrast_phase.sql sha256=271b1bba0a023853038ad0e690dc969056be5e0765a055289d8958f84e17d02c
+--   backend/src/main/resources/db/migration/V1_129_72__medication_alias.sql sha256=51959e68498ebdf9628b1a5eb282098219a2fe9c51ce72692181d5b65a2ef9cd
+--   backend/src/main/resources/db/migration/V1_129_73__dictionary_conformance.sql sha256=e713ccbf33a99bb114de7eef32aad50d9905cf1d47d72aa2deecd3c8662affe7
+--   backend/src/main/resources/db/migration/V1_129_74__examination_contrast_phase_column_rename.sql sha256=5ad4513413822fb6f567f214e457c5c7e13599067382c7226023b07c24426b35
+--   backend/src/main/resources/db/migration/V1_129_75__examination_site_search.sql sha256=55651bbcf1375c9d8cd389b8bcece77ec66bd17511e8eeed0e68180a274f7640
+--   backend/src/main/resources/db/migration/V1_129_76__outpatient_queue_calling_switch.sql sha256=ecb4d011195d0f714cc02006d3c2e59a5f6892d8ce901f77605050351abd852c
+--   backend/src/main/resources/db/migration/V1_129_77__outpatient_encounter_takeover_switch.sql sha256=691e60147be9bf1c993380e0f4ce09ac195c5ead05304cabbb9b0b4580a69007
+--   backend/src/main/resources/db/migration/V1_129_78__examination_body_site_expansion.sql sha256=0c03c1fd208b532ec13e381c253abcfa104e9f24617e85ac2cc1a0ab45477dfa
 
 -- =============================================================================
--- Source: B1_84_0__rhn_schema_and_metadata.sql
+-- Source: B1_128_0__rhn_schema_and_metadata.sql
 -- =============================================================================
 create table RHN_AI_SUGGEST (
     ID_AI_SUGGEST bigint,
@@ -76602,3 +76609,2998 @@ update RHN_BD_MED set DEFAULT_ROUTE = case
   when NA_MED like '%耳%' then 'OTIC'
   else null end, ID_CONCEPT_DEFAULT_ROUTE = null
 where CD_MED like 'MED-2026-%' and DOSE_FORM = 'DROPS';
+
+-- =============================================================================
+-- Source: V1_129_0__standardize_service_classification.sql
+-- =============================================================================
+-- Service subtype (RHN_BD_SVC_ITEM.SD_SVC_SUBTYPE) is a code: the UI labels it (SERVICE_SUBTYPE_MAP) and rules depend on it
+-- (outpatient scheduling requires OUTPATIENT_VISIT). The 1.80 primary-care catalog wrote the price list's Chinese categories
+-- into it instead. Map the categories that have a code, and fill the examination type used for execution-department routing.
+-- Categories without a code (e.g. 导尿, 护理费, 挂号费 and surcharges) keep their text until the vocabulary is decided.
+
+-- Laboratory: price-list categories -> laboratory discipline codes.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'HEMATOLOGY' where SD_SVC_TYPE = 'LABORATORY'
+  and SD_SVC_SUBTYPE in ('血液一般', '凝血检查', '血型与配血', '尿液检查', '粪便检查', '体液分泌物', '寄生虫检查');
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'BIOCHEMISTRY' where SD_SVC_TYPE = 'LABORATORY'
+  and SD_SVC_SUBTYPE in ('肝功能', '肾功能', '电解质', '血脂检查', '糖代谢', '心肌酶/心脏标志物', '其他血清酶', '蛋白质测定');
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'IMMUNOASSAY' where SD_SVC_TYPE = 'LABORATORY'
+  and SD_SVC_SUBTYPE in ('感染免疫', '免疫功能', '自身免疫', '肿瘤标志物', '激素检查', '维生素/叶酸');
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'MICROBIOLOGY' where SD_SVC_TYPE = 'LABORATORY'
+  and SD_SVC_SUBTYPE in ('微生物镜检/培养', '药敏试验');
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'MOLECULAR' where SD_SVC_TYPE = 'LABORATORY' and SD_SVC_SUBTYPE = '分子生物学';
+
+-- Examination: modality codes, shared with the BD_EXAM_TYPE dictionary.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'RADIOGRAPHY' where SD_SVC_TYPE = 'EXAMINATION'
+  and SD_SVC_SUBTYPE in ('X线摄影', 'X线透视', 'X线造影');
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'CT' where SD_SVC_TYPE = 'EXAMINATION' and SD_SVC_SUBTYPE = 'CT扫描';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'MRI' where SD_SVC_TYPE = 'EXAMINATION' and SD_SVC_SUBTYPE = '磁共振MRI';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'ULTRASOUND' where SD_SVC_TYPE = 'EXAMINATION'
+  and SD_SVC_SUBTYPE in ('B超检查', '彩超检查', '心脏超声', 'A超', '多普勒(TCD)');
+update RHN_BD_SVC_ITEM set SD_EXAM_TYPE = SD_SVC_SUBTYPE where SD_SVC_TYPE = 'EXAMINATION' and SD_EXAM_TYPE is null
+  and SD_SVC_SUBTYPE in ('RADIOGRAPHY', 'CT', 'MRI', 'ULTRASOUND');
+
+-- Visit fees: only the base outpatient/inpatient consultation fees, never surcharges (加收) or observation fees.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'OUTPATIENT_VISIT' where SD_SVC_TYPE = 'PROCEDURE' and SD_SVC_SUBTYPE = '诊查费'
+  and ID_CATALOG_ITEM in (select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM
+                          where CD_CATALOG_ITEM in ('11020000100', '11020000111', '11020000102', '11020000103'));
+-- Inpatient consultation fees were generated with outpatient usage.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'INPATIENT_VISIT', SD_USAGE_TYPE = 'INPATIENT' where SD_SVC_TYPE = 'PROCEDURE'
+  and SD_SVC_SUBTYPE = '诊查费'
+  and ID_CATALOG_ITEM in (select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM
+                          where CD_CATALOG_ITEM in ('11020000501', '11020000502', '11020000503', '11020000504'));
+
+-- Treatment and bed categories that already have a code.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'INJECTION' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '注射';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'NEBULIZATION' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '雾化吸入';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'DRESSING' where SD_SVC_TYPE = 'TREATMENT'
+  and SD_SVC_SUBTYPE = '换药（包括拆线、术后清创换药）';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'BED_DAY' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '床位费';
+
+-- =============================================================================
+-- Source: V1_129_2__dictionary_content_governance.sql
+-- =============================================================================
+-- Dictionary content governance (generated; see artifacts/catalog-standardization/基础数据与字典走查-2026-10-14.md).
+-- Item codes are never renamed or reused: standard codes are added, legacy items disabled, stored values migrated.
+-- Every change is appended to RHN_BD_DICT_CHG like other dictionary maintenance.
+
+-- 1. Retire duplicate or rule-violating dictionaries (definitions kept for history).
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911001, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "ORG_DEPARTMENT_TYPE", "status": "ACTIVE"}', '{"code": "ORG_DEPARTMENT_TYPE", "status": "INACTIVE"}', '与 DEPT_TYPE 同为《医疗机构诊疗科目名录》，统一使用 DEPT_TYPE', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_DEPARTMENT_TYPE';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'ORG_DEPARTMENT_TYPE' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911002, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "PI_IDENTIFIER_TYPE", "status": "ACTIVE"}', '{"code": "PI_IDENTIFIER_TYPE", "status": "INACTIVE"}', '与 PI_RESIDENT_IDENTIFIER_SYSTEM 重复，且无业务引用', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_IDENTIFIER_TYPE';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_IDENTIFIER_TYPE' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911003, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "DEPT_CAPABILITY_TYPE", "status": "ACTIVE"}', '{"code": "DEPT_CAPABILITY_TYPE", "status": "INACTIVE"}', '与 ORG_CAPABILITY_TYPE 完全相同；科室属组织单元，统一使用 ORG_CAPABILITY_TYPE', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'DEPT_CAPABILITY_TYPE';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'DEPT_CAPABILITY_TYPE' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911004, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "COMMON_ENABLE_STATUS", "status": "ACTIVE"}', '{"code": "COMMON_ENABLE_STATUS", "status": "INACTIVE"}', '万能状态字典违反命名规范，且无业务引用；真假语义使用布尔字段', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'COMMON_ENABLE_STATUS';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'COMMON_ENABLE_STATUS' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911005, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "COMMON_VALIDITY_STATUS", "status": "ACTIVE"}', '{"code": "COMMON_VALIDITY_STATUS", "status": "INACTIVE"}', '万能状态字典违反命名规范，且无业务引用；真假语义使用布尔字段', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'COMMON_VALIDITY_STATUS';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'COMMON_VALIDITY_STATUS' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911006, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "COMMON_VISIBILITY_STATUS", "status": "ACTIVE"}', '{"code": "COMMON_VISIBILITY_STATUS", "status": "INACTIVE"}', '万能状态字典违反命名规范，且无业务引用；真假语义使用布尔字段', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'COMMON_VISIBILITY_STATUS';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'COMMON_VISIBILITY_STATUS' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911007, null, d.ID_DICT_DEF, null, 'DISABLE_DICT', 'DICT', '{"code": "COMMON_YES_NO", "status": "ACTIVE"}', '{"code": "COMMON_YES_NO", "status": "INACTIVE"}', '是否语义使用布尔字段，不建字典；无业务引用', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'COMMON_YES_NO';
+update RHN_BD_DICT_DEF set SD_STATUS = 'INACTIVE', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'COMMON_YES_NO' and SD_STATUS = 'ACTIVE';
+
+-- 2. National standard codes and missing items.
+-- PI_MARITAL_STATUS: GB/T 2261.2-2003 婚姻状况代码
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910001, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '10', '未婚', 'GB/T 2261.2-2003 婚姻状况代码', 10, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '10');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911008, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '10'), 'ADD_ITEM', 'ITEM', null, '{"code": "10", "name": "未婚", "sortOrder": 10, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910002, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '20', '已婚', 'GB/T 2261.2-2003 婚姻状况代码', 20, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '20');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911009, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '20'), 'ADD_ITEM', 'ITEM', null, '{"code": "20", "name": "已婚", "sortOrder": 20, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910003, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '21', '初婚', 'GB/T 2261.2-2003 婚姻状况代码', 21, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '21');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911010, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '21'), 'ADD_ITEM', 'ITEM', null, '{"code": "21", "name": "初婚", "sortOrder": 21, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910004, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '22', '再婚', 'GB/T 2261.2-2003 婚姻状况代码', 22, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '22');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911011, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '22'), 'ADD_ITEM', 'ITEM', null, '{"code": "22", "name": "再婚", "sortOrder": 22, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910005, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '23', '复婚', 'GB/T 2261.2-2003 婚姻状况代码', 23, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '23');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911012, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '23'), 'ADD_ITEM', 'ITEM', null, '{"code": "23", "name": "复婚", "sortOrder": 23, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910006, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '30', '丧偶', 'GB/T 2261.2-2003 婚姻状况代码', 30, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '30');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911013, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '30'), 'ADD_ITEM', 'ITEM', null, '{"code": "30", "name": "丧偶", "sortOrder": 30, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910007, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '40', '离婚', 'GB/T 2261.2-2003 婚姻状况代码', 40, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '40');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911014, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '40'), 'ADD_ITEM', 'ITEM', null, '{"code": "40", "name": "离婚", "sortOrder": 40, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910008, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'), '90', '未说明的婚姻状况', 'GB/T 2261.2-2003 婚姻状况代码', 90, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and i.CD_DICT_ITEM = '90');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911015, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '90'), 'ADD_ITEM', 'ITEM', null, '{"code": "90", "name": "未说明的婚姻状况", "sortOrder": 90, "status": "ACTIVE"}', 'GB/T 2261.2-2003 婚姻状况代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911016, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '1'), 'DISABLE_ITEM', 'ITEM', '{"code": "1", "status": "ACTIVE"}', '{"code": "1", "status": "INACTIVE"}', '由 GB/T 2261.2-2003 婚姻状况代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and CD_DICT_ITEM = '1' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911017, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '2'), 'DISABLE_ITEM', 'ITEM', '{"code": "2", "status": "ACTIVE"}', '{"code": "2", "status": "INACTIVE"}', '由 GB/T 2261.2-2003 婚姻状况代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and CD_DICT_ITEM = '2' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911018, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '3'), 'DISABLE_ITEM', 'ITEM', '{"code": "3", "status": "ACTIVE"}', '{"code": "3", "status": "INACTIVE"}', '由 GB/T 2261.2-2003 婚姻状况代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and CD_DICT_ITEM = '3' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911019, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '4'), 'DISABLE_ITEM', 'ITEM', '{"code": "4", "status": "ACTIVE"}', '{"code": "4", "status": "INACTIVE"}', '由 GB/T 2261.2-2003 婚姻状况代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and CD_DICT_ITEM = '4' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911020, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '9'), 'DISABLE_ITEM', 'ITEM', '{"code": "9", "status": "ACTIVE"}', '{"code": "9", "status": "INACTIVE"}', '由 GB/T 2261.2-2003 婚姻状况代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_MARITAL_STATUS';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS') and CD_DICT_ITEM = '9' and SD_STATUS = 'ACTIVE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_MARITAL_STATUS';
+-- PI_BLOOD_TYPE: WS 364.9 CV04.50.005 ABO 血型代码
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910009, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'), '1', 'A 型', 'WS 364.9 CV04.50.005 ABO 血型代码', 10, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and i.CD_DICT_ITEM = '1');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911021, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '1'), 'ADD_ITEM', 'ITEM', null, '{"code": "1", "name": "A 型", "sortOrder": 10, "status": "ACTIVE"}', 'WS 364.9 CV04.50.005 ABO 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910010, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'), '2', 'B 型', 'WS 364.9 CV04.50.005 ABO 血型代码', 20, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and i.CD_DICT_ITEM = '2');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911022, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '2'), 'ADD_ITEM', 'ITEM', null, '{"code": "2", "name": "B 型", "sortOrder": 20, "status": "ACTIVE"}', 'WS 364.9 CV04.50.005 ABO 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910011, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'), '3', 'O 型', 'WS 364.9 CV04.50.005 ABO 血型代码', 30, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and i.CD_DICT_ITEM = '3');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911023, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '3'), 'ADD_ITEM', 'ITEM', null, '{"code": "3", "name": "O 型", "sortOrder": 30, "status": "ACTIVE"}', 'WS 364.9 CV04.50.005 ABO 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910012, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'), '4', 'AB 型', 'WS 364.9 CV04.50.005 ABO 血型代码', 40, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and i.CD_DICT_ITEM = '4');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911024, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '4'), 'ADD_ITEM', 'ITEM', null, '{"code": "4", "name": "AB 型", "sortOrder": 40, "status": "ACTIVE"}', 'WS 364.9 CV04.50.005 ABO 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910013, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'), '5', '不详', 'WS 364.9 CV04.50.005 ABO 血型代码', 50, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and i.CD_DICT_ITEM = '5');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911025, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '5'), 'ADD_ITEM', 'ITEM', null, '{"code": "5", "name": "不详", "sortOrder": 50, "status": "ACTIVE"}', 'WS 364.9 CV04.50.005 ABO 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911026, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'A'), 'DISABLE_ITEM', 'ITEM', '{"code": "A", "status": "ACTIVE"}', '{"code": "A", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.005 ABO 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and CD_DICT_ITEM = 'A' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911027, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'B'), 'DISABLE_ITEM', 'ITEM', '{"code": "B", "status": "ACTIVE"}', '{"code": "B", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.005 ABO 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and CD_DICT_ITEM = 'B' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911028, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'AB'), 'DISABLE_ITEM', 'ITEM', '{"code": "AB", "status": "ACTIVE"}', '{"code": "AB", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.005 ABO 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and CD_DICT_ITEM = 'AB' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911029, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'O'), 'DISABLE_ITEM', 'ITEM', '{"code": "O", "status": "ACTIVE"}', '{"code": "O", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.005 ABO 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and CD_DICT_ITEM = 'O' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911030, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'UNKNOWN'), 'DISABLE_ITEM', 'ITEM', '{"code": "UNKNOWN", "status": "ACTIVE"}', '{"code": "UNKNOWN", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.005 ABO 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_BLOOD_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE') and CD_DICT_ITEM = 'UNKNOWN' and SD_STATUS = 'ACTIVE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_BLOOD_TYPE';
+-- PI_RH_TYPE: WS 364.9 CV04.50.020 Rh 血型代码
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910014, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE'), '1', 'Rh 阴性', 'WS 364.9 CV04.50.020 Rh 血型代码', 10, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE') and i.CD_DICT_ITEM = '1');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911031, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '1'), 'ADD_ITEM', 'ITEM', null, '{"code": "1", "name": "Rh 阴性", "sortOrder": 10, "status": "ACTIVE"}', 'WS 364.9 CV04.50.020 Rh 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_RH_TYPE';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910015, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE'), '2', 'Rh 阳性', 'WS 364.9 CV04.50.020 Rh 血型代码', 20, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE') and i.CD_DICT_ITEM = '2');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911032, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '2'), 'ADD_ITEM', 'ITEM', null, '{"code": "2", "name": "Rh 阳性", "sortOrder": 20, "status": "ACTIVE"}', 'WS 364.9 CV04.50.020 Rh 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_RH_TYPE';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910016, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE'), '3', '不详', 'WS 364.9 CV04.50.020 Rh 血型代码', 30, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE') and i.CD_DICT_ITEM = '3');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911033, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = '3'), 'ADD_ITEM', 'ITEM', null, '{"code": "3", "name": "不详", "sortOrder": 30, "status": "ACTIVE"}', 'WS 364.9 CV04.50.020 Rh 血型代码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_RH_TYPE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911034, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'POSITIVE'), 'DISABLE_ITEM', 'ITEM', '{"code": "POSITIVE", "status": "ACTIVE"}', '{"code": "POSITIVE", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.020 Rh 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_RH_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE') and CD_DICT_ITEM = 'POSITIVE' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911035, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'NEGATIVE'), 'DISABLE_ITEM', 'ITEM', '{"code": "NEGATIVE", "status": "ACTIVE"}', '{"code": "NEGATIVE", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.020 Rh 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_RH_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE') and CD_DICT_ITEM = 'NEGATIVE' and SD_STATUS = 'ACTIVE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911036, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'UNKNOWN'), 'DISABLE_ITEM', 'ITEM', '{"code": "UNKNOWN", "status": "ACTIVE"}', '{"code": "UNKNOWN", "status": "INACTIVE"}', '由 WS 364.9 CV04.50.020 Rh 血型代码 替代', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PI_RH_TYPE';
+update RHN_BD_DICT_ITEM set SD_STATUS = 'INACTIVE', SN_SORT = SN_SORT + 900 where ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE') and CD_DICT_ITEM = 'UNKNOWN' and SD_STATUS = 'ACTIVE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'PI_RH_TYPE';
+-- BD_SERVICE_TYPE: 补齐已用于床位、体检、公卫等收费项目的类型
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910017, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE'), 'OTHER', '其他服务', '补齐已用于床位、体检、公卫等收费项目的类型', 80, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE') and i.CD_DICT_ITEM = 'OTHER');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911037, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'OTHER'), 'ADD_ITEM', 'ITEM', null, '{"code": "OTHER", "name": "其他服务", "sortOrder": 80, "status": "ACTIVE"}', '补齐已用于床位、体检、公卫等收费项目的类型', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_SERVICE_TYPE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE';
+-- BD_CONCEPT_TYPE: 补齐术语库通用（非临床）概念类型
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910018, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_CONCEPT_TYPE'), 'CONCEPT', '通用概念', '补齐术语库通用（非临床）概念类型', 60, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_CONCEPT_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_CONCEPT_TYPE') and i.CD_DICT_ITEM = 'CONCEPT');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911038, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'CONCEPT'), 'ADD_ITEM', 'ITEM', null, '{"code": "CONCEPT", "name": "通用概念", "sortOrder": 60, "status": "ACTIVE"}', '补齐术语库通用（非临床）概念类型', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_CONCEPT_TYPE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_CONCEPT_TYPE';
+-- BD_ALIAS_TYPE: 补齐术语别名中的机构本地编码
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869910019, (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_ALIAS_TYPE'), 'LOCAL_CODE', '本地编码', '补齐术语别名中的机构本地编码', 60, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_ALIAS_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_ALIAS_TYPE') and i.CD_DICT_ITEM = 'LOCAL_CODE');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911039, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'LOCAL_CODE'), 'ADD_ITEM', 'ITEM', null, '{"code": "LOCAL_CODE", "name": "本地编码", "sortOrder": 60, "status": "ACTIVE"}', '补齐术语别名中的机构本地编码', 'v1.129.2:dictionary-content-governance', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_ALIAS_TYPE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_ALIAS_TYPE';
+
+-- 3. Stored values follow the standard codes.
+update RHN_PI_PAT_DEMO_PROF set CD_MARITAL_STATUS = '10' where CD_MARITAL_STATUS = '1';
+update RHN_PI_PAT_DEMO_PROF set CD_MARITAL_STATUS = '20' where CD_MARITAL_STATUS = '2';
+update RHN_PI_PAT_DEMO_PROF set CD_MARITAL_STATUS = '30' where CD_MARITAL_STATUS = '3';
+update RHN_PI_PAT_DEMO_PROF set CD_MARITAL_STATUS = '40' where CD_MARITAL_STATUS = '4';
+update RHN_PI_PAT_DEMO_PROF set CD_MARITAL_STATUS = '90' where CD_MARITAL_STATUS = '9';
+update RHN_PI_PAT_DEMO_PROF set CD_BLOOD_TYPE = '1' where CD_BLOOD_TYPE = 'A';
+update RHN_PI_PAT_DEMO_PROF set CD_BLOOD_TYPE = '2' where CD_BLOOD_TYPE = 'B';
+update RHN_PI_PAT_DEMO_PROF set CD_BLOOD_TYPE = '3' where CD_BLOOD_TYPE = 'O';
+update RHN_PI_PAT_DEMO_PROF set CD_BLOOD_TYPE = '4' where CD_BLOOD_TYPE = 'AB';
+update RHN_PI_PAT_DEMO_PROF set CD_BLOOD_TYPE = '5' where CD_BLOOD_TYPE = 'UNKNOWN';
+update RHN_PI_PAT_DEMO_PROF set CD_RH_TYPE = '1' where CD_RH_TYPE = 'NEGATIVE';
+update RHN_PI_PAT_DEMO_PROF set CD_RH_TYPE = '2' where CD_RH_TYPE = 'POSITIVE';
+update RHN_PI_PAT_DEMO_PROF set CD_RH_TYPE = '3' where CD_RH_TYPE = 'UNKNOWN';
+
+-- =============================================================================
+-- Source: V1_129_5__service_subtype_dictionary.sql
+-- =============================================================================
+-- Service subtype (RHN_BD_SVC_ITEM.SD_SVC_SUBTYPE) becomes the platform dictionary BD_SERVICE_SUBTYPE (generated).
+-- Groups mirror BD_SERVICE_TYPE; leaves are selectable and must belong to the item's service type. Rules depend on
+-- the OUTPATIENT_SCHEDULABLE attribute, not on item codes. Remaining price-list categories are mapped to codes, and
+-- general medical services (price chapter 11: registration, visits, beds...) get their own service type.
+
+-- 0. Service type for general medical services, previously filed under 处置, 治疗 and 其他服务.
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) select 362387869914099, ID_DICT_DEF, 'GENERAL_MEDICAL', '一般诊疗服务', '挂号、诊查、院前急救、体检、救护车、床位、会诊与监护等一般医疗服务（价格项目第 11 类）', 5, 'ACTIVE', null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) select 362387869915001, null, ID_DICT_DEF, 362387869914099, 'ADD_ITEM', 'ITEM', null, '{"code": "GENERAL_MEDICAL", "name": "一般诊疗服务", "sortOrder": 5, "status": "ACTIVE"}', '挂号、诊查、床位等一般医疗服务不属于临床处置或治疗', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, ID_DICT_CAT, null from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE';
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_SERVICE_TYPE';
+
+-- 1. Dictionary, items and attribute.
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869914001, 0, 'PLATFORM', 'PLATFORM', null, 'BD_SERVICE_SUBTYPE', '诊疗项目子类', '诊疗项目在其类型下的细分；父级为诊疗项目类型，只能选择末级子类。', 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, true, 362387869840006);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915002, null, 362387869914001, null, 'CREATE_DICT', 'DICT', null, '{"code": "BD_SERVICE_SUBTYPE", "name": "诊疗项目子类", "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914101, 362387869914001, 'GENERAL_MEDICAL', '一般诊疗服务', '诊疗项目类型分组', 5, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915003, null, 362387869914001, 362387869914101, 'ADD_ITEM', 'ITEM', null, '{"code": "GENERAL_MEDICAL", "name": "一般诊疗服务", "parentCode": null, "sortOrder": 5, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914102, 362387869914001, 'LABORATORY', '检验', '诊疗项目类型分组', 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915004, null, 362387869914001, 362387869914102, 'ADD_ITEM', 'ITEM', null, '{"code": "LABORATORY", "name": "检验", "parentCode": null, "sortOrder": 10, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914103, 362387869914001, 'EXAMINATION', '检查', '诊疗项目类型分组', 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915005, null, 362387869914001, 362387869914103, 'ADD_ITEM', 'ITEM', null, '{"code": "EXAMINATION", "name": "检查", "parentCode": null, "sortOrder": 20, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914104, 362387869914001, 'TREATMENT', '治疗', '诊疗项目类型分组', 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915006, null, 362387869914001, 362387869914104, 'ADD_ITEM', 'ITEM', null, '{"code": "TREATMENT", "name": "治疗", "parentCode": null, "sortOrder": 40, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914105, 362387869914001, 'NURSING', '护理', '诊疗项目类型分组', 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915007, null, 362387869914001, 362387869914105, 'ADD_ITEM', 'ITEM', null, '{"code": "NURSING", "name": "护理", "parentCode": null, "sortOrder": 50, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914106, 362387869914001, 'OTHER', '其他服务', '诊疗项目类型分组', 80, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915008, null, 362387869914001, 362387869914106, 'ADD_ITEM', 'ITEM', null, '{"code": "OTHER", "name": "其他服务", "parentCode": null, "sortOrder": 80, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914107, 362387869914001, 'HEMATOLOGY', '血液体液检测', '血液一般、凝血、血型配血、尿液、粪便、体液及寄生虫检查', 1010, 'ACTIVE', 362387869914102);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915009, null, 362387869914001, 362387869914107, 'ADD_ITEM', 'ITEM', null, '{"code": "HEMATOLOGY", "name": "血液体液检测", "parentCode": "LABORATORY", "sortOrder": 1010, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914108, 362387869914001, 'BIOCHEMISTRY', '生化检测', '肝肾功能、电解质、血脂、糖代谢、心肌标志物、酶学及蛋白测定', 1020, 'ACTIVE', 362387869914102);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915010, null, 362387869914001, 362387869914108, 'ADD_ITEM', 'ITEM', null, '{"code": "BIOCHEMISTRY", "name": "生化检测", "parentCode": "LABORATORY", "sortOrder": 1020, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914109, 362387869914001, 'IMMUNOASSAY', '免疫检测', '感染免疫、免疫功能、自身免疫、肿瘤标志物、激素及维生素检测', 1030, 'ACTIVE', 362387869914102);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915011, null, 362387869914001, 362387869914109, 'ADD_ITEM', 'ITEM', null, '{"code": "IMMUNOASSAY", "name": "免疫检测", "parentCode": "LABORATORY", "sortOrder": 1030, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914110, 362387869914001, 'MICROBIOLOGY', '微生物检测', '微生物镜检、培养及药敏试验', 1040, 'ACTIVE', 362387869914102);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915012, null, 362387869914001, 362387869914110, 'ADD_ITEM', 'ITEM', null, '{"code": "MICROBIOLOGY", "name": "微生物检测", "parentCode": "LABORATORY", "sortOrder": 1040, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914111, 362387869914001, 'MOLECULAR', '分子生物检测', '核酸扩增、基因检测等分子生物学检验', 1050, 'ACTIVE', 362387869914102);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915013, null, 362387869914001, 362387869914111, 'ADD_ITEM', 'ITEM', null, '{"code": "MOLECULAR", "name": "分子生物检测", "parentCode": "LABORATORY", "sortOrder": 1050, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914112, 362387869914001, 'RADIOGRAPHY', '普通放射', 'X 线摄影、透视及造影', 2010, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915014, null, 362387869914001, 362387869914112, 'ADD_ITEM', 'ITEM', null, '{"code": "RADIOGRAPHY", "name": "普通放射", "parentCode": "EXAMINATION", "sortOrder": 2010, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914113, 362387869914001, 'CT', 'CT 检查', '计算机断层扫描', 2020, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915015, null, 362387869914001, 362387869914113, 'ADD_ITEM', 'ITEM', null, '{"code": "CT", "name": "CT 检查", "parentCode": "EXAMINATION", "sortOrder": 2020, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914114, 362387869914001, 'MRI', 'MRI 检查', '磁共振成像', 2030, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915016, null, 362387869914001, 362387869914114, 'ADD_ITEM', 'ITEM', null, '{"code": "MRI", "name": "MRI 检查", "parentCode": "EXAMINATION", "sortOrder": 2030, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914115, 362387869914001, 'ULTRASOUND', '超声检查', 'A 超、B 超、彩超、心脏超声及经颅多普勒', 2040, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915017, null, 362387869914001, 362387869914115, 'ADD_ITEM', 'ITEM', null, '{"code": "ULTRASOUND", "name": "超声检查", "parentCode": "EXAMINATION", "sortOrder": 2040, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914116, 362387869914001, 'ENDOSCOPY', '内镜检查', '消化道、呼吸道等内镜检查', 2050, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915018, null, 362387869914001, 362387869914116, 'ADD_ITEM', 'ITEM', null, '{"code": "ENDOSCOPY", "name": "内镜检查", "parentCode": "EXAMINATION", "sortOrder": 2050, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914117, 362387869914001, 'ECG', '心电检查', '常规及动态心电图等心电生理检查', 2060, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915019, null, 362387869914001, 362387869914117, 'ADD_ITEM', 'ITEM', null, '{"code": "ECG", "name": "心电检查", "parentCode": "EXAMINATION", "sortOrder": 2060, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914118, 362387869914001, 'PATHOLOGY', '病理检查', '组织、细胞病理学检查', 2070, 'ACTIVE', 362387869914103);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915020, null, 362387869914001, 362387869914118, 'ADD_ITEM', 'ITEM', null, '{"code": "PATHOLOGY", "name": "病理检查", "parentCode": "EXAMINATION", "sortOrder": 2070, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914119, 362387869914001, 'REGISTRATION_FEE', '挂号', '普通、急诊、节假日及专家挂号费', 510, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915021, null, 362387869914001, 362387869914119, 'ADD_ITEM', 'ITEM', null, '{"code": "REGISTRATION_FEE", "name": "挂号", "parentCode": "GENERAL_MEDICAL", "sortOrder": 510, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914120, 362387869914001, 'OUTPATIENT_VISIT', '门诊诊查', '门诊基础诊查费；可作为门诊排班的号源服务', 520, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915022, null, 362387869914001, 362387869914120, 'ADD_ITEM', 'ITEM', null, '{"code": "OUTPATIENT_VISIT", "name": "门诊诊查", "parentCode": "GENERAL_MEDICAL", "sortOrder": 520, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914121, 362387869914001, 'EMERGENCY_VISIT', '急诊诊查', '急诊基础诊查费', 530, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915023, null, 362387869914001, 362387869914121, 'ADD_ITEM', 'ITEM', null, '{"code": "EMERGENCY_VISIT", "name": "急诊诊查", "parentCode": "GENERAL_MEDICAL", "sortOrder": 530, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914122, 362387869914001, 'INPATIENT_VISIT', '住院诊查', '住院诊查费', 540, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915024, null, 362387869914001, 362387869914122, 'ADD_ITEM', 'ITEM', null, '{"code": "INPATIENT_VISIT", "name": "住院诊查", "parentCode": "GENERAL_MEDICAL", "sortOrder": 540, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914123, 362387869914001, 'OBSERVATION_VISIT', '留观诊查', '门急诊留观诊查费', 550, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915025, null, 362387869914001, 362387869914123, 'ADD_ITEM', 'ITEM', null, '{"code": "OBSERVATION_VISIT", "name": "留观诊查", "parentCode": "GENERAL_MEDICAL", "sortOrder": 550, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914124, 362387869914001, 'VISIT_SURCHARGE', '诊查加收', '专家、急诊、节假日等诊查费加收，不单独作为号源', 560, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915026, null, 362387869914001, 362387869914124, 'ADD_ITEM', 'ITEM', null, '{"code": "VISIT_SURCHARGE", "name": "诊查加收", "parentCode": "GENERAL_MEDICAL", "sortOrder": 560, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914125, 362387869914001, 'GENERAL_CONSULTATION', '基层一般诊疗', '基层医疗卫生机构一般诊疗费及其加收', 570, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915027, null, 362387869914001, 362387869914125, 'ADD_ITEM', 'ITEM', null, '{"code": "GENERAL_CONSULTATION", "name": "基层一般诊疗", "parentCode": "GENERAL_MEDICAL", "sortOrder": 570, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914126, 362387869914001, 'ASSESSMENT', '评估与咨询', '营养咨询、营养筛查、血栓与出血风险评估等', 580, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915028, null, 362387869914001, 362387869914126, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSESSMENT", "name": "评估与咨询", "parentCode": "GENERAL_MEDICAL", "sortOrder": 580, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914127, 362387869914001, 'INJECTION', '注射', '肌内、皮下、静脉注射及输液等', 4010, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915029, null, 362387869914001, 362387869914127, 'ADD_ITEM', 'ITEM', null, '{"code": "INJECTION", "name": "注射", "parentCode": "TREATMENT", "sortOrder": 4010, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914128, 362387869914001, 'NEBULIZATION', '雾化吸入', '超声、氧气驱动及蒸气雾化吸入', 4020, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915030, null, 362387869914001, 362387869914128, 'ADD_ITEM', 'ITEM', null, '{"code": "NEBULIZATION", "name": "雾化吸入", "parentCode": "TREATMENT", "sortOrder": 4020, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914129, 362387869914001, 'DRESSING', '换药', '换药、拆线及术后清创换药', 4030, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915031, null, 362387869914001, 362387869914129, 'ADD_ITEM', 'ITEM', null, '{"code": "DRESSING", "name": "换药", "parentCode": "TREATMENT", "sortOrder": 4030, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914130, 362387869914001, 'DEBRIDEMENT', '清创缝合', '清创（缝合）', 4040, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915032, null, 362387869914001, 362387869914130, 'ADD_ITEM', 'ITEM', null, '{"code": "DEBRIDEMENT", "name": "清创缝合", "parentCode": "TREATMENT", "sortOrder": 4040, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914131, 362387869914001, 'OXYGEN_THERAPY', '氧气吸入', '鼻导管、面罩吸氧及其他给氧方式', 4050, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915033, null, 362387869914001, 362387869914131, 'ADD_ITEM', 'ITEM', null, '{"code": "OXYGEN_THERAPY", "name": "氧气吸入", "parentCode": "TREATMENT", "sortOrder": 4050, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914132, 362387869914001, 'RESUSCITATION', '抢救', '心肺复苏及多学科抢救', 4060, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915034, null, 362387869914001, 362387869914132, 'ADD_ITEM', 'ITEM', null, '{"code": "RESUSCITATION", "name": "抢救", "parentCode": "TREATMENT", "sortOrder": 4060, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914133, 362387869914001, 'NASOGASTRIC_TUBE', '鼻饲管置管', '鼻饲管置管及管饲', 4070, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915035, null, 362387869914001, 362387869914133, 'ADD_ITEM', 'ITEM', null, '{"code": "NASOGASTRIC_TUBE", "name": "鼻饲管置管", "parentCode": "TREATMENT", "sortOrder": 4070, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914134, 362387869914001, 'GI_DECOMPRESSION', '胃肠减压', '胃肠置管减压', 4080, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915036, null, 362387869914001, 362387869914134, 'ADD_ITEM', 'ITEM', null, '{"code": "GI_DECOMPRESSION", "name": "胃肠减压", "parentCode": "TREATMENT", "sortOrder": 4080, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914135, 362387869914001, 'GASTRIC_LAVAGE', '洗胃', '洗胃', 4090, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915037, null, 362387869914001, 362387869914135, 'ADD_ITEM', 'ITEM', null, '{"code": "GASTRIC_LAVAGE", "name": "洗胃", "parentCode": "TREATMENT", "sortOrder": 4090, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914136, 362387869914001, 'PHYSICAL_COOLING', '物理降温', '一般物理降温及目标体温管理', 4100, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915038, null, 362387869914001, 362387869914136, 'ADD_ITEM', 'ITEM', null, '{"code": "PHYSICAL_COOLING", "name": "物理降温", "parentCode": "TREATMENT", "sortOrder": 4100, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914137, 362387869914001, 'SITZ_BATH', '坐浴', '坐浴', 4110, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915039, null, 362387869914001, 362387869914137, 'ADD_ITEM', 'ITEM', null, '{"code": "SITZ_BATH", "name": "坐浴", "parentCode": "TREATMENT", "sortOrder": 4110, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914138, 362387869914001, 'COMPRESS', '冷热湿敷', '冷热湿敷', 4120, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915040, null, 362387869914001, 362387869914138, 'ADD_ITEM', 'ITEM', null, '{"code": "COMPRESS", "name": "冷热湿敷", "parentCode": "TREATMENT", "sortOrder": 4120, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914139, 362387869914001, 'DRAINAGE_IRRIGATION', '引流管冲洗', '引流管冲洗及更换', 4130, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915041, null, 362387869914001, 362387869914139, 'ADD_ITEM', 'ITEM', null, '{"code": "DRAINAGE_IRRIGATION", "name": "引流管冲洗", "parentCode": "TREATMENT", "sortOrder": 4130, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914140, 362387869914001, 'ENEMA', '灌肠', '一般灌肠及清洁灌肠', 4140, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915042, null, 362387869914001, 362387869914140, 'ADD_ITEM', 'ITEM', null, '{"code": "ENEMA", "name": "灌肠", "parentCode": "TREATMENT", "sortOrder": 4140, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914141, 362387869914001, 'CATHETERIZATION', '导尿', '导尿及更换引流袋', 4150, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915043, null, 362387869914001, 362387869914141, 'ADD_ITEM', 'ITEM', null, '{"code": "CATHETERIZATION", "name": "导尿", "parentCode": "TREATMENT", "sortOrder": 4150, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914142, 362387869914001, 'RECTAL_TUBE', '肛管排气', '肛管排气及粪嵌顿手法排除', 4160, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915044, null, 362387869914001, 362387869914142, 'ADD_ITEM', 'ITEM', null, '{"code": "RECTAL_TUBE", "name": "肛管排气", "parentCode": "TREATMENT", "sortOrder": 4160, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914143, 362387869914001, 'PREHOSPITAL_EMERGENCY', '院前急救', '院前急救', 590, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915045, null, 362387869914001, 362387869914143, 'ADD_ITEM', 'ITEM', null, '{"code": "PREHOSPITAL_EMERGENCY", "name": "院前急救", "parentCode": "GENERAL_MEDICAL", "sortOrder": 590, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914144, 362387869914001, 'AMBULANCE', '救护车', '救护车出车及里程', 600, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915046, null, 362387869914001, 362387869914144, 'ADD_ITEM', 'ITEM', null, '{"code": "AMBULANCE", "name": "救护车", "parentCode": "GENERAL_MEDICAL", "sortOrder": 600, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914145, 362387869914001, 'PHYSIOTHERAPY', '物理治疗', '物理治疗与康复', 4170, 'ACTIVE', 362387869914104);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915047, null, 362387869914001, 362387869914145, 'ADD_ITEM', 'ITEM', null, '{"code": "PHYSIOTHERAPY", "name": "物理治疗", "parentCode": "TREATMENT", "sortOrder": 4170, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914146, 362387869914001, 'NURSING_CARE', '护理', '分级护理及专项护理', 5010, 'ACTIVE', 362387869914105);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915048, null, 362387869914001, 362387869914146, 'ADD_ITEM', 'ITEM', null, '{"code": "NURSING_CARE", "name": "护理", "parentCode": "NURSING", "sortOrder": 5010, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914147, 362387869914001, 'BED_DAY', '床位', '病房、观察床位及床位加收，按日计费', 610, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915049, null, 362387869914001, 362387869914147, 'ADD_ITEM', 'ITEM', null, '{"code": "BED_DAY", "name": "床位", "parentCode": "GENERAL_MEDICAL", "sortOrder": 610, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914148, 362387869914001, 'INTENSIVE_CARE_UNIT', '监护病房治疗', 'ICU、CCU 单元治疗', 620, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915050, null, 362387869914001, 362387869914148, 'ADD_ITEM', 'ITEM', null, '{"code": "INTENSIVE_CARE_UNIT", "name": "监护病房治疗", "parentCode": "GENERAL_MEDICAL", "sortOrder": 620, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914149, 362387869914001, 'AIR_CONDITIONING', '空调', '病房及留观空调费', 630, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915051, null, 362387869914001, 362387869914149, 'ADD_ITEM', 'ITEM', null, '{"code": "AIR_CONDITIONING", "name": "空调", "parentCode": "GENERAL_MEDICAL", "sortOrder": 630, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914150, 362387869914001, 'TELEMEDICINE', '远程与互联网诊疗', '互联网复诊及远程会诊', 640, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915052, null, 362387869914001, 362387869914150, 'ADD_ITEM', 'ITEM', null, '{"code": "TELEMEDICINE", "name": "远程与互联网诊疗", "parentCode": "GENERAL_MEDICAL", "sortOrder": 640, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914151, 362387869914001, 'HEALTH_CHECKUP', '体检', '健康体检及驾驶员等专项体检', 650, 'ACTIVE', 362387869914101);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915053, null, 362387869914001, 362387869914151, 'ADD_ITEM', 'ITEM', null, '{"code": "HEALTH_CHECKUP", "name": "体检", "parentCode": "GENERAL_MEDICAL", "sortOrder": 650, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914152, 362387869914001, 'COMMUNITY_HEALTH', '社区卫生与预防保健', '儿童保健、访视、家庭巡诊、家庭病床、健康档案及健康教育', 8010, 'ACTIVE', 362387869914106);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915054, null, 362387869914001, 362387869914152, 'ADD_ITEM', 'ITEM', null, '{"code": "COMMUNITY_HEALTH", "name": "社区卫生与预防保健", "parentCode": "OTHER", "sortOrder": 8010, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914153, 362387869914001, 'POSTMORTEM_CARE', '尸体料理', '尸体料理及相关处理', 8020, 'ACTIVE', 362387869914106);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915055, null, 362387869914001, 362387869914153, 'ADD_ITEM', 'ITEM', null, '{"code": "POSTMORTEM_CARE", "name": "尸体料理", "parentCode": "OTHER", "sortOrder": 8020, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914154, 362387869914001, 'IMAGE_RECORDING', '图像记录', '照片打印及数字影像服务', 8030, 'ACTIVE', 362387869914106);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915056, null, 362387869914001, 362387869914154, 'ADD_ITEM', 'ITEM', null, '{"code": "IMAGE_RECORDING", "name": "图像记录", "parentCode": "OTHER", "sortOrder": 8030, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914155, 362387869914001, 'MEDICAL_APPRAISAL', '临床医学鉴定', '临床医学鉴定', 8040, 'ACTIVE', 362387869914106);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915057, null, 362387869914001, 362387869914155, 'ADD_ITEM', 'ITEM', null, '{"code": "MEDICAL_APPRAISAL", "name": "临床医学鉴定", "parentCode": "OTHER", "sortOrder": 8040, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869914156, 362387869914001, 'HOME_SERVICE', '上门服务', '上门服务费', 8050, 'ACTIVE', 362387869914106);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915058, null, 362387869914001, 362387869914156, 'ADD_ITEM', 'ITEM', null, '{"code": "HOME_SERVICE", "name": "上门服务", "parentCode": "OTHER", "sortOrder": 8050, "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, null);
+insert into RHN_BD_DICT_ATTR_DEF (ID_DICT_ATTR_DEF, REVISION, ID_DICT_DEF_DICT, CD_DICT_ATTR_DEF, NA_DICT_ATTR_DEF, DES_DICT_ATTR_DEF, SD_DATA_TYPE, SD_CARDNL, ID_DICT_DEF_REF_DICT, JSON_SCHEMA, SD_MINIMUM_SCOPE, SD_OVRD_POLICY, FG_RQD_VAL, FG_SRCHBL, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387869914901, 0, 362387869914001, 'OUTPATIENT_SCHEDULABLE', '可作门诊号源', '该子类的门诊项目可被门诊排班和直接挂号选为号源服务。', 'BOOLEAN', 'SINGLE', null, '{"type":"boolean"}', 'PLATFORM', 'NO_OVERRIDE', false, false, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915059, null, 362387869914001, null, 'CREATE_ATTRIBUTE', 'ATTR_DEFINITION', null, '{"code": "OUTPATIENT_SCHEDULABLE", "dataType": "BOOLEAN", "status": "ACTIVE"}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, 362387869914901);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869914951, 362387869914120, 362387869914901, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', true, null, null, null, null, null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869915060, null, 362387869914001, 362387869914120, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "OUTPATIENT_SCHEDULABLE", "scope": "PLATFORM", "value": true}', '诊疗项目子类改为受控字典，父级为诊疗项目类型；分类参照全国医疗服务价格项目编码层级', 'v1.129.5:service-subtype-dictionary', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840006, 362387869914901);
+
+-- 2. Price-list categories still stored as subtype text.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'REGISTRATION_FEE' where SD_SVC_TYPE = 'PROCEDURE' and SD_SVC_SUBTYPE = '挂号费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'GENERAL_CONSULTATION' where SD_SVC_TYPE = 'PROCEDURE' and SD_SVC_SUBTYPE = '一般诊疗费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'NURSING_CARE' where SD_SVC_TYPE = 'NURSING' and SD_SVC_SUBTYPE = '护理费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'DEBRIDEMENT' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '清创（缝合）';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'OXYGEN_THERAPY' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '氧气吸入';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'RESUSCITATION' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '抢救费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'NASOGASTRIC_TUBE' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '鼻饲管置管';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'GI_DECOMPRESSION' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '胃肠减压';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'GASTRIC_LAVAGE' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '洗胃';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'PHYSICAL_COOLING' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '物理降温';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'SITZ_BATH' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '坐浴';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMPRESS' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '冷热湿敷';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'DRAINAGE_IRRIGATION' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '引流管冲洗';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'ENEMA' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '灌肠';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'CATHETERIZATION' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '导尿';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'RECTAL_TUBE' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '肛管排气';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'PREHOSPITAL_EMERGENCY' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '院前急救费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'AMBULANCE' where SD_SVC_TYPE = 'TREATMENT' and SD_SVC_SUBTYPE = '救护车费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'INTENSIVE_CARE_UNIT' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '中心监护病房';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'AIR_CONDITIONING' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '空调费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'HEALTH_CHECKUP' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '体检费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'POSTMORTEM_CARE' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '尸体料理';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'IMAGE_RECORDING' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '图象记录';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'MEDICAL_APPRAISAL' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '临床医学鉴定';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'HOME_SERVICE' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '上门服务费';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '婴幼儿健康体检';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '儿童龋齿预防保健';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '家庭巡诊';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '围产保健访视';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '传染病访视';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '家庭病床';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '建立健康档案';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'COMMUNITY_HEALTH' where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = '疾病健康教育';
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'VISIT_SURCHARGE' where SD_SVC_TYPE = 'PROCEDURE' and SD_SVC_SUBTYPE = '诊查费'
+  and ID_CATALOG_ITEM in (select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM where CD_CATALOG_ITEM in ('11020000104', '11020000105', '11020000108', '11020000109', '11020000110'));
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'OBSERVATION_VISIT' where SD_SVC_TYPE = 'PROCEDURE' and SD_SVC_SUBTYPE = '诊查费'
+  and ID_CATALOG_ITEM in (select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM where CD_CATALOG_ITEM in ('11020000401', '11020000402', '11020000403', '11020000404'));
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'ASSESSMENT' where SD_SVC_TYPE = 'PROCEDURE' and SD_SVC_SUBTYPE = '诊查费'
+  and ID_CATALOG_ITEM in (select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM where CD_CATALOG_ITEM in ('11020090100', '11020090200', '11020090300'));
+-- Price codes 1110 (互联网复诊、远程会诊) were listed under 床位费 and generated as inpatient bed days.
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'TELEMEDICINE', SD_ACCTG_CAT = 'REGISTRATION', SD_USAGE_TYPE = 'COMMON'
+  where SD_SVC_TYPE = 'OTHER' and SD_SVC_SUBTYPE = 'BED_DAY'
+  and ID_CATALOG_ITEM in (select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM where CD_CATALOG_ITEM like '1110%');
+
+-- 3. Items of general medical subtypes move to the new service type and the generic service item type.
+update RHN_BD_SVC_ITEM set SD_SVC_TYPE = 'GENERAL_MEDICAL' where SD_SVC_SUBTYPE in ('REGISTRATION_FEE', 'OUTPATIENT_VISIT', 'EMERGENCY_VISIT', 'INPATIENT_VISIT', 'OBSERVATION_VISIT', 'VISIT_SURCHARGE', 'GENERAL_CONSULTATION', 'ASSESSMENT', 'PREHOSPITAL_EMERGENCY', 'AMBULANCE', 'BED_DAY', 'INTENSIVE_CARE_UNIT', 'AIR_CONDITIONING', 'TELEMEDICINE', 'HEALTH_CHECKUP');
+update RHN_BD_CATALOG_ITEM set ID_ITEM_TYPE = 362387869797002 where ID_CATALOG_ITEM in (
+  select ID_CATALOG_ITEM from RHN_BD_SVC_ITEM where SD_SVC_TYPE = 'GENERAL_MEDICAL');
+
+-- =============================================================================
+-- Source: V1_129_6__coded_free_text_columns.sql
+-- =============================================================================
+-- Coded columns that held free text (generated; see docs/foundation/基础数据与字典走查-2026-10-14.md, step 3).
+-- Herbal nature/processing, supply material and device class become dictionaries; capability scope is a
+-- description, not a code; the self-coded therapeutic class is replaced by the existing ATC classification.
+
+-- 1. Dictionaries.
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869916001, 0, 'PLATFORM', 'PLATFORM', null, 'BD_HERBAL_NATURE', '中药药性', '中药饮片的寒热温凉属性（四气），按《中国药典》性味记载的程度分级。', 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, true, 362387869840007);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917001, null, 362387869916001, null, 'CREATE_DICT', 'DICT', null, '{"code": "BD_HERBAL_NATURE", "name": "中药药性", "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916101, 362387869916001, 'GREAT_COLD', '大寒', null, 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917002, null, 362387869916001, 362387869916101, 'ADD_ITEM', 'ITEM', null, '{"code": "GREAT_COLD", "name": "大寒", "sortOrder": 10, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916102, 362387869916001, 'COLD', '寒', null, 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917003, null, 362387869916001, 362387869916102, 'ADD_ITEM', 'ITEM', null, '{"code": "COLD", "name": "寒", "sortOrder": 20, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916103, 362387869916001, 'SLIGHTLY_COLD', '微寒', null, 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917004, null, 362387869916001, 362387869916103, 'ADD_ITEM', 'ITEM', null, '{"code": "SLIGHTLY_COLD", "name": "微寒", "sortOrder": 30, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916104, 362387869916001, 'COOL', '凉', null, 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917005, null, 362387869916001, 362387869916104, 'ADD_ITEM', 'ITEM', null, '{"code": "COOL", "name": "凉", "sortOrder": 40, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916105, 362387869916001, 'NEUTRAL', '平', null, 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917006, null, 362387869916001, 362387869916105, 'ADD_ITEM', 'ITEM', null, '{"code": "NEUTRAL", "name": "平", "sortOrder": 50, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916106, 362387869916001, 'SLIGHTLY_WARM', '微温', null, 60, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917007, null, 362387869916001, 362387869916106, 'ADD_ITEM', 'ITEM', null, '{"code": "SLIGHTLY_WARM", "name": "微温", "sortOrder": 60, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916107, 362387869916001, 'WARM', '温', null, 70, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917008, null, 362387869916001, 362387869916107, 'ADD_ITEM', 'ITEM', null, '{"code": "WARM", "name": "温", "sortOrder": 70, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916108, 362387869916001, 'HOT', '热', null, 80, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917009, null, 362387869916001, 362387869916108, 'ADD_ITEM', 'ITEM', null, '{"code": "HOT", "name": "热", "sortOrder": 80, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916109, 362387869916001, 'GREAT_HOT', '大热', null, 90, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917010, null, 362387869916001, 362387869916109, 'ADD_ITEM', 'ITEM', null, '{"code": "GREAT_HOT", "name": "大热", "sortOrder": 90, "status": "ACTIVE"}', '中药药性原以中文自由文本存储，改为受控值；参照《中国药典》性味记载', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869916002, 0, 'PLATFORM', 'PLATFORM', null, 'BD_HERBAL_PROCESSING', '中药炮制方法', '中药饮片的炮制方法，按《中国药典》炮制通则分类。', 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, true, 362387869840007);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917011, null, 362387869916002, null, 'CREATE_DICT', 'DICT', null, '{"code": "BD_HERBAL_PROCESSING", "name": "中药炮制方法", "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916110, 362387869916002, 'CLEANSING', '净制', '挑选、筛选、风选、水选、剪、切、刮、削、剔除、刷、擦、碾串等', 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917012, null, 362387869916002, 362387869916110, 'ADD_ITEM', 'ITEM', null, '{"code": "CLEANSING", "name": "净制", "sortOrder": 10, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916111, 362387869916002, 'CUTTING', '切制', '切片、段、块、丝等', 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917013, null, 362387869916002, 362387869916111, 'ADD_ITEM', 'ITEM', null, '{"code": "CUTTING", "name": "切制", "sortOrder": 20, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916112, 362387869916002, 'STIR_FRYING', '炒', '清炒或加辅料炒，含炒黄、炒焦、麸炒、砂炒等', 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917014, null, 362387869916002, 362387869916112, 'ADD_ITEM', 'ITEM', null, '{"code": "STIR_FRYING", "name": "炒", "sortOrder": 30, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916113, 362387869916002, 'BROILING_WITH_ADJUVANT', '炙', '酒炙、醋炙、盐炙、姜炙、蜜炙、油炙等', 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917015, null, 362387869916002, 362387869916113, 'ADD_ITEM', 'ITEM', null, '{"code": "BROILING_WITH_ADJUVANT", "name": "炙", "sortOrder": 40, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916114, 362387869916002, 'CARBONIZING', '制炭', '炒炭、煅炭', 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917016, null, 362387869916002, 362387869916114, 'ADD_ITEM', 'ITEM', null, '{"code": "CARBONIZING", "name": "制炭", "sortOrder": 50, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916115, 362387869916002, 'CALCINING', '煅', '明煅、煅淬', 60, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917017, null, 362387869916002, 362387869916115, 'ADD_ITEM', 'ITEM', null, '{"code": "CALCINING", "name": "煅", "sortOrder": 60, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916116, 362387869916002, 'STEAMING', '蒸', '清蒸或加辅料蒸', 70, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917018, null, 362387869916002, 362387869916116, 'ADD_ITEM', 'ITEM', null, '{"code": "STEAMING", "name": "蒸", "sortOrder": 70, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916117, 362387869916002, 'BOILING', '煮', '清水煮或加辅料煮', 80, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917019, null, 362387869916002, 362387869916117, 'ADD_ITEM', 'ITEM', null, '{"code": "BOILING", "name": "煮", "sortOrder": 80, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916118, 362387869916002, 'STEWING', '炖', '加辅料炖', 90, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917020, null, 362387869916002, 362387869916118, 'ADD_ITEM', 'ITEM', null, '{"code": "STEWING", "name": "炖", "sortOrder": 90, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916119, 362387869916002, 'ROASTING', '煨', '面裹煨、纸煨等', 100, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917021, null, 362387869916002, 362387869916119, 'ADD_ITEM', 'ITEM', null, '{"code": "ROASTING", "name": "煨", "sortOrder": 100, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916120, 362387869916002, 'SCALDING', '燀', '沸水中短时浸烫', 110, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917022, null, 362387869916002, 362387869916120, 'ADD_ITEM', 'ITEM', null, '{"code": "SCALDING", "name": "燀", "sortOrder": 110, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916121, 362387869916002, 'FROSTING', '制霜', '去油制霜等', 120, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917023, null, 362387869916002, 362387869916121, 'ADD_ITEM', 'ITEM', null, '{"code": "FROSTING", "name": "制霜", "sortOrder": 120, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916122, 362387869916002, 'WATER_GRINDING', '水飞', '水中研磨分取细粉', 130, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917024, null, 362387869916002, 362387869916122, 'ADD_ITEM', 'ITEM', null, '{"code": "WATER_GRINDING", "name": "水飞", "sortOrder": 130, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916123, 362387869916002, 'SPROUTING', '发芽', null, 140, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917025, null, 362387869916002, 362387869916123, 'ADD_ITEM', 'ITEM', null, '{"code": "SPROUTING", "name": "发芽", "sortOrder": 140, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916124, 362387869916002, 'FERMENTING', '发酵', null, 150, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917026, null, 362387869916002, 362387869916124, 'ADD_ITEM', 'ITEM', null, '{"code": "FERMENTING", "name": "发酵", "sortOrder": 150, "status": "ACTIVE"}', '炮制方法原以中文自由文本存储，改为受控值；参照《中国药典》通则 0213 炮制通则', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840007, null);
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869916003, 0, 'PLATFORM', 'PLATFORM', null, 'BD_SUPPLY_MATERIAL', '耗材主要材质', '医用耗材或器械与人体接触或起主要结构作用的材质。', 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, true, 362387869840008);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917027, null, 362387869916003, null, 'CREATE_DICT', 'DICT', null, '{"code": "BD_SUPPLY_MATERIAL", "name": "耗材主要材质", "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916125, 362387869916003, 'PP', '聚丙烯', null, 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917028, null, 362387869916003, 362387869916125, 'ADD_ITEM', 'ITEM', null, '{"code": "PP", "name": "聚丙烯", "sortOrder": 10, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916126, 362387869916003, 'PE', '聚乙烯', null, 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917029, null, 362387869916003, 362387869916126, 'ADD_ITEM', 'ITEM', null, '{"code": "PE", "name": "聚乙烯", "sortOrder": 20, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916127, 362387869916003, 'PVC', '聚氯乙烯', null, 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917030, null, 362387869916003, 362387869916127, 'ADD_ITEM', 'ITEM', null, '{"code": "PVC", "name": "聚氯乙烯", "sortOrder": 30, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916128, 362387869916003, 'PET', '聚对苯二甲酸乙二醇酯', null, 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917031, null, 362387869916003, 362387869916128, 'ADD_ITEM', 'ITEM', null, '{"code": "PET", "name": "聚对苯二甲酸乙二醇酯", "sortOrder": 40, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916129, 362387869916003, 'PS', '聚苯乙烯', null, 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917032, null, 362387869916003, 362387869916129, 'ADD_ITEM', 'ITEM', null, '{"code": "PS", "name": "聚苯乙烯", "sortOrder": 50, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916130, 362387869916003, 'PC', '聚碳酸酯', null, 60, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917033, null, 362387869916003, 362387869916130, 'ADD_ITEM', 'ITEM', null, '{"code": "PC", "name": "聚碳酸酯", "sortOrder": 60, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916131, 362387869916003, 'PU', '聚氨酯', null, 70, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917034, null, 362387869916003, 362387869916131, 'ADD_ITEM', 'ITEM', null, '{"code": "PU", "name": "聚氨酯", "sortOrder": 70, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916132, 362387869916003, 'PTFE', '聚四氟乙烯', null, 80, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917035, null, 362387869916003, 362387869916132, 'ADD_ITEM', 'ITEM', null, '{"code": "PTFE", "name": "聚四氟乙烯", "sortOrder": 80, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916133, 362387869916003, 'PA', '聚酰胺（尼龙）', null, 90, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917036, null, 362387869916003, 362387869916133, 'ADD_ITEM', 'ITEM', null, '{"code": "PA", "name": "聚酰胺（尼龙）", "sortOrder": 90, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916134, 362387869916003, 'SILICONE', '硅橡胶', null, 100, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917037, null, 362387869916003, 362387869916134, 'ADD_ITEM', 'ITEM', null, '{"code": "SILICONE", "name": "硅橡胶", "sortOrder": 100, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916135, 362387869916003, 'NATURAL_LATEX', '天然胶乳', '可致胶乳过敏', 110, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917038, null, 362387869916003, 362387869916135, 'ADD_ITEM', 'ITEM', null, '{"code": "NATURAL_LATEX", "name": "天然胶乳", "sortOrder": 110, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916136, 362387869916003, 'NITRILE', '丁腈橡胶', null, 120, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917039, null, 362387869916003, 362387869916136, 'ADD_ITEM', 'ITEM', null, '{"code": "NITRILE", "name": "丁腈橡胶", "sortOrder": 120, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916137, 362387869916003, 'GLASS', '玻璃', null, 130, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917040, null, 362387869916003, 362387869916137, 'ADD_ITEM', 'ITEM', null, '{"code": "GLASS", "name": "玻璃", "sortOrder": 130, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916138, 362387869916003, 'STAINLESS_STEEL', '不锈钢', null, 140, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917041, null, 362387869916003, 362387869916138, 'ADD_ITEM', 'ITEM', null, '{"code": "STAINLESS_STEEL", "name": "不锈钢", "sortOrder": 140, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916139, 362387869916003, 'TITANIUM', '钛及钛合金', null, 150, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917042, null, 362387869916003, 362387869916139, 'ADD_ITEM', 'ITEM', null, '{"code": "TITANIUM", "name": "钛及钛合金", "sortOrder": 150, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916140, 362387869916003, 'COBALT_CHROMIUM', '钴铬合金', null, 160, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917043, null, 362387869916003, 362387869916140, 'ADD_ITEM', 'ITEM', null, '{"code": "COBALT_CHROMIUM", "name": "钴铬合金", "sortOrder": 160, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916141, 362387869916003, 'NITINOL', '镍钛合金', null, 170, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917044, null, 362387869916003, 362387869916141, 'ADD_ITEM', 'ITEM', null, '{"code": "NITINOL", "name": "镍钛合金", "sortOrder": 170, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916142, 362387869916003, 'CERAMIC', '陶瓷', null, 180, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917045, null, 362387869916003, 362387869916142, 'ADD_ITEM', 'ITEM', null, '{"code": "CERAMIC", "name": "陶瓷", "sortOrder": 180, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916143, 362387869916003, 'COTTON', '棉', null, 190, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917046, null, 362387869916003, 362387869916143, 'ADD_ITEM', 'ITEM', null, '{"code": "COTTON", "name": "棉", "sortOrder": 190, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916144, 362387869916003, 'NONWOVEN', '无纺布', null, 200, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917047, null, 362387869916003, 362387869916144, 'ADD_ITEM', 'ITEM', null, '{"code": "NONWOVEN", "name": "无纺布", "sortOrder": 200, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916145, 362387869916003, 'OTHER', '其他', null, 210, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917048, null, 362387869916003, 362387869916145, 'ADD_ITEM', 'ITEM', null, '{"code": "OTHER", "name": "其他", "sortOrder": 210, "status": "ACTIVE"}', '耗材材质原以中文自由文本存储，改为受控值；胶乳等材质与过敏提示相关', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869916004, 0, 'PLATFORM', 'PLATFORM', null, 'BD_DEVICE_CLASS', '医疗器械管理类别', '《医疗器械监督管理条例》规定的医疗器械风险分类。', 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, true, 362387869840008);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917049, null, 362387869916004, null, 'CREATE_DICT', 'DICT', null, '{"code": "BD_DEVICE_CLASS", "name": "医疗器械管理类别", "status": "ACTIVE"}', '器械类别原由前端写死选项、后端不校验，改为受控值；依据《医疗器械监督管理条例》第六条', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916146, 362387869916004, 'I', '第一类', '风险程度低，实行常规管理可以保证其安全、有效', 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917050, null, 362387869916004, 362387869916146, 'ADD_ITEM', 'ITEM', null, '{"code": "I", "name": "第一类", "sortOrder": 10, "status": "ACTIVE"}', '器械类别原由前端写死选项、后端不校验，改为受控值；依据《医疗器械监督管理条例》第六条', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916147, 362387869916004, 'II', '第二类', '具有中度风险，需要严格控制管理以保证其安全、有效', 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917051, null, 362387869916004, 362387869916147, 'ADD_ITEM', 'ITEM', null, '{"code": "II", "name": "第二类", "sortOrder": 20, "status": "ACTIVE"}', '器械类别原由前端写死选项、后端不校验，改为受控值；依据《医疗器械监督管理条例》第六条', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869916148, 362387869916004, 'III', '第三类', '具有较高风险，需要采取特别措施严格控制管理以保证其安全、有效', 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869917052, null, 362387869916004, 362387869916148, 'ADD_ITEM', 'ITEM', null, '{"code": "III", "name": "第三类", "sortOrder": 30, "status": "ACTIVE"}', '器械类别原由前端写死选项、后端不校验，改为受控值；依据《医疗器械监督管理条例》第六条', 'v1.129.6:coded-free-text-columns', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840008, null);
+
+-- 2. ATC hierarchy: missing intermediate levels, corrected parents, and classes for the remaining demo drugs.
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = null, NA_CONCEPT = '全身用抗感染药', QTY_LEVEL = 1, CLASS_PATH = 'J 全身用抗感染药' where ID_CLASS_CONCEPT = 362387873120001;
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = 362387873120001, NA_CONCEPT = '全身用抗菌药', QTY_LEVEL = 2, CLASS_PATH = 'J/J01 全身用抗菌药' where ID_CLASS_CONCEPT = 362387873120002;
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = 362387873120002, NA_CONCEPT = 'β-内酰胺类抗菌药，青霉素类', QTY_LEVEL = 3, CLASS_PATH = 'J/J01/J01C β-内酰胺类抗菌药，青霉素类' where ID_CLASS_CONCEPT = 362387873120003;
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120101, 362387873100002, 362387873120003, 'J01CA', '广谱青霉素类', 4, 'J/J01/J01C/J01CA 广谱青霉素类', 40, 'ACTIVE');
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = 362387873120101, NA_CONCEPT = '阿莫西林', QTY_LEVEL = 5, CLASS_PATH = 'J/J01/J01C/J01CA/J01CA04 阿莫西林' where ID_CLASS_CONCEPT = 362387873120005;
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120102, 362387873100002, 362387873120003, 'J01CE', '对β-内酰胺酶敏感的青霉素类', 4, 'J/J01/J01C/J01CE 对β-内酰胺酶敏感的青霉素类', 40, 'ACTIVE');
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = 362387873120102, NA_CONCEPT = '苄青霉素', QTY_LEVEL = 5, CLASS_PATH = 'J/J01/J01C/J01CE/J01CE01 苄青霉素' where ID_CLASS_CONCEPT = 362387873120004;
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120103, 362387873100002, 362387873120002, 'J01D', '其他β-内酰胺类抗菌药', 3, 'J/J01/J01D 其他β-内酰胺类抗菌药', 30, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120104, 362387873100002, 362387873120103, 'J01DD', '第三代头孢菌素类', 4, 'J/J01/J01D/J01DD 第三代头孢菌素类', 40, 'ACTIVE');
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = 362387873120104, NA_CONCEPT = '头孢曲松', QTY_LEVEL = 5, CLASS_PATH = 'J/J01/J01D/J01DD/J01DD04 头孢曲松' where ID_CLASS_CONCEPT = 362387873120006;
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120105, 362387873100002, 362387873120103, 'J01DH', '碳青霉烯类', 4, 'J/J01/J01D/J01DH 碳青霉烯类', 40, 'ACTIVE');
+update RHN_BD_CLASS_CONCEPT set ID_PARENT = 362387873120105, NA_CONCEPT = '美罗培南', QTY_LEVEL = 5, CLASS_PATH = 'J/J01/J01D/J01DH/J01DH02 美罗培南' where ID_CLASS_CONCEPT = 362387873120007;
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120106, 362387873100002, null, 'A', '消化道及代谢', 1, 'A 消化道及代谢', 10, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120107, 362387873100002, 362387873120106, 'A11', '维生素类', 2, 'A/A11 维生素类', 20, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120108, 362387873100002, 362387873120107, 'A11D', '维生素B1及其与维生素B6和B12的复方', 3, 'A/A11/A11D 维生素B1及其与维生素B6和B12的复方', 30, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120109, 362387873100002, 362387873120108, 'A11DA', '单方维生素B1', 4, 'A/A11/A11D/A11DA 单方维生素B1', 40, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120110, 362387873100002, 362387873120109, 'A11DA01', '硫胺', 5, 'A/A11/A11D/A11DA/A11DA01 硫胺', 50, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120111, 362387873100002, null, 'N', '神经系统', 1, 'N 神经系统', 10, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120112, 362387873100002, 362387873120111, 'N02', '镇痛药', 2, 'N/N02 镇痛药', 20, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120113, 362387873100002, 362387873120112, 'N02B', '其他镇痛药及解热药', 3, 'N/N02/N02B 其他镇痛药及解热药', 30, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120114, 362387873100002, 362387873120113, 'N02BE', '酰基苯胺类', 4, 'N/N02/N02B/N02BE 酰基苯胺类', 40, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120115, 362387873100002, 362387873120114, 'N02BE01', '对乙酰氨基酚', 5, 'N/N02/N02B/N02BE/N02BE01 对乙酰氨基酚', 50, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120116, 362387873100002, null, 'R', '呼吸系统', 1, 'R 呼吸系统', 10, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120117, 362387873100002, 362387873120116, 'R03', '用于阻塞性气道疾病的药物', 2, 'R/R03 用于阻塞性气道疾病的药物', 20, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120118, 362387873100002, 362387873120117, 'R03A', '吸入用肾上腺素能药', 3, 'R/R03/R03A 吸入用肾上腺素能药', 30, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120119, 362387873100002, 362387873120118, 'R03AC', '选择性β2-肾上腺素受体激动剂', 4, 'R/R03/R03A/R03AC 选择性β2-肾上腺素受体激动剂', 40, 'ACTIVE');
+insert into RHN_BD_CLASS_CONCEPT (ID_CLASS_CONCEPT, ID_CLASS_SYSTEM, ID_PARENT, CD_CONCEPT, NA_CONCEPT, QTY_LEVEL, CLASS_PATH, SORT_ORDER, SD_STATUS) values (362387873120120, 362387873100002, 362387873120119, 'R03AC02', '沙丁胺醇', 5, 'R/R03/R03A/R03AC/R03AC02 沙丁胺醇', 50, 'ACTIVE');
+
+-- 3. Capability scope is free-text description (DES_), not a dictionary code.
+alter table RHN_SYS_ORG_CAP rename column SD_CAP_SCOPE to DES_CAP_SCOPE;
+alter table RHN_SYS_DEPT_CAP rename column SD_CAP_SCOPE to DES_CAP_SCOPE;
+comment on column RHN_SYS_ORG_CAP.DES_CAP_SCOPE is '能力范围说明';
+comment on column RHN_SYS_DEPT_CAP.DES_CAP_SCOPE is '能力范围说明';
+
+-- 4. Therapeutic class duplicated RHN_BD_MED_CLASS_MAP (ATC) with self-made codes and has no readers.
+drop index IDX_BD_MED_WESTERN_MED_WESTERN;
+alter table RHN_BD_MED_WESTERN drop column SD_THERAP_CLASS;
+
+-- =============================================================================
+-- Source: V1_129_8__billing_terminal_scene_and_tender_type.sql
+-- =============================================================================
+-- Billing terminal scene and tender type (generated).
+-- 1. One code set for where a charge is collected. PAY_USE_SCENE (referenced by PAY_METHOD.AVAILABLE_SCENE) takes the
+--    settlement terminal codes; the BIL_TERMINAL_SCENE system enum is retired and CLINIC_SETTLE becomes DOCTOR_STATION.
+--    Inpatient deposits are identified by having no invoice, not by a pseudo scene code.
+update RHN_BD_DICT_DEF set NA_DICT_DEF = '收费入口', DES_DICT_DEF = '患者完成收费的入口或终端类型；具体设备另记终端编码。结算单、支付记录、票据和支付方式可用场景共用本字典。', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where ID_DICT_DEF = 362387869852002;
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918201, null, 362387869852002, null, 'UPDATE_DICT', 'DICT', '{"name": "支付使用场景"}', '{"name": "收费入口"}', '收费入口原有两套编码（结算单入口枚举与支付使用场景字典），统一为本字典', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, null);
+update RHN_BD_DICT_ITEM set CD_DICT_ITEM = 'CASHIER', NA_DICT_ITEM = '收费处', DES_DICT_ITEM = '人工收费窗口', SN_SORT = 10 where ID_DICT_ITEM = 362387869852112;
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918202, null, 362387869852002, 362387869852112, 'UPDATE_ITEM', 'ITEM', '{"code": "CASHIER", "name": "收费处", "sortOrder": 20, "status": "ACTIVE"}', '{"code": "CASHIER", "name": "收费处", "sortOrder": 10, "status": "ACTIVE"}', '收费入口原有两套编码（结算单入口枚举与支付使用场景字典），统一为本字典', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, null);
+update RHN_BD_DICT_ITEM set CD_DICT_ITEM = 'DOCTOR_STATION', NA_DICT_ITEM = '医生站', DES_DICT_ITEM = '医生工作站诊间结算', SN_SORT = 20 where ID_DICT_ITEM = 362387869852111;
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918203, null, 362387869852002, 362387869852111, 'UPDATE_ITEM', 'ITEM', '{"code": "CLINIC_SETTLE", "name": "诊间结算", "sortOrder": 10, "status": "ACTIVE"}', '{"code": "DOCTOR_STATION", "name": "医生站", "sortOrder": 20, "status": "ACTIVE"}', '收费入口原有两套编码（结算单入口枚举与支付使用场景字典），统一为本字典', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, null);
+update RHN_BD_DICT_ITEM set CD_DICT_ITEM = 'SELF_SERVICE', NA_DICT_ITEM = '自助机', DES_DICT_ITEM = '院内自助终端', SN_SORT = 30 where ID_DICT_ITEM = 362387869852113;
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918204, null, 362387869852002, 362387869852113, 'UPDATE_ITEM', 'ITEM', '{"code": "SELF_SERVICE", "name": "自助终端", "sortOrder": 30, "status": "ACTIVE"}', '{"code": "SELF_SERVICE", "name": "自助机", "sortOrder": 30, "status": "ACTIVE"}', '收费入口原有两套编码（结算单入口枚举与支付使用场景字典），统一为本字典', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869918101, 362387869852002, 'MOBILE', '移动端', '患者移动应用', 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918205, null, 362387869852002, 362387869918101, 'ADD_ITEM', 'ITEM', null, '{"code": "MOBILE", "name": "移动端", "sortOrder": 40, "status": "ACTIVE"}', '收费入口原有两套编码（结算单入口枚举与支付使用场景字典），统一为本字典', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869918102, 362387869852002, 'ONLINE', '线上缴费', '线上缴费入口', 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918206, null, 362387869852002, 362387869918102, 'ADD_ITEM', 'ITEM', null, '{"code": "ONLINE", "name": "线上缴费", "sortOrder": 50, "status": "ACTIVE"}', '收费入口原有两套编码（结算单入口枚举与支付使用场景字典），统一为本字典', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, null);
+update RHN_BIL_PAY set CD_PAY_SCENE = 'DOCTOR_STATION' where CD_PAY_SCENE = 'CLINIC_SETTLE';
+update RHN_BIL_PAY set CD_PAY_SCENE = 'CASHIER' where CD_PAY_SCENE = 'INPATIENT_PREPAYMENT' or CD_PAY_SCENE is null;
+update RHN_BIL_PAY_ORDER set CD_PAY_SCENE = 'DOCTOR_STATION' where CD_PAY_SCENE = 'CLINIC_SETTLE';
+comment on column RHN_BIL_PAY.CD_PAY_SCENE is '收费入口编码';
+comment on column RHN_BIL_PAY_ORDER.CD_PAY_SCENE is '收费入口编码';
+
+-- 2. Tender type of each payment method is a dictionary attribute, replacing code switches that filed unknown
+--    methods as commercial insurance. OTHER covers authorised patient-paid methods without a dedicated category.
+insert into RHN_BD_DICT_ATTR_DEF (ID_DICT_ATTR_DEF, REVISION, ID_DICT_DEF_DICT, CD_DICT_ATTR_DEF, NA_DICT_ATTR_DEF, DES_DICT_ATTR_DEF, SD_DATA_TYPE, SD_CARDNL, ID_DICT_DEF_REF_DICT, JSON_SCHEMA, SD_MINIMUM_SCOPE, SD_OVRD_POLICY, FG_RQD_VAL, FG_SRCHBL, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387869918001, 0, 362387869852001, 'TENDER_TYPE', '结算支付类别', '该支付方式计入结算单的资金类别，决定票据的财政分摊；未设置的支付方式不能收款。', 'CODE', 'SINGLE', null, '{"type":"string","enum":["CASH","BANK_CARD","DIGITAL","PERSONAL_ACCOUNT","OTHER"]}', 'TENANT', 'NO_OVERRIDE', false, false, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918207, null, 362387869852001, null, 'CREATE_ATTRIBUTE', 'ATTR_DEFINITION', null, '{"code": "TENDER_TYPE", "name": "结算支付类别", "dataType": "CODE", "cardinality": "SINGLE"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869918401, 362387869852101, 362387869918001, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', null, null, null, null, 'CASH', null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918208, null, 362387869852001, 362387869852101, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "TENDER_TYPE", "scope": "PLATFORM", "value": "CASH"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869918402, 362387869852102, 362387869918001, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', null, null, null, null, 'BANK_CARD', null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918209, null, 362387869852001, 362387869852102, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "TENDER_TYPE", "scope": "PLATFORM", "value": "BANK_CARD"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869918403, 362387869852103, 362387869918001, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', null, null, null, null, 'DIGITAL', null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918210, null, 362387869852001, 362387869852103, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "TENDER_TYPE", "scope": "PLATFORM", "value": "DIGITAL"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869918404, 362387869852104, 362387869918001, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', null, null, null, null, 'DIGITAL', null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918211, null, 362387869852001, 362387869852104, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "TENDER_TYPE", "scope": "PLATFORM", "value": "DIGITAL"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869918405, 362387869852105, 362387869918001, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', null, null, null, null, 'PERSONAL_ACCOUNT', null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918212, null, 362387869852001, 362387869852105, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "TENDER_TYPE", "scope": "PLATFORM", "value": "PERSONAL_ACCOUNT"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+insert into RHN_BD_DICT_ITEM_ATTR_VAL values (362387869918406, 362387869852106, 362387869918001, 'PLATFORM', 'PLATFORM', null, null, null, 0, 'OVERRIDE', null, null, null, null, 'OTHER', null, null, null, 'ACTIVE', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869918213, null, 362387869852001, 362387869852106, 'SET_ITEM_ATTRIBUTE', 'ITEM_ATTRIBUTE', null, '{"attribute": "TENDER_TYPE", "scope": "PLATFORM", "value": "OTHER"}', '支付方式对应的结算支付类别原写死在代码中，改为字典属性', 'v1.129.8:billing-terminal-scene', timestamp with time zone '2026-10-14 00:00:00+08', 362387869790222, 362387869840010, 362387869918001);
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-14 00:00:00+08', ID_USER_UPDATED = 362387869790222 where ID_DICT_DEF = 362387869852001;
+alter table RHN_BIL_STL_TENDER drop constraint CK_BIL_STL_TENDER_STL_TENDER_T;
+alter table RHN_BIL_STL_TENDER add constraint CK_BIL_STL_TENDER_STL_TENDER_T check (SD_TENDER_TYPE in ('CASH', 'BANK_CARD', 'DIGITAL', 'INSURANCE_FUND', 'PERSONAL_ACCOUNT', 'COMMERCIAL_INSURANCE', 'PREPAYMENT', 'HOSPITAL_DISCOUNT', 'SUBSIDY', 'ROUNDING', 'OTHER'));
+
+-- 3. Charge source types were open text; they are now the BIL_CHARGE_SOURCE_TYPE system enum.
+alter table RHN_BIL_CHARGE_ITEM add constraint CK_BIL_CHARGE_ITEM_SRC_TYPE check (SD_SRC_TYPE in (
+    'REGISTRATION', 'REGISTRATION_REVERSAL', 'DIRECT_VISIT_SERVICE', 'MEDICATION_REQUEST', 'MEDICATION_REQUEST_REVERSAL', 'SERVICE_REQUEST', 'SERVICE_REQUEST_REVERSAL', 'MEDICATION_DISPENSE', 'MEDICATION_RETURN', 'INPATIENT_ORDER_TASK', 'INPATIENT_BED_DAY', 'DIRECT_REFUND'));
+
+-- =============================================================================
+-- Source: V1_129_11__skin_test_solution_mode_labels.sql
+-- =============================================================================
+-- Display labels for the skin test solution mode extension attribute; stored codes are unchanged.
+update RHN_BD_ITEM_ATTR_DEF set JSON_SCHEMA = '{"type":"string","enum":["ORIGINAL_SOLUTION","DILUTED_SOLUTION"],"x-enumLabels":{"ORIGINAL_SOLUTION":"原液直接试验","DILUTED_SOLUTION":"稀释配制皮试液"}}', REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-15 00:00:00+08', ID_USER_UPDATED = 362387869790222 where ID_ITEM_ATTR_DEF = 362387869797501;
+
+-- =============================================================================
+-- Source: V1_129_12__outpatient_blood_pressure_requirement.sql
+-- =============================================================================
+-- 门诊血压测量要求改为可按机构维护的结构化参数；原硬编码规则（18 周岁及以上或年龄不明必填）作为默认值，阻断时机默认改为诊毕。
+insert into RHN_SYS_PARAM_DEF (
+    ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF,
+    SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_EXAMPLE_VAL,
+    UNIT, CD_DICT, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE,
+    FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION,
+    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED,
+    CD_DEPENDS_ON_KEY, EXPR_DEPENDS_ON_VAL, SD_DEPNCY_BEHAV
+) values (
+    362387869796195, 362387869794071,
+    'outpatient.vital-signs.blood-pressure.requirement',
+    '门诊血压测量要求',
+    '控制门诊就诊何时必须填写收缩压和舒张压：是否启用、必测起始年龄、年龄不明时是否必测，以及在保存草稿时还是诊毕时阻断。',
+    'JSON', 'JSON_EDITOR', '{"type":"object","additionalProperties":false,"required":["enabled","minAge","unknownAgeRequired","enforceAt"],"properties":{"enabled":{"type":"boolean","title":"门诊就诊必测血压","description":"关闭后门诊就诊不再强制填写血压。"},"minAge":{"type":"integer","title":"必测起始年龄（周岁）","description":"按就诊日计算的周岁年龄达到该值即须测量；每次就诊均按首诊处理。18 表示成人就诊必测，35 表示 35 岁及以上首诊测压。","minimum":0,"maximum":120,"x-visibleWhen":{"enabled":true}},"unknownAgeRequired":{"type":"boolean","title":"年龄不明时也必测","description":"患者出生日期缺失或晚于就诊日时是否仍要求测量。","x-visibleWhen":{"enabled":true}},"enforceAt":{"type":"string","title":"拦截时机","description":"诊毕时：保存草稿只提醒，诊毕准入时阻断；保存草稿时：未填写血压不能保存病历草稿。","enum":["COMPLETION","DRAFT"],"x-enumLabels":{"COMPLETION":"诊毕时","DRAFT":"保存草稿时"},"x-visibleWhen":{"enabled":true}}}}',
+    '{"enabled":true,"minAge":18,"unknownAgeRequired":true,"enforceAt":"COMPLETION"}', '{"enabled":true,"minAge":35,"unknownAgeRequired":false,"enforceAt":"COMPLETION"}', null, null,
+    '["PLATFORM","TENANT","ORGANIZATION","DEPARTMENT"]', 'BUSINESS',
+    true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0,
+    timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222,
+    null, null, 'DISABLE_AND_SUPPRESS'
+);
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+) values (
+    362387869796196, null, 362387869796195, null, 'DEFINITION',
+    'CREATE', null,
+    '{"source":"PRODUCT_BASELINE","key":"outpatient.vital-signs.blood-pressure.requirement","status":"ACTIVE"}',
+    '初始化门诊血压测量要求参数',
+    'v1.129.12:outpatient.vital-signs.blood-pressure.requirement',
+    timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222
+);
+
+-- =============================================================================
+-- Source: V1_129_13__organization_change_history.sql
+-- =============================================================================
+create table RHN_SYS_ORG_CHG (
+    ID_ORG_CHG bigint not null,
+    ID_TNT bigint not null,
+    CD_RSRC_TYPE varchar(32) not null,
+    ID_RSRC bigint not null,
+    CD_ACTION varchar(32) not null,
+    DES_BEFORE clob not null,
+    DES_AFTER clob not null,
+    DES_REASON varchar(1000) not null,
+    NA_ACTOR varchar(128) not null,
+    ID_USER bigint,
+    DT_OCCRD timestamp with time zone not null,
+    constraint PK_SYS_ORG_CHG primary key (ID_ORG_CHG),
+    constraint FK_SYS_ORG_CHG_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT)
+);
+
+create index IX_SYS_ORG_CHG_RSRC on RHN_SYS_ORG_CHG (ID_TNT, CD_RSRC_TYPE, ID_RSRC, DT_OCCRD);
+
+comment on table RHN_SYS_ORG_CHG is '组织与人员变更记录；一行代表一次追加式维护事件';
+comment on column RHN_SYS_ORG_CHG.ID_ORG_CHG is '组织变更记录主键';
+comment on column RHN_SYS_ORG_CHG.ID_TNT is '租户标识';
+comment on column RHN_SYS_ORG_CHG.CD_RSRC_TYPE is '变更对象类型';
+comment on column RHN_SYS_ORG_CHG.ID_RSRC is '机构、科室、人员或岗位标识';
+comment on column RHN_SYS_ORG_CHG.CD_ACTION is '变更动作';
+comment on column RHN_SYS_ORG_CHG.DES_BEFORE is '变更前完整快照';
+comment on column RHN_SYS_ORG_CHG.DES_AFTER is '变更后完整快照';
+comment on column RHN_SYS_ORG_CHG.DES_REASON is '变更原因';
+comment on column RHN_SYS_ORG_CHG.ID_USER is '操作账号标识';
+comment on column RHN_SYS_ORG_CHG.DT_OCCRD is '变更发生时间';
+comment on column RHN_SYS_ORG_CHG.NA_ACTOR is '操作账号名称快照';
+
+-- =============================================================================
+-- Source: V1_129_14__organization_confirmation_results.sql
+-- =============================================================================
+-- Results are maintained directly; no pending-review workflow is used.
+update RHN_SYS_ORG_IDENT set SD_VERIFY_STATUS = 'UNVERIFIED' where SD_VERIFY_STATUS = 'PENDING';
+update RHN_SYS_ORG_CAP set SD_VERIFY_STATUS = 'UNVERIFIED' where SD_VERIFY_STATUS = 'PENDING';
+update RHN_SYS_DEPT_CAP set SD_VERIFY_STATUS = 'UNVERIFIED' where SD_VERIFY_STATUS = 'PENDING';
+
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928001, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"UNVERIFIED","name":"未核验"}', '{"code":"UNVERIFIED","name":"未确认","status":"ACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'UNVERIFIED';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928002, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"VERIFIED","name":"已核验"}', '{"code":"VERIFIED","name":"符合","status":"ACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'VERIFIED';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928003, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"REJECTED","name":"未通过"}', '{"code":"REJECTED","name":"不符合","status":"ACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'REJECTED';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928004, null, d.ID_DICT_DEF, i.ID_DICT_ITEM, 'UPDATE_ITEM', 'ITEM', '{"code":"PENDING","name":"待核验"}', '{"code":"PENDING","name":"待核验（历史）","status":"INACTIVE"}', '组织资料改为直接维护确认结果，取消待核验流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_ITEM i join RHN_BD_DICT_DEF d on d.ID_DICT_DEF = i.ID_DICT_DEF_DICT where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS' and i.CD_DICT_ITEM = 'PENDING';
+
+update RHN_BD_DICT_ITEM set NA_DICT_ITEM = case CD_DICT_ITEM when 'UNVERIFIED' then '未确认' when 'VERIFIED' then '符合' when 'REJECTED' then '不符合' when 'PENDING' then '待核验（历史）' else NA_DICT_ITEM end,
+    DES_DICT_ITEM = '组织资料确认结果，直接登记，不经过审批流程', SD_STATUS = case when CD_DICT_ITEM = 'PENDING' then 'INACTIVE' else SD_STATUS end
+where ID_DICT_DEF_DICT in (select ID_DICT_DEF from RHN_BD_DICT_DEF where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'ORG_VERIFY_STATUS');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869928005, null, d.ID_DICT_DEF, null, 'UPDATE_DICT', 'DICT', '{"name":"组织资料核验状态"}', '{"name":"组织资料确认结果"}', '确认结果直接维护，不经过审批流程', 'v1.129.11:organization-results', timestamp with time zone '2026-10-16 00:00:00+08', 362387869790222, d.ID_DICT_CAT, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'ORG_VERIFY_STATUS';
+update RHN_BD_DICT_DEF set NA_DICT_DEF = '组织资料确认结果', DES_DICT_DEF = '机构标识及服务能力直接维护确认结果，无待核验流程', REVISION = REVISION + 1,
+    DT_UPDATED = timestamp with time zone '2026-10-16 00:00:00+08', ID_USER_UPDATED = 362387869790222
+where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'ORG_VERIFY_STATUS';
+
+-- =============================================================================
+-- Source: V1_129_15__billing_relief_policy.sql
+-- =============================================================================
+-- Billing relief (惠民减免) policy foundation (generated).
+-- Policies are versioned; a published version fixes timing (before or after insurance), sponsor, applicable scope,
+-- quota and stacking. Rules scope a version to all charges, accounting categories, catalog items or charge sources.
+-- Qualifications reference the BIL_RELIEF_QUALIF_TYPE dictionary shared with the roster. Applications record each
+-- relief or reversal per settlement with its line allocation; quotas accumulate per resident, period and share scope.
+
+-- 1. Tables.
+create table RHN_BIL_RELIEF_POLICY (
+    ID_RELIEF_POLICY bigint not null,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    CD_POLICY varchar(64) not null,
+    NA_POLICY varchar(200) not null,
+    DES_POLICY varchar(2000),
+    SD_STATUS varchar(32) not null,
+    ID_POLICY_VER_CUR bigint,
+    ID_USER_CREATED bigint not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_UPDATED bigint not null,
+    DT_UPDATED timestamp with time zone not null,
+    constraint PK_BIL_RELIEF_POL primary key (ID_RELIEF_POLICY),
+    constraint FK_BIL_RELIEF_POL_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_POL_CODE unique (ID_TNT, CD_POLICY),
+    constraint CK_BIL_RELIEF_POL_STATUS check (SD_STATUS in ('DRAFT', 'ACTIVE', 'SUSPENDED', 'RETIRED'))
+);
+
+comment on table RHN_BIL_RELIEF_POLICY is '惠民减免政策；一行代表一项政策，计算内容见政策版本';
+comment on column RHN_BIL_RELIEF_POLICY.ID_RELIEF_POLICY is '减免政策主键';
+comment on column RHN_BIL_RELIEF_POLICY.REVISION is '乐观锁版本';
+comment on column RHN_BIL_RELIEF_POLICY.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_POLICY.CD_POLICY is '政策编码';
+comment on column RHN_BIL_RELIEF_POLICY.NA_POLICY is '政策名称';
+comment on column RHN_BIL_RELIEF_POLICY.DES_POLICY is '政策说明';
+comment on column RHN_BIL_RELIEF_POLICY.SD_STATUS is '政策状态';
+comment on column RHN_BIL_RELIEF_POLICY.ID_POLICY_VER_CUR is '当前发布版本标识';
+comment on column RHN_BIL_RELIEF_POLICY.ID_USER_CREATED is '创建人标识';
+comment on column RHN_BIL_RELIEF_POLICY.DT_CREATED is '创建时间';
+comment on column RHN_BIL_RELIEF_POLICY.ID_USER_UPDATED is '最后修改人标识';
+comment on column RHN_BIL_RELIEF_POLICY.DT_UPDATED is '最后修改时间';
+
+create table RHN_BIL_RELIEF_POLICY_VER (
+    ID_POLICY_VER bigint not null,
+    ID_TNT bigint not null,
+    ID_RELIEF_POLICY bigint not null,
+    SN_VER integer not null,
+    SD_STATUS varchar(32) not null,
+    SD_TIMING varchar(32) not null,
+    SD_SPONSOR varchar(32) not null,
+    CD_PAYER varchar(128),
+    NA_PAYER varchar(200),
+    JSON_APPL_SCOPE clob not null,
+    DA_EFF_FROM date not null,
+    DA_EFF_TO date,
+    SN_PRI integer not null,
+    CD_MUTEX_GROUP varchar(64),
+    FG_STACK boolean default false not null,
+    SD_QUALIF_MODE varchar(32) not null,
+    FG_INS_APPL boolean default false not null,
+    FG_BASE_PERS_ACCT boolean default false not null,
+    AMT_ONCE_MAX decimal(24,6),
+    SD_QUOTA_PERIOD varchar(32) not null,
+    AMT_PERIOD_MAX decimal(24,6),
+    QTY_PERIOD_MAX integer,
+    FG_SHARE_SCENE boolean default false not null,
+    FG_SHARE_ORG boolean default false not null,
+    DES_VER_NOTE varchar(1000),
+    ID_USER_CREATED bigint not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_PUBLISD bigint,
+    DT_PUBLISD timestamp with time zone,
+    constraint PK_BIL_RELIEF_VER primary key (ID_POLICY_VER),
+    constraint FK_BIL_RELIEF_VER_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_VER_NO unique (ID_TNT, ID_RELIEF_POLICY, SN_VER),
+    constraint CK_BIL_RELIEF_VER_STATUS check (SD_STATUS in ('DRAFT', 'PUBLISHED', 'SUPERSEDED')),
+    constraint CK_BIL_RELIEF_VER_TIMING check (SD_TIMING in ('PRE_INSURANCE', 'POST_INSURANCE')),
+    constraint CK_BIL_RELIEF_VER_SPONSOR check (SD_SPONSOR in ('HOSPITAL', 'GOVERNMENT', 'CHARITY', 'OTHER')),
+    constraint CK_BIL_RELIEF_VER_QUALIF check (SD_QUALIF_MODE in ('ANY', 'ALL')),
+    constraint CK_BIL_RELIEF_VER_PERIOD check (SD_QUOTA_PERIOD in ('NONE', 'DAY', 'MONTH', 'QUARTER', 'YEAR', 'POLICY_TERM')),
+    constraint CK_BIL_RELIEF_VER_LIMIT check ((AMT_ONCE_MAX is null or AMT_ONCE_MAX > 0) and (AMT_PERIOD_MAX is null or AMT_PERIOD_MAX > 0) and (QTY_PERIOD_MAX is null or QTY_PERIOD_MAX > 0)),
+    constraint CK_BIL_RELIEF_VER_EFF check (DA_EFF_TO is null or DA_EFF_TO >= DA_EFF_FROM),
+    constraint FK_BIL_RELIEF_VER_POL foreign key (ID_RELIEF_POLICY) references RHN_BIL_RELIEF_POLICY(ID_RELIEF_POLICY)
+);
+
+comment on table RHN_BIL_RELIEF_POLICY_VER is '惠民减免政策版本；一行代表一项政策的一个版本，发布后不再修改';
+comment on column RHN_BIL_RELIEF_POLICY_VER.ID_POLICY_VER is '政策版本主键';
+comment on column RHN_BIL_RELIEF_POLICY_VER.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_POLICY_VER.ID_RELIEF_POLICY is '减免政策标识';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SN_VER is '版本序号';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SD_STATUS is '版本状态';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SD_TIMING is '减免时机：医保前或医保后';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SD_SPONSOR is '减免承担主体';
+comment on column RHN_BIL_RELIEF_POLICY_VER.CD_PAYER is '承担单位编码';
+comment on column RHN_BIL_RELIEF_POLICY_VER.NA_PAYER is '承担单位名称';
+comment on column RHN_BIL_RELIEF_POLICY_VER.JSON_APPL_SCOPE is '适用机构与结算场景';
+comment on column RHN_BIL_RELIEF_POLICY_VER.DA_EFF_FROM is '生效日期';
+comment on column RHN_BIL_RELIEF_POLICY_VER.DA_EFF_TO is '失效日期，空表示长期有效';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SN_PRI is '执行优先级，数值小者先执行';
+comment on column RHN_BIL_RELIEF_POLICY_VER.CD_MUTEX_GROUP is '互斥组编码，同组只执行一项';
+comment on column RHN_BIL_RELIEF_POLICY_VER.FG_STACK is '是否允许与其他政策叠加';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SD_QUALIF_MODE is '资格条件组合方式';
+comment on column RHN_BIL_RELIEF_POLICY_VER.FG_INS_APPL is '医保结算患者是否适用';
+comment on column RHN_BIL_RELIEF_POLICY_VER.FG_BASE_PERS_ACCT is '医保后计算基数是否包含个人账户支付';
+comment on column RHN_BIL_RELIEF_POLICY_VER.AMT_ONCE_MAX is '单次减免上限';
+comment on column RHN_BIL_RELIEF_POLICY_VER.SD_QUOTA_PERIOD is '额度周期';
+comment on column RHN_BIL_RELIEF_POLICY_VER.AMT_PERIOD_MAX is '周期累计减免上限';
+comment on column RHN_BIL_RELIEF_POLICY_VER.QTY_PERIOD_MAX is '周期最多享受次数';
+comment on column RHN_BIL_RELIEF_POLICY_VER.FG_SHARE_SCENE is '门诊与住院是否共享额度';
+comment on column RHN_BIL_RELIEF_POLICY_VER.FG_SHARE_ORG is '不同机构是否共享额度';
+comment on column RHN_BIL_RELIEF_POLICY_VER.DES_VER_NOTE is '版本说明';
+comment on column RHN_BIL_RELIEF_POLICY_VER.ID_USER_CREATED is '创建人标识';
+comment on column RHN_BIL_RELIEF_POLICY_VER.DT_CREATED is '创建时间';
+comment on column RHN_BIL_RELIEF_POLICY_VER.ID_USER_PUBLISD is '发布人标识';
+comment on column RHN_BIL_RELIEF_POLICY_VER.DT_PUBLISD is '发布时间';
+
+create table RHN_BIL_RELIEF_RULE (
+    ID_RELIEF_RULE bigint not null,
+    ID_TNT bigint not null,
+    ID_POLICY_VER bigint not null,
+    SN_LINE integer not null,
+    SD_SCOPE_TYPE varchar(32) not null,
+    CD_SCOPE_VAL varchar(64),
+    ID_CATALOG_ITEM bigint,
+    NA_SCOPE_SNAP varchar(300),
+    FG_EXCLUDE boolean default false not null,
+    SD_METHOD varchar(32),
+    VAL_RATIO decimal(9,6),
+    AMT_RULE decimal(24,6),
+    AMT_MANUAL_MAX decimal(24,6),
+    QTY_PERIOD_MAX integer,
+    constraint PK_BIL_RELIEF_RULE primary key (ID_RELIEF_RULE),
+    constraint FK_BIL_RELIEF_RULE_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_RULE_LINE unique (ID_TNT, ID_POLICY_VER, SN_LINE),
+    constraint CK_BIL_RELIEF_RULE_SCOPE check (SD_SCOPE_TYPE in ('ALL', 'ACCOUNTING_CATEGORY', 'CATALOG_ITEM', 'SOURCE_TYPE')),
+    constraint CK_BIL_RELIEF_RULE_METHOD check (SD_METHOD in ('RATIO', 'FREE', 'FIXED_AMOUNT', 'UNIT_AMOUNT', 'PRICE_CAP', 'MANUAL')),
+    constraint CK_BIL_RELIEF_RULE_VAL check ((VAL_RATIO is null or (VAL_RATIO > 0 and VAL_RATIO <= 1)) and (AMT_RULE is null or AMT_RULE >= 0) and (AMT_MANUAL_MAX is null or AMT_MANUAL_MAX > 0) and (QTY_PERIOD_MAX is null or QTY_PERIOD_MAX > 0)),
+    constraint FK_BIL_RELIEF_RULE_VER foreign key (ID_POLICY_VER) references RHN_BIL_RELIEF_POLICY_VER(ID_POLICY_VER)
+);
+
+comment on table RHN_BIL_RELIEF_RULE is '惠民减免规则；一行代表政策版本中的一条费用范围及其计算方式';
+comment on column RHN_BIL_RELIEF_RULE.ID_RELIEF_RULE is '减免规则主键';
+comment on column RHN_BIL_RELIEF_RULE.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_RULE.ID_POLICY_VER is '政策版本标识';
+comment on column RHN_BIL_RELIEF_RULE.SN_LINE is '规则行号';
+comment on column RHN_BIL_RELIEF_RULE.SD_SCOPE_TYPE is '费用范围类型';
+comment on column RHN_BIL_RELIEF_RULE.CD_SCOPE_VAL is '会计大类或收费来源编码';
+comment on column RHN_BIL_RELIEF_RULE.ID_CATALOG_ITEM is '收费项目标识';
+comment on column RHN_BIL_RELIEF_RULE.NA_SCOPE_SNAP is '范围名称快照';
+comment on column RHN_BIL_RELIEF_RULE.FG_EXCLUDE is '是否为排除范围';
+comment on column RHN_BIL_RELIEF_RULE.SD_METHOD is '减免方式，排除范围为空';
+comment on column RHN_BIL_RELIEF_RULE.VAL_RATIO is '减免比例，0 至 1';
+comment on column RHN_BIL_RELIEF_RULE.AMT_RULE is '固定减免、单位减免或个人限价金额';
+comment on column RHN_BIL_RELIEF_RULE.AMT_MANUAL_MAX is '人工核准金额上限';
+comment on column RHN_BIL_RELIEF_RULE.QTY_PERIOD_MAX is '本规则范围周期最多享受次数';
+
+create table RHN_BIL_RELIEF_QUALIF (
+    ID_RELIEF_QUALIF bigint not null,
+    ID_TNT bigint not null,
+    ID_POLICY_VER bigint not null,
+    SN_LINE integer not null,
+    SD_QUALIF_SRC varchar(32) not null,
+    CD_QUALIF_TYPE varchar(64),
+    JSON_COND clob,
+    CD_PRVDR varchar(64),
+    SD_FAIL_POLICY varchar(32),
+    constraint PK_BIL_RELIEF_QLF primary key (ID_RELIEF_QUALIF),
+    constraint FK_BIL_RELIEF_QLF_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_QLF_LINE unique (ID_TNT, ID_POLICY_VER, SN_LINE),
+    constraint CK_BIL_RELIEF_QLF_SRC check (SD_QUALIF_SRC in ('ALL', 'ROSTER', 'ATTRIBUTE', 'PROVIDER')),
+    constraint CK_BIL_RELIEF_QLF_FAIL check (SD_FAIL_POLICY in ('BLOCK', 'INELIGIBLE', 'MANUAL_CONFIRM')),
+    constraint FK_BIL_RELIEF_QLF_VER foreign key (ID_POLICY_VER) references RHN_BIL_RELIEF_POLICY_VER(ID_POLICY_VER)
+);
+
+comment on table RHN_BIL_RELIEF_QUALIF is '惠民减免资格条件；一行代表政策版本要求的一项资格条件';
+comment on column RHN_BIL_RELIEF_QUALIF.ID_RELIEF_QUALIF is '资格条件主键';
+comment on column RHN_BIL_RELIEF_QUALIF.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_QUALIF.ID_POLICY_VER is '政策版本标识';
+comment on column RHN_BIL_RELIEF_QUALIF.SN_LINE is '条件行号';
+comment on column RHN_BIL_RELIEF_QUALIF.SD_QUALIF_SRC is '资格来源';
+comment on column RHN_BIL_RELIEF_QUALIF.CD_QUALIF_TYPE is '资格类别编码';
+comment on column RHN_BIL_RELIEF_QUALIF.JSON_COND is '属性条件';
+comment on column RHN_BIL_RELIEF_QUALIF.CD_PRVDR is '外部资格接口编码';
+comment on column RHN_BIL_RELIEF_QUALIF.SD_FAIL_POLICY is '外部资格查询失败时的处理';
+
+create table RHN_BIL_RELIEF_ROSTER (
+    ID_RELIEF_ROSTER bigint not null,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    ID_ORG bigint,
+    CD_QUALIF_TYPE varchar(64) not null,
+    ID_PAT bigint not null,
+    NA_PAT_SNAP varchar(128) not null,
+    DA_EFF_FROM date not null,
+    DA_EFF_TO date,
+    CD_EVID_NO varchar(128),
+    DES_EVID varchar(1000),
+    CD_BATCH varchar(64),
+    SD_STATUS varchar(32) not null,
+    DES_REASON varchar(1000),
+    ID_USER_CREATED bigint not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_UPDATED bigint not null,
+    DT_UPDATED timestamp with time zone not null,
+    constraint PK_BIL_RELIEF_RST primary key (ID_RELIEF_ROSTER),
+    constraint FK_BIL_RELIEF_RST_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint CK_BIL_RELIEF_RST_STATUS check (SD_STATUS in ('ACTIVE', 'REVOKED')),
+    constraint CK_BIL_RELIEF_RST_EFF check (DA_EFF_TO is null or DA_EFF_TO >= DA_EFF_FROM)
+);
+create index IX_BIL_RELIEF_RST_PAT on RHN_BIL_RELIEF_ROSTER (ID_TNT, ID_PAT, CD_QUALIF_TYPE);
+create index IX_BIL_RELIEF_RST_TYPE on RHN_BIL_RELIEF_ROSTER (ID_TNT, CD_QUALIF_TYPE, SD_STATUS);
+
+comment on table RHN_BIL_RELIEF_ROSTER is '惠民资格名单；一行代表一位居民的一项资格及其有效期';
+comment on column RHN_BIL_RELIEF_ROSTER.ID_RELIEF_ROSTER is '资格名单主键';
+comment on column RHN_BIL_RELIEF_ROSTER.REVISION is '乐观锁版本';
+comment on column RHN_BIL_RELIEF_ROSTER.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_ROSTER.ID_ORG is '登记机构标识';
+comment on column RHN_BIL_RELIEF_ROSTER.CD_QUALIF_TYPE is '资格类别编码';
+comment on column RHN_BIL_RELIEF_ROSTER.ID_PAT is '居民标识';
+comment on column RHN_BIL_RELIEF_ROSTER.NA_PAT_SNAP is '居民姓名快照';
+comment on column RHN_BIL_RELIEF_ROSTER.DA_EFF_FROM is '资格生效日期';
+comment on column RHN_BIL_RELIEF_ROSTER.DA_EFF_TO is '资格失效日期，空表示长期有效';
+comment on column RHN_BIL_RELIEF_ROSTER.CD_EVID_NO is '资格证明编号';
+comment on column RHN_BIL_RELIEF_ROSTER.DES_EVID is '资格依据说明';
+comment on column RHN_BIL_RELIEF_ROSTER.CD_BATCH is '导入批次';
+comment on column RHN_BIL_RELIEF_ROSTER.SD_STATUS is '名单状态';
+comment on column RHN_BIL_RELIEF_ROSTER.DES_REASON is '停用原因';
+comment on column RHN_BIL_RELIEF_ROSTER.ID_USER_CREATED is '创建人标识';
+comment on column RHN_BIL_RELIEF_ROSTER.DT_CREATED is '创建时间';
+comment on column RHN_BIL_RELIEF_ROSTER.ID_USER_UPDATED is '最后修改人标识';
+comment on column RHN_BIL_RELIEF_ROSTER.DT_UPDATED is '最后修改时间';
+
+create table RHN_BIL_RELIEF_APPLY (
+    ID_RELIEF_APPLY bigint not null,
+    ID_TNT bigint not null,
+    ID_ORG bigint not null,
+    ID_STL bigint not null,
+    ID_PAT bigint not null,
+    ID_RELIEF_POLICY bigint not null,
+    ID_POLICY_VER bigint not null,
+    SD_TIMING varchar(32) not null,
+    SD_SPONSOR varchar(32) not null,
+    SD_STL_SCENE varchar(32) not null,
+    AMT_BASE decimal(24,6) not null,
+    AMT_RELIEF decimal(24,6) not null,
+    SD_STATUS varchar(32) not null,
+    ID_RELIEF_APPLY_RVRS bigint,
+    ID_STL_TENDER bigint,
+    JSON_QUALIF_EVID clob,
+    DES_MANUAL_REASON varchar(1000),
+    DES_MANUAL_EVID varchar(1000),
+    ID_USER_APRVD bigint,
+    CD_COMMAND varchar(128) not null,
+    ID_USER_CREATED bigint not null,
+    DT_CREATED timestamp with time zone not null,
+    constraint PK_BIL_RELIEF_APL primary key (ID_RELIEF_APPLY),
+    constraint FK_BIL_RELIEF_APL_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_APL_CMD unique (ID_TNT, CD_COMMAND),
+    constraint CK_BIL_RELIEF_APL_TIMING check (SD_TIMING in ('PRE_INSURANCE', 'POST_INSURANCE')),
+    constraint CK_BIL_RELIEF_APL_SPONSOR check (SD_SPONSOR in ('HOSPITAL', 'GOVERNMENT', 'CHARITY', 'OTHER')),
+    constraint CK_BIL_RELIEF_APL_STATUS check (SD_STATUS in ('APPLIED', 'REVERSED')),
+    constraint FK_BIL_RELIEF_APL_POL foreign key (ID_RELIEF_POLICY) references RHN_BIL_RELIEF_POLICY(ID_RELIEF_POLICY),
+    constraint FK_BIL_RELIEF_APL_VER foreign key (ID_POLICY_VER) references RHN_BIL_RELIEF_POLICY_VER(ID_POLICY_VER)
+);
+create index IX_BIL_RELIEF_APL_STL on RHN_BIL_RELIEF_APPLY (ID_TNT, ID_STL);
+create index IX_BIL_RELIEF_APL_POL on RHN_BIL_RELIEF_APPLY (ID_TNT, ID_RELIEF_POLICY, DT_CREATED);
+create index IX_BIL_RELIEF_APL_PAT on RHN_BIL_RELIEF_APPLY (ID_TNT, ID_PAT, DT_CREATED);
+
+comment on table RHN_BIL_RELIEF_APPLY is '结算减免记录；一行代表一项政策对一张结算单的一次减免或冲销';
+comment on column RHN_BIL_RELIEF_APPLY.ID_RELIEF_APPLY is '减免记录主键';
+comment on column RHN_BIL_RELIEF_APPLY.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_APPLY.ID_ORG is '结算机构标识';
+comment on column RHN_BIL_RELIEF_APPLY.ID_STL is '结算单标识';
+comment on column RHN_BIL_RELIEF_APPLY.ID_PAT is '居民标识';
+comment on column RHN_BIL_RELIEF_APPLY.ID_RELIEF_POLICY is '减免政策标识';
+comment on column RHN_BIL_RELIEF_APPLY.ID_POLICY_VER is '政策版本标识';
+comment on column RHN_BIL_RELIEF_APPLY.SD_TIMING is '减免时机';
+comment on column RHN_BIL_RELIEF_APPLY.SD_SPONSOR is '减免承担主体';
+comment on column RHN_BIL_RELIEF_APPLY.SD_STL_SCENE is '结算场景';
+comment on column RHN_BIL_RELIEF_APPLY.AMT_BASE is '计算基数';
+comment on column RHN_BIL_RELIEF_APPLY.AMT_RELIEF is '减免金额，冲销记录为负';
+comment on column RHN_BIL_RELIEF_APPLY.SD_STATUS is '减免记录状态';
+comment on column RHN_BIL_RELIEF_APPLY.ID_RELIEF_APPLY_RVRS is '被冲销的原减免记录标识';
+comment on column RHN_BIL_RELIEF_APPLY.ID_STL_TENDER is '医保后减免对应的结算支付标识';
+comment on column RHN_BIL_RELIEF_APPLY.JSON_QUALIF_EVID is '资格认定依据快照';
+comment on column RHN_BIL_RELIEF_APPLY.DES_MANUAL_REASON is '人工核准原因';
+comment on column RHN_BIL_RELIEF_APPLY.DES_MANUAL_EVID is '人工核准依据';
+comment on column RHN_BIL_RELIEF_APPLY.ID_USER_APRVD is '人工核准人标识';
+comment on column RHN_BIL_RELIEF_APPLY.CD_COMMAND is '幂等命令码';
+comment on column RHN_BIL_RELIEF_APPLY.ID_USER_CREATED is '创建人标识';
+comment on column RHN_BIL_RELIEF_APPLY.DT_CREATED is '创建时间';
+
+create table RHN_BIL_RELIEF_APPLY_LINE (
+    ID_RELIEF_APPLY_LINE bigint not null,
+    ID_TNT bigint not null,
+    ID_RELIEF_APPLY bigint not null,
+    ID_STL_LINE bigint not null,
+    ID_CHARGE_ITEM bigint not null,
+    ID_RELIEF_RULE bigint,
+    AMT_BASE decimal(24,6) not null,
+    AMT_RELIEF decimal(24,6) not null,
+    constraint PK_BIL_RELIEF_APL_LN primary key (ID_RELIEF_APPLY_LINE),
+    constraint FK_BIL_RELIEF_APL_LN_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_APL_LN_LINE unique (ID_TNT, ID_RELIEF_APPLY, ID_STL_LINE),
+    constraint FK_BIL_RELIEF_APL_LN_APL foreign key (ID_RELIEF_APPLY) references RHN_BIL_RELIEF_APPLY(ID_RELIEF_APPLY)
+);
+create index IX_BIL_RELIEF_APL_LN_CHG on RHN_BIL_RELIEF_APPLY_LINE (ID_TNT, ID_CHARGE_ITEM);
+
+comment on table RHN_BIL_RELIEF_APPLY_LINE is '结算减免分配明细；一行代表一条减免记录在一个结算行上的分配';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.ID_RELIEF_APPLY_LINE is '减免分配明细主键';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.ID_RELIEF_APPLY is '减免记录标识';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.ID_STL_LINE is '结算行标识';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.ID_CHARGE_ITEM is '收费事项标识';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.ID_RELIEF_RULE is '命中的减免规则标识';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.AMT_BASE is '本行计算基数';
+comment on column RHN_BIL_RELIEF_APPLY_LINE.AMT_RELIEF is '本行减免金额，冲销为负';
+
+create table RHN_BIL_RELIEF_QUOTA (
+    ID_RELIEF_QUOTA bigint not null,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    ID_RELIEF_POLICY bigint not null,
+    ID_PAT bigint not null,
+    CD_PERIOD varchar(32) not null,
+    CD_SHARE varchar(128) not null,
+    CD_SCOPE varchar(200) not null,
+    AMT_USED decimal(24,6) not null,
+    QTY_USED integer not null,
+    DT_UPDATED timestamp with time zone not null,
+    constraint PK_BIL_RELIEF_QTA primary key (ID_RELIEF_QUOTA),
+    constraint FK_BIL_RELIEF_QTA_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_QTA_KEY unique (ID_TNT, ID_RELIEF_POLICY, ID_PAT, CD_PERIOD, CD_SHARE, CD_SCOPE),
+    constraint CK_BIL_RELIEF_QTA_USED check (AMT_USED >= 0 and QTY_USED >= 0),
+    constraint FK_BIL_RELIEF_QTA_POL foreign key (ID_RELIEF_POLICY) references RHN_BIL_RELIEF_POLICY(ID_RELIEF_POLICY)
+);
+
+comment on table RHN_BIL_RELIEF_QUOTA is '惠民减免额度累计；一行代表一位居民在一个额度范围和周期内的已用金额与次数';
+comment on column RHN_BIL_RELIEF_QUOTA.ID_RELIEF_QUOTA is '额度累计主键';
+comment on column RHN_BIL_RELIEF_QUOTA.REVISION is '乐观锁版本';
+comment on column RHN_BIL_RELIEF_QUOTA.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_QUOTA.ID_RELIEF_POLICY is '减免政策标识';
+comment on column RHN_BIL_RELIEF_QUOTA.ID_PAT is '居民标识';
+comment on column RHN_BIL_RELIEF_QUOTA.CD_PERIOD is '周期键，如 2026 或 2026-10';
+comment on column RHN_BIL_RELIEF_QUOTA.CD_SHARE is '共享范围键：结算场景与机构';
+comment on column RHN_BIL_RELIEF_QUOTA.CD_SCOPE is '额度对象：整项政策或规则范围';
+comment on column RHN_BIL_RELIEF_QUOTA.AMT_USED is '已用减免金额';
+comment on column RHN_BIL_RELIEF_QUOTA.QTY_USED is '已享受次数';
+comment on column RHN_BIL_RELIEF_QUOTA.DT_UPDATED is '最后变动时间';
+
+create table RHN_BIL_RELIEF_QUOTA_TXN (
+    ID_QUOTA_TXN bigint not null,
+    ID_TNT bigint not null,
+    ID_RELIEF_QUOTA bigint not null,
+    ID_RELIEF_APPLY bigint,
+    SD_TXN_TYPE varchar(32) not null,
+    AMT_DELTA decimal(24,6) not null,
+    QTY_DELTA integer not null,
+    CD_COMMAND varchar(128) not null,
+    ID_USER bigint not null,
+    DT_OCCRD timestamp with time zone not null,
+    constraint PK_BIL_RELIEF_QTX primary key (ID_QUOTA_TXN),
+    constraint FK_BIL_RELIEF_QTX_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_BIL_RELIEF_QTX_CMD unique (ID_TNT, CD_COMMAND),
+    constraint CK_BIL_RELIEF_QTX_TYPE check (SD_TXN_TYPE in ('RESERVE', 'CONFIRM', 'RELEASE', 'REVERSE')),
+    constraint FK_BIL_RELIEF_QTX_QTA foreign key (ID_RELIEF_QUOTA) references RHN_BIL_RELIEF_QUOTA(ID_RELIEF_QUOTA),
+    constraint FK_BIL_RELIEF_QTX_APL foreign key (ID_RELIEF_APPLY) references RHN_BIL_RELIEF_APPLY(ID_RELIEF_APPLY)
+);
+create index IX_BIL_RELIEF_QTX_QTA on RHN_BIL_RELIEF_QUOTA_TXN (ID_TNT, ID_RELIEF_QUOTA);
+
+comment on table RHN_BIL_RELIEF_QUOTA_TXN is '惠民减免额度流水；一行代表一次额度占用、确认、释放或恢复';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.ID_QUOTA_TXN is '额度流水主键';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.ID_TNT is '租户标识';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.ID_RELIEF_QUOTA is '额度累计标识';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.ID_RELIEF_APPLY is '减免记录标识';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.SD_TXN_TYPE is '额度变动类型';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.AMT_DELTA is '金额变动，释放与恢复为负';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.QTY_DELTA is '次数变动，释放与恢复为负';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.CD_COMMAND is '幂等命令码';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.ID_USER is '操作人标识';
+comment on column RHN_BIL_RELIEF_QUOTA_TXN.DT_OCCRD is '发生时间';
+
+-- 2. Qualification type dictionary.
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869940001, 0, 'PLATFORM', 'PLATFORM', null, 'BIL_RELIEF_QUALIF_TYPE', '惠民资格类别', '享受结算惠民减免的人员资格类别；资格名单与减免政策共同引用，机构可扩展。', 'ACTIVE', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, false, 362387869840010);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940201, null, 362387869940001, null, 'CREATE_DICT', 'DICT', null, '{"code": "BIL_RELIEF_QUALIF_TYPE", "name": "惠民资格类别", "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869940101, 362387869940001, 'FAMILY_DOCTOR_SIGNED', '家庭医生签约居民', '与本机构家庭医生团队签约且在有效期内的居民', 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940202, null, 362387869940001, 362387869940101, 'ADD_ITEM', 'ITEM', null, '{"code": "FAMILY_DOCTOR_SIGNED", "name": "家庭医生签约居民", "sortOrder": 10, "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869940102, 362387869940001, 'PREGNANT_WOMAN', '孕产妇', '在妇幼保健管理中的孕产妇', 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940203, null, 362387869940001, 362387869940102, 'ADD_ITEM', 'ITEM', null, '{"code": "PREGNANT_WOMAN", "name": "孕产妇", "sortOrder": 20, "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869940103, 362387869940001, 'MINIMUM_LIVING', '最低生活保障对象', '民政认定的城乡低保对象', 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940204, null, 362387869940001, 362387869940103, 'ADD_ITEM', 'ITEM', null, '{"code": "MINIMUM_LIVING", "name": "最低生活保障对象", "sortOrder": 30, "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869940104, 362387869940001, 'EXTREME_POVERTY', '特困供养人员', '民政认定的特困供养人员', 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940205, null, 362387869940001, 362387869940104, 'ADD_ITEM', 'ITEM', null, '{"code": "EXTREME_POVERTY", "name": "特困供养人员", "sortOrder": 40, "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869940105, 362387869940001, 'SPECIAL_CARE', '优抚对象', '退役军人事务部门认定的重点优抚对象', 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940206, null, 362387869940001, 362387869940105, 'ADD_ITEM', 'ITEM', null, '{"code": "SPECIAL_CARE", "name": "优抚对象", "sortOrder": 50, "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869940106, 362387869940001, 'HOSPITAL_STAFF', '本院职工及家属', '医院人事部门登记的职工及其直系亲属', 60, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869940207, null, 362387869940001, 362387869940106, 'ADD_ITEM', 'ITEM', null, '{"code": "HOSPITAL_STAFF", "name": "本院职工及家属", "sortOrder": 60, "status": "ACTIVE"}', '结算惠民减免引用资格类别，名单与政策共享同一类别', 'v1.129.15:billing-relief-policy', timestamp with time zone '2026-10-17 00:00:00+08', 362387869790222, 362387869840010, null);
+
+-- 3. Permissions: policy maintenance and roster maintenance, granted to a dedicated tenant administrator role.
+insert into RHN_SYS_ACC_PERM values (362387869940301, 362387869790209, 362387869896005, 'BILLING_RELIEF.MANAGE', '维护惠民减免政策', 'MANAGE', 'BILLING_RELIEF', 'ACTIVE');
+insert into RHN_SYS_ACC_PERM values (362387869940302, 362387869790209, 362387869896005, 'BILLING_RELIEF.ROSTER', '维护惠民资格名单', 'MANAGE', 'BILLING_RELIEF_ROSTER', 'ACTIVE');
+insert into RHN_SYS_ACC_ROLE values (362387869940311, 362387869790209, 'BILLING_RELIEF_ADMIN', '惠民政策管理员', 'ADMIN', 'ACTIVE', timestamp with time zone '2026-10-17 00:00:00+08', timestamp with time zone '2026-10-17 00:00:00+08', 0);
+insert into RHN_SYS_ROLE_PERM_ASSIGN values (362387869940321, 362387869790209, 362387869940311, 362387869940301, timestamp with time zone '2026-10-17 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-17 00:00:00+08');
+insert into RHN_SYS_ROLE_PERM_ASSIGN values (362387869940322, 362387869790209, 362387869940311, 362387869940302, timestamp with time zone '2026-10-17 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-17 00:00:00+08');
+insert into RHN_SYS_USER_ROLE_ASSIGN values (362387869940331, 362387869790209, 362387869790222, 362387869940311, null, null, 'TENANT', timestamp with time zone '2026-10-17 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-17 00:00:00+08');
+
+-- 4. Post-insurance relief is a settlement funding source: its own settlement amount and a tender sourced by the
+--    relief application instead of a payment or an insurance response.
+alter table RHN_BIL_STL add column AMT_RELIEF decimal(24,6) default 0 not null;
+alter table RHN_BIL_STL_TENDER add column ID_RELIEF_APPLY bigint;
+alter table RHN_BIL_STL_TENDER add constraint UK_BIL_STL_TENDER_RELIEF unique (ID_TNT, ID_RELIEF_APPLY);
+comment on column RHN_BIL_STL.AMT_RELIEF is '医保后惠民减免与补助金额';
+comment on column RHN_BIL_STL_TENDER.ID_RELIEF_APPLY is '减免记录标识，医保后减免的资金来源';
+
+-- 5. Manual relief approval at the cashier is a separate permission held by the relief administrator role.
+insert into RHN_SYS_ACC_PERM values (362387869940303, 362387869790209, 362387869896005, 'BILLING_RELIEF.APPROVE', '核准惠民人工减免', 'APPROVE', 'BILLING_RELIEF', 'ACTIVE');
+insert into RHN_SYS_ROLE_PERM_ASSIGN values (362387869940323, 362387869790209, 362387869940311, 362387869940303, timestamp with time zone '2026-10-17 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-17 00:00:00+08');
+
+-- 6. A refund reverses relief: credit invoices and reversal settlements carry a negative discount (the relief
+--    taken back), and a fully relieved charge reverses to a zero net amount.
+alter table RHN_BIL_INVOICE drop constraint CK_BIL_INVOICE_INVOICE_DISCOUN;
+alter table RHN_BIL_INVOICE add constraint CK_BIL_INVOICE_INVOICE_DISCOUN check (
+    (SD_INVOICE_TYPE = 'STANDARD' and AMT_DISC >= 0) or (SD_INVOICE_TYPE = 'CREDIT' and AMT_DISC <= 0));
+alter table RHN_BIL_INVOICE drop constraint CK_BIL_INVOICE_INVOICE_AMOUNT;
+alter table RHN_BIL_INVOICE add constraint CK_BIL_INVOICE_INVOICE_AMOUNT check (
+    (SD_INVOICE_TYPE = 'STANDARD' and AMT_GROSS >= 0 and AMT_NET >= 0)
+    or (SD_INVOICE_TYPE = 'CREDIT' and AMT_GROSS < 0 and AMT_NET <= 0));
+alter table RHN_BIL_STL drop constraint CK_BIL_STL_SETTLEMENT_AMOUNTS;
+alter table RHN_BIL_STL add constraint CK_BIL_STL_SETTLEMENT_AMOUNTS check (AMT_INS >= 0 and AMT_PAT >= 0 and AMT_OTHER >= 0
+    and ((SD_STL_TYPE <> 'REVERSAL' and AMT_DISC >= 0 and AMT_GROSS >= 0 and AMT_NET >= 0)
+      or (SD_STL_TYPE = 'REVERSAL' and AMT_DISC <= 0 and AMT_GROSS <= 0 and AMT_NET <= 0)));
+
+-- =============================================================================
+-- Source: V1_129_16__billing_relief_manual_and_query.sql
+-- =============================================================================
+-- Billing relief: cashier-decided manual relief and relief record queries.
+-- A cashier decides manual relief at the counter with BILLING_RELIEF.DECIDE; amounts above a policy version's
+-- approval threshold need BILLING_RELIEF.APPROVE. BILLING_RELIEF.QUERY reads relief records for reconciliation with
+-- the government, charity or other third parties that reimburse the relief.
+
+-- 1. Approval threshold for cashier-decided manual relief.
+alter table RHN_BIL_RELIEF_POLICY_VER add column AMT_MANUAL_APRV decimal(24,6);
+alter table RHN_BIL_RELIEF_POLICY_VER add constraint CK_BIL_RELIEF_VER_MANUAL_APRV check (AMT_MANUAL_APRV is null or AMT_MANUAL_APRV > 0);
+comment on column RHN_BIL_RELIEF_POLICY_VER.AMT_MANUAL_APRV is '人工核定审批阈值';
+
+-- 2. Permissions. Deciding manual relief belongs to cashiers (granted with billing access to the portal operator role);
+--    the relief administrator role also decides and queries.
+insert into RHN_SYS_ACC_PERM values (362387869940304, 362387869790209, 362387869896005, 'BILLING_RELIEF.DECIDE', '收费员核定惠民减免', 'DECIDE', 'BILLING_RELIEF', 'ACTIVE');
+insert into RHN_SYS_ACC_PERM values (362387869940305, 362387869790209, 362387869896005, 'BILLING_RELIEF.QUERY', '查询惠民减免明细', 'QUERY', 'BILLING_RELIEF', 'ACTIVE');
+update RHN_SYS_ACC_PERM set NA_ACC_PERM = '审批超阈值的惠民人工核定' where ID_ACC_PERM = 362387869940303;
+insert into RHN_SYS_ROLE_PERM_ASSIGN values (362387869940324, 362387869790209, 362387869940311, 362387869940304, timestamp with time zone '2026-10-18 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-18 00:00:00+08');
+insert into RHN_SYS_ROLE_PERM_ASSIGN values (362387869940325, 362387869790209, 362387869940311, 362387869940305, timestamp with time zone '2026-10-18 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-18 00:00:00+08');
+insert into RHN_SYS_ROLE_PERM_ASSIGN values (362387869940326, 362387869790209, 362387869796001, 362387869940304, timestamp with time zone '2026-10-18 00:00:00+08', null, 362387869790222, timestamp with time zone '2026-10-18 00:00:00+08');
+
+-- =============================================================================
+-- Source: V1_129_17__payment_channel_configuration.sql
+-- =============================================================================
+-- Payment merchant credentials use the existing server-side AES-GCM service.
+create table RHN_BIL_PAY_CFG (
+    ID_PAY_CFG bigint,
+    REVISION bigint not null default 0,
+    ID_TNT bigint not null,
+    ID_ORG bigint not null,
+    CD_PAY_METHOD varchar(128) not null,
+    FL_ENABLED boolean not null,
+    FL_ID_LOCK boolean not null,
+    TXT_CIPHER clob not null,
+    ID_USER_UPDATED bigint not null,
+    DT_UPDATED timestamp with time zone not null,
+    constraint PK_BIL_PAY_CFG primary key (ID_PAY_CFG),
+    constraint UK_BIL_PAY_CFG_SCOPE unique (ID_TNT, ID_ORG, CD_PAY_METHOD),
+    constraint FK_BIL_PAY_CFG_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint FK_BIL_PAY_CFG_ORG foreign key (ID_TNT, ID_ORG) references RHN_SYS_ORG(ID_TNT, ID_ORG)
+);
+comment on table RHN_BIL_PAY_CFG is '支付渠道机构商户配置；一行代表一个租户法人机构的一种支付方式的加密商户配置';
+comment on column RHN_BIL_PAY_CFG.ID_PAY_CFG is '支付渠道配置主键';
+comment on column RHN_BIL_PAY_CFG.REVISION is '乐观锁版本';
+comment on column RHN_BIL_PAY_CFG.ID_TNT is '租户标识';
+comment on column RHN_BIL_PAY_CFG.ID_ORG is '法人机构标识';
+comment on column RHN_BIL_PAY_CFG.CD_PAY_METHOD is '支付方式编码';
+comment on column RHN_BIL_PAY_CFG.FL_ENABLED is '是否允许新收款；停用保留原单查询退款';
+comment on column RHN_BIL_PAY_CFG.FL_ID_LOCK is '商户身份是否已锁定';
+comment on column RHN_BIL_PAY_CFG.TXT_CIPHER is '机构渠道凭证配置密文；不保存明文';
+comment on column RHN_BIL_PAY_CFG.ID_USER_UPDATED is '最后修改人标识';
+comment on column RHN_BIL_PAY_CFG.DT_UPDATED is '最后修改时间';
+
+insert into RHN_SYS_MGMT_MOD (ID_MGMT_MOD, ID_TNT, ID_MGMT_MOD_PARENT, CD_MGMT_MOD, NA_MGMT_MOD,
+    SD_MOD_TYPE, ROUTE_PATH, CD_COMP, CD_ICON, SN_SORT, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
+select 362387869899170 + row_number() over (order by parent.ID_TNT), parent.ID_TNT, parent.ID_MGMT_MOD,
+    'PAYMENT_CHANNELS', '支付渠道', 'MODULE', '/settings/payment-channels', 'PaymentChannelManagement',
+    'settings', 75, 'ACTIVE', current_timestamp, current_timestamp, 0
+from RHN_SYS_MGMT_MOD parent where parent.CD_MGMT_MOD = 'SYSTEM_CONFIG';
+
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM, ID_TNT, ID_MGMT_MOD, CD_ACC_PERM, NA_ACC_PERM, CD_ACTION, CD_RSRC, SD_STATUS)
+select 362387869899270 + row_number() over (order by module.ID_TNT), module.ID_TNT, module.ID_MGMT_MOD,
+    'PAYMENT_CONFIGURATION.MANAGE', '维护支付渠道配置', 'MANAGE', 'PAYMENT_CONFIGURATION', 'ACTIVE'
+from RHN_SYS_MGMT_MOD module where module.CD_MGMT_MOD = 'PAYMENT_CHANNELS';
+
+-- Provision a dedicated administrative role; do not grant payment credentials to clinical roles.
+insert into RHN_SYS_ACC_ROLE (ID_ACC_ROLE, ID_TNT, CD_ACC_ROLE, NA_ACC_ROLE, SD_ROLE_TYPE, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
+select 362387869899370 + row_number() over (order by module.ID_TNT), module.ID_TNT,
+    'PAYMENT_CONFIG_ADMIN', '支付渠道配置管理员', 'ADMIN', 'ACTIVE', current_timestamp, current_timestamp, 0
+from RHN_SYS_MGMT_MOD module where module.CD_MGMT_MOD = 'PAYMENT_CHANNELS';
+
+insert into RHN_SYS_ROLE_PERM_ASSIGN (ID_ROLE_PERM_ASSIGN, ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, DT_VALID_FROM, DT_CREATED)
+select 362387869899470 + row_number() over (order by r.ID_TNT), r.ID_TNT, r.ID_ACC_ROLE,
+    p.ID_ACC_PERM, current_timestamp, current_timestamp
+from RHN_SYS_ACC_ROLE r join RHN_SYS_ACC_PERM p on p.ID_TNT = r.ID_TNT
+where r.CD_ACC_ROLE = 'PAYMENT_CONFIG_ADMIN' and p.CD_ACC_PERM = 'PAYMENT_CONFIGURATION.MANAGE';
+
+-- =============================================================================
+-- Source: V1_129_20__cryptographic_ca_foundation.sql
+-- =============================================================================
+-- ADR-008: attestation purpose, personal CA signature origin, signer binding, certificate store and signing orders.
+alter table RHN_AUD_CRYPTO_EVID drop constraint CK_AUD_CRYPTO_EVI_CRYPTO_EVIDE;
+alter table RHN_AUD_CRYPTO_EVID add constraint CK_AUD_CRYPTO_EVI_CRYPTO_EVIDE
+    check (SD_PROT_PURPOSE in ('INTEGRITY', 'ATTESTATION', 'NON_REPUDIATION'));
+alter table RHN_AUD_CRYPTO_EVID add column SD_SIGN_CHANNEL varchar(32);
+alter table RHN_AUD_CRYPTO_EVID add column SD_SIGN_FMT varchar(32);
+alter table RHN_AUD_CRYPTO_EVID add column HASH_SIGNER_CERT varchar(128);
+alter table RHN_AUD_CRYPTO_EVID add column ID_SIGN_ORDER bigint;
+alter table RHN_AUD_CRYPTO_EVID add column DES_SIGNED_ENVLP clob;
+alter table RHN_AUD_CRYPTO_EVID add constraint CK_AUD_CRYPTO_EVID_CHANNEL
+    check (SD_SIGN_CHANNEL is null or SD_SIGN_CHANNEL in ('SYSTEM', 'CLIENT_TOKEN', 'MOBILE_COSIGN'));
+alter table RHN_AUD_CRYPTO_EVID add constraint CK_AUD_CRYPTO_EVID_FMT
+    check (SD_SIGN_FMT is null or SD_SIGN_FMT in ('SM2_STATEMENT', 'SM2_ENVELOPE'));
+
+comment on column RHN_AUD_CRYPTO_EVID.SD_SIGN_CHANNEL is '签名私钥所在通道';
+comment on column RHN_AUD_CRYPTO_EVID.SD_SIGN_FMT is '个人签名值格式';
+comment on column RHN_AUD_CRYPTO_EVID.HASH_SIGNER_CERT is '签名证书SM3指纹';
+comment on column RHN_AUD_CRYPTO_EVID.ID_SIGN_ORDER is '个人签名任务标识';
+comment on column RHN_AUD_CRYPTO_EVID.DES_SIGNED_ENVLP is '厂商签名原文封装';
+
+create table RHN_SYS_CA_SIGNER (
+    ID_CA_SIGNER bigint not null,
+    REVISION bigint not null,
+    ID_TNT bigint not null,
+    ID_USER bigint not null,
+    ID_PRACT bigint,
+    CD_CA_VENDOR varchar(32) not null,
+    ID_EXT_SIGNER varchar(128) not null,
+    SD_MEDIUM varchar(16) not null,
+    SD_STATUS varchar(16) not null,
+    HASH_CERT varchar(128),
+    CD_CERT_SERIAL varchar(256),
+    CERT_ISSUER varchar(500),
+    DES_CERT_SUBJ varchar(500),
+    DT_CERT_FROM timestamp with time zone,
+    DT_CERT_TO timestamp with time zone,
+    ID_USER_BOUND bigint not null,
+    DT_BOUND timestamp with time zone not null,
+    DT_UPDATED timestamp with time zone not null,
+    constraint PK_SYS_CA_SIGNER primary key (ID_CA_SIGNER),
+    constraint FK_SYS_CA_SIGNER_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_SYS_CA_SIGNER_EXT unique (ID_TNT, CD_CA_VENDOR, ID_EXT_SIGNER),
+    constraint CK_SYS_CA_SIGNER_MEDIUM check (SD_MEDIUM in ('MOBILE', 'UKEY')),
+    constraint CK_SYS_CA_SIGNER_STATUS check (SD_STATUS in ('ACTIVE', 'SUSPENDED', 'REVOKED', 'UNBOUND'))
+);
+
+create index IX_SYS_CA_SIGNER_USER on RHN_SYS_CA_SIGNER (ID_TNT, ID_USER, CD_CA_VENDOR, SD_STATUS);
+create index IX_SYS_CA_SIGNER_CERT on RHN_SYS_CA_SIGNER (ID_TNT, CD_CA_VENDOR, HASH_CERT);
+
+comment on table RHN_SYS_CA_SIGNER is 'CA签名人绑定；一行代表一个账号在一家CA厂商的签名身份';
+comment on column RHN_SYS_CA_SIGNER.ID_CA_SIGNER is 'CA签名人绑定主键';
+comment on column RHN_SYS_CA_SIGNER.REVISION is '乐观锁版本';
+comment on column RHN_SYS_CA_SIGNER.ID_TNT is '租户标识';
+comment on column RHN_SYS_CA_SIGNER.ID_USER is '绑定账号标识';
+comment on column RHN_SYS_CA_SIGNER.ID_PRACT is '执业人员标识';
+comment on column RHN_SYS_CA_SIGNER.CD_CA_VENDOR is 'CA厂商适配器编码';
+comment on column RHN_SYS_CA_SIGNER.ID_EXT_SIGNER is '厂商侧签名人标识';
+comment on column RHN_SYS_CA_SIGNER.SD_MEDIUM is '证书介质';
+comment on column RHN_SYS_CA_SIGNER.SD_STATUS is '绑定状态';
+comment on column RHN_SYS_CA_SIGNER.HASH_CERT is '当前证书SM3指纹';
+comment on column RHN_SYS_CA_SIGNER.CD_CERT_SERIAL is '当前证书序列号';
+comment on column RHN_SYS_CA_SIGNER.CERT_ISSUER is '当前证书签发者';
+comment on column RHN_SYS_CA_SIGNER.DES_CERT_SUBJ is '当前证书主体';
+comment on column RHN_SYS_CA_SIGNER.DT_CERT_FROM is '证书生效时间';
+comment on column RHN_SYS_CA_SIGNER.DT_CERT_TO is '证书失效时间';
+comment on column RHN_SYS_CA_SIGNER.ID_USER_BOUND is '绑定操作账号标识';
+comment on column RHN_SYS_CA_SIGNER.DT_BOUND is '绑定时间';
+comment on column RHN_SYS_CA_SIGNER.DT_UPDATED is '更新时间';
+
+create table RHN_AUD_CRYPTO_CERT (
+    ID_CRYPTO_CERT bigint not null,
+    ID_TNT bigint not null,
+    HASH_CERT varchar(128) not null,
+    CD_CA_VENDOR varchar(32) not null,
+    CD_CERT_SERIAL varchar(256) not null,
+    CERT_ISSUER varchar(500) not null,
+    DES_CERT_SUBJ varchar(500) not null,
+    DT_CERT_FROM timestamp with time zone not null,
+    DT_CERT_TO timestamp with time zone not null,
+    DES_CERT_DER clob not null,
+    DT_RECDD timestamp with time zone not null,
+    constraint PK_AUD_CRYPTO_CERT primary key (ID_CRYPTO_CERT),
+    constraint FK_AUD_CRYPTO_CERT_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint UK_AUD_CRYPTO_CERT_HASH unique (ID_TNT, HASH_CERT)
+);
+
+comment on table RHN_AUD_CRYPTO_CERT is '签名证书材料；一行代表一张按指纹只追加保存的证书';
+comment on column RHN_AUD_CRYPTO_CERT.ID_CRYPTO_CERT is '证书材料主键';
+comment on column RHN_AUD_CRYPTO_CERT.ID_TNT is '租户标识';
+comment on column RHN_AUD_CRYPTO_CERT.HASH_CERT is '证书SM3指纹';
+comment on column RHN_AUD_CRYPTO_CERT.CD_CA_VENDOR is 'CA厂商适配器编码';
+comment on column RHN_AUD_CRYPTO_CERT.CD_CERT_SERIAL is '证书序列号';
+comment on column RHN_AUD_CRYPTO_CERT.CERT_ISSUER is '证书签发者';
+comment on column RHN_AUD_CRYPTO_CERT.DES_CERT_SUBJ is '证书主体';
+comment on column RHN_AUD_CRYPTO_CERT.DT_CERT_FROM is '证书生效时间';
+comment on column RHN_AUD_CRYPTO_CERT.DT_CERT_TO is '证书失效时间';
+comment on column RHN_AUD_CRYPTO_CERT.DES_CERT_DER is '证书DER编码Base64';
+comment on column RHN_AUD_CRYPTO_CERT.DT_RECDD is '首次记录时间';
+
+create table RHN_AUD_CA_SIGN_ORDER (
+    ID_SIGN_ORDER bigint not null,
+    REVISION bigint not null,
+    ID_TNT bigint not null,
+    ID_ORG bigint,
+    ID_USER bigint not null,
+    NA_ACTOR varchar(128) not null,
+    ID_CA_SIGNER bigint,
+    ID_CRYPTO_EVID_ATTEST bigint not null,
+    ID_CRYPTO_EVID_RESULT bigint not null,
+    CD_SCENE varchar(64) not null,
+    CD_CA_VENDOR varchar(32) not null,
+    PRVDR_ASSUR varchar(64) not null,
+    SD_SIGN_MODE varchar(32) not null,
+    SD_STATUS varchar(32) not null,
+    SN_STMT_VER integer not null,
+    JSON_STMT clob not null,
+    STMT_DIGEST_ALGO varchar(64) not null,
+    HASH_STMT varchar(512) not null,
+    CONTENT_DIGEST_ALGO varchar(64) not null,
+    HASH_CONTENT varchar(512) not null,
+    ID_CRYPTO_EVID_PREV bigint,
+    ID_CORR varchar(64) not null,
+    DES_SUBJECT varchar(200) not null,
+    DES_PAT_DISP varchar(64),
+    ID_EXT_ORDER varchar(128),
+    DES_CLAIM varchar(2000),
+    SN_ATMPTS integer not null,
+    DT_NEXT_CHECK timestamp with time zone,
+    CD_ERROR varchar(64),
+    DES_ERROR_MSG varchar(500),
+    DT_EXPIRES timestamp with time zone not null,
+    DT_CREATED timestamp with time zone not null,
+    DT_UPDATED timestamp with time zone not null,
+    DT_CMPLD timestamp with time zone,
+    constraint PK_AUD_CA_SIGN_ORDER primary key (ID_SIGN_ORDER),
+    constraint FK_AUD_CA_SIGN_ORDER_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint FK_AUD_CA_SIGN_ORDER_ATTEST foreign key (ID_TNT, ID_CRYPTO_EVID_ATTEST)
+        references RHN_AUD_CRYPTO_EVID(ID_TNT, ID_CRYPTO_EVID),
+    constraint FK_AUD_CA_SIGN_ORDER_SIGNER foreign key (ID_CA_SIGNER) references RHN_SYS_CA_SIGNER(ID_CA_SIGNER),
+    constraint UK_AUD_CA_SIGN_ORDER_RESULT unique (ID_TNT, ID_CRYPTO_EVID_RESULT),
+    constraint CK_AUD_CA_SIGN_ORDER_MODE check (SD_SIGN_MODE in ('CLIENT_TOKEN', 'PUSH', 'QR_CLAIM', 'AUTO')),
+    constraint CK_AUD_CA_SIGN_ORDER_STATUS check (SD_STATUS in ('PENDING', 'AWAITING_SIGNER', 'SIGNED',
+        'VERIFIED', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'VOIDED_BY_SIGNER'))
+);
+
+create index IX_AUD_CA_SIGN_ORDER_ATTEST on RHN_AUD_CA_SIGN_ORDER (ID_TNT, ID_CRYPTO_EVID_ATTEST, DT_CREATED);
+create index IX_AUD_CA_SIGN_ORDER_DUE on RHN_AUD_CA_SIGN_ORDER (SD_STATUS, DT_NEXT_CHECK);
+create index IX_AUD_CA_SIGN_ORDER_EXT on RHN_AUD_CA_SIGN_ORDER (CD_CA_VENDOR, ID_EXT_ORDER);
+create index IX_AUD_CA_SIGN_ORDER_USER on RHN_AUD_CA_SIGN_ORDER (ID_TNT, ID_USER, SD_STATUS, DT_CREATED);
+
+comment on table RHN_AUD_CA_SIGN_ORDER is '个人CA签名任务；一行代表一次对签署行为证据的个人签名请求';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_SIGN_ORDER is '签名任务主键';
+comment on column RHN_AUD_CA_SIGN_ORDER.REVISION is '乐观锁版本';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_TNT is '租户标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_ORG is '发起机构标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_USER is '签名人账号标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.NA_ACTOR is '签名人账号名称快照';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_CA_SIGNER is 'CA签名人绑定标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_CRYPTO_EVID_ATTEST is '被签名的签署行为证据标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_CRYPTO_EVID_RESULT is '预分配的个人签名证据标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.CD_SCENE is '业务签名场景编码';
+comment on column RHN_AUD_CA_SIGN_ORDER.CD_CA_VENDOR is 'CA厂商适配器编码';
+comment on column RHN_AUD_CA_SIGN_ORDER.PRVDR_ASSUR is '厂商适配器可信等级';
+comment on column RHN_AUD_CA_SIGN_ORDER.SD_SIGN_MODE is '签名方式';
+comment on column RHN_AUD_CA_SIGN_ORDER.SD_STATUS is '签名任务状态';
+comment on column RHN_AUD_CA_SIGN_ORDER.SN_STMT_VER is '待签声明版本';
+comment on column RHN_AUD_CA_SIGN_ORDER.JSON_STMT is '冻结的待签声明JSON';
+comment on column RHN_AUD_CA_SIGN_ORDER.STMT_DIGEST_ALGO is '声明摘要算法';
+comment on column RHN_AUD_CA_SIGN_ORDER.HASH_STMT is '声明摘要';
+comment on column RHN_AUD_CA_SIGN_ORDER.CONTENT_DIGEST_ALGO is '被签内容摘要算法';
+comment on column RHN_AUD_CA_SIGN_ORDER.HASH_CONTENT is '被签内容摘要';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_CRYPTO_EVID_PREV is '声明引用的上一证据标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_CORR is '关联标识';
+comment on column RHN_AUD_CA_SIGN_ORDER.DES_SUBJECT is '签名人端展示主题';
+comment on column RHN_AUD_CA_SIGN_ORDER.DES_PAT_DISP is '已脱敏的患者展示名';
+comment on column RHN_AUD_CA_SIGN_ORDER.ID_EXT_ORDER is '厂商签名任务号';
+comment on column RHN_AUD_CA_SIGN_ORDER.DES_CLAIM is '扫码认领内容';
+comment on column RHN_AUD_CA_SIGN_ORDER.SN_ATMPTS is '厂商调用次数';
+comment on column RHN_AUD_CA_SIGN_ORDER.DT_NEXT_CHECK is '下次处理时间';
+comment on column RHN_AUD_CA_SIGN_ORDER.CD_ERROR is '最近错误编码';
+comment on column RHN_AUD_CA_SIGN_ORDER.DES_ERROR_MSG is '最近错误说明';
+comment on column RHN_AUD_CA_SIGN_ORDER.DT_EXPIRES is '任务过期时间';
+comment on column RHN_AUD_CA_SIGN_ORDER.DT_CREATED is '创建时间';
+comment on column RHN_AUD_CA_SIGN_ORDER.DT_UPDATED is '更新时间';
+comment on column RHN_AUD_CA_SIGN_ORDER.DT_CMPLD is '进入终态时间';
+
+-- =============================================================================
+-- Source: V1_129_21__second_factor_login_policy.sql
+-- =============================================================================
+-- 等保三级双因子：口令登录后是否必须再完成扫码或证书（UKey）认证；缺值时不要求，应急账号由部署配置豁免并单独审计。
+insert into RHN_SYS_PARAM_DEF (
+    ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF,
+    SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_EXAMPLE_VAL,
+    UNIT, CD_DICT, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE,
+    FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION,
+    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED,
+    CD_DEPENDS_ON_KEY, EXPR_DEPENDS_ON_VAL, SD_DEPNCY_BEHAV
+) values (
+    362387869796301, 362387869794002,
+    'platform.identity.second-factor.policy',
+    '登录双因子要求',
+    '控制口令登录后是否必须再用手机扫码或证书（UKey）确认身份；扫码和证书登录本身已满足双因子。启用前请确认相关账号已绑定 CA 签名人，并在部署配置中保留应急账号。',
+    'JSON', 'JSON_EDITOR', '{"type":"object","additionalProperties":false,"required":["mode"],"properties":{"mode":{"type":"string","title":"双因子要求","description":"不要求：口令即可登录；特权账号必须：拥有账号授权、系统维护或 AI 配置管理权限的账号必须完成第二步；所有账号必须：全部账号口令登录后都要完成第二步。","enum":["NONE","REQUIRED_FOR_PRIVILEGED","REQUIRED"],"x-enumLabels":{"NONE":"不要求","REQUIRED_FOR_PRIVILEGED":"特权账号必须","REQUIRED":"所有账号必须"}}}}',
+    '{"mode":"NONE"}', '{"mode":"REQUIRED_FOR_PRIVILEGED"}', null, null,
+    '["PLATFORM","TENANT"]', 'SYSTEM',
+    true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0,
+    timestamp with time zone '2026-10-18 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-18 00:00:00+08', 362387869790222,
+    null, null, 'DISABLE_AND_SUPPRESS'
+);
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+) values (
+    362387869796302, null, 362387869796301, null, 'DEFINITION',
+    'CREATE', null,
+    '{"source":"PRODUCT_BASELINE","key":"platform.identity.second-factor.policy","status":"ACTIVE"}',
+    '初始化登录双因子要求参数',
+    'v1.129.21:platform.identity.second-factor.policy',
+    timestamp with time zone '2026-10-18 00:00:00+08', 362387869790222
+);
+
+-- =============================================================================
+-- Source: V1_129_22__insurance_probe_permission.sql
+-- =============================================================================
+-- 医保接入向导的接口联通探测会向医保网关发出真实报文，使用独立权限与专用角色，不并入基础数据管理员。
+insert into RHN_SYS_MGMT_MOD (ID_MGMT_MOD, ID_TNT, ID_MGMT_MOD_PARENT, CD_MGMT_MOD, NA_MGMT_MOD,
+    SD_MOD_TYPE, ROUTE_PATH, CD_COMP, CD_ICON, SN_SORT, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
+select 362387869899180 + row_number() over (order by master.ID_TNT), master.ID_TNT, master.ID_MGMT_MOD_PARENT,
+    'INSURANCE_ONBOARDING', '医保接入向导', 'MODULE', '/settings/insurance-onboarding', 'InsuranceOnboardingWizard',
+    'card', 56, 'ACTIVE', current_timestamp, current_timestamp, 0
+from RHN_SYS_MGMT_MOD master where master.CD_MGMT_MOD = 'MASTER_DATA';
+
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM, ID_TNT, ID_MGMT_MOD, CD_ACC_PERM, NA_ACC_PERM, CD_ACTION, CD_RSRC, SD_STATUS)
+select 362387869899280 + row_number() over (order by module.ID_TNT), module.ID_TNT, module.ID_MGMT_MOD,
+    'INSURANCE_PROBE.EXECUTE', '执行医保接口联通探测', 'EXECUTE', 'INSURANCE_PROBE', 'ACTIVE'
+from RHN_SYS_MGMT_MOD module where module.CD_MGMT_MOD = 'INSURANCE_ONBOARDING';
+
+insert into RHN_SYS_ACC_ROLE (ID_ACC_ROLE, ID_TNT, CD_ACC_ROLE, NA_ACC_ROLE, SD_ROLE_TYPE, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
+select 362387869899380 + row_number() over (order by module.ID_TNT), module.ID_TNT,
+    'INSURANCE_PROBE_ADMIN', '医保联通探测员', 'ADMIN', 'ACTIVE', current_timestamp, current_timestamp, 0
+from RHN_SYS_MGMT_MOD module where module.CD_MGMT_MOD = 'INSURANCE_ONBOARDING';
+
+insert into RHN_SYS_ROLE_PERM_ASSIGN (ID_ROLE_PERM_ASSIGN, ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, DT_VALID_FROM, DT_CREATED)
+select 362387869899480 + row_number() over (order by r.ID_TNT), r.ID_TNT, r.ID_ACC_ROLE,
+    p.ID_ACC_PERM, current_timestamp, current_timestamp
+from RHN_SYS_ACC_ROLE r join RHN_SYS_ACC_PERM p on p.ID_TNT = r.ID_TNT
+where r.CD_ACC_ROLE = 'INSURANCE_PROBE_ADMIN' and p.CD_ACC_PERM = 'INSURANCE_PROBE.EXECUTE';
+
+-- =============================================================================
+-- Source: V1_129_23__registration_insurance_settlement_timing.sql
+-- =============================================================================
+-- 挂号医保结算时机改为可按机构维护的参数：大多数医院挂号时即做医保交易，基层社区医院常在诊间统一医保结算。默认诊间统一结算，不触发挂号环节的外部医保交易。
+insert into RHN_SYS_PARAM_DEF (
+    ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF,
+    SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_EXAMPLE_VAL,
+    UNIT, CD_DICT, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE,
+    FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION,
+    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED,
+    CD_DEPENDS_ON_KEY, EXPR_DEPENDS_ON_VAL, SD_DEPNCY_BEHAV
+) values (
+    362387869796401, 362387869794051,
+    'billing.registration.insurance-settlement',
+    '挂号医保结算时机',
+    '选择医保身份挂号时在何时完成医保结算：挂号时结算（挂号环节完成医保登记、预结算、结算，个人自付部分收款后建立就诊），或诊间统一结算（挂号时不做医保交易，挂号费并入门诊统一医保结算）。',
+    'JSON', 'JSON_EDITOR', '{"type":"object","additionalProperties":false,"required":["timing"],"properties":{"timing":{"type":"string","title":"医保结算时机","description":"挂号时结算：选医保身份挂号时在挂号环节完成医保登记、预结算与结算，个人自付部分再收款，成功后才建立就诊；诊间统一结算：挂号时不做医保交易，就诊建立后挂号费作为待结费用并入门诊统一医保结算。","enum":["REGISTRATION","VISIT_UNIFIED"],"x-enumLabels":{"REGISTRATION":"挂号时结算","VISIT_UNIFIED":"诊间统一结算"}}}}',
+    '{"timing":"VISIT_UNIFIED"}', '{"timing":"REGISTRATION"}', null, null,
+    '["PLATFORM","TENANT","ORGANIZATION","DEPARTMENT"]', 'BUSINESS',
+    true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0,
+    timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222,
+    null, null, 'DISABLE_AND_SUPPRESS'
+);
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+) values (
+    362387869796402, null, 362387869796401, null, 'DEFINITION',
+    'CREATE', null,
+    '{"source":"PRODUCT_BASELINE","key":"billing.registration.insurance-settlement","status":"ACTIVE"}',
+    '初始化挂号医保结算时机参数',
+    'v1.129.23:billing.registration.insurance-settlement',
+    timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222
+);
+
+-- 诊间统一结算模式下，医保挂号费并入后续门诊结算：挂号意向有费用账户但没有挂号结算单。
+alter table RHN_BIL_REG_BIL_INTENT drop constraint CK_BIL_REG_BIL_IN_REG_BILL_FIN;
+alter table RHN_BIL_REG_BIL_INTENT add constraint CK_BIL_REG_BIL_IN_REG_BILL_FIN check (
+    (AMT_FEE = 0 and ID_PAT_ACCT is null and ID_STL is null)
+    or (AMT_FEE > 0 and ID_PAT_ACCT is not null and (ID_STL is not null or SD_STL_MODE = 'MEDICAL_INSURANCE')));
+
+-- =============================================================================
+-- Source: V1_129_24__payment_transaction_reconciliation.sql
+-- =============================================================================
+-- Additive transaction reconciliation; no existing business or merchant data is deleted.
+create table RHN_BIL_RECON_ATTEMPT (
+    ID_RECON_ATTEMPT bigint,
+    ID_TNT bigint not null,
+    ID_RECON_TASK bigint not null,
+    NUM_ATTEMPT int not null,
+    NUM_CLAIM bigint not null,
+    SD_STATUS varchar(32) not null,
+    DT_STARTED timestamp with time zone not null,
+    DT_FINSH timestamp with time zone,
+    CD_ERROR varchar(128),
+    DES_ERROR varchar(1024),
+    ID_RECON_FILE bigint,
+    constraint PK_RECON_ATTEMPT primary key (ID_RECON_ATTEMPT)
+);
+comment on table RHN_BIL_RECON_ATTEMPT is '支付对账拉取尝试；一行代表一次有领取令牌的执行及脱敏结果';
+comment on column RHN_BIL_RECON_ATTEMPT.ID_RECON_ATTEMPT is '主键';
+comment on column RHN_BIL_RECON_ATTEMPT.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_ATTEMPT.ID_RECON_TASK is '商户账单任务标识';
+comment on column RHN_BIL_RECON_ATTEMPT.NUM_ATTEMPT is '执行尝试序号';
+comment on column RHN_BIL_RECON_ATTEMPT.NUM_CLAIM is '任务领取令牌';
+comment on column RHN_BIL_RECON_ATTEMPT.SD_STATUS is '处理状态';
+comment on column RHN_BIL_RECON_ATTEMPT.DT_STARTED is '尝试开始时间';
+comment on column RHN_BIL_RECON_ATTEMPT.DT_FINSH is '尝试结束时间';
+comment on column RHN_BIL_RECON_ATTEMPT.CD_ERROR is '安全错误分类';
+comment on column RHN_BIL_RECON_ATTEMPT.DES_ERROR is '脱敏错误说明';
+comment on column RHN_BIL_RECON_ATTEMPT.ID_RECON_FILE is '证据版本标识';
+create table RHN_BIL_RECON_ACCT (
+    ID_RECON_ACCT bigint,
+    ID_TNT bigint not null,
+    CD_MERCH_SCOPE varchar(64) not null,
+    constraint PK_RECON_ACCT primary key (ID_RECON_ACCT)
+);
+comment on table RHN_BIL_RECON_ACCT is '支付对账商户范围；一行代表一个租户独占的渠道商户账单覆盖范围';
+comment on column RHN_BIL_RECON_ACCT.ID_RECON_ACCT is '主键';
+comment on column RHN_BIL_RECON_ACCT.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_ACCT.CD_MERCH_SCOPE is '商户账单范围指纹';
+create table RHN_BIL_RECON_POLICY (
+    ID_RECON_POLICY bigint,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    ID_ORG bigint not null,
+    CD_PAY_METHOD varchar(128) not null,
+    CD_MERCH_SCOPE varchar(64) not null,
+    FL_AUTO boolean not null,
+    TM_FETCH varchar(128) not null,
+    QTY_BKFILL int not null,
+    ID_USER_UPDATED bigint not null,
+    DT_UPDATED timestamp with time zone not null,
+    DES_SCHED_ERROR varchar(1024),
+    DT_SCHED_ERROR timestamp with time zone,
+    constraint PK_RECON_POLICY primary key (ID_RECON_POLICY)
+);
+comment on table RHN_BIL_RECON_POLICY is '支付交易对账策略；一行代表一个机构支付方式的自动拉取策略';
+comment on column RHN_BIL_RECON_POLICY.ID_RECON_POLICY is '主键';
+comment on column RHN_BIL_RECON_POLICY.REVISION is '乐观锁版本';
+comment on column RHN_BIL_RECON_POLICY.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_POLICY.ID_ORG is '归属法人机构标识';
+comment on column RHN_BIL_RECON_POLICY.CD_PAY_METHOD is '支付方式编码';
+comment on column RHN_BIL_RECON_POLICY.CD_MERCH_SCOPE is '商户账单范围指纹';
+comment on column RHN_BIL_RECON_POLICY.FL_AUTO is '是否自动拉取核对';
+comment on column RHN_BIL_RECON_POLICY.TM_FETCH is '账单时区的每日拉取时刻';
+comment on column RHN_BIL_RECON_POLICY.QTY_BKFILL is '历史补拉天数';
+comment on column RHN_BIL_RECON_POLICY.ID_USER_UPDATED is '最后配置人标识';
+comment on column RHN_BIL_RECON_POLICY.DT_UPDATED is '最后配置时间';
+comment on column RHN_BIL_RECON_POLICY.DES_SCHED_ERROR is '自动调度脱敏错误说明';
+comment on column RHN_BIL_RECON_POLICY.DT_SCHED_ERROR is '自动调度错误发生时间';
+create table RHN_BIL_RECON_TASK (
+    ID_RECON_TASK bigint,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    ID_ORG_CRED bigint not null,
+    CD_PAY_METHOD varchar(128) not null,
+    CD_ADAPTER varchar(128) not null,
+    CD_MERCH_SCOPE varchar(64) not null,
+    ID_MERCH varchar(128) not null,
+    CD_ENV varchar(256) not null,
+    ID_APP varchar(128) not null,
+    DA_BIZ date not null,
+    CD_CCY varchar(128) not null,
+    SD_STATUS varchar(32) not null,
+    QTY_ATTEMPT int not null,
+    NUM_CLAIM bigint not null,
+    DT_NEXT timestamp with time zone not null,
+    DT_LEASE timestamp with time zone,
+    DT_CMPLD timestamp with time zone,
+    DES_ERROR varchar(1024),
+    CD_ERROR varchar(128),
+    ID_RECON_FILE bigint,
+    ID_USER_CREATED bigint not null,
+    DT_CREATED timestamp with time zone not null,
+    CD_REQUEST varchar(128) not null,
+    constraint PK_RECON_TASK primary key (ID_RECON_TASK)
+);
+comment on table RHN_BIL_RECON_TASK is '支付交易账单任务；一行代表一个商户账期的可恢复拉取任务';
+comment on column RHN_BIL_RECON_TASK.ID_RECON_TASK is '主键';
+comment on column RHN_BIL_RECON_TASK.REVISION is '乐观锁版本';
+comment on column RHN_BIL_RECON_TASK.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_TASK.ID_ORG_CRED is '凭证所属机构标识';
+comment on column RHN_BIL_RECON_TASK.CD_PAY_METHOD is '支付方式编码';
+comment on column RHN_BIL_RECON_TASK.CD_ADAPTER is '适配器编码';
+comment on column RHN_BIL_RECON_TASK.CD_MERCH_SCOPE is '商户账单范围指纹';
+comment on column RHN_BIL_RECON_TASK.ID_MERCH is '渠道商户标识快照';
+comment on column RHN_BIL_RECON_TASK.CD_ENV is '渠道环境快照';
+comment on column RHN_BIL_RECON_TASK.ID_APP is '凭证应用标识快照';
+comment on column RHN_BIL_RECON_TASK.DA_BIZ is '渠道账单日期';
+comment on column RHN_BIL_RECON_TASK.CD_CCY is '币种编码';
+comment on column RHN_BIL_RECON_TASK.SD_STATUS is '处理状态';
+comment on column RHN_BIL_RECON_TASK.QTY_ATTEMPT is '执行尝试序号';
+comment on column RHN_BIL_RECON_TASK.NUM_CLAIM is '任务领取令牌';
+comment on column RHN_BIL_RECON_TASK.DT_NEXT is '下一次尝试时间';
+comment on column RHN_BIL_RECON_TASK.DT_LEASE is '租约失效时间';
+comment on column RHN_BIL_RECON_TASK.DT_CMPLD is '最后成功处理时间';
+comment on column RHN_BIL_RECON_TASK.DES_ERROR is '脱敏错误说明';
+comment on column RHN_BIL_RECON_TASK.CD_ERROR is '安全错误分类';
+comment on column RHN_BIL_RECON_TASK.ID_RECON_FILE is '最新已发布证据版本标识';
+comment on column RHN_BIL_RECON_TASK.ID_USER_CREATED is '任务发起人标识';
+comment on column RHN_BIL_RECON_TASK.DT_CREATED is '创建时间';
+comment on column RHN_BIL_RECON_TASK.CD_REQUEST is '初始幂等命令编码';
+create table RHN_BIL_RECON_FILE (
+    ID_RECON_FILE bigint,
+    ID_TNT bigint not null,
+    ID_RECON_TASK bigint not null,
+    NUM_ATTEMPT int not null,
+    TXT_SHA varchar(64) not null,
+    TXT_CIPHER clob not null,
+    CD_PARSER varchar(128) not null,
+    CD_RULE varchar(128) not null,
+    TXT_LOCAL_HASH varchar(64) not null,
+    TXT_PROOF varchar(128) not null,
+    DT_CREATED timestamp with time zone not null,
+    FL_CMPL boolean not null,
+    constraint PK_RECON_FILE primary key (ID_RECON_FILE)
+);
+comment on table RHN_BIL_RECON_FILE is '支付交易账单证据版本；一行代表一次取得的商户账单证据及其发布状态';
+comment on column RHN_BIL_RECON_FILE.ID_RECON_FILE is '主键';
+comment on column RHN_BIL_RECON_FILE.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_FILE.ID_RECON_TASK is '商户账单任务标识';
+comment on column RHN_BIL_RECON_FILE.NUM_ATTEMPT is '执行尝试序号';
+comment on column RHN_BIL_RECON_FILE.TXT_SHA is '原始证据内容摘要';
+comment on column RHN_BIL_RECON_FILE.TXT_CIPHER is '原始账单集合密文；不保存明文';
+comment on column RHN_BIL_RECON_FILE.CD_PARSER is '账单解析器版本';
+comment on column RHN_BIL_RECON_FILE.CD_RULE is '匹配规则版本';
+comment on column RHN_BIL_RECON_FILE.TXT_LOCAL_HASH is '本地事实快照摘要';
+comment on column RHN_BIL_RECON_FILE.TXT_PROOF is '渠道来源校验方式';
+comment on column RHN_BIL_RECON_FILE.DT_CREATED is '创建时间';
+comment on column RHN_BIL_RECON_FILE.FL_CMPL is '是否完整发布';
+create table RHN_BIL_RECON_ROW (
+    REVISION bigint default 0 not null,
+    ID_RECON_ROW bigint,
+    ID_TNT bigint not null,
+    ID_RECON_FILE bigint not null,
+    NUM_LINE int not null,
+    ID_ORG bigint,
+    ID_PAY_ORDER bigint,
+    SD_TXN_TYPE varchar(32) not null,
+    CD_MERCH_ORDER varchar(128),
+    CD_EXT_TXN varchar(128),
+    CD_REF_REQ varchar(128),
+    CD_EXT_REF varchar(128),
+    CD_ORIG_TXN varchar(128),
+    AMT_GROSS decimal(24,6) not null,
+    AMT_SETTLE decimal(24,6),
+    AMT_FEE decimal(24,6),
+    CD_CCY varchar(128) not null,
+    SD_CHANNEL_STATUS varchar(32) not null,
+    SD_OUTCOME varchar(32) not null,
+    FL_FINAL boolean not null,
+    DT_OCCRD timestamp with time zone not null,
+    SD_DISPOS varchar(32) not null,
+    ID_PRPSR bigint,
+    ID_RVWR bigint,
+    DES_REASON varchar(2000),
+    constraint PK_RECON_ROW primary key (ID_RECON_ROW)
+);
+comment on table RHN_BIL_RECON_ROW is '支付交易账单规范明细；一行代表一个证据版本中的独立收退事件';
+comment on column RHN_BIL_RECON_ROW.REVISION is '乐观锁版本';
+comment on column RHN_BIL_RECON_ROW.ID_RECON_ROW is '主键';
+comment on column RHN_BIL_RECON_ROW.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_ROW.ID_RECON_FILE is '证据版本标识';
+comment on column RHN_BIL_RECON_ROW.NUM_LINE is '账单规范明细行号';
+comment on column RHN_BIL_RECON_ROW.ID_ORG is '归属法人机构标识';
+comment on column RHN_BIL_RECON_ROW.ID_PAY_ORDER is '可信原支付指令标识';
+comment on column RHN_BIL_RECON_ROW.SD_TXN_TYPE is '收款退款或撤销类型';
+comment on column RHN_BIL_RECON_ROW.CD_MERCH_ORDER is '商户支付订单号';
+comment on column RHN_BIL_RECON_ROW.CD_EXT_TXN is '渠道原交易号';
+comment on column RHN_BIL_RECON_ROW.CD_REF_REQ is '商户退款请求号';
+comment on column RHN_BIL_RECON_ROW.CD_EXT_REF is '渠道退款单号';
+comment on column RHN_BIL_RECON_ROW.CD_ORIG_TXN is '退款关联渠道原交易号';
+comment on column RHN_BIL_RECON_ROW.AMT_GROSS is '业务收退金额';
+comment on column RHN_BIL_RECON_ROW.AMT_SETTLE is '渠道应结金额；与业务金额分开保存';
+comment on column RHN_BIL_RECON_ROW.AMT_FEE is '渠道手续费原始符号金额';
+comment on column RHN_BIL_RECON_ROW.CD_CCY is '币种编码';
+comment on column RHN_BIL_RECON_ROW.SD_CHANNEL_STATUS is '渠道原始交易或退款状态';
+comment on column RHN_BIL_RECON_ROW.SD_OUTCOME is '规范化交易最终状态';
+comment on column RHN_BIL_RECON_ROW.FL_FINAL is '账单是否明确最终成功';
+comment on column RHN_BIL_RECON_ROW.DT_OCCRD is '渠道事件发生时间';
+comment on column RHN_BIL_RECON_ROW.SD_DISPOS is '未归属明细处置状态';
+comment on column RHN_BIL_RECON_ROW.ID_PRPSR is '例外提交人标识';
+comment on column RHN_BIL_RECON_ROW.ID_RVWR is '复核人标识';
+comment on column RHN_BIL_RECON_ROW.DES_REASON is '处置或复核依据';
+create table RHN_BIL_RECON_ACTION (
+    ID_RECON_ACTION bigint,
+    ID_TNT bigint not null,
+    CD_COMMAND varchar(128) not null,
+    TXT_INPUT_HASH varchar(64) not null,
+    SD_ACTION varchar(32) not null,
+    ID_TARGET bigint not null,
+    ID_ACTOR bigint not null,
+    DES_REASON varchar(2000),
+    DT_CREATED timestamp with time zone not null,
+    SD_STATUS varchar(32) not null,
+    TXT_RESULT clob,
+    DT_LEASE timestamp with time zone,
+    constraint PK_RECON_ACTION primary key (ID_RECON_ACTION)
+);
+comment on table RHN_BIL_RECON_ACTION is '支付对账操作凭据；一行代表一次幂等命令和审计结果';
+comment on column RHN_BIL_RECON_ACTION.ID_RECON_ACTION is '主键';
+comment on column RHN_BIL_RECON_ACTION.ID_TNT is '租户标识';
+comment on column RHN_BIL_RECON_ACTION.CD_COMMAND is '幂等命令编码';
+comment on column RHN_BIL_RECON_ACTION.TXT_INPUT_HASH is '命令输入指纹';
+comment on column RHN_BIL_RECON_ACTION.SD_ACTION is '审计动作类型';
+comment on column RHN_BIL_RECON_ACTION.ID_TARGET is '审计目标标识';
+comment on column RHN_BIL_RECON_ACTION.ID_ACTOR is '实际操作人标识';
+comment on column RHN_BIL_RECON_ACTION.DES_REASON is '处置或复核依据';
+comment on column RHN_BIL_RECON_ACTION.DT_CREATED is '创建时间';
+comment on column RHN_BIL_RECON_ACTION.SD_STATUS is '处理状态';
+comment on column RHN_BIL_RECON_ACTION.TXT_RESULT is '脱敏查询结果';
+comment on column RHN_BIL_RECON_ACTION.DT_LEASE is '租约失效时间';
+alter table RHN_BIL_RECON_BATCH add ID_RECON_FILE bigint;
+comment on column RHN_BIL_RECON_BATCH.ID_RECON_FILE is '渠道账单证据版本标识';
+alter table RHN_BIL_RECON_BATCH add ID_RECON_TASK bigint;
+comment on column RHN_BIL_RECON_BATCH.ID_RECON_TASK is '商户账单任务标识';
+alter table RHN_BIL_RECON_BATCH add NUM_EXEC int default 0 not null;
+comment on column RHN_BIL_RECON_BATCH.NUM_EXEC is '对账执行版本序号';
+alter table RHN_BIL_RECON_BATCH add CD_MERCH_SCOPE varchar(64) default 'LEGACY' not null;
+comment on column RHN_BIL_RECON_BATCH.CD_MERCH_SCOPE is '商户账单范围指纹';
+alter table RHN_BIL_RECON_BATCH add SD_CLOSURE varchar(32) default 'OPEN' not null;
+comment on column RHN_BIL_RECON_BATCH.SD_CLOSURE is '财务结案状态；与对平结果分开';
+alter table RHN_BIL_RECON_BATCH add ID_RVWR bigint;
+comment on column RHN_BIL_RECON_BATCH.ID_RVWR is '复核人标识';
+alter table RHN_BIL_RECON_BATCH add DT_RVWD timestamp with time zone;
+comment on column RHN_BIL_RECON_BATCH.DT_RVWD is '复核时间';
+alter table RHN_BIL_RECON_BATCH add DT_SNAP timestamp with time zone;
+comment on column RHN_BIL_RECON_BATCH.DT_SNAP is '本地快照截止时间';
+alter table RHN_BIL_RECON_BATCH add TXT_LOCAL_HASH varchar(64);
+comment on column RHN_BIL_RECON_BATCH.TXT_LOCAL_HASH is '本地事实快照摘要';
+alter table RHN_BIL_RECON_BATCH add AMT_EXT_PAY decimal(24,6) default 0 not null;
+comment on column RHN_BIL_RECON_BATCH.AMT_EXT_PAY is '渠道收款业务总额';
+alter table RHN_BIL_RECON_BATCH add AMT_REF_ACCEPT decimal(24,6) default 0 not null;
+comment on column RHN_BIL_RECON_BATCH.AMT_REF_ACCEPT is '渠道退款受理业务总额';
+alter table RHN_BIL_RECON_BATCH add AMT_REF_FINAL decimal(24,6) default 0 not null;
+comment on column RHN_BIL_RECON_BATCH.AMT_REF_FINAL is '渠道最终退款业务总额';
+alter table RHN_BIL_RECON_BATCH add AMT_FEE decimal(24,6) default 0 not null;
+comment on column RHN_BIL_RECON_BATCH.AMT_FEE is '渠道手续费合计';
+alter table RHN_BIL_RECON_ITEM add ID_RECON_ROW bigint;
+comment on column RHN_BIL_RECON_ITEM.ID_RECON_ROW is '账单规范明细标识';
+alter table RHN_BIL_RECON_ITEM add ID_PAY_ORDER bigint;
+comment on column RHN_BIL_RECON_ITEM.ID_PAY_ORDER is '可信原支付指令标识';
+alter table RHN_BIL_RECON_ITEM add SD_TXN_TYPE varchar(32);
+comment on column RHN_BIL_RECON_ITEM.SD_TXN_TYPE is '收款退款或撤销类型';
+alter table RHN_BIL_RECON_ITEM add SD_CHANNEL_STATUS varchar(32);
+comment on column RHN_BIL_RECON_ITEM.SD_CHANNEL_STATUS is '渠道原始交易或退款状态';
+alter table RHN_BIL_RECON_ITEM add DT_CHANNEL timestamp with time zone;
+comment on column RHN_BIL_RECON_ITEM.DT_CHANNEL is '渠道事件发生时间';
+alter table RHN_BIL_RECON_ITEM add DT_POSTED timestamp with time zone;
+comment on column RHN_BIL_RECON_ITEM.DT_POSTED is '本地资金事实记账时间';
+alter table RHN_BIL_RECON_ITEM add ID_RVWR bigint;
+comment on column RHN_BIL_RECON_ITEM.ID_RVWR is '复核人标识';
+alter table RHN_BIL_RECON_ITEM add DT_RVWD timestamp with time zone;
+comment on column RHN_BIL_RECON_ITEM.DT_RVWD is '复核时间';
+alter table RHN_BIL_RECON_ITEM_EVT add TXT_INPUT_HASH varchar(64);
+comment on column RHN_BIL_RECON_ITEM_EVT.TXT_INPUT_HASH is '命令输入指纹';
+
+alter table RHN_BIL_RECON_ATTEMPT add constraint UK_RECON_ATTEMPT_TASK unique (ID_TNT,ID_RECON_TASK,NUM_ATTEMPT);
+
+
+alter table RHN_BIL_RECON_ACCT add constraint UK_RECON_ACCT_SCOPE unique (CD_MERCH_SCOPE);
+alter table RHN_BIL_RECON_ACCT add constraint UK_RECON_ACCT_TNT_SCOPE unique (ID_TNT,CD_MERCH_SCOPE);
+alter table RHN_BIL_RECON_POLICY add constraint UK_RECON_POLICY_ORG unique (ID_TNT,ID_ORG,CD_PAY_METHOD);
+alter table RHN_BIL_RECON_POLICY add constraint FK_RECON_POLICY_ORG foreign key (ID_TNT,ID_ORG) references RHN_SYS_ORG(ID_TNT,ID_ORG);
+alter table RHN_BIL_RECON_POLICY add constraint FK_RECON_POLICY_SCOPE foreign key (ID_TNT,CD_MERCH_SCOPE) references RHN_BIL_RECON_ACCT(ID_TNT,CD_MERCH_SCOPE);
+alter table RHN_BIL_RECON_TASK add constraint UK_RECON_TASK_SCOPE unique (ID_TNT,CD_MERCH_SCOPE,DA_BIZ,CD_CCY);
+alter table RHN_BIL_RECON_TASK add constraint UK_RECON_TASK_TNT unique (ID_TNT,ID_RECON_TASK);
+alter table RHN_BIL_RECON_ATTEMPT add constraint FK_RECON_ATTEMPT_TASK foreign key (ID_TNT,ID_RECON_TASK) references RHN_BIL_RECON_TASK(ID_TNT,ID_RECON_TASK);
+alter table RHN_BIL_RECON_TASK add constraint UK_RECON_TASK_COMMAND unique (ID_TNT,CD_REQUEST);
+alter table RHN_BIL_RECON_TASK add constraint FK_RECON_TASK_SCOPE foreign key (ID_TNT,CD_MERCH_SCOPE) references RHN_BIL_RECON_ACCT(ID_TNT,CD_MERCH_SCOPE);
+alter table RHN_BIL_RECON_TASK add constraint FK_RECON_TASK_CRED_ORG foreign key (ID_TNT,ID_ORG_CRED) references RHN_SYS_ORG(ID_TNT,ID_ORG);
+alter table RHN_BIL_RECON_FILE add constraint UK_RECON_FILE_TNT unique (ID_TNT,ID_RECON_FILE);
+alter table RHN_BIL_RECON_FILE add constraint UK_RECON_FILE_ATTEMPT unique (ID_TNT,ID_RECON_TASK,NUM_ATTEMPT);
+alter table RHN_BIL_RECON_FILE add constraint FK_RECON_FILE_TASK foreign key (ID_TNT,ID_RECON_TASK) references RHN_BIL_RECON_TASK(ID_TNT,ID_RECON_TASK);
+alter table RHN_BIL_RECON_TASK add constraint FK_RECON_TASK_FILE foreign key (ID_TNT,ID_RECON_FILE) references RHN_BIL_RECON_FILE(ID_TNT,ID_RECON_FILE);
+alter table RHN_BIL_RECON_ROW add constraint UK_RECON_ROW_LINE unique (ID_TNT,ID_RECON_FILE,NUM_LINE);
+alter table RHN_BIL_RECON_ROW add constraint FK_RECON_ROW_FILE foreign key (ID_TNT,ID_RECON_FILE) references RHN_BIL_RECON_FILE(ID_TNT,ID_RECON_FILE);
+alter table RHN_BIL_RECON_ROW add constraint FK_RECON_ROW_ORG foreign key (ID_TNT,ID_ORG) references RHN_SYS_ORG(ID_TNT,ID_ORG);
+alter table RHN_BIL_RECON_ACTION add constraint UK_RECON_ACTION_COMMAND unique (ID_TNT,CD_COMMAND);
+alter table RHN_BIL_RECON_BATCH drop constraint UK_BIL_RECON_BATC_RECON_BATC_3;
+alter table RHN_BIL_RECON_BATCH add constraint UK_RECON_BATCH_SCOPE_VER unique (ID_TNT,ID_ORG,SD_RECON_TYPE,CD_SRC,CD_PAY_METHOD,DA_BIZ,CD_CCY,CD_MERCH_SCOPE,NUM_EXEC);
+alter table RHN_BIL_RECON_BATCH add constraint UK_RECON_BATCH_FILE_ORG unique (ID_TNT,ID_ORG,ID_RECON_FILE);
+alter table RHN_BIL_RECON_BATCH add constraint FK_RECON_BATCH_FILE foreign key (ID_TNT,ID_RECON_FILE) references RHN_BIL_RECON_FILE(ID_TNT,ID_RECON_FILE);
+alter table RHN_BIL_RECON_ITEM add constraint FK_RECON_ITEM_ROW foreign key (ID_RECON_ROW) references RHN_BIL_RECON_ROW(ID_RECON_ROW);
+alter table RHN_BIL_RECON_ITEM drop constraint CK_BIL_RECON_ITEM_RECON_ITEM_M;
+alter table RHN_BIL_RECON_ITEM add constraint CK_BIL_RECON_ITEM_RECON_ITEM_M check (SD_MATCH_TYPE in ('MATCHED','LOCAL_ONLY','EXTERNAL_ONLY','AMOUNT_DIFFERENCE','STATUS_DIFFERENCE','DUPLICATE','TIME_DIFFERENCE','IDENTITY_DIFFERENCE','AWAITING_CONFIRMATION','LOCAL_NOT_POSTED','REVERSAL_REVIEW','LEDGER_DIFFERENCE'));
+alter table RHN_BIL_RECON_ITEM drop constraint CK_BIL_RECON_ITEM_RECON_ITEM_S;
+alter table RHN_BIL_RECON_ITEM add constraint CK_BIL_RECON_ITEM_RECON_ITEM_S check (SD_STATUS in ('OPEN','RESOLVED','IGNORED','REVIEW_PENDING','ACCEPTED_EXCEPTION'));
+alter table RHN_BIL_RECON_ITEM_EVT drop constraint CK_BIL_RECON_ITEM_RECON_EVENT_;
+alter table RHN_BIL_RECON_ITEM_EVT add constraint CK_BIL_RECON_ITEM_RECON_EVENT_ check (SD_EVT_TYPE in ('DETECT','RESOLVE','IGNORE','REOPEN','SUBMIT','APPROVE','REJECT','QUERY'));
+create index IX_RECON_TASK_DUE on RHN_BIL_RECON_TASK(SD_STATUS,DT_NEXT,DT_LEASE);
+create index IX_RECON_ROW_ORG on RHN_BIL_RECON_ROW(ID_TNT,ID_RECON_FILE,ID_ORG,NUM_LINE);
+create index IX_RECON_ITEM_ORDER on RHN_BIL_RECON_ITEM(ID_TNT,ID_PAY_ORDER);
+create index IX_RECON_ITEM_BATCH_STATUS on RHN_BIL_RECON_ITEM(ID_TNT,ID_RECON_BATCH,SD_STATUS);
+
+insert into RHN_SYS_MGMT_MOD (ID_MGMT_MOD,ID_TNT,ID_MGMT_MOD_PARENT,CD_MGMT_MOD,NA_MGMT_MOD,SD_MOD_TYPE,ROUTE_PATH,CD_COMP,CD_ICON,SN_SORT,SD_STATUS,DT_CREATED,DT_UPDATED,REVISION)
+select 362387869900100+row_number() over(order by p.ID_TNT),p.ID_TNT,p.ID_MGMT_MOD,'PAYMENT_RECONCILIATION','支付对账','MODULE','/billing/payment-reconciliation','PaymentReconciliationWorkspace','billing',65,'ACTIVE',current_timestamp,current_timestamp,0
+from RHN_SYS_MGMT_MOD p where p.CD_MGMT_MOD='BILLING';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900200+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.READ','查看支付交易对账','READ','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900300+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.RUN','拉取核对及配置对账策略','RUN','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900400+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.HANDLE','核查支付对账差异','HANDLE','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900500+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.REVIEW','复核支付对账例外','REVIEW','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900600+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.EXPORT','导出支付对账结果','EXPORT','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900700+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.MERCHANT_READ','读取商户全账与未归属流水','MERCHANT_READ','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_PERM (ID_ACC_PERM,ID_TNT,ID_MGMT_MOD,CD_ACC_PERM,NA_ACC_PERM,CD_ACTION,CD_RSRC,SD_STATUS)
+select 362387869900800+row_number() over(order by m.ID_TNT),m.ID_TNT,m.ID_MGMT_MOD,'PAYMENT_RECONCILIATION.IMPORT','受控导入历史标准化账单','IMPORT','PAYMENT_RECONCILIATION','ACTIVE' from RHN_SYS_MGMT_MOD m where m.CD_MGMT_MOD='PAYMENT_RECONCILIATION';
+insert into RHN_SYS_ACC_ROLE (ID_ACC_ROLE,ID_TNT,CD_ACC_ROLE,NA_ACC_ROLE,SD_ROLE_TYPE,SD_STATUS,DT_CREATED,DT_UPDATED,REVISION)
+select 362387869901100+row_number() over(order by t.ID_TNT),t.ID_TNT,'PAYMENT_RECON_ADMIN','支付对账财务人员','ADMIN','ACTIVE',current_timestamp,current_timestamp,0 from RHN_SYS_TNT t;
+insert into RHN_SYS_ROLE_PERM_ASSIGN (ID_ROLE_PERM_ASSIGN,ID_TNT,ID_ACC_ROLE,ID_ACC_PERM,DT_VALID_FROM,DT_CREATED)
+select 362387869902100+row_number() over(order by r.ID_TNT,p.ID_ACC_PERM),r.ID_TNT,r.ID_ACC_ROLE,p.ID_ACC_PERM,current_timestamp,current_timestamp from RHN_SYS_ACC_ROLE r join RHN_SYS_ACC_PERM p on r.ID_TNT=p.ID_TNT where r.CD_ACC_ROLE='PAYMENT_RECON_ADMIN' and p.CD_ACC_PERM in ('PAYMENT_RECONCILIATION.READ','PAYMENT_RECONCILIATION.RUN','PAYMENT_RECONCILIATION.HANDLE','PAYMENT_RECONCILIATION.REVIEW','PAYMENT_RECONCILIATION.EXPORT');
+insert into RHN_SYS_ACC_ROLE (ID_ACC_ROLE,ID_TNT,CD_ACC_ROLE,NA_ACC_ROLE,SD_ROLE_TYPE,SD_STATUS,DT_CREATED,DT_UPDATED,REVISION)
+select 362387869901200+row_number() over(order by t.ID_TNT),t.ID_TNT,'PAYMENT_RECON_MERCHANT','支付商户全账财务人员','ADMIN','ACTIVE',current_timestamp,current_timestamp,0 from RHN_SYS_TNT t;
+insert into RHN_SYS_ROLE_PERM_ASSIGN (ID_ROLE_PERM_ASSIGN,ID_TNT,ID_ACC_ROLE,ID_ACC_PERM,DT_VALID_FROM,DT_CREATED)
+select 362387869902200+row_number() over(order by r.ID_TNT,p.ID_ACC_PERM),r.ID_TNT,r.ID_ACC_ROLE,p.ID_ACC_PERM,current_timestamp,current_timestamp from RHN_SYS_ACC_ROLE r join RHN_SYS_ACC_PERM p on r.ID_TNT=p.ID_TNT where r.CD_ACC_ROLE='PAYMENT_RECON_MERCHANT' and p.CD_ACC_PERM in ('PAYMENT_RECONCILIATION.READ','PAYMENT_RECONCILIATION.RUN','PAYMENT_RECONCILIATION.HANDLE','PAYMENT_RECONCILIATION.REVIEW','PAYMENT_RECONCILIATION.EXPORT','PAYMENT_RECONCILIATION.MERCHANT_READ');
+insert into RHN_SYS_ACC_ROLE (ID_ACC_ROLE,ID_TNT,CD_ACC_ROLE,NA_ACC_ROLE,SD_ROLE_TYPE,SD_STATUS,DT_CREATED,DT_UPDATED,REVISION)
+select 362387869901300+row_number() over(order by t.ID_TNT),t.ID_TNT,'PAYMENT_RECON_IMPORT','支付账单受控导入人员','ADMIN','ACTIVE',current_timestamp,current_timestamp,0 from RHN_SYS_TNT t;
+insert into RHN_SYS_ROLE_PERM_ASSIGN (ID_ROLE_PERM_ASSIGN,ID_TNT,ID_ACC_ROLE,ID_ACC_PERM,DT_VALID_FROM,DT_CREATED)
+select 362387869902300+row_number() over(order by r.ID_TNT,p.ID_ACC_PERM),r.ID_TNT,r.ID_ACC_ROLE,p.ID_ACC_PERM,current_timestamp,current_timestamp from RHN_SYS_ACC_ROLE r join RHN_SYS_ACC_PERM p on r.ID_TNT=p.ID_TNT where r.CD_ACC_ROLE='PAYMENT_RECON_IMPORT' and p.CD_ACC_PERM in ('PAYMENT_RECONCILIATION.READ','PAYMENT_RECONCILIATION.IMPORT');
+
+-- =============================================================================
+-- Source: V1_129_40__practitioner_qualification.sql
+-- =============================================================================
+-- Practitioner qualification: professional title, practice category and certificates, insurance practitioner code
+-- and prescribing rights. One row per practitioner; an absent row means "not registered", never "no rights".
+-- Ordering does not enforce these rights yet; consumers read them through PractitionerQualificationDirectory.
+
+create table RHN_SYS_PRACT_QUALIF (
+    ID_PRACT_QUALIF bigint,
+    ID_TNT bigint not null,
+    ID_PRACT bigint not null,
+    SD_PROF_TITLE varchar(64),
+    SD_PRACT_CAT varchar(64),
+    CD_PRACT_CERT varchar(64),
+    CD_QUALIF_CERT varchar(64),
+    CD_INSUR_PRACT varchar(64),
+    FG_RX boolean default false not null,
+    FG_NARC_RX boolean default false not null,
+    SD_ANTIMIC_RX_LEVEL varchar(64),
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED bigint,
+    DT_UPDATED timestamp with time zone not null,
+    ID_USER_UPDATED bigint,
+    REVISION bigint not null default 0,
+    constraint PK_SYS_PRACT_QUALIF_PK primary key (ID_PRACT_QUALIF),
+    constraint UK_SYS_PRACT_QUALIF_PRACT unique (ID_TNT, ID_PRACT),
+    constraint CK_SYS_PRACT_QUALIF_RX check (FG_RX = true or (FG_NARC_RX = false and SD_ANTIMIC_RX_LEVEL is null))
+);
+alter table RHN_SYS_PRACT_QUALIF add constraint FK_SYS_PRACT_QUALIF_PRACT foreign key (ID_TNT, ID_PRACT) references RHN_SYS_PRACT(ID_TNT, ID_PRACT);
+comment on table RHN_SYS_PRACT_QUALIF is '人员执业资质；一行代表一名医务人员当前的职称、执业注册与处方权';
+comment on column RHN_SYS_PRACT_QUALIF.ID_PRACT_QUALIF is '人员执业资质主键';
+comment on column RHN_SYS_PRACT_QUALIF.ID_TNT is '租户标识';
+comment on column RHN_SYS_PRACT_QUALIF.ID_PRACT is '医务人员标识';
+comment on column RHN_SYS_PRACT_QUALIF.SD_PROF_TITLE is '职称，字典 PRACT_PROF_TITLE';
+comment on column RHN_SYS_PRACT_QUALIF.SD_PRACT_CAT is '执业类别，字典 PRACT_CATEGORY';
+comment on column RHN_SYS_PRACT_QUALIF.CD_PRACT_CERT is '执业证书编码';
+comment on column RHN_SYS_PRACT_QUALIF.CD_QUALIF_CERT is '资格证书编码';
+comment on column RHN_SYS_PRACT_QUALIF.CD_INSUR_PRACT is '医保医师（护士、药师）编码';
+comment on column RHN_SYS_PRACT_QUALIF.FG_RX is '是否具有普通处方权';
+comment on column RHN_SYS_PRACT_QUALIF.FG_NARC_RX is '是否具有麻醉药品和第一类精神药品处方权';
+comment on column RHN_SYS_PRACT_QUALIF.SD_ANTIMIC_RX_LEVEL is '抗菌药物处方权级别，字典 BD_ANTIMICROBIAL_LEVEL，空表示无权限';
+comment on column RHN_SYS_PRACT_QUALIF.DT_CREATED is '创建时间';
+comment on column RHN_SYS_PRACT_QUALIF.ID_USER_CREATED is '创建人标识';
+comment on column RHN_SYS_PRACT_QUALIF.DT_UPDATED is '更新时间';
+comment on column RHN_SYS_PRACT_QUALIF.ID_USER_UPDATED is '更新人标识';
+comment on column RHN_SYS_PRACT_QUALIF.REVISION is '乐观锁修订号';
+
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869960001, 0, 'PLATFORM', 'PLATFORM', null, 'PRACT_PROF_TITLE', '人员职称', '医务人员专业技术职称（卫生系列），人员执业资质使用。', 'ACTIVE', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, true, 362387869840002);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961001, null, 362387869960001, null, 'CREATE_DICT', 'DICT', null, '{"code": "PRACT_PROF_TITLE", "name": "人员职称", "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960101, 362387869960001, 'CHIEF_PHYSICIAN', '主任医师', null, 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961002, null, 362387869960001, 362387869960101, 'ADD_ITEM', 'ITEM', null, '{"code": "CHIEF_PHYSICIAN", "name": "主任医师", "parentCode": null, "sortOrder": 10, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960102, 362387869960001, 'ASSOCIATE_CHIEF_PHYSICIAN', '副主任医师', null, 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961003, null, 362387869960001, 362387869960102, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSOCIATE_CHIEF_PHYSICIAN", "name": "副主任医师", "parentCode": null, "sortOrder": 20, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960103, 362387869960001, 'ATTENDING_PHYSICIAN', '主治医师', null, 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961004, null, 362387869960001, 362387869960103, 'ADD_ITEM', 'ITEM', null, '{"code": "ATTENDING_PHYSICIAN", "name": "主治医师", "parentCode": null, "sortOrder": 30, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960104, 362387869960001, 'RESIDENT_PHYSICIAN', '住院医师', null, 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961005, null, 362387869960001, 362387869960104, 'ADD_ITEM', 'ITEM', null, '{"code": "RESIDENT_PHYSICIAN", "name": "住院医师", "parentCode": null, "sortOrder": 40, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960105, 362387869960001, 'ASSISTANT_PHYSICIAN', '医士', null, 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961006, null, 362387869960001, 362387869960105, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSISTANT_PHYSICIAN", "name": "医士", "parentCode": null, "sortOrder": 50, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960106, 362387869960001, 'CHIEF_NURSE', '主任护师', null, 60, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961007, null, 362387869960001, 362387869960106, 'ADD_ITEM', 'ITEM', null, '{"code": "CHIEF_NURSE", "name": "主任护师", "parentCode": null, "sortOrder": 60, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960107, 362387869960001, 'ASSOCIATE_CHIEF_NURSE', '副主任护师', null, 70, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961008, null, 362387869960001, 362387869960107, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSOCIATE_CHIEF_NURSE", "name": "副主任护师", "parentCode": null, "sortOrder": 70, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960108, 362387869960001, 'NURSE_IN_CHARGE', '主管护师', null, 80, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961009, null, 362387869960001, 362387869960108, 'ADD_ITEM', 'ITEM', null, '{"code": "NURSE_IN_CHARGE", "name": "主管护师", "parentCode": null, "sortOrder": 80, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960109, 362387869960001, 'SENIOR_NURSE', '护师', null, 90, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961010, null, 362387869960001, 362387869960109, 'ADD_ITEM', 'ITEM', null, '{"code": "SENIOR_NURSE", "name": "护师", "parentCode": null, "sortOrder": 90, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960110, 362387869960001, 'NURSE', '护士', null, 100, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961011, null, 362387869960001, 362387869960110, 'ADD_ITEM', 'ITEM', null, '{"code": "NURSE", "name": "护士", "parentCode": null, "sortOrder": 100, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960111, 362387869960001, 'CHIEF_PHARMACIST', '主任药师', null, 110, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961012, null, 362387869960001, 362387869960111, 'ADD_ITEM', 'ITEM', null, '{"code": "CHIEF_PHARMACIST", "name": "主任药师", "parentCode": null, "sortOrder": 110, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960112, 362387869960001, 'ASSOCIATE_CHIEF_PHARMACIST', '副主任药师', null, 120, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961013, null, 362387869960001, 362387869960112, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSOCIATE_CHIEF_PHARMACIST", "name": "副主任药师", "parentCode": null, "sortOrder": 120, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960113, 362387869960001, 'PHARMACIST_IN_CHARGE', '主管药师', null, 130, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961014, null, 362387869960001, 362387869960113, 'ADD_ITEM', 'ITEM', null, '{"code": "PHARMACIST_IN_CHARGE", "name": "主管药师", "parentCode": null, "sortOrder": 130, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960114, 362387869960001, 'PHARMACIST', '药师', null, 140, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961015, null, 362387869960001, 362387869960114, 'ADD_ITEM', 'ITEM', null, '{"code": "PHARMACIST", "name": "药师", "parentCode": null, "sortOrder": 140, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960115, 362387869960001, 'ASSISTANT_PHARMACIST', '药士', null, 150, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961016, null, 362387869960001, 362387869960115, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSISTANT_PHARMACIST", "name": "药士", "parentCode": null, "sortOrder": 150, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960116, 362387869960001, 'CHIEF_TECHNICIAN', '主任技师', null, 160, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961017, null, 362387869960001, 362387869960116, 'ADD_ITEM', 'ITEM', null, '{"code": "CHIEF_TECHNICIAN", "name": "主任技师", "parentCode": null, "sortOrder": 160, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960117, 362387869960001, 'ASSOCIATE_CHIEF_TECHNICIAN', '副主任技师', null, 170, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961018, null, 362387869960001, 362387869960117, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSOCIATE_CHIEF_TECHNICIAN", "name": "副主任技师", "parentCode": null, "sortOrder": 170, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960118, 362387869960001, 'TECHNICIAN_IN_CHARGE', '主管技师', null, 180, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961019, null, 362387869960001, 362387869960118, 'ADD_ITEM', 'ITEM', null, '{"code": "TECHNICIAN_IN_CHARGE", "name": "主管技师", "parentCode": null, "sortOrder": 180, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960119, 362387869960001, 'TECHNICIAN', '技师', null, 190, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961020, null, 362387869960001, 362387869960119, 'ADD_ITEM', 'ITEM', null, '{"code": "TECHNICIAN", "name": "技师", "parentCode": null, "sortOrder": 190, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960120, 362387869960001, 'ASSISTANT_TECHNICIAN', '技士', null, 200, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961021, null, 362387869960001, 362387869960120, 'ADD_ITEM', 'ITEM', null, '{"code": "ASSISTANT_TECHNICIAN", "name": "技士", "parentCode": null, "sortOrder": 200, "status": "ACTIVE"}', '人员执业资质改为受控字典：职称', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_DEF (ID_DICT_DEF, REVISION, SD_SCOPE_TYPE, CD_SCOPE, ID_TNT, CD_DICT_DEF, NA_DICT_DEF, DES_DICT_DEF, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED, FG_SYS_MANAGED, ID_DICT_CAT) values (362387869960002, 0, 'PLATFORM', 'PLATFORM', null, 'PRACT_CATEGORY', '执业类别', '医师、护士、药师、技师等执业注册类别，人员执业资质使用。', 'ACTIVE', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, true, 362387869840002);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961022, null, 362387869960002, null, 'CREATE_DICT', 'DICT', null, '{"code": "PRACT_CATEGORY", "name": "执业类别", "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960201, 362387869960002, 'CLINICAL', '临床', null, 10, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961023, null, 362387869960002, 362387869960201, 'ADD_ITEM', 'ITEM', null, '{"code": "CLINICAL", "name": "临床", "parentCode": null, "sortOrder": 10, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960202, 362387869960002, 'TCM', '中医', null, 20, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961024, null, 362387869960002, 362387869960202, 'ADD_ITEM', 'ITEM', null, '{"code": "TCM", "name": "中医", "parentCode": null, "sortOrder": 20, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960203, 362387869960002, 'DENTAL', '口腔', null, 30, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961025, null, 362387869960002, 362387869960203, 'ADD_ITEM', 'ITEM', null, '{"code": "DENTAL", "name": "口腔", "parentCode": null, "sortOrder": 30, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960204, 362387869960002, 'PUBLIC_HEALTH', '公共卫生', null, 40, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961026, null, 362387869960002, 362387869960204, 'ADD_ITEM', 'ITEM', null, '{"code": "PUBLIC_HEALTH", "name": "公共卫生", "parentCode": null, "sortOrder": 40, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960205, 362387869960002, 'NURSE', '护士', null, 50, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961027, null, 362387869960002, 362387869960205, 'ADD_ITEM', 'ITEM', null, '{"code": "NURSE", "name": "护士", "parentCode": null, "sortOrder": 50, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960206, 362387869960002, 'PHARMACIST', '药师', null, 60, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961028, null, 362387869960002, 362387869960206, 'ADD_ITEM', 'ITEM', null, '{"code": "PHARMACIST", "name": "药师", "parentCode": null, "sortOrder": 60, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960207, 362387869960002, 'TECHNICIAN', '技师', null, 70, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961029, null, 362387869960002, 362387869960207, 'ADD_ITEM', 'ITEM', null, '{"code": "TECHNICIAN", "name": "技师", "parentCode": null, "sortOrder": 70, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT) values (362387869960208, 362387869960002, 'OTHER', '其他', null, 80, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869961030, null, 362387869960002, 362387869960208, 'ADD_ITEM', 'ITEM', null, '{"code": "OTHER", "name": "其他", "parentCode": null, "sortOrder": 80, "status": "ACTIVE"}', '人员执业资质改为受控字典：执业类别', 'v1.129.40:practitioner-qualification', timestamp with time zone '2026-10-19 00:00:00+08', 362387869790222, 362387869840002, null);
+
+-- =============================================================================
+-- Source: V1_129_41__organization_personnel_menu_split.sql
+-- =============================================================================
+-- 「组织与人员」拆分为「机构与科室」和「人员管理」两个菜单；两者共用 ORGANIZATION 模块和 ORGANIZATION.ACCESS 权限。
+update RHN_SYS_MGMT_MOD
+   set NA_MGMT_MOD = '机构与人员', ROUTE_PATH = '/settings/organizations', CD_COMP = 'OrganizationsPage',
+       DT_UPDATED = current_timestamp, REVISION = REVISION + 1
+ where CD_MGMT_MOD = 'ORGANIZATION';
+
+update RHN_SYS_ACC_PERM
+   set NA_ACC_PERM = '访问机构与科室、人员管理'
+ where CD_ACC_PERM = 'ORGANIZATION.ACCESS';
+
+-- =============================================================================
+-- Source: V1_129_42__department_default_roles.sql
+-- =============================================================================
+-- Department default roles: roles granted automatically when a practitioner with a login account takes up an
+-- assignment in the department. Grants created this way record their source and originating staff assignment so
+-- that ending, voiding or transferring the assignment ends only these grants; manual grants are never touched.
+
+create table RHN_SYS_DEPT_DFLT_ROLE (
+    ID_DEPT_DFLT_ROLE bigint,
+    ID_TNT bigint not null,
+    ID_ORG bigint not null,
+    ID_DEPT bigint not null,
+    ID_ACC_ROLE bigint not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED bigint,
+    constraint PK_SYS_DEPT_DFLT_ROLE_PK primary key (ID_DEPT_DFLT_ROLE),
+    constraint UK_SYS_DEPT_DFLT_ROLE unique (ID_TNT, ID_DEPT, ID_ACC_ROLE)
+);
+alter table RHN_SYS_DEPT_DFLT_ROLE add constraint FK_SYS_DEPT_DFLT_ROLE_DEPT foreign key (ID_TNT, ID_ORG, ID_DEPT) references RHN_SYS_DEPT(ID_TNT, ID_ORG, ID_DEPT);
+alter table RHN_SYS_DEPT_DFLT_ROLE add constraint FK_SYS_DEPT_DFLT_ROLE_ROLE foreign key (ID_TNT, ID_ACC_ROLE) references RHN_SYS_ACC_ROLE(ID_TNT, ID_ACC_ROLE);
+comment on table RHN_SYS_DEPT_DFLT_ROLE is '科室默认角色；一行代表一个科室的一个默认角色，人员在该科室任职且已开通账号时自动授予';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.ID_DEPT_DFLT_ROLE is '科室默认角色主键';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.ID_TNT is '租户标识';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.ID_ORG is '机构标识';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.ID_DEPT is '科室标识';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.ID_ACC_ROLE is '默认授予的角色标识';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.DT_CREATED is '创建时间';
+comment on column RHN_SYS_DEPT_DFLT_ROLE.ID_USER_CREATED is '创建人标识';
+
+alter table RHN_SYS_USER_ROLE_ASSIGN add column SD_GRANT_SRC varchar(24) default 'MANUAL' not null;
+alter table RHN_SYS_USER_ROLE_ASSIGN add column ID_STAFF_ASSIGN bigint;
+alter table RHN_SYS_USER_ROLE_ASSIGN add constraint CK_SYS_USER_ROLE_GRANT_SRC check (SD_GRANT_SRC in ('MANUAL', 'DEPT_DEFAULT'));
+alter table RHN_SYS_USER_ROLE_ASSIGN add constraint FK_SYS_USER_ROLE_STAFF_ASSIGN foreign key (ID_TNT, ID_STAFF_ASSIGN) references RHN_SYS_STAFF_ASSIGN(ID_TNT, ID_STAFF_ASSIGN);
+create index IDX_SYS_USER_ROLE_STAFF_ASSIGN on RHN_SYS_USER_ROLE_ASSIGN (ID_TNT, ID_STAFF_ASSIGN);
+create index IDX_SYS_USER_ROLE_ROLE_VALID on RHN_SYS_USER_ROLE_ASSIGN (ID_TNT, ID_ACC_ROLE, DT_VALID_TO);
+comment on column RHN_SYS_USER_ROLE_ASSIGN.SD_GRANT_SRC is '授权来源：MANUAL 手工授予，DEPT_DEFAULT 按科室默认角色自动授予';
+comment on column RHN_SYS_USER_ROLE_ASSIGN.ID_STAFF_ASSIGN is '自动授权对应的人员任职标识；手工授权为空';
+
+-- =============================================================================
+-- Source: V1_129_45__outpatient_order_review_and_split_policy.sql
+-- =============================================================================
+-- 门诊医嘱开立核查模式与处方分方规则改为机构参数；默认值保持原行为（标准核查、西药/中成药分开、输液单列、5 种上限）。
+insert into RHN_SYS_PARAM_DEF (
+    ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF,
+    SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_EXAMPLE_VAL,
+    UNIT, CD_DICT, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE,
+    FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION,
+    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED,
+    CD_DEPENDS_ON_KEY, EXPR_DEPENDS_ON_VAL, SD_DEPNCY_BEHAV
+) values (
+    362387869796210, 362387869794071,
+    'outpatient.doctor-workstation.order-review-mode',
+    '门诊医嘱开立核查模式',
+    '标准模式每次开立先弹出核查窗确认分单、关联诊断与合理用药；简易模式直接开立，单据未填诊断时默认关联主诊断，仅在合理用药需确认或开立失败时弹出核查窗。两种模式门禁一致，不绕过合理用药与库存校验。',
+    'STRING', 'SELECT', '{"type":"string","enum":["STANDARD","SIMPLE"],"x-enumLabels":{"STANDARD":"标准：开立前核查分单与诊断","SIMPLE":"简易：直接开立，异常时再核查"}}',
+    '"STANDARD"', '"SIMPLE"', null, null,
+    '["PLATFORM","TENANT","ORGANIZATION","DEPARTMENT"]', 'BUSINESS',
+    true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0,
+    timestamp with time zone '2026-10-20 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-20 00:00:00+08', 362387869790222,
+    null, null, 'DISABLE_AND_SUPPRESS'
+);
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+) values (
+    362387869796211, null, 362387869796210, null, 'DEFINITION',
+    'CREATE', null,
+    '{"source":"PRODUCT_BASELINE","key":"outpatient.doctor-workstation.order-review-mode","status":"ACTIVE"}',
+    '初始化门诊医嘱开立核查模式参数',
+    'v1.129.45:outpatient.doctor-workstation.order-review-mode',
+    timestamp with time zone '2026-10-20 00:00:00+08', 362387869790222
+);
+insert into RHN_SYS_PARAM_DEF (
+    ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF,
+    SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_EXAMPLE_VAL,
+    UNIT, CD_DICT, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE,
+    FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION,
+    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED,
+    CD_DEPENDS_ON_KEY, EXPR_DEPENDS_ON_VAL, SD_DEPNCY_BEHAV
+) values (
+    362387869796212, 362387869794071,
+    'outpatient.prescription.split-policy',
+    '门诊处方分方规则',
+    '控制门诊自动分方：西药与中成药是否合方、输液是否单独成方、单张处方药品种数上限。发药药房隔离、草药整方、单列药品和同组输液原子性不受本参数影响。',
+    'JSON', 'JSON_EDITOR', '{"type":"object","additionalProperties":false,"required":["mergeWesternAndPatent","separateInfusion","maxItemsPerPrescription"],"properties":{"mergeWesternAndPatent":{"type":"boolean","title":"西药与中成药合开一张处方","description":"开启后同一发药药房的西药与中成药合并分方，处方笺按西药处方管理。"},"separateInfusion":{"type":"boolean","title":"输液单独成方","description":"关闭后输液药品与同药房其他西药合方；同组输液始终在同一张处方内。"},"maxItemsPerPrescription":{"type":"integer","title":"单张处方药品种数上限","description":"《处方管理办法》规定每张处方不得超过 5 种药品，可按机构要求调低。","minimum":1,"maximum":5}}}',
+    '{"mergeWesternAndPatent":false,"separateInfusion":true,"maxItemsPerPrescription":5}', '{"mergeWesternAndPatent":true,"separateInfusion":false,"maxItemsPerPrescription":5}', null, null,
+    '["PLATFORM","TENANT","ORGANIZATION","DEPARTMENT"]', 'BUSINESS',
+    true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0,
+    timestamp with time zone '2026-10-20 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-20 00:00:00+08', 362387869790222,
+    null, null, 'DISABLE_AND_SUPPRESS'
+);
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+) values (
+    362387869796213, null, 362387869796212, null, 'DEFINITION',
+    'CREATE', null,
+    '{"source":"PRODUCT_BASELINE","key":"outpatient.prescription.split-policy","status":"ACTIVE"}',
+    '初始化门诊处方分方规则参数',
+    'v1.129.45:outpatient.prescription.split-policy',
+    timestamp with time zone '2026-10-20 00:00:00+08', 362387869790222
+);
+
+-- =============================================================================
+-- Source: V1_129_46__outpatient_service_request_documents.sql
+-- =============================================================================
+-- 门诊检验/检查/治疗申请单头：同一次整批开立按机构合单规则把多条服务请求归入一张申请单。
+-- 明细、执行任务、收费仍按服务请求逐条处理；历史及单条开立的请求不归单（ID_SVC_DOC 为空），展示为一项一单。
+
+create table RHN_EX_SVC_DOC (
+    ID_SVC_DOC bigint,
+    REVISION bigint not null,
+    ID_TNT bigint not null,
+    ID_PAT bigint not null,
+    ID_ENC bigint not null,
+    CD_DOC_NO varchar(64) not null,
+    SD_SVC_TYPE varchar(32) not null,
+    ID_ORG_EXEC bigint not null,
+    ID_DEPT_EXEC bigint not null,
+    SD_GRP_RULE varchar(32) not null,
+    CD_GRP_VAL varchar(64),
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED bigint not null,
+    constraint PK_EX_SVC_DOC_PK primary key (ID_SVC_DOC),
+    constraint UK_EX_SVC_DOC_TNT unique (ID_TNT, ID_SVC_DOC),
+    constraint CK_EX_SVC_DOC_GRP_RULE check (SD_GRP_RULE in ('PER_ITEM', 'BY_DEPT', 'BY_DEPT_SPECIMEN', 'BY_DEPT_EXAM_TYPE'))
+);
+create index IDX_EX_SVC_DOC_ENC on RHN_EX_SVC_DOC (ID_TNT, ID_ENC);
+comment on table RHN_EX_SVC_DOC is '门诊服务申请单；一行代表一张检验、检查或治疗申请单，包含一条或多条服务请求';
+comment on column RHN_EX_SVC_DOC.ID_SVC_DOC is '申请单主键';
+comment on column RHN_EX_SVC_DOC.REVISION is '乐观锁版本';
+comment on column RHN_EX_SVC_DOC.ID_TNT is '租户标识';
+comment on column RHN_EX_SVC_DOC.ID_PAT is '患者标识';
+comment on column RHN_EX_SVC_DOC.ID_ENC is '就诊标识';
+comment on column RHN_EX_SVC_DOC.CD_DOC_NO is '申请单号';
+comment on column RHN_EX_SVC_DOC.SD_SVC_TYPE is '服务类型：LABORATORY、EXAMINATION、TREATMENT 等';
+comment on column RHN_EX_SVC_DOC.ID_ORG_EXEC is '执行机构标识';
+comment on column RHN_EX_SVC_DOC.ID_DEPT_EXEC is '执行科室标识';
+comment on column RHN_EX_SVC_DOC.SD_GRP_RULE is '开立时采用的合单规则';
+comment on column RHN_EX_SVC_DOC.CD_GRP_VAL is '合单依据值：标本类型或检查类型；按科室合单时为空';
+comment on column RHN_EX_SVC_DOC.DT_CREATED is '创建时间';
+comment on column RHN_EX_SVC_DOC.ID_USER_CREATED is '开立人标识';
+
+alter table RHN_EX_SVC_REQ add column ID_SVC_DOC bigint;
+alter table RHN_EX_SVC_REQ add constraint FK_EX_SVC_REQ_SVC_DOC foreign key (ID_TNT, ID_SVC_DOC) references RHN_EX_SVC_DOC(ID_TNT, ID_SVC_DOC);
+create index IDX_EX_SVC_REQ_SVC_DOC on RHN_EX_SVC_REQ (ID_TNT, ID_SVC_DOC);
+comment on column RHN_EX_SVC_REQ.ID_SVC_DOC is '所属申请单标识；为空表示一项一单';
+
+insert into RHN_SYS_PARAM_DEF (
+    ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF,
+    SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_EXAMPLE_VAL,
+    UNIT, CD_DICT, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE,
+    FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION,
+    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED,
+    CD_DEPENDS_ON_KEY, EXPR_DEPENDS_ON_VAL, SD_DEPNCY_BEHAV
+) values (
+    362387869796214, 362387869794071,
+    'outpatient.service-request.grouping-policy',
+    '门诊申请单合单规则',
+    '控制门诊整批开立时检验、检查、治疗项目如何合并为申请单：按执行科室、标本类型或检查类型合单，以及单张申请单项目数上限。合单只影响申请单的展示、关联诊断与打印，执行任务、收费与撤销仍按项目逐条处理。',
+    'JSON', 'JSON_EDITOR', '{"type":"object","additionalProperties":false,"required":["laboratory","examination","treatment","maxItemsPerDocument"],"properties":{"laboratory":{"type":"string","title":"检验合单方式","enum":["PER_ITEM","BY_DEPT","BY_DEPT_SPECIMEN"],"x-enumLabels":{"PER_ITEM":"每个项目一张申请单","BY_DEPT":"同执行科室合单","BY_DEPT_SPECIMEN":"同执行科室且同标本类型合单"}},"examination":{"type":"string","title":"检查合单方式","enum":["PER_ITEM","BY_DEPT","BY_DEPT_EXAM_TYPE"],"x-enumLabels":{"PER_ITEM":"每个项目一张申请单","BY_DEPT":"同执行科室合单","BY_DEPT_EXAM_TYPE":"同执行科室且同检查类型合单"}},"treatment":{"type":"string","title":"治疗/处置合单方式","enum":["PER_ITEM","BY_DEPT"],"x-enumLabels":{"PER_ITEM":"每个项目一张申请单","BY_DEPT":"同执行科室合单"}},"maxItemsPerDocument":{"type":"integer","title":"单张申请单项目数上限","description":"超过上限时按开立顺序拆成多张申请单。","minimum":1,"maximum":30}}}',
+    '{"laboratory":"BY_DEPT_SPECIMEN","examination":"BY_DEPT_EXAM_TYPE","treatment":"BY_DEPT","maxItemsPerDocument":10}', '{"laboratory":"BY_DEPT","examination":"PER_ITEM","treatment":"BY_DEPT","maxItemsPerDocument":6}', null, null,
+    '["PLATFORM","TENANT","ORGANIZATION","DEPARTMENT"]', 'BUSINESS',
+    true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0,
+    timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222,
+    null, null, 'DISABLE_AND_SUPPRESS'
+);
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+) values (
+    362387869796215, null, 362387869796214, null, 'DEFINITION',
+    'CREATE', null,
+    '{"source":"PRODUCT_BASELINE","key":"outpatient.service-request.grouping-policy","status":"ACTIVE"}',
+    '初始化门诊申请单合单规则参数',
+    'v1.129.46:outpatient.service-request.grouping-policy',
+    timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222
+);
+
+-- =============================================================================
+-- Source: V1_129_47__outpatient_select_parameter_dictionaries.sql
+-- =============================================================================
+-- 门诊下拉选择参数补绑系统枚举字典：参数平台按绑定字典校验写入值，未绑定时无法保存当前值。
+update RHN_SYS_PARAM_DEF set CD_DICT = 'OUT_ALLERGY_VERIFICATION_MODE', REVISION = REVISION + 1
+where CD_PARAM_KEY = 'outpatient.medication.allergy-verification.mode' and CD_DICT is null;
+update RHN_SYS_PARAM_DEF set CD_DICT = 'OUT_ORDER_REVIEW_MODE', REVISION = REVISION + 1
+where CD_PARAM_KEY = 'outpatient.doctor-workstation.order-review-mode' and CD_DICT is null;
+update RHN_SYS_PARAM_DEF set CD_DICT = 'OUT_COMPLETION_MODE', REVISION = REVISION + 1
+where CD_PARAM_KEY = 'outpatient.doctor-workstation.completion-mode' and CD_DICT is null;
+update RHN_SYS_PARAM_DEF set CD_DICT = 'OUT_REGISTRATION_CUTOFF_MODE', REVISION = REVISION + 1
+where CD_PARAM_KEY = 'outpatient.registration.validity.cutoff-mode' and CD_DICT is null;
+
+insert into RHN_SYS_PARAM_CHG (
+    ID_PARAM_CHG, ID_TNT, ID_PARAM_DEF, ID_PARAM_VAL, SD_TARGET_TYPE,
+    SD_CHG_TYPE, JSON_BEFORE, JSON_AFTER, DES_CHG_REASON, CD_REQ,
+    DT_CHANGED, ID_USER_CHANGED
+)
+select 362387869796216, null, ID_PARAM_DEF, null, 'DEFINITION', 'UPDATE', '{"dictionaryCode":null}',
+       '{"dictionaryCode":"OUT_ORDER_REVIEW_MODE"}', '下拉选择参数绑定系统枚举字典',
+       'v1.129.47:outpatient.doctor-workstation.order-review-mode',
+       timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.doctor-workstation.order-review-mode'
+union all
+select 362387869796217, null, ID_PARAM_DEF, null, 'DEFINITION', 'UPDATE', '{"dictionaryCode":null}',
+       '{"dictionaryCode":"OUT_COMPLETION_MODE"}', '下拉选择参数绑定系统枚举字典',
+       'v1.129.47:outpatient.doctor-workstation.completion-mode',
+       timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.doctor-workstation.completion-mode'
+union all
+select 362387869796218, null, ID_PARAM_DEF, null, 'DEFINITION', 'UPDATE', '{"dictionaryCode":null}',
+       '{"dictionaryCode":"OUT_REGISTRATION_CUTOFF_MODE"}', '下拉选择参数绑定系统枚举字典',
+       'v1.129.47:outpatient.registration.validity.cutoff-mode',
+       timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.registration.validity.cutoff-mode' union all
+select 362387869796219, null, ID_PARAM_DEF, null, 'DEFINITION', 'UPDATE', '{"dictionaryCode":null}',
+       '{"dictionaryCode":"OUT_ALLERGY_VERIFICATION_MODE"}', '下拉选择参数绑定系统枚举字典',
+       'v1.129.47:outpatient.medication.allergy-verification.mode',
+       timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.medication.allergy-verification.mode';
+
+-- =============================================================================
+-- Source: V1_129_48__medication_dispense_cancel_type.sql
+-- =============================================================================
+-- 门诊“取消发药”以 CANCEL 事件留痕并冲回原发药库存；原约束未包含该类型，取消发药无法落库。
+alter table RHN_SUP_MED_DISP drop constraint CK_SUP_MED_DISP_MED_DISP_TYPE;
+alter table RHN_SUP_MED_DISP add constraint CK_SUP_MED_DISP_MED_DISP_TYPE
+    check (SD_DISP_TYPE in ('DISPENSE', 'RETURN', 'REDISPENSE', 'CANCEL'));
+
+-- =============================================================================
+-- Source: V1_129_49__personnel_dictionary_category.sql
+-- =============================================================================
+-- Move practitioner qualification dictionaries from ORGANIZATION_GOVERNANCE to PERSONNEL_GOVERNANCE (they describe people, not organizations).
+-- V1_129_40 is already applied and stays untouched.
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869961101, null, d.ID_DICT_DEF, null, 'MOVE_DICT', 'DICT', '{"categoryId":"362387869840002","categoryCode":"ORGANIZATION_GOVERNANCE"}', '{"categoryId":"362387869840004","categoryCode":"PERSONNEL_GOVERNANCE"}', '人员职称与执业类别属于人员与任职，不属于组织机构', 'v1.129.49:personnel-dictionary-category', timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222, 362387869840004, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PRACT_PROF_TITLE';
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869961102, null, d.ID_DICT_DEF, null, 'MOVE_DICT', 'DICT', '{"categoryId":"362387869840002","categoryCode":"ORGANIZATION_GOVERNANCE"}', '{"categoryId":"362387869840004","categoryCode":"PERSONNEL_GOVERNANCE"}', '人员职称与执业类别属于人员与任职，不属于组织机构', 'v1.129.49:personnel-dictionary-category', timestamp with time zone '2026-10-21 00:00:00+08', 362387869790222, 362387869840004, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'PRACT_CATEGORY';
+update RHN_BD_DICT_DEF set ID_DICT_CAT = 362387869840004, REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-21 00:00:00+08', ID_USER_UPDATED = 362387869790222
+where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF in ('PRACT_PROF_TITLE', 'PRACT_CATEGORY') and ID_DICT_CAT = 362387869840002;
+
+-- =============================================================================
+-- Source: V1_129_50__desktop_link_print_delivery.sql
+-- =============================================================================
+-- RHN Link（健域端联）工作站打印：设备新增 DESKTOP_LINK 通道（NA_QUEUE 保存工作站系统打印机名），
+-- 投递新增“已下发待回执”“结果不确定”状态，并记录工作站持久调用编码、实际打印机与系统队列作业号。
+alter table RHN_META_PRINT_DEVICE drop constraint CK_META_PRINT_DEVICE_CHANNEL;
+alter table RHN_META_PRINT_DEVICE add constraint CK_META_PRINT_DEVICE_CHANNEL
+    check (SD_CHANNEL in ('BROWSER_PDF','LOCAL_BRIDGE','DESKTOP_LINK'));
+alter table RHN_SYS_PRINT_DELIVERY drop constraint CK_SYS_PRINT_DELIVERY_CHANNEL;
+alter table RHN_SYS_PRINT_DELIVERY add constraint CK_SYS_PRINT_DELIVERY_CHANNEL
+    check (SD_CHANNEL in ('BROWSER_PDF','LOCAL_BRIDGE','DESKTOP_LINK'));
+alter table RHN_SYS_PRINT_DELIVERY drop constraint CK_SYS_PRINT_DELIVERY_STATUS;
+alter table RHN_SYS_PRINT_DELIVERY add constraint CK_SYS_PRINT_DELIVERY_STATUS
+    check (SD_STATUS in ('GENERATED','QUEUED','DISPATCHED','SENT','UNCERTAIN','DEVICE_CONFIRMED','FAILED','CANCELLED'));
+alter table RHN_SYS_PRINT_DELIVERY add CD_DESKTOP_OPER varchar(36);
+alter table RHN_SYS_PRINT_DELIVERY add NA_DESKTOP_PRINTER varchar(256);
+alter table RHN_SYS_PRINT_DELIVERY add CD_EXT_PRINT_JOB_NO varchar(20);
+comment on column RHN_SYS_PRINT_DELIVERY.CD_DESKTOP_OPER is '工作站持久调用操作编码';
+comment on column RHN_SYS_PRINT_DELIVERY.NA_DESKTOP_PRINTER is '工作站实际打印机名称';
+comment on column RHN_SYS_PRINT_DELIVERY.CD_EXT_PRINT_JOB_NO is '工作站系统打印队列作业号';
+
+-- =============================================================================
+-- Source: V1_129_51__outpatient_service_request_body_sites.sql
+-- =============================================================================
+-- 检查申请所选部位：开立时按检查项目已启用的部位方式快照保存，一条服务请求可有多个部位。
+-- 按部位计价的主项目数量由部位数换算；部位名称、标准概念与互认编码为开立时快照，基础数据后续修改不影响已开申请。
+
+create table RHN_EX_SVC_REQ_SITE (
+    ID_SVC_REQ_SITE bigint,
+    ID_TNT bigint not null,
+    ID_CARE_REQ bigint not null,
+    SN_LINE integer not null,
+    ID_SVC_VAR bigint not null,
+    CD_BODY_SITE varchar(128) not null,
+    NA_BODY_SITE varchar(300) not null,
+    ID_CONCEPT_BODY_SITE bigint,
+    SD_METHOD_TYPE varchar(64),
+    CD_MUTUAL_RECOG varchar(128),
+    DT_CREATED timestamp with time zone not null,
+    constraint PK_EX_SVC_REQ_SITE_PK primary key (ID_SVC_REQ_SITE),
+    constraint UK_EX_SVC_REQ_SITE_LINE unique (ID_TNT, ID_CARE_REQ, SN_LINE),
+    constraint UK_EX_SVC_REQ_SITE_CODE unique (ID_TNT, ID_CARE_REQ, CD_BODY_SITE),
+    constraint FK_EX_SVC_REQ_SITE_REQ foreign key (ID_TNT, ID_CARE_REQ) references RHN_EX_SVC_REQ(ID_TNT, ID_CARE_REQ),
+    constraint CK_EX_SVC_REQ_SITE_LINE check (SN_LINE > 0)
+);
+comment on table RHN_EX_SVC_REQ_SITE is '检查申请部位；一行代表一条服务请求开立时选择的一个检查部位快照';
+comment on column RHN_EX_SVC_REQ_SITE.ID_SVC_REQ_SITE is '申请部位主键';
+comment on column RHN_EX_SVC_REQ_SITE.ID_TNT is '租户标识';
+comment on column RHN_EX_SVC_REQ_SITE.ID_CARE_REQ is '服务请求标识';
+comment on column RHN_EX_SVC_REQ_SITE.SN_LINE is '部位顺序号，从 1 开始';
+comment on column RHN_EX_SVC_REQ_SITE.ID_SVC_VAR is '开立时选择的检查部位方式标识';
+comment on column RHN_EX_SVC_REQ_SITE.CD_BODY_SITE is '部位编码快照，取检查部位方式编码';
+comment on column RHN_EX_SVC_REQ_SITE.NA_BODY_SITE is '部位名称快照';
+comment on column RHN_EX_SVC_REQ_SITE.ID_CONCEPT_BODY_SITE is '标准部位概念标识快照，未映射时为空';
+comment on column RHN_EX_SVC_REQ_SITE.SD_METHOD_TYPE is '检查方式快照';
+comment on column RHN_EX_SVC_REQ_SITE.CD_MUTUAL_RECOG is '检查结果互认编码快照';
+comment on column RHN_EX_SVC_REQ_SITE.DT_CREATED is '创建时间';
+
+-- =============================================================================
+-- Source: V1_129_52__position_type_billing.sql
+-- =============================================================================
+-- 岗位类型新增“收费”，并预置“收费员”岗位；收费查询的收费员列表据此识别，存量人员由人事在岗位与任职维护中调整。
+insert into RHN_BD_DICT_ITEM values (362387869975001, 362387869791017, 'BILLING', '收费', '收费员等收费结算岗位', 45, 'ACTIVE', null);
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF) values (362387869975002, null, 362387869791017, 362387869975001, 'ADD_ITEM', 'ITEM', null, '{"code": "BILLING", "name": "收费", "sortOrder": 45, "status": "ACTIVE"}', '岗位类型新增收费类，用于识别收费员', 'v1.129.52:position-type-billing', timestamp with time zone '2026-10-22 00:00:00+08', 362387869790222, 362387869840004, null);
+insert into RHN_SYS_POS values (362387869975003, 362387869790209, 'CASHIER', '收费员', 'BILLING', '承担门诊收费窗口的结算、收款、开票与日终交账', 'ACTIVE', timestamp with time zone '2026-10-22 00:00:00+08', 362387869790222, timestamp with time zone '2026-10-22 00:00:00+08', 362387869790222, 0);
+
+-- =============================================================================
+-- Source: V1_129_54__medication_single_order_default_and_correction.sql
+-- =============================================================================
+-- 将药品 RHN_BD_MED 的 FG_SINGLE_ORDER 默认值调整为 false（单列专方默认不开启，绝大多数药品为普通合方）
+alter table RHN_BD_MED alter column FG_SINGLE_ORDER set default false;
+
+-- 纠正此前因默认值误配置为 true 的基线与存量药品
+update RHN_BD_MED set FG_SINGLE_ORDER = false where FG_SINGLE_ORDER = true;
+
+comment on column RHN_BD_MED.FG_SINGLE_ORDER is '是否单列医嘱（一药一方）';
+
+-- =============================================================================
+-- Source: V1_129_55__lingdt_decision_provider.sql
+-- =============================================================================
+-- 决策模型选择：保留现有 Jev 覆盖值与总开关，LingDT 使用独立连接及密钥。
+
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796250, ID_PARAM_CAT, 'ai.clinical.decision-provider', '当前决策模型', '选择已启用场景使用 Jev 或 LingDT；两套连接与密钥独立保存', 'STRING', 'TEXT', '{"type":"string","enum":["JEV","LINGDT"]}', '"JEV"', '["PLATFORM","TENANT"]', 'BUSINESS', true, false, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'ai.clinical.mode';
+
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796251, ID_PARAM_CAT, 'ai.clinical.decision-lingdt-model', 'LingDT模型标识', '固定模型版本以支持对比与回退', 'STRING', 'TEXT', '{"type":"string","minLength":1,"maxLength":200}', '"lingdt-decision-1.0"', '["PLATFORM","TENANT"]', 'BUSINESS', true, false, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'ai.clinical.mode';
+
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796252, ID_PARAM_CAT, 'ai.clinical.decision-lingdt-endpoint', 'LingDT服务地址', '蚂蚁 DTMaaS systemone 完整地址', 'STRING', 'TEXT', '{"type":"string","minLength":8,"maxLength":1000}', '"https://maas-api.antdigital.com/v1/systemone"', '["PLATFORM","TENANT"]', 'BUSINESS', true, false, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'ai.clinical.mode';
+
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796253, ID_PARAM_CAT, 'ai.clinical.decision-lingdt-api-key', 'LingDT API Key', '独立加密凭据，不继承 Jev 或临床生成模型密钥', 'STRING', 'SECRET_REFERENCE', null, null, '["PLATFORM","TENANT"]', 'BUSINESS', true, false, true, 'SECRET', 'MASKED', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'ai.clinical.mode';
+
+-- =============================================================================
+-- Source: V1_129_56__billing_settlement_mode.sql
+-- =============================================================================
+-- 结算单持久化结算方式：医保结算与自费结算不再靠医保基金金额是否非零推断（基金支付 0 元的医保结算仍是医保结算）。
+alter table RHN_BIL_STL add column SD_STL_MODE varchar(32) default 'SELF_PAY' not null;
+alter table RHN_BIL_STL add constraint CK_BIL_STL_SETTLEMENT_MODE check (SD_STL_MODE in ('SELF_PAY', 'MEDICAL_INSURANCE'));
+comment on column RHN_BIL_STL.SD_STL_MODE is '结算方式，自费结算或医保结算；医保申请结算成功时置为医保结算，与基金金额是否为零无关';
+
+-- 历史回填：存在医保结算成功（SETTLED）或已冲正（REVERSED）医保申请的结算单标记为医保结算，与基金金额是否为零无关。
+update RHN_BIL_STL r set SD_STL_MODE = 'MEDICAL_INSURANCE'
+where r.SD_STL_TYPE <> 'REVERSAL'
+  and exists (select 1 from RHN_INS_CLAIM c where c.ID_TNT = r.ID_TNT and c.ID_STL = r.ID_STL
+              and c.SD_STATUS in ('SETTLED', 'REVERSED'));
+
+-- 冲正结算继承原结算：优先按冲正标识，其次沿冲销的收费事项找到原结算（直接退费开具的贷项结算未登记冲正标识）。
+update RHN_BIL_STL r set SD_STL_MODE = 'MEDICAL_INSURANCE'
+where r.SD_STL_TYPE = 'REVERSAL'
+  and (exists (select 1 from RHN_BIL_STL o where o.ID_TNT = r.ID_TNT and o.ID_STL = r.ID_STL_RVRS
+               and o.SD_STL_MODE = 'MEDICAL_INSURANCE')
+    or exists (select 1 from RHN_BIL_STL_LINE rl
+               join RHN_BIL_CHARGE_ITEM rc on rc.ID_TNT = rl.ID_TNT and rc.ID_CHARGE_ITEM = rl.ID_CHARGE_ITEM
+               join RHN_BIL_STL_LINE ol on ol.ID_TNT = rc.ID_TNT and ol.ID_CHARGE_ITEM = rc.ID_CHARGE_ITEM_RVRS
+               join RHN_BIL_STL o on o.ID_TNT = ol.ID_TNT and o.ID_STL = ol.ID_STL
+               where rl.ID_TNT = r.ID_TNT and rl.ID_STL = r.ID_STL
+                 and o.SD_STL_TYPE <> 'REVERSAL' and o.SD_STL_MODE = 'MEDICAL_INSURANCE'));
+
+-- =============================================================================
+-- Source: V1_129_57__record_quality_decision_feedback.sql
+-- =============================================================================
+-- 病历决策复用公共模型配置；默认关闭，仅辅助核查，反馈独立于病历写入。
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796254, ID_PARAM_CAT, 'ai.clinical.decision-scene-record-quality-enabled', '病历完整性与矛盾提示', '仅核查资料覆盖与文字一致性，不自动补写临床事实；受决策总开关控制', 'BOOLEAN', 'SWITCH', '{"type":"boolean"}', 'false', '["PLATFORM","TENANT"]', 'BUSINESS', true, false, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'ai.clinical.mode';
+
+create table RHN_AUD_AI_REC_DCSN (
+    ID_RUN bigint not null,
+    ID_TNT bigint not null,
+    ID_ORG bigint not null,
+    ID_DEPT bigint not null,
+    ID_ENC bigint not null,
+    ID_USER_ACTOR varchar(100) not null,
+    JSON_BINDING clob not null,
+    constraint PK_AI_REC_DCSN primary key (ID_RUN),
+    constraint UK_AI_REC_DCSN_TNT unique (ID_RUN,ID_TNT),
+    constraint FK_AI_REC_DCSN_RUN foreign key (ID_RUN,ID_TNT) references RHN_AUD_AI_DCSN_RUN(ID_RUN,ID_TNT)
+);
+create index IX_AI_REC_DCSN_ENC on RHN_AUD_AI_REC_DCSN(ID_TNT,ID_ORG,ID_DEPT,ID_ENC,ID_USER_ACTOR,ID_RUN);
+
+create table RHN_AUD_AI_REC_FB (
+    ID_FB bigint not null,
+    ID_TNT bigint not null,
+    ID_RUN bigint not null,
+    CD_FINDING varchar(64) not null,
+    CD_COMMAND varchar(100) not null,
+    CD_REQUEST_HASH varchar(64) not null,
+    SD_ACTION varchar(24) not null,
+    JSON_FB clob not null,
+    constraint PK_AI_REC_FB primary key (ID_FB),
+    constraint UK_AI_REC_FB_CMD unique (ID_TNT,ID_RUN,CD_COMMAND,CD_FINDING),
+    constraint CK_AI_REC_FB_ACTION check (SD_ACTION in ('ADOPTED','DISMISSED','MODIFIED','UNCHANGED')),
+    constraint FK_AI_REC_FB_BIND foreign key (ID_RUN,ID_TNT) references RHN_AUD_AI_REC_DCSN(ID_RUN,ID_TNT)
+);
+
+comment on table RHN_AUD_AI_REC_DCSN is '病历决策反馈关联；一行代表一次可采纳核查与原就诊、医生及字段指纹的绑定';
+comment on column RHN_AUD_AI_REC_DCSN.ID_RUN is '关联共用决策运行主键';
+comment on column RHN_AUD_AI_REC_DCSN.ID_TNT is '租户标识';
+comment on column RHN_AUD_AI_REC_DCSN.ID_ORG is '机构标识';
+comment on column RHN_AUD_AI_REC_DCSN.ID_DEPT is '科室标识';
+comment on column RHN_AUD_AI_REC_DCSN.ID_ENC is '就诊标识';
+comment on column RHN_AUD_AI_REC_DCSN.ID_USER_ACTOR is '核查医生身份';
+comment on column RHN_AUD_AI_REC_DCSN.JSON_BINDING is '原医生、执业人员、病历版本与字段指纹；不重复保存病历原文';
+
+comment on table RHN_AUD_AI_REC_FB is '病历决策医生反馈；一行代表一条提示的一次追加操作或保存核实结果，不代表问题已经解决';
+comment on column RHN_AUD_AI_REC_FB.ID_FB is '反馈记录主键';
+comment on column RHN_AUD_AI_REC_FB.ID_TNT is '租户标识';
+comment on column RHN_AUD_AI_REC_FB.ID_RUN is '关联病历核查运行';
+comment on column RHN_AUD_AI_REC_FB.CD_FINDING is '有限提示编码';
+comment on column RHN_AUD_AI_REC_FB.CD_COMMAND is '客户端幂等命令编码';
+comment on column RHN_AUD_AI_REC_FB.CD_REQUEST_HASH is '反馈请求内容指纹，拒绝相同命令不同内容';
+comment on column RHN_AUD_AI_REC_FB.SD_ACTION is '采纳、忽略、相关字段已修改保存或保存未修改';
+comment on column RHN_AUD_AI_REC_FB.JSON_FB is '医生与时间、真实文档版本及变化字段指纹，不复制病历原文';
+
+-- =============================================================================
+-- Source: V1_129_63__sex_hormone_laboratory_services.sql
+-- =============================================================================
+-- 补齐性激素六项中缺失的单项（FSH、LH、PRL、睾酮），雌二醇与孕酮已存在。
+-- 编码按全国医疗服务价格项目规范 250310 激素测定；价格沿用同组雌二醇/孕酮的浙江 2024 基准，须由机构物价核对。
+
+-- 25031000200 血清泌乳素测定
+insert into RHN_BD_CATALOG_ITEM select 362387890000410, 0, 362387869790209, '25031000200', '血清泌乳素测定', 'SERVICE', '项', true, true, false, 'ACTIVE', date '2024-01-01', null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, 362387869797003, null where not exists (select 1 from RHN_BD_CATALOG_ITEM where ID_CATALOG_ITEM = 362387890000410);
+insert into RHN_BD_SVC_ITEM select 362387890000410, 362387869790209, 'LABORATORY', '激素检查', 'COMMON', true, false, true, null, null, 'LABORATORY', null, null, null, null, null, false, null, null where not exists (select 1 from RHN_BD_SVC_ITEM where ID_CATALOG_ITEM = 362387890000410);
+insert into RHN_BD_CATALOG_PRICE select 362387891000410, 0, 362387869790209, 362387890000410, null, null, 'SALE', 32.000000, 'CNY', 'ZJ-YB-2024', '浙江省2024基准价格', date '2024-01-01', null, 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, null where not exists (select 1 from RHN_BD_CATALOG_PRICE where ID_CATALOG_PRICE = 362387891000410);
+insert into RHN_BD_ITEM_ATTR_SUBJECT select 362387895000410, 362387869790209, 'CATALOG_ITEM', 'TENANT:362387869790209/CATALOG_ITEM:362387890000410', null, null, 362387890000410, null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_ITEM_ATTR_SUBJECT where ID_ITEM_ATTR_SUBJECT = 362387895000410);
+insert into RHN_BD_SEARCH_ENTRY select 362387893000410, 0, 'TENANT', 362387869790209, 362387869790209, 'CATALOG_ITEM', 362387890000410, 'CANONICAL', 'service:canonical', '血清泌乳素测定', 'XQMRSCD', null, null, true, 'search-code-v1', 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_SEARCH_ENTRY where ID_SEARCH_ENTRY = 362387893000410);
+
+-- 25031000400 血清促卵泡刺激素测定
+insert into RHN_BD_CATALOG_ITEM select 362387890000411, 0, 362387869790209, '25031000400', '血清促卵泡刺激素测定', 'SERVICE', '项', true, true, false, 'ACTIVE', date '2024-01-01', null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, 362387869797003, null where not exists (select 1 from RHN_BD_CATALOG_ITEM where ID_CATALOG_ITEM = 362387890000411);
+insert into RHN_BD_SVC_ITEM select 362387890000411, 362387869790209, 'LABORATORY', '激素检查', 'COMMON', true, false, true, null, null, 'LABORATORY', null, null, null, null, null, false, null, null where not exists (select 1 from RHN_BD_SVC_ITEM where ID_CATALOG_ITEM = 362387890000411);
+insert into RHN_BD_CATALOG_PRICE select 362387891000411, 0, 362387869790209, 362387890000411, null, null, 'SALE', 32.000000, 'CNY', 'ZJ-YB-2024', '浙江省2024基准价格', date '2024-01-01', null, 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, null where not exists (select 1 from RHN_BD_CATALOG_PRICE where ID_CATALOG_PRICE = 362387891000411);
+insert into RHN_BD_ITEM_ATTR_SUBJECT select 362387895000411, 362387869790209, 'CATALOG_ITEM', 'TENANT:362387869790209/CATALOG_ITEM:362387890000411', null, null, 362387890000411, null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_ITEM_ATTR_SUBJECT where ID_ITEM_ATTR_SUBJECT = 362387895000411);
+insert into RHN_BD_SEARCH_ENTRY select 362387893000411, 0, 'TENANT', 362387869790209, 362387869790209, 'CATALOG_ITEM', 362387890000411, 'CANONICAL', 'service:canonical', '血清促卵泡刺激素测定', 'XQCLPCJSCD', null, null, true, 'search-code-v1', 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_SEARCH_ENTRY where ID_SEARCH_ENTRY = 362387893000411);
+
+-- 25031000500 血清促黄体生成素测定
+insert into RHN_BD_CATALOG_ITEM select 362387890000412, 0, 362387869790209, '25031000500', '血清促黄体生成素测定', 'SERVICE', '项', true, true, false, 'ACTIVE', date '2024-01-01', null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, 362387869797003, null where not exists (select 1 from RHN_BD_CATALOG_ITEM where ID_CATALOG_ITEM = 362387890000412);
+insert into RHN_BD_SVC_ITEM select 362387890000412, 362387869790209, 'LABORATORY', '激素检查', 'COMMON', true, false, true, null, null, 'LABORATORY', null, null, null, null, null, false, null, null where not exists (select 1 from RHN_BD_SVC_ITEM where ID_CATALOG_ITEM = 362387890000412);
+insert into RHN_BD_CATALOG_PRICE select 362387891000412, 0, 362387869790209, 362387890000412, null, null, 'SALE', 32.000000, 'CNY', 'ZJ-YB-2024', '浙江省2024基准价格', date '2024-01-01', null, 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, null where not exists (select 1 from RHN_BD_CATALOG_PRICE where ID_CATALOG_PRICE = 362387891000412);
+insert into RHN_BD_ITEM_ATTR_SUBJECT select 362387895000412, 362387869790209, 'CATALOG_ITEM', 'TENANT:362387869790209/CATALOG_ITEM:362387890000412', null, null, 362387890000412, null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_ITEM_ATTR_SUBJECT where ID_ITEM_ATTR_SUBJECT = 362387895000412);
+insert into RHN_BD_SEARCH_ENTRY select 362387893000412, 0, 'TENANT', 362387869790209, 362387869790209, 'CATALOG_ITEM', 362387890000412, 'CANONICAL', 'service:canonical', '血清促黄体生成素测定', 'XQCHTSCSCD', null, null, true, 'search-code-v1', 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_SEARCH_ENTRY where ID_SEARCH_ENTRY = 362387893000412);
+
+-- 25031003000 睾酮测定
+insert into RHN_BD_CATALOG_ITEM select 362387890000413, 0, 362387869790209, '25031003000', '睾酮测定', 'SERVICE', '项', true, true, false, 'ACTIVE', date '2024-01-01', null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, 362387869797003, null where not exists (select 1 from RHN_BD_CATALOG_ITEM where ID_CATALOG_ITEM = 362387890000413);
+insert into RHN_BD_SVC_ITEM select 362387890000413, 362387869790209, 'LABORATORY', '激素检查', 'COMMON', true, false, true, null, null, 'LABORATORY', null, null, null, null, null, false, null, null where not exists (select 1 from RHN_BD_SVC_ITEM where ID_CATALOG_ITEM = 362387890000413);
+insert into RHN_BD_CATALOG_PRICE select 362387891000413, 0, 362387869790209, 362387890000413, null, null, 'SALE', 32.000000, 'CNY', 'ZJ-YB-2024', '浙江省2024基准价格', date '2024-01-01', null, 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, null where not exists (select 1 from RHN_BD_CATALOG_PRICE where ID_CATALOG_PRICE = 362387891000413);
+insert into RHN_BD_ITEM_ATTR_SUBJECT select 362387895000413, 362387869790209, 'CATALOG_ITEM', 'TENANT:362387869790209/CATALOG_ITEM:362387890000413', null, null, 362387890000413, null, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_ITEM_ATTR_SUBJECT where ID_ITEM_ATTR_SUBJECT = 362387895000413);
+insert into RHN_BD_SEARCH_ENTRY select 362387893000413, 0, 'TENANT', 362387869790209, 362387869790209, 'CATALOG_ITEM', 362387890000413, 'CANONICAL', 'service:canonical', '睾酮测定', 'GTCD', null, null, true, 'search-code-v1', 'ACTIVE', timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222, timestamp with time zone '2024-01-01 00:00:00+08', 362387869790222 where not exists (select 1 from RHN_BD_SEARCH_ENTRY where ID_SEARCH_ENTRY = 362387893000413);
+
+-- =============================================================================
+-- Source: V1_129_65__clinical_template_order_set.sql
+-- =============================================================================
+-- 临床模板库融合 P1a：门诊模板增加类型（诊疗方案 / 医嘱组套），药品与项目明细增加默认勾选，项目增加默认执行科室。
+alter table RHN_META_OP_PLAN_TMPL add column SD_TMPL_KIND varchar(16) default 'PROTOCOL' not null;
+update RHN_META_OP_PLAN_TMPL set SD_TMPL_KIND = 'PROTOCOL' where SD_TMPL_KIND is null;
+alter table RHN_META_OP_PLAN_TMPL add constraint CK_META_OP_PLAN_T_OPT_KIND check (SD_TMPL_KIND in ('PROTOCOL', 'ORDER_SET'));
+create index IDX_META_OP_PLAN_T_OPT_KIND on RHN_META_OP_PLAN_TMPL (ID_TNT, ID_ORG, SD_TMPL_KIND, SD_STATUS);
+comment on column RHN_META_OP_PLAN_TMPL.SD_TMPL_KIND is '模板类型：PROTOCOL 诊疗方案、ORDER_SET 医嘱组套；存量均为诊疗方案';
+
+alter table RHN_META_OP_PLAN_MED add column FG_DEFAULT_SELCTD boolean default true not null;
+comment on column RHN_META_OP_PLAN_MED.FG_DEFAULT_SELCTD is '带入预览中是否默认勾选；用于组套中的可选药品';
+
+alter table RHN_META_OP_PLAN_SVC add column FG_DEFAULT_SELCTD boolean default true not null;
+alter table RHN_META_OP_PLAN_SVC add column ID_DEPT_EXEC bigint;
+comment on column RHN_META_OP_PLAN_SVC.FG_DEFAULT_SELCTD is '带入预览中是否默认勾选；用于组套中的可选项目';
+comment on column RHN_META_OP_PLAN_SVC.ID_DEPT_EXEC is '默认执行科室；为空时沿用项目默认执行科室规则';
+
+-- =============================================================================
+-- Source: V1_129_67__examination_order_charge_lines.sql
+-- =============================================================================
+-- 检查申请按收费方案落账：一条检查申请可生成多条收费明细（主项目、多部位加收、附加项目），每条对应一个物价项。
+-- 开立时把带价格来源的收费方案快照到申请；计费按快照逐行生成收费事项，撤销时逐行冲销。
+
+create table RHN_EX_SVC_REQ_CHG (
+    ID_SVC_REQ_CHG bigint,
+    ID_TNT bigint not null,
+    ID_CARE_REQ bigint not null,
+    SN_LINE integer not null,
+    SD_CHG_ROLE varchar(24) not null,
+    ID_CATALOG_ITEM bigint not null,
+    CD_ITEM_SNAP varchar(128) not null,
+    NA_ITEM_SNAP varchar(300) not null,
+    CD_UNIT varchar(64) not null,
+    QTY_CHARGE decimal(28,8) not null,
+    ID_PRICE bigint,
+    SN_PRICE_VER bigint,
+    SD_PRICE_TYPE varchar(32),
+    PRICE_UNIT decimal(24,6) not null,
+    AMT_TOTAL decimal(24,6) not null,
+    CD_CCY varchar(8) not null,
+    SD_ACCTG_CAT varchar(64),
+    DT_CREATED timestamp with time zone not null,
+    constraint PK_EX_SVC_REQ_CHG primary key (ID_SVC_REQ_CHG),
+    constraint UK_EX_SVC_REQ_CHG_LINE unique (ID_TNT, ID_CARE_REQ, SN_LINE),
+    constraint FK_EX_SVC_REQ_CHG_REQ foreign key (ID_TNT, ID_CARE_REQ) references RHN_EX_SVC_REQ(ID_TNT, ID_CARE_REQ),
+    constraint CK_EX_SVC_REQ_CHG_LINE check (SN_LINE > 0),
+    constraint CK_EX_SVC_REQ_CHG_QTY check (QTY_CHARGE > 0),
+    constraint CK_EX_SVC_REQ_CHG_ROLE check (SD_CHG_ROLE in ('BASE_SERVICE', 'TIER', 'MULTI_SITE_FIXED', 'MULTI_SITE_ITEM', 'ATTACHMENT'))
+);
+comment on table RHN_EX_SVC_REQ_CHG is '检查申请收费方案；一行代表开立时快照的一条收费明细，计费按行生成收费事项';
+comment on column RHN_EX_SVC_REQ_CHG.ID_SVC_REQ_CHG is '申请收费明细主键';
+comment on column RHN_EX_SVC_REQ_CHG.ID_TNT is '租户标识';
+comment on column RHN_EX_SVC_REQ_CHG.ID_CARE_REQ is '服务请求标识';
+comment on column RHN_EX_SVC_REQ_CHG.SN_LINE is '收费行号，从 1 开始，与收费事项行号一致';
+comment on column RHN_EX_SVC_REQ_CHG.SD_CHG_ROLE is '收费行类型：主项目、阶梯档位、多部位固定加收、多部位加收项目、附加项目';
+comment on column RHN_EX_SVC_REQ_CHG.ID_CATALOG_ITEM is '收费物价项目标识';
+comment on column RHN_EX_SVC_REQ_CHG.CD_ITEM_SNAP is '物价项目编码快照';
+comment on column RHN_EX_SVC_REQ_CHG.NA_ITEM_SNAP is '物价项目名称快照';
+comment on column RHN_EX_SVC_REQ_CHG.CD_UNIT is '收费单位';
+comment on column RHN_EX_SVC_REQ_CHG.QTY_CHARGE is '收费数量';
+comment on column RHN_EX_SVC_REQ_CHG.ID_PRICE is '价格版本标识；多部位固定加收取检查配置金额，为空';
+comment on column RHN_EX_SVC_REQ_CHG.SN_PRICE_VER is '价格修订号';
+comment on column RHN_EX_SVC_REQ_CHG.SD_PRICE_TYPE is '价格类型';
+comment on column RHN_EX_SVC_REQ_CHG.PRICE_UNIT is '单价快照';
+comment on column RHN_EX_SVC_REQ_CHG.AMT_TOTAL is '金额，等于单价乘数量';
+comment on column RHN_EX_SVC_REQ_CHG.CD_CCY is '币种';
+comment on column RHN_EX_SVC_REQ_CHG.SD_ACCTG_CAT is '核算分类快照';
+comment on column RHN_EX_SVC_REQ_CHG.DT_CREATED is '创建时间';
+
+alter table RHN_BIL_CHARGE_ITEM add column SN_CHG_LINE integer default 1 not null;
+alter table RHN_BIL_CHARGE_ITEM add column SD_CHG_ROLE varchar(24);
+alter table RHN_BIL_CHARGE_ITEM add constraint CK_BIL_CHARGE_ITEM_CHG_LINE check (SN_CHG_LINE > 0);
+comment on column RHN_BIL_CHARGE_ITEM.SN_CHG_LINE is '同一来源内的收费行号；检查申请按收费方案逐行落账，其余来源为 1';
+comment on column RHN_BIL_CHARGE_ITEM.SD_CHG_ROLE is '收费行类型，与检查申请收费方案一致；非检查申请为空';
+-- 来源唯一键加入行号：同一检查申请的多行收费、冲销与退费冲销按行各占一条。
+alter table RHN_BIL_CHARGE_ITEM drop constraint UK_BIL_CHARGE_ITE_CHARGE_SOURC;
+alter table RHN_BIL_CHARGE_ITEM add constraint UK_BIL_CHARGE_ITEM_SRC_LINE unique (ID_TNT, SD_SRC_TYPE, ID_SRC, SN_CHG_LINE);
+
+-- =============================================================================
+-- Source: V1_129_68__examination_tiered_pricing_and_body_sites.sql
+-- =============================================================================
+-- 检查项目 P2：阶梯计价、主收费物价项、部位方式计费部位数与部位词典。
+-- 开立项目通过档位或主收费物价项映射到物价项；部位概念复用术语库，层级用概念关系表达。
+
+-- 1. 检查配置：主收费物价项与阶梯计价模式
+alter table RHN_BD_EXAM_SVC add column ID_CATALOG_ITEM_BASE_CHG bigint;
+comment on column RHN_BD_EXAM_SVC.ID_CATALOG_ITEM_BASE_CHG is '主收费物价项目标识；为空时主收费行收开立项目自身，阶梯计价模式下必须为空';
+alter table RHN_BD_EXAM_SVC drop constraint CK_BD_EXAM_SVC_EXAM_SITE_PRICI;
+alter table RHN_BD_EXAM_SVC add constraint CK_BD_EXAM_SVC_SITE_PRICING check (SD_SITE_PRICING_MODE in ('SINGLE', 'PER_SITE', 'BASE_PLUS_FIXED', 'BASE_PLUS_ITEM', 'TIERED_ITEM'));
+alter table RHN_BD_EXAM_SVC add constraint CK_BD_EXAM_SVC_TIER_BASE_CHG check (SD_SITE_PRICING_MODE <> 'TIERED_ITEM' or ID_CATALOG_ITEM_BASE_CHG is null);
+
+-- 2. 阶梯计价档位：按计费部位数命中一个物价项，同一开立项目的档位整组替换保存
+create table RHN_BD_EXAM_PRICE_TIER (
+    ID_EXAM_PRICE_TIER bigint,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    ID_CATALOG_ITEM bigint not null,
+    QTY_SITE_FROM integer not null,
+    QTY_SITE_TO integer,
+    ID_CATALOG_ITEM_CHG bigint not null,
+    QTY_CHG decimal(28,8) default 1 not null,
+    SD_STATUS varchar(16) not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED bigint,
+    DT_UPDATED timestamp with time zone not null,
+    ID_USER_UPDATED bigint,
+    constraint PK_BD_EXAM_PRICE_TIER primary key (ID_EXAM_PRICE_TIER),
+    constraint FK_BD_EXAM_PRICE_TIER_EXAM foreign key (ID_TNT, ID_CATALOG_ITEM) references RHN_BD_EXAM_SVC(ID_TNT, ID_CATALOG_ITEM),
+    constraint CK_BD_EXAM_PRICE_TIER_FROM check (QTY_SITE_FROM >= 1),
+    constraint CK_BD_EXAM_PRICE_TIER_TO check (QTY_SITE_TO is null or QTY_SITE_TO >= QTY_SITE_FROM),
+    constraint CK_BD_EXAM_PRICE_TIER_QTY check (QTY_CHG > 0),
+    constraint CK_BD_EXAM_PRICE_TIER_STATUS check (SD_STATUS in ('ACTIVE', 'INACTIVE'))
+);
+create index IX_BD_EXAM_PRICE_TIER_ITEM on RHN_BD_EXAM_PRICE_TIER (ID_TNT, ID_CATALOG_ITEM, SD_STATUS);
+comment on table RHN_BD_EXAM_PRICE_TIER is '检查阶梯计价档位；一行代表开立项目在一个计费部位数区间内对应的物价项';
+comment on column RHN_BD_EXAM_PRICE_TIER.ID_EXAM_PRICE_TIER is '阶梯档位主键';
+comment on column RHN_BD_EXAM_PRICE_TIER.REVISION is '乐观锁修订号';
+comment on column RHN_BD_EXAM_PRICE_TIER.ID_TNT is '租户标识';
+comment on column RHN_BD_EXAM_PRICE_TIER.ID_CATALOG_ITEM is '开立项目标识';
+comment on column RHN_BD_EXAM_PRICE_TIER.QTY_SITE_FROM is '计费部位数下限（含），从 1 开始';
+comment on column RHN_BD_EXAM_PRICE_TIER.QTY_SITE_TO is '计费部位数上限（含），为空表示无上限';
+comment on column RHN_BD_EXAM_PRICE_TIER.ID_CATALOG_ITEM_CHG is '本档收费物价项目标识';
+comment on column RHN_BD_EXAM_PRICE_TIER.QTY_CHG is '本档收费数量';
+comment on column RHN_BD_EXAM_PRICE_TIER.SD_STATUS is '状态';
+comment on column RHN_BD_EXAM_PRICE_TIER.DT_CREATED is '创建时间';
+comment on column RHN_BD_EXAM_PRICE_TIER.ID_USER_CREATED is '创建人标识';
+comment on column RHN_BD_EXAM_PRICE_TIER.DT_UPDATED is '更新时间';
+comment on column RHN_BD_EXAM_PRICE_TIER.ID_USER_UPDATED is '更新人标识';
+
+-- 3. 部位方式计费部位数及开单快照
+alter table RHN_BD_SVC_VAR add column QTY_CHGBL_SITE_UNIT integer default 1 not null;
+alter table RHN_BD_SVC_VAR add constraint CK_BD_SVC_VAR_CHGBL_SITE_UNIT check (QTY_CHGBL_SITE_UNIT between 0 and 99);
+comment on column RHN_BD_SVC_VAR.QTY_CHGBL_SITE_UNIT is '计费部位数；按物价口径配置该部位方式折算的部位数，0 表示不计入部位数';
+alter table RHN_EX_SVC_REQ_SITE add column QTY_CHGBL_SITE_UNIT integer default 1 not null;
+comment on column RHN_EX_SVC_REQ_SITE.QTY_CHGBL_SITE_UNIT is '开立时的计费部位数快照';
+
+-- 4. 概念关系：部位层级（PART_OF），保存时校验不成环
+create table RHN_BD_CONCEPT_REL (
+    ID_CONCEPT_REL bigint,
+    REVISION bigint default 0 not null,
+    ID_CONCEPT bigint not null,
+    ID_CONCEPT_TARGET bigint not null,
+    SD_REL_TYPE varchar(16) not null,
+    SD_STATUS varchar(16) not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED bigint,
+    DT_UPDATED timestamp with time zone not null,
+    ID_USER_UPDATED bigint,
+    constraint PK_BD_CONCEPT_REL primary key (ID_CONCEPT_REL),
+    constraint UK_BD_CONCEPT_REL unique (ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE),
+    constraint FK_BD_CONCEPT_REL_SRC foreign key (ID_CONCEPT) references RHN_BD_CONCEPT(ID_CONCEPT),
+    constraint FK_BD_CONCEPT_REL_TARGET foreign key (ID_CONCEPT_TARGET) references RHN_BD_CONCEPT(ID_CONCEPT),
+    constraint CK_BD_CONCEPT_REL_SELF check (ID_CONCEPT <> ID_CONCEPT_TARGET),
+    constraint CK_BD_CONCEPT_REL_TYPE check (SD_REL_TYPE in ('PART_OF')),
+    constraint CK_BD_CONCEPT_REL_STATUS check (SD_STATUS in ('ACTIVE', 'INACTIVE'))
+);
+create index IX_BD_CONCEPT_REL_TARGET on RHN_BD_CONCEPT_REL (ID_CONCEPT_TARGET, SD_REL_TYPE);
+comment on table RHN_BD_CONCEPT_REL is '概念关系；一行代表两个术语概念之间的一条有向关系，目前用于部位层级';
+comment on column RHN_BD_CONCEPT_REL.ID_CONCEPT_REL is '概念关系主键';
+comment on column RHN_BD_CONCEPT_REL.REVISION is '乐观锁修订号';
+comment on column RHN_BD_CONCEPT_REL.ID_CONCEPT is '源概念标识（子部位）';
+comment on column RHN_BD_CONCEPT_REL.ID_CONCEPT_TARGET is '目标概念标识（上级部位）';
+comment on column RHN_BD_CONCEPT_REL.SD_REL_TYPE is '关系类型：PART_OF 表示源概念是目标概念的一部分';
+comment on column RHN_BD_CONCEPT_REL.SD_STATUS is '状态';
+comment on column RHN_BD_CONCEPT_REL.DT_CREATED is '创建时间';
+comment on column RHN_BD_CONCEPT_REL.ID_USER_CREATED is '创建人标识';
+comment on column RHN_BD_CONCEPT_REL.DT_UPDATED is '更新时间';
+comment on column RHN_BD_CONCEPT_REL.ID_USER_UPDATED is '更新人标识';
+
+-- 5. 部位编码体系与首批常用部位（平台级，机构可停用或增加别名）
+insert into RHN_BD_CODE_SYSTEM (ID_CODE_SYSTEM, SD_SCOPE_TYPE, ID_SCOPE, CD_CODE_SYSTEM, NA_CODE_SYSTEM, CD_CANON_URI, CD_VER, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_SYS_TYPE, PUBLSHR, DES_CODE_SYSTEM, SD_SRC_TYPE, REVISION, DT_UPDATED, SD_AUTHRTY_TYPE) values (362387871100001, 'PRODUCT', 0, 'RHN.BD.CS.BODY_SITE', 'RHN 检查部位', 'urn:rhn:codesystem:body-site', '1.0', 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'COMMON', 'RHN', '检查开立使用的标准部位；部位方式引用本体系概念，层级用 PART_OF 概念关系表达，左右侧由部位方式区分', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00', 'INTERNAL');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100101, 362387871100001, 'BS-HEAD', '头颅', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'TL TB LN T N L', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100102, 362387871100001, 'BS-SELLA', '鞍区', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'AQ CT', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100103, 362387871100001, 'BS-EYE', '眼球', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'YQ Y SY', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100104, 362387871100001, 'BS-ORBIT', '眼眶', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'YK', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100105, 362387871100001, 'BS-SINUS', '鼻窦', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'BD FBD', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100106, 362387871100001, 'BS-NASAL', '鼻骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'BG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100107, 362387871100001, 'BS-TEMPORAL', '颞骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'NG NE RT E', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100108, 362387871100001, 'BS-FACE', '颌面部', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'HMB MB YM', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100109, 362387871100001, 'BS-TMJ', '颞下颌关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'NXHGJ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100110, 362387871100001, 'BS-NECK', '颈部', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JB J', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100111, 362387871100001, 'BS-THYROID', '甲状腺', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JZX', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100112, 362387871100001, 'BS-SALIVARY', '涎腺', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'XX SX HXX TYX', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100113, 362387871100001, 'BS-LARYNX', '喉部', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'HB H YH', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100114, 362387871100001, 'BS-CAROTID', '颈部血管', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JBXG JDM JBDM', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100115, 362387871100001, 'BS-NECK-LN', '颈部淋巴结', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JBLBJ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100116, 362387871100001, 'BS-CHEST', '胸部', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'XB X SF FB F XK', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100117, 362387871100001, 'BS-HEART', '心脏', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'XZ X', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100118, 362387871100001, 'BS-MEDIAST', '纵隔', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'ZG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100119, 362387871100001, 'BS-RIB', '肋骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'LG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100120, 362387871100001, 'BS-BREAST', '乳腺', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'RX RF SR', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100121, 362387871100001, 'BS-AXILLA', '腋窝', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'YW YXLBJ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100122, 362387871100001, 'BS-ABD', '腹部', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'FB QF F', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100123, 362387871100001, 'BS-HBSP', '肝胆脾胰', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'GDPY GDYP SFB SF', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100124, 362387871100001, 'BS-LIVER', '肝', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'G GZ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100125, 362387871100001, 'BS-GB', '胆囊', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'DN D DD', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100126, 362387871100001, 'BS-PANCREAS', '胰腺', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'YX Y', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100127, 362387871100001, 'BS-SPLEEN', '脾', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'P PZ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100128, 362387871100001, 'BS-GI', '胃肠', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'WC W XHD', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100129, 362387871100001, 'BS-APPENDIX', '阑尾', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'LW', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100130, 362387871100001, 'BS-RETROPERI', '腹膜后', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'FMH', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100131, 362387871100001, 'BS-ADRENAL', '肾上腺', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'SSX', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100132, 362387871100001, 'BS-URO', '泌尿系', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'MNX SSSNGPG MNXT', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100133, 362387871100001, 'BS-KIDNEY', '肾脏', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'SZ SS S', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100134, 362387871100001, 'BS-URETER', '输尿管', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'SNG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100135, 362387871100001, 'BS-BLADDER', '膀胱', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'PG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100136, 362387871100001, 'BS-PELVIS', '盆腔', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'PQ PB', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100137, 362387871100001, 'BS-UTERUS', '子宫附件', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'ZGFJ ZG FJ FK', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100138, 362387871100001, 'BS-PROSTATE', '前列腺', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'QLX', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100139, 362387871100001, 'BS-SCROTUM', '阴囊', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'YN GW FG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100140, 362387871100001, 'BS-SPINE', '脊柱', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JZ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100141, 362387871100001, 'BS-C-SPINE', '颈椎', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JC', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100142, 362387871100001, 'BS-T-SPINE', '胸椎', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'XZ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100143, 362387871100001, 'BS-L-SPINE', '腰椎', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'YZ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100144, 362387871100001, 'BS-SACRUM', '骶尾椎', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'DWC DZ WC DWB', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100145, 362387871100001, 'BS-PELVIC-BONE', '骨盆', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'GP', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100146, 362387871100001, 'BS-SHOULDER', '肩关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JGJ J', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100147, 362387871100001, 'BS-HUMERUS', '肱骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'GG SB', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100148, 362387871100001, 'BS-ELBOW', '肘关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'ZGJ Z', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100149, 362387871100001, 'BS-FOREARM', '尺桡骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'CRG QB', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100150, 362387871100001, 'BS-WRIST', '腕关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'WGJ W', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100151, 362387871100001, 'BS-HAND', '手', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'S SZ ZG ZG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100152, 362387871100001, 'BS-HIP', '髋关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'KGJ K', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100153, 362387871100001, 'BS-FEMUR', '股骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'GG DT', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100154, 362387871100001, 'BS-KNEE', '膝关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'XGJ X', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100155, 362387871100001, 'BS-TIBIA', '胫腓骨', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'JFG XT', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100156, 362387871100001, 'BS-ANKLE', '踝关节', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'HGJ H', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100157, 362387871100001, 'BS-FOOT', '足', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'Z J ZB', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100158, 362387871100001, 'BS-UL-VESSEL', '上肢血管', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'SZXG SZDM SZJM', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100159, 362387871100001, 'BS-LL-VESSEL', '下肢血管', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'XZXG XZDM XZJM', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100160, 362387871100001, 'BS-SUPERFICIAL', '浅表组织', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'QBZZ TBZW PX', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100161, 362387871100001, 'BS-LN', '浅表淋巴结', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'QBLBJ LBJ', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED) values (362387871100162, 362387871100001, 'BS-WHOLE', '全身', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-26 00:00:00+08:00', 'BODY_SITE', null, 'QS QSG', 'MANUAL', 0, timestamp with time zone '2026-10-26 00:00:00+08:00');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100501, 362387871100101, 'SYNONYM', '头部', 'TB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100502, 362387871100101, 'SYNONYM', '颅脑', 'LN', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100503, 362387871100101, 'SYNONYM', '头', 'T', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100504, 362387871100101, 'SYNONYM', '脑', 'N', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100505, 362387871100101, 'SYNONYM', '颅', 'L', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100506, 362387871100102, 'SYNONYM', '垂体', 'CT', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100507, 362387871100103, 'SYNONYM', '眼', 'Y', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100508, 362387871100103, 'SYNONYM', '双眼', 'SY', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100509, 362387871100105, 'SYNONYM', '副鼻窦', 'FBD', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100510, 362387871100107, 'SYNONYM', '内耳', 'NE', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100511, 362387871100107, 'SYNONYM', '乳突', 'RT', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100512, 362387871100107, 'SYNONYM', '耳', 'E', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100513, 362387871100108, 'SYNONYM', '面部', 'MB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100514, 362387871100108, 'SYNONYM', '颜面', 'YM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100515, 362387871100110, 'SYNONYM', '颈', 'J', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100516, 362387871100112, 'SYNONYM', '腮腺', 'SX', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100517, 362387871100112, 'SYNONYM', '颌下腺', 'HXX', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100518, 362387871100112, 'SYNONYM', '唾液腺', 'TYX', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100519, 362387871100113, 'SYNONYM', '喉', 'H', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100520, 362387871100113, 'SYNONYM', '咽喉', 'YH', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100521, 362387871100114, 'SYNONYM', '颈动脉', 'JDM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100522, 362387871100114, 'SYNONYM', '颈部动脉', 'JBDM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100523, 362387871100116, 'SYNONYM', '胸', 'X', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100524, 362387871100116, 'SYNONYM', '双肺', 'SF', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100525, 362387871100116, 'SYNONYM', '肺部', 'FB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100526, 362387871100116, 'SYNONYM', '肺', 'F', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100527, 362387871100116, 'SYNONYM', '胸廓', 'XK', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100528, 362387871100117, 'SYNONYM', '心', 'X', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100529, 362387871100120, 'SYNONYM', '乳房', 'RF', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100530, 362387871100120, 'SYNONYM', '双乳', 'SR', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100531, 362387871100121, 'SYNONYM', '腋下淋巴结', 'YXLBJ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100532, 362387871100122, 'SYNONYM', '全腹', 'QF', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100533, 362387871100122, 'SYNONYM', '腹', 'F', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100534, 362387871100123, 'SYNONYM', '肝胆胰脾', 'GDYP', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100535, 362387871100123, 'SYNONYM', '上腹部', 'SFB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100536, 362387871100123, 'SYNONYM', '上腹', 'SF', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100537, 362387871100124, 'SYNONYM', '肝脏', 'GZ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100538, 362387871100125, 'SYNONYM', '胆', 'D', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100539, 362387871100125, 'SYNONYM', '胆道', 'DD', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100540, 362387871100126, 'SYNONYM', '胰', 'Y', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100541, 362387871100127, 'SYNONYM', '脾脏', 'PZ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100542, 362387871100128, 'SYNONYM', '胃', 'W', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100543, 362387871100128, 'SYNONYM', '消化道', 'XHD', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100544, 362387871100132, 'SYNONYM', '双肾输尿管膀胱', 'SSSNGPG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100545, 362387871100132, 'SYNONYM', '泌尿系统', 'MNXT', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100546, 362387871100133, 'SYNONYM', '双肾', 'SS', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100547, 362387871100133, 'SYNONYM', '肾', 'S', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100548, 362387871100136, 'SYNONYM', '盆部', 'PB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100549, 362387871100137, 'SYNONYM', '子宫', 'ZG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100550, 362387871100137, 'SYNONYM', '附件', 'FJ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100551, 362387871100137, 'SYNONYM', '妇科', 'FK', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100552, 362387871100139, 'SYNONYM', '睾丸', 'GW', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100553, 362387871100139, 'SYNONYM', '附睾', 'FG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100554, 362387871100144, 'SYNONYM', '骶椎', 'DZ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100555, 362387871100144, 'SYNONYM', '尾椎', 'WC', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100556, 362387871100144, 'SYNONYM', '骶尾部', 'DWB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100557, 362387871100146, 'SYNONYM', '肩', 'J', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100558, 362387871100147, 'SYNONYM', '上臂', 'SB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100559, 362387871100148, 'SYNONYM', '肘', 'Z', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100560, 362387871100149, 'SYNONYM', '前臂', 'QB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100561, 362387871100150, 'SYNONYM', '腕', 'W', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100562, 362387871100151, 'SYNONYM', '手掌', 'SZ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100563, 362387871100151, 'SYNONYM', '掌骨', 'ZG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100564, 362387871100151, 'SYNONYM', '指骨', 'ZG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100565, 362387871100152, 'SYNONYM', '髋', 'K', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100566, 362387871100153, 'SYNONYM', '大腿', 'DT', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100567, 362387871100154, 'SYNONYM', '膝', 'X', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100568, 362387871100155, 'SYNONYM', '小腿', 'XT', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100569, 362387871100156, 'SYNONYM', '踝', 'H', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100570, 362387871100157, 'SYNONYM', '脚', 'J', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100571, 362387871100157, 'SYNONYM', '足部', 'ZB', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100572, 362387871100158, 'SYNONYM', '上肢动脉', 'SZDM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100573, 362387871100158, 'SYNONYM', '上肢静脉', 'SZJM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100574, 362387871100159, 'SYNONYM', '下肢动脉', 'XZDM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100575, 362387871100159, 'SYNONYM', '下肢静脉', 'XZJM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100576, 362387871100160, 'SYNONYM', '体表肿物', 'TBZW', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100577, 362387871100160, 'SYNONYM', '皮下', 'PX', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100578, 362387871100161, 'SYNONYM', '淋巴结', 'LBJ', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS) values (362387871100579, 362387871100162, 'SYNONYM', '全身骨', 'QSG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100901, 0, 362387871100102, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100902, 0, 362387871100103, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100903, 0, 362387871100104, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100904, 0, 362387871100105, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100905, 0, 362387871100106, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100906, 0, 362387871100107, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100907, 0, 362387871100108, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100908, 0, 362387871100109, 362387871100101, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100909, 0, 362387871100111, 362387871100110, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100910, 0, 362387871100112, 362387871100110, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100911, 0, 362387871100113, 362387871100110, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100912, 0, 362387871100114, 362387871100110, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100913, 0, 362387871100115, 362387871100110, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100914, 0, 362387871100117, 362387871100116, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100915, 0, 362387871100118, 362387871100116, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100916, 0, 362387871100119, 362387871100116, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100917, 0, 362387871100123, 362387871100122, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100918, 0, 362387871100124, 362387871100123, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100919, 0, 362387871100125, 362387871100123, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100920, 0, 362387871100126, 362387871100123, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100921, 0, 362387871100127, 362387871100123, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100922, 0, 362387871100128, 362387871100122, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100923, 0, 362387871100129, 362387871100122, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100924, 0, 362387871100130, 362387871100122, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100925, 0, 362387871100131, 362387871100122, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100926, 0, 362387871100133, 362387871100132, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100927, 0, 362387871100134, 362387871100132, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100928, 0, 362387871100135, 362387871100132, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100929, 0, 362387871100137, 362387871100136, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100930, 0, 362387871100138, 362387871100136, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100931, 0, 362387871100141, 362387871100140, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100932, 0, 362387871100142, 362387871100140, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100933, 0, 362387871100143, 362387871100140, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) values (362387871100934, 0, 362387871100144, 362387871100140, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-26 00:00:00+08:00', null, timestamp with time zone '2026-10-26 00:00:00+08:00', null);
+
+-- =============================================================================
+-- Source: V1_129_69__examination_technique_and_contrast_phase.sql
+-- =============================================================================
+-- 检查项目 P4：开立项目的超声方式与增强方式，供 AI 结构化意图按“彩超/B超”“平扫/增强”定位唯一开立项目。
+alter table RHN_BD_EXAM_SVC add column SD_EXAM_TECHNIQUE varchar(32);
+alter table RHN_BD_EXAM_SVC add column SD_CONTRAST_PHASE varchar(16);
+alter table RHN_BD_EXAM_SVC add constraint CK_BD_EXAM_SVC_TECHNIQUE check (SD_EXAM_TECHNIQUE is null or SD_EXAM_TECHNIQUE in ('B_MODE', 'COLOR_DOPPLER'));
+alter table RHN_BD_EXAM_SVC add constraint CK_BD_EXAM_SVC_CONTRAST check (SD_CONTRAST_PHASE is null or SD_CONTRAST_PHASE in ('PLAIN', 'ENHANCED', 'PLAIN_ENHANCED'));
+comment on column RHN_BD_EXAM_SVC.SD_EXAM_TECHNIQUE is '超声方式：B_MODE 常规 B 超，COLOR_DOPPLER 彩色多普勒；非超声为空';
+comment on column RHN_BD_EXAM_SVC.SD_CONTRAST_PHASE is '增强方式：PLAIN 平扫，ENHANCED 增强，PLAIN_ENHANCED 平扫加增强；非 CT/MR 为空';
+
+-- =============================================================================
+-- Source: V1_129_72__medication_alias.sql
+-- =============================================================================
+-- 药品别名：由通用药品表上的单个字符串改为独立别名表，一个别名一行；
+-- 检索表按别名逐行生成拼音/五笔码，别名表仅可选保存人工助记码。
+
+create table RHN_BD_MED_ALIAS (
+    ID_MED_ALIAS bigint,
+    ID_TNT bigint not null,
+    ID_MED bigint not null,
+    SD_ALIAS_TYPE varchar(32) not null,
+    NA_ALIAS varchar(300) not null,
+    CD_MNEM varchar(128),
+    FG_PRIMARY_ALIAS boolean default false not null,
+    SD_STATUS varchar(32) not null,
+    constraint PK_BD_MED_ALIAS primary key (ID_MED_ALIAS),
+    constraint UK_BD_MED_ALIAS_NAME unique (ID_TNT, ID_MED, SD_ALIAS_TYPE, NA_ALIAS),
+    constraint FK_BD_MED_ALIAS_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT),
+    constraint FK_BD_MED_ALIAS_MED foreign key (ID_TNT, ID_MED) references RHN_BD_MED(ID_TNT, ID_MED),
+    constraint CK_BD_MED_ALIAS_STATUS check (SD_STATUS in ('ACTIVE', 'INACTIVE'))
+);
+create index IX_BD_MED_ALIAS_MED on RHN_BD_MED_ALIAS (ID_TNT, ID_MED, SD_STATUS);
+create index IX_BD_MED_ALIAS_NAME on RHN_BD_MED_ALIAS (ID_TNT, NA_ALIAS, SD_STATUS);
+comment on table RHN_BD_MED_ALIAS is '药品别名；一行代表一条通用药品别名，检索简码由检索表按别名名称生成';
+comment on column RHN_BD_MED_ALIAS.ID_MED_ALIAS is '药品别名主键';
+comment on column RHN_BD_MED_ALIAS.ID_TNT is '租户标识';
+comment on column RHN_BD_MED_ALIAS.ID_MED is '通用药品标识';
+comment on column RHN_BD_MED_ALIAS.SD_ALIAS_TYPE is '别名类型';
+comment on column RHN_BD_MED_ALIAS.NA_ALIAS is '别名名称';
+comment on column RHN_BD_MED_ALIAS.CD_MNEM is '人工指定的助记码；为空时仅按别名名称生成拼音与五笔检索码';
+comment on column RHN_BD_MED_ALIAS.FG_PRIMARY_ALIAS is '是否主要别名';
+comment on column RHN_BD_MED_ALIAS.SD_STATUS is '状态';
+
+-- 存量别名按整串迁移为一行（主要别名）；含多个别名的历史字符串请在药品知识维护中拆分。
+-- 别名主键复用药品主键：每个药品最多迁移一行，且主键来自全局发号器，不会与后续新别名冲突。
+insert into RHN_BD_MED_ALIAS (ID_MED_ALIAS, ID_TNT, ID_MED, SD_ALIAS_TYPE, NA_ALIAS, CD_MNEM, FG_PRIMARY_ALIAS, SD_STATUS)
+select ID_MED, ID_TNT, ID_MED, 'SYNONYM', trim(NA_ALIAS), null, true, 'ACTIVE'
+from RHN_BD_MED
+where NA_ALIAS is not null and trim(NA_ALIAS) <> '';
+
+alter table RHN_BD_MED drop column NA_ALIAS;
+
+-- =============================================================================
+-- Source: V1_129_73__dictionary_conformance.sql
+-- =============================================================================
+-- 激素检查服务子类改用 BD_SERVICE_SUBTYPE 编码；补齐部位词典使用的 BODY_SITE 概念类型。
+update RHN_BD_SVC_ITEM set SD_SVC_SUBTYPE = 'IMMUNOASSAY' where SD_SVC_TYPE = 'LABORATORY' and SD_SVC_SUBTYPE = '激素检查';
+insert into RHN_BD_DICT_ITEM (ID_DICT_ITEM, ID_DICT_DEF_DICT, CD_DICT_ITEM, NA_DICT_ITEM, DES_DICT_ITEM, SN_SORT, SD_STATUS, ID_DICT_ITEM_PARENT)
+  select 362387869911901, d.ID_DICT_DEF, 'BODY_SITE', '检查部位', '检查开立项目可选择的身体部位概念', 70, 'ACTIVE', null from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_CONCEPT_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_ITEM i where i.ID_DICT_DEF_DICT = d.ID_DICT_DEF and i.CD_DICT_ITEM = 'BODY_SITE');
+insert into RHN_BD_DICT_CHG (ID_DICT_CHG, ID_TNT, ID_DICT_DEF_DICT, ID_DICT_ITEM, SD_CHG_TYPE, SD_TARGET_TYPE, JSON_BEFORE, JSON_AFTER, DES_REASON, CD_REQ, DT_CHANGED, ID_USER_CHANGED, ID_DICT_CAT, ID_DICT_ATTR_DEF)
+  select 362387869911902, null, d.ID_DICT_DEF, (select ID_DICT_ITEM from RHN_BD_DICT_ITEM where ID_DICT_DEF_DICT = d.ID_DICT_DEF and CD_DICT_ITEM = 'BODY_SITE'), 'ADD_ITEM', 'ITEM', null, '{"code": "BODY_SITE", "name": "检查部位", "sortOrder": 70, "status": "ACTIVE"}', '补齐检查部位词典使用的概念类型', 'v1.129.73:dictionary-conformance', timestamp with time zone '2026-10-26 00:00:00+08', 362387869790222, null, null
+  from RHN_BD_DICT_DEF d where d.SD_SCOPE_TYPE = 'PLATFORM' and d.CD_DICT_DEF = 'BD_CONCEPT_TYPE'
+  and not exists (select 1 from RHN_BD_DICT_CHG c where c.ID_DICT_CHG = 362387869911902);
+update RHN_BD_DICT_DEF set REVISION = REVISION + 1, DT_UPDATED = timestamp with time zone '2026-10-26 00:00:00+08', ID_USER_UPDATED = 362387869790222 where SD_SCOPE_TYPE = 'PLATFORM' and CD_DICT_DEF = 'BD_CONCEPT_TYPE';
+
+-- =============================================================================
+-- Source: V1_129_74__examination_contrast_phase_column_rename.sql
+-- =============================================================================
+alter table RHN_BD_EXAM_SVC rename column SD_CONTRAST_PHASE to SD_CNTRST_PHASE;
+alter table RHN_BD_EXAM_SVC rename column SD_EXAM_TECHNIQUE to SD_EXAM_TECHNIQ;
+
+-- =============================================================================
+-- Source: V1_129_75__examination_site_search.sql
+-- =============================================================================
+-- 项目＋单部位检索复用现有名称/拼音前缀索引，目标为已维护的检查部位方式。
+alter table RHN_BD_SEARCH_ENTRY drop constraint CK_BD_SEARCH_ENTRY_TARGET;
+alter table RHN_BD_SEARCH_ENTRY add constraint CK_BD_SEARCH_ENTRY_TARGET check (
+    SD_TARGET_TYPE in ('CONCEPT', 'MEDICATION', 'CATALOG_ITEM', 'ITEM_GROUP', 'SERVICE_VARIANT')
+);
+
+-- =============================================================================
+-- Source: V1_129_76__outpatient_queue_calling_switch.sql
+-- =============================================================================
+-- 门诊排队叫号开关：默认启用；关闭后医生站隐藏叫号、重呼、过号操作，直接从候诊列表接诊（开始接诊时系统自动完成叫号）。
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796911, ID_PARAM_CAT, 'outpatient.queue.calling-enabled', '启用排队叫号', '关闭后医生站不显示叫号、重呼、过号操作，医生直接从候诊列表选择患者接诊；开始接诊时系统自动完成叫号留痕。适用于不叫号的小型门诊。', 'BOOLEAN', 'SWITCH', '{"type":"boolean"}', 'true', '["ORGANIZATION","DEPARTMENT"]', 'BUSINESS', true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.direct-visit.enabled';
+
+-- =============================================================================
+-- Source: V1_129_77__outpatient_encounter_takeover_switch.sql
+-- =============================================================================
+-- 允许医生接管他人正在接诊或暂挂的就诊（需填写原因并留痕）；默认启用，可按机构或科室关闭。
+insert into RHN_SYS_PARAM_DEF (ID_PARAM_DEF, ID_PARAM_CAT, CD_PARAM_KEY, NA_PARAM_DEF, DES_PARAM_DEF, SD_VAL_TYPE, SD_CONTROL_TYPE, JSON_SCHEMA, JSON_DEFAULT_VAL, JSON_SCOPE, SD_PARAM_CAT, FG_INHRT, FG_CACHE, FG_NULLBL_VAL, SENS, SD_DISPLAY_POLICY, SD_STATUS, REVISION, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+select 362387869796912, ID_PARAM_CAT, 'outpatient.encounter.takeover-enabled', '允许接管他人接诊', '启用后，医生读卡或扫码定位到正由其他医生接诊或暂挂的患者时，可确认并填写原因后接管；原接诊医生的工作会话关闭，全程留痕。关闭后只能只读查看。', 'BOOLEAN', 'SWITCH', '{"type":"boolean"}', 'true', '["ORGANIZATION","DEPARTMENT"]', 'BUSINESS', true, true, false, 'NORMAL', 'PLAIN', 'ACTIVE', 0, CURRENT_TIMESTAMP, ID_USER_CREATED, CURRENT_TIMESTAMP, ID_USER_UPDATED
+from RHN_SYS_PARAM_DEF where CD_PARAM_KEY = 'outpatient.direct-visit.enabled';
+
+-- =============================================================================
+-- Source: V1_129_78__examination_body_site_expansion.sql
+-- =============================================================================
+-- 检查部位词典扩充：补充腹股沟区（小儿/成人疝、肿物排查高频部位）、肾血管及四肢血管标准部位与别名层级。
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED)
+values (362387871100163, 362387871100001, 'BS-INGUINAL', '腹股沟区', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-27 00:00:00+08:00', 'BODY_SITE', null, 'FGGQ FGG FGGG SCFGG', 'MANUAL', 0, timestamp with time zone '2026-10-27 00:00:00+08:00');
+
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED)
+values (362387871100164, 362387871100001, 'BS-RENAL-VESSEL', '肾血管', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-27 00:00:00+08:00', 'BODY_SITE', null, 'SXG SSXG SDJM SSJSXG', 'MANUAL', 0, timestamp with time zone '2026-10-27 00:00:00+08:00');
+
+insert into RHN_BD_CONCEPT (ID_CONCEPT, ID_CODE_SYSTEM, CD_CONCEPT, NA_DISPLAY, DES_DEF, SD_STATUS, DA_EFF_FROM, DA_EFF_TO, DT_CREATED, SD_CONCEPT_TYPE, NA_SHORT, CD_SEARCH, SD_SRC_TYPE, REVISION, DT_UPDATED)
+values (362387871100165, 362387871100001, 'BS-EXTREM-VESSEL', '四肢血管', null, 'ACTIVE', date '2026-01-01', null, timestamp with time zone '2026-10-27 00:00:00+08:00', 'BODY_SITE', null, 'SZXG SZDJM', 'MANUAL', 0, timestamp with time zone '2026-10-27 00:00:00+08:00');
+
+-- 别名维护
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100580, 362387871100163, 'SYNONYM', '腹股沟', 'FGG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100581, 362387871100163, 'SYNONYM', '腹股沟管', 'FGGG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100582, 362387871100163, 'SYNONYM', '双侧腹股沟', 'SCFGG', 'ACTIVE');
+
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100583, 362387871100164, 'SYNONYM', '双肾血管', 'SSXG', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100584, 362387871100164, 'SYNONYM', '肾动静脉', 'SDJM', 'ACTIVE');
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100585, 362387871100164, 'SYNONYM', '双肾及肾血管', 'SSJSXG', 'ACTIVE');
+
+insert into RHN_BD_CONCEPT_ALIAS (ID_CONCEPT_ALIAS, ID_CONCEPT, SD_ALIAS_TYPE, NA_ALIAS, CD_SEARCH, SD_STATUS)
+values (362387871100586, 362387871100165, 'SYNONYM', '四肢动静脉', 'SZDJM', 'ACTIVE');
+
+-- 层级关系（PART_OF）
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+values (362387871100935, 0, 362387871100163, 362387871100122, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-27 00:00:00+08:00', null, timestamp with time zone '2026-10-27 00:00:00+08:00', null);
+
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+values (362387871100936, 0, 362387871100164, 362387871100132, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-27 00:00:00+08:00', null, timestamp with time zone '2026-10-27 00:00:00+08:00', null);
+
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+values (362387871100937, 0, 362387871100158, 362387871100165, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-27 00:00:00+08:00', null, timestamp with time zone '2026-10-27 00:00:00+08:00', null);
+
+insert into RHN_BD_CONCEPT_REL (ID_CONCEPT_REL, REVISION, ID_CONCEPT, ID_CONCEPT_TARGET, SD_REL_TYPE, SD_STATUS, DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED)
+values (362387871100938, 0, 362387871100159, 362387871100165, 'PART_OF', 'ACTIVE', timestamp with time zone '2026-10-27 00:00:00+08:00', null, timestamp with time zone '2026-10-27 00:00:00+08:00', null);

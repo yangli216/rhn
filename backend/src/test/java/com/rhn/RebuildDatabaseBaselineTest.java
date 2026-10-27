@@ -45,7 +45,7 @@ class RebuildDatabaseBaselineTest {
                 assertNull(history.getString("version"));
                 Set<String> appliedScripts = new TreeSet<>();
                 assertTrue(history.next());
-                assertEquals("1.128.0", history.getString("version"));
+                assertEquals("1.130.0", history.getString("version"));
                 appliedScripts.add(history.getString("script"));
                 while (history.next()) {
                     assertEquals("SQL", history.getString("type"));
@@ -81,11 +81,11 @@ class RebuildDatabaseBaselineTest {
 
     @Test
     void squashed_baseline_is_present_in_canonical_directories() {
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/migration/B1_128_0__rhn_schema_and_metadata.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle/B1_128_0__rhn_schema_and_metadata.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/local/V1_128_1__development_hospital.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle-local/V1_128_1__development_hospital.sql")));
-        assertTrue(Files.isRegularFile(path("src/main/resources/db/h2/V1_128_2__h2_compatibility.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/migration/B1_130_0__rhn_schema_and_metadata.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle/B1_130_0__rhn_schema_and_metadata.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/local/V1_130_1__development_hospital.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/oracle-local/V1_130_1__development_hospital.sql")));
+        assertTrue(Files.isRegularFile(path("src/main/resources/db/h2/V1_130_2__h2_compatibility.sql")));
     }
 
     private static int count(java.sql.Statement sql, String query) throws Exception {

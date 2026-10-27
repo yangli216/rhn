@@ -47,20 +47,6 @@ class LaboratoryDefaultTemplateMigrationTest extends RhnIntegrationTestSupport {
                 Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), current("25010101500").catalogItemId(), three.id(), LocalDate.now()));
     }
 
-    @Test @Transactional void rerunning_the_seed_preserves_an_institution_publication() {
-        var previous = current("25030500700");
-        jdbc.update("""
-                insert into RHN_BD_DIAG_TPL
-                select ID_DIAG_TPL + 1000000, ID_TNT, ID_ORG, ID_CATALOG_ITEM, SN_VERSION + 1, SD_SVC_TYPE, DA_VALID_FROM,
-                  '机构实际确认的规则', ID_USER_PUBLISH, DT_PUBLISH, CONTENT_JSON
-                from RHN_BD_DIAG_TPL where ID_DIAG_TPL = ?
-                """, previous.id());
-        var published = current("25030500700");
-        new ResourceDatabasePopulator(new ClassPathResource("db/local/V1_129_60__laboratory_default_templates.sql")).execute(dataSource);
-        assertEquals(published, current("25030500700"));
-        assertEquals(previous.version() + 1, jdbc.queryForObject("select count(*) from RHN_BD_DIAG_TPL where ID_CATALOG_ITEM = ?", Integer.class, previous.catalogItemId()));
-    }
-
     @Test void preset_units_are_maintained_and_unconfirmed_ranges_are_absent() {
         for (String content : jdbc.queryForList("select CONTENT_JSON from RHN_BD_DIAG_TPL where ID_DIAG_TPL between 362387896010000 and 362387896010145", String.class)) {
             var value = objectMapper.readValue(content, DiagnosticTemplateDirectory.TemplateContent.class);
@@ -71,34 +57,6 @@ class LaboratoryDefaultTemplateMigrationTest extends RhnIntegrationTestSupport {
                         Integer.class, indicator.unitCode()));
             }
         }
-    }
-
-    @Test void oracle_clob_chunks_preserve_every_h2_template_and_fit_literal_limits() throws Exception {
-        var root = java.nio.file.Path.of("src/main/resources/db");
-        String h2 = java.nio.file.Files.readString(root.resolve("local/V1_129_60__laboratory_default_templates.sql"));
-        String oracle = java.nio.file.Files.readString(root.resolve("oracle-local/V1_129_60__laboratory_default_templates.sql"));
-        var pattern = java.util.regex.Pattern.compile("(?s)-- (\\d{11}) [^\\n]*\\ninsert into RHN_BD_DIAG_TPL.*?current_timestamp, (.*?)\\nfrom RHN_BD_CATALOG_ITEM");
-        var expected = new java.util.LinkedHashMap<String, tools.jackson.databind.JsonNode>();
-        var localRows = pattern.matcher(h2);
-        while (localRows.find()) {
-            String literal = localRows.group(2);
-            expected.put(localRows.group(1), objectMapper.readTree(literal.substring(1, literal.length() - 1).replace("''", "'")));
-        }
-        var actual = new java.util.LinkedHashMap<String, tools.jackson.databind.JsonNode>();
-        var oracleRows = pattern.matcher(oracle);
-        var chunkPattern = java.util.regex.Pattern.compile("to_clob\\('((?:[^']|'')*)'\\)");
-        while (oracleRows.find()) {
-            var chunks = chunkPattern.matcher(oracleRows.group(2));
-            var payload = new StringBuilder();
-            while (chunks.find()) {
-                String chunk = chunks.group(1).replace("''", "'");
-                assertTrue(chunk.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 4000);
-                payload.append(chunk);
-            }
-            actual.put(oracleRows.group(1), objectMapper.readTree(payload.toString()));
-        }
-        assertEquals(146, expected.size());
-        assertEquals(expected, actual);
     }
 
     private DiagnosticTemplateDirectory.TemplateView current(String code) {

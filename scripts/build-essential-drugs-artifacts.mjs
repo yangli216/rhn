@@ -10,7 +10,7 @@ const standardCatalogPath = path.join(root, "docs/essential-drugs/standard_medic
 const csvPath = path.join(root, "output/essential-drugs-legacy/国家基本药物目录（2026年版）_药品基本信息导入表.csv");
 const pgSqlPath = path.join(root, "output/essential-drugs-legacy/postgresql/V1_47_0__national_essential_medications_2026.sql");
 const oraSqlPath = path.join(root, "output/essential-drugs-legacy/oracle/V1_47_0__national_essential_medications_2026.sql");
-// The published catalog is part of the squashed baseline (B1_128_0); outputs go to .runtime/generated for review.
+// The published catalog is part of the squashed baseline (B1_130_0); outputs go to .runtime/generated for review.
 // Apply a change as a new migration with the next free version, never by rewriting a published file.
 const backendPgSqlPath = path.join(root, ".runtime/generated/essential-drugs/migration/V1_47_0__national_essential_medications_2026.sql");
 const backendOraSqlPath = path.join(root, ".runtime/generated/essential-drugs/oracle/V1_47_0__national_essential_medications_2026.sql");

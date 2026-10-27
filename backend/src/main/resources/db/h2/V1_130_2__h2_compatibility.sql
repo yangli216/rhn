@@ -2,6 +2,17 @@
 -- GENERATED FILE. Regenerate with scripts/schema-squash/SquashMigrations.java; do not edit by hand.
 -- Applies only to empty schemas; existing databases keep their applied history.
 -- Scope: H2-only column type adjustments for test databases.
+-- Target migration version: 1.130.2
+-- Source migrations:
+--   backend/src/main/resources/db/h2/V1_128_2__h2_compatibility.sql sha256=591cdfbd2aabac8094af4086413fa9be64b6421debc2892d12bf275cc1c9f410
+
+-- =============================================================================
+-- Source: V1_128_2__h2_compatibility.sql
+-- =============================================================================
+-- RHN H2 compatibility adjustments
+-- GENERATED FILE. Regenerate with scripts/schema-squash/SquashMigrations.java; do not edit by hand.
+-- Applies only to empty schemas; existing databases keep their applied history.
+-- Scope: H2-only column type adjustments for test databases.
 -- Target migration version: 1.128.2
 -- Source migrations:
 --   backend/src/main/resources/db/h2/V1_84_2__h2_clob_types.sql sha256=a78e774ead7d95aafad276ac117b22c0627ab2f23198447308f2070e02c68f5f

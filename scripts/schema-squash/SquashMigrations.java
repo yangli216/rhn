@@ -499,8 +499,10 @@ public class SquashMigrations {
         try (Statement s = c.createStatement(); ResultSet rs = s.executeQuery("SCRIPT NODATA NOPASSWORDS NOSETTINGS")) {
             while (rs.next()) {
                 String line = rs.getString(1);
-                // Row-count comments are data, compared separately per row.
-                if (!line.contains("flyway_schema_history") && !line.startsWith("-- ")) lines.add(line);
+                // Row-count comments and selectivity estimates are data, compared separately per row.
+                if (!line.contains("flyway_schema_history") && !line.startsWith("-- ")) {
+                    lines.add(line.replaceAll(" SELECTIVITY \\d+", ""));
+                }
             }
         }
         Collections.sort(lines);

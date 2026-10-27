@@ -15,9 +15,9 @@ import pypinyin
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CSV_PATH = os.path.join(ROOT_DIR, "docs", "terminology", "icd10_chs_v2.0.csv")
-BASELINE_PG_PATH = os.path.join(ROOT_DIR, "backend", "src", "main", "resources", "db", "migration", "B1_128_0__rhn_schema_and_metadata.sql")
+BASELINE_PG_PATH = os.path.join(ROOT_DIR, "backend", "src", "main", "resources", "db", "migration", "B1_130_0__rhn_schema_and_metadata.sql")
 
-# The published catalog is part of the squashed baseline (B1_128_0). Outputs go to .runtime/generated for review;
+# The published catalog is part of the squashed baseline (B1_130_0). Outputs go to .runtime/generated for review;
 # apply a change as a new migration with the next free version, never by rewriting a published file.
 TARGET_PG_PATH = os.path.join(ROOT_DIR, ".runtime", "generated", "icd10", "migration", "V1_85_0__national_healthcare_security_icd10_catalog.sql")
 TARGET_ORA_PATH = os.path.join(ROOT_DIR, ".runtime", "generated", "icd10", "oracle", "V1_85_0__national_healthcare_security_icd10_catalog.sql")
