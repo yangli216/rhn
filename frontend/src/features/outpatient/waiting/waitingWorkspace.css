@@ -678,6 +678,17 @@
 }
 
 /* 排队号：号码与序号上下居中，作为每行的视觉锚点 */
+.waiting-table td:nth-child(3) .card-badge-group {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.waiting-cell-label {
+  margin-right: var(--space-1);
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+  opacity: 0.8;
+}
+
 .waiting-table .waiting-card__ticket-col {
   align-items: center;
   min-width: 4.5rem;

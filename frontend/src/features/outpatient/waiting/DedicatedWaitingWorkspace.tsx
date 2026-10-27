@@ -368,7 +368,6 @@ export function DedicatedWaitingWorkspace({
                   <td>
                     <div className="waiting-card__ticket-col">
                       <span className="waiting-card__ticket-badge">{item.ticketNo}</span>
-                      <span className="waiting-card__seq">第 {item.sequenceNo} 号</span>
                     </div>
                   </td>
 
@@ -442,11 +441,10 @@ export function DedicatedWaitingWorkspace({
 
                   <td>{item.serviceName || '普通门诊'}</td>
                   <td>{item.clinicianName || item.practitionerName || '现场接诊'}</td>
-                  <td>{item.registeredAt ? formatLocaleDateTime(item.registeredAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
+                  <td><span className="waiting-cell-label">挂号</span> {item.registeredAt ? formatLocaleDateTime(item.registeredAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                   <td>
-                    {isCompleted
-                      ? (item.completedAt ? formatLocaleDateTime(item.completedAt, { hour: '2-digit', minute: '2-digit' }) : '--:--')
-                      : item.validUntil ? formatLocaleDateTime(item.validUntil, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {isCompleted ? <><span className="waiting-cell-label">完成</span> {item.completedAt ? formatLocaleDateTime(item.completedAt, { hour: '2-digit', minute: '2-digit' }) : '--:--'}</>
+                      : item.validUntil ? <><span className="waiting-cell-label">效期至</span> {formatLocaleDateTime(item.validUntil, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</> : '—'}
                   </td>
 
                   <td className="waiting-table__actions-col">

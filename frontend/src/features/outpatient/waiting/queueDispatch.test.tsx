@@ -431,12 +431,12 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     expect(calledBadge).toBeInTheDocument()
     expect(calledBadge).toHaveClass('category-pill--called')
 
-    // Confirm that ticket column only contains ticketNo and seq (no called-count)
+    // Confirm that ticket column only contains ticketNo (no seq, no called-count)
     const ticketCol = container.querySelector('.waiting-card__ticket-col')
     expect(ticketCol).toBeInTheDocument()
     expect(ticketCol?.querySelector('.waiting-card__called-count')).toBeNull()
     expect(ticketCol?.textContent).toContain('A001')
-    expect(ticketCol?.textContent).toContain('第 1 号')
+    expect(ticketCol?.textContent).not.toContain('第 1 号')
     expect(ticketCol?.textContent).not.toContain('叫号')
   })
 
