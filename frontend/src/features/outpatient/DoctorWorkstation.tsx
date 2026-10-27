@@ -148,6 +148,13 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
         clinicalContext={clinicalContext}
         canEdit={canEdit}
         busy={openPatient.isPending || queueAction.isPending || queue.isFetching}
+        activeItemKey={
+          openPatient.isPending
+            ? (openPatient.variables?.item.registrationId ?? openPatient.variables?.item.encounterId)
+            : queueAction.isPending
+              ? (queueAction.variables?.item.registrationId ?? queueAction.variables?.item.encounterId)
+              : null
+        }
         onEnter={(item) => openPatient.mutate({ item, entryIntent: 'EDIT' })}
         onView={(item) => openPatient.mutate({ item, entryIntent: 'READ' })}
         onRefresh={() => void queue.refetch()}

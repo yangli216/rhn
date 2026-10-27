@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
 import { Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
@@ -25,6 +25,7 @@ export interface DedicatedWaitingWorkspaceProps {
   clinicalContext: ClinicalContext
   canEdit: boolean
   busy: boolean
+  activeItemKey?: string | null
   onEnter: (item: EnhancedQueueItem) => void
   onView: (item: EnhancedQueueItem) => void
   onRefresh: () => void
@@ -41,6 +42,7 @@ export function DedicatedWaitingWorkspace({
   clinicalContext,
   canEdit,
   busy,
+  activeItemKey,
   onEnter,
   onView,
   onRefresh,
@@ -55,6 +57,13 @@ export function DedicatedWaitingWorkspace({
   const [consecutiveInitialCalls, setConsecutiveInitialCalls] = useState(0)
   const [briefingPatient, setBriefingPatient] = useState<EnhancedQueueItem | null>(null)
   const [doctorStatus, setDoctorStatus] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE')
+  const [pendingActionKey, setPendingActionKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!busy) {
+      setPendingActionKey(null)
+    }
+  }, [busy])
 
   // 计算多 Tab 数量
   const tabCounts = useMemo(() => {
@@ -317,6 +326,12 @@ export function DedicatedWaitingWorkspace({
                     : item.status === 'MISSED' ? '已过号'
                       : isCompleted ? '已接诊' : '候诊'
 
+              const itemKey = item.registrationId || item.encounterId
+              const isCurrentOperating = Boolean(busy && (
+                activeItemKey ? (activeItemKey === item.registrationId || activeItemKey === item.encounterId)
+                  : (pendingActionKey === item.registrationId || pendingActionKey === item.encounterId)
+              ))
+
               return (
                 <article
                   key={item.registrationId}
@@ -440,7 +455,10 @@ export function DedicatedWaitingWorkspace({
                       variant="secondary"
                       disabled={busy}
                       aria-label={`查看病历 ${item.residentName}`}
-                      onClick={() => onView(item)}
+                      onClick={() => {
+                        setPendingActionKey(itemKey)
+                        onView(item)
+                      }}
                     >
                       <Icon name="clinical" />
                       <span>查看病历</span>
@@ -449,7 +467,10 @@ export function DedicatedWaitingWorkspace({
                       size="sm"
                       variant="secondary"
                       disabled={busy}
-                      onClick={() => void handleCallItem(item)}
+                      onClick={() => {
+                        setPendingActionKey(itemKey)
+                        void handleCallItem(item)
+                      }}
                       title={`${item.status === 'CALLED' ? '重呼' : '呼叫'} ${item.ticketNo} ${item.residentName}`}
                       aria-label={`${item.status === 'CALLED' ? '重呼' : '呼叫'} ${item.residentName}`}
                     >
@@ -458,10 +479,16 @@ export function DedicatedWaitingWorkspace({
                     </Button>}
 
                     {item.status === 'CALLED' && <Button size="sm" variant="secondary" disabled={busy}
-                      onClick={() => void onMissItem(item)}>过号</Button>}
+                      onClick={() => {
+                        setPendingActionKey(itemKey)
+                        void onMissItem(item)
+                      }}>过号</Button>}
 
                     {item.status === 'MISSED' && <Button size="sm" variant="secondary" disabled={busy}
-                      onClick={() => void onRequeueItem(item)}>回队</Button>}
+                      onClick={() => {
+                        setPendingActionKey(itemKey)
+                        void onRequeueItem(item)
+                      }}>回队</Button>}
 
                     <Button
                       size="sm"
@@ -479,7 +506,10 @@ export function DedicatedWaitingWorkspace({
                       variant="secondary"
                       disabled={busy}
                       aria-label={`查看 ${item.residentName}`}
-                      onClick={() => onView(item)}
+                      onClick={() => {
+                        setPendingActionKey(itemKey)
+                        onView(item)
+                      }}
                     >
                       查看
                     </Button>
@@ -487,11 +517,14 @@ export function DedicatedWaitingWorkspace({
                     <Button
                       size="sm"
                       variant="primary"
-                      busy={busy}
-                      disabled={!canEdit || item.status === 'MISSED'}
+                      busy={isCurrentOperating}
+                      disabled={busy || !canEdit || item.status === 'MISSED'}
                       title={canEdit ? `${entryLabel}${item.residentName}` : '当前账号没有病历编辑权限'}
                       aria-label={`${entryLabel} ${item.residentName}`}
-                      onClick={() => onEnter(item)}
+                      onClick={() => {
+                        setPendingActionKey(itemKey)
+                        onEnter(item)
+                      }}
                     >
                       {entryLabel}
                     </Button>
@@ -512,9 +545,13 @@ export function DedicatedWaitingWorkspace({
           onEnter={() => {
             const p = briefingPatient
             setBriefingPatient(null)
+            setPendingActionKey(p.registrationId || p.encounterId)
             onEnter(p)
           }}
-          busy={busy}
+          busy={Boolean(busy && (
+            activeItemKey ? (activeItemKey === briefingPatient.registrationId || activeItemKey === briefingPatient.encounterId)
+              : (pendingActionKey === briefingPatient.registrationId || pendingActionKey === briefingPatient.encounterId)
+          ))}
           canEdit={canEdit}
         />
       )}

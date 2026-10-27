@@ -391,6 +391,64 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     await user.click(screen.getByRole('button', { name: '查看病历 张建国' }))
     expect(viewSpy).toHaveBeenCalledWith(completedItem)
   })
+
+  it('only shows loading state on the clicked patient button while disabling other rows', () => {
+    const enhanced = enhanceQueueList([mockItem1, mockItem2, mockItem3])
+
+    const { rerender } = render(
+      <DedicatedWaitingWorkspace
+        items={enhanced}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={true}
+        activeItemKey={mockItem1.registrationId}
+        onEnter={vi.fn()}
+        onView={vi.fn()}
+        onRefresh={vi.fn()}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    const btn1 = screen.getByRole('button', { name: `接诊 ${mockItem1.residentName}` })
+    const btn2 = screen.getByRole('button', { name: `接诊 ${mockItem2.residentName}` })
+    const btn3 = screen.getByRole('button', { name: `接诊 ${mockItem3.residentName}` })
+
+    expect(btn1).toHaveClass('is-busy')
+    expect(btn1).toHaveAttribute('aria-busy', 'true')
+
+    expect(btn2).not.toHaveClass('is-busy')
+    expect(btn2).not.toHaveAttribute('aria-busy')
+    expect(btn2).toBeDisabled()
+
+    expect(btn3).not.toHaveClass('is-busy')
+    expect(btn3).not.toHaveAttribute('aria-busy')
+    expect(btn3).toBeDisabled()
+
+    rerender(
+      <DedicatedWaitingWorkspace
+        items={enhanced}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={false}
+        activeItemKey={null}
+        onEnter={vi.fn()}
+        onView={vi.fn()}
+        onRefresh={vi.fn()}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    expect(btn1).not.toHaveClass('is-busy')
+    expect(btn1).toBeEnabled()
+    expect(btn2).not.toHaveClass('is-busy')
+    expect(btn2).toBeEnabled()
+    expect(btn3).not.toHaveClass('is-busy')
+    expect(btn3).toBeEnabled()
+  })
 })
 
 describe('AI Pre-consultation data boundary in DoctorWorkstation', () => {

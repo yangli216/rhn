@@ -456,6 +456,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [smartDecisionReason, setSmartDecisionReason] = useState<string | null>(null)
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [autoSettling, setAutoSettling] = useState(false)
+  const completedEncounterIdRef = useRef<string | null>(null)
 
   const deptSearchInputRef = useRef<HTMLInputElement>(null)
   const patientSearchInputRef = useRef<HTMLInputElement>(null)
@@ -464,6 +466,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const selectPatient = useCallback((resident: Resident, meta?: PatientIntakeMeta) => {
     setSelected(resident)
+    completedEncounterIdRef.current = null
     setIntakeChannel(meta?.channel ?? 'MANUAL')
     setSuccess(null)
     setManualAppointmentId(null)
@@ -767,6 +770,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     setSelected(null)
     setSuccess(null)
     setIntentId('')
+    completedEncounterIdRef.current = null
   }, [clinicalContext.department.id])
 
   const createIntent = useMutation({
@@ -793,11 +797,20 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       })
     },
     onSuccess: async (value) => {
-      setIntentId(value.id)
       await queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })
-      if (value.settlementId && value.feeAmount > 0 && (isCashMethod || selectedMethodOption?.tenderType === 'BANK_CARD') && value.settlementMode === 'SELF_PAY'
+      const canAutoPay = Boolean(
+        value.settlementId && value.feeAmount > 0 && (isCashMethod || selectedMethodOption?.tenderType === 'BANK_CARD') && value.settlementMode === 'SELF_PAY'
         && paymentMethodAvailable
-        && (!isCashMethod || (cashTendered.trim() !== '' && Number.isFinite(numericTendered) && numericTendered >= value.feeAmount))) {
+        && (!isCashMethod || (cashTendered.trim() !== '' && Number.isFinite(numericTendered) && numericTendered >= value.feeAmount))
+      )
+
+      if (value.status === 'COMPLETED' && value.encounterId) {
+        await finishRegistration(value)
+        return
+      }
+
+      if (canAutoPay && value.settlementId) {
+        setAutoSettling(true)
         try {
           await api.billing.createPaymentOrder(value.settlementId, {
             idempotencyKey: `REG-PAY-${crypto.randomUUID()}`,
@@ -809,14 +822,23 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             terminalCode: 'REGISTRATION-WINDOW-WEB',
             expiresAt: value.expiresAt,
           })
-          await Promise.all([
-            intent.refetch(),
-            queryClient.invalidateQueries({ queryKey: ['registration-schedules'] }),
-          ])
+          const completed = await api.billing.registrationIntent(value.id)
+          queryClient.setQueryData(['registration-billing-intent', value.id], completed)
+          if (completed.status === 'COMPLETED' && completed.encounterId) {
+            await finishRegistration(completed)
+          } else {
+            setIntentId(value.id)
+          }
         } catch (error) {
+          setIntentId(value.id)
           setValidationError(`挂号已出单，收款结果待核实：${errorMessage(error)}。请核实支付结果后继续办理。`)
+        } finally {
+          setAutoSettling(false)
         }
+        return
       }
+
+      setIntentId(value.id)
     },
   })
 
@@ -888,12 +910,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   })
   const finishRegistration = useCallback(async (value: RegistrationBillingIntent) => {
     if (!value.encounterId) return
+    if (completedEncounterIdRef.current === value.encounterId) return
+    completedEncounterIdRef.current = value.encounterId
+
     const [queue, encounters] = await Promise.all([
       api.scheduling.receptionQueue(today, undefined, 'ORGANIZATION'), api.encounters.byResident(value.residentId),
     ])
     const encounter = encounters.find((item) => item.id === value.encounterId)
-    if (!encounter) return
-    const receiptItem = queue.find((item) => item.encounterId === encounter.id)
+      ?? ({ id: value.encounterId, encounterNo: `ENC-${value.encounterId}`, residentId: value.residentId, status: 'REGISTERED' } as Encounter)
+    const receiptItem = queue.find((item) => item.encounterId === value.encounterId)
     setSuccess({ encounter, receipt: receiptItem })
     setActiveReceiptItem(receiptItem ?? null)
     setIntentId('')
@@ -946,12 +971,12 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         e.preventDefault()
         deptSearchInputRef.current?.focus()
       } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        if (selected && scheduleId && !createIntent.isPending) {
+        if (selected && scheduleId && !createIntent.isPending && !autoSettling) {
           e.preventDefault()
           confirmButtonRef.current?.click()
         }
       } else if (e.key === 'F8' || (e.altKey && (e.key === 's' || e.key === 'S'))) {
-        if (selected && scheduleId && !createIntent.isPending) {
+        if (selected && scheduleId && !createIntent.isPending && !autoSettling) {
           e.preventDefault()
           confirmButtonRef.current?.click()
         }
@@ -1316,8 +1341,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
             {!intentId && !currentIntent && <div className="registration-submit-area">
               <Button ref={confirmButtonRef} className="registration-confirm-button"
-                busy={createIntent.isPending || insuranceAuthBusy} busyLabel={insuranceAuthBusy ? '正在医保鉴权' : '正在核价并出单'}
-                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort || (needsPaymentAtCreate && feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)}
+                busy={createIntent.isPending || insuranceAuthBusy || autoSettling}
+                busyLabel={insuranceAuthBusy ? '正在医保鉴权' : autoSettling ? '正在出单与打印凭条…' : '正在核价并出单'}
+                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort || autoSettling || (needsPaymentAtCreate && feeBreakdown.payableAmount > 0 && !paymentMethodAvailable)}
                 onClick={() => {
                   if (insuranceBlock) {
                     setValidationError(insuranceBlock)

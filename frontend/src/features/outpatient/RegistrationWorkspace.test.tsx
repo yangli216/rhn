@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -1299,5 +1299,99 @@ describe('OutpatientRegistrationWorkspace', () => {
       settlementMode: 'MEDICAL_INSURANCE', coverageId: 'cov-m1',
     })))
     expect(authenticateInsuranceByResident).not.toHaveBeenCalled()
+  })
+
+  it('completes self-pay cash registration directly without switching to payment panel and opens receipt modal', async () => {
+    const selectedResident = { ...resident }
+    const pendingIntent: RegistrationBillingIntent = {
+      id: 'intent-cash-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
+      scheduleId: schedule.id, slotHoldId: 'hold-1',
+      idempotencyCode: 'REG-INTENT-request-cash-1', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY', settlementId: 'stl-cash-1',
+      status: 'PAYMENT_PENDING', feeAmount: 10, currencyCode: 'CNY', completionAttempts: 0,
+      createdAt: '2026-08-29T01:59:00Z', updatedAt: '2026-08-29T02:00:00Z', duplicate: false,
+    }
+    const completedIntent: RegistrationBillingIntent = {
+      ...pendingIntent,
+      status: 'COMPLETED',
+      encounterId: 'enc-cash-1',
+    }
+    const cashReceipt: ReceptionQueueItem = {
+      ...receipt,
+      encounterId: 'enc-cash-1',
+      registrationNo: 'REG-CASH-888',
+      ticketNo: 'T008',
+    }
+    const createRegistrationIntent = vi.fn().mockResolvedValue(pendingIntent)
+    const createPaymentOrder = vi.fn().mockResolvedValue({ id: 'po-1', status: 'SUCCEEDED' })
+    const registrationIntent = vi.fn().mockResolvedValue(completedIntent)
+    const receptionQueue = vi.fn().mockResolvedValue([cashReceipt])
+
+    const api = {
+      residents: {
+        get: vi.fn().mockResolvedValue(selectedResident),
+        search: vi.fn(),
+        profile: vi.fn().mockResolvedValue({
+          resident: selectedResident,
+          demographicProfile: {},
+          addresses: [],
+          relatedPersons: [],
+          coverages: [],
+          employments: [],
+        }),
+      },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue },
+      dictionaries: {
+        systemEnum: vi.fn().mockResolvedValue(visitTypes),
+        applicable: vi.fn().mockResolvedValue([{
+          code: 'CASH', name: '现金收款', sortOrder: 10,
+          attributes: { TENDER_TYPE: 'CASH', PAYMENT_PRECISION: '0.01', ROUNDING_MODE: 'HALF_UP' },
+        }]),
+      },
+      billing: {
+        createRegistrationIntent,
+        createPaymentOrder,
+        registrationIntent,
+      },
+      encounters: { byResident: vi.fn().mockResolvedValue([{ id: 'enc-cash-1', encounterNo: 'ENC-008' }]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/outpatient/registration?residentId=resident-1']}>
+          <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await screen.findByText(/健康档案号/)
+    const cashInput = await screen.findByPlaceholderText('10') as HTMLInputElement
+    await waitFor(() => expect(cashInput.value).toBe('10'))
+
+    const confirmBtn = screen.getByRole('button', { name: /确认挂号并出单/ })
+    await userEvent.click(confirmBtn)
+
+    await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(createPaymentOrder).toHaveBeenCalledWith('stl-cash-1', expect.objectContaining({
+      paymentMethodCode: 'CASH',
+      amount: 10,
+      businessScene: 'REGISTRATION',
+    })))
+
+    expect(screen.queryByText('挂号费收款')).not.toBeInTheDocument()
+
+    const dialog = await screen.findByRole('dialog', { name: '门诊挂号热敏凭条' })
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByText('T008')).toBeInTheDocument()
+    expect(within(dialog).getByText('REG-CASH-888')).toBeInTheDocument()
   })
 })
