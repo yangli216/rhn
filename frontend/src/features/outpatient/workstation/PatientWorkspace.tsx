@@ -411,7 +411,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
     if (!encounter || entryIntent !== 'EDIT' || !canEdit) return
     // StrictMode replays effects in development. Re-apply the local edit state on
     // every replay, while keeping API-backed start/resume commands idempotent.
-    if (encounter.status === 'IN_PROGRESS') { setEditing(true); return }
+    // 进入编辑后即视为已消费自动接诊：之后医生主动暂挂时，不能再被本 effect 自动恢复。
+    if (encounter.status === 'IN_PROGRESS') { automaticEntry.current = encounter.id; setEditing(true); return }
     if (automaticEntry.current === encounter.id) return
     automaticEntry.current = encounter.id
     if (encounter.status === 'REGISTERED') start.mutate(encounter)

@@ -124,13 +124,14 @@ const clinicalContext: ClinicalContext = {
 } as ClinicalContext
 
 function createMockApi({
-  initialEncounterStatus = 'REGISTERED', queueStatus = 'WAITING', startFn = vi.fn(), resumeFn = vi.fn(), cancelCompletionFn = vi.fn(),
+  initialEncounterStatus = 'REGISTERED', queueStatus = 'WAITING', startFn = vi.fn(), resumeFn = vi.fn(), cancelCompletionFn = vi.fn(), suspendFn = vi.fn(),
 }: {
   initialEncounterStatus?: 'REGISTERED' | 'IN_PROGRESS' | 'SUSPENDED' | 'COMPLETED'
   queueStatus?: ReceptionQueueItem['status']
   startFn?: ReturnType<typeof vi.fn>
   resumeFn?: ReturnType<typeof vi.fn>
   cancelCompletionFn?: ReturnType<typeof vi.fn>
+  suspendFn?: ReturnType<typeof vi.fn>
 } = {}) {
   let encounterStatus = initialEncounterStatus
   let savedDocuments: ClinicalDocument[] = []
@@ -142,6 +143,11 @@ function createMockApi({
   const resumeMock = resumeFn.mockImplementation(() => {
     encounterStatus = 'IN_PROGRESS'
     return Promise.resolve(mockInProgressEncounter)
+  })
+
+  const suspendMock = suspendFn.mockImplementation(() => {
+    encounterStatus = 'SUSPENDED'
+    return Promise.resolve(mockSuspendedEncounter)
   })
 
   const cancelCompletionMock = cancelCompletionFn.mockImplementation(() => {
@@ -194,7 +200,7 @@ function createMockApi({
       }),
       start: startMock,
       complete: vi.fn(),
-      suspend: vi.fn(),
+      suspend: suspendMock,
       resume: resumeMock,
       cancelCompletion: cancelCompletionMock,
       prescriptions: vi.fn().mockResolvedValue([]),
@@ -1294,6 +1300,33 @@ describe('DoctorWorkstation reception flow', () => {
     })))
     expect(await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
     expect(screen.queryByText('编辑状态')).not.toBeInTheDocument()
+  })
+
+  it('does not resume an encounter right after the doctor suspends it', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    // 队列刷新慢于就诊刷新：工作区在返回列表前会先渲染出“已暂挂”的就诊，不能借此自动恢复。
+    const queueRows = vi.mocked(api.scheduling.receptionQueue).getMockImplementation() ?? api.scheduling.receptionQueue
+    api.scheduling.receptionQueue = vi.fn().mockImplementation(async (...args: unknown[]) => {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      return (queueRows as (...inner: unknown[]) => Promise<unknown>)(...args)
+    }) as never
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    expect(await screen.findByRole('heading', { name: '门诊病历' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '暂挂' }))
+    await user.click(await screen.findByRole('button', { name: '确认暂挂' }))
+
+    await waitFor(() => expect(api.encounters.suspend).toHaveBeenCalledTimes(1))
+    expect(await screen.findByRole('button', { name: '查看 张建国' })).toBeInTheDocument()
+    expect(api.encounters.resume).not.toHaveBeenCalled()
   })
 
   it('keeps the record read-only when the current account has no edit permission', async () => {
