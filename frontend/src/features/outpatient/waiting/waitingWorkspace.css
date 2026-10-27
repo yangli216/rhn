@@ -602,6 +602,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .waiting-card-container > .ui-empty-state {
@@ -631,15 +632,23 @@
   background: var(--color-surface-subtle);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   text-align: left;
   white-space: nowrap;
 }
 
 .waiting-table td {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  height: 3.5rem;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  background: var(--color-surface);
   vertical-align: middle;
+  color: var(--color-text-primary);
+}
+
+.waiting-table td:nth-child(n + 5):not(:last-child) {
+  color: var(--color-text-secondary);
 }
 
 .waiting-table tbody tr:last-child td {
@@ -658,14 +667,31 @@
   box-shadow: inset 4px 0 0 var(--color-danger);
 }
 
+/* 排队号：号码与序号上下居中，作为每行的视觉锚点 */
 .waiting-table .waiting-card__ticket-col {
-  align-items: flex-start;
+  align-items: center;
   min-width: 4.5rem;
 }
 
 .waiting-table .waiting-card__ticket-badge {
   width: auto;
+  min-width: 3.5rem;
+  padding: calc(var(--space-1) * 0.6) var(--space-2);
   font-size: var(--font-size-body);
+}
+
+.waiting-table .patient-identity {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.waiting-table .patient-name {
+  font-size: var(--font-size-body);
+}
+
+.waiting-table .patient-demographics {
+  color: var(--color-text-secondary);
 }
 
 .waiting-table .card-badge-group {
@@ -673,6 +699,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
+}
+
+.waiting-table td > .card-badge-group:not(:first-child) {
+  margin-top: calc(var(--space-1) * 0.5);
 }
 
 .waiting-table .card-badge-group:empty {
@@ -683,14 +713,13 @@
   position: sticky;
   right: 0;
   z-index: 1;
-  background: var(--color-surface);
-  box-shadow: -1px 0 0 var(--color-border);
   white-space: nowrap;
+  text-align: right;
 }
 
 .waiting-table th.waiting-table__actions-col {
   z-index: 3;
-  background: var(--color-surface-subtle);
+  text-align: right;
 }
 
 .waiting-table .waiting-card__actions {
