@@ -616,7 +616,9 @@
   border-collapse: separate;
   border-spacing: 0;
   min-width: 64rem;
-  font-size: var(--font-size-small);
+  /* 字号遵循《用户界面设计与开发规范》4.2：表格内容 table，时间与状态等辅助信息 small */
+  font-size: var(--font-size-table);
+  line-height: 1.6;
 }
 
 .waiting-table .patient-name,
@@ -650,7 +652,7 @@
 
 .waiting-table td {
   height: 3.5rem;
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
   background: var(--color-surface);
   vertical-align: middle;
@@ -663,6 +665,14 @@
 
 .waiting-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.waiting-table td:first-child {
+  padding-left: var(--space-3);
+}
+
+.waiting-table td:last-child {
+  padding-right: var(--space-3);
 }
 
 .waiting-row:hover td {
@@ -709,10 +719,32 @@
 
 .waiting-table .patient-name {
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
 }
 
 .waiting-table .patient-demographics {
+  font-size: var(--font-size-table);
   color: var(--color-text-secondary);
+}
+
+/* 状态列居中；标签文字用 small、字重 600 */
+.waiting-table td:nth-child(3) {
+  text-align: center;
+}
+
+.waiting-table td:nth-child(3) .card-badge-group {
+  justify-content: center;
+}
+
+.waiting-table .category-pill {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 挂号、效期、完成时间属于辅助信息，使用 small 与等宽数字 */
+.waiting-table td:nth-child(n + 6):not(:last-child) {
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
 }
 
 .waiting-table .card-badge-group {
