@@ -55,10 +55,11 @@ export function PatientContextIdentifier({ label, value }: { label: string; valu
 }
 
 export function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalContext, canEdit, onBack, onQueueRefresh,
-  enhancedQueueItems = [], onSwitchPatient, onQueueAction, peekDrawerOpen = false, setPeekDrawerOpen }: {
+  enhancedQueueItems = [], callingEnabled = true, onSwitchPatient, onQueueAction, peekDrawerOpen = false, setPeekDrawerOpen }: {
   resident: Resident; encounterId: string | null; api: RhnApi; clinicalContext: ClinicalContext
   entryIntent: 'READ' | 'EDIT'; canEdit: boolean; onBack: () => void; onQueueRefresh: () => Promise<unknown>
   enhancedQueueItems?: EnhancedQueueItem[]
+  callingEnabled?: boolean
   onSwitchPatient?: (item: EnhancedQueueItem) => void
   onQueueAction?: (item: EnhancedQueueItem, action: QueueCommand) => Promise<unknown>
   peekDrawerOpen?: boolean
@@ -461,7 +462,8 @@ export function PatientWorkspace({ resident, encounterId, entryIntent, api, clin
             currentEncounterId={encounter.id}
             currentResidentName={resident.fullName}
             canEdit={canEdit}
-            onCallAndEnterNext={(targetItem) => requestSwitch(targetItem, true)}
+            callingEnabled={callingEnabled}
+            onCallAndEnterNext={(targetItem) => requestSwitch(targetItem, callingEnabled)}
             onRecallCurrent={currentCalledItem && onQueueAction
               ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
             onSkipAndPostpone={currentCalledItem && onQueueAction

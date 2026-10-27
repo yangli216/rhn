@@ -14,9 +14,17 @@ import java.util.List;
 @RequestMapping("/api/outpatient/reception")
 class ReceptionController {
     private final RegistrationApplicationService service;
+    private final ReceptionQueueSettings settings;
 
-    ReceptionController(RegistrationApplicationService service) {
+    ReceptionController(RegistrationApplicationService service, ReceptionQueueSettings settings) {
         this.service = service;
+        this.settings = settings;
+    }
+
+    @GetMapping("/queue-settings")
+    @PreAuthorize("hasAnyAuthority('OUTPATIENT_REGISTRATION.ACCESS','OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
+    ReceptionQueueSettings.View queueSettings() {
+        return settings.current();
     }
 
     @GetMapping("/queue")

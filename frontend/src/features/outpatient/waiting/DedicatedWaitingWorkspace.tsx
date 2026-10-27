@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { RhnApi } from '../../../shared/rhnApi'
+import type { Resident } from '../../../shared/model'
+import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../../shared/billing/insuranceMedia'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
-import { Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
+import { Alert, Button, EmptyState, Icon, IconButton, StatusBadge, Switch } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
 import { formatLocaleDateTime } from '../../../shared/format'
@@ -26,6 +29,10 @@ export interface DedicatedWaitingWorkspaceProps {
   canEdit: boolean
   busy: boolean
   activeItemKey?: string | null
+  /** 未启用排队叫号时医生直接从列表接诊：不显示叫号、重呼、过号和叫号中枢。 */
+  callingEnabled?: boolean
+  /** 传入后搜索栏提供读社保卡、医保码调入患者。 */
+  api?: RhnApi
   onEnter: (item: EnhancedQueueItem) => void
   onView: (item: EnhancedQueueItem) => void
   onRefresh: () => void
@@ -33,6 +40,15 @@ export interface DedicatedWaitingWorkspaceProps {
   onMissItem: (item: EnhancedQueueItem) => Promise<unknown>
   onRequeueItem: (item: EnhancedQueueItem) => Promise<unknown>
   onSuspendItem?: (item: EnhancedQueueItem) => void
+}
+
+/** 读社保卡、医保码调入患者；读取弹窗与读卡结果的定位都在这里编排。 */
+function CardReadTools({ api, busy, onLocate }: { api: RhnApi; busy: boolean; onLocate: (resident: Resident) => void }) {
+  const reader = useInsuranceMediaReader(api, ({ resident }) => { onLocate(resident); return undefined })
+  return <>
+    <InsuranceMediaButtons disabled={busy} onRead={reader.open} />
+    {reader.dialog}
+  </>
 }
 
 export function DedicatedWaitingWorkspace({
@@ -43,6 +59,8 @@ export function DedicatedWaitingWorkspace({
   canEdit,
   busy,
   activeItemKey,
+  callingEnabled = true,
+  api,
   onEnter,
   onView,
   onRefresh,
@@ -58,6 +76,13 @@ export function DedicatedWaitingWorkspace({
   const [briefingPatient, setBriefingPatient] = useState<EnhancedQueueItem | null>(null)
   const [doctorStatus, setDoctorStatus] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE')
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null)
+  const [cardNotice, setCardNotice] = useState('')
+  const locateByCard = (resident: Resident) => {
+    const inQueue = items.some((item) => item.residentId === resident.id)
+    setActiveTab('ALL')
+    setSearchQuery(resident.healthRecordNo || resident.fullName)
+    setCardNotice(inQueue ? '' : `${resident.fullName} 不在当前候诊列表，可用“直接接诊”或切换到“本科室/本院”视角查找。`)
+  }
 
   useEffect(() => {
     if (!busy) {
@@ -151,7 +176,7 @@ export function DedicatedWaitingWorkspace({
 
   return (
     <div className="dedicated-waiting-workspace">
-      {/* 1. 全局叫号中枢条 */}
+      {callingEnabled && <>
       <CallingControlHub
         callingState={callingState}
         nextCandidate={nextCandidateResult}
@@ -165,6 +190,7 @@ export function DedicatedWaitingWorkspace({
         onSuspendCurrent={onSuspendItem ? handleSuspendCurrent : undefined}
         busy={busy}
       />
+      </>}
 
       {/* 2. 统一工作台环境与多队列筛选总控栏 */}
       <div className="waiting-filter-bar">
@@ -210,69 +236,23 @@ export function DedicatedWaitingWorkspace({
           <span className="waiting-bar-divider" aria-hidden="true" />
 
           <div className="waiting-tabs" role="tablist" aria-label="候诊队列分类">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'ALL'}
-              className={`waiting-tab-btn ${activeTab === 'ALL' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('ALL')}
-            >
-              全部待诊 <span className="tab-badge">{tabCounts.ALL}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'INITIAL'}
-              className={`waiting-tab-btn ${activeTab === 'INITIAL' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('INITIAL')}
-            >
-              初诊 <span className="tab-badge">{tabCounts.INITIAL}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'RETURN_VISIT'}
-              className={`waiting-tab-btn waiting-tab-btn--return ${activeTab === 'RETURN_VISIT' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('RETURN_VISIT')}
-            >
-              回诊 <span className="tab-badge tab-badge--purple">{tabCounts.RETURN_VISIT}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'PRIORITY'}
-              className={`waiting-tab-btn waiting-tab-btn--priority ${activeTab === 'PRIORITY' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('PRIORITY')}
-            >
-              绿通 <span className="tab-badge tab-badge--gold">{tabCounts.PRIORITY}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'SUSPENDED'}
-              className={`waiting-tab-btn ${activeTab === 'SUSPENDED' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('SUSPENDED')}
-            >
-              暂挂 <span className="tab-badge">{tabCounts.SUSPENDED}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'SKIPPED'}
-              className={`waiting-tab-btn ${activeTab === 'SKIPPED' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('SKIPPED')}
-            >
-              过号 <span className="tab-badge">{tabCounts.SKIPPED}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'COMPLETED'}
-              className={`waiting-tab-btn waiting-tab-btn--completed ${activeTab === 'COMPLETED' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('COMPLETED')}
-            >
-              已接诊 <span className="tab-badge">{tabCounts.COMPLETED}</span>
-            </button>
+            {([
+              ['ALL', '待诊', tabCounts.ALL],
+              ['SUSPENDED', '暂挂', tabCounts.SUSPENDED],
+              ...(callingEnabled ? [['SKIPPED', '过号', tabCounts.SKIPPED] as const] : []),
+              ['COMPLETED', '已接诊', tabCounts.COMPLETED],
+            ] as const).map(([value, label, count]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === value}
+                className={`waiting-tab-btn ${value === 'COMPLETED' ? 'waiting-tab-btn--completed ' : ''}${activeTab === value ? 'is-active' : ''}`}
+                onClick={() => setActiveTab(value)}
+              >
+                {label} <span className="tab-badge">{count}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -297,9 +277,12 @@ export function DedicatedWaitingWorkspace({
               </button>
             )}
           </div>
+          {api && <CardReadTools api={api} busy={busy} onLocate={locateByCard} />}
           <IconButton icon="refresh" label="刷新队列" onClick={onRefresh} />
         </div>
       </div>
+
+      {cardNotice && <Alert tone="info">{cardNotice}</Alert>}
 
       {/* 4. 富信息候诊卡片流 */}
       <div className="waiting-card-container">
@@ -320,7 +303,7 @@ export function DedicatedWaitingWorkspace({
               const isUrgent = item.triageLevel === 'LEVEL_2_URGENT'
 
               const entryLabel = item.status === 'SERVING' ? '继续接诊' : item.status === 'SUSPENDED' ? '恢复接诊' : '接诊'
-              const statusLabel = item.status === 'CALLED' ? '已叫号'
+              const statusLabel = item.status === 'CALLED' && callingEnabled ? '已叫号'
                 : item.status === 'SERVING' ? '接诊中'
                   : item.status === 'SUSPENDED' ? '已暂挂'
                     : item.status === 'MISSED' ? '已过号'
@@ -361,7 +344,7 @@ export function DedicatedWaitingWorkspace({
                           {statusLabel}
                         </StatusBadge>
 
-                        {item.calledCount > 0 && (
+                        {callingEnabled && item.calledCount > 0 && (
                           <span className="category-pill category-pill--called" title={`已叫号 ${item.calledCount} 次`}>
                             叫号 {item.calledCount} 次
                           </span>
@@ -463,7 +446,7 @@ export function DedicatedWaitingWorkspace({
                       <Icon name="clinical" />
                       <span>查看病历</span>
                     </Button> : <>
-                    {['WAITING', 'CALLED'].includes(item.status) && <Button
+                    {callingEnabled && ['WAITING', 'CALLED'].includes(item.status) && <Button
                       size="sm"
                       variant="secondary"
                       disabled={busy}
@@ -478,13 +461,13 @@ export function DedicatedWaitingWorkspace({
                       <span>{item.status === 'CALLED' ? '重呼' : '呼叫'}</span>
                     </Button>}
 
-                    {item.status === 'CALLED' && <Button size="sm" variant="secondary" disabled={busy}
+                    {callingEnabled && item.status === 'CALLED' && <Button size="sm" variant="secondary" disabled={busy}
                       onClick={() => {
                         setPendingActionKey(itemKey)
                         void onMissItem(item)
                       }}>过号</Button>}
 
-                    {item.status === 'MISSED' && <Button size="sm" variant="secondary" disabled={busy}
+                    {callingEnabled && item.status === 'MISSED' && <Button size="sm" variant="secondary" disabled={busy}
                       onClick={() => {
                         setPendingActionKey(itemKey)
                         void onRequeueItem(item)

@@ -297,27 +297,50 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
       />
     )
 
-    // Initially ALL tab has all 3
-    expect(screen.getByText('全部待诊')).toBeInTheDocument()
+    // 状态标签只保留待诊、暂挂、过号、已接诊；初诊、回诊、绿通不再作为独立标签
+    expect(screen.getByRole('tab', { name: /待诊/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /初诊|回诊|绿通/ })).not.toBeInTheDocument()
     expect(screen.getByText('张建国')).toBeInTheDocument()
     expect(screen.getByText('李翠华')).toBeInTheDocument()
     expect(screen.getByText('王振华')).toBeInTheDocument()
 
-    // Click "回诊" tab
-    await user.click(screen.getByRole('tab', { name: /回诊/ }))
-    expect(screen.getByRole('button', { name: '查看 李翠华' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /已接诊/ }))
     expect(screen.queryByRole('button', { name: '查看 张建国' })).not.toBeInTheDocument()
-
-    // Click "绿通" tab
-    await user.click(screen.getByRole('tab', { name: /绿通/ }))
-    expect(screen.getByRole('button', { name: '查看 王振华' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '查看 李翠华' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /待诊/ }))
 
     // Open settings and change ratio
     await user.click(screen.getByRole('button', { name: '呼叫与调度规则设置' }))
     expect(await screen.findByText('叫号与智能排队设置')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '3:1' }))
     await user.click(screen.getByRole('button', { name: '关闭设置' }))
+  })
+
+  it('hides calling controls and enters directly when queue calling is disabled', async () => {
+    const user = userEvent.setup()
+    const enterSpy = vi.fn()
+    const calledItem = enhanceQueueItem({ ...mockItem1, status: 'CALLED', callCount: 1 })
+    render(
+      <DedicatedWaitingWorkspace
+        items={[calledItem, enhanceQueueItem(mockItem2)]}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={false}
+        callingEnabled={false}
+        onEnter={enterSpy}
+        onView={vi.fn()}
+        onRefresh={vi.fn()}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    expect(screen.queryByRole('region', { name: '门诊全局叫号控制中枢' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /过号/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^(呼叫|重呼) / })).not.toBeInTheDocument()
+    expect(screen.queryByText(/叫号 \d+ 次/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '接诊 李翠华' }))
+    expect(enterSpy).toHaveBeenCalledTimes(1)
   })
 
   it('renders called count badge in header badge group instead of stretching ticket column', () => {

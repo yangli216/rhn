@@ -245,6 +245,7 @@ export function createSchedulingApi(client: ApiClient) {
     schedules: (dateFrom: string, dateTo: string) => client.request<ServiceSchedule[]>(
       `/api/outpatient/scheduling/schedules?${dates(dateFrom, dateTo)}`,
     ),
+    queueSettings: () => client.request<{ callingEnabled: boolean }>('/api/outpatient/reception/queue-settings'),
     receptionQueue: (dateOrFrom?: string, dateTo?: string, scope?: ReceptionQueueScope) => {
       const params = new URLSearchParams()
       if (dateOrFrom && dateTo) {

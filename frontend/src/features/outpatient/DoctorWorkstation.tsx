@@ -60,6 +60,14 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
     queryKey: ['outpatient-referral-inbox', clinicalContext.organization.id, clinicalContext.department.id],
     queryFn: () => api.outpatientReferrals.inbox(),
   })
+  // 小型门诊可关闭排队叫号：读取失败时按启用处理，保持原有叫号流程。
+  const queueSettings = useQuery({
+    queryKey: ['reception-queue-settings', clinicalContext.organization.id, clinicalContext.department.id],
+    queryFn: () => api.scheduling.queueSettings(),
+    enabled: Boolean(api.scheduling.queueSettings),
+    retry: false,
+  })
+  const callingEnabled = queueSettings.data?.callingEnabled ?? true
   const linkedResident = useQuery({
     queryKey: ['doctor-workstation-resident', linkedResidentId],
     queryFn: () => api.residents.get(linkedResidentId!),
@@ -103,6 +111,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
     entryIntent={selected.entryIntent} api={api}
     clinicalContext={clinicalContext} canEdit={canEdit} onBack={() => setSelected(null)} onQueueRefresh={refreshQueue}
     enhancedQueueItems={enhancedItems}
+    callingEnabled={callingEnabled}
     onSwitchPatient={(targetItem) => openPatient.mutate({ item: targetItem, entryIntent: 'EDIT' })}
     onQueueAction={handleQueueAction}
     peekDrawerOpen={peekDrawerOpen}
@@ -147,6 +156,8 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
         onQueueScopeChange={setQueueScope}
         clinicalContext={clinicalContext}
         canEdit={canEdit}
+        api={api}
+        callingEnabled={callingEnabled}
         busy={openPatient.isPending || queueAction.isPending || queue.isFetching}
         activeItemKey={
           openPatient.isPending

@@ -19,6 +19,8 @@ export interface QueueCapsuleBarProps {
   onSuspendCurrent: () => void
   onOpenPeekDrawer: () => void
   rules?: DispatchRuleConfig
+  /** 未启用排队叫号时，下一位直接接诊，不提供叫号、重呼、过号。 */
+  callingEnabled?: boolean
 }
 
 export function QueueCapsuleBar({
@@ -32,6 +34,7 @@ export function QueueCapsuleBar({
   onSuspendCurrent,
   onOpenPeekDrawer,
   rules = DEFAULT_DISPATCH_RULES,
+  callingEnabled = true,
 }: QueueCapsuleBarProps) {
   const [popoverOpen, setPopoverOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -143,7 +146,7 @@ export function QueueCapsuleBar({
 
         <span className="pill-segment pill-segment--action">
           <Icon name="notification" />
-          <span>呼下一位{candidate && <> (<span className="queue-next-name" title={candidate.residentName}>{candidate.residentName}</span>)</>}</span>
+          <span>{callingEnabled ? '呼下一位' : '接诊下一位'}{candidate && <> (<span className="queue-next-name" title={candidate.residentName}>{candidate.residentName}</span>)</>}</span>
           <Icon name="chevron-down" className={`chevron ${popoverOpen ? 'is-expanded' : ''}`} />
         </span>
       </div>
@@ -243,13 +246,14 @@ export function QueueCapsuleBar({
               size="sm"
               className="pod-btn-primary"
               disabled={!candidate || busy || !canEdit}
-              title={candidate ? `呼叫并直接接诊 ${candidate.residentName}（自动保存并平滑切换）` : '无候诊患者'}
+              title={candidate ? `${callingEnabled ? '呼叫并直接接诊' : '直接接诊'} ${candidate.residentName}（自动保存并平滑切换）` : '无候诊患者'}
               onClick={handleQuickCallAndEnter}
             >
               <Icon name="notification" />
-              <span>呼叫并接诊下一位</span>
+              <span>{callingEnabled ? '呼叫并接诊下一位' : '接诊下一位'}</span>
             </Button>
 
+            {callingEnabled && <>
             <Button
               variant="secondary"
               size="sm"
@@ -277,6 +281,8 @@ export function QueueCapsuleBar({
               <Icon name="chevron-right" />
               <span>设为过号顺延</span>
             </Button>
+
+            </>}
 
             <Button
               variant="secondary"
