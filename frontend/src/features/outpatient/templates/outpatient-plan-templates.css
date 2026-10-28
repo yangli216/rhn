@@ -37,6 +37,10 @@
   flex-wrap: wrap;
 }
 
+.doctor-plan-scope-pills {
+  margin: var(--space-2) 0 var(--space-1);
+}
+
 .doctor-plan-pool-tab {
   display: inline-flex;
   align-items: center;

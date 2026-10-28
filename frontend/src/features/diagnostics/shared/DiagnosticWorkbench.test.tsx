@@ -8,11 +8,14 @@ import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { RhnApi } from '../../../shared/rhnApi'
 import { LaboratoryWorkspace } from '../laboratory/LaboratoryWorkspace'
 import { ExaminationWorkspace } from '../examination/ExaminationWorkspace'
+import { defaultDiagnosticDates, diagnosticDateBoundary } from './diagnosticWorkbenchModel'
 
 const task: DiagnosticExecutionTask = { id: 'task1', revision: 1, requestNo: 'SR1', taskNo: null, requestType: 'LABORATORY',
   status: 'IN_PROGRESS', residentId: 'resident1', residentName: '患者甲', healthRecordNo: 'H1', encounterId: 'enc1', requestId: 'req1',
   organizationId: 'org1', departmentId: 'dept1', itemCode: 'LAB1', itemName: '血常规', createdAt: '2026-10-13T01:00:00Z' }
 const context = { organization: { id: 'org1', name: '测试机构' }, department: { id: 'dept1', name: '医技科' } } as ClinicalContext
+const defaultRange = () => { const { from, to } = defaultDiagnosticDates()
+  return { createdFrom: diagnosticDateBoundary(from), createdBefore: diagnosticDateBoundary(to, true) } }
 const blank = { revision: 0, doubleSignatureRequired: false }
 function setup({ exam = false, tasks = [task], overrides = {}, authorities, entry = "/diagnostics/laboratory" }: { exam?: boolean; tasks?: DiagnosticExecutionTask[]; overrides?: Record<string, ReturnType<typeof vi.fn>>; authorities?: string[]; entry?: string } = {}) {
   const diagnostics = { reportTemplate: vi.fn().mockResolvedValue(null), worklistPage: vi.fn().mockResolvedValue({ content: tasks, totalElements: tasks.length, totalPages: 1, page: 0, size: 20 }), reportsByRequest: vi.fn().mockResolvedValue([]),
@@ -51,7 +54,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText('搜索患者、申请或标本'), { target: { value: 'SP1' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))
     await waitFor(() => expect(api.worklistPage).toHaveBeenLastCalledWith('LABORATORY', 'SP1', 0, 20,
-      undefined, undefined, { activeAndRecent: true, status: undefined, createdFrom: undefined, createdBefore: undefined }))
+      undefined, undefined, { activeAndRecent: true, status: undefined, ...defaultRange() }))
     expect(scanSpecimen).not.toHaveBeenCalled()
   })
 
@@ -67,7 +70,7 @@ describe('simple diagnostic business workbench', () => {
       activeAndRecent: true, status: 'IN_PROGRESS', createdFrom: new Date(2026, 9, 1).toISOString(), createdBefore: new Date(2026, 9, 14).toISOString(),
     }))
     fireEvent.click(screen.getByRole('button', { name: '重置' }))
-    expect(screen.getByLabelText('申请开始日期')).toHaveValue('')
+    expect(screen.getByLabelText('申请开始日期')).toHaveValue(defaultDiagnosticDates().from)
     expect(screen.getByLabelText('任务状态')).toHaveTextContent('全部状态')
   })
 
@@ -162,7 +165,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText('指标2结果'), { target: { value: '120' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
     await waitFor(() => expect(api.recordLocalReport).toHaveBeenCalledOnce())
-    expect(api.worklistPage).toHaveBeenCalledWith('LABORATORY', '', 0, 20, undefined, undefined, { activeAndRecent: true, status: undefined, createdFrom: undefined, createdBefore: undefined })
+    expect(api.worklistPage).toHaveBeenCalledWith('LABORATORY', '', 0, 20, undefined, undefined, { activeAndRecent: true, status: undefined, ...defaultRange() })
     expect(api.recordLocalReport.mock.calls[0][1].observations).toEqual([
       expect.objectContaining({ observationValue: '5.8' }),
       expect.objectContaining({ observationCode: 'HGB', observationValue: '120' }),
@@ -209,7 +212,7 @@ describe('simple diagnostic business workbench', () => {
     fireEvent.change(screen.getByLabelText(/检查结论/), { target: { value: '具体结论' } })
     fireEvent.click(screen.getByRole('button', { name: '签发正式报告' }))
     await waitFor(() => expect(api.recordLocalReport).toHaveBeenCalledWith('task1', expect.objectContaining({ findings: '具体所见', conclusion: '具体结论' })))
-    expect(api.worklistPage).toHaveBeenCalledWith('EXAMINATION', '', 0, 20, undefined, undefined, { activeAndRecent: true, status: undefined, createdFrom: undefined, createdBefore: undefined })
+    expect(api.worklistPage).toHaveBeenCalledWith('EXAMINATION', '', 0, 20, undefined, undefined, { activeAndRecent: true, status: undefined, ...defaultRange() })
     expect(screen.queryByLabelText('指标1结果')).not.toBeInTheDocument()
   })
 

@@ -73,6 +73,8 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
     private final Map<String, String> signNos = new ConcurrentHashMap<>();
     private final Map<String, Credential> credentials = new ConcurrentHashMap<>();
     private final ThreadLocal<Consumer<ChsExchange>> observer = new ThreadLocal<>();
+    /** 调试控制台的常驻记录入口；未装配或调试关闭时不产生任何开销。 */
+    private volatile ChsExchangeRecorder recorder;
 
     private record Credential(String certType, String certNo, Map<String, String> insuplcByInsutype, Instant expiresAt) {
         @Override public String toString() { return "Credential[REDACTED]"; }
@@ -406,10 +408,19 @@ public class HttpChsNationalInsuranceClient implements NationalInsuranceClient {
     private void emit(String infno, Instant started, long begin, Integer status, String infcode, String errMsg,
                       ChsExchange.Outcome outcome, String request, String response) {
         var consumer = observer.get();
-        if (consumer == null) return;
-        consumer.accept(new ChsExchange(infno, started, (System.nanoTime() - begin) / 1_000_000, status, infcode, errMsg,
-                outcome, request, response));
+        var sink = recorder;
+        if (consumer == null && sink == null) return;
+        var exchange = new ChsExchange(infno, started, (System.nanoTime() - begin) / 1_000_000, status, infcode, errMsg,
+                outcome, request, response);
+        if (consumer != null) consumer.accept(exchange);
+        if (sink != null) {
+            try { sink.record(exchange); }
+            catch (RuntimeException ignored) { /* 调试记录绝不影响真实交易 */ }
+        }
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setRecorder(ChsExchangeRecorder recorder) { this.recorder = recorder; }
 
     /** 在当前线程内观察本客户端发出的每次网关往返（联通探测使用）；观察者只在 {@code action} 执行期间有效。 */
     public <T> T observe(Consumer<ChsExchange> consumer, Supplier<T> action) {

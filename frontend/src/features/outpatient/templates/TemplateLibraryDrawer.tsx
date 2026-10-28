@@ -872,7 +872,7 @@ export function TemplateLibraryDrawer({ purpose = 'DIAGNOSIS', initialPlanId, in
                       <span className="doctor-order-name-with-action">
                         <strong>{s.itemName}</strong>
                         <ServiceInsertButton name={s.itemName} serviceType={s.serviceType} onView={setInspectTarget} />
-                      </span> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
+                      </span>
                       <RowFlags duplicate={draftKeys.has(serviceDuplicateKey(s))} lockedReason={locked} />
                     </td>
                     <td className={tableCellClass('status')}>
@@ -934,7 +934,7 @@ export function TemplateLibraryDrawer({ purpose = 'DIAGNOSIS', initialPlanId, in
               value={scopeFilter}
               onChange={(tabId) => { setScopeFilter(tabId); setNotice('') }}
               label="诊疗方案范围"
-              variant="line"
+              variant="pills"
               items={scopeTabs}
             />}
           </div>
@@ -1238,7 +1238,7 @@ export function TemplateLibraryDrawer({ purpose = 'DIAGNOSIS', initialPlanId, in
                               <span className="doctor-order-name-with-action">
                                 <strong>{member.itemName}</strong>
                                 <ServiceInsertButton name={member.itemName} serviceType={member.serviceType} onView={setInspectTarget} />
-                              </span> <small className="doctor-plan-item-subtext">({member.itemCode})</small>
+                              </span>
                               <RowFlags duplicate={duplicate} lockedReason={locked} />
                             </td>
                             <td className={tableCellClass('status')}><StatusBadge tone="neutral">

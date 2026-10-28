@@ -95,4 +95,30 @@ describe('InsuranceOnboardingWizard', () => {
     expect(await screen.findByText('正式网关未启用')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '接口联通探测' })).toBeInTheDocument()
   })
+
+  it('navigates through steps using next and previous buttons', async () => {
+    setup()
+    expect(await screen.findByText('当前医保客户端：未接入')).toBeInTheDocument()
+    expect(screen.getByText('步骤 1 / 4 · 客户端模式')).toBeInTheDocument()
+
+    // 点击下一步流转到正式网关配置
+    await userEvent.click(screen.getByRole('button', { name: '下一步' }))
+    expect(await screen.findByRole('table', { name: '正式网关配置检查结果' })).toBeInTheDocument()
+    expect(screen.getByText('步骤 2 / 4 · 正式网关配置')).toBeInTheDocument()
+
+    // 点击上一步回到客户端模式
+    await userEvent.click(screen.getByRole('button', { name: '上一步' }))
+    expect(screen.getByText('步骤 1 / 4 · 客户端模式')).toBeInTheDocument()
+  })
+
+  it('shows the readiness assessment report and links to the debug console', async () => {
+    const { onNavigate } = setup()
+    await userEvent.click(await screen.findByRole('button', { name: '上线就绪评估报告' }))
+    expect(await screen.findByText(/接入就绪度总体结论：阻断/)).toBeInTheDocument()
+    expect(screen.getByText('待整改与关注项目清单（共 2 项）')).toBeInTheDocument()
+
+    // 点击前往医保调试控制台
+    await userEvent.click(screen.getByRole('button', { name: '前往医保调试控制台' }))
+    expect(onNavigate).toHaveBeenCalledWith('/settings/insurance-debug')
+  })
 })

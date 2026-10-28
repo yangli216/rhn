@@ -12,6 +12,7 @@ const tenantId = process.env.RHN_TENANT_ID ?? '362387869790209'
 const organizationId = process.env.RHN_ORGANIZATION_ID ?? '362387869790211'
 const departmentId = process.env.RHN_DEPARTMENT_ID ?? '362387869790212'
 const apply = process.argv.includes('--apply')
+const concurrency = Number(process.env.RHN_STANDARD_CONCURRENCY ?? 16)
 
 const auth = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
 const headers = {
@@ -171,6 +172,24 @@ function count(results) {
   return Object.fromEntries([...results.reduce((map, value) => map.set(value.status, (map.get(value.status) ?? 0) + 1), new Map())])
 }
 
+async function pool(values, worker) {
+  const results = new Array(values.length)
+  let cursor = 0
+  async function run() {
+    for (;;) {
+      const index = cursor++
+      if (index >= values.length) return
+      try {
+        results[index] = await worker(values[index])
+      } catch (error) {
+        results[index] = { code: values[index].code, status: 'ERROR', error: error.message }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, run))
+  return results
+}
+
 const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
 const desiredBindings = [...manifest.bindings]
 for (const [code, correction] of normalizations) {
@@ -192,10 +211,7 @@ for (const [code, correction] of normalizations) {
 
 const before = await readiness()
 const currentByCode = new Map(before.rows.map(value => [value.code, value]))
-const bindingResults = []
-for (const row of desiredBindings) {
-  bindingResults.push(await bind(row, currentByCode.get(row.code)))
-}
+const bindingResults = await pool(desiredBindings, row => bind(row, currentByCode.get(row.code)))
 
 const after = apply ? await readiness() : before
 console.log(JSON.stringify({

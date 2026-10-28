@@ -32,6 +32,7 @@ import {
 } from '../shared/DiagnosticTaskPanels'
 import { ReportComposer } from '../shared/ReportComposer'
 import {
+  defaultDiagnosticDates,
   diagnosticDateBoundary,
   diagnosticStatusOptions,
   type DiagnosticForm,
@@ -87,8 +88,8 @@ export function ExaminationWorkspace({
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
   const [modality, setModality] = useState('')
-  const [dates, setDates] = useState({ from: '', to: '' })
-  const [filters, setFilters] = useState({ keyword: '', status: '', modality: '', from: '', to: '' })
+  const [dates, setDates] = useState(defaultDiagnosticDates)
+  const [filters, setFilters] = useState(() => ({ keyword: '', status: '', modality: '', ...defaultDiagnosticDates() }))
   const [filterError, setFilterError] = useState('')
   const [page, setPage] = useState(0)
   const [forms, setForms] = useState<Record<string, DiagnosticForm>>({})
@@ -193,9 +194,10 @@ export function ExaminationWorkspace({
     setKeyword('')
     setStatus('')
     setModality('')
-    setDates({ from: '', to: '' })
+    const range = defaultDiagnosticDates()
+    setDates(range)
     setFilterError('')
-    setFilters({ keyword: '', status: '', modality: '', from: '', to: '' })
+    setFilters({ keyword: '', status: '', modality: '', ...range })
     setPage(0)
   }, [scope, params])
 
@@ -238,10 +240,11 @@ export function ExaminationWorkspace({
     setKeyword('')
     setStatus('')
     setModality('')
-    setDates({ from: '', to: '' })
+    const range = defaultDiagnosticDates()
+    setDates(range)
     setFilterError('')
     setPage(0)
-    setFilters({ keyword: '', status: '', modality: '', from: '', to: '' })
+    setFilters({ keyword: '', status: '', modality: '', ...range })
   }
 
   const formKey = `${scope}:${selected?.id || ''}`
@@ -317,10 +320,10 @@ export function ExaminationWorkspace({
                 />
               </FormField>
               <div className="ui-query-filters__actions">
-                <Button variant="secondary" onClick={applyFilters}>
+                <Button onClick={applyFilters}>
                   查询
                 </Button>
-                <Button variant="text" onClick={resetFilters}>
+                <Button variant="secondary" onClick={resetFilters}>
                   重置
                 </Button>
               </div>

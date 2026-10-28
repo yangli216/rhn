@@ -301,6 +301,64 @@
   box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 .ui-tabs--cards .ui-tabs__tab small { line-height: 1.4; }
+.ui-tabs--pills { border-bottom: 0; background: transparent; padding: var(--space-1) 0; }
+.ui-tabs--pills .ui-tabs__items { gap: var(--space-1-5); align-items: center; }
+.ui-tabs--pills .ui-tabs__tab {
+  min-width: 0;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-round);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  border: 1px solid transparent;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+.ui-tabs--pills .ui-tabs__tab::after { display: none; }
+.ui-tabs--pills .ui-tabs__tab:hover:not(:disabled) {
+  background: var(--color-border);
+  color: var(--color-text-primary);
+}
+.ui-tabs--pills .ui-tabs__tab.is-active {
+  background: var(--color-brand-soft);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-semibold);
+}
+.ui-tabs--pills .ui-tabs__tab small { font-size: 0.75rem; opacity: 0.85; margin-left: 2px; }
+.ui-tabs--pills .ui-tabs__tab.is-active small { color: var(--color-brand-strong); }
+
+.ui-tabs--segmented {
+  border-bottom: 0;
+  background: var(--color-surface-subtle);
+  padding: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+.ui-tabs--segmented .ui-tabs__items { gap: 2px; }
+.ui-tabs--segmented .ui-tabs__tab {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(var(--control-height-sm) - 2px);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  background: transparent;
+  border: 0;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+.ui-tabs--segmented .ui-tabs__tab::after { display: none; }
+.ui-tabs--segmented .ui-tabs__tab:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border) 40%, transparent);
+}
+.ui-tabs--segmented .ui-tabs__tab.is-active {
+  background: var(--color-surface);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-bold);
+  box-shadow: var(--shadow-sm);
+}
 
 .ui-table-shell { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex: 1; }
 .ui-table-scroll { min-width: 0; min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-border-strong) 60%, transparent) transparent; }

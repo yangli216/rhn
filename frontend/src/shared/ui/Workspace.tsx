@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { Icon } from './Icon'
 
-export type TabsVariant = 'line' | 'workspace' | 'cards'
+export type TabsVariant = 'line' | 'workspace' | 'cards' | 'pills' | 'segmented'
 export type TableColumnType = 'text' | 'numeric' | 'status' | 'control' | 'actions'
 
 export function tableCellClass(type: TableColumnType) {

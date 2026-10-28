@@ -366,7 +366,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
               : summary.expiringLots > 0 ? <StatusBadge tone="warning">存在临期</StatusBadge>
                 : <StatusBadge tone="success">库存正常</StatusBadge>
           return <tr key={item.id}>
-            <td><strong>{item.productName}</strong><code>{item.productCode}</code><small>{[item.packageSpec || item.packageUnitName, item.manufacturerName].filter(Boolean).join(' · ')}</small></td>
+            <td><strong>{item.productName}</strong><small>{[item.packageSpec || item.packageUnitName, item.manufacturerName].filter(Boolean).join(' · ')}</small></td>
             <td className={tableCellClass('status')}>{status}{summary.earliestExpiry && <small>最近效期 {summary.earliestExpiry}</small>}</td>
             <td className={tableCellClass('numeric')}><strong>{summary.activeLots} 批</strong><small>{summary.binCount} 个库位</small></td>
             <td className={tableCellClass('numeric')}><strong>{formatWarehouseQuantity(summary.onHand)} {item.baseUnitCode}</strong>

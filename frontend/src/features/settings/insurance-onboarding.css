@@ -1,22 +1,371 @@
+/* 确保外层 .page 容器在向导存在时不出现外层纵向滚动，高度由向导锁定在当前视口内 */
+.page:has(> .insurance-wizard) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 医保接入向导主框架 */
+.insurance-wizard {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.insurance-wizard > .ui-page-header {
+  flex-shrink: 0;
+}
+
+/* 顶部 PageHeader 右侧整体体检概览 */
 .insurance-onboarding__overall {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--layout-panel-gap);
+  gap: var(--space-2);
 }
 
-.insurance-onboarding__navigation {
-  display: grid;
-  align-content: start;
-  gap: var(--layout-panel-gap);
+.insurance-onboarding__overall span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
 }
 
-.insurance-onboarding__navigation .ui-button {
+/* 横向步骤指示条 */
+.insurance-wizard__stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.insurance-wizard__stepper-segment {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 12rem;
+  gap: var(--space-1);
+}
+
+.insurance-wizard__stepper-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 auto;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.insurance-wizard__stepper-item:hover {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-primary);
+}
+
+.insurance-wizard__stepper-item.is-active {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--shadow-selection-marker);
+}
+
+.insurance-wizard__stepper-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-round);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  flex-shrink: 0;
+}
+
+.insurance-wizard__stepper-item.is-active .insurance-wizard__stepper-num {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+
+.insurance-wizard__stepper-text {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
+.insurance-wizard__stepper-title {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insurance-wizard__stepper-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-1);
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* 步骤工作区：覆盖 page-templates 默认的 flex-shrink: 0，强制吃满剩余空间且允许内部收缩 */
+.ui-page-template.insurance-wizard > .insurance-wizard__content {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ui-page-template.insurance-wizard > .insurance-wizard__content > .ui-page-template__pane-frame {
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.insurance-wizard__step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-wizard__step-head h2 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  color: var(--color-text-primary);
+}
+
+/* 步骤内的业务引导与环境说明卡片 */
+.insurance-wizard__guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--layout-panel-gap);
+}
+
+.insurance-wizard__guide-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.insurance-wizard__guide-head strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.insurance-wizard__guide-points {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.insurance-wizard__guide-point {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.insurance-wizard__guide-point-title {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-brand-primary);
+}
+
+.insurance-wizard__guide-point-text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-body);
+  margin: 0;
+}
+
+.insurance-wizard__pass-hint {
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-small);
+}
+
+/* 底部操作栏：固定吸底，常驻可视区域，绝不被内容挤出屏幕 */
+.ui-page-template.insurance-wizard > .insurance-wizard__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--layout-panel-gap);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.insurance-wizard__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.insurance-wizard__footer-progress {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+/* 就绪评估看板 (Step 6) */
+.insurance-wizard__assessment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+}
+
+.insurance-wizard__assessment-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.insurance-wizard__assessment-lead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.insurance-wizard__assessment-title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.insurance-wizard__assessment-copy {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.insurance-wizard__assessment-actions {
+  display: flex;
+  gap: var(--layout-panel-gap);
+  margin-top: var(--space-2);
+}
+
+.insurance-wizard__checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-wizard__check-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.insurance-wizard__check-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.insurance-wizard__check-card-head strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.insurance-wizard__check-card p {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-body);
+}
+
+.insurance-wizard__issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.insurance-wizard__issues-title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.insurance-wizard__ops-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--layout-panel-gap);
+  padding: var(--space-3);
+  background: var(--color-surface-muted);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.insurance-wizard__ops-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.insurance-wizard__ops-copy strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+}
+
+.insurance-wizard__ops-copy span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+/* 覆盖率视图 */
 .insurance-onboarding__mode {
   margin: 0 0 var(--layout-panel-gap);
+  font-weight: var(--font-weight-medium);
 }
 
 .insurance-onboarding__coverage {
@@ -35,6 +384,15 @@
 
 .insurance-onboarding__summary dl {
   margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.insurance-onboarding__summary dt {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
 }
 
 .insurance-onboarding__summary dd {
@@ -44,8 +402,10 @@
 .insurance-onboarding__rate {
   font-size: var(--font-size-h2);
   font-weight: var(--font-weight-semibold);
+  color: var(--color-brand-primary);
 }
 
+/* 接口联通探测 */
 .insurance-probe {
   display: flex;
   flex-direction: column;
@@ -117,6 +477,237 @@
 .insurance-probe__messages pre {
   margin: 0;
   max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 调试控制台专用样式与白色面板 */
+.page:has(> .insurance-debug-page) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.insurance-debug-page {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.insurance-debug {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.insurance-debug__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-panel-gap);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.insurance-debug__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-panel-gap);
+  padding-bottom: var(--space-2);
+}
+
+.insurance-debug__master-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-panel-gap);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.insurance-debug__master-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 20rem;
+}
+
+.insurance-debug__master-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.insurance-debug__master-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.insurance-debug__countdown {
+  font-size: var(--font-size-small);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.insurance-debug__master-copy {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.insurance-debug__section,
+.insurance-debug__settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.insurance-debug__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-section-gap);
+}
+
+.insurance-debug__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-panel-gap);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.insurance-debug__card-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.insurance-debug__card-title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.insurance-debug__card-sub {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.insurance-debug__card-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-debug__scope-tip {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-body);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.insurance-debug__infnos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.insurance-debug__infno-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.insurance-debug__infno-code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.insurance-debug__infno-name {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.insurance-debug__raw-guard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.insurance-debug__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--layout-panel-gap);
+  margin: 0 0 var(--layout-panel-gap);
+}
+
+.insurance-debug__facts dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.insurance-debug__messages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-panel-gap);
+}
+
+.insurance-debug__messages pre {
+  max-height: 360px;
+  margin: 0;
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;

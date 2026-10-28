@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, it, vi } from 'vitest'
 import type { GoodsReceipt, PurchaseOrder, StockBin, StockItem, StockSite } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
-import { GoodsReceiptDialog, MultiItemDialog, PurchaseDialog, purchaseReceivable } from './WarehouseOperations'
+import { GoodsReceiptDialog, MultiItemDialog, PurchaseDialog, PurchaseWorkbench, purchaseReceivable } from './WarehouseOperations'
 
 const item = { id: 'item', catalogItemId: 'catalog-item', packageId: 'package', productName: '阿莫西林', packageSpec: '0.25g×24粒', packageUnitName: '盒',
   packageFactor: 24, baseUnitCode: 'CAPSULE', manufacturerName: '示例厂家', lotRequired: true } as StockItem
@@ -315,10 +315,11 @@ it('renders modern split procurement workbench with KPI cards, document queue an
   // 验证药房指引胶囊
   expect(screen.getByText('药房补货指引')).toBeInTheDocument()
 
-  // 验证左侧工作队列
+  // 验证左侧工作队列与两行分页支持
   expect(screen.getByText(/全部单据/)).toBeInTheDocument()
   expect(screen.getAllByText('PO202609180743336Z5R1X').length).toBeGreaterThanOrEqual(1)
   expect(screen.getByText('GR20260918074333VRTTMTT')).toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: '采购入库单据队列分页' })).toBeInTheDocument()
 
   // 验证右侧详情全景与药品明细
   expect(screen.getByText('采购用途 / 说明')).toBeInTheDocument()
@@ -333,6 +334,93 @@ it('renders modern split procurement workbench with KPI cards, document queue an
   expect(screen.getByText('LOT-202609')).toBeInTheDocument()
   expect(screen.getByText('效期至：2028-12-31')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /打印入库单/ })).toBeInTheDocument()
+})
+
+it('supports backend search triggering on Enter and Search button click', async () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  const orderObj = {
+    id: 'po-search-1',
+    orderNo: 'PO202609180743336Z5R1X',
+    supplierId: 'supplier-1',
+    orderDate: '2026-09-18',
+    status: 'COMPLETED',
+    lines: [{ id: 'pol-1', stockItemId: 'item', orderedQuantity: 100, remainingQuantity: 0, unitPrice: 12 }],
+  } as unknown as PurchaseOrder
+
+  const receiptObj = {
+    id: 'gr-search-1',
+    receiptNo: 'GR20260918074333VRTTMTT',
+    supplierId: 'supplier-1',
+    purchaseOrderId: 'po-search-1',
+    status: 'POSTED',
+    receivedAt: '2026-09-18T15:42:00.000Z',
+    lines: [{
+      id: 'grl-1',
+      stockItemId: 'item',
+      destinationBinId: 'bin',
+      lotNo: 'LOT-202609',
+      expiryDate: '2028-12-31',
+      deliveredQuantity: 100,
+      acceptedQuantity: 100,
+      unitCost: 12,
+      qualityStatus: 'ACCEPTED',
+    }],
+  } as unknown as GoodsReceipt
+
+  const mockApi = {
+    pharmacy: {
+      suppliers: vi.fn().mockResolvedValue([{ id: 'supplier-1', name: '华康医药配送有限公司' }]),
+      purchaseOrders: vi.fn().mockResolvedValue([orderObj]),
+      goodsReceipts: vi.fn().mockResolvedValue([receiptObj]),
+    },
+    masterData: {
+      searchMedicationProducts: vi.fn().mockResolvedValue({ content: [] }),
+    },
+  } as unknown as RhnApi
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <PurchaseWorkbench
+        api={mockApi}
+        site={{ id: 'site', organizationId: 'org-1', siteType: 'PHARMACY' } as StockSite}
+        items={[item]}
+        bins={[bin]}
+        onNavigate={vi.fn()}
+      />
+    </QueryClientProvider>
+  )
+
+  expect(await screen.findByText(/全部单据/)).toBeInTheDocument()
+  expect(screen.getAllByText('PO202609180743336Z5R1X').length).toBeGreaterThanOrEqual(1)
+  expect(screen.getByText('GR20260918074333VRTTMTT')).toBeInTheDocument()
+
+  const searchInput = screen.getByLabelText('搜索采购入库单据')
+  const searchBtn = screen.getByRole('button', { name: /查询/ })
+  expect(searchBtn).toBeInTheDocument()
+
+  // 1. 输入文本但未按回车/未点查询时，列表不提前触发本地实时过滤
+  fireEvent.change(searchInput, { target: { value: 'VRTTMTT' } })
+  expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(2)
+
+  // 2. 回车触发检索（命中验收单特有单号，左侧队列仅展示匹配的1张单据）
+  fireEvent.keyDown(searchInput, { key: 'Enter', code: 'Enter' })
+  expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(1)
+  expect(screen.getAllByText('GR20260918074333VRTTMTT').length).toBeGreaterThanOrEqual(1)
+
+  // 3. 点击重置按钮恢复全部单据（左侧队列恢复为2张单据）
+  const resetBtn = screen.getByRole('button', { name: '重置' })
+  fireEvent.click(resetBtn)
+  await waitFor(() => expect(screen.queryByRole('button', { name: '重置' })).not.toBeInTheDocument())
+  await waitFor(() => expect(searchBtn).toBeEnabled())
+  expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(2)
+
+  // 4. 输入新关键字并点击【查询】按钮触发检索
+  fireEvent.change(searchInput, { target: { value: '不存在的单号' } })
+  fireEvent.click(searchBtn)
+  await waitFor(() => expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(0))
+  expect(screen.getByText('当前筛选条件下暂无单据，请切换过滤或搜索条件。')).toBeInTheDocument()
 })
 
 

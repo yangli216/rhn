@@ -285,7 +285,8 @@ public class MedicationSafetyCategoryStore {
         sql.append(" and (");
         for (int i = 0; i < names.size(); i++) {
             if (i > 0) sql.append(" or ");
-            sql.append("m.NA_MED like ? or m.NA_ALIAS like ?");
+            sql.append("m.NA_MED like ? or exists (select 1 from RHN_BD_MED_ALIAS a where a.ID_MED = m.ID_MED"
+                    + " and a.ID_TNT = m.ID_TNT and a.SD_STATUS = 'ACTIVE' and a.NA_ALIAS like ?)");
             String namePattern = "%" + names.get(i).trim() + "%";
             params.add(namePattern);
             params.add(namePattern);

@@ -225,7 +225,10 @@ describe('WarehouseManagement', () => {
     } as unknown as ClinicalContext)
 
     fireEvent.click(await screen.findByRole('button', { name: /库存查询/ }))
-    expect(await screen.findByRole('table', { name: '库存查询结果' })).toBeInTheDocument()
+    const inventoryTable = await screen.findByRole('table', { name: '库存查询结果' })
+    expect(inventoryTable).toBeInTheDocument()
+    expect(within(inventoryTable).getByText('阿莫西林胶囊')).toBeInTheDocument()
+    expect(within(inventoryTable).queryByText('AMX-01')).not.toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: '库存列表分页' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '查看流水' }))

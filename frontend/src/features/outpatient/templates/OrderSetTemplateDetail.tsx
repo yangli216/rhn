@@ -89,7 +89,7 @@ export function OrderSetTemplateDetail({ template, departmentName, onInspect }: 
                 <span className="doctor-order-name-with-action">
                   <strong>{item.itemName}</strong>
                   <ServiceInsertButton name={item.itemName} serviceType={item.serviceType} onView={onInspect} />
-                </span> <small className="doctor-plan-item-subtext">({item.itemCode})</small>
+                </span>
               </td>
               <td className={`${tableCellClass('status')} doctor-col--service-type`}><StatusBadge tone="neutral">{serviceTypeText(item.serviceType)}</StatusBadge></td>
               <td className={`${tableCellClass('numeric')} doctor-col--service-qty`}>{item.quantity} {item.unitCode}</td>
@@ -123,7 +123,6 @@ export function LegacyOrderSetDetail({ group, onInspect }: { group: ItemGroup; o
           <span>检查 / 检验 / 治疗项目</span>
           <span className="doctor-plan-card-count">{members.length} 项</span>
         </div>
-        <span className="doctor-plan-detail-card__sub">编码 {group.code}</span>
       </div>
       <div className="doctor-plan-detail-card__table-wrapper">
         <DataTable compact className="doctor-plan-items-table" aria-label="旧组合项目">
@@ -139,7 +138,7 @@ export function LegacyOrderSetDetail({ group, onInspect }: { group: ItemGroup; o
                 <span className="doctor-order-name-with-action">
                   <strong>{member.itemName}</strong>
                   <ServiceInsertButton name={member.itemName} serviceType={member.serviceType} onView={onInspect} />
-                </span> <small className="doctor-plan-item-subtext">({member.itemCode})</small>
+                </span>
               </td>
               <td className={tableCellClass('status')}><StatusBadge tone="neutral">{serviceTypeText(member.serviceType)}</StatusBadge></td>
               <td className={tableCellClass('numeric')}>{member.quantity} {member.unitCode ?? ''}</td>

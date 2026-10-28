@@ -286,7 +286,8 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
             value={scopeFilter}
             onChange={(tabId) => { setScopeFilter(tabId); setNotice('') }}
             label={templateType === 'ORDER_SET' ? '医嘱组套范围分类' : '方案作用域分类'}
-            variant="line"
+            variant="pills"
+            className="doctor-plan-scope-pills"
             items={scopeTabs}
           />}
           {(templateType !== 'PLAN' || scopeFilter !== 'MINED') && (
@@ -448,7 +449,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                         {template ? templateScopeLabel(template.scopeType) : templateScopeLabel('HOSPITAL')}
                       </StatusBadge>
                     </div>
-                    <small className="doctor-plan-card-meta-text">{template ? `已用 ${template.useCount} 次` : legacy?.code}</small>
+                    <small className="doctor-plan-card-meta-text">{template ? `已用 ${template.useCount} 次` : null}</small>
                   </div>
                   <div className="doctor-plan-item-card__title">{template?.name ?? legacy?.name}</div>
                   {template?.description && <div className="doctor-plan-item-card__desc">{template.description}</div>}
@@ -828,7 +829,7 @@ export function OutpatientPlanTemplatesWorkspace({ api, clinicalContext }: Outpa
                             <span className="doctor-order-name-with-action">
                               <strong>{s.itemName}</strong>
                               <ServiceInsertButton name={s.itemName} serviceType={s.serviceType} onView={setInspectTarget} />
-                            </span> <small className="doctor-plan-item-subtext">({s.itemCode})</small>
+                            </span>
                           </td>
                           <td className={`${tableCellClass('status')} doctor-col--service-type`}>
                             <StatusBadge tone="neutral">

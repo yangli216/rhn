@@ -50,6 +50,8 @@ const ParameterManagement = lazy(() => import('../features/settings/ParameterMan
   .then((module) => ({ default: module.ParameterManagement })))
 const InsuranceOnboardingWizard = lazy(() => import('../features/settings/InsuranceOnboardingWizard')
   .then((module) => ({ default: module.InsuranceOnboardingWizard })))
+const InsuranceDebugPage = lazy(() => import('../features/settings/InsuranceDebugConsole')
+  .then((module) => ({ default: module.InsuranceDebugPage })))
 const PaymentChannelManagement = lazy(() => import('../features/settings/PaymentChannelManagement')
   .then((module) => ({ default: module.PaymentChannelManagement })))
 const AiConfigurationManagement = lazy(() => import('../features/settings/AiConfigurationManagement')
@@ -363,6 +365,7 @@ export const NAVIGATION_NODES: NavigationNode[] = [
         id: 'schema-workbench', label: '数据设计工作台', icon: 'database' as const,
         to: '/schema-workbench.html', requiredAuthority: 'PORTAL.ACCESS', fullPageNavigation: true,
       }] : []),
+      { id: 'insurance-debug', label: '医保调试控制台', icon: 'card', to: '/settings/insurance-debug', requiredAuthority: 'INSURANCE_DEBUG.VIEW' },
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'system-parameters', label: '系统运行参数', icon: 'sparkles', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'business-maintenance', label: '业务初始化与清理', icon: 'refresh', to: '/settings/business-maintenance', requiredAuthority: 'MAINTENANCE.VIEW' },
@@ -498,6 +501,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/medications') return { id: pathname, path: pathname, title: '药品知识与目录', icon: 'pill', closeable: true }
   if (pathname === '/settings/services') return { id: pathname, path: pathname, title: '诊疗服务目录', icon: 'clinical', closeable: true }
   if (pathname === '/settings/insurance-onboarding') return { id: pathname, path: pathname, title: '医保接入向导', icon: 'card', closeable: true }
+  if (pathname === '/settings/insurance-debug') return { id: pathname, path: pathname, title: '医保调试控制台', icon: 'card', closeable: true }
   if (pathname === '/settings/standard-mappings') return { id: pathname, path: pathname, title: '标准映射管理', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/item-attributes') return { id: pathname, path: pathname, title: '扩展属性管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/diseases') return { id: pathname, path: pathname, title: '疾病与诊断标准', icon: 'database', closeable: true }
@@ -1237,6 +1241,10 @@ export function AppShell() {
                   <Route path="/settings/insurance-onboarding" element={<InsuranceOnboardingWizard api={tabSlot.api}
                     contextKey={JSON.stringify([session.tenantId, session.userId, tabSlot.clinicalContext])}
                     canProbe={tabAuthorities.has('INSURANCE_PROBE.EXECUTE')} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/insurance-debug" element={<InsuranceDebugPage api={tabSlot.api}
+                    canReverse={tabAuthorities.has('ROLE_ADMIN') || tabAuthorities.has('INSURANCE_DEBUG.REVERSE')}
+                    canConfigure={tabAuthorities.has('ROLE_ADMIN') || tabAuthorities.has('INSURANCE_DEBUG.CONFIGURE')}
+                    canViewRaw={tabAuthorities.has('INSURANCE_DEBUG.RAW')} />} />
                   <Route path="/settings/item-attributes" element={<ItemAttributeWorkspace api={tabSlot.api}
                     onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/diseases" element={<BasicDataManagement api={tabSlot.api} scope="disease"

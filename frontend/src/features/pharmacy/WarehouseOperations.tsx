@@ -6,7 +6,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
 import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
-import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Pagination, RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import {
@@ -18,6 +18,7 @@ import {
   IconInfoCircle,
   IconPlus,
   IconPrinter,
+  IconSearch,
   IconTrash,
   IconTruckDelivery,
 } from '@tabler/icons-react'
@@ -113,8 +114,11 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   const [docType, setDocType] = useState<'all' | 'orders' | 'receipts'>('all')
   const [selectedDocId, setSelectedDocId] = useState<string>()
   const [selectedDocKind, setSelectedDocKind] = useState<'order' | 'receipt'>('order')
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
   const [notice, setNotice] = useState('')
+  const searchRef = useRef(searchInput)
+  searchRef.current = searchInput
 
   const suppliers = useQuery({ queryKey: ['warehouse-suppliers', site.organizationId], queryFn: async () => requireInventoryList(await api.pharmacy.suppliers(site.organizationId)) })
   const orders = useQuery({ queryKey: ['warehouse-purchase-orders', site.id], queryFn: async () => requirePurchaseOrders(await api.pharmacy.purchaseOrders(site.id)) })
@@ -156,8 +160,25 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
   const postedReceipts = receiptsList.filter(r => r.status === 'POSTED')
   const totalPostedAmount = inventoryKnownTotal(postedReceipts.map(receiptAcceptedTotal))
 
+  const handleSearch = useCallback((keyword?: string) => {
+    const val = typeof keyword === 'string' ? keyword : searchRef.current
+    setAppliedSearch(val.trim())
+    setQueuePage(0)
+    void orders.refetch()
+    void receipts.refetch()
+  }, [orders, receipts])
+
+  const handleResetSearch = useCallback(() => {
+    setSearchInput('')
+    searchRef.current = ''
+    setAppliedSearch('')
+    setQueuePage(0)
+    void orders.refetch()
+    void receipts.refetch()
+  }, [orders, receipts])
+
   const matches = useCallback((...values: (string | undefined)[]) => values.join(' ').toLowerCase()
-    .includes(search.trim().toLowerCase()), [search])
+    .includes(appliedSearch.toLowerCase()), [appliedSearch])
 
   // Unified Queue construction
   interface QueueItem {
@@ -181,7 +202,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
       for (const order of ordersList) {
         const sup = suppliers.data?.find(v => v.id === order.supplierId)?.name ?? order.supplierId
         const medNames = order.lines.map(l => items.find(i => i.id === l.stockItemId)?.productName)
-        if (search.trim() && !matches(order.orderNo, sup, ...medNames)) continue
+        if (appliedSearch && !matches(order.orderNo, sup, ...medNames)) continue
 
         // Stage filter for order
         if (stage === 'pending' && ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(order.status)) continue
@@ -209,7 +230,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
         const sup = suppliers.data?.find(v => v.id === receipt.supplierId)?.name ?? receipt.supplierId
         const poNo = ordersList.find(o => o.id === receipt.purchaseOrderId)?.orderNo
         const medNames = receipt.lines.map(l => items.find(i => i.id === l.stockItemId)?.productName)
-        if (search.trim() && !matches(receipt.receiptNo, receipt.deliveryNoteNo, sup, poNo, ...medNames)) continue
+        if (appliedSearch && !matches(receipt.receiptNo, receipt.deliveryNoteNo, sup, poNo, ...medNames)) continue
 
         // Stage filter for receipt
         if (stage === 'pending' && !['RECEIVED', 'INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status)) continue
@@ -233,7 +254,20 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
     }
 
     return list
-  }, [docType, stage, search, matches, ordersList, receiptsList, suppliers.data, items])
+  }, [docType, stage, appliedSearch, matches, ordersList, receiptsList, suppliers.data, items])
+
+  const [queuePage, setQueuePage] = useState(0)
+  const [queuePageSize, setQueuePageSize] = useState(10)
+
+  useEffect(() => {
+    setQueuePage(0)
+  }, [docType, stage, appliedSearch])
+
+  const queueTotalPages = Math.max(1, Math.ceil(queueItems.length / queuePageSize))
+  const pagedQueueItems = useMemo(() => {
+    const start = queuePage * queuePageSize
+    return queueItems.slice(start, start + queuePageSize)
+  }, [queueItems, queuePage, queuePageSize])
 
   // Keep selection valid
   const activeItem = useMemo(() => {
@@ -241,8 +275,8 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
       const found = queueItems.find(it => it.id === selectedDocId && it.kind === selectedDocKind)
       if (found) return found
     }
-    return queueItems[0]
-  }, [queueItems, selectedDocId, selectedDocKind])
+    return pagedQueueItems[0] ?? queueItems[0]
+  }, [queueItems, pagedQueueItems, selectedDocId, selectedDocKind])
 
   useEffect(() => {
     if (activeItem && (activeItem.id !== selectedDocId || activeItem.kind !== selectedDocKind)) {
@@ -250,6 +284,16 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
       setSelectedDocKind(activeItem.kind)
     }
   }, [activeItem, selectedDocId, selectedDocKind])
+
+  useEffect(() => {
+    if (pagedQueueItems.length > 0) {
+      const inCurrentPage = pagedQueueItems.some(it => it.id === selectedDocId && it.kind === selectedDocKind)
+      if (!inCurrentPage) {
+        setSelectedDocId(pagedQueueItems[0].id)
+        setSelectedDocKind(pagedQueueItems[0].kind)
+      }
+    }
+  }, [queuePage, pagedQueueItems, selectedDocId, selectedDocKind])
 
   return <>
     {action.isError && <Alert duration={null}>{errorMessage(action.error)}</Alert>}
@@ -283,12 +327,13 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           onClick={() => { setDocType('orders'); setStage(stage === 'approval' && docType === 'orders' ? 'all' : 'approval') }}
           role="button"
           tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDocType('orders'); setStage(stage === 'approval' && docType === 'orders' ? 'all' : 'approval') } }}
+          title="待审核采购计划 · 待提交与领导审批"
         >
-          <div className="warehouse-kpi-icon warehouse-kpi-icon--blue"><IconFileText size={20} /></div>
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--blue"><IconFileText size={15} /></div>
           <div className="warehouse-kpi-content">
-            <div className="warehouse-kpi-label">待审核采购计划</div>
-            <div className="warehouse-kpi-value">{pendingApprovalCount} 单</div>
-            <div className="warehouse-kpi-sub">待提交与领导审批</div>
+            <span className="warehouse-kpi-label">待审核采购计划</span>
+            <span className="warehouse-kpi-value">{pendingApprovalCount} <span className="warehouse-kpi-unit">单</span></span>
           </div>
         </div>
 
@@ -297,12 +342,13 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           onClick={() => { setDocType('orders'); setStage(stage === 'arrival' && docType === 'orders' ? 'all' : 'arrival') }}
           role="button"
           tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDocType('orders'); setStage(stage === 'arrival' && docType === 'orders' ? 'all' : 'arrival') } }}
+          title="在途待到货单 · 已审批等待供货商送达"
         >
-          <div className="warehouse-kpi-icon warehouse-kpi-icon--amber"><IconTruckDelivery size={20} /></div>
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--amber"><IconTruckDelivery size={15} /></div>
           <div className="warehouse-kpi-content">
-            <div className="warehouse-kpi-label">在途待到货单</div>
-            <div className="warehouse-kpi-value">{pendingArrivalCount} 单</div>
-            <div className="warehouse-kpi-sub">已审批等待供货商送达</div>
+            <span className="warehouse-kpi-label">在途待到货单</span>
+            <span className="warehouse-kpi-value">{pendingArrivalCount} <span className="warehouse-kpi-unit">单</span></span>
           </div>
         </div>
 
@@ -311,14 +357,13 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           onClick={() => { setDocType('receipts'); setStage(stage === 'inspection' && docType === 'receipts' ? 'all' : 'inspection') }}
           role="button"
           tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDocType('receipts'); setStage(stage === 'inspection' && docType === 'receipts' ? 'all' : 'inspection') } }}
+          title={`待质量检验验收 · ${pendingPostingCount > 0 ? `待质检 ${pendingInspectionCount} 单 · 待记账 ${pendingPostingCount} 批` : '货品已到库，等待药检'}`}
         >
-          <div className="warehouse-kpi-icon warehouse-kpi-icon--purple"><IconChecklist size={20} /></div>
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--purple"><IconChecklist size={15} /></div>
           <div className="warehouse-kpi-content">
-            <div className="warehouse-kpi-label">待质量检验验收</div>
-            <div className="warehouse-kpi-value">{pendingInspectionCount} 单</div>
-            <div className="warehouse-kpi-sub">
-              {pendingPostingCount > 0 ? `待质检 ${pendingInspectionCount} 单 · 待记账 ${pendingPostingCount} 批` : '货品已到库，等待药检'}
-            </div>
+            <span className="warehouse-kpi-label">待质量检验验收</span>
+            <span className="warehouse-kpi-value">{pendingInspectionCount} <span className="warehouse-kpi-unit">单</span></span>
           </div>
         </div>
 
@@ -327,12 +372,13 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           onClick={() => { setDocType('receipts'); setStage('all') }}
           role="button"
           tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDocType('receipts'); setStage('all') } }}
+          title={`累计入库总额 · 已记账入库 ${postedReceipts.length} 笔`}
         >
-          <div className="warehouse-kpi-icon warehouse-kpi-icon--emerald"><IconBuildingStore size={20} /></div>
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--emerald"><IconBuildingStore size={15} /></div>
           <div className="warehouse-kpi-content">
-            <div className="warehouse-kpi-label">累计入库总额</div>
-            <div className="warehouse-kpi-value">{formatRecordedMoney(totalPostedAmount)}</div>
-            <div className="warehouse-kpi-sub">已记账入库 {postedReceipts.length} 笔</div>
+            <span className="warehouse-kpi-label">累计入库总额</span>
+            <span className="warehouse-kpi-value">{formatRecordedMoney(totalPostedAmount)}</span>
           </div>
         </div>
       </div>
@@ -386,24 +432,62 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               ))}
             </div>
 
-            <div className="warehouse-queue-search">
+            <form
+              className="warehouse-queue-search"
+              role="search"
+              aria-label="采购入库单据检索"
+              onSubmit={event => {
+                event.preventDefault()
+                handleSearch()
+              }}
+            >
               <input
                 className="ui-field__control"
                 aria-label="搜索采购入库单据"
                 placeholder="单号、供应商、药品名称搜索..."
-                value={search}
-                onChange={event => setSearch(event.target.value)}
+                value={searchInput}
+                onChange={event => {
+                  setSearchInput(event.target.value)
+                  searchRef.current = event.target.value
+                }}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    handleSearch()
+                  }
+                }}
               />
-            </div>
+              <Button
+                type="submit"
+                size="sm"
+                variant="secondary"
+                onClick={() => handleSearch()}
+                busy={orders.isFetching || receipts.isFetching}
+                busyLabel="查询中…"
+              >
+                <IconSearch size={14} /> 查询
+              </Button>
+              {appliedSearch && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleResetSearch}
+                  title="清空查询条件"
+                >
+                  重置
+                </Button>
+              )}
+            </form>
           </div>
 
           <div className="warehouse-queue-list">
-            {!queueItems.length && (
+            {!pagedQueueItems.length && (
               <p className="warehouse-entry-tip" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
                 当前筛选条件下暂无单据，请切换过滤或搜索条件。
               </p>
             )}
-            {queueItems.map(item => {
+            {pagedQueueItems.map(item => {
               const isSelected = activeItem?.id === item.id && activeItem?.kind === item.kind
               return (
                 <div
@@ -413,25 +497,46 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="warehouse-doc-card__top">
-                    <span className={`warehouse-doc-card__type ${item.kind === 'order' ? 'warehouse-doc-card__type--po' : 'warehouse-doc-card__type--gr'}`}>
-                      {item.kind === 'order' ? '采购单' : '验收单'}
-                    </span>
-                    <span className="warehouse-doc-card__no" title={item.docNo}>{item.docNo}</span>
+                  <div className="warehouse-doc-card__head">
+                    <div className="warehouse-doc-card__identity">
+                      <span className={`warehouse-doc-card__type ${item.kind === 'order' ? 'warehouse-doc-card__type--po' : 'warehouse-doc-card__type--gr'}`}>
+                        {item.kind === 'order' ? '采购单' : '验收单'}
+                      </span>
+                      <span className="warehouse-doc-card__no" title={item.docNo}>{item.docNo}</span>
+                    </div>
                     <StatusBadge tone={statusTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
                   </div>
-                  <div className="warehouse-doc-card__body">
-                    <span className="warehouse-doc-card__supplier" title={item.supplierName}>{item.supplierName}</span>
-                    <span className="warehouse-doc-card__items">{item.countText}</span>
-                  </div>
-                  <div className="warehouse-doc-card__foot">
-                    <span>{item.date}</span>
+                  <div className="warehouse-doc-card__meta">
+                    <span className="warehouse-doc-card__detail" title={`${item.supplierName} · ${item.countText}${item.date ? ` · ${item.date}` : ''}`}>
+                      <strong className="warehouse-doc-card__supplier">{item.supplierName}</strong>
+                      <span className="warehouse-doc-card__dot">·</span>
+                      <span className="warehouse-doc-card__items">{item.countText}</span>
+                      {item.date && <>
+                        <span className="warehouse-doc-card__dot">·</span>
+                        <span className="warehouse-doc-card__date">{item.date.includes(' ') ? item.date.split(' ')[0] : item.date}</span>
+                      </>}
+                    </span>
                     <strong className="warehouse-doc-card__amount">{formatRecordedMoney(item.amount)}</strong>
                   </div>
                 </div>
               )
             })}
           </div>
+          {queueItems.length > 0 && (
+            <div className="warehouse-queue-footer ui-table-footer">
+              <Pagination
+                mode="compact"
+                page={queuePage}
+                totalPages={queueTotalPages}
+                total={queueItems.length}
+                pageSize={queuePageSize}
+                onChange={setQueuePage}
+                onPageSizeChange={(size) => { setQueuePageSize(size); setQueuePage(0) }}
+                pageSizeOptions={[10, 20, 50]}
+                label="采购入库单据队列分页"
+              />
+            </div>
+          )}
         </div>
 
         {/* 右栏：单据全景详情与就地作业台 */}

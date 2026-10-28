@@ -414,10 +414,20 @@ class InsuranceClaimTransactionService {
 
     @Transactional(readOnly = true)
     List<InsuranceSettlementView> recoveryWorklist(int limit) {
+        return worklist(limit, List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING"), value -> true);
+    }
+
+    /** 调试控制台的待人工处理清单：三类结果未定的申请，加上冲正失败的申请。 */
+    @Transactional(readOnly = true)
+    List<InsuranceSettlementView> attentionWorklist(int limit) {
+        return worklist(limit, List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING", "FAILED"),
+                value -> !"FAILED".equals(value.status()) || "REVERSE".equals(value.currentOperation()));
+    }
+
+    private List<InsuranceSettlementView> worklist(int limit, List<String> statuses, java.util.function.Predicate<InsuranceClaim> keep) {
         ExecutionContext context = requireContext();
-        List<InsuranceClaim> values = claims.findRecoveryWorklist(context.tenantId(), context.organizationId(),
-                List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING"),
-                PageRequest.of(0, Math.max(1, Math.min(limit, 100))));
+        List<InsuranceClaim> values = claims.findRecoveryWorklist(context.tenantId(), context.organizationId(), statuses,
+                PageRequest.of(0, Math.max(1, Math.min(limit, 100)))).stream().filter(keep).toList();
         if (values.isEmpty()) return List.of();
         Map<Long, Settlement> settlementById = settlementsById(context.tenantId(), values);
         Map<Long, List<InsuranceClaimLine>> linesByClaim = claimLinesByClaim(context.tenantId(), values);

@@ -13,6 +13,33 @@ export type InsuranceReadinessReport = ContractProjection<RequiredWireView<compo
   summary: { pass: number; warn: number; block: number }; sections: InsuranceReadinessSection[]; insuranceSystemCodes: string[]
 }>
 
+// 调试控制台契约（后端 InsuranceDebugViews）；尚未纳入 generated.ts 快照，先以手写类型对齐。
+export type InsuranceDebugScope = 'ALL' | 'IMPORTANT' | 'SELECTED'
+export type InsuranceDebugRetention = 'SUMMARY' | 'REDACTED' | 'RAW'
+export type InsuranceDebugInfno = { code: string; name: string; important: boolean }
+export type InsuranceDebugSettings = {
+  enabled: boolean; effectivelyEnabled: boolean; scope: InsuranceDebugScope; selectedInfnos: string[]
+  retention: InsuranceDebugRetention; keepDays: number; enabledUntil?: string; revision: number
+  knownInfnos: InsuranceDebugInfno[]; rawAllowed: boolean
+}
+export type InsuranceDebugSettingsUpdate = {
+  enabled: boolean; scope: InsuranceDebugScope; selectedInfnos: string[]; retention: InsuranceDebugRetention
+  keepDays: number; autoDisableHours?: number; confirmRaw: boolean; expectedRevision: number
+}
+export type InsuranceDebugExchange = {
+  id: string; infno: string; infnoName: string; startedAt: string; durationMs: number; httpStatus?: number
+  infcode?: string; errMsg?: string; outcome: string; outcomeText: string; actor?: string; retention: InsuranceDebugRetention; claimId?: string; claimNo?: string
+}
+export type InsuranceDebugExchangeDetail = { summary: InsuranceDebugExchange; correlationId?: string; request?: string; response?: string; rawVisible: boolean }
+export type InsuranceDebugExchangePage = { content: InsuranceDebugExchange[]; totalElements: number; totalPages: number; page: number; size: number }
+export type InsuranceDebugExchangeQuery = { from?: string; to?: string; infno?: string; outcome?: string; keyword?: string; failedOnly?: boolean; claimId?: string }
+export type InsuranceDebugClaim = {
+  claimId: string; claimNo: string; settlementNo?: string; status: string; statusText: string; currentOperation?: string; reason: string
+  errorCode?: string; errorMessage?: string; grossAmount?: number; insuranceFundAmount?: number; personalAccountAmount?: number
+  patientCashAmount?: number; externalSettlementNo?: string; reversalReason?: string; canQuery: boolean; canReverse: boolean
+}
+export type InsuranceDebugClaimAction = { outcome: 'QUERIED' | 'ALREADY_REVERSED' | 'NOT_REVERSIBLE' | 'REVERSED' | 'REVERSAL_PENDING'; message: string; claim: InsuranceDebugClaim }
+
 export type InsuranceProbeCapability = RequiredWireView<components['schemas']['ProbeCapability'],
   'available' | 'mode' | 'modeText' | 'signInRequired' | 'settlementAllowed'>
 export type InsuranceProbeFact = RequiredWireView<components['schemas']['ProbeFact'], 'label' | 'value'>
@@ -441,6 +468,21 @@ export function createBillingApi(client: ApiClient) {
       method: 'POST', body: JSON.stringify(input),
     }),
     insuranceReadiness: () => client.request<InsuranceReadinessReport>('/api/billing/insurance/readiness'),
+    insuranceDebugSettings: () => client.request<InsuranceDebugSettings>('/api/billing/insurance/debug/settings'),
+    updateInsuranceDebugSettings: (input: InsuranceDebugSettingsUpdate) => client.request<InsuranceDebugSettings>(
+      '/api/billing/insurance/debug/settings', { method: 'PUT', body: JSON.stringify(input) }),
+    insuranceDebugExchanges: (query: InsuranceDebugExchangeQuery, page: number, size: number) => {
+      const params = new URLSearchParams({ page: String(page), size: String(size) })
+      for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '' && value !== false) params.set(key, String(value))
+      return client.request<InsuranceDebugExchangePage>(`/api/billing/insurance/debug/exchanges?${params.toString()}`)
+    },
+    insuranceDebugExchange: (id: string) => client.request<InsuranceDebugExchangeDetail>(
+      `/api/billing/insurance/debug/exchanges/${encodeURIComponent(id)}`),
+    insuranceDebugAttention: (limit = 50) => client.request<InsuranceDebugClaim[]>(`/api/billing/insurance/debug/claims/attention?limit=${limit}`),
+    insuranceDebugQueryClaim: (claimId: string) => client.request<InsuranceDebugClaimAction>(
+      `/api/billing/insurance/debug/claims/${encodeURIComponent(claimId)}/query`, { method: 'POST' }),
+    insuranceDebugReverseClaim: (claimId: string, input: { reason: string; confirmClaimNo: string }) => client.request<InsuranceDebugClaimAction>(
+      `/api/billing/insurance/debug/claims/${encodeURIComponent(claimId)}/reverse`, { method: 'POST', body: JSON.stringify(input) }),
     insuranceProbeCapability: () => client.request<InsuranceProbeCapability>('/api/billing/insurance/probe/capability'),
     runInsuranceProbe: (step: InsuranceProbeStepCode, input: InsuranceProbeRequest = {}) => client.request<InsuranceProbeStepResult>(
       `/api/billing/insurance/probe/steps/${step}`, { method: 'POST', body: JSON.stringify(input) }),

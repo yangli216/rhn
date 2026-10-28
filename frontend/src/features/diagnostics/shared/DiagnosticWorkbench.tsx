@@ -10,7 +10,7 @@ import { MasterDetailPage } from '../../../shared/ui/templates/PageTemplates'
 import { DiagnosticQueue, DiagnosticTaskContext, DiagnosticRequestDetails, TaskReports } from './DiagnosticTaskPanels'
 import { DiagnosticQueueNote } from './DiagnosticQueueNote'
 import { DiagnosticTaskOperations } from './DiagnosticTaskOperations'
-import { diagnosticDateBoundary, diagnosticStatusOptions, type DiagnosticForm, type DiagnosticView } from './diagnosticWorkbenchModel'
+import { defaultDiagnosticDates, diagnosticDateBoundary,diagnosticStatusOptions, type DiagnosticForm, type DiagnosticView } from './diagnosticWorkbenchModel'
 import '../../../styles/features/diagnostic-execution.css'
 import './diagnostic-workbench.css'
 
@@ -28,8 +28,8 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
   const [selectedId, setSelectedId] = useState(params.get('taskId') || '')
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
-  const [dates, setDates] = useState({ from: '', to: '' })
-  const [filters, setFilters] = useState({ keyword: '', status: '', from: '', to: '' })
+  const [dates, setDates] = useState(defaultDiagnosticDates)
+  const [filters, setFilters] = useState(() => ({ keyword: '', status: '', ...defaultDiagnosticDates() }))
   const [filterError, setFilterError] = useState('')
   const [page, setPage] = useState(0)
   const [forms, setForms] = useState<Record<string, DiagnosticForm>>({})
@@ -76,8 +76,8 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
     if (!tasks.some((task) => task.id === selectedId)) setSelectedId(tasks[0]?.id || '')
   }, [tasks, selectedId, params, linkedTask.isSuccess])
   useEffect(() => {
-    setSelectedId(params.get('taskId') || ''); setKeyword(''); setStatus(''); setDates({ from: '', to: '' }); setFilterError('')
-    setFilters({ keyword: '', status: '', from: '', to: '' }); setPage(0)
+    setSelectedId(params.get('taskId') || ''); setKeyword(''); setStatus(''); const range = defaultDiagnosticDates(); setDates(range); setFilterError('')
+    setFilters({ keyword: '', status: '', ...range }); setPage(0)
   }, [scope, params])
   // A state transition can remove the last row on a page; return to the last remaining page.
   useEffect(() => {
@@ -93,8 +93,9 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
     setFilters({ keyword: keyword.trim(), status, ...dates })
   }
   const resetFilters = () => {
-    setKeyword(''); setStatus(''); setDates({ from: '', to: '' }); setFilterError(''); setPage(0)
-    setFilters({ keyword: '', status: '', from: '', to: '' })
+    const range = defaultDiagnosticDates()
+    setKeyword(''); setStatus(''); setDates(range); setFilterError(''); setPage(0)
+    setFilters({ keyword: '', status: '', ...range })
   }
   const formKey = `${scope}:${selected?.id || ''}`
   const view = views[formKey] || 'work'
@@ -108,8 +109,8 @@ export function DiagnosticWorkbench({ api, clinicalContext, onNavigate, requestT
       <FormField label="任务状态"><Select value={status} onChange={setStatus} options={diagnosticStatusOptions(laboratory)} clearable={false} searchable={false} /></FormField>
       <FormField label="申请日期" className="ui-query-filter--date"><DateRangePicker value={dates} onChange={setDates}
         startAriaLabel="申请开始日期" endAriaLabel="申请结束日期" /></FormField>
-      <div className="ui-query-filters__actions"><Button variant="secondary" onClick={applyFilters}>查询</Button>
-        <Button variant="text" onClick={resetFilters}>重置</Button></div>
+      <div className="ui-query-filters__actions"><Button onClick={applyFilters}>查询</Button>
+        <Button variant="secondary" onClick={resetFilters}>重置</Button></div>
       <DiagnosticQueueNote reportPath={`/diagnostics/${laboratory ? 'laboratory' : 'examination'}/reports`} onNavigate={onNavigate} />
     </div>{filterError && <Alert placement="inline">{filterError}</Alert>}
     {linkedTask.error && <Alert>{errorMessage(linkedTask.error)}</Alert>}

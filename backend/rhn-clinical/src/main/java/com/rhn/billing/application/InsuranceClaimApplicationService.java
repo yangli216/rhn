@@ -8,6 +8,7 @@ import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceQuery;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceReversal;
 import com.rhn.billing.api.InsuranceSettlementAdapter.InsuranceResult;
 import com.rhn.billing.domain.InsuranceClaim;
+import com.rhn.billing.infrastructure.insurance.chs.ChsExchangeScope;
 import com.rhn.billing.infrastructure.insurance.chs.ChsModels;
 import com.rhn.billing.infrastructure.insurance.chs.NationalInsuranceClient;
 import com.rhn.platform.integration.api.ExternalMessageService;
@@ -168,7 +169,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         String command = CommandCodes.prefixed("PRE-R" + (view.responses().size() + 1) + "-", view.claimNo());
         if (transactions.responseApplied(claimId, command)) return view;
         InsuranceResult result;
-        try { result = adapter.preSettle(instruction); }
+        try { result = ChsExchangeScope.within(claimId, () -> adapter.preSettle(instruction)); }
         catch (RuntimeException exception) { result = uncertain(exception); }
         var applied = transactions.apply(claimId, "PRE_SETTLE", result, command, null, false);
         return transactions.view(claimId, applied.duplicate());
@@ -195,7 +196,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             messageId = enqueue(instruction, "INSURANCE_PRE_SETTLEMENT", command);
             result = pending("INSURANCE_ADAPTER_PENDING", "医保适配器尚未处理预结算申请");
         } else {
-            try { result = adapter.preSettle(instruction); }
+            try { result = ChsExchangeScope.within(claim.id(), () -> adapter.preSettle(instruction)); }
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
         var applied = transactions.apply(claim.id(), "PRE_SETTLE", result, command, messageId, false);
@@ -223,7 +224,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             messageId = enqueue(instruction, "INSURANCE_SETTLEMENT", command);
             result = pending("INSURANCE_ADAPTER_PENDING", "医保适配器尚未处理正式结算申请");
         } else {
-            try { result = adapter.settle(instruction, transactions.view(claimId, false).externalPreSettlementNo()); }
+            try { result = ChsExchangeScope.within(claimId, () -> adapter.settle(instruction, transactions.view(claimId, false).externalPreSettlementNo())); }
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
         var applied = transactions.apply(claimId, "SETTLE", result, command, messageId, false);
@@ -241,7 +242,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
         }
         InsuranceResult result;
         InsuranceQuery query = transactions.queryInstruction(claimId);
-        try { result = adapter.query(query); }
+        try { result = ChsExchangeScope.within(claimId, () -> adapter.query(query)); }
         catch (RuntimeException exception) { result = uncertain(exception); }
         var applied = transactions.apply(claimId, query.operation(), result, command, null, false);
         return transactions.view(claimId, applied.duplicate());
@@ -273,7 +274,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
             messageId = enqueueReversal(reversal, command);
             result = pending("INSURANCE_ADAPTER_PENDING", "医保适配器尚未处理冲正申请");
         } else {
-            try { result = adapter.reverse(reversal); }
+            try { result = ChsExchangeScope.within(claimId, () -> adapter.reverse(reversal)); }
             catch (RuntimeException exception) { result = uncertain(exception); }
         }
         var applied = transactions.apply(claimId, "REVERSE", result, command, messageId, false);
@@ -291,7 +292,7 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
                 .findFirst().orElse(null);
         if (adapter == null) throw conflict("INSURANCE_ADAPTER_UNAVAILABLE", "医保接口不可用，暂不能撤销医保试算");
         InsuranceResult result;
-        try { result = adapter.cancelPreSettlement(instruction); }
+        try { result = ChsExchangeScope.within(claimId, () -> adapter.cancelPreSettlement(instruction)); }
         catch (RuntimeException exception) {
             throw conflict("INSURANCE_PRESETTLE_CANCEL_FAILED", "撤销医保试算失败：" + exception.getMessage());
         }
@@ -306,6 +307,10 @@ public class InsuranceClaimApplicationService implements InsuranceResultDirector
 
     public List<InsuranceSettlementView> recoveryWorklist(int limit) {
         return transactions.recoveryWorklist(limit);
+    }
+
+    public List<InsuranceSettlementView> attentionWorklist(int limit) {
+        return transactions.attentionWorklist(limit);
     }
 
     public List<RecoveryResult> recoverPending(String batchCode, int limit) {

@@ -32587,5 +32587,173 @@
         "comment": "医生与时间、真实文档版本及变化字段指纹，不复制病历原文"
       }
     ]
+  },
+  {
+    "logical": "ins.insurance_debug_setting",
+    "legacy": "insurance_debug_settings",
+    "physical": "RHN_INS_DBG_CFG",
+    "domain": "INS",
+    "comment": "医保调试控制台配置；一行代表一个租户的调试开关与记录范围",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_DBG_CFG",
+        "comment": "主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "enabled",
+        "physical": "FG_ENABLED",
+        "comment": "调试开关"
+      },
+      {
+        "logical": "scope",
+        "physical": "SD_SCOPE",
+        "comment": "记录范围：ALL 所有交易、IMPORTANT 重要交易、SELECTED 指定交易"
+      },
+      {
+        "logical": "selected_infno_codes",
+        "physical": "CD_SEL_INFNO",
+        "comment": "指定交易号，逗号分隔"
+      },
+      {
+        "logical": "retention_level",
+        "physical": "SD_RETAIN",
+        "comment": "报文留存级别：SUMMARY 仅摘要、REDACTED 脱敏报文、RAW 原始报文"
+      },
+      {
+        "logical": "keep_days",
+        "physical": "QTY_KEEP_DAYS",
+        "comment": "记录保留天数"
+      },
+      {
+        "logical": "enabled_until",
+        "physical": "DT_ENABLED_UNTIL",
+        "comment": "调试自动关闭时间；为空表示不自动关闭"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "最近修改时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "最近修改人"
+      }
+    ]
+  },
+  {
+    "logical": "ins.insurance_exchange_log",
+    "legacy": "insurance_exchange_logs",
+    "physical": "RHN_INS_EXCH_LOG",
+    "domain": "INS",
+    "comment": "医保网关往返记录；一行代表一次与医保网关的报文往返",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_EXCH_LOG",
+        "comment": "主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "infno",
+        "physical": "CD_INFNO",
+        "comment": "交易号"
+      },
+      {
+        "logical": "started_at",
+        "physical": "DT_STARTED",
+        "comment": "发起时间"
+      },
+      {
+        "logical": "elapsed_ms",
+        "physical": "QTY_ELAPSED_MS",
+        "comment": "耗时毫秒"
+      },
+      {
+        "logical": "http_code",
+        "physical": "QTY_HTTP_STATUS",
+        "comment": "HTTP 状态码"
+      },
+      {
+        "logical": "infcode",
+        "physical": "CD_INFCODE",
+        "comment": "医保返回码"
+      },
+      {
+        "logical": "error_message",
+        "physical": "DES_ERR_MSG",
+        "comment": "医保返回的错误信息"
+      },
+      {
+        "logical": "outcome",
+        "physical": "SD_OUTCOME",
+        "comment": "往返结果分类"
+      },
+      {
+        "logical": "retention_level",
+        "physical": "SD_RETAIN",
+        "comment": "本条记录的报文留存级别"
+      },
+      {
+        "logical": "user_id",
+        "physical": "ID_USER",
+        "comment": "操作人标识"
+      },
+      {
+        "logical": "actor_name",
+        "physical": "NA_ACTOR",
+        "comment": "操作人名称"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "correlation_id",
+        "physical": "ID_CORR",
+        "comment": "请求关联号"
+      },
+      {
+        "logical": "request_payload",
+        "physical": "JSON_REQ",
+        "comment": "请求报文，按留存级别脱敏或原样保存"
+      },
+      {
+        "logical": "response_payload",
+        "physical": "JSON_RESP",
+        "comment": "响应报文，按留存级别脱敏或原样保存"
+      },
+      {
+        "logical": "expires_at",
+        "physical": "DT_EXPIRES",
+        "comment": "到期清理时间"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "记录时间"
+      },
+      {
+        "logical": "claim_id",
+        "physical": "ID_INS_CLAIM",
+        "comment": "关联的医保申请标识；不在申请操作内发起的往返为空"
+      }
+    ]
   }
 ]
