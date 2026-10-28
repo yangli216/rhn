@@ -1,0 +1,10 @@
+#!/bin/sh
+# UI 门禁左移：只检查本次暂存的前端文件（暂存区内容），规则与基线同 npm run ui:check。
+# 安装：cd frontend && npm run hooks:install；紧急情况可 git commit --no-verify，CI 仍会全量检查。
+top=$(git rev-parse --show-toplevel) || exit 1
+git diff --cached --name-only --diff-filter=ACMR | grep -Eq '^frontend/src/.+\.(css|tsx?)$' || exit 0
+if [ ! -d "$top/frontend/node_modules/typescript" ] || [ ! -d "$top/frontend/node_modules/postcss" ]; then
+  echo "pre-commit: 未安装 frontend 依赖，跳过 UI 门禁（CI 仍会检查）" >&2
+  exit 0
+fi
+exec node "$top/frontend/scripts/check-ui-files.mjs" --staged

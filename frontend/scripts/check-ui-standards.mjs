@@ -2,24 +2,11 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { extname, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { inspectUiLiterals } from './ui-standards-rules.mjs'
+import { inspectStandardsFile } from './ui-standards-rules.mjs'
 
 const sourceRoot = new URL('../src/', import.meta.url)
-const tokenFile = 'styles/tokens.css'
 const sourceExtensions = new Set(['.css', '.ts', '.tsx'])
 const violations = []
-const inpatientStationFiles = new Set([
-  'features/inpatient/InpatientDoctorStation.tsx',
-  'features/inpatient/InpatientAdmissionDiagnosisPanel.tsx',
-  'features/inpatient/InpatientDiagnosticResults.tsx',
-  'features/inpatient/InpatientMedicalRecordWorkspace.tsx',
-  'features/inpatient/InpatientOrderWorkspace.tsx',
-  'features/inpatient/InpatientNurseStation.tsx',
-  'features/inpatient/InpatientNursingWorkspace.tsx',
-  'features/inpatient/InpatientShiftHandoffWorkspace.tsx',
-  'features/inpatient/InpatientStationShared.tsx',
-  'features/inpatient/InpatientTemperatureChart.tsx',
-])
 
 function collect(directoryUrl) {
   return readdirSync(directoryUrl, { withFileTypes: true }).flatMap((entry) => {
@@ -35,50 +22,7 @@ function report(file, line, rule, value) {
 for (const fileUrl of collect(sourceRoot)) {
   if (!sourceExtensions.has(extname(fileUrl.pathname))) continue
   const file = relative(sourceRoot.pathname, fileUrl.pathname)
-  const source = readFileSync(fileUrl, 'utf8')
-  const lines = source.split('\n')
-  if (file.endsWith('.ts') || file.endsWith('.tsx')) {
-    for (const finding of inspectUiLiterals(file, source)) report(file, finding.line, finding.rule, finding.value)
-  }
-
-  lines.forEach((line, index) => {
-    const lineNumber = index + 1
-
-    if (file !== tokenFile && file.endsWith('.css')) {
-      const rawColors = line.match(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)/g) ?? []
-      rawColors.forEach((value) => report(file, lineNumber, 'raw-color', `${value} 应定义为语义令牌`))
-    }
-
-    const legacyNames = line.match(/--(?:teal|teal-dark|teal-soft|ink|muted|line|surface|shadow)(?=\s*[:),;])/g) ?? []
-    legacyNames.forEach((value) => report(file, lineNumber, 'legacy-token', `${value} 已废弃`))
-
-    const fontSize = line.match(/font-size:\s*([0-9.]+)px/)
-    if (fontSize && Number(fontSize[1]) < 12) {
-      report(file, lineNumber, 'minimum-font-size', `${fontSize[1]}px 小于 12px`)
-    }
-
-    if (file.startsWith('features/settings/') && /<select\b/.test(line)) {
-      report(file, lineNumber, 'native-platform-select', '平台管理下拉请使用 shared/ui Select、FormSelect 或 DictionarySelect')
-    }
-
-    if (inpatientStationFiles.has(file) && /<select\b/.test(line)) {
-      report(file, lineNumber, 'native-inpatient-select', '住院工作站下拉请使用 shared/ui Select 或 DictionarySelect')
-    }
-
-    if (inpatientStationFiles.has(file) && (/role=["']tablist["']/.test(line)
-      || /<nav\b[^>]*className=["'][^"']*tabs/.test(line))) {
-      report(file, lineNumber, 'native-inpatient-tabs', '住院工作站页签请使用 shared/ui Tabs')
-    }
-
-    if (file.startsWith('features/settings/') && /role=["']tablist["']/.test(line)) {
-      report(file, lineNumber, 'native-platform-tabs', '平台管理页签请使用 shared/ui Tabs')
-    }
-
-    if (file.startsWith('features/settings/')
-      && /className=["'{`][^\n]*(?:dictionary-search|parameter-search|master-search|master-data-search)/.test(line)) {
-      report(file, lineNumber, 'legacy-platform-search', '平台管理检索请使用 shared/ui SearchField')
-    }
-  })
+  for (const finding of inspectStandardsFile(file, readFileSync(fileUrl, 'utf8'))) report(file, finding.line, finding.rule, finding.value)
 }
 
 // Always run the incremental rules, even when pre-existing full-scope rules fail.

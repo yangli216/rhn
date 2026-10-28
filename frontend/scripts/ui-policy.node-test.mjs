@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { newFindings, scanSource, validateBaseline, validateExceptions } from './ui-policy.mjs'
-import { inspectUiLiterals } from './ui-standards-rules.mjs'
+import { inspectStandardsFile, inspectUiLiterals } from './ui-standards-rules.mjs'
 
 const file = 'features/example/Example.tsx'
 const rules = findings => findings.map(item => item.rule)
@@ -102,4 +102,12 @@ test('exceptions need an exact fingerprint, owner, reason, expiry and removal co
     assert.throws(() => validateExceptions([{ ...exception, ...patch }]))
   }
   assert.throws(() => validateExceptions([exception, exception]))
+})
+
+test('per-file standards rules match the full check and keep token definitions exempt', () => {
+  const css = '.a { color: #fff; font-size: 11px; }\n.b { color: var(--teal); }'
+  assert.deepEqual(inspectStandardsFile('features/example/example.css', css).map(item => [item.line, item.rule]),
+    [[1, 'raw-color'], [1, 'minimum-font-size'], [2, 'legacy-token']])
+  assert.deepEqual(inspectStandardsFile('styles/tokens.css', ':root { --color-x: #fff; }'), [])
+  assert.deepEqual(rules(inspectStandardsFile('features/settings/Example.tsx', `const v = <select aria-label="x" />`)), ['native-platform-select'])
 })

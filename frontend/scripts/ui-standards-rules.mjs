@@ -6,6 +6,18 @@ const legacyClass = /(?:^|\s)(?:primary-button|secondary-button|error-banner|sta
 const localeFormatOwners = new Set(['shared/format.ts', 'shared/utils/precision.ts', 'shared/utils/dateRange.ts'])
 const localeFormatMethods = new Set(['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString'])
 const nonFormattingIntl = new Set(['Collator', 'Segmenter'])
+const inpatientStationFiles = new Set([
+  'features/inpatient/InpatientDoctorStation.tsx',
+  'features/inpatient/InpatientAdmissionDiagnosisPanel.tsx',
+  'features/inpatient/InpatientDiagnosticResults.tsx',
+  'features/inpatient/InpatientMedicalRecordWorkspace.tsx',
+  'features/inpatient/InpatientOrderWorkspace.tsx',
+  'features/inpatient/InpatientNurseStation.tsx',
+  'features/inpatient/InpatientNursingWorkspace.tsx',
+  'features/inpatient/InpatientShiftHandoffWorkspace.tsx',
+  'features/inpatient/InpatientStationShared.tsx',
+  'features/inpatient/InpatientTemperatureChart.tsx',
+])
 
 /** Inspect color-valued strings and JSX classes, not human-readable record identifiers. */
 export function inspectUiLiterals(file, source) {
@@ -43,5 +55,57 @@ export function inspectUiLiterals(file, source) {
     ts.forEachChild(node, visit)
   }
   visit(ast)
+  return findings
+}
+
+/** Full-scope line rules for one source file; tokens.css owns raw color definitions. */
+export function inspectStandardsFile(file, source) {
+  const findings = []
+  function report(line, rule, value) {
+    findings.push({ line, rule, value })
+  }
+  const lines = source.split('\n')
+  if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+    for (const finding of inspectUiLiterals(file, source)) report(finding.line, finding.rule, finding.value)
+  }
+
+  lines.forEach((line, index) => {
+    const lineNumber = index + 1
+
+    if (file !== 'styles/tokens.css' && file.endsWith('.css')) {
+      const rawColors = line.match(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)/g) ?? []
+      rawColors.forEach((value) => report(lineNumber, 'raw-color', `${value} 应定义为语义令牌`))
+    }
+
+    const legacyNames = line.match(/--(?:teal|teal-dark|teal-soft|ink|muted|line|surface|shadow)(?=\s*[:),;])/g) ?? []
+    legacyNames.forEach((value) => report(lineNumber, 'legacy-token', `${value} 已废弃`))
+
+    const fontSize = line.match(/font-size:\s*([0-9.]+)px/)
+    if (fontSize && Number(fontSize[1]) < 12) {
+      report(lineNumber, 'minimum-font-size', `${fontSize[1]}px 小于 12px`)
+    }
+
+    if (file.startsWith('features/settings/') && /<select\b/.test(line)) {
+      report(lineNumber, 'native-platform-select', '平台管理下拉请使用 shared/ui Select、FormSelect 或 DictionarySelect')
+    }
+
+    if (inpatientStationFiles.has(file) && /<select\b/.test(line)) {
+      report(lineNumber, 'native-inpatient-select', '住院工作站下拉请使用 shared/ui Select 或 DictionarySelect')
+    }
+
+    if (inpatientStationFiles.has(file) && (/role=["']tablist["']/.test(line)
+      || /<nav\b[^>]*className=["'][^"']*tabs/.test(line))) {
+      report(lineNumber, 'native-inpatient-tabs', '住院工作站页签请使用 shared/ui Tabs')
+    }
+
+    if (file.startsWith('features/settings/') && /role=["']tablist["']/.test(line)) {
+      report(lineNumber, 'native-platform-tabs', '平台管理页签请使用 shared/ui Tabs')
+    }
+
+    if (file.startsWith('features/settings/')
+      && /className=["'{`][^\n]*(?:dictionary-search|parameter-search|master-search|master-data-search)/.test(line)) {
+      report(lineNumber, 'legacy-platform-search', '平台管理检索请使用 shared/ui SearchField')
+    }
+  })
   return findings
 }

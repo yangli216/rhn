@@ -11,6 +11,8 @@
     "ui:check": "npm run ui:policy:test && node scripts/check-ui-standards.mjs",
     "ui:policy": "node scripts/check-ui-policy.mjs",
     "ui:policy:test": "node --test scripts/ui-policy.node-test.mjs",
+    "ui:files": "node scripts/check-ui-files.mjs",
+    "hooks:install": "git config core.hooksPath .githooks",
     "api:generate": "openapi-typescript ../docs/api/openapi.json -o src/shared/api/generated.ts",
     "schema:refresh": "node ../scripts/schema-workbench/cli.mjs refresh",
     "schema:context": "node ../scripts/schema-workbench/cli.mjs context",

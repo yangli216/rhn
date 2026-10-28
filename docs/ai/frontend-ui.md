@@ -61,6 +61,7 @@
 从 frontend 目录执行：
 
 ```sh
+npm run ui:files -- <文件...> # 只检查本次编辑的文件（<1s），规则与基线同 ui:check
 npm run ui:policy:test       # 检查规则自身的回归测试
 npm run ui:policy           # 新增规则 + 固定历史基线
 npm run ui:policy -- --audit # 只读展开当前违规代码，便于追溯基线指纹（完整输出存日志）
@@ -68,6 +69,8 @@ npm run ui:check            # 原有全量规则 + 新增规则；已接入 CI /
 npm run test -- src/dev/PageTemplateGallery.test.tsx
 npm run build
 ```
+
+编辑时门禁：Claude Code 通过仓库 `.claude/settings.json` 的 PostToolUse hook，在每次编辑 `frontend/src` 下的 css/ts/tsx 后自动执行 `ui:files`，违规当场回给模型修正；其他编码代理改完文件后自行运行 `npm run ui:files -- <文件...>`。提交时门禁：`npm run hooks:install` 一次性启用 `.githooks/pre-commit`，只检查暂存的前端文件（暂存区内容）。按文件检查不会报告其他任务未提交的违规，但不替代 `ui:check` / CI 的全量检查；`--no-verify` 仅限紧急情况。
 
 上面是按需选择的命令，不要求每轮全部执行。局部前端改动优先使用业务 scope 的 `--frontend-only`，其中已包含的 UI/代码门禁、回归和构建不要再逐项重复；新页面选择相应领域并补充必要回归。修改共享模板/组件要扩大至受影响消费者；修改门禁实现验证其负向自测。`npm run check` 保留为完整前端 CI 或需要扩大覆盖时的入口，不作为每次 UI 修改的默认收尾。仅修改此类说明文档时检查差异、链接和一致性。完整日志写入 `.runtime/verification/`，先读摘要；既存失败应与改动前结果比较，不以更新基线或关闭规则解决。
 
