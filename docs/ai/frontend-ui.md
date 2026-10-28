@@ -62,6 +62,7 @@
 
 ```sh
 npm run ui:files -- <文件...> # 只检查本次编辑的文件（<1s），规则与基线同 ui:check
+npm run ui:visual            # 模板库截图比对（1280/1440/1920 × 标准/大字 + 长数据），约 10s
 npm run ui:policy:test       # 检查规则自身的回归测试
 npm run ui:policy           # 新增规则 + 固定历史基线
 npm run ui:policy -- --audit # 只读展开当前违规代码，便于追溯基线指纹（完整输出存日志）
@@ -71,6 +72,8 @@ npm run build
 ```
 
 编辑时门禁：Claude Code 通过仓库 `.claude/settings.json` 的 PostToolUse hook，在每次编辑 `frontend/src` 下的 css/ts/tsx 后自动执行 `ui:files`，违规当场回给模型修正；其他编码代理改完文件后自行运行 `npm run ui:files -- <文件...>`。提交时门禁：`npm run hooks:install` 一次性启用 `.githooks/pre-commit`，只检查暂存的前端文件（暂存区内容）。按文件检查不会报告其他任务未提交的违规，但不替代 `ui:check` / CI 的全量检查；`--no-verify` 仅限紧急情况。
+
+截图基线：`frontend/visual/` 用 Playwright 对 `/ui-templates.html` 截图，自启 Vite `15190` 端口（`RHN_VISUAL_PORT` 可改），不复用、不重启 5173；报告和差异图写入 `.runtime/verification/ui-visual/`。修改共享组件、令牌、模板或全局样式后必须运行 `ui:visual`。出现差异时先看报告的差异图：属于意外变化就修代码；属于有意改动，交用户确认视觉后执行 `npm run ui:visual:update`，并把基线 PNG 和代码放在同一个提交里。不得为了让检查通过而直接更新基线。基线按平台存放，目前只有 `darwin`，暂不接入 Linux CI。截图只能证明“与已认可状态一致”，基线本身是否美观仍以人工验收为准。用户认可某个业务页面后，用模拟数据为其补充截图基线，再登记到下表。
 
 上面是按需选择的命令，不要求每轮全部执行。局部前端改动优先使用业务 scope 的 `--frontend-only`，其中已包含的 UI/代码门禁、回归和构建不要再逐项重复；新页面选择相应领域并补充必要回归。修改共享模板/组件要扩大至受影响消费者；修改门禁实现验证其负向自测。`npm run check` 保留为完整前端 CI 或需要扩大覆盖时的入口，不作为每次 UI 修改的默认收尾。仅修改此类说明文档时检查差异、链接和一致性。完整日志写入 `.runtime/verification/`，先读摘要；既存失败应与改动前结果比较，不以更新基线或关闭规则解决。
 
@@ -95,7 +98,7 @@ npm run build
 
 | 候选 | 本轮可复用范围 | 当前认可状态 |
 | --- | --- | --- |
-| /ui-templates.html | ListPage/MasterDetailPage/WorkbenchPage/FormPage 的结构与滚动基础 | DOM/构建覆盖；待人工视觉确认 |
+| /ui-templates.html | ListPage/MasterDetailPage/WorkbenchPage/FormPage 的结构与滚动基础 | DOM/构建覆盖；2026-10-28 建立 darwin 截图基线（冻结现状，非视觉认可）；待人工视觉确认 |
 | OrganizationsPage / PersonnelPage | 主从页只读详情 + 弹窗维护；列表 + 抽屉档案 | 待人工确认 |
 | BasicDataManagement / operations | 疾病/项目/药品维护、共享表格及表单、轻量产品详情 | 业务回归通过仍需人工确认 |
 | DoctorWorkstation | 患者工作区、病历/医嘱标题与动作、诊毕/转诊/打印 | 业务回归通过仍需人工确认 |

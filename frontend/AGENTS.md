@@ -9,6 +9,7 @@
 - 优先使用共享 Button、SearchField、Select/DictionarySelect/FormSelect、DataTable、Tabs、Dialog、EditableTable。普通文本 input/textarea 继续由 FormField 包装；不要求发明不存在的 Input 组件。
 - 业务 CSS 负责布局，不重写共享控件的颜色、字号、圆角、阴影、焦点或禁用外观。尺寸、分栏宽度可按业务设置；视觉值使用语义令牌。
 - 每改完一批前端文件立即运行 `npm run ui:files -- <文件...>`（Claude Code 已由 hook 自动执行），当轮修正违规，不留到交付验证。
+- 改动共享组件、令牌、模板或全局样式后运行 `npm run ui:visual`；截图差异不经用户确认不得 `ui:visual:update`。
 - 新的通用需求优先扩展共享组件。不要绕过门禁、更改历史基线或增加整目录白名单来让检查通过；真正例外按开发入口登记。
 - PC 视口为 1280/1440/1920px，充分利用横向空间。默认不做移动端布局。沿用根目录规则：未经明确请求不做真实浏览器验证。
 - 国际化预留：当前不引入 i18n 库，界面文案仍直接写中文，但新代码不要增加日后抽取的成本：

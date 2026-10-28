@@ -27,6 +27,11 @@ export function WorkspacePane({ label, header, footer, children, scroll = 'pane'
   </Panel>
 }
 
+/** WorkbenchPage 主作业/辅助区的标准正文：模板留白与独立滚动；固定标题放在它之前。 */
+export function PaneBody({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
+  return <div className={`ui-page-template__pane-body ${className}`} role="region" aria-label={label} tabIndex={0}>{children}</div>
+}
+
 function PageFrame({ children, feedback, compact = true, ...header }: PageProps & { children: ReactNode }) {
   return <section className="ui-page-template" aria-label={header.title}>
     <PageHeader {...header} compact={compact} />

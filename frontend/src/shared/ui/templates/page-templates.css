@@ -37,7 +37,6 @@
 .ui-page-template__form-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: var(--layout-section-gap); }
 .ui-page-template__form-body > .ui-panel { padding: var(--space-2) var(--space-3); }
 /* First heading owns its padding; do not stack the panel's padding above it. */
-.ui-page-template__pane > .ui-panel__head:first-child,
 .ui-page-template__form-body > .ui-panel > .ui-panel__head:first-child {
   margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) var(--space-2);
 }

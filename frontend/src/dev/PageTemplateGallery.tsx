@@ -4,7 +4,7 @@ import {
   Alert, Button, DataTable, EmptyState, FormField, LoadingState, Pagination, Panel, PanelHead,
   SearchField, Select, StatusBadge, Switch, Tabs, tableCellClass,
 } from '../shared/ui'
-import { FormPage, ListPage, MasterDetailPage, WorkbenchPage } from '../shared/ui/templates/PageTemplates'
+import { FormPage, ListPage, MasterDetailPage, PaneBody, WorkbenchPage } from '../shared/ui/templates/PageTemplates'
 
 type DemoState = 'ready' | 'loading' | 'empty' | 'no-results' | 'error' | 'forbidden'
 type PageKind = 'list' | 'master-detail' | 'workbench' | 'form'
@@ -97,14 +97,17 @@ export function WorkbenchExample({ state, longData, onRetry }: ExampleProps) {
     queueHeader={<PanelHead title="待处理队列" />}
     queue={<DemoContent state={state} onRetry={onRetry}>
       <Queue items={items} selected={selected} onSelect={setSelected} /></DemoContent>}
-    reference={<><PanelHead title="服务参考" /><p>在此查看历史服务、相关记录与当前任务需要的参考信息。</p>
-      <p>较窄的 PC 内容区内，本区域接在主作业之后，保持队列与主作业两栏。</p></>}>
-    <DemoContent state={state} onRetry={onRetry}>
-      <PanelHead title={item.name} />
-      <ItemDetails item={item} />
-      <PanelHead title="服务内容" />
-      {Array.from({ length: longData ? 20 : 3 }, (_, index) => <p key={index}>服务记录 {index + 1}：核对当前任务的信息，记录处理结果。</p>)}
-    </DemoContent>
+    reference={<><PanelHead title="服务参考" /><PaneBody label="服务参考内容">
+      <p>在此查看历史服务、相关记录与当前任务需要的参考信息。</p>
+      <p>较窄的 PC 内容区内，本区域接在主作业之后，保持队列与主作业两栏。</p></PaneBody></>}>
+    <PanelHead title={state === 'ready' ? item.name : '服务详情'} />
+    <PaneBody label="服务详情内容">
+      <DemoContent state={state} onRetry={onRetry}>
+        <ItemDetails item={item} />
+        <h3 className="template-demo__section-title">服务内容</h3>
+        {Array.from({ length: longData ? 20 : 3 }, (_, index) => <p key={index}>服务记录 {index + 1}：核对当前任务的信息，记录处理结果。</p>)}
+      </DemoContent>
+    </PaneBody>
   </WorkbenchPage>
 }
 

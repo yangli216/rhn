@@ -12,6 +12,8 @@
     "ui:policy": "node scripts/check-ui-policy.mjs",
     "ui:policy:test": "node --test scripts/ui-policy.node-test.mjs",
     "ui:files": "node scripts/check-ui-files.mjs",
+    "ui:visual": "tsc -p tsconfig.visual.json && playwright test",
+    "ui:visual:update": "tsc -p tsconfig.visual.json && playwright test --update-snapshots",
     "hooks:install": "git config core.hooksPath .githooks",
     "api:generate": "openapi-typescript ../docs/api/openapi.json -o src/shared/api/generated.ts",
     "schema:refresh": "node ../scripts/schema-workbench/cli.mjs refresh",
@@ -41,6 +43,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.50.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.6",

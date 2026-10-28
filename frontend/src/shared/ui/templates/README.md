@@ -28,7 +28,7 @@ import { ListPage } from '../../shared/ui/templates/PageTemplates'
 | --- | --- | --- |
 | ListPage | title、filters、children | 内建 TableShell；children 不要再包 TableShell；resetScrollKey 传筛选与页码以复位结果滚动 |
 | MasterDetailPage | title、navigation、navigationLabel、children | navigationHeader / navigationFooter 固定，navigation 只放列表；detailHeader / detailFooter 固定，详情正文默认滚动 |
-| WorkbenchPage | title、queue、queueLabel、reference、referenceLabel、children | queueHeader / queueFooter 固定，队列正文独立滚动；宽内容区主作业/辅助区独立，较窄 PC 内容区合并正文滚动 |
+| WorkbenchPage | title、queue、queueLabel、reference、referenceLabel、children | queueHeader / queueFooter 固定，队列正文独立滚动；主作业/辅助区是无内边距外框，固定 PanelHead 后接 `PaneBody` 取得标准留白与独立滚动（专用作业区可自建滚动区）；较窄 PC 内容区合并正文滚动 |
 | FormPage | title、onSubmit、footer、children | 正文滚动；footer 保持可见，主提交仅放此处 |
 
 完整可复制的用法在 `src/dev/PageTemplateGallery.tsx`，分别是 ListExample、MasterDetailExample、WorkbenchExample、FormExample。演示包含模拟状态、搜索清空、选择对象、保存失败与重试，不访问 API。迁入业务模块时接入真实查询/写入、鉴权及并发策略，不保留模拟状态选择器或模拟延时。
