@@ -20,6 +20,7 @@ export const ruleMessages = {
   'control-height-override': '业务 CSS 不得改写共享输入框/按钮的高度；高度由 --control-height-default 统一，紧凑场景用 size="sm"',
   'css-layout-only': '新增的业务 CSS 只写布局属性（grid/flex/尺寸/间距/溢出）；颜色、背景、边框、字体由共享组件和模板承担。确需例外，在该声明的上一行或同行加 /* ui-allow: 原因 */',
   'undefined-token': '引用了未定义的自定义属性（如 --space-0-5、--font-size-tiny、--color-text-muted）；该声明实际不生效。只使用 styles/tokens.css 中存在的令牌',
+  'css-page-layout': '页面边距与高度由 .page 和页面模板（WorkspaceColumns/WorkspacePane 等）统一提供：业务 CSS 不给页面/工作台根容器写 padding、margin，也不用视口单位（vh/dvh）设置高度；需要滚动时放进 WorkspacePane 正文。确需例外加 /* ui-allow: 原因 */',
   'control-size-mismatch': '与输入框/下拉框同行的按钮使用默认尺寸（不写 size="sm"），保证同高；紧凑型只用于表格行内',
 }
 
@@ -266,6 +267,17 @@ export function scanAddedCssLayout(file, source, addedLines, removedProps = new 
   const findings = []
   postcss.parse(source, { from: file }).walkDecls(decl => {
     const line = decl.source.start.line
+    const allowed = /\/\*\s*ui-allow:\s*\S/.test(lines[line - 1]) || /\/\*\s*ui-allow:\s*\S/.test(lines[line - 2] ?? '')
+    if (addedLines.has(line) && !allowed) {
+      const selector = decl.parent?.type === 'rule' ? decl.parent.selector : ''
+      const viewportHeight = /^(?:min-|max-)?height$/.test(decl.prop) && /\d(?:vh|dvh|svh|lvh)\b/.test(decl.value)
+      const rootSpacing = /^(?:padding|margin)(?:-(?:top|right|bottom|left|inline|block)(?:-(?:start|end))?)?$/.test(decl.prop)
+        && selector.split(',').every(part => /^\.[\w-]+-(?:workspace|page|root)$/.test(part.trim())) && !/^(?:0|auto)(?:\s+(?:0|auto))*$/.test(decl.value.trim())
+      if (viewportHeight || rootSpacing) {
+        findings.push({ file, rule: 'css-page-layout', line, code: `${selector} { ${decl.prop}: ${decl.value} }`, message: ruleMessages['css-page-layout'], fingerprint: '' })
+        return
+      }
+    }
     if (!addedLines.has(line) || !visualProperties.test(decl.prop) || resetValue.test(decl.value.trim())) return
     if (removedProps.has(decl.prop)) return // 同一属性在旧版本中就存在：属于修改既有声明，不算新增
     if (/\/\*\s*ui-allow:\s*\S/.test(lines[line - 1]) || /\/\*\s*ui-allow:\s*\S/.test(lines[line - 2] ?? '')) return

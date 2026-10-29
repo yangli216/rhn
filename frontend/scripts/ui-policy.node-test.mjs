@@ -166,3 +166,16 @@ test('css must not reference custom properties that are defined nowhere', () => 
   assert.deepEqual(rows('.a { padding: var(--space-0-5, 2px) }'), [])
   assert.deepEqual(rows('.a { --local: 4px; margin: var(--local) }'), [])
 })
+
+test('added css must not set page-root spacing or viewport heights', () => {
+  const css = 'features/demo/demo.css'
+  const check = (source, lines = [1]) => scanAddedCssLayout(css, source, new Set(lines), new Set()).map(item => item.rule)
+  assert.deepEqual(check('.billing-refund-workspace { padding: var(--space-4) }'), ['css-page-layout'])
+  assert.deepEqual(check('.demo-page { margin-top: 8px }'), ['css-page-layout'])
+  assert.deepEqual(check('.demo-panel { height: calc(100vh - 8rem) }'), ['css-page-layout'])
+  assert.deepEqual(check('.demo-workspace { min-height: 100dvh }'), ['css-page-layout'])
+  assert.deepEqual(check('.demo-panel { padding: var(--space-2) }'), [])
+  assert.deepEqual(check('.demo-workspace .demo-body { padding: var(--space-2) }'), [])
+  assert.deepEqual(check('.demo-workspace { margin: 0 auto }'), [])
+  assert.deepEqual(check('/* ui-allow: 与外壳对齐 */\n.demo-page { padding: 4px }', [2]), [])
+})

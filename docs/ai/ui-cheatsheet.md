@@ -56,6 +56,13 @@
 - 令牌只用 `styles/tokens.css` 里真实存在的（间距 `--space-1…16`、字号 `--font-size-small/compact/body/h3…`）；别自创 `--space-0-5`、`--font-size-tiny`、`--color-text-muted`，门禁 `undefined-token` 会拦。
 - 新写的业务 CSS 只放布局（grid/flex/宽高/间距/溢出）；要改颜色、背景、边框、字体，先找共享组件或模板。必须自己写时，在声明上方加 `/* ui-allow: 原因 */`，门禁 `css-layout-only` 才会放行。
 
+## 页面骨架默认约束（先选模板，再写业务）
+
+1. **边距只由页面框架给**：页面根容器、工作台根容器不写 `padding`/`margin`（含 12px/16px）；面板间距只用父容器 `gap: var(--layout-panel-gap)`；面板正文留白由 `WorkspacePane` / `PaneBody` 提供。
+2. **主功能区不出现整页滚动**：页头以下的作业区占满剩余可视高度，面板、列表默认等高铺满；滚动只出现在各面板正文（或 `TableShell`）内部。不写 `100vh`/`100dvh` 高度，不写 `align-items: start` 让面板随内容收缩。
+3. **怎么写**：标准结构用 `ListPage / MasterDetailPage / WorkbenchPage / FormPage`；非标准列数用 `WorkspaceColumns columns="…"` 包 `WorkspacePane`。同一行的面板头高度必须一致（都用 `PanelHead`，不要有的带说明有的不带；说明放 `meta`）。
+4. 门禁 `css-page-layout` 会拦截新增的根容器内边距/外边距和视口单位高度；是否整页滚动需要在走查时用 1280/1440/1920 宽度验证。
+
 ## 4. 正反例
 
 ```css
