@@ -3,7 +3,8 @@
 .ward-medication-returnable, .ward-medication-return-requests { padding: var(--space-2) var(--space-4); display: grid; gap: var(--space-2); }
 .ward-medication-returnable__note { padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: 6rem minmax(16rem, 1fr); align-items: center; gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
 .ward-medication-returnable label, .ward-medication-return-requests__handover { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
-.ward-medication-returnable input, .ward-medication-return-requests__handover input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); }
+.ward-medication-returnable input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); }
+.ward-medication-return-requests__handover input { min-width: 0; height: var(--control-height-default); padding: 0 var(--space-2); }
 .ward-medication-returnable > article { padding: var(--space-3); display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(24rem, 1.8fr) 9rem auto; align-items: end; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
 .ward-medication-returnable > article > div > *, .ward-medication-returnable > article > label > * { display: block; }
 .ward-medication-returnable > article small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }

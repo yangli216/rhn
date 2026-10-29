@@ -54,7 +54,7 @@ export function FrequencyTimeEditor({ value, onChange, inheritLabel, inheritTime
   return <div className="frequency-time-editor">
     {value.map((time, index) => <span key={`${time}-${index}`}><input type="time" aria-label={`执行时点 ${index + 1}`} value={time}
       onChange={(event) => update(index, event.target.value)} /><Button type="button" aria-label={`移除执行时点 ${time}`}
-        onClick={() => onChange(value.filter((_, current) => current !== index))} variant="text" size="sm">×</Button></span>)}
+        onClick={() => onChange(value.filter((_, current) => current !== index))} variant="text">×</Button></span>)}
     <Button type="button" className="frequency-time-editor__add" onClick={add} variant="text" size="sm"><Icon name="add" />
       {!value.length && inheritTimes.length ? '基于主档调整' : '添加时点'}</Button>
     {!value.length && inheritLabel && <small>{inheritLabel}</small>}

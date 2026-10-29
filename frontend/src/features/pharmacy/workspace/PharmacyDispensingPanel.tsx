@@ -71,7 +71,6 @@ export function PharmacyDispensingPanel({ model }: { model: ReturnType<typeof us
             }}
           />
           <Button
-            size="sm"
             variant="secondary"
             busy={scanPending}
             onClick={() => void handleScanOrSearch(true)}

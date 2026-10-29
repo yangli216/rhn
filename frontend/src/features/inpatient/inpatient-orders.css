@@ -81,7 +81,7 @@
 .inpatient-task-list { display: grid; }
 .inpatient-task-batch-bar { min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: auto minmax(12rem, 1fr) auto auto; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .inpatient-task-batch-bar label { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.inpatient-task-batch-bar input[type="text"], .inpatient-task-batch-bar > input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); }
+.inpatient-task-batch-bar input[type="text"], .inpatient-task-batch-bar > input { min-width: 0; height: var(--control-height-default); padding: 0 var(--space-2); }
 .inpatient-task-batch-bar > span { color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .inpatient-task-batch-feedback { margin: var(--space-2) var(--space-4); }
 .inpatient-task-group > header { min-height: 2.4rem; padding: var(--space-1) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-muted); }
@@ -101,9 +101,9 @@
 .inpatient-task-row__fulfillment.is-fulfilled { border-left-color: var(--color-success); }
 .inpatient-task-row__fulfillment.is-pending { border-left-color: var(--color-warning); }
 .inpatient-task-row__actions { display: grid; grid-template-columns: minmax(8rem, 1fr) auto minmax(6.5rem, auto) auto; align-items: center; gap: var(--space-1); }
-.inpatient-task-row__actions input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--font-size-small); }
+.inpatient-task-row__actions input { min-width: 0; height: var(--control-height-default); padding: 0 var(--space-2); font-size: var(--font-size-small); }
 .inpatient-task-row__actions .ui-select, .inpatient-ward-delivery__difference .ui-select { min-width: 0; }
-.inpatient-task-row__actions .ui-select__trigger, .inpatient-ward-delivery__difference .ui-select__trigger { min-height: var(--control-height-sm); font-size: var(--font-size-small); }
+.inpatient-task-row__actions .ui-select__trigger, .inpatient-ward-delivery__difference .ui-select__trigger { min-height: var(--control-height-default); font-size: var(--font-size-small); }
 .inpatient-task-row__blocked { grid-column: 1 / -1; color: var(--color-warning); font-size: var(--font-size-small); }
 .inpatient-task-row__result { min-width: 0; display: grid; gap: var(--space-1); }
 .inpatient-task-row__result strong, .inpatient-task-row__result small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

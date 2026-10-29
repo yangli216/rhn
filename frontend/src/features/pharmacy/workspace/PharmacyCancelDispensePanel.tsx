@@ -59,7 +59,6 @@ export function PharmacyCancelDispensePanel({ model }: { model: ReturnType<typeo
               }}
             />
             <Button
-              size="sm"
               variant="secondary"
               busy={scanPending}
               onClick={() => void handleScanOrSearch(true)}

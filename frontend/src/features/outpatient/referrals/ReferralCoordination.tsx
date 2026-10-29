@@ -62,7 +62,7 @@ export function ReferralInboxPanel({ requests, loading, api, onRefresh }: {
             <FormField label="会诊意见" required><textarea value={opinion} maxLength={4000}
               onChange={(event) => setOpinions((current) => ({ ...current, [request.id]: event.target.value }))}
               placeholder="填写诊疗建议、注意事项和后续处理意见" /></FormField>
-            <Button size="sm" busy={action.isPending} disabled={!opinion.trim()}
+            <Button busy={action.isPending} disabled={!opinion.trim()}
               onClick={() => action.mutate({ kind: 'COMPLETE', request, opinion: opinion.trim() })}>提交会诊意见</Button>
           </div>}
           {rejectingId === request.id && <div className="doctor-referral-reject">

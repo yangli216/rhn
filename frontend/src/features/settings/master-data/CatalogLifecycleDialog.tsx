@@ -707,8 +707,8 @@ export function OrganizationCatalogImportSession({ api, organization, initialIte
           <div className="master-data-catalog-import-search">
             <SearchField label="搜索待调入目录" disabled={locked} value={keyword} onChange={setKeyword} onSearch={handleSearch}
               placeholder="项目名称或编码" />
-            <Button size="sm" variant="primary" type="button" disabled={locked} onClick={handleSearch}>查询</Button>
-            <Button size="sm" variant="secondary" type="button" disabled={locked} onClick={handleReset}>重置</Button>
+            <Button variant="primary" type="button" disabled={locked} onClick={handleSearch}>查询</Button>
+            <Button variant="secondary" type="button" disabled={locked} onClick={handleReset}>重置</Button>
           </div>
           <span className="master-data-count">{candidatesReady ? `${candidates.data.totalElements} 项待调入` : '待调入数量未确认'}</span>
         </div>

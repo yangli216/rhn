@@ -229,7 +229,7 @@ export function InpatientMedicalRecordWorkspace({ api, episode, organizationName
           }
           resetEditor()
         }} /></FormField>
-        <Button size="sm" variant="secondary" disabled={dirty || episodeReadOnly} onClick={() => {
+        <Button variant="secondary" disabled={dirty || episodeReadOnly} onClick={() => {
           setNewDailyDraft(true)
           resetEditor()
         }}>新建病程</Button>

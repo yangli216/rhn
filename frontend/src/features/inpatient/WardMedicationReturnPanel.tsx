@@ -112,7 +112,7 @@ export function WardMedicationReturnPanel({ api, episode, readOnly }: {
             <input aria-label={`交出备注 ${request.requestNo}`} value={handoverNotes[request.id] ?? ''} maxLength={1000}
               placeholder="例如：护士与配送员当面核对交出"
               onChange={(event) => setHandoverNotes((current) => ({ ...current, [request.id]: event.target.value }))} />
-            <Button size="sm" busy={handOver.isPending} onClick={() => handOver.mutate(request)}>确认交出</Button></div>}
+            <Button busy={handOver.isPending} onClick={() => handOver.mutate(request)}>确认交出</Button></div>}
           {request.status === 'IN_TRANSIT' && <small className="ward-medication-return-requests__hint">
             {request.handedOverAt ? `${formatTime(request.handedOverAt)} 已交出，` : ''}等待药房逐项验收。</small>}
           {request.status === 'RECEIVED' && <small className="ward-medication-return-requests__hint">

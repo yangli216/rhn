@@ -294,7 +294,7 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
       <FormField className="is-instructions" label="执行说明"><input aria-label="住院医嘱执行说明" value={instructions}
         maxLength={2000} placeholder="可选：部位、注意事项或执行要求"
         onChange={(event) => setInstructions(event.target.value)} /></FormField>
-      <Button type="submit" size="sm" busy={busy}>保存草稿</Button>
+      <Button type="submit" busy={busy}>保存草稿</Button>
     </div>
   </form>
 }
@@ -543,7 +543,7 @@ function NurseOrderWorkbench({ api, episode, orders, tasks, deliveries, readOnly
         <input aria-label="批量执行备注" value={batchNote} maxLength={1000} placeholder="批量执行备注（可选）"
           onChange={(event) => setBatchNote(event.target.value)} />
         <span>已选 {selectedTaskIds.size} 项</span>
-        <Button size="sm" disabled={selectedTaskIds.size === 0} busy={busy}
+        <Button disabled={selectedTaskIds.size === 0} busy={busy}
           onClick={() => void runBatch().catch(() => undefined)}>执行所选</Button>
       </div>}
       {batchFeedback && <Alert tone={batchFeedback.includes('未执行') ? 'warning' : 'success'}
@@ -695,7 +695,7 @@ function NurseTaskRow({ task, delivery, selected, readOnly, busy, onSelectedChan
     <StatusBadge tone={taskStatus.tone}>{taskStatus.label}</StatusBadge>
     {task.status === 'PLANNED' && !readOnly ? <div className="inpatient-task-row__actions"><input aria-label={`执行备注 ${task.itemName}`}
       value={note} maxLength={1000} placeholder="执行备注（可选）" onChange={(event) => setNote(event.target.value)} />
-      <Button size="sm" disabled={waitingForPharmacy || waitingForWard}
+      <Button disabled={waitingForPharmacy || waitingForWard}
         title={waitingForPharmacy ? '药房完成发药后才可执行本次给药' : waitingForWard ? '病区完成药品签收后才可执行本次给药' : undefined}
         onClick={() => void onExecute(task, note.trim() || undefined).catch(() => undefined)} busy={busy}>
         {waitingForPharmacy ? '待发药' : waitingForWard ? '待签收' : '执行'}
@@ -704,7 +704,7 @@ function NurseTaskRow({ task, delivery, selected, readOnly, busy, onSelectedChan
         options={[{ value: 'PATIENT_REFUSED', label: '患者拒绝' }, { value: 'CLINICAL_CHANGE', label: '病情变化' },
           { value: 'NOT_AVAILABLE', label: '条件不具备' }, { value: 'OTHER', label: '其他' }]}
         onChange={setSkipReason} />
-      <Button size="sm" variant="secondary" onClick={() => void onSkip(task, skipReason, note.trim() || undefined).catch(() => undefined)} busy={busy}>跳过</Button>
+      <Button variant="secondary" onClick={() => void onSkip(task, skipReason, note.trim() || undefined).catch(() => undefined)} busy={busy}>跳过</Button>
       {(waitingForPharmacy || waitingForWard) && <small className="inpatient-task-row__blocked">
         {waitingForPharmacy ? '发药完成后方可执行' : '病区签收后方可执行'}；如本次不执行，可选择原因后跳过。</small>}
     </div> : <TaskCompletionSummary task={task} />}

@@ -898,7 +898,6 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
                 onChange={(event) => setCancelReason(event.target.value)}
               />
               <Button
-                size="sm"
                 variant="danger"
                 busy={cancel.isPending}
                 disabled={!cancelReason.trim()}

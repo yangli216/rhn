@@ -323,8 +323,8 @@ export function StandardMappingWorkspace({
                   { value: 'UNMAPPED', label: '暂无映射记录' },
                 ]}
               />
-              <Button size="sm" variant="primary" type="button" onClick={handleSearch}>查询</Button>
-              <Button size="sm" variant="secondary" type="button" onClick={handleReset}>重置</Button>
+              <Button variant="primary" type="button" onClick={handleSearch}>查询</Button>
+              <Button variant="secondary" type="button" onClick={handleReset}>重置</Button>
             </div>
           </header>
 

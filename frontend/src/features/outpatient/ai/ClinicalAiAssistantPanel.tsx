@@ -781,7 +781,6 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
                 }}
               />
               <Button
-                size="sm"
                 variant="secondary"
                 busy={knowledgeSearch.isPending}
                 disabled={!knowledgeQuery.trim()}
@@ -849,7 +848,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && knowledgeQuery.trim()) knowledgeSearch.mutate()
                 }} />
-              <Button size="sm" variant="secondary" busy={knowledgeSearch.isPending}
+              <Button variant="secondary" busy={knowledgeSearch.isPending}
                 disabled={!knowledgeQuery.trim()} onClick={() => knowledgeSearch.mutate()}>
                 <Icon name="search" />检索
               </Button>

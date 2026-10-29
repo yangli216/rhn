@@ -1385,7 +1385,7 @@ function ProfessionalSchedulingPanel({ api, clinicalContext, today, defaultGener
             </>}
             <FormField label="原因" required><input value={item.reason} maxLength={500}
               onChange={(event) => updateException(item.key, { reason: event.target.value })} /></FormField>
-            <Button size="sm" variant="text" onClick={() => setExceptions((current) => current.filter((entry) => entry.key !== item.key))}>移除</Button>
+            <Button variant="text" onClick={() => setExceptions((current) => current.filter((entry) => entry.key !== item.key))}>移除</Button>
           </div>)}</div>}
       </section>
       <footer className="quick-schedule-actions"><span>{slotMode === 'TIMED'

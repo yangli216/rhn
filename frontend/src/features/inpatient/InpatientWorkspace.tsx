@@ -532,7 +532,7 @@ export function DischargeDialog({ api, episode, onClose, onSuccess }: {
         disabled={!primaryDiagnosis || diagnoses.length === 0} onClick={() => saveDiagnoses.mutate()}>保存诊断</Button></header>
       <form className="ui-query-filters__group" onSubmit={(event) => { event.preventDefault(); setDiagnosisSearch(diagnosisQuery.trim()) }}>
         <input aria-label="搜索出院诊断" value={diagnosisQuery} onChange={(event) => setDiagnosisQuery(event.target.value)}
-          placeholder="输入疾病名称、ICD 编码或拼音码" /><Button type="submit" size="sm" variant="secondary"
+          placeholder="输入疾病名称、ICD 编码或拼音码" /><Button type="submit" variant="secondary"
           disabled={diagnosisQuery.trim().length < 2}>查询</Button>
       </form>
       {diseaseResults.data && <div className="inpatient-disease-results">{diseaseResults.data.slice(0, 8).map((disease) =>

@@ -168,7 +168,7 @@ export function PriceTierDialog({ tiers, services, onClose, onSave }: {
             onChange={(v) => update(index, { chargeItemId: v })} options={options} /></FormField>
           <FormField label="数量"><input type="number" min="0.0001" step="any" value={row.chargeQuantity}
             onChange={(e) => update(index, { chargeQuantity: e.target.value })} /></FormField>
-          <Button size="sm" variant="text" disabled={rows.length <= 1} aria-label={`删除第 ${index + 1} 档`}
+          <Button variant="text" disabled={rows.length <= 1} aria-label={`删除第 ${index + 1} 档`}
             onClick={() => setRows((current) => current.filter((_row, i) => i !== index))}>删除</Button>
         </div>
       ))}

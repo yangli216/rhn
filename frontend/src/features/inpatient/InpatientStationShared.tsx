@@ -80,7 +80,7 @@ export function InpatientPatientContextBar({ title, episodes, selected, selected
       <div className="inpatient-station-context__lookup">
         <SearchField label="搜索在院患者" value={keyword} onChange={onKeywordChange}
           placeholder="姓名 / 住院号 / 床号" />
-        <Button type="submit" size="sm" variant="secondary">查询</Button>
+        <Button type="submit" variant="secondary">查询</Button>
       </div>
       {episodes.length > 0 && <div className="inpatient-station-context__picker"><span>当前患者</span>
         <Select aria-label="当前在院患者" value={selectedId || selected?.id} clearable={false}
@@ -130,7 +130,7 @@ export function InpatientPatientPool({ title, description, episodes, keyword, lo
       <form onSubmit={onSearch} className="inpatient-patient-pool__search">
         <SearchField label="搜索在院患者" value={keyword} onChange={onKeywordChange}
           placeholder="住院号 / 床号 / 姓名" />
-        <Button type="submit" size="sm" variant="secondary">定位患者</Button>
+        <Button type="submit" variant="secondary">定位患者</Button>
       </form>
       <div className="inpatient-patient-pool__view" aria-label="患者展示方式">
         <IconButton icon="menu" label="卡片视图" aria-pressed={view === 'GRID'}

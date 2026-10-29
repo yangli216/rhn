@@ -148,7 +148,7 @@ function AddressRows({ form, indices, onRemove, addressApi }: RowsProps & { addr
           onChange={next => { set('thirdCode', next.provinceCode); set('fourthCode', next.cityCode); set('fifthCode', next.districtCode) }} /></div>
       <FormField label="详细地址" required error={rowIssue(form, index)}>
         <input maxLength={500} {...form.register(`rows.${index}.data.secondCode`)} /></FormField>
-      <Button type="button" size="sm" variant="text" onClick={() => onRemove(index)}>移除</Button>
+      <Button type="button" variant="text" onClick={() => onRemove(index)}>移除</Button>
     </div>
   })}</>
 }

@@ -1335,7 +1335,7 @@ export function AiPlanTemplateDraftModal({
                                   <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={undefined} defaultOpen autoFocus
                                     aria-label={`对齐标准诊断 ${task.text}`} disabled={!canSearch}
                                     onChange={(option) => handleAlignDiagnosisTask(index, option)} />
-                                  <Button size="sm" variant="text" onClick={() => setActiveDiagSearchTaskIndex(null)}>取消</Button>
+                                  <Button variant="text" onClick={() => setActiveDiagSearchTaskIndex(null)}>取消</Button>
                                 </div>
                               ) : null}
                             </div>
@@ -1361,7 +1361,7 @@ export function AiPlanTemplateDraftModal({
                       <div className="ai-plan-diagnosis-add">
                         <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={undefined} defaultOpen autoFocus
                           aria-label="添加标准诊断" disabled={!canSearch} onChange={handleSelectDiagnosis} />
-                        <Button size="sm" variant="text" onClick={() => setIsAddingDiagnosis(false)}>取消</Button>
+                        <Button variant="text" onClick={() => setIsAddingDiagnosis(false)}>取消</Button>
                       </div>
                     ) : (
                       <Button size="sm" variant="secondary" onClick={() => { setActiveDiagSearchTaskIndex(null); setIsAddingDiagnosis(true) }}>
@@ -1454,7 +1454,7 @@ export function AiPlanTemplateDraftModal({
                                     <ClinicalResourceSearch<MedicationKnowledge> api={api} resource="medication" value={undefined} defaultOpen autoFocus
                                       aria-label={`对齐目录药品 ${task.text}`} disabled={!canSearch}
                                       onChange={(option) => handleSelectMedProduct(index, option)} />
-                                    <Button size="sm" variant="text" onClick={() => setActiveMedSearchTaskIndex(null)}>取消</Button>
+                                    <Button variant="text" onClick={() => setActiveMedSearchTaskIndex(null)}>取消</Button>
                                   </div>
                                 ) : null}
                               </div>
@@ -1481,7 +1481,7 @@ export function AiPlanTemplateDraftModal({
                       <div className="ai-plan-diagnosis-add">
                         <ClinicalResourceSearch<MedicationKnowledge> api={api} resource="medication" value={undefined} defaultOpen autoFocus
                           aria-label="添加目录药品" disabled={!canSearch} onChange={handleAddMedProduct} />
-                        <Button size="sm" variant="text" onClick={() => setIsAddingMed(false)}>取消</Button>
+                        <Button variant="text" onClick={() => setIsAddingMed(false)}>取消</Button>
                       </div>
                     ) : (
                       <Button size="sm" variant="secondary" onClick={() => setIsAddingMed(true)}>
@@ -1530,7 +1530,7 @@ export function AiPlanTemplateDraftModal({
                                       unit={s.unitCode ?? ''} unitReadOnly min="0" step="any"
                                       onValueChange={value => updateService(idx, { quantity: value === '' ? Number.NaN : Number(value) })} />
                                   </FormField>
-                                  <Button size="sm" variant="secondary" disabled={Boolean(aiServiceValidation(s))}
+                                  <Button variant="secondary" disabled={Boolean(aiServiceValidation(s))}
                                     onClick={() => setEditingServiceIndex(null)}>完成</Button>
                                 </div>
                                 ) : (
@@ -1573,7 +1573,7 @@ export function AiPlanTemplateDraftModal({
                                     value={undefined} defaultOpen autoFocus filterResult={planServiceFilter}
                                     aria-label={`对齐院内项目 ${task.text}`} disabled={!canSearch}
                                     onChange={(option) => handleSelectServiceItem(index, option)} />
-                                  <Button size="sm" variant="text" onClick={() => setActiveServiceSearchTaskIndex(null)}>取消</Button>
+                                  <Button variant="text" onClick={() => setActiveServiceSearchTaskIndex(null)}>取消</Button>
                                 </div>
                               ) : null}
                             </div>
@@ -1602,7 +1602,7 @@ export function AiPlanTemplateDraftModal({
                         <ClinicalResourceSearch<ServiceCatalogItem> api={api} resource="service" organizationId={organizationId}
                           value={undefined} defaultOpen autoFocus filterResult={planServiceFilter}
                           aria-label="添加检验/检查" disabled={!canSearch} onChange={handleAddServiceItem} />
-                        <Button size="sm" variant="text" onClick={() => setIsAddingService(false)}>取消</Button>
+                        <Button variant="text" onClick={() => setIsAddingService(false)}>取消</Button>
                       </div>
                     ) : (
                       <Button size="sm" variant="secondary" onClick={() => setIsAddingService(true)}>

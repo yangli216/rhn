@@ -171,7 +171,7 @@ function RoleMembers({ api, role, scope, onGrant, onRevoke }: {
       <SearchField label="搜索已授权人员" placeholder="姓名、工号、账号或科室" value={keyword} onChange={setKeyword} />
       <Switch size="sm" checked={includeExpired} onChange={setIncludeExpired} label="含已失效" />
       <span className="access-hint">{members.isSuccess ? `当前有效 ${people} 人` : ''}</span>
-      <Button size="sm" disabled={role.status !== 'ACTIVE'} onClick={onGrant}>授予人员</Button>
+      <Button disabled={role.status !== 'ACTIVE'} onClick={onGrant}>授予人员</Button>
     </div>
     {members.isPending ? <LoadingState label="正在反查已授权人员…" />
       : members.isError ? <Alert placement="inline">{errorMessage(members.error)}<Button size="sm" variant="secondary" onClick={() => void members.refetch()}>重新加载</Button></Alert>

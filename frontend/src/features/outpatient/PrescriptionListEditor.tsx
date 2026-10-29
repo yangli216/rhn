@@ -321,7 +321,7 @@ function PrescriptionEditorSection({
           onKeyDown={(event) => nextOnEnter(event, 'instruction')} />
         {mode === 'herbal' && <span className="doctor-herbal-total">
           {line.doseValue === '' ? '—' : Number(line.doseValue) * herbalDoseCount} {line.doseUnit}</span>}
-        <Button size="sm" disabled={!isLineComplete(line, mode) || !selectedProduct
+        <Button disabled={!isLineComplete(line, mode) || !selectedProduct
           || (mode === 'herbal' && (!herbalMethod.trim() || !herbalFrequency.trim()))
           || (requiresSafetyReview && !line.safetyReviewed)
           || (matchedAllergies.length > 0 && !line.allergyOverrideReason.trim())}

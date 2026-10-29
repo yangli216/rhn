@@ -205,7 +205,7 @@ export function ManualClinicalTemplateDialog({ api, organizationId, kind, editin
               <input aria-label={`${planTaskKindLabel[task.kind]}任务内容`} value={task.text} maxLength={500}
                 onChange={(event) => setTasks((current) => current.map((value, target) =>
                   target === index ? { ...value, text: event.target.value } : value))} />
-              <Button type="button" size="sm" variant="text" aria-label={`移除任务 ${task.text}`}
+              <Button type="button" variant="text" aria-label={`移除任务 ${task.text}`}
                 onClick={() => setTasks((current) => current.filter((_, target) => target !== index))}>移除</Button>
             </div>)}
           </div>

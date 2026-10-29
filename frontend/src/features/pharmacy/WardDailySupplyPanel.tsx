@@ -304,7 +304,7 @@ function BatchDetail({ batch, stockItems, stockItemSelections, onStockItemChange
       <FormField label="当前任职" required><Select value={assignmentId} onChange={onAssignmentChange}
         placeholder="请选择当前药房任职" options={assignments.map((value) => ({ value: value.id,
           label: `${value.positionName} · ${value.departmentName}`, secondaryText: value.code }))} /></FormField>
-      <Button size="sm" busy={reviewAndReservePending} disabled={reviewAndReserveDisabled}
+      <Button busy={reviewAndReservePending} disabled={reviewAndReserveDisabled}
         onClick={onReviewAndReserve}>审方并预留{reviewableLines.length ? `（${reviewableLines.length}）` : ''}</Button>
     </div>}
     {intakeIncomplete && uniqueTaskLines.length > 0 && <Alert tone="warning">请先完成当前批次全部明细接方，再统一审方和预留库存。</Alert>}
@@ -356,7 +356,7 @@ function BatchDetail({ batch, stockItems, stockItemSelections, onStockItemChange
               options={candidates.map((item) => ({ value: item.id,
                 label: `${item.productName} · ${item.packageSpec ?? item.packageUnitName}`, secondaryText: item.productCode }))}
               onChange={(value) => onStockItemChange(line.id, value)} />
-            <Button size="sm" busy={intakePending} disabled={!stockItemId}
+            <Button busy={intakePending} disabled={!stockItemId}
               aria-label={`接方 ${line.residentName} ${line.medicationName}`}
               onClick={() => onIntake(line, stockItemId)}>逐行接方</Button>
           </div> : <span className="pharmacy-ward-daily-supply__settled">本行无需接方</span>}

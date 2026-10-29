@@ -70,7 +70,7 @@ export function InpatientAdmissionDiagnosisPanel({ api, episode, variant = 'edit
       {canEdit && <div className="inpatient-admission-diagnoses__add">
         <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={selected}
           onChange={setSelected} aria-label="搜索入院诊断" placeholder="疾病名称、ICD 编码或拼音码" />
-        <Button size="sm" variant="secondary" disabled={!selected} onClick={addSelected}>添加诊断</Button>
+        <Button variant="secondary" disabled={!selected} onClick={addSelected}>添加诊断</Button>
       </div>}
       {diagnoses.length === 0 ? <EmptyState icon="clinical" title="尚未记录入院诊断"
         copy={readOnly ? '本次住院未留下结构化入院诊断。' : '先检索疾病，首条诊断会自动设为主要诊断。'} />
