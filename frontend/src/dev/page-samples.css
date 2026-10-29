@@ -1,0 +1,2 @@
+/* 业务页面样板的演示容器：复现医生站主内容区的高度链，页面本身的样式不在此处定义。 */
+.waiting-sample { height: 100dvh; min-width: 1280px; padding: var(--layout-workspace-gutter); display: flex; flex-direction: column; overflow: hidden; background: var(--color-canvas); }
