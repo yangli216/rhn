@@ -278,13 +278,13 @@ export function EmptyState({ icon, glyph, title, copy, action, size = 'default' 
   title: string
   copy?: string
   action?: ReactNode
-  /** inline 为图标在左、文字在右的横排紧凑块，用于面板内的“已通过/无差异”等结论。 */
-  size?: 'default' | 'inline'
+  /** inline 为图标在左、文字在右的横排紧凑块，用于面板内的“已通过/无差异”等结论；compact 为无最小高度的小块提示，用于侧栏/卡片里的一两行说明。 */
+  size?: 'default' | 'inline' | 'compact'
 }) {
   const mark = icon ? <Icon name={icon} /> : glyph
-  return <div className={`ui-empty-state ${size === 'inline' ? 'ui-empty-state--inline' : ''}`.trim()}>
+  return <div className={`ui-empty-state ${size !== 'default' ? `ui-empty-state--${size}` : ''}`.trim()}>
     {mark && <span className="ui-empty-state__icon" aria-hidden={glyph ? true : undefined}>{mark}</span>}
-    {size === 'inline' ? <div><strong>{title}</strong>{copy && <p>{copy}</p>}</div> : <>
+    {size !== 'default' ? <div><strong>{title}</strong>{copy && <p>{copy}</p>}</div> : <>
       <strong>{title}</strong>
       {copy && <p>{copy}</p>}
     </>}

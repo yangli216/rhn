@@ -468,6 +468,9 @@
 .ui-empty-state .ui-button { margin-top: var(--space-4); }
 .ui-empty-state--inline { min-height: 10rem; padding: var(--space-5); flex-direction: row; gap: var(--space-4); text-align: left; }
 .ui-empty-state--inline .ui-empty-state__icon { width: 3rem; height: 3rem; margin-bottom: 0; flex: none; font-size: var(--font-size-h1); font-weight: var(--font-weight-bold); }
+.ui-empty-state--compact { min-height: 0; padding: var(--space-3); flex-direction: row; gap: var(--space-3); text-align: left; }
+.ui-empty-state--compact .ui-empty-state__icon { width: 2rem; height: 2rem; margin-bottom: 0; flex: none; font-size: var(--font-size-h3); }
+.ui-empty-state--compact p { margin-top: var(--space-1); }
 .ui-empty-state--inline p { margin-top: var(--space-1); }
 
 .ui-alert { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); display: flex; align-items: flex-start; gap: var(--space-3); border: 1px solid; border-radius: var(--radius-md); font-size: var(--font-size-small); line-height: var(--line-height-small); }
@@ -2762,3 +2765,4 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 .receipt-print-status { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
 .receipt-print-status p { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; }
 .receipt-print-status__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.ui-page-template__pane-footer { border-top: 1px solid var(--color-border); }

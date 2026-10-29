@@ -125,14 +125,16 @@ export function SegmentedControl<T extends string>({ value, items, onChange, lab
 }
 
 /** 可开关的选择胶囊（症状标签、绿色通道等多选/单选项）；选中态为品牌描边与浅底，aria-pressed 表达状态。 */
-export function ChoiceChip({ selected, onToggle, disabled, icon, children }: {
+export function ChoiceChip({ selected, onToggle, disabled, icon, title, children }: {
   selected: boolean
+  /** 悬浮说明。 */
+  title?: string
   onToggle: () => void
   disabled?: boolean
   icon?: ReactNode
   children: ReactNode
 }) {
-  return <button type="button" className={`ui-choice-chip ${selected ? 'is-selected' : ''}`.trim()} aria-pressed={selected} disabled={disabled} onClick={onToggle}>
+  return <button type="button" className={`ui-choice-chip ${selected ? 'is-selected' : ''}`.trim()} aria-pressed={selected} disabled={disabled} title={title} onClick={onToggle}>
     {icon}{children}
   </button>
 }
