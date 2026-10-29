@@ -15,6 +15,7 @@
   flex: none;
   gap: var(--space-2);
   min-width: 0;
+  margin-bottom: var(--layout-panel-gap);
 }
 
 /* 左栏固定头：搜索框 + 队列分段页签；四段平分宽度，数量徽标放在页签 meta */
@@ -640,14 +641,8 @@
 .triage-action-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: var(--space-2) var(--space-3);
-}
-
-.triage-action-bar__left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .triage-action-bar__right {
@@ -1061,7 +1056,6 @@
     padding-inline: var(--space-2);
   }
 
-  .triage-action-bar__left,
   .triage-action-bar__right {
     gap: var(--space-1);
   }

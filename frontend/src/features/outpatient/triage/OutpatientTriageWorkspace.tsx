@@ -986,14 +986,11 @@ export function OutpatientTriageWorkspace({
           }
           footer={
           <div className="triage-action-bar">
-            <div className="triage-action-bar__left">
-              <Button size="md" variant="secondary" onClick={queueTab === 'ARRIVAL' ? startArrivalScreening : resetForm}>
+            <div className="triage-action-bar__right">
+              <Button size="md" variant="text" onClick={queueTab === 'ARRIVAL' ? startArrivalScreening : resetForm}>
                 <Icon name="close" />
                 <span>重置</span>
               </Button>
-            </div>
-
-            <div className="triage-action-bar__right">
               <Button
                 size="md"
                 variant="secondary"
