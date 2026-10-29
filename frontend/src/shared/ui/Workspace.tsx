@@ -341,6 +341,6 @@ export function DataTable({ className = '', compact: _compact, ...props }:
 export function CellStack({ primary, secondary, mono = false }: { primary: ReactNode; secondary?: ReactNode; mono?: boolean }) {
   return <span className="ui-cell-stack">
     <span className="ui-cell-stack__primary">{primary}</span>
-    {secondary !== undefined && secondary !== null && secondary !== false && <small className={`ui-cell-stack__secondary ${mono ? 'is-mono' : ''}`.trim()}>{secondary}</small>}
+    {secondary !== undefined && secondary !== null && secondary !== false && <small className={`ui-cell-stack__secondary ${mono ? 'is-mono' : ''}`.trim()} title={typeof secondary === 'string' ? secondary : undefined}>{secondary}</small>}
   </span>
 }

@@ -441,8 +441,8 @@
 .ui-data-table td, .master-data-table td { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--color-border); text-align: left; vertical-align: middle; }
 .ui-data-table tbody tr:hover { background: var(--color-surface-subtle); }
 .ui-cell-stack { min-width: 0; display: flex; flex-direction: column; }
-.ui-cell-stack__primary { min-width: 0; overflow-wrap: anywhere; }
-.ui-cell-stack__secondary { color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }
+.ui-cell-stack__primary { min-width: 0; overflow-wrap: break-word; }
+.ui-cell-stack__secondary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }
 .ui-cell-stack__secondary.is-mono { font-family: var(--font-family-mono); }
 .ui-table-cell--text { text-align: left !important; vertical-align: middle; }
 .ui-table-cell--numeric { text-align: right !important; vertical-align: middle; font-variant-numeric: tabular-nums; }
