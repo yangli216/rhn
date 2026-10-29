@@ -63,6 +63,8 @@ export {
   DescriptionList,
   type DescriptionItem,
   ListItemButton,
+  MetricStrip,
+  type MetricItem,
   SelectableList,
   StatChips,
   type StatChipItem,

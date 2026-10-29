@@ -25,6 +25,7 @@
 | `Tag` | 方角分类标签 | 类型/编码/来源，`tone` 与 `mono`；状态用 StatusBadge。不要再写 `*-chip/-pill/-tag` 业务类 |
 | `DescriptionList` | 字段网格 | `items=[{label,value,span?}]`，`bordered` 详情卡/`plain` 行内信息，空值显示“—”；不要再手写 `<dl>` 样式 |
 | `SelectableList` / `ListItemButton` | 可选中的两行目录条目 | 单据/期间/规则目录；标题 + 徽标，次要信息 + 金额；选中为品牌描边与左侧标记，方向键移动焦点。不要再手写 `*-card.is-selected` |
+| `MetricStrip` | 合并格线指标条 | 面板顶部并列的“标签/数值/说明”汇总，`items=[{label,value,note?,tone?}]`；不要再写本地 `Metric` 组件和 `*__metrics` 网格 |
 | `FormField` | 表单字段 | 标签绑定、错误关联、提示和统一控件样式；`size="sm"` 用于紧凑工具栏/行内编辑，与同行 sm 按钮、下拉同高 |
 | `Select` | 通用下拉选择 | 单选、多选、名称/值/拼音首字母检索、清空、键盘操作、表单提交 |
 | `DictionarySelect` | 字典下拉选择 | 按字典编码或 ID 加载启用项、名称/编码/拼音检索、编码展示、缓存及单选/多选 |

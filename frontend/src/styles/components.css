@@ -239,6 +239,12 @@
 .ui-list-item__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--font-weight-semibold); }
 .ui-list-item__row--meta { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .ui-list-item__row--meta small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; }
+.ui-metric-strip { display: grid; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.ui-metric-strip__item { min-width: 0; min-height: 5.5rem; padding: var(--space-3) var(--space-4); display: grid; align-content: center; gap: var(--space-1); border-right: 1px solid var(--color-border); }
+.ui-metric-strip__item:last-child { border-right: 0; }
+.ui-metric-strip__item span, .ui-metric-strip__item small { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.ui-metric-strip__item strong { overflow: hidden; font-size: var(--font-size-h3); text-overflow: ellipsis; white-space: nowrap; }
+.ui-metric-strip__item.is-warning strong { color: var(--color-danger); }
 .ui-tag { max-width: 100%; padding: 0 var(--space-1); display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: var(--radius-xs); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); line-height: var(--line-height-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ui-tag--mono { font-family: var(--font-family-mono); font-weight: var(--font-weight-medium); }
 .ui-tag--neutral { color: var(--color-text-secondary); background: var(--color-surface-subtle); border-color: var(--color-border); }

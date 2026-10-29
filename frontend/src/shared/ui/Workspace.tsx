@@ -170,6 +170,27 @@ export function ListItemButton({ title, badge, meta, aside, selected = false, on
   </button>
 }
 
+export type MetricItem = {
+  label: ReactNode
+  value: ReactNode
+  /** 数值下方的补充说明。 */
+  note?: ReactNode
+  /** warning 将数值标为危险色（如存在差异）。 */
+  tone?: 'warning'
+}
+
+/** 合并格线的指标条：一排并列的“标签 / 数值 / 说明”，用于面板顶部的汇总。列数等于指标个数。 */
+export function MetricStrip({ items, label, className = '' }: { items: MetricItem[]; label?: string; className?: string }) {
+  return <div className={`ui-metric-strip ${className}`.trim()} role={label ? 'group' : undefined} aria-label={label}
+    style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+    {items.map((item, index) => <div key={index} className={`ui-metric-strip__item ${item.tone === 'warning' ? 'is-warning' : ''}`.trim()}>
+      <span>{item.label}</span>
+      <strong>{item.value}</strong>
+      {item.note && <small>{item.note}</small>}
+    </div>)}
+  </div>
+}
+
 export function SearchField({
   value,
   onChange,
