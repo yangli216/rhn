@@ -377,7 +377,7 @@ describe('ParameterManagement Dependency & Suppression', () => {
     renderWorkspace(api)
 
     // 找到临床模型标识卡片，断言依赖与抑制徽章
-    const modelCard = await screen.findByRole('option', { name: /临床模型标识/ })
+    const modelCard = await screen.findByRole('button', { name: /临床模型标识/ })
     expect(modelCard).toHaveTextContent('依赖: AI运行模式')
     expect(modelCard).toHaveTextContent('预览条件未满足')
 
@@ -738,7 +738,7 @@ describe('ParameterManagement query facts', () => {
     definitions.mockRejectedValue(new Error('目录刷新失败'))
     await act(async () => { await queryClient.invalidateQueries({ queryKey: ['parameter-definitions'] }) })
     expect(await screen.findByText('参数目录加载失败')).toBeInTheDocument()
-    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /临床模型标识/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '编辑定义' })).not.toBeInTheDocument()
     expect(screen.queryByText('未找到匹配参数')).not.toBeInTheDocument()
     definitions.mockResolvedValue([mockDefinitions[0]])
@@ -820,7 +820,7 @@ describe('Parameter dependency preview truth', () => {
 
   it.each([undefined, null])('does not turn an unknown dependency into suppression', async (value) => {
     renderWorkspace(dependencyApi(value))
-    const card = await screen.findByRole('option', { name: /临床模型标识/ })
+    const card = await screen.findByRole('button', { name: /临床模型标识/ })
     expect(card).toHaveTextContent('依赖状态待确认')
     await screen.findByRole('button', { name: '编辑定义' })
     const banner = screen.getByRole('status')
@@ -836,7 +836,7 @@ describe('Parameter dependency preview truth', () => {
       await screen.findByRole('button', { name: '编辑定义' })
       expect(screen.getByRole('status')).toHaveTextContent(`前置依赖预览：${label}`)
       expect(screen.getByRole('status')).toHaveTextContent('业务使用时按实际上下文判断')
-      expect(screen.getByRole('option', { name: /临床模型标识/ })).toHaveTextContent('依赖状态待确认')
+      expect(screen.getByRole('button', { name: /临床模型标识/ })).toHaveTextContent('依赖状态待确认')
     },
   )
 

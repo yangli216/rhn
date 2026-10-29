@@ -238,6 +238,7 @@
 .ui-list-item__row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .ui-list-item__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--font-weight-semibold); }
 .ui-list-item__row--meta { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.ui-list-item__row--meta > :not(small) { min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none; }
 .ui-list-item__row--meta small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; }
 .ui-metric-strip { display: grid; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .ui-metric-strip__item { min-width: 0; min-height: 5.5rem; padding: var(--space-3) var(--space-4); display: grid; align-content: center; gap: var(--space-1); border-right: 1px solid var(--color-border); }
@@ -1393,6 +1394,10 @@ input[type="checkbox"]:disabled {
 .ui-tree-panel__search button { min-width: var(--target-size-min); height: var(--target-size-min); padding: 0; border: 0; color: var(--color-brand-primary); background: transparent; font-size: var(--font-size-small); }
 .ui-tree-panel__sort-hint { margin: calc(-1 * var(--space-1)) var(--space-3) var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }
 .ui-tree-panel__tree { min-height: 12rem; padding: 0 var(--space-2) var(--space-3); flex: 1; overflow: auto; outline: 0; scrollbar-gutter: auto; }
+/* 嵌入 WorkspacePane（hideTitle）：外框与内边距由面板提供，搜索框与树贴合面板正文。 */
+.ui-tree-panel.is-embedded { border: 0; border-radius: 0; background: transparent; }
+.ui-tree-panel.is-embedded .ui-tree-panel__search { margin: 0 0 var(--space-2); }
+.ui-tree-panel.is-embedded .ui-tree-panel__tree { min-height: 0; padding: 0; }
 .ui-tree-panel__row { position: relative; width: 100%; min-width: 0; min-height: var(--target-size-min); box-sizing: border-box; padding: 0 var(--space-2) 0 calc(var(--space-2) + var(--tree-depth, 0) * var(--space-6)); display: flex; align-items: center; gap: var(--space-2); border-radius: var(--radius-md); color: var(--color-text-primary); cursor: default; user-select: none; transition: color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
 .ui-tree-panel__row:hover { background: var(--color-surface-subtle); }
 .ui-tree-panel__row:focus-visible { outline: 0; box-shadow: inset 3px 0 var(--color-brand-primary), 0 0 0 2px var(--color-focus-ring); }

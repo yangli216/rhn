@@ -31,6 +31,8 @@ export interface TreePanelProps {
   rootLabel?: string
   rootMeta?: string
   headingLevel?: 2 | 3
+  /** 由外层 PanelHead 提供标题时使用：不渲染自带标题栏与外框，嵌入 WorkspacePane。有操作按钮时仍保留操作栏。 */
+  hideTitle?: boolean
   searchLabel?: string
   searchPlaceholder?: string
   emptyText?: string
@@ -51,6 +53,7 @@ export function TreePanel({
   rootLabel = '全部',
   rootMeta,
   headingLevel = 3,
+  hideTitle = false,
   searchLabel = '搜索树节点',
   searchPlaceholder = '搜索名称或编码',
   emptyText = '暂无树节点',
@@ -180,9 +183,9 @@ export function TreePanel({
   const hasResults = visibleRows.length > 0
   const hasActions = Boolean(onAdd || onEdit || onDelete || onMove)
   const Heading = headingLevel === 2 ? 'h2' : 'h3'
-  return <section className={`ui-tree-panel ${sortMode ? 'is-sorting' : ''}`} aria-label={title}>
-    <header className={`ui-tree-panel__head ${hasActions ? 'has-actions' : ''}`}>
-      <Heading>{title}</Heading>
+  return <section className={`ui-tree-panel ${sortMode ? 'is-sorting' : ''} ${hideTitle ? 'is-embedded' : ''}`.trim()} aria-label={title}>
+    {(!hideTitle || hasActions) && <header className={`ui-tree-panel__head ${hasActions ? 'has-actions' : ''}`}>
+      {hideTitle ? <span /> : <Heading>{title}</Heading>}
       {hasActions && <div className="ui-tree-panel__actions" aria-label={`${title}操作`}>
         {onAdd && <TreeAction label="新增节点" disabled={busy} onClick={() => onAdd(selectedId)}><IconPlus /></TreeAction>}
         {onEdit && <TreeAction label="编辑节点" disabled={busy || !selectedId} onClick={() => selectedId && onEdit(selectedId)}><IconEdit /></TreeAction>}
@@ -190,7 +193,7 @@ export function TreePanel({
         {onMove && <TreeAction label={sortMode ? '结束排序' : '拖拽排序'} pressed={sortMode} disabled={busy}
           onClick={() => setSortMode((current) => !current)}><IconSortAscending /></TreeAction>}
       </div>}
-    </header>
+    </header>}
     <label className="ui-tree-panel__search">
       <span className="visually-hidden">{searchLabel}</span><IconSearch aria-hidden="true" />
       <input aria-label={searchLabel} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholder} />

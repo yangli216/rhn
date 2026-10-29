@@ -205,9 +205,6 @@
 }
 
 @media (max-width: 64rem) {
-  .parameter-workspace { grid-template-columns: 1fr; }
-  .parameter-catalog { position: static; }
-  .parameter-catalog__list { max-height: none; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 60rem) and (max-width: 70rem) {
@@ -241,12 +238,10 @@
   .dictionary-facts { grid-template-columns: repeat(2, 1fr); }
   .dictionary-items__actions { align-items: stretch; flex-direction: column; }
   .dictionary-items__search, .dictionary-category-filter.compact, .dictionary-items__actions .ui-button { width: 100%; }
-  .parameter-catalog__list, .parameter-filters, .parameter-facts { grid-template-columns: 1fr; }
+  .parameter-filters { grid-template-columns: 1fr; }
   .parameter-value-form, .parameter-category-form, .parameter-category-workspace, .dictionary-category-workspace { grid-template-columns: 1fr; }
   .parameter-category-workspace .ui-tree-panel { max-height: 20rem; }
   .dictionary-category-workspace .ui-tree-panel { max-height: 20rem; }
-  .parameter-detail__head, .parameter-policy, .parameter-values__toolbar { align-items: stretch; flex-direction: column; }
-  .parameter-detail__actions, .parameter-detail__actions .ui-button, .parameter-values__toolbar .ui-button { width: 100%; }
   .quick-schedule-form, .professional-schedule-form { grid-template-columns: 1fr; }
   .professional-schedule-weekdays { grid-column: auto; }
   .professional-exception-list > div, .professional-template-list article { grid-template-columns: 1fr; }

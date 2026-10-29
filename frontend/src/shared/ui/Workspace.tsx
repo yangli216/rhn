@@ -200,19 +200,22 @@ export function DescriptionList({ items, columns = 2, variant = 'bordered', clas
 /** 可选中列表（单据、期间、规则目录等）：上下方向键在条目间移动焦点，条目用 ListItemButton。 */
 export function SelectableList({ label, className = '', children }: { label: string; className?: string; children: ReactNode }) {
   function move(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
     const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('.ui-list-item:not(:disabled)')]
     const index = items.indexOf(document.activeElement as HTMLButtonElement)
     if (index < 0) return
     event.preventDefault()
-    items[Math.min(items.length - 1, Math.max(0, index + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus()
+    const target = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : Math.min(items.length - 1, Math.max(0, index + (event.key === 'ArrowDown' ? 1 : -1)))
+    items[target]?.focus()
   }
   return <div className={`ui-selectable-list ${className}`.trim()} role="group" aria-label={label} onKeyDown={move}>{children}</div>
 }
 
 /** 两行目录条目：第一行标题（可省略）+ 右侧徽标，第二行次要信息 + 右侧补充（如金额）。选中为品牌描边 + 左侧标记。 */
-export function ListItemButton({ title, badge, meta, aside, selected = false, onSelect, disabled }: {
+export function ListItemButton({ title, hint, badge, meta, aside, selected = false, onSelect, disabled }: {
   title: ReactNode
+  /** 悬浮说明（完整名称、补充属性等）。 */
+  hint?: string
   badge?: ReactNode
   meta?: ReactNode
   aside?: ReactNode
@@ -220,7 +223,7 @@ export function ListItemButton({ title, badge, meta, aside, selected = false, on
   onSelect: () => void
   disabled?: boolean
 }) {
-  return <button type="button" className={`ui-list-item ${selected ? 'is-selected' : ''}`.trim()} aria-current={selected ? 'true' : undefined} disabled={disabled} onClick={onSelect}>
+  return <button type="button" className={`ui-list-item ${selected ? 'is-selected' : ''}`.trim()} aria-current={selected ? 'true' : undefined} disabled={disabled} title={hint} onClick={onSelect}>
     <span className="ui-list-item__row"><strong className="ui-list-item__title">{title}</strong>{badge}</span>
     {(meta || aside) && <span className="ui-list-item__row ui-list-item__row--meta"><small>{meta}</small>{aside}</span>}
   </button>

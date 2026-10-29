@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import '../../styles/features/operational-master-data.css'
 import '../../styles/features/treatment-skintest.css'
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   errorMessage, PARAMETER_SYSTEM_ENUM, systemEnumItems,
   type ConfigurationDependencyBehavior,
@@ -12,10 +12,11 @@ import {
   type ParameterValueType, type RhnApi, type SystemEnumDefinition, type SystemEnumItem,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, DataTable, Dialog, DictionarySelect, EmptyState, FormField, Icon, LoadingState,
-  PageHeader, Pagination, Panel, PanelHead, SearchField, Select, SplitWorkspace, StatusBadge, TableShell,
+  Alert, Button, DataTable, DescriptionList, Dialog, DictionarySelect, EmptyState, FormField, Icon, ListItemButton, LoadingState,
+  PageHeader, Pagination, PanelHead, SearchField, Select, SelectableList, StatusBadge, TableShell, Tag, tableCellClass,
   TreePanel, type TreePanelMove,
 } from '../../shared/ui'
+import { WorkspaceColumns, WorkspacePane } from '../../shared/ui/templates/PageTemplates'
 import type { ServiceCatalogItem } from '../../shared/api/masterDataApi'
 import { ParameterJsonNumber, compareParameterNumbers, isParameterJsonNumber, isParameterNumberText, parseParameterJson, stringifyParameterJson } from './parameterJson'
 import { requireSavedParameterValue } from './parameterValueReceipt'
@@ -69,7 +70,6 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   currentDefinitionContext.current = definitionContextKey
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
-  const cardRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const systemEnums = useQuery({
     queryKey: ['dictionary-system-enums'], queryFn: api.dictionaries.systemEnums, staleTime: Infinity,
@@ -355,23 +355,9 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   const safeCatalogPage = Math.min(catalogPage, catalogPageCount - 1)
   const pageDefinitions = definitionList.slice(safeCatalogPage * DIRECTORY_PAGE_SIZE,
     (safeCatalogPage + 1) * DIRECTORY_PAGE_SIZE)
-  const parameterRovingId = pageDefinitions.some((item) => item.id === selectedId)
-    ? selectedId : pageDefinitions[0]?.id
   const queryError = systemEnums.error || categories.error || allDefinitions.error || definitions.error || detail.error
   const busy = definitionWrite.isPending
     || saveValue.isPending || valueAction.isPending
-
-  function handleCardKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const list = pageDefinitions
-    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) || !list.length) return
-    event.preventDefault()
-    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? list.length - 1
-      : event.key === 'ArrowUp' ? Math.max(0, index - 1) : Math.min(list.length - 1, index + 1)
-    cardRefs.current[nextIndex]?.focus()
-    setSelectedId(list[nextIndex].id)
-    setFeedback('')
-    setOperationError('')
-  }
 
   const pageTitle = fixedConfigType === 'BUSINESS' ? '业务参数配置'
     : fixedConfigType === 'SYSTEM' ? '系统运行参数'
@@ -389,21 +375,22 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
     <PageHeader compact eyebrow={pageEyebrow} title={pageTitle}
       description={pageDescription}
       actions={<>{queryError && <Button variant="secondary" onClick={() => void refreshParameterFacts()}>重新加载参数</Button>}
-        <Button className="parameter-page-action" variant="secondary" disabled={!categoriesReady} onClick={() => {
+        <Button variant="secondary" disabled={!categoriesReady} onClick={() => {
           categorySession.current += 1; createCategory.reset(); updateCategory.reset(); reorderCategories.reset(); setCategoryDialog({ mode: 'create' })
         }}>
-        管理分类</Button><Button className="parameter-page-action" disabled={!definitionFormReady || !categories.data?.some((item) => item.sdParamStatus === 'ACTIVE')}
+        管理分类</Button><Button disabled={!definitionFormReady || !categories.data?.some((item) => item.sdParamStatus === 'ACTIVE')}
           onClick={() => openDefinitionDialog('create')}><Icon name="add" />新建参数</Button></>} />
 
-    {feedback && <Alert tone="success" className="parameter-feedback">{feedback}</Alert>}
-    {(operationError || queryError) && <Alert className="parameter-feedback">
+    {feedback && <Alert tone="success">{feedback}</Alert>}
+    {(operationError || queryError) && <Alert>
       {operationError || errorMessage(queryError)}</Alert>}
 
-    <SplitWorkspace className="parameter-workspace">
-      <Panel className="parameter-category-nav">
+    <WorkspaceColumns columns="clamp(15rem, 16vw, 17rem) clamp(20rem, 24vw, 23.5rem) minmax(0, 1fr)" label="参数管理作业">
+      <WorkspacePane label="参数分类" scroll="content"
+        header={<PanelHead title="参数分类" meta={categoriesReady ? `${categoryOptions.length} 类` : undefined} />}>
         {categories.isFetching && <LoadingState label="正在加载参数分类…" />}
         {categories.isError && <EmptyState icon="error" title="参数分类加载失败" copy="请重新加载后再操作分类。" />}
-        {categoriesReady && <TreePanel title="参数分类" headingLevel={2} rootLabel="全部参数"
+        {categoriesReady && <TreePanel title="参数分类" hideTitle rootLabel="全部参数"
           rootMeta={totalsReady ? `${allDefinitions.data.filter((item) => !fixedConfigType || item.sdParamConfigType === fixedConfigType).length} 项参数` : '数量待确认'} searchLabel="搜索分类"
           searchPlaceholder="搜索分类名称或编码" selectedId={categoryFilter || undefined}
           nodes={categoryOptions.map(({ category }) => ({
@@ -416,69 +403,71 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
             setFeedback('')
             setOperationError('')
           }} />}
-      </Panel>
+      </WorkspacePane>
 
-      <Panel className="parameter-catalog">
-        <PanelHead title={currentCategoryName} meta={catalogReady ? `${definitionList.length} 项` : '数量待确认'} />
-        <div className={`parameter-filters ${fixedConfigType ? 'parameter-filters--fixed-type' : ''}`}>
-          <SearchField className="parameter-filters__search" label="搜索参数" value={query}
-            onChange={setQuery} placeholder="搜索名称或参数键" />
-          {!fixedConfigType && (
-            <Select aria-label="配置属性" value={configTypeFilter} placeholder="全部属性" showValue
-              onChange={setConfigTypeFilter} options={configTypeOptions.map(selectOption)} />
-          )}
-          <Select aria-label="参数状态" value={statusFilter} placeholder="全部状态" showValue
-            onChange={setStatusFilter} options={statusOptions.map(selectOption)} />
-        </div>
-        <div className="parameter-catalog__list" role="listbox" aria-label="参数目录">
-          {definitions.isFetching && <LoadingState label="正在加载参数…" />}
-          {definitions.isError && <EmptyState icon="error" title="参数目录加载失败" copy="请重新加载后再选择参数。" />}
-          {pageDefinitions.map((definition, index) => <ParameterCard key={definition.id} definition={definition}
-            tabIndex={definition.id === parameterRovingId ? 0 : -1}
-            buttonRef={(node) => { cardRefs.current[index] = node }}
-            onKeyDown={(event) => handleCardKeyDown(event, index)}
-            selected={definition.id === selectedId} onSelect={() => {
-              setSelectedId(definition.id); setFeedback(''); setOperationError('')
-            }} />)}
-          {catalogReady && definitionList.length === 0 && <EmptyState icon="search"
-            title="未找到匹配参数" copy={categories.data?.length ? '请调整筛选条件，或新建一个参数。' : '请先创建参数分类。'} />}
-        </div>
-        {catalogReady && <Pagination page={safeCatalogPage} totalPages={catalogPageCount} label="参数目录分页"
+      <WorkspacePane label="参数目录" resetScrollKey={`${query}:${categoryFilter}:${effectiveConfigType}:${statusFilter}:${safeCatalogPage}`}
+        header={<>
+          <PanelHead title={currentCategoryName} meta={catalogReady ? `${definitionList.length} 项` : '数量待确认'} />
+          <div className={`parameter-filters ${fixedConfigType ? 'parameter-filters--fixed-type' : ''}`}>
+            <SearchField className="parameter-filters__search" label="搜索参数" value={query}
+              onChange={setQuery} placeholder="搜索名称或参数键" />
+            {!fixedConfigType && (
+              <Select aria-label="配置属性" value={configTypeFilter} placeholder="全部属性" showValue
+                onChange={setConfigTypeFilter} options={configTypeOptions.map(selectOption)} />
+            )}
+            <Select aria-label="参数状态" value={statusFilter} placeholder="全部状态" showValue
+              onChange={setStatusFilter} options={statusOptions.map(selectOption)} />
+          </div>
+        </>}
+        footer={catalogReady ? <Pagination page={safeCatalogPage} totalPages={catalogPageCount} label="参数目录分页"
           onChange={(nextPage) => {
             setCatalogPage(nextPage)
             const first = definitionList[nextPage * DIRECTORY_PAGE_SIZE]
             if (first) setSelectedId(first.id)
-          }} />}
-      </Panel>
+          }} /> : undefined}>
+        {definitions.isFetching && <LoadingState label="正在加载参数…" />}
+        {definitions.isError && <EmptyState icon="error" title="参数目录加载失败" copy="请重新加载后再选择参数。" />}
+        <SelectableList label="参数目录">
+          {pageDefinitions.map((definition) => <ParameterCard key={definition.id} definition={definition}
+            selected={definition.id === selectedId} onSelect={() => {
+              setSelectedId(definition.id); setFeedback(''); setOperationError('')
+            }} />)}
+        </SelectableList>
+        {catalogReady && definitionList.length === 0 && <EmptyState icon="search" size="compact"
+          title="未找到匹配参数" copy={categories.data?.length ? '请调整筛选条件，或新建一个参数。' : '请先创建参数分类。'} />}
+      </WorkspacePane>
 
-      <Panel className="parameter-detail">
-        {detail.isFetching && selectedId && <LoadingState label="正在加载参数详情…" />}
-        {detail.isError && <EmptyState icon="error" title="参数详情加载失败" copy="当前值及状态尚未确认，请重新加载。" />}
-        {catalogReady && definitionList.length === 0 && <EmptyState icon="settings" title="暂无参数"
-          copy="创建参数分类和参数定义后，即可按作用域维护当前值。" />}
-        {detailReady && selected && <>
-          <header className="parameter-detail__head">
-            <div><div className="parameter-title-row"><h2>{selected.name}</h2>
-              <StatusBadge tone={selected.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
-                {selected.sdParamStatusText}</StatusBadge></div>
-              <code>{selected.key}</code><p>{selected.description || '暂无用途说明'}</p></div>
+      <WorkspacePane label="参数详情" resetScrollKey={selectedId} className="parameter-detail"
+        header={<>
+          <PanelHead title={detailReady && selected ? selected.name : '参数详情'}
+            meta={detailReady && selected ? <StatusBadge tone={selected.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
+              {selected.sdParamStatusText}</StatusBadge> : undefined} />
+          {detailReady && selected && <div className="parameter-detail__identity">
+            <Tag mono title={selected.key}>{selected.key}</Tag>
             <div className="parameter-detail__actions">
-              <Button variant="secondary" onClick={() => setShowChanges(true)}>变更记录</Button>
-              <Button variant="secondary" disabled={!categoriesReady || !totalsReady || !enumsReady} onClick={() => openDefinitionDialog('edit')}>编辑定义</Button>
-              <Button variant={selected.sdParamStatus === 'ACTIVE' ? 'danger' : 'secondary'}
+              <Button size="sm" variant="secondary" onClick={() => setShowChanges(true)}>变更记录</Button>
+              <Button size="sm" variant="secondary" disabled={!categoriesReady || !totalsReady || !enumsReady} onClick={() => openDefinitionDialog('edit')}>编辑定义</Button>
+              <Button size="sm" variant={selected.sdParamStatus === 'ACTIVE' ? 'danger' : 'secondary'}
                 busy={definitionWrite.isPending}
                 onClick={() => { definitionSession.current += 1; definitionWrite.reset(); setConfirmDefinitionStatus(requireCurrentDetail()) }}>
                 {selected.sdParamStatus === 'ACTIVE' ? '停用参数' : '启用参数'}</Button>
             </div>
-          </header>
-          <dl className="parameter-facts">
-            <div><dt>分类</dt><dd>{selected.categoryName}</dd></div>
-            <div><dt>值类型 / 控件</dt><dd>{selected.sdParamValueTypeText} · {selected.sdParamControlTypeText}</dd></div>
-            <div><dt>配置属性</dt><dd>{selected.sdParamConfigTypeText}</dd></div>
-            <div><dt>安全策略</dt><dd>{selected.sdParamSensitivityText} · {selected.sdParamDisplayPolicyText}</dd></div>
-            <div><dt>默认值</dt><dd>{describeDefaultValue(selected)}</dd></div>
-            <div><dt>前置依赖</dt><dd>{selected.dependsOnKey ? `${selected.dependsOnName || selected.dependsOnKey}（期望: ${selected.dependsOnValue || '非空'}）` : '无（独立生效）'}</dd></div>
-          </dl>
+          </div>}
+        </>}>
+        {detail.isFetching && selectedId && <LoadingState label="正在加载参数详情…" />}
+        {detail.isError && <EmptyState icon="error" title="参数详情加载失败" copy="当前值及状态尚未确认，请重新加载。" />}
+        {catalogReady && definitionList.length === 0 && <EmptyState icon="settings" title="暂无参数"
+          copy="创建参数分类和参数定义后，即可按作用域维护当前值。" />}
+        {detailReady && selected && <div className="parameter-detail__body">
+          <DescriptionList variant="plain" columns={3} items={[
+            { label: '用途说明', value: selected.description || '暂无用途说明', span: 3 },
+            { label: '分类', value: selected.categoryName },
+            { label: '值类型 / 控件', value: `${selected.sdParamValueTypeText} · ${selected.sdParamControlTypeText}` },
+            { label: '配置属性', value: selected.sdParamConfigTypeText },
+            { label: '安全策略', value: `${selected.sdParamSensitivityText} · ${selected.sdParamDisplayPolicyText}` },
+            { label: '默认值', value: describeDefaultValue(selected) },
+            { label: '前置依赖', value: selected.dependsOnKey ? `${selected.dependsOnName || selected.dependsOnKey}（期望: ${selected.dependsOnValue || '非空'}）` : '无（独立生效）' },
+          ]} />
           {selected.dependsOnKey && (
             <div className={`parameter-dependency-banner ${selected.dependencySatisfied === true ? 'is-satisfied' : 'is-unsatisfied'}`} role="status">
               <div className="parameter-dependency-banner__icon">
@@ -513,43 +502,39 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
               </div>
             </div>
           )}
-          <section className="parameter-policy" aria-label="参数策略">
-            <div className="parameter-policy__copy"><strong>参数级别</strong><span>{selected.allowedScopes.map((scope) =>
-              enumName(systemEnums.data, PARAMETER_SYSTEM_ENUM.scopeType, scope)).join('、')}</span></div>
-            <div className="parameter-policy__badges">
-              <StatusBadge tone={selected.inheritanceEnabled ? 'success' : 'neutral'}>
-                {selected.inheritanceEnabled ? '允许继承' : '禁止继承'}</StatusBadge>
-              <StatusBadge tone={selected.cacheEnabled ? 'success' : 'neutral'}>
-                {selected.cacheEnabled ? '启用缓存' : '不缓存'}</StatusBadge>
-              <StatusBadge>{selected.nullableValue ? '允许显式空值' : '不允许空值'}</StatusBadge>
-            </div>
-          </section>
-          <div className="parameter-values__toolbar"><div><h3>当前值</h3>
-            <span>每个作用域只保留一条当前记录；继承与重置默认均作为明确的值模式保存。</span></div>
-            <Button disabled={!enumsReady || valueAction.isPending} onClick={() => { saveValue.reset(); setEditingValue(null) }}><Icon name="add" />维护当前值</Button></div>
+          <PanelHead level="section" title="参数级别" className="parameter-policy" actions={<div className="parameter-policy__tags">
+            {selected.allowedScopes.map((scope) => <Tag key={scope} tone="brand">{enumName(systemEnums.data, PARAMETER_SYSTEM_ENUM.scopeType, scope)}</Tag>)}
+            <Tag tone={selected.inheritanceEnabled ? 'success' : 'neutral'}>
+              {selected.inheritanceEnabled ? '允许继承' : '禁止继承'}</Tag>
+            <Tag tone={selected.cacheEnabled ? 'success' : 'neutral'}>
+              {selected.cacheEnabled ? '启用缓存' : '不缓存'}</Tag>
+            <Tag>{selected.nullableValue ? '允许显式空值' : '不允许空值'}</Tag>
+          </div>} />
+          <PanelHead level="section" title="当前值" description="每个作用域只保留一条当前记录；继承与重置默认均作为明确的值模式保存。"
+            actions={<Button size="sm" disabled={!enumsReady || valueAction.isPending} onClick={() => { saveValue.reset(); setEditingValue(null) }}><Icon name="add" />维护当前值</Button>} />
           {valueActionError && valueAction.variables?.kind === 'status' && <div role="alert"><p>{valueActionError}</p>
             <Button variant="secondary" busy={valueAction.isPending} disabled={!detailReady}
               onClick={() => valueAction.variables && valueAction.mutate(valueAction.variables)}>重试本次操作</Button></div>}
-          <TableShell scrollClassName="parameter-table-wrap" footerClassName="parameter-table__footer"
+          <TableShell scrollClassName="parameter-table-wrap"
             footer={`${selected.values.length} 条当前值 · 定义修订 ${selected.revision}`}>
             <DataTable className="parameter-table" aria-label="参数当前值">
-            <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作">操作</th></tr></thead>
+            <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th className={tableCellClass('status')}>状态</th><th>更新时间</th><th className={tableCellClass('actions')} aria-label="操作">操作</th></tr></thead>
             <tbody>{selected.values.map((value) => <tr key={value.id}>
               <td><strong>{value.sdParamScopeTypeText}</strong><code>{scopeDisplay(value)}</code></td>
               <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value, selected)}</td>
-              <td><StatusBadge tone={value.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
+              <td className={tableCellClass('status')}><StatusBadge tone={value.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                 {value.sdParamStatusText}</StatusBadge></td><td>{formatDate(value.updatedAt)}</td>
-              <td><div className="parameter-row-actions"><Button size="sm" variant="text" disabled={valueAction.isPending}
+              <td className={tableCellClass('actions')}><div className="parameter-row-actions"><Button size="sm" variant="text" disabled={valueAction.isPending}
                 onClick={() => { saveValue.reset(); setEditingValue(value) }}>编辑</Button><Button size="sm" variant="text"
                 busy={valueAction.isPending} onClick={() => valueAction.mutate({ kind: 'status', before: selected, value, enabled: value.sdParamStatus !== 'ACTIVE' })}>
                 {value.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}</Button></div></td>
             </tr>)}</tbody>
-          </DataTable>{selected.values.length === 0 && <EmptyState icon="settings" title="尚未维护当前值"
+          </DataTable>{selected.values.length === 0 && <EmptyState icon="settings" size="compact" title="尚未维护当前值"
             copy={selected.hasDefaultValue ? '解析时会使用参数默认值；也可维护各作用域的覆盖值。' : '请维护至少一个可解析作用域的当前值。'} />}
           </TableShell>
-        </>}
-      </Panel>
-    </SplitWorkspace>
+        </div>}
+      </WorkspacePane>
+    </WorkspaceColumns>
 
     {definitionDialog && <ParameterDefinitionDialog
       key={`${definitionDialog}-${definitionDialog === 'edit' ? selected?.id ?? 'missing' : 'new'}`}
@@ -622,28 +607,17 @@ export function ParameterManagement({ api, context, fixedConfigType }: {
   </>
 }
 
-function ParameterCard({ definition, selected, tabIndex, buttonRef, onKeyDown, onSelect }: {
-  definition: ParameterDefinitionSummary; selected: boolean; tabIndex: number
-  buttonRef: (node: HTMLButtonElement | null) => void
-  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void; onSelect: () => void
+function ParameterCard({ definition, selected, onSelect }: {
+  definition: ParameterDefinitionSummary; selected: boolean; onSelect: () => void
 }) {
-  return <button type="button" role="option" aria-selected={selected} tabIndex={tabIndex}
-    ref={buttonRef} onKeyDown={onKeyDown}
-    className={`parameter-card ${selected ? 'is-selected' : ''}`} onClick={onSelect}>
-    <span className="parameter-card__icon"><Icon name="settings" /></span><span className="parameter-card__content">
-      <span className="parameter-card__title"><strong>{definition.name}</strong>
-        <StatusBadge tone={definition.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
-          {definition.sdParamStatusText}</StatusBadge></span><code>{definition.key}</code>
-      <small>{definition.categoryName} · {definition.sdParamConfigTypeText} · {definition.valueCount} 条当前值</small>
-      {definition.dependsOnKey && (
-        <span className={`parameter-card__dependency ${definition.dependencySatisfied === true ? 'is-satisfied' : 'is-unsatisfied'}`}>
-          <Icon name="roadmap" />
-          <span>依赖: {definition.dependsOnName || definition.dependsOnKey}</span>
-          <span className="dependency-tag">{parameterDependencyPresentation(definition.dependencySatisfied).label}</span>
-        </span>
-      )}
-    </span><Icon name="chevron-right" />
-  </button>
+  const dependency = definition.dependsOnKey ? parameterDependencyPresentation(definition.dependencySatisfied) : undefined
+  const dependencyText = dependency ? `依赖: ${definition.dependsOnName || definition.dependsOnKey} · ${dependency.label}` : ''
+  return <ListItemButton selected={selected} onSelect={onSelect}
+    title={<span title={`${definition.categoryName} · ${definition.sdParamConfigTypeText}`}>{definition.name}</span>}
+    badge={<StatusBadge tone={definition.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>{definition.sdParamStatusText}</StatusBadge>}
+    meta={<code title={definition.key}>{definition.key}</code>}
+    aside={<span className="parameter-catalog-item__aside">{dependency
+      ? <Tag tone={dependency.tone} title={dependencyText}>{dependencyText}</Tag> : `${definition.valueCount} 条值`}</span>} />
 }
 
 function ParameterDefinitionDialog({ mode, definition, initialCategoryId, categories, allDefinitions, systemEnums, busy, available, saveError, onRefresh, onClose, onSave, fixedConfigType }: {
