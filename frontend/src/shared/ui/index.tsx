@@ -60,6 +60,8 @@ export {
   DataTable,
   SearchField,
   SplitWorkspace,
+  StatChips,
+  type StatChipItem,
   tableCellClass,
   TableShell,
   Tabs,

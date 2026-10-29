@@ -6,6 +6,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import { formatLocaleDateTime } from '../../shared/format'
 import {
   Alert, Button, Dialog, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge, useSystemEnum,
+  StatChips,
 } from '../../shared/ui'
 
 const tone = (status: string): 'success' | 'danger' | 'info' => ['AVAILABLE', 'OPENED', 'PARTIALLY_ISSUED'].includes(status)
@@ -79,12 +80,12 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
         <div className="ui-query-filters__actions"><Button size="sm" variant="primary" onClick={handleSearch}>查询</Button>
         <Button size="sm" variant="secondary" onClick={handleReset}>重置</Button></div>
       </div>
-      <div className="warehouse-metrics-inline">
-        <span className="warehouse-metric-chip">全库 <strong>{metrics.total}</strong></span>
-        <span className="warehouse-metric-chip">在库/已开包 <strong>{metrics.available}</strong></span>
-        <span className="warehouse-metric-chip">调拨在途 <strong>{metrics.transit}</strong></span>
-        <span className="warehouse-metric-chip">异常状态 <strong>{metrics.exceptions}</strong></span>
-      </div>
+      <StatChips items={[
+        { label: '全库', value: metrics.total },
+        { label: '在库/已开包', value: metrics.available },
+        { label: '调拨在途', value: metrics.transit },
+        { label: '异常状态', value: metrics.exceptions },
+      ]} />
     </div>
     {Boolean(values.error) && <Alert>{errorMessage(values.error)}</Alert>}
     {values.isPending ? <LoadingState label="正在读取追溯码台账…" /> : !list.length

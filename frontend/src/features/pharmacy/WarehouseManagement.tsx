@@ -7,6 +7,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel,
   Pagination, SearchField, Select, StatusBadge, TableShell, TreePanel, tableCellClass, useSystemEnum,
+  StatChips,
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import '../../styles/features/pharmacy-warehouse.css'
@@ -333,12 +334,12 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
           { value: 'ZERO', label: '零库存' }, { value: 'ATTENTION', label: '需关注' },
         ]} />
       </div>
-      <div className="warehouse-metrics-inline">
-        <span className="warehouse-metric-chip">品种 <strong>{items.length}</strong></span>
-        <span className="warehouse-metric-chip">在库 <strong>{inStockCount}</strong></span>
-        <span className="warehouse-metric-chip">批次 <strong>{activeLotCount}</strong>{expiringCount > 0 && <small className="warehouse-metric-chip__warn">（临期 {expiringCount}）</small>}</span>
-        <span className="warehouse-metric-chip">本期记账 <strong>{transactionCount}</strong></span>
-      </div>
+      <StatChips items={[
+        { label: '品种', value: items.length },
+        { label: '在库', value: inStockCount },
+        { label: '批次', value: activeLotCount, note: expiringCount > 0 ? `（临期 ${expiringCount}）` : undefined, warn: true },
+        { label: '本期记账', value: transactionCount },
+      ]} />
     </div>
     {!items.length ? <EmptyState icon="pharmacy" title="没有可查询的经营项目" copy="请先维护库房经营项目。" />
       : loading ? <LoadingState label="正在汇总全库库存…" /> : !filtered.length

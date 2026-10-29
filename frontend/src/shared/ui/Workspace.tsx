@@ -85,6 +85,25 @@ export function Tabs<T extends string>({
   </div>
 }
 
+export type StatChipItem = {
+  label: ReactNode
+  value: ReactNode
+  /** 数值后的补充说明，如“（余 3 盒）”。 */
+  note?: ReactNode
+  /** 说明需要引起注意（如临期、需核查）时用警示色。 */
+  warn?: boolean
+}
+
+/** 一行“标签 + 数值”的统计胶囊，用于筛选栏/标题栏右侧的汇总；高度与同行 sm 控件一致。 */
+export function StatChips({ items, className = '' }: { items: StatChipItem[]; className?: string }) {
+  return <div className={`ui-stat-chips ${className}`.trim()}>
+    {items.map((item, index) => <span className="ui-stat-chip" key={index}>
+      {item.label} <strong>{item.value}</strong>
+      {item.note !== undefined && item.note !== null && item.note !== false && <small className={item.warn ? 'ui-stat-chip__warn' : undefined}>{item.note}</small>}
+    </span>)}
+  </div>
+}
+
 export function SearchField({
   value,
   onChange,

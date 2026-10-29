@@ -9,6 +9,7 @@ import { formatLocaleDateTime } from '../../shared/format'
 import { formatNumber } from '../../shared/utils/precision'
 import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
+  StatChips,
 } from '../../shared/ui'
 
 export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
@@ -60,18 +61,12 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
 
   return <section className="warehouse-section warehouse-accuracy">
     <div className="warehouse-inventory-filters">
-      <div className="warehouse-metrics-inline">
-        <span className="warehouse-metric-chip">
-          最近校验 <strong>{readingResult ? '读取中' : resultError ? '读取失败' : last ? inventoryReconciliationPresentation(last.status).label : '尚未执行'}</strong>
-          {last && <small>（{formatTime(last.completedAt ?? last.startedAt)}）</small>}
-        </span>
-        <span className="warehouse-metric-chip">校验维度 <strong>{last?.dimensionCount ?? '—'}</strong></span>
-        <span className="warehouse-metric-chip">
-          差异项 <strong>{last?.issueCount ?? '—'}</strong>
-          {Boolean(last?.issueCount) && <small className="warehouse-metric-chip__warn">（需核查）</small>}
-        </span>
-        <span className="warehouse-metric-chip">在用拆零 <strong>{packages.isSuccess ? activePackages.length : '—'}</strong>（余 {packages.isSuccess ? formatQuantity(remaining) : '—'}）</span>
-      </div>
+      <StatChips items={[
+        { label: '最近校验', value: readingResult ? '读取中' : resultError ? '读取失败' : last ? inventoryReconciliationPresentation(last.status).label : '尚未执行', note: last ? `（${formatTime(last.completedAt ?? last.startedAt)}）` : undefined },
+        { label: '校验维度', value: last?.dimensionCount ?? '—' },
+        { label: '差异项', value: last?.issueCount ?? '—', note: last?.issueCount ? '（需核查）' : undefined, warn: true },
+        { label: '在用拆零', value: packages.isSuccess ? activePackages.length : '—', note: `（余 ${packages.isSuccess ? formatQuantity(remaining) : '—'}）` },
+      ]} />
       <div className="warehouse-accuracy__actions">
         <Button size="sm" variant="secondary" onClick={() => setOpenDialog(true)}>登记拆零</Button>
         <Button size="sm" busy={reconcile.isPending} onClick={() => reconcile.mutate()}>立即校验</Button>
