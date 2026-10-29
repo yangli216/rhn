@@ -125,9 +125,6 @@
 .warehouse-entry-placeholder { font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .warehouse-entry-conv { display: block; margin-top: var(--space-1); font-size: var(--font-size-small); color: var(--color-brand-primary); }
 .warehouse-entry-amount { font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.warehouse-purchase-mode-tabs { display: inline-flex; align-items: center; background: var(--color-surface-subtle); padding: var(--space-1); border-radius: var(--radius-md); border: 1px solid var(--color-border); gap: var(--space-1); margin-bottom: var(--space-2); }
-.warehouse-purchase-mode-tab { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); font-size: var(--font-size-small); border-radius: var(--radius-sm); border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-weight: var(--font-weight-medium); transition: all .15s ease; }
-.warehouse-purchase-mode-tab.is-active { background: var(--color-surface); color: var(--color-brand-primary); font-weight: var(--font-weight-semibold); box-shadow: var(--shadow-sm); }
 .warehouse-header-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--space-3); align-items: flex-end; background: var(--color-surface-subtle); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: var(--space-2); }
 .warehouse-header-grid .ui-field { margin-bottom: 0; }
 .warehouse-entry-spec-inline { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); font-size: var(--font-size-caption, var(--font-size-small)); color: var(--color-text-secondary); line-height: var(--line-height-small); }

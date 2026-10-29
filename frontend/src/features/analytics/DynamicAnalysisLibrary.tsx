@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { PageMetric, PageResult, PageSeries, PageSpec, PageTemplate, SavedPage, SourceCatalog, AnalysisTurn } from '../../shared/api/analysisPagesApi'
-import { Alert, Button, Dialog, Icon, LoadingState, Select, Pagination } from '../../shared/ui'
+import { Alert, Button, Dialog, Icon, LoadingState, Select, Pagination, Tabs } from '../../shared/ui'
 import { AnalysisPlanEditor, PlanChanges, dimensionNames, periodNames } from './AnalysisPlanEditor'
 import { SemanticWorkbench } from './SemanticWorkbench'
 import { SYSTEM_PRESET_PAGES, isPresetPage } from './analyticsPresets'
@@ -299,7 +299,8 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
             {!isCurrentPreset&&<><Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('history')}>历史版本</Button>
               <Button size="sm" variant="text" disabled={Boolean(busy)} onClick={()=>void manage('archive')}>{activeSaved?.archived?'恢复功能':'归档功能'}</Button></>}
           </div>}</header>
-          <div className="da-workspace-tabs" role="tablist" aria-label="分析工作区">{([['preview','结果预览'],...(spec.template!=='LIST'?[['data','数据明细']]:[]),...(creating?[['config','计算配置'],['changes','变更对照']]:[])] as const).map(([key,label])=><button type="button" role="tab" id={`da-tab-${key}`} aria-selected={panel===key} aria-controls={`da-panel-${key}`} tabIndex={panel===key?0:-1} key={key} onClick={()=>setPanel(key as typeof panel)} onKeyDown={e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const tabs=[...e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]')];const index=tabs.indexOf(e.currentTarget);const next=tabs[(index+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];next.focus();next.click()}}}>{label}</button>)}</div>
+          <Tabs className="da-workspace-tabs" label="分析工作区" value={panel} onChange={setPanel}
+            items={[{value:'preview',label:'结果预览'},...(spec.template!=='LIST'?[{value:'data' as const,label:'数据明细'}]:[]),...(creating?[{value:'config' as const,label:'计算配置'},{value:'changes' as const,label:'变更对照'}]:[])].map(item=>({...item,tabId:`da-tab-${item.value}`,panelId:`da-panel-${item.value}`}))}/>
                     <div className="da-filters ui-query-filters"><label>统计日期<Select aria-label="统计日期" disabled={Boolean(busy)} value={spec.period.kind} clearable={false} searchable={false} onChange={value=>setSpec({...spec,period:{kind:value as PageSpec['period']['kind'],startDate:result?.startDate,endDate:result?.endDate}})} options={Object.entries(periods).map(([value,label])=>({value,label}))}/></label>
             {spec.period.kind==='FIXED'&&<><label>开始日期<input aria-label="开始日期" type="date" disabled={Boolean(busy)} value={spec.period.startDate??''} onChange={e=>setSpec({...spec,period:{...spec.period,startDate:e.target.value}})}/></label><label>结束日期<input aria-label="结束日期" type="date" disabled={Boolean(busy)} value={spec.period.endDate??''} onChange={e=>setSpec({...spec,period:{...spec.period,endDate:e.target.value}})}/></label></>}
             <label>统计范围<Select aria-label="统计范围" disabled={Boolean(busy)} value={spec.scope} clearable={false} searchable={false} onChange={value=>setSpec({...spec,scope:value as PageSpec['scope']})} options={[{value:'CURRENT',label:'当前科室'},{value:'AUTHORIZED',label:'当前机构可访问科室'}]}/></label>

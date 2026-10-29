@@ -7,14 +7,14 @@ import { errorMessage } from '../../shared/rhnApi'
 import { formatTime } from '../../shared/format'
 import {
   Alert, Button, EmptyState, FormField, Icon, IconButton, LoadingState, PageHeader, Panel, PanelHead,
-  Select, StatusBadge, Tooltip,
+  Select, StatusBadge, Tabs, Tooltip,
 } from '../../shared/ui'
 import '../../styles/features/clinical-printing.css'
 
-const DOCUMENT_TYPES: Array<{ value: ClinicalPrintDocumentType; label: string; short: string }> = [
-  { value: 'ORAL_MEDICATION_CARD', label: '口服药卡', short: '口' },
-  { value: 'INFUSION_LABEL', label: '输液瓶签', short: '签' },
-  { value: 'INFUSION_PATROL_CARD', label: '输液巡视卡', short: '巡' },
+const DOCUMENT_TYPES: Array<{ value: ClinicalPrintDocumentType; label: string }> = [
+  { value: 'ORAL_MEDICATION_CARD', label: '口服药卡' },
+  { value: 'INFUSION_LABEL', label: '输液瓶签' },
+  { value: 'INFUSION_PATROL_CARD', label: '输液巡视卡' },
 ]
 
 export function ClinicalPrintingWorkspace({ api }: { api: RhnApi }) {
@@ -122,11 +122,8 @@ export function ClinicalPrintingWorkspace({ api }: { api: RhnApi }) {
     {error && <Alert>{errorMessage(error)}</Alert>}
 
     <div className="clinical-print-toolbar">
-      <div className="clinical-print-document-tabs" role="tablist" aria-label="卡片类型">
-        {DOCUMENT_TYPES.map((item) => <button key={item.value} type="button" role="tab"
-          aria-selected={documentType === item.value} className={documentType === item.value ? 'is-active' : ''}
-          onClick={() => setDocumentType(item.value)}><span>{item.short}</span>{item.label}</button>)}
-      </div>
+      <Tabs variant="segmented" label="卡片类型" value={documentType} onChange={setDocumentType}
+        items={DOCUMENT_TYPES.map((item) => ({ value: item.value, label: item.label }))} />
       <label className="clinical-print-search"><Icon name="search" />
         <input aria-label="搜索打印任务" value={keyword} placeholder="患者 / 档案号 / 药品 / 任务号"
           onChange={(event) => setKeyword(event.target.value)} /></label>

@@ -8,7 +8,7 @@ import type {
 import { age, formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, BodySiteSelect, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge, UnitNumberInput } from '../../shared/ui'
+import { Alert, BodySiteSelect, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge, Tabs, UnitNumberInput } from '../../shared/ui'
 import '../../styles/features/treatment-skintest.css'
 
 type StatusFilter = 'ACTIONABLE' | 'OBSERVING' | 'FINISHED' | 'ALL'
@@ -995,28 +995,11 @@ function SkinTestPatientSafetySidecar({
   return (
     <div className="skin-test-sidecar-container">
       {/* Sidecar Tab Switcher */}
-      <div className="skin-test-sidecar-tabs" role="tablist" aria-label="质控侧栏视图切换">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'safety'}
-          className={`skin-test-sidecar-tab-btn ${activeTab === 'safety' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('safety')}
-        >
-          <span>用药安全与急救</span>
-          {hasKnownAllergies && <span className="skin-test-tab-alert-dot" title="存在确诊药物过敏" />}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'history'}
-          className={`skin-test-sidecar-tab-btn ${activeTab === 'history' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          <span>历史皮试与处方</span>
-          {historyItems.length > 0 && <span className="skin-test-tab-count-badge">{historyItems.length}</span>}
-        </button>
-      </div>
+      <Tabs label="质控侧栏视图切换" value={activeTab} onChange={setActiveTab}
+        items={[
+          { value: 'safety', label: <>用药安全与急救{hasKnownAllergies && <span className="skin-test-tab-alert-dot" title="存在确诊药物过敏" />}</> },
+          { value: 'history', label: '历史皮试与处方', meta: historyItems.length > 0 ? historyItems.length : undefined },
+        ]} />
 
       <div className="skin-test-sidecar-content">
         {activeTab === 'safety' ? (

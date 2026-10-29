@@ -6,7 +6,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
 import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
-import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, PanelHead, Pagination, RemoteSearchSelect, ListItemButton, Select, SelectableList, StatusBadge, Tag, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, PanelHead, Pagination, RemoteSearchSelect, ListItemButton, Select, SelectableList, StatusBadge, Tag, UnitNumberInput, Tabs, tableCellClass } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import {
@@ -22,6 +22,12 @@ import {
   IconTrash,
   IconTruckDelivery,
 } from '@tabler/icons-react'
+
+type PurchaseMode = 'plan' | 'direct'
+const PURCHASE_MODE_ITEMS: Array<{ value: PurchaseMode; label: ReactNode }> = [
+  { value: 'plan', label: <><IconClipboardList size={15} /> 采购计划（报审流）</> },
+  { value: 'direct', label: <><IconBolt size={15} /> 直接入库（现购免审）</> },
+]
 
 function recordedPrice(value: unknown): number | undefined {
   if (value == null || (typeof value === 'string' && !value.trim())) return undefined
@@ -1529,14 +1535,7 @@ export function DirectPurchaseReceiptDialog({
   </div>}>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
     {referenceStatus}
-    <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">
-      <button type="button" role="tab" aria-selected={false} className="warehouse-purchase-mode-tab" onClick={() => onSwitchMode?.('plan')}>
-        <IconClipboardList size={15} /> 采购计划（报审流）
-      </button>
-      <button type="button" role="tab" aria-selected={true} className="warehouse-purchase-mode-tab is-active" onClick={() => onSwitchMode?.('direct')}>
-        <IconBolt size={15} /> 直接入库（现购免审）
-      </button>
-    </div>
+    <Tabs<PurchaseMode> label="采购场景模式" value="direct" onChange={mode => { if (mode === 'plan') onSwitchMode?.('plan') }} items={PURCHASE_MODE_ITEMS} />
     <div className="warehouse-header-grid">
       <FormField label="供应商" required>
         <Select value={supplierId} onChange={onSupplierChange} clearable={false} showValue options={suppliers.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
@@ -1713,14 +1712,7 @@ export function PurchaseDialog({
     hideReason={true} orders={supplierOrders} products={products} supplierItems={supplierItems} submissionBlocked={!supplierReady}
     lead={<>
       {referenceStatus}
-      <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">
-        <button type="button" role="tab" aria-selected={true} className="warehouse-purchase-mode-tab is-active" onClick={() => setMode('plan')}>
-          <IconClipboardList size={15} /> 采购计划（报审流）
-        </button>
-        <button type="button" role="tab" aria-selected={false} className="warehouse-purchase-mode-tab" onClick={() => setMode('direct')}>
-          <IconBolt size={15} /> 直接入库（现购免审）
-        </button>
-      </div>
+      <Tabs<PurchaseMode> label="采购场景模式" value="plan" onChange={setMode} items={PURCHASE_MODE_ITEMS} />
       <div className="warehouse-header-grid">
         <FormField label="供应商" required>
           <Select value={supplierId} onChange={setSupplierId} clearable={false} showValue options={suppliers.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
