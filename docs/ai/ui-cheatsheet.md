@@ -19,7 +19,9 @@
 | 面板标题 | `--font-size-h3` | 16px | 20px |
 | 正文、表格、标签、按钮 | `--font-size-body` / `--font-size-table` | 14px | 16px |
 | 辅助信息（时间、单位、说明） | `--font-size-small` | 12px | 14px |
-| 控件高度 | `--control-height-sm` / `-md` / `-lg` | 32 / 40 / 48px | 36 / 44 / 52px |
+| 输入框、下拉框、搜索框、日期框、默认按钮 | `--control-height-default`（同一令牌，保证同高） | 40px | 44px |
+| 紧凑按钮（标题栏操作、表格行内） | `--control-height-sm`，写 `Button size="sm"` | 32px | 36px |
+| 显式大号按钮（重要操作） | `--control-height-lg`，写 `Button size="lg"` | 48px | 52px |
 | PanelHead 最小高度 | `--panel-header-min-height` | 36px（有操作 40px） | 40px（有操作 44px） |
 | 相邻面板间距 | `--layout-panel-gap` | 8px | 8px |
 | 业务分组间距 | `--layout-section-gap` | 12px | 12px |
@@ -27,7 +29,7 @@
 | 普通页面边距 / 工作台边距 | `--layout-page-gutter` / `--layout-workspace-gutter` | 24px / 16px | 同左 |
 | 其他间距 | `--space-1` 至 `--space-4` | 4 / 8 / 12 / 16px | 同左 |
 
-不存在 13px、15px、12.5px 这类字号，也不存在 6px、10px 这类间距。设计稿或参考页面出现这类值时，取最近的令牌。
+`sm` 只用于标题栏和表格行内；输入框同行的按钮一律不写 `size`。不存在 13px、15px、12.5px 这类字号，也不存在 6px、10px 这类间距。设计稿或参考页面出现这类值时，取最近的令牌。
 
 ## 3. 用什么
 
@@ -42,7 +44,9 @@
 | 连续录入 | `EditableTable` | 自写行编辑 |
 | 状态 | `shared/presentation` 映射 → `StatusBadge tone` | 在组件里按状态拼颜色 |
 | 下拉 | 字典 `DictionarySelect`；固定选项 `Select`；RHF `FormSelect`；诊断/药品/项目 `ClinicalResourceSearch` | `<select>` |
-| 按钮 | `Button variant size`；标题栏图标 `IconActionButton` | `<button>`，或业务 CSS 改按钮外观 |
+| 按钮 | `Button variant`；标题栏图标 `IconActionButton` | `<button>`，或业务 CSS 改按钮外观 |
+| 输入框旁的按钮（查询、添加、重置） | `Button`，**不写 `size`**，与输入框同高 | `size="sm"`（会比输入框矮，门禁 `control-size-mismatch` 会拦截）；业务 CSS 里给输入框或按钮另设高度 |
+| 标题栏、表格行内的操作 | `Button size="sm"` | 在标题栏/表格行里用默认大小撑高行 |
 | 空/加载/失败 | `EmptyState` / `LoadingState` / `Alert` | 自写提示块 |
 | 弹窗、抽屉 | `Dialog`（抽屉 `presentation="drawer"`） | `<dialog>` 或自写遮罩 |
 | 日期、数量、金额显示 | `shared/format.ts`、`utils/dateRange.ts`、`utils/precision.ts` | `toLocaleString`、`new Intl.*` |

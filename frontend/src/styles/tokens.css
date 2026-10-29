@@ -135,6 +135,8 @@
   --control-height-sm: 2rem;
   --control-height-md: 2.5rem;
   --control-height-lg: 3rem;
+  /* 表单控件与默认按钮共用同一高度：输入框与同行按钮因此天然同高。大字档只放大字号，控件高度仅随中号令牌小幅增加。紧凑型（sm）只用于标题栏和表格行内。 */
+  --control-height-default: var(--control-height-md);
   --target-size-min: 2.5rem;
   --panel-header-min-height: 2.25rem;
 

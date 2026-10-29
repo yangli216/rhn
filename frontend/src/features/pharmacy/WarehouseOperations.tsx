@@ -459,7 +459,6 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               />
               <Button
                 type="submit"
-                size="sm"
                 variant="secondary"
                 onClick={() => handleSearch()}
                 busy={orders.isFetching || receipts.isFetching}
@@ -470,8 +469,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
               {appliedSearch && (
                 <Button
                   type="button"
-                  size="sm"
-                  variant="ghost"
+                  variant="text"
                   onClick={handleResetSearch}
                   title="清空查询条件"
                 >

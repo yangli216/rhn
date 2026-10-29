@@ -111,3 +111,14 @@ test('per-file standards rules match the full check and keep token definitions e
   assert.deepEqual(inspectStandardsFile('styles/tokens.css', ':root { --color-x: #fff; }'), [])
   assert.deepEqual(rules(inspectStandardsFile('features/settings/Example.tsx', `const v = <select aria-label="x" />`)), ['native-platform-select'])
 })
+
+test('buttons beside field controls must use the default size so they match the input height', () => {
+  const rows = source => rules(scanSource(file, source))
+  assert.deepEqual(rows('const a = <form><input aria-label="q" /><Button size="sm">查询</Button></form>'), ['control-size-mismatch'])
+  assert.deepEqual(rows('const a = <div><FormField label="x"><input /></FormField><Button size={"sm"}>加</Button></div>'), ['control-size-mismatch'])
+  assert.deepEqual(rows('const a = <div><SearchField label="s" /><Button variant="secondary">查询</Button></div>'), [])
+  assert.deepEqual(rows('const a = <div><Button size="sm">改</Button><Button size="sm">删</Button></div>'), [])
+  assert.deepEqual(rows('const a = <div><input type="checkbox" /><Button size="sm">改</Button></div>'), [])
+  assert.deepEqual(rows('const a = <td><Select value="" /><Button size="sm">改</Button></td>'), [])
+  assert.deepEqual(rows('const a = <tr><td><div><Select value="" /><Button size="sm">改</Button></div></td></tr>'), [])
+})

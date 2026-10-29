@@ -17,9 +17,13 @@ export const ruleMessages = {
   'css-scrollbar-gutter': '滚动容器不得预留滚动条空间，使用 scrollbar-gutter: auto',
   'shared-appearance': '不得在业务 CSS 中覆盖共享组件外观',
   'mobile-breakpoint': '默认只适配 PC，不新增手机专属断点',
+  'control-size-mismatch': '与输入框/下拉框同行的按钮使用默认尺寸（不写 size="sm"），保证同高；紧凑型只用于表格行内',
 }
 
 const nativeComponents = { button: 'shared-button', select: 'shared-select', table: 'shared-table', dialog: 'shared-dialog' }
+// 同一父元素内出现这些控件时，旁边的 Button 必须与其同高（默认尺寸）；表格行内的紧凑场景除外。
+const fieldControls = new Set(['input', 'FormField', 'SearchField', 'Select', 'DictionarySelect', 'FormSelect', 'DatePicker', 'DateRangePicker', 'RemoteSearchSelect', 'ClinicalResourceSearch', 'UnitNumberInput', 'GridAddressInput'])
+const compactTableScopes = new Set(['td', 'th', 'tr', 'EditableRow', 'EditableCell', 'EditableTable', 'DataTable', 'TableShell'])
 const appearance = /^(?:color|background(?:-.+)?|border(?:-.+)?|outline(?:-.+)?|box-shadow|font(?:-.+)?|line-height|letter-spacing|text-shadow)$/
 const tokenProperties = /^(?:color|background-color|border(?:-(?:top|right|bottom|left))?-color|border(?:-(?:top|bottom)-(?:left|right))?-radius|box-shadow|font-size|font-family|font-weight|line-height|letter-spacing|z-index|(?:padding|margin)(?:-.+)?|(?:row-|column-)?gap)$/
 const neutralValue = /^(?:0(?:[a-z%]+)?|auto|none|normal|inherit|initial|unset|revert|transparent|currentcolor)(?:\s+(?:0|auto))*$/i
@@ -70,7 +74,33 @@ export function scanSource(file, source) {
 
   if (file.endsWith('.tsx')) {
     const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const jsxName = child => ts.isJsxElement(child) ? child.openingElement.tagName.getText(ast) : ts.isJsxSelfClosingElement(child) ? child.tagName.getText(ast) : undefined
+    const jsxAttrs = child => (ts.isJsxElement(child) ? child.openingElement : child).attributes.properties.filter(ts.isJsxAttribute)
+    const jsxText = (child, key) => {
+      const value = jsxAttrs(child).find(attr => attr.name.getText(ast) === key)?.initializer
+      if (value && ts.isStringLiteral(value)) return value.text
+      if (value && ts.isJsxExpression(value) && value.expression && ts.isStringLiteralLike(value.expression)) return value.expression.text
+      return undefined
+    }
+    function insideCompactTable(node) {
+      for (let parent = node; parent; parent = parent.parent) {
+        if (compactTableScopes.has(jsxName(parent) ?? '')) return true
+      }
+      return false
+    }
     function visit(node) {
+      if (ts.isJsxElement(node) && !insideCompactTable(node)) {
+        const children = node.children.filter(child => jsxName(child))
+        const hasField = children.some(child => fieldControls.has(jsxName(child)) && !['checkbox', 'radio', 'hidden'].includes(jsxText(child, 'type')))
+        if (hasField) {
+          for (const child of children) {
+            if (jsxName(child) === 'Button' && jsxText(child, 'size') === 'sm') {
+              const opening = ts.isJsxElement(child) ? child.openingElement : child
+              report('control-size-mismatch', ast.getLineAndCharacterOfPosition(opening.getStart(ast)).line + 1, opening.getText(ast))
+            }
+          }
+        }
+      }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const name = node.tagName.getText(ast)
         const line = ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1

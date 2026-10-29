@@ -1,7 +1,7 @@
 .ui-button {
   position: relative;
   min-width: max-content;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-4);
   display: inline-flex;
   align-items: center;
@@ -200,7 +200,7 @@
 .ui-search-field {
   min-width: 0;
   width: 100%;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;
@@ -421,7 +421,7 @@
 .ui-patient-search__form > .ui-icon { margin-left: var(--space-2); color: var(--color-text-secondary); flex-shrink: 0; }
 .ui-patient-search__input-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
 .ui-patient-search__input-wrap input,
-.ui-patient-search__form input { min-width: 0; height: var(--control-height-md); padding: 0 var(--space-3); flex: 1; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: 0; color: var(--color-text-primary); background: var(--color-surface-subtle); font: inherit; }
+.ui-patient-search__form input { min-width: 0; height: var(--control-height-default); padding: 0 var(--space-3); flex: 1; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: 0; color: var(--color-text-primary); background: var(--color-surface-subtle); font: inherit; }
 .ui-patient-search__input-wrap input:focus-visible,
 .ui-patient-search__form input:focus-visible { border-color: var(--color-brand-primary); background: var(--color-surface); box-shadow: 0 0 0 3px var(--color-focus-ring); }
 .ui-patient-search__input-wrap input:disabled,
@@ -587,7 +587,7 @@
 }
 .ui-field__control {
   width: 100%;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   margin-top: var(--space-2);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border-strong);
@@ -622,7 +622,7 @@ textarea.ui-field__control { min-height: 6rem; padding-top: var(--space-3); padd
 .ui-grid-address-input[data-levels="5"] { width: min(100%, 52rem); }
 .ui-grid-address-input__trigger {
   width: 100%;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;
@@ -742,7 +742,7 @@ input[type="checkbox"]:disabled {
 .ui-select { position: relative; min-width: 0; width: 100%; font-weight: var(--font-weight-regular); }
 .ui-select__trigger {
   width: 100%;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;
@@ -892,7 +892,7 @@ input[type="checkbox"]:disabled {
 .ui-remote-search { position: relative; min-width: 0; width: 100%; font-weight: var(--font-weight-regular); }
 .ui-remote-search__trigger {
   width: 100%;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;

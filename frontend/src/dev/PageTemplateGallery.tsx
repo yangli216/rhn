@@ -36,12 +36,22 @@ function DemoContent({ state, onRetry, children }: { state: DemoState; onRetry: 
 export function ListExample({ state, longData, onRetry }: ExampleProps) {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
+  const [department, setDepartment] = useState('')
   const rows = demoItems(longData).filter(item => `${item.name} ${item.id}`.includes(query))
   const pageSize = 20
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / pageSize) - 1))
   return <ListPage title="服务项目查询" description="查找服务项目及所属机构。"
     resetScrollKey={`${query}:${currentPage}`}
-    filters={<SearchField label="搜索服务项目" value={query} onChange={value => { setQuery(value); setPage(0) }} placeholder="输入项目名称或编码" />}
+    filters={<>
+      <SearchField label="搜索服务项目" value={query} onChange={value => { setQuery(value); setPage(0) }} placeholder="输入项目名称或编码" />
+      <FormField label="执行科室"><Select value={department} onChange={setDepartment}
+        options={[{ value: '', label: '全部科室' }, { value: 'health', label: '健康管理科' }]} /></FormField>
+      {/* 输入框同行的按钮使用默认尺寸（不写 size），与输入框同高。 */}
+      <div className="ui-query-filters__actions">
+        <Button onClick={() => setPage(0)}>查询</Button>
+        <Button variant="secondary" onClick={() => { setQuery(''); setDepartment(''); setPage(0) }}>重置</Button>
+      </div>
+    </>}
     footer={state === 'ready' && rows.length > 0 ? <Pagination page={currentPage} totalPages={Math.ceil(rows.length / pageSize)}
       total={rows.length} onChange={setPage} /> : undefined}>
     <DemoContent state={state === 'ready' && rows.length === 0 ? 'no-results' : state} onRetry={onRetry}>

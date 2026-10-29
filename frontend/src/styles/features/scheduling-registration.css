@@ -12,12 +12,12 @@
 .quick-schedule-panel__head p, .schedule-list-panel__head p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .quick-schedule-form { padding: var(--space-5); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
 .quick-schedule-form .ui-field { min-width: 0; margin: 0; }
-.quick-schedule-form input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
+.quick-schedule-form input { width: 100%; min-height: var(--control-height-default); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
 .quick-schedule-form input:focus { outline: none; border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .quick-schedule-field { min-width: 0; grid-column: span 2; }
 .quick-schedule-field > span { display: block; margin-bottom: var(--space-2); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .quick-schedule-field > div { display: flex; gap: var(--space-2); }
-.quick-schedule-field button { min-height: var(--control-height-md); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
+.quick-schedule-field button { min-height: var(--control-height-default); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
 .quick-schedule-field button:hover { background: var(--color-surface-subtle); }
 .quick-schedule-field button.is-selected { border-color: var(--color-brand-primary); color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .quick-schedule-field--weekdays button { min-width: 3.5rem; padding: 0 var(--space-2); flex: 1; }
@@ -48,7 +48,7 @@
 .professional-schedule-panel__head p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .professional-schedule-form { padding: var(--space-5); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
 .professional-schedule-form .ui-field { min-width: 0; margin: 0; }
-.professional-schedule-form input, .professional-exception-list input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
+.professional-schedule-form input, .professional-exception-list input { width: 100%; min-height: var(--control-height-default); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
 .professional-schedule-form input:focus, .professional-exception-list input:focus { outline: none; border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .professional-schedule-weekdays { grid-column: span 2; }
 .professional-schedule-weekdays button { min-width: 2.75rem; padding: 0 var(--space-2); flex: 1; }
@@ -402,7 +402,7 @@
 .registration-intake-strip .registration-intake-search { min-width: 0; padding: 0; border: 0; display: flex; align-items: flex-start; gap: var(--space-2); }
 .registration-intake-strip .registration-intake-search > .registration-patient-search { flex: 1; min-width: 0; }
 .registration-intake-strip .registration-patient-search { position: relative; }
-.registration-intake-strip .registration-patient-search .ui-patient-search__form > button { height: var(--control-height-md); }
+.registration-intake-strip .registration-patient-search .ui-patient-search__form > button { height: var(--control-height-default); }
 .registration-intake-strip .registration-patient-search .ui-patient-search__results,
 .registration-intake-strip .registration-patient-search .ui-patient-search__loading,
 .registration-intake-strip .registration-patient-search .ui-patient-search__input-wrap .ui-patient-search__empty {
@@ -500,12 +500,12 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-3);
 }
-.registration-intake-strip .registration-insurance-info-trigger { height: var(--control-height-md); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+.registration-intake-strip .registration-insurance-info-trigger { height: var(--control-height-default); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
 .registration-intake-strip .registration-params-section { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(10rem, 1fr)); align-items: center; gap: var(--space-2); }
-.registration-intake-strip .registration-params-section .ui-select__trigger { height: var(--control-height-md); }
+.registration-intake-strip .registration-params-section .ui-select__trigger { height: var(--control-height-default); }
 
 .registration-patient-channel-meta {
   display: inline-flex;
@@ -688,7 +688,7 @@
 .registration-schedule-card.is-direct .registration-schedule-card__top small { color: var(--color-info); background: var(--color-info-soft); }
 .registration-search { margin: var(--space-3); display: grid; grid-template-columns: 1rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
 .registration-search > .ui-icon { color: var(--color-text-secondary); }
-.registration-search input { width: 100%; height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface-subtle); }
+.registration-search input { width: 100%; height: var(--control-height-default); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface-subtle); }
 .registration-search input:focus { border-color: var(--color-brand-primary); box-shadow: 0 0 0 3px var(--color-focus-ring); background: var(--color-surface); }
 .registration-patient-search { padding: var(--space-3); }
 .registration-resident-panel > .ui-alert { margin: 0 var(--space-3) var(--space-3); }
@@ -716,7 +716,7 @@
 .registration-order-actions > span { margin-right: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .registration-query-filter-panel { margin-bottom: var(--space-4); flex: none; }
 .registration-query-filter-form { padding: var(--space-3) var(--space-4);     }
-.registration-query-filter-form > .ui-field > input, .registration-query-filter-form input:not(.ui-date-range-input) { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
+.registration-query-filter-form > .ui-field > input, .registration-query-filter-form input:not(.ui-date-range-input) { width: 100%; min-height: var(--control-height-default); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
 .registration-query-filter-form > .ui-field > input:focus, .registration-query-filter-form input:not(.ui-date-range-input):focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .registration-query-list-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .registration-query-list-scroll { flex: 1; min-height: 0; overflow: auto; }
@@ -751,7 +751,7 @@
 .appointment-metrics { margin-bottom: var(--layout-section-gap); }
 .appointment-filter-panel { margin-bottom: var(--layout-panel-gap); flex: none; }
 .appointment-filter-form { padding: var(--space-3) var(--space-4);     }
-.appointment-filter-form > .ui-field > input, .appointment-filter-form input:not(.ui-date-range-input), .appointment-booking-form textarea { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
+.appointment-filter-form > .ui-field > input, .appointment-filter-form input:not(.ui-date-range-input), .appointment-booking-form textarea { width: 100%; min-height: var(--control-height-default); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
 .appointment-filter-form > .ui-field > input:focus, .appointment-filter-form input:not(.ui-date-range-input):focus, .appointment-booking-form textarea:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .appointment-list-panel { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .appointment-list-scroll { min-width: 0; min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: auto; }
@@ -870,7 +870,7 @@
 
 .appointment-reason-input {
   width: 100%;
-  height: var(--control-height-md);
+  height: var(--control-height-default);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
@@ -1917,7 +1917,7 @@
 .encounter-query-filter-form input:not(.ui-date-range-input) {
   width: 100%;
   min-width: 0;
-  min-height: var(--control-height-md);
+  min-height: var(--control-height-default);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
