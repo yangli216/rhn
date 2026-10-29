@@ -38,10 +38,12 @@ public interface MedicationDispenseRepository extends JpaRepository<MedicationDi
             select d from MedicationDispense d join StockSite s
               on s.id = d.stockSiteId and s.tenantId = d.tenantId
              where d.tenantId = :tenantId and s.organizationId = :organizationId
-             order by d.occurredAt desc, d.id desc
+               and d.encounterId in :encounterIds
+             order by d.occurredAt, d.id
             """)
-    List<MedicationDispense> findWorklist(@Param("tenantId") Long tenantId,
-                                          @Param("organizationId") Long organizationId);
+    List<MedicationDispense> findByEncounterIds(@Param("tenantId") Long tenantId,
+                                                @Param("organizationId") Long organizationId,
+                                                @Param("encounterIds") java.util.Collection<Long> encounterIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from MedicationDispense d where d.id = :id and d.tenantId = :tenantId")

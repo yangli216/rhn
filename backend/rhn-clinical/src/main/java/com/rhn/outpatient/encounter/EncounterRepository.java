@@ -43,4 +43,20 @@ interface EncounterRepository extends JpaRepository<Encounter, Long> {
             Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive);
     List<Encounter> findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
             Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive);
+    org.springframework.data.domain.Page<Encounter>
+            findPageByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+                    Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive,
+                    org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<Encounter>
+            findPageByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+                    Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive,
+                    org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<Encounter>
+            findPageByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanAndStatusOrderByRegisteredAtDesc(
+                    Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive,
+                    EncounterStatus status, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<Encounter>
+            findPageByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanAndStatusOrderByRegisteredAtDesc(
+                    Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive,
+                    EncounterStatus status, org.springframework.data.domain.Pageable pageable);
 }

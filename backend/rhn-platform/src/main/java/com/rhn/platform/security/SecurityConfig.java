@@ -24,6 +24,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -118,7 +119,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/actuator/health/**", "/actuator/info", "/v3/api-docs/**").permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/info", "/v3/api-docs/**", "/error").permitAll()
                         // CA login and its development stand-ins run before a session exists; the
                         // controllers decide whether a request is a login or a second factor.
                         .requestMatchers(SecondFactorFilter.CA_LOGIN_PATH + "**", "/api/crypto/dev-ca/public/**").permitAll()

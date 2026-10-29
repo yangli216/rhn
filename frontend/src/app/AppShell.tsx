@@ -1189,12 +1189,7 @@ export function AppShell() {
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/scheduling" element={<SchedulingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} departmentOptions={schedulingDepartmentOptions}
-                    onDepartmentChange={(organizationId, departmentId) => {
-                      const selected = session.workContexts.find((context) => context.workContextType === 'CLINICAL'
-                        && context.organizationId === organizationId && context.departmentId === departmentId)
-                      if (selected) void switchWorkContext('CLINICAL', workContextKey(selected))
-                    }} />} />
+                    clinicalContext={tabSlot.clinicalContext} departmentOptions={schedulingDepartmentOptions} />} />
                   <Route path="/outpatient/triage" element={<OutpatientTriageWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}

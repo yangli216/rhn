@@ -66,4 +66,15 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
             """)
     List<LedgerEntry> findDaily(@Param("tenantId") Long tenantId, @Param("accountIds") List<Long> accountIds,
                                 @Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("""
+            select e from LedgerEntry e where e.tenantId = :tenantId
+              and e.occurredAt >= :from and e.occurredAt < :to
+              and e.patientAccountId in (select a.id from PatientAccount a
+                    where a.tenantId = :tenantId and a.organizationId = :organizationId)
+            order by e.occurredAt, e.id
+            """)
+    List<LedgerEntry> findDailyByOrganization(@Param("tenantId") Long tenantId,
+                                              @Param("organizationId") Long organizationId,
+                                              @Param("from") Instant from, @Param("to") Instant to);
 }

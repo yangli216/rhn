@@ -43,6 +43,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private final BusinessNumberGenerator numbers;
     private final SystemEnumDirectory systemEnums;
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
+    /** 带状态或关键字筛选时需装载候选取号与排班信息，命中过多时要求缩小范围。 */
+    private static final int MAX_FILTER_CANDIDATES = 10000;
+    private static final int IN_CHUNK = 500;
 
     private final PatientRegistrationRepository registrationRepository;
     private final AppointmentRepository appointmentRepository;
@@ -416,6 +419,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         int safeSize = Math.min(100, Math.max(1, size));
 
         QueueWindow window = resolveWindow(dateFrom, dateTo);
+        String normalizedStatus = Strings.trimToNull(status);
+        String normalizedQuery = Strings.trimToNull(query);
+
+        // 无筛选条件时直接由数据库分页，只为当前页装载取号与排班信息。
+        if (normalizedStatus == null && normalizedQuery == null) {
+            return pageFromDatabase(context, organizationScope, window, safePage, safeSize);
+        }
+
         Instant from = window.from();
         Instant to = window.to();
         List<PatientRegistration> registrations = organizationScope
@@ -428,11 +439,12 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         if (registrations.isEmpty()) {
             return new RegistrationPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
         }
+        if (registrations.size() > MAX_FILTER_CANDIDATES) {
+            throw badRequest("REGISTRATION_QUERY_TOO_BROAD", "筛选条件命中挂号过多，请缩小日期范围或补充关键字");
+        }
 
         Map<Long, TicketSnapshot> tickets = loadTickets(registrations);
 
-        String normalizedStatus = Strings.trimToNull(status);
-        String normalizedQuery = Strings.trimToNull(query);
         if (normalizedQuery != null) {
             normalizedQuery = normalizedQuery.toLowerCase(Locale.ROOT);
         }
@@ -471,6 +483,38 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         return new RegistrationPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
     }
 
+    /** 无筛选条件分页：日期与科室条件下沉到数据库，仅返回当前页挂号，再为当前页批量装载取号、居民与排班。 */
+    private RegistrationPageView pageFromDatabase(ExecutionContext context, boolean organizationScope,
+                                                  QueueWindow window, int safePage, int safeSize) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(safePage, safeSize);
+        org.springframework.data.domain.Page<PatientRegistration> result = organizationScope
+                ? registrationRepository
+                        .findPageByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDescIdDesc(
+                                context.tenantId(), context.organizationId(), window.from(), window.to(), pageable)
+                : registrationRepository
+                        .findPageByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDescIdDesc(
+                                context.tenantId(), context.organizationId(), context.departmentId(),
+                                window.from(), window.to(), pageable);
+        List<PatientRegistration> slice = result.getContent();
+        Map<Long, TicketSnapshot> tickets = loadTickets(slice);
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new HashMap<>();
+        Map<Long, ServiceSchedule> scheduleCache = new HashMap<>();
+        Map<Long, String> operatorCache = new HashMap<>();
+        Map<Long, String> departmentCache = new HashMap<>();
+        preloadResidents(residentCache, slice);
+        preloadSchedules(scheduleCache, slice, context);
+        List<ReceptionQueueItem> content = slice.stream()
+                .map(registration -> toPageItem(registration, tickets, residentCache, scheduleCache,
+                        operatorCache, departmentCache, context))
+                .toList();
+        int totalPages = result.getTotalPages();
+        boolean first = safePage == 0;
+        boolean last = totalPages == 0 || safePage >= totalPages - 1;
+        return new RegistrationPageView(content, safePage, safeSize, result.getTotalElements(), totalPages,
+                first, last);
+    }
+
     private void preloadResidents(Map<Long, ResidentDirectory.ResidentSnapshot> residentCache,
                                   List<PatientRegistration> source) {
         List<Long> missing = source.stream().map(PatientRegistration::residentId)
@@ -498,8 +542,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     }
 
     private Map<Long, TicketSnapshot> loadTickets(List<PatientRegistration> registrations) {
-        return queueing.findBySources("PAT_REG",
-                registrations.stream().map(PatientRegistration::id).toList());
+        Map<Long, TicketSnapshot> tickets = new HashMap<>();
+        List<Long> ids = registrations.stream().map(PatientRegistration::id)
+                .filter(id -> id != null).toList();
+        for (int from = 0; from < ids.size(); from += IN_CHUNK) {
+            tickets.putAll(queueing.findBySources("PAT_REG",
+                    ids.subList(from, Math.min(from + IN_CHUNK, ids.size()))));
+        }
+        return tickets;
     }
 
     private Map<Long, ServiceSchedule> loadSchedules(List<PatientRegistration> registrations, ExecutionContext context) {

@@ -42,10 +42,53 @@ public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
     List<ChargeItem> findUninvoiced(@Param("tenantId") Long tenantId,
                                     @Param("accountIds") Collection<Long> accountIds);
 
+    List<ChargeItem> findByTenantIdAndSourceTypeAndSourceIdIn(Long tenantId, String sourceType,
+                                                              Collection<Long> sourceIds);
+
+    @Query("""
+            select c from ChargeItem c where c.tenantId = :tenantId
+              and c.occurredAt >= :from and c.occurredAt < :to
+              and c.patientAccountId in (select a.id from PatientAccount a
+                    where a.tenantId = :tenantId and a.organizationId = :organizationId)
+            order by c.occurredAt, c.id
+            """)
+    List<ChargeItem> findDailyByOrganization(@Param("tenantId") Long tenantId,
+                                             @Param("organizationId") Long organizationId,
+                                             @Param("from") Instant from, @Param("to") Instant to);
+
     @Query("""
             select c from ChargeItem c where c.tenantId = :tenantId and c.patientAccountId in :accountIds
               and c.occurredAt >= :from and c.occurredAt < :to order by c.occurredAt, c.id
             """)
     List<ChargeItem> findDaily(@Param("tenantId") Long tenantId, @Param("accountIds") List<Long> accountIds,
                                @Param("from") Instant from, @Param("to") Instant to);
+
+    /** 列表装配用的轻量收费行投影，避免为判定状态装载完整收费实体。 */
+    interface ChargeBillingRow {
+        Long getId();
+        Long getPatientAccountId();
+        String getSourceType();
+        Long getSourceId();
+        Long getRequestId();
+        Instant getOccurredAt();
+        String getRequestCode();
+        java.math.BigDecimal getTotalAmount();
+    }
+
+    @Query("""
+            select c.id as id, c.patientAccountId as patientAccountId, c.sourceType as sourceType,
+                   c.sourceId as sourceId, c.requestId as requestId, c.occurredAt as occurredAt,
+                   c.requestCode as requestCode, c.totalAmount as totalAmount
+            from ChargeItem c where c.tenantId = :tenantId and c.patientAccountId in :accountIds
+            order by c.occurredAt desc, c.id desc
+            """)
+    List<ChargeBillingRow> findBillingRows(@Param("tenantId") Long tenantId,
+                                           @Param("accountIds") Collection<Long> accountIds);
+
+    @Query("""
+            select c.id from ChargeItem c where c.tenantId = :tenantId and c.patientAccountId in :accountIds
+              and not exists (select l.id from InvoiceLine l where l.tenantId = c.tenantId and l.chargeItemId = c.id)
+            """)
+    List<Long> findUninvoicedIds(@Param("tenantId") Long tenantId,
+                                 @Param("accountIds") Collection<Long> accountIds);
 }

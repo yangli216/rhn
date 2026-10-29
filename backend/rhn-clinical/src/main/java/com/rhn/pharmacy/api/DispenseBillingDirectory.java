@@ -2,6 +2,7 @@ package com.rhn.pharmacy.api;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -12,7 +13,8 @@ public interface DispenseBillingDirectory {
 
     List<DispenseBillingFact> findByEncounter(Long tenantId, Long encounterId);
 
-    List<DispenseBillingFact> findWorklist(Long tenantId, Long organizationId);
+    /** 按就诊批量装载发退药事实；用于工作列表按已加载账户的就诊范围收窄，避免全机构历史扫描。 */
+    List<DispenseBillingFact> findByEncounters(Long tenantId, Long organizationId, Collection<Long> encounterIds);
 
     List<DispenseBillingFact> findOccurredBetween(
             Long tenantId, Long organizationId, Instant from, Instant to);

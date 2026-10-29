@@ -52,6 +52,17 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                             @Param("from") Instant from, @Param("to") Instant to);
 
     @Query("""
+            select p from Payment p where p.tenantId = :tenantId
+              and p.paidAt >= :from and p.paidAt < :to
+              and p.patientAccountId in (select a.id from PatientAccount a
+                    where a.tenantId = :tenantId and a.organizationId = :organizationId)
+            order by p.paidAt, p.id
+            """)
+    List<Payment> findDailyByOrganization(@Param("tenantId") Long tenantId,
+                                          @Param("organizationId") Long organizationId,
+                                          @Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("""
             select payment from Payment payment
               join PatientAccount account
                 on account.tenantId = payment.tenantId and account.id = payment.patientAccountId

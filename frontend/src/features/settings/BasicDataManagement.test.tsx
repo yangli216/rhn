@@ -925,4 +925,44 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
       }))
     })
   })
+
+  it('renders DiseaseManagementTable without technical English codes', async () => {
+    const { DiseaseManagementTable } = await import('./master-data/DiseaseMaintenance')
+    const mockPrograms = [
+      {
+        id: 'prog-1',
+        revision: 1,
+        code: 'NOTIFIABLE_DISEASE',
+        name: '疾病报卡',
+        sdManagementType: 'DISEASE_REPORT',
+        sdManagementTypeText: '疾病报告',
+        sdTriggerAction: 'DRAFT_REPORT_CARD',
+        sdTriggerActionText: '创建报卡草稿',
+        description: '命中后创建待医生确认的疾病报卡草稿',
+        scopeType: 'PRODUCT',
+        sdStatus: 'ACTIVE',
+        sdStatusText: '有效',
+        effectiveFrom: '2026-01-01',
+        ruleCount: 0,
+        exceptionCount: 0,
+        rules: [],
+        members: [],
+      },
+    ]
+
+    render(
+      <DiseaseManagementTable
+        values={mockPrograms as any}
+        loading={false}
+        pagination={null}
+        onEdit={vi.fn()}
+        onMembers={vi.fn()}
+        onStatus={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('疾病报卡')).toBeInTheDocument()
+    expect(screen.getByText('命中后创建待医生确认的疾病报卡草稿')).toBeInTheDocument()
+    expect(screen.queryByText('NOTIFIABLE_DISEASE')).not.toBeInTheDocument()
+  })
 })

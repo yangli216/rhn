@@ -37,7 +37,7 @@ export function DiseaseManagementTable({ values, loading, pagination, onEdit, on
   return <Table headers={['管理项目', '类别 / 触发动作', '适用疾病', '报卡要求', '有效期 / 状态', '操作']}
     footer={pagination}>
     {values.map((value) => <tr key={value.id}>
-      <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.description || '未填写说明'}</small></td>
+      <td><strong>{value.name}</strong><small>{value.description || '未填写说明'}</small></td>
       <td><StatusBadge tone={value.sdManagementType === 'DISEASE_REPORT' ? 'warning' : 'success'}>
         {value.sdManagementTypeText}</StatusBadge><small>{value.sdTriggerActionText}</small></td>
       <td><strong>{value.ruleCount} 条规则</strong><small>{value.exceptionCount

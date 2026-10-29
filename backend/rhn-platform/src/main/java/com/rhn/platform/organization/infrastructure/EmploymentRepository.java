@@ -10,5 +10,6 @@ public interface EmploymentRepository extends JpaRepository<Employment, Long> {
     Optional<Employment> findByIdAndTenantId(Long id, Long tenantId);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
     List<Employment> findByTenantIdAndPractitionerIdOrderByHireDateDesc(Long tenantId, Long practitionerId);
+    List<Employment> findByTenantIdAndPractitionerIdIn(Long tenantId, java.util.Collection<Long> practitionerIds);
     List<Employment> findByTenantId(Long tenantId);
 }

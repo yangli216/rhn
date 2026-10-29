@@ -19,18 +19,25 @@ class DispenseBillingFactsTest {
     final MedicationDispenseLineRepository lines = mock(MedicationDispenseLineRepository.class);
     final DispenseTaskLine task = mock(DispenseTaskLine.class);
     final StockSite site = mock(StockSite.class);
+    final StockItem item = mock(StockItem.class);
     final JpaDispenseBillingDirectory directory = new JpaDispenseBillingDirectory(dispenses, tasks, items, sites, lines);
     final MedicationDispense dispense = new MedicationDispense(1L,2L,3L,4L,5L,6L,7L,null,"ACTUAL-DISPENSE","DISPENSE",
             Instant.parse("2026-10-03T08:00:00Z"),8L,9L,10L,null,null,null,new BigDecimal("2"),"EA",null);
     DispenseBillingFactsTest() {
         when(dispenses.findByIdAndTenantId(dispense.id(),1L)).thenReturn(Optional.of(dispense));
         when(tasks.findByTenantIdAndTaskId(1L,4L)).thenReturn(Optional.of(task));
-        when(task.id()).thenReturn(11L); when(task.stockItemId()).thenReturn(12L); when(task.requestId()).thenReturn(13L);
+        when(task.id()).thenReturn(11L); when(task.taskId()).thenReturn(4L);
+        when(task.stockItemId()).thenReturn(12L); when(task.requestId()).thenReturn(13L);
         when(task.productCodeSnapshot()).thenReturn("PRODUCT"); when(task.productNameSnapshot()).thenReturn("真实产品");
         when(task.baseQuantityFactor()).thenReturn(new BigDecimal("99"));
-        var item = mock(StockItem.class); when(item.id()).thenReturn(12L); when(item.catalogItemId()).thenReturn(14L);
+        when(item.id()).thenReturn(12L); when(item.catalogItemId()).thenReturn(14L);
         when(items.findByIdAndTenantId(12L,1L)).thenReturn(Optional.of(item));
-        when(site.organizationId()).thenReturn(2L); when(sites.findByIdAndTenantId(7L,1L)).thenReturn(Optional.of(site));
+        when(site.id()).thenReturn(7L); when(site.organizationId()).thenReturn(2L);
+        when(sites.findByIdAndTenantId(7L,1L)).thenReturn(Optional.of(site));
+        // 列表装配按批量契约装载任务行、经营项目、药房与明细
+        when(tasks.findByTenantIdAndTaskIdIn(eq(1L), anyCollection())).thenReturn(List.of(task));
+        when(items.findByTenantIdAndIdIn(eq(1L), anyCollection())).thenReturn(List.of(item));
+        when(sites.findByTenantIdAndIdIn(eq(1L), anySet())).thenReturn(List.of(site));
     }
     @Test void uses_actual_line_factor_even_when_task_factor_differs() {
         actual(List.of(line("1","EA","1"),line("1","EA","1")));
@@ -49,9 +56,11 @@ class DispenseBillingFactsTest {
         MedicationDispense cancel = new MedicationDispense(1L,2L,3L,4L,5L,6L,7L,dispense.id(),
                 "CANCEL-1","CANCEL",Instant.parse("2026-10-03T09:00:00Z"),8L,9L,10L,null,null,null,
                 new BigDecimal("2"),"EA",null);
-        when(dispenses.findWorklist(1L,2L)).thenReturn(List.of(dispense,cancel));
+        when(dispenses.findDaily(1L,2L, Instant.parse("2026-10-03T00:00:00Z"),
+                Instant.parse("2026-10-04T00:00:00Z"))).thenReturn(List.of(dispense,cancel));
         when(dispenses.findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(1L,6L)).thenReturn(List.of(cancel));
-        var facts = directory.findWorklist(1L,2L);
+        var facts = directory.findOccurredBetween(1L,2L, Instant.parse("2026-10-03T00:00:00Z"),
+                Instant.parse("2026-10-04T00:00:00Z"));
         assertEquals(1,facts.size());
         assertEquals(dispense.id(),facts.getFirst().id());
         assertTrue(directory.findByEncounter(1L,6L).isEmpty());
@@ -59,6 +68,9 @@ class DispenseBillingFactsTest {
     private MedicationDispenseLine line(String qty,String unit,String factor) {
         return new MedicationDispenseLine(1L,dispense.id(),11L,null,1,15L,12L,16L,17L,new BigDecimal(qty),unit,new BigDecimal(factor));
     }
-    private void actual(List<MedicationDispenseLine> actual) { when(lines.findByTenantIdAndMedicationDispenseIdOrderBySortOrder(1L,dispense.id())).thenReturn(actual); }
+    private void actual(List<MedicationDispenseLine> actual) {
+        when(lines.findByTenantIdAndMedicationDispenseIdOrderBySortOrder(1L,dispense.id())).thenReturn(actual);
+        when(lines.findByTenantIdAndMedicationDispenseIdInOrderBySortOrder(eq(1L), anyCollection())).thenReturn(actual);
+    }
     private void rejected() { assertEquals("DISPENSE_BILLING_FACT_UNVERIFIED",assertThrows(BusinessException.class,()->directory.requireById(1L,dispense.id())).code()); }
 }

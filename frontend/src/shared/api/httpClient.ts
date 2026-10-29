@@ -99,14 +99,14 @@ export class ApiClient {
         } : {}),
       },
     })
-    if (!response.ok) throw await this.readError(response)
+    if (!response.ok) throw await this.readError(response, false)
     return response
   }
 
-  private async readError(response: Response): Promise<ApiError> {
+  private async readError(response: Response, notifySessionEnded = true): Promise<ApiError> {
     try {
       const error = await response.json() as ApiError
-      if (error.code === 'SESSION_TERMINATED' || error.code === 'AUTHENTICATION_REQUIRED') {
+      if (notifySessionEnded && (error.code === 'SESSION_TERMINATED' || error.code === 'AUTHENTICATION_REQUIRED')) {
         window.dispatchEvent(new CustomEvent<SessionEndedDetail>(SESSION_ENDED_EVENT, {
           detail: { code: error.code, message: error.message },
         }))

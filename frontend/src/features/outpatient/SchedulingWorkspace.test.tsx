@@ -14,6 +14,41 @@ const clinicalContext = {
 } as ClinicalContext
 
 describe('SchedulingWorkspace', () => {
+  it('keeps scheduling selection local and groups schedules by their department', async () => {
+    const date = new Date()
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const bootstrap = vi.fn().mockResolvedValue({ sdManagementMode: 'SIMPLE', defaultCapacity: 30, defaultGenerateDays: 7,
+      morning: { start: '08:00:00', end: '12:00:00' }, afternoon: { start: '14:00:00', end: '17:00:00' }, practitioners: [] })
+    const schedules = vi.fn().mockResolvedValue(['全科', '内科', '儿科'].map((name, index) => ({
+      id: `schedule-${index}`, departmentId: `dept-${index + 1}`, departmentName: `${name}医疗科`, serviceDate: day,
+      sdRegistrationScope: 'DEPARTMENT', sdDayPart: 'MORNING', sdDayPartText: '上午', serviceName: `${name}诊查`,
+      totalCount: 50, availableCount: 50, occupiedCount: 0, sdStatus: 'PUBLISHED',
+    })))
+    const api = { scheduling: { bootstrap, schedules }, masterData: { services: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
+    api.withWorkContext = vi.fn().mockReturnValue(api)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const options = ['全科', '内科', '儿科'].map((name, index) => ({ organizationId: 'org-1', organizationName: '机构',
+      departmentId: `dept-${index + 1}`, departmentName: `${name}医疗科` }))
+    render(<QueryClientProvider client={queryClient}><SchedulingWorkspace api={api} clinicalContext={clinicalContext}
+      departmentOptions={options} /></QueryClientProvider>)
+    expect(await screen.findByText('全科诊查')).toBeInTheDocument()
+    expect(screen.getByText('内科诊查')).toBeInTheDocument()
+    expect(screen.getByText('儿科诊查')).toBeInTheDocument()
+    expect(screen.getByLabelText('排班号源摘要')).toHaveTextContent('150')
+    await userEvent.click(screen.getByRole('combobox', { name: '当前科室' }))
+    await userEvent.click(screen.getByRole('option', { name: '内科医疗科' }))
+    expect(await screen.findByText('内科诊查')).toBeInTheDocument()
+    expect(screen.queryByText('全科诊查')).not.toBeInTheDocument()
+    expect(api.withWorkContext).toHaveBeenCalledWith({ organizationId: 'org-1', departmentId: 'dept-2' })
+    await userEvent.click(screen.getByRole('combobox', { name: '当前科室' }))
+    await userEvent.click(screen.getByRole('option', { name: '全部科室' }))
+    for (const name of ['全科', '内科', '儿科']) {
+      expect(screen.getByText(`${name}诊查`).closest('.schedule-matrix__row')).toHaveTextContent(`${name}医疗科`)
+    }
+    expect(screen.getByLabelText('排班号源摘要')).toHaveTextContent('150')
+    expect(screen.queryByRole('button', { name: /\+ 排班/ })).not.toBeInTheDocument()
+  })
+
   it('creates department-scoped shared inventory without selecting a practitioner', async () => {
     const quickCreate = vi.fn().mockResolvedValue({ generationRunId: 'run-1', replayed: false, generatedCount: 20, skippedCount: 0, schedules: [] })
     const api = {
@@ -37,11 +72,10 @@ describe('SchedulingWorkspace', () => {
       }]) },
     } as unknown as RhnApi
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-    const onDepartmentChange = vi.fn()
     vi.stubGlobal('crypto', { randomUUID: () => 'request-1' })
 
     render(<QueryClientProvider client={queryClient}>
-      <SchedulingWorkspace api={api} clinicalContext={clinicalContext} onDepartmentChange={onDepartmentChange}
+      <SchedulingWorkspace api={api} clinicalContext={clinicalContext}
         departmentOptions={[
           { organizationId: 'org-1', organizationName: '青禾镇中心卫生院', departmentId: 'dept-1', departmentName: '全科医疗科' },
           { organizationId: 'org-1', organizationName: '青禾镇中心卫生院', departmentId: 'dept-2', departmentName: '内科门诊' },
@@ -70,7 +104,6 @@ describe('SchedulingWorkspace', () => {
     await userEvent.type(screen.getByLabelText('诊室/出诊地点'), '原科室诊室')
     await userEvent.click(screen.getByRole('combobox', { name: '排班科室' }))
     await userEvent.click(await screen.findByRole('option', { name: '内科门诊' }))
-    expect(onDepartmentChange).not.toHaveBeenCalled()
     expect(screen.queryByText('请选择医生')).not.toBeInTheDocument()
     expect(screen.getByLabelText('诊室/出诊地点')).toHaveValue('')
     await userEvent.click(screen.getByRole('button', { name: '生成排班' }))
@@ -81,7 +114,6 @@ describe('SchedulingWorkspace', () => {
       locationName: undefined,
     })))
     expect(await screen.findByText(/已为【内科门诊】生成 20 个排班/)).toBeInTheDocument()
-    expect(onDepartmentChange).toHaveBeenCalledWith('org-1', 'dept-2')
   })
 
   it.each(['current department', 'batch department', 'batch manual override'] as const)('blocks configuration failure and uses the correct defaults: %s', async failingScope => {
@@ -96,7 +128,7 @@ describe('SchedulingWorkspace', () => {
     const batchCreate = vi.fn().mockResolvedValue({ generatedCount: 1, skippedCount: 0, schedules: [] })
     const api = {
       scheduling: { bootstrap, schedules: vi.fn().mockResolvedValue([]), quickCreate },
-      withWorkContext: vi.fn().mockReturnValue({ scheduling: { bootstrap: batchBootstrap, quickCreate: batchCreate } }),
+      withWorkContext: vi.fn().mockReturnValue({ scheduling: { bootstrap: batchBootstrap, quickCreate: batchCreate, schedules: vi.fn().mockResolvedValue([]) }, masterData: { services: vi.fn().mockResolvedValue([{ id: 'service-1', code: 'GENERAL', name: '配置验证门诊', orderable: true, chargeable: false, prices: [], sdUsageType: 'OUTPATIENT', outpatientSchedulable: true, accountingCategory: 'REGISTRATION', organizationAdoption: { sdStatus: 'ACTIVE', orderable: true, executable: true } }]) } }),
       masterData: { services: vi.fn().mockResolvedValue([{ id: 'service-1', code: 'GENERAL', name: '配置验证门诊',
         orderable: true, chargeable: false, prices: [], sdUsageType: 'OUTPATIENT', outpatientSchedulable: true,
         accountingCategory: 'REGISTRATION', organizationAdoption: { sdStatus: 'ACTIVE', orderable: true, executable: true } }]) },
@@ -152,12 +184,12 @@ describe('SchedulingWorkspace', () => {
     if (failingScope !== 'current department') {
       await waitFor(() => expect(screen.queryByRole('button', { name: '生成排班' })).not.toBeInTheDocument())
       await userEvent.click((await screen.findAllByRole('button', { name: /\+ 排班/ }))[0])
-      expect(screen.getByLabelText(/^放号数量/)).toHaveValue(configuration.defaultCapacity)
-      expect(screen.getByRole('button', { name: '上午 (09:15–11:45)' })).toBeInTheDocument()
+      expect(screen.getByLabelText(/^放号数量/)).toHaveValue(batchConfiguration.defaultCapacity)
+      expect(screen.getByRole('button', { name: '上午 (07:30–11:00)' })).toBeInTheDocument()
       await userEvent.click(screen.getByRole('button', { name: '确认排班' }))
-      await waitFor(() => expect(quickCreate).toHaveBeenCalledWith(expect.objectContaining({
-        capacity: configuration.defaultCapacity, morningStart: '09:15', morningEnd: '11:45',
-        afternoonStart: '13:30', afternoonEnd: '16:15',
+      await waitFor(() => expect(batchCreate).toHaveBeenCalledWith(expect.objectContaining({
+        capacity: batchConfiguration.defaultCapacity, morningStart: '07:30', morningEnd: '11:00',
+        afternoonStart: '14:30', afternoonEnd: '18:00',
       })))
     }
   })
@@ -322,6 +354,7 @@ describe('SchedulingWorkspace', () => {
             sdRegistrationScopeText: '医生号',
             practitionerId: 'doctor-1',
             practitionerName: '李医生',
+            departmentId: 'dept-1', departmentName: '全科医疗科',
             catalogItemId: 'service-1',
             serviceCode: 'GENERAL',
             serviceName: '全科专家门诊',
@@ -355,6 +388,8 @@ describe('SchedulingWorkspace', () => {
     </QueryClientProvider>)
 
     expect(await screen.findByText('出诊资源')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('combobox', { name: '当前科室' }))
+    await userEvent.click(screen.getByRole('option', { name: '全科医疗科' }))
     expect(screen.getByText('出诊资源')).toBeInTheDocument()
     expect(screen.getByText('李医生')).toBeInTheDocument()
     expect(screen.getByText('王医生')).toBeInTheDocument()
@@ -404,6 +439,8 @@ describe('SchedulingWorkspace', () => {
     </QueryClientProvider>)
 
     expect(await screen.findByText('出诊资源')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('combobox', { name: '当前科室' }))
+    await userEvent.click(screen.getByRole('option', { name: '全科医疗科' }))
     const addBtns = await screen.findAllByRole('button', { name: /\+ 排班/ })
     expect(addBtns.length).toBeGreaterThan(0)
     await userEvent.click(addBtns[0])

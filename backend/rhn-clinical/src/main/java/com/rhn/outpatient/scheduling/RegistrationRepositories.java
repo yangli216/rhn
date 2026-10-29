@@ -50,4 +50,12 @@ interface PatientRegistrationRepository extends JpaRepository<PatientRegistratio
             Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive);
     List<PatientRegistration> findByTenantIdAndOrganizationIdAndRegisteredByAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
             Long tenantId, Long organizationId, Long registeredBy, Instant fromInclusive, Instant toExclusive);
+    org.springframework.data.domain.Page<PatientRegistration>
+            findPageByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDescIdDesc(
+                    Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive,
+                    org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<PatientRegistration>
+            findPageByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDescIdDesc(
+                    Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive,
+                    org.springframework.data.domain.Pageable pageable);
 }

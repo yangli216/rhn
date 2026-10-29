@@ -9,7 +9,7 @@ import type { CatalogPrice, ServiceCatalogItem } from '../../shared/api/masterDa
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
-  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge,
+  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge, DescriptionList,
   SCHEDULING_DATE_PRESETS,
 } from '../../shared/ui'
 import '../../styles/features/scheduling-registration.css'
@@ -146,11 +146,35 @@ interface QuickCellScheduleTarget {
   dayPart?: ScheduleDayPart
 }
 
-export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, onDepartmentChange }: {
+export function SchedulingWorkspace({ api, clinicalContext, departmentOptions }: {
   api: RhnApi
   clinicalContext: ClinicalContext
   departmentOptions?: SchedulingDepartmentOption[]
-  onDepartmentChange?: (organizationId: string, departmentId: string) => void
+}) {
+  const [selection, setSelection] = useState<SchedulingDepartmentOption>(() => ({
+    organizationId: clinicalContext.organization.id, organizationName: clinicalContext.organization.name,
+    departmentId: clinicalContext.department.id, departmentName: clinicalContext.department.name,
+  }))
+  const selectedContext = useMemo(() => ({
+    organization: { ...clinicalContext.organization, id: selection.organizationId, name: selection.organizationName },
+    department: { ...clinicalContext.department, id: selection.departmentId, name: selection.departmentName },
+  }), [clinicalContext, selection])
+  const selectedApi = useMemo(() => typeof api.withWorkContext === 'function'
+    && (selection.organizationId !== clinicalContext.organization.id || selection.departmentId !== clinicalContext.department.id)
+    ? api.withWorkContext({ organizationId: selection.organizationId, departmentId: selection.departmentId }) : api,
+  [api, selection.organizationId, selection.departmentId, clinicalContext.organization.id, clinicalContext.department.id])
+  return <SchedulingWorkspaceContent api={selectedApi} clinicalContext={selectedContext} departmentOptions={departmentOptions}
+    onDepartmentChange={(organizationId, departmentId) => {
+      const next = departmentOptions?.find((item) => item.organizationId === organizationId && item.departmentId === departmentId)
+      if (next) setSelection(next)
+    }} />
+}
+
+function SchedulingWorkspaceContent({ api, clinicalContext, departmentOptions, onDepartmentChange }: {
+  api: RhnApi
+  clinicalContext: ClinicalContext
+  departmentOptions?: SchedulingDepartmentOption[]
+  onDepartmentChange: (organizationId: string, departmentId: string) => void
 }) {
   const queryClient = useQueryClient()
   const initialized = useRef(false)
@@ -185,7 +209,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   const currentDepartmentKey = `${clinicalContext.organization.id}:${clinicalContext.department.id}`
   const [batchDepartmentKey, setBatchDepartmentKey] = useState('')
-  const [showAllDepartments, setShowAllDepartments] = useState(false)
+  const [showAllDepartments, setShowAllDepartments] = useState(true)
 
   const selectableDepartments = useMemo(() => {
     const configured = departmentOptions?.length ? departmentOptions : [{
@@ -305,6 +329,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     onSuccess: async (result) => {
       setSuccess(`已为【${activeBatchDepartment.departmentName}】生成 ${result.generatedCount} 个排班${result.skippedCount ? `，跳过 ${result.skippedCount} 个重复或冲突时段` : ''}`)
       setShowBatchModal(false)
+      setShowAllDepartments(false)
       if (dateFrom) {
         setCurrentWeekMonday(getMonday(dateFrom))
       }
@@ -317,7 +342,8 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   const updateSchedule = useMutation({
     mutationFn: ({ scheduleId, input }: { scheduleId: string; input: UpdateScheduleInput }) =>
-      api.scheduling.update(scheduleId, input),
+      (showAllDepartments && editing?.departmentId && typeof api.withWorkContext === 'function'
+        ? api.withWorkContext({ organizationId: clinicalContext.organization.id, departmentId: editing.departmentId }) : api).scheduling.update(scheduleId, input),
     onSuccess: async () => {
       setEditing(null)
       setSelectedSchedule(null)
@@ -328,7 +354,9 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   const changeScheduleStatus = useMutation({
     mutationFn: ({ scheduleId, action, reason }: { scheduleId: string; action: 'SUSPEND' | 'RESUME' | 'CANCEL'; reason: string }) =>
-      api.scheduling.changeStatus(scheduleId, { action, reason, commandCode: crypto.randomUUID() }),
+      (showAllDepartments && statusChange?.schedule.departmentId && typeof api.withWorkContext === 'function'
+        ? api.withWorkContext({ organizationId: clinicalContext.organization.id, departmentId: statusChange.schedule.departmentId }) : api)
+        .scheduling.changeStatus(scheduleId, { action, reason, commandCode: crypto.randomUUID() }),
     onSuccess: async (value) => {
       setStatusChange(null)
       setSelectedSchedule(null)
@@ -338,16 +366,20 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     },
   })
 
+  const visibleSchedules = useMemo(() => showAllDepartments ? schedules.data ?? []
+    : (schedules.data ?? []).filter((item) => item.departmentId === clinicalContext.department.id),
+  [schedules.data, showAllDepartments, clinicalContext.department.id])
+
   // 本周排班指标统计（符合统一的 4 格指标数据结构）
   const weekSummary = useMemo(() => {
-    if (!schedules.data?.length) return null
-    const total = schedules.data.reduce((sum, item) => sum + item.totalCount, 0)
-    const available = schedules.data.reduce((sum, item) => sum + item.availableCount, 0)
-    const occupied = schedules.data.reduce((sum, item) => sum + item.occupiedCount, 0)
-    const suspended = schedules.data.filter((item) => item.sdStatus === 'SUSPENDED').length
+    if (!visibleSchedules.length) return null
+    const total = visibleSchedules.reduce((sum, item) => sum + item.totalCount, 0)
+    const available = visibleSchedules.reduce((sum, item) => sum + item.availableCount, 0)
+    const occupied = visibleSchedules.reduce((sum, item) => sum + item.occupiedCount, 0)
+    const suspended = visibleSchedules.filter((item) => item.sdStatus === 'SUSPENDED').length
     const rate = total > 0 ? Math.round((occupied / total) * 100) : 0
-    return { count: schedules.data.length, total, available, occupied, suspended, rate }
-  }, [schedules.data])
+    return { count: visibleSchedules.length, total, available, occupied, suspended, rate }
+  }, [visibleSchedules])
 
   // 周矩阵的横轴 7 天
   const weekDays = useMemo(() => {
@@ -367,10 +399,10 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   // 周矩阵的纵轴资源列表（科室号 + 各出诊医生）
   const resources: MatrixResource[] = useMemo(() => {
-    if (showAllDepartments && schedules.data?.length) {
+    if (showAllDepartments) {
       // 全部科室模式：每个科室一行，聚合该科室下所有排班（科室号 + 医生号）
       const deptMap = new Map<string, string>()
-      for (const item of schedules.data) {
+      for (const item of visibleSchedules) {
         const deptId = item.departmentId || 'unknown'
         const deptName = item.departmentName || '未知科室'
         if (!deptMap.has(deptId)) {
@@ -381,7 +413,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
       for (const [deptId, deptName] of deptMap) {
         // 统计该科室下的医生人数
         const practitioners = new Set<string>()
-        for (const item of schedules.data) {
+        for (const item of visibleSchedules) {
           if ((item.departmentId || 'unknown') === deptId && item.practitionerId) {
             practitioners.add(item.practitionerId)
           }
@@ -414,13 +446,20 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
         scope: 'PRACTITIONER',
       })
     })
+    for (const item of visibleSchedules) {
+      if (item.sdRegistrationScope === 'PRACTITIONER' && item.practitionerId
+        && !list.some((resource) => resource.key === `doc-${item.practitionerId}`)) {
+        list.push({ key: `doc-${item.practitionerId}`, id: item.practitionerId,
+          name: item.practitionerName || '未知医生', subtext: '医生号', scope: 'PRACTITIONER' })
+      }
+    }
     return list
-  }, [clinicalContext.department, bootstrap.data?.practitioners, showAllDepartments, schedules.data])
+  }, [clinicalContext.department, bootstrap.data?.practitioners, showAllDepartments, visibleSchedules])
 
   // 矩阵单元格索引：key = `${resourceKey}__${serviceDate}`
   const matrixCellMap = useMemo(() => {
     const map = new Map<string, ServiceSchedule[]>()
-    ;(schedules.data ?? []).forEach((item) => {
+    ;visibleSchedules.forEach((item) => {
       let resourceKey: string
       if (showAllDepartments) {
         // 全科室模式：所有排班聚合到科室行
@@ -436,7 +475,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
       map.get(cellKey)!.push(item)
     })
     return map
-  }, [schedules.data, showAllDepartments])
+  }, [visibleSchedules, showAllDepartments])
 
   const error = bootstrap.error || services.error || schedules.error || createSchedules.error
     || updateSchedule.error || changeScheduleStatus.error
@@ -667,7 +706,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                         })}
 
                         {/* 单元格微型加号排班入口 */}
-                        <div className="schedule-cell-hover-actions">
+                        {!showAllDepartments && <div className="schedule-cell-hover-actions">
                           <button
                             type="button"
                             className="cell-mini-add-btn"
@@ -676,7 +715,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                           >
                             + 排班
                           </button>
-                        </div>
+                        </div>}
                       </div>
                     )
                   })}
@@ -1076,34 +1115,16 @@ function ScheduleDetailDrawer({
     </>}
   >
     <div className="schedule-detail-drawer-content">
-      <div className="schedule-detail-grid">
-        <div className="schedule-detail-item">
-          <span>出诊对象</span>
-          <strong>{registrationOwner}</strong>
-        </div>
-        <div className="schedule-detail-item">
-          <span>门诊服务</span>
-          <strong>{schedule.serviceName}</strong>
-        </div>
-        <div className="schedule-detail-item">
-          <span>出诊时段</span>
-          <strong>{schedule.sdDayPartText} ({shortTime(schedule.startAt)}–{shortTime(schedule.endAt)})</strong>
-        </div>
-        <div className="schedule-detail-item">
-          <span>诊室地点</span>
-          <strong>{schedule.locationName || '未指定'}</strong>
-        </div>
-        <div className="schedule-detail-item">
-          <span>当前状态</span>
-          <div><StatusBadge tone={scheduleTone(schedule.sdStatus)}>{schedule.sdStatusText}</StatusBadge></div>
-        </div>
-        <div className="schedule-detail-item">
-          <span>挂号费用</span>
-          <strong>{schedule.feeConfigured && typeof schedule.registrationFee === 'number' && Number.isFinite(schedule.registrationFee)
-            ? formatAmount(schedule.registrationFee, schedule.feeCurrencyCode)
-            : '未定价'}</strong>
-        </div>
-      </div>
+      <DescriptionList items={[
+        { label: '出诊对象', value: registrationOwner },
+        { label: '门诊服务', value: schedule.serviceName },
+        { label: '出诊时段', value: `${schedule.sdDayPartText} (${shortTime(schedule.startAt)}–${shortTime(schedule.endAt)})` },
+        { label: '诊室地点', value: schedule.locationName || '未指定' },
+        { label: '当前状态', value: <StatusBadge tone={scheduleTone(schedule.sdStatus)}>{schedule.sdStatusText}</StatusBadge> },
+        { label: '挂号费用', value: schedule.feeConfigured && typeof schedule.registrationFee === 'number' && Number.isFinite(schedule.registrationFee)
+          ? formatAmount(schedule.registrationFee, schedule.feeCurrencyCode)
+          : '未定价' },
+      ]} />
 
       <div className="schedule-detail-quota-card">
         <div className="schedule-detail-quota-header">

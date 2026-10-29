@@ -982,6 +982,8 @@ public class EncounterService implements EncounterDirectory {
 
     private static final long MAX_QUERY_RANGE_DAYS = 92;
     private static final int IN_CHUNK = 500;
+    /** 关键字查询需对候选逐条匹配登记、诊断与居民信息，命中过多时要求缩小范围，避免一次性装载过量明细。 */
+    private static final int MAX_KEYWORD_CANDIDATES = 10000;
     private static final java.time.ZoneId BUSINESS_ZONE = java.time.ZoneId.of("Asia/Shanghai");
 
     @Transactional(readOnly = true)
@@ -1018,48 +1020,52 @@ public class EncounterService implements EncounterDirectory {
                 : encounterRepository.findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
                         context.tenantId(), context.organizationId(), context.departmentId(), from, to);
 
+        String normalizedStatus = Strings.trimToNull(status);
+        String normalizedQuery = Strings.trimToNull(query);
+        EncounterStatus parsedStatus = null;
+        if (normalizedStatus != null) {
+            try {
+                parsedStatus = EncounterStatus.valueOf(normalizedStatus.toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                return new EncounterPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
+            }
+        }
+        final EncounterStatus statusFilter = parsedStatus;
+
+        // 无关键字时直接由数据库分页；只有关键字需要逐条匹配登记、诊断与居民信息时才装载候选。
+        if (normalizedQuery == null) {
+            return pageFromDatabase(context, organizationScope, from, to, statusFilter, safePage, safeSize);
+        }
+
+        if (encounters.size() > MAX_KEYWORD_CANDIDATES) {
+            throw badRequest("ENCOUNTER_QUERY_TOO_BROAD", "关键字命中就诊过多，请缩小日期范围或补充关键字");
+        }
         if (encounters.isEmpty()) {
             return new EncounterPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
         }
 
-        String normalizedStatus = Strings.trimToNull(status);
-        String normalizedQuery = Strings.trimToNull(query);
-        if (normalizedQuery != null) {
-            normalizedQuery = normalizedQuery.toLowerCase(java.util.Locale.ROOT);
-        }
-        final String matchQuery = normalizedQuery;
+        String matchQuery = normalizedQuery.toLowerCase(java.util.Locale.ROOT);
 
         // 状态过滤只看实体字段，先于详情/诊断加载，缩小后续范围
-        List<Encounter> candidates = normalizedStatus == null ? encounters : encounters.stream()
-                .filter(enc -> enc.status().name().equalsIgnoreCase(normalizedStatus)).toList();
+        List<Encounter> candidates = statusFilter == null ? encounters : encounters.stream()
+                .filter(enc -> enc.status() == statusFilter).toList();
 
         Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
         Map<Long, String> departmentCache = new java.util.HashMap<>();
         Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails = new java.util.HashMap<>();
         Map<Long, List<EncounterDiagnosis>> diagnosisMap = new java.util.HashMap<>();
 
-        List<Encounter> filtered;
-        if (matchQuery == null) {
-            filtered = candidates;
-        } else {
-            // 关键字需匹配登记/诊断，须对候选全量加载(按 500 分片)
-            loadDetails(context.tenantId(), candidates, registrationDetails, diagnosisMap);
-            residentCache.putAll(residentDirectory.requireSnapshots(context.tenantId(),
-                    candidates.stream().map(Encounter::residentId).toList()));
-            filtered = candidates.stream()
-                    .filter(enc -> matchesEncounter(enc, null, matchQuery,
-                            residentCache, registrationDetails, diagnosisMap))
-                    .toList();
-        }
+        // 关键字需匹配登记/诊断，须对候选全量加载(按 500 分片)
+        loadDetails(context.tenantId(), candidates, registrationDetails, diagnosisMap);
+        residentCache.putAll(residentDirectory.requireSnapshots(context.tenantId(),
+                candidates.stream().map(Encounter::residentId).toList()));
+        List<Encounter> filtered = candidates.stream()
+                .filter(enc -> matchesEncounter(enc, null, matchQuery,
+                        residentCache, registrationDetails, diagnosisMap))
+                .toList();
 
         EncounterPageSlice pageSlice = pageOf(filtered, safePage, safeSize);
         List<Encounter> slice = pageSlice.slice();
-        if (matchQuery == null) {
-            // 无关键字时只为当前页加载详情与诊断；居民快照同样按页批量取，避免逐行查询
-            loadDetails(context.tenantId(), slice, registrationDetails, diagnosisMap);
-            residentCache.putAll(residentDirectory.requireSnapshots(context.tenantId(),
-                    slice.stream().map(Encounter::residentId).toList()));
-        }
         long totalElements = pageSlice.totalElements();
         int totalPages = pageSlice.totalPages();
 
@@ -1070,6 +1076,47 @@ public class EncounterService implements EncounterDirectory {
         boolean first = safePage == 0;
         boolean last = totalPages == 0 || safePage >= totalPages - 1;
         return new EncounterPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    /** 无关键字分页：状态与日期条件下沉到数据库，仅返回当前页就诊，再为当前页批量装载明细。 */
+    private EncounterPageView pageFromDatabase(ExecutionContext context, boolean organizationScope,
+                                               Instant from, Instant to, EncounterStatus status,
+                                               int safePage, int safeSize) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(safePage, safeSize);
+        org.springframework.data.domain.Page<Encounter> result = status == null
+                ? (organizationScope
+                        ? encounterRepository
+                                .findPageByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+                                        context.tenantId(), context.organizationId(), from, to, pageable)
+                        : encounterRepository
+                                .findPageByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+                                        context.tenantId(), context.organizationId(), context.departmentId(), from, to, pageable))
+                : (organizationScope
+                        ? encounterRepository
+                                .findPageByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanAndStatusOrderByRegisteredAtDesc(
+                                        context.tenantId(), context.organizationId(), from, to, status, pageable)
+                        : encounterRepository
+                                .findPageByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanAndStatusOrderByRegisteredAtDesc(
+                                        context.tenantId(), context.organizationId(), context.departmentId(), from, to,
+                                        status, pageable));
+        List<Encounter> slice = result.getContent();
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
+        Map<Long, String> departmentCache = new java.util.HashMap<>();
+        Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails = new java.util.HashMap<>();
+        Map<Long, List<EncounterDiagnosis>> diagnosisMap = new java.util.HashMap<>();
+        if (!slice.isEmpty()) {
+            loadDetails(context.tenantId(), slice, registrationDetails, diagnosisMap);
+            residentCache.putAll(residentDirectory.requireSnapshots(context.tenantId(),
+                    slice.stream().map(Encounter::residentId).toList()));
+        }
+        List<EncounterQueryItem> content = slice.stream()
+                .map(enc -> toQueryItem(enc, residentCache, departmentCache, context, registrationDetails, diagnosisMap))
+                .toList();
+        int totalPages = result.getTotalPages();
+        boolean first = safePage == 0;
+        boolean last = totalPages == 0 || safePage >= totalPages - 1;
+        return new EncounterPageView(content, safePage, safeSize, result.getTotalElements(), totalPages, first, last);
     }
 
     private void loadDetails(Long tenantId, List<Encounter> source,

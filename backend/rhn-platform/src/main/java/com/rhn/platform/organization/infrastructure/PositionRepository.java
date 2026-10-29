@@ -10,4 +10,5 @@ public interface PositionRepository extends JpaRepository<Position, Long> {
     Optional<Position> findByIdAndTenantId(Long id, Long tenantId);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
     List<Position> findByTenantIdOrderByCode(Long tenantId);
+    List<Position> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
 }

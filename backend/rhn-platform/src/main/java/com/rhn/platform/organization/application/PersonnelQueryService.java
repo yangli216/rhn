@@ -8,11 +8,14 @@ import com.rhn.platform.organization.domain.Organization;
 import com.rhn.platform.organization.domain.PersonnelAssignment;
 import com.rhn.platform.organization.domain.PersonnelStatus;
 import com.rhn.platform.organization.domain.Position;
+import com.rhn.platform.organization.domain.PositionType;
 import com.rhn.platform.organization.domain.Practitioner;
 import com.rhn.platform.organization.domain.PractitionerQualification;
 import com.rhn.platform.organization.infrastructure.*;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.text.Strings;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,44 +66,54 @@ public class PersonnelQueryService {
         if (query.page() < 0 || query.size() < 1 || query.size() > 200) throw badRequest("PAGE_INVALID", "分页参数无效");
         Long tenantId = contexts.requireCurrent().tenantId();
         LocalDate today = LocalDate.now();
-        Map<Long, Employment> employmentById = employments.findByTenantId(tenantId).stream()
-                .collect(Collectors.toMap(Employment::id, Function.identity()));
-        Map<Long, Position> positionById = positions.findByTenantIdOrderByCode(tenantId).stream()
-                .collect(Collectors.toMap(Position::id, Function.identity()));
-        Map<Long, String> organizationNames = organizations.findByTenantIdOrderBySortOrderAscCodeAsc(tenantId).stream()
-                .collect(Collectors.toMap(Organization::id, Organization::name));
         List<Department> allDepartments = departments.findByTenantIdOrderByOrganizationIdAscSortOrderAscCodeAsc(tenantId);
         Map<Long, String> departmentNames = allDepartments.stream().collect(Collectors.toMap(Department::id, Department::name));
-        Map<Long, PractitionerQualification> qualificationByPerson = qualifications.findByTenantId(tenantId).stream()
-                .collect(Collectors.toMap(PractitionerQualification::practitionerId, Function.identity()));
-        Map<Long, List<PersonnelAssignment>> currentByPerson = new HashMap<>();
-        for (PersonnelAssignment assignment : assignments.findByTenantIdOrderByValidFromDesc(tenantId)) {
-            Employment employment = employmentById.get(assignment.employmentId());
-            if (employment == null || !current(assignment, today)) continue;
-            currentByPerson.computeIfAbsent(employment.practitionerId(), id -> new ArrayList<>()).add(assignment);
-        }
         Set<Long> departmentScope = query.departmentId() == null ? null : descendants(query.departmentId(), allDepartments);
         String keyword = Optional.ofNullable(Strings.trimToNull(query.keyword())).map(value -> value.toLowerCase(Locale.ROOT)).orElse(null);
-
-        List<PersonnelRowView> rows = people.findByTenantIdOrderByCode(tenantId).stream()
-                .filter(person -> query.status() == null || person.status() == query.status())
-                .filter(person -> keyword == null || person.code().toLowerCase(Locale.ROOT).contains(keyword)
-                        || person.fullName().toLowerCase(Locale.ROOT).contains(keyword))
-                .filter(person -> {
-                    List<PersonnelAssignment> held = currentByPerson.getOrDefault(person.id(), List.of());
-                    return (query.organizationId() == null || held.stream().anyMatch(item -> item.organizationId().equals(query.organizationId())))
-                            && (departmentScope == null || held.stream().anyMatch(item -> departmentScope.contains(item.departmentId())))
-                            && (query.positionType() == null || held.stream().anyMatch(item -> Optional.ofNullable(positionById.get(item.positionId()))
-                                    .map(position -> position.positionType().name().equals(query.positionType())).orElse(false)));
-                })
-                .filter(person -> matchesQualification(qualificationByPerson.get(person.id()), query))
-                .map(person -> row(person, currentByPerson.getOrDefault(person.id(), List.of()), qualificationByPerson.get(person.id()),
-                        positionById, organizationNames, departmentNames))
+        PositionType positionType = null;
+        if (query.positionType() != null) {
+            try { positionType = PositionType.valueOf(query.positionType()); }
+            catch (IllegalArgumentException invalid) {
+                return new PersonnelPageView(List.of(), query.page(), query.size(), 0, 0, query.page() == 0, true);
+            }
+        }
+        Page<Practitioner> page = people.findPageByFilters(tenantId, query.status(),
+                keyword == null ? null : "%" + keyword + "%", query.organizationId(),
+                departmentScope != null, departmentScope == null ? List.of(-1L) : departmentScope, positionType,
+                query.professionalTitle(), query.prescribing() == null ? null : query.prescribing().name(),
+                PersonnelStatus.ACTIVE, today, PageRequest.of(query.page(), query.size()));
+        List<Practitioner> persons = page.getContent();
+        Map<Long, String> organizationNames = organizations.findByTenantIdOrderBySortOrderAscCodeAsc(tenantId).stream()
+                .collect(Collectors.toMap(Organization::id, Organization::name));
+        List<Long> personIds = persons.stream().map(Practitioner::id).toList();
+        Map<Long, List<PersonnelAssignment>> currentByPerson = new HashMap<>();
+        if (!personIds.isEmpty()) {
+            Map<Long, Employment> employmentById = employments.findByTenantIdAndPractitionerIdIn(tenantId, personIds)
+                    .stream().collect(Collectors.toMap(Employment::id, Function.identity()));
+            List<Long> employmentIds = employmentById.values().stream().map(Employment::id).toList();
+            if (!employmentIds.isEmpty()) {
+                for (PersonnelAssignment assignment : assignments
+                        .findByTenantIdAndEmploymentIdInOrderByValidFromDesc(tenantId, employmentIds)) {
+                    Employment employment = employmentById.get(assignment.employmentId());
+                    if (employment == null || !current(assignment, today)) continue;
+                    currentByPerson.computeIfAbsent(employment.practitionerId(), id -> new ArrayList<>()).add(assignment);
+                }
+            }
+        }
+        Set<Long> positionIds = currentByPerson.values().stream().flatMap(List::stream)
+                .map(PersonnelAssignment::positionId).collect(Collectors.toSet());
+        Map<Long, Position> positionById = positionIds.isEmpty() ? Map.of()
+                : positions.findByTenantIdAndIdIn(tenantId, positionIds).stream()
+                        .collect(Collectors.toMap(Position::id, Function.identity()));
+        Map<Long, PractitionerQualification> qualificationByPerson = personIds.isEmpty() ? Map.of()
+                : qualifications.findByTenantIdAndPractitionerIdIn(tenantId, personIds).stream()
+                        .collect(Collectors.toMap(PractitionerQualification::practitionerId, Function.identity()));
+        List<PersonnelRowView> rows = persons.stream()
+                .map(person -> row(person, currentByPerson.getOrDefault(person.id(), List.of()),
+                        qualificationByPerson.get(person.id()), positionById, organizationNames, departmentNames))
                 .toList();
-        int totalPages = (rows.size() + query.size() - 1) / query.size();
-        int from = Math.min(query.page() * query.size(), rows.size());
-        List<PersonnelRowView> content = rows.subList(from, Math.min(from + query.size(), rows.size()));
-        return new PersonnelPageView(content, query.page(), query.size(), rows.size(), totalPages,
+        int totalPages = page.getTotalPages();
+        return new PersonnelPageView(rows, query.page(), query.size(), page.getTotalElements(), totalPages,
                 query.page() == 0, query.page() >= totalPages - 1);
     }
 
@@ -119,19 +132,6 @@ public class PersonnelQueryService {
             if (result.add(id)) pending.addAll(children.getOrDefault(id, List.of()));
         }
         return result;
-    }
-
-    private static boolean matchesQualification(PractitionerQualification qualification, PersonnelQuery query) {
-        if (query.professionalTitle() != null
-                && (qualification == null || !query.professionalTitle().equals(qualification.professionalTitle()))) return false;
-        if (query.prescribing() == null) return true;
-        return switch (query.prescribing()) {
-            case PRESCRIBING -> qualification != null && qualification.prescribing();
-            case NARCOTIC -> qualification != null && qualification.narcoticPrescribing();
-            case ANTIMICROBIAL -> qualification != null && qualification.antimicrobialLevel() != null;
-            case NONE -> qualification != null && !qualification.prescribing();
-            case UNREGISTERED -> qualification == null;
-        };
     }
 
     private static PersonnelRowView row(Practitioner person, List<PersonnelAssignment> held, PractitionerQualification qualification,

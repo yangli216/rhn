@@ -9,4 +9,6 @@ import java.util.Optional;
 public interface PractitionerQualificationRepository extends JpaRepository<PractitionerQualification, Long> {
     Optional<PractitionerQualification> findByTenantIdAndPractitionerId(Long tenantId, Long practitionerId);
     List<PractitionerQualification> findByTenantId(Long tenantId);
+    List<PractitionerQualification> findByTenantIdAndPractitionerIdIn(Long tenantId,
+                                                                     java.util.Collection<Long> practitionerIds);
 }
