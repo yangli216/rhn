@@ -61,6 +61,7 @@ export function BillingQueue({
   serverFiltered = false,
   toolbar,
   footer,
+  embedded = false,
 }: {
   title?: string
   header?: ReactNode
@@ -83,6 +84,8 @@ export function BillingQueue({
   toolbar?: ReactNode
   /** 列表下方固定区域（如分页）。 */
   footer?: ReactNode
+  /** 放进 WorkspacePane 使用：不自带 Panel 外框与标题，由外层面板提供头、尾与高度；列表在内部滚动。 */
+  embedded?: boolean
 }) {
   const [highlightedId, setHighlightedId] = useState('')
   const [previousSelectedId, setPreviousSelectedId] = useState(selectedId)
@@ -147,8 +150,9 @@ export function BillingQueue({
     }
   }
 
-  return <Panel className={`billing-queue ${className}`.trim()}>
-    {header ?? (title ? <PanelHead title={title} actions={action} /> : null)}
+  const Frame = embedded ? 'div' : Panel
+  return <Frame className={embedded ? `billing-queue-embedded ${className}`.trim() : `billing-queue ${className}`.trim()}>
+    {!embedded && (header ?? (title ? <PanelHead title={title} actions={action} /> : null))}
     {toolbar}
     {showSearch && (items.length > 0 || serverFiltered) && (
       <div className="billing-queue-search">
@@ -189,7 +193,7 @@ export function BillingQueue({
       </>
     )}
     {footer}
-  </Panel>
+  </Frame>
 }
 
 export function waitingDuration(value?: string) {

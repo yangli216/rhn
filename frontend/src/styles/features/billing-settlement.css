@@ -596,10 +596,13 @@
   background: var(--color-surface-subtle);
 }
 
-.billing-action-form--refund { background: color-mix(in srgb, var(--color-warning-soft) 42%, var(--color-surface)); }
-.billing-refund-workspace { min-width: 84rem; display: grid; grid-template-columns: 19rem minmax(42rem, 1fr) 22rem; align-items: start; gap: var(--space-4); }
-.billing-refund-workspace > .ui-panel { min-width: 0; overflow: hidden; }
-.billing-refund-action { position: sticky; top: var(--space-4); }
+.billing-action-form--refund { padding: 0; }
+.billing-refund-columns .ui-panel__head { min-height: var(--control-height-md); }
+.billing-refund-columns .ui-panel__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.billing-refund-queue-tabs { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)); }
+.billing-queue-embedded { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.billing-queue-embedded .billing-queue-list { min-height: 0; max-height: none; flex: 1; }
+.billing-collaboration-table-wrap.billing-refund-items { max-height: none; overflow-y: visible; }
 .billing-refund-origin { min-height: 3rem; padding: var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
 .billing-refund-origin span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .billing-refund-origin--negative strong { color: var(--color-warning); }

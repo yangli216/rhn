@@ -6,7 +6,8 @@ import '../../styles/features/billing-settlement.css'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { BillingWorkItem, RefundItemPreCheckView } from '../../shared/api/billingApi'
-import { Tabs, Alert, Button, DateRangePicker, EmptyState, FormField, LoadingState, PageHeader, Pagination, Panel, StatusBadge } from '../../shared/ui'
+import { Tabs, Alert, Button, DateRangePicker, EmptyState, FormField, LoadingState, PageHeader, PanelHead, Pagination, StatusBadge } from '../../shared/ui'
+import { WorkspaceColumns, WorkspacePane } from '../../shared/ui/templates/PageTemplates'
 import { getLast7DaysRange, type DateRange } from '../../shared/utils/dateRange'
 import { semanticTone } from '../../shared/presentation'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
@@ -383,58 +384,51 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
 
     {worklist.isPending ? <LoadingState label="正在加载退费队列…" /> : worklist.isError ?
       <EmptyState icon="billing" title="退费队列加载失败" copy="无法确认当前待退费记录，请重新加载。"
-        action={<Button onClick={() => void worklist.refetch()}>重新加载退费队列</Button>} /> : <div className="billing-refund-workspace">
-        {queueTab === 'PENDING_REFUND' ? (
-          <BillingQueue
-            key="PENDING_REFUND"
-            header={
-              <Tabs label="退费队列" value={queueTab} onChange={setQueueTab} items={[
-                { value: 'PENDING_REFUND', label: `待退费队列 (${pendingItems.length})` },
-                { value: 'SETTLED', label: `已收费就诊${settled.data ? ` (${settled.data.totalElements})` : ''}` },
-              ]} />
-            }
-            items={pendingItems}
-            selectedId={encounterId}
-            onSelect={(id) => { const item = pendingItems.find((value) => value.encounterId === id); if (item) selectItem(item) }}
-            emptyTitle="暂无符合就诊"
-            emptyCopy="药房实物退药核收后会进入此队列。"
-          />
-        ) : (
-          <BillingQueue
-            key="SETTLED"
-            header={
-              <Tabs label="退费队列" value={queueTab} onChange={setQueueTab} items={[
-                { value: 'PENDING_REFUND', label: `待退费队列 (${pendingItems.length})` },
-                { value: 'SETTLED', label: `已收费就诊${settled.data ? ` (${settled.data.totalElements})` : ''}` },
-              ]} />
-            }
-            items={settledItems ?? []}
-            selectedId={encounterId}
-            onSelect={(id) => { const item = settledItems?.find((value) => value.encounterId === id); if (item) selectItem(item) }}
-            emptyTitle={settled.isPending ? '正在加载…' : '暂无符合就诊'}
-            emptyCopy={settled.isPending ? '正在查询已结算就诊。' : '所选日期范围内暂无符合条件的已结算就诊。'}
-            serverFiltered
-            keyword={keywordInput}
-            onKeywordChange={setKeywordInput}
-            toolbar={<div className="billing-queue-filters">
-              <DateRangePicker compact value={settledRange}
-                onChange={(range) => { setSettledRange(range); setSettledPage(0) }}
-                startAriaLabel="已结算就诊开始日期" endAriaLabel="已结算就诊结束日期" />
-            </div>}
-            footer={settled.data && <Pagination mode="simple" className="billing-queue-pagination" label="已结算就诊分页"
-              page={settled.data.page} totalPages={settled.data.totalPages} total={settled.data.totalElements}
-              onChange={setSettledPage} />}
-          />
-        )}
+        action={<Button onClick={() => void worklist.refetch()}>重新加载退费队列</Button>} /> : <WorkspaceColumns columns="19rem minmax(0, 1fr) 22rem" label="退费办理" className="billing-refund-columns">
+        <WorkspacePane label="退费队列" scroll="content" resetScrollKey={queueTab}
+          header={<Tabs label="退费队列" className="billing-refund-queue-tabs" value={queueTab} onChange={setQueueTab} items={[
+            { value: 'PENDING_REFUND', label: `待退费队列 (${pendingItems.length})` },
+            { value: 'SETTLED', label: `已收费就诊${settled.data ? ` (${settled.data.totalElements})` : ''}` },
+          ]} />}
+          footer={queueTab === 'SETTLED' && settled.data ? <Pagination mode="simple" label="已结算就诊分页"
+            page={settled.data.page} totalPages={settled.data.totalPages} total={settled.data.totalElements}
+            onChange={setSettledPage} /> : undefined}>
+          {queueTab === 'PENDING_REFUND' ? (
+            <BillingQueue
+              embedded
+              key="PENDING_REFUND"
+              items={pendingItems}
+              selectedId={encounterId}
+              onSelect={(id) => { const item = pendingItems.find((value) => value.encounterId === id); if (item) selectItem(item) }}
+              emptyTitle="暂无符合就诊"
+              emptyCopy="药房实物退药核收后会进入此队列。"
+            />
+          ) : (
+            <BillingQueue
+              embedded
+              key="SETTLED"
+              items={settledItems ?? []}
+              selectedId={encounterId}
+              onSelect={(id) => { const item = settledItems?.find((value) => value.encounterId === id); if (item) selectItem(item) }}
+              emptyTitle={settled.isPending ? '正在加载…' : '暂无符合就诊'}
+              emptyCopy={settled.isPending ? '正在查询已结算就诊。' : '所选日期范围内暂无符合条件的已结算就诊。'}
+              serverFiltered
+              keyword={keywordInput}
+              onKeywordChange={setKeywordInput}
+              toolbar={<div className="billing-queue-filters">
+                <DateRangePicker compact value={settledRange}
+                  onChange={(range) => { setSettledRange(range); setSettledPage(0) }}
+                  startAriaLabel="已结算就诊开始日期" endAriaLabel="已结算就诊结束日期" />
+              </div>}
+            />
+          )}
+        </WorkspacePane>
 
-      <Panel className="billing-refund-detail">
-        <header className="billing-section-head">
-          <div>
-            <h2>退费项目</h2>
-            <span>{selected ? `患者 ${selected.residentName} · 就诊 ${selected.encounterId}` : '请选择就诊'}</span>
-          </div>
-          {selected && verificationReady && <StatusBadge tone={decisionBadge.tone}>{decisionBadge.text}</StatusBadge>}
-        </header>
+        <WorkspacePane label="退费项目" resetScrollKey={encounterId}
+          header={<PanelHead title="退费项目" meta={selected ? <>
+            {`患者 ${selected.residentName} · 就诊 ${selected.encounterId}`}
+            {verificationReady && <StatusBadge tone={decisionBadge.tone}>{decisionBadge.text}</StatusBadge>}
+          </> : undefined} />}>
 
         {!selected ? (
           <EmptyState icon="billing" title="请选择就诊患者" copy="在左侧队列中选择就诊后核对退费项目并办理退款。" />
@@ -458,7 +452,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
               </div>
             )}
 
-            <div className="billing-collaboration-table-wrap">
+            <div className="billing-collaboration-table-wrap billing-refund-items">
               <table className="billing-collaboration-table">
                 <thead>
                   <tr>
@@ -576,14 +570,10 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
             )}
           </>
         )}
-      </Panel>
+        </WorkspacePane>
 
-      <Panel className="billing-refund-action">
-        <header className="billing-section-head">
-          <div>
-            <h2>退款办理</h2>
-          </div>
-        </header>
+        <WorkspacePane label="退款办理" className="billing-refund-action" resetScrollKey={encounterId}
+          header={<PanelHead title="退款办理" />}>
 
         {!selected ? (
           <EmptyState icon="billing" title="请先选择就诊" copy="核对退费项目后在此办理退款。" />
@@ -699,7 +689,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
             )}
           </div>
         )}
-      </Panel>
-    </div>}
+        </WorkspacePane>
+      </WorkspaceColumns>}
   </>
 }
