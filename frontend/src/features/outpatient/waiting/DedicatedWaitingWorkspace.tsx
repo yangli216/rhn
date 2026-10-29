@@ -4,7 +4,7 @@ import type { Resident } from '../../../shared/model'
 import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../../shared/billing/insuranceMedia'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
-import { Button, EmptyState, Icon, StatusBadge, Switch } from '../../../shared/ui'
+import { Button, DataTable, EmptyState, Icon, SearchField, StatusBadge, Switch, Tabs } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
 import { formatLocaleDateTime } from '../../../shared/format'
@@ -258,49 +258,30 @@ export function DedicatedWaitingWorkspace({
 
           <span className="waiting-bar-divider" aria-hidden="true" />
 
-          {!searchQuery && <div className="waiting-tabs" role="tablist" aria-label="候诊队列分类">
-            {([
-              ['ALL', '待诊', tabCounts.ALL],
-              ['SUSPENDED', '暂挂', tabCounts.SUSPENDED],
-              ...(callingEnabled ? [['SKIPPED', '过号', tabCounts.SKIPPED] as const] : []),
-              ['COMPLETED', '已接诊', tabCounts.COMPLETED],
-            ] as const).map(([value, label, count]) => (
-              <button
-                key={value}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === value}
-                className={`waiting-tab-btn ${value === 'COMPLETED' ? 'waiting-tab-btn--completed ' : ''}${activeTab === value ? 'is-active' : ''}`}
-                onClick={() => setActiveTab(value)}
-              >
-                {label} <span className="tab-badge">{count}</span>
-              </button>
-            ))}
-          </div>}
+          {!searchQuery && <Tabs
+            variant="segmented"
+            label="候诊队列分类"
+            value={activeTab}
+            onChange={setActiveTab}
+            items={[
+              { value: 'ALL', label: '待诊', meta: String(tabCounts.ALL) },
+              { value: 'SUSPENDED', label: '暂挂', meta: String(tabCounts.SUSPENDED) },
+              ...(callingEnabled ? [{ value: 'SKIPPED' as const, label: '过号', meta: String(tabCounts.SKIPPED) }] : []),
+              { value: 'COMPLETED', label: '已接诊', meta: String(tabCounts.COMPLETED), tone: 'success' as const },
+            ]}
+          />}
         </div>
 
         <div className="waiting-filter-tools">
-          <div className="waiting-search-box">
-            <Icon name="search" />
-            <input
-              type="search"
-              placeholder="姓名 / 排队号 / 档案号，回车查询"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitSearch() } }}
-              aria-label="搜索门诊患者"
-            />
-            {searchInput && (
-              <button
-                type="button"
-                className="clear-search-btn"
-                onClick={clearSearch}
-                aria-label="清空搜索"
-              >
-                <Icon name="close" />
-              </button>
-            )}
-          </div>
+          <SearchField
+            size="sm"
+            label="搜索门诊患者"
+            placeholder="姓名 / 排队号 / 档案号，回车查询"
+            value={searchInput}
+            onChange={setSearchInput}
+            onClear={clearSearch}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitSearch() } }}
+          />
           <Button size="sm" variant="secondary" disabled={busy} onClick={submitSearch}>
             <Icon name="search" /><span>查询</span>
           </Button>
@@ -326,7 +307,7 @@ export function DedicatedWaitingWorkspace({
               : '新挂号或回诊患者将自动进入当前视角的候诊队列。'}
           />
         ) : (
-          <table className="waiting-table">
+          <DataTable className="waiting-table">
             {/* 无可见表头：列含义由内容自明，保留给读屏软件 */}
             <thead className="waiting-table__head">
               <tr>
@@ -534,7 +515,7 @@ export function DedicatedWaitingWorkspace({
               )
             })}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
 

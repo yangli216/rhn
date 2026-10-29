@@ -25,6 +25,8 @@ export type TabItem<T extends string> = {
   tabId?: string
   panelId?: string
   disabled?: boolean
+  /** 选中态使用成功色（目前仅 segmented 变体支持，如“已接诊”类终态页签）。 */
+  tone?: 'success'
 }
 
 export function Tabs<T extends string>({
@@ -73,7 +75,7 @@ export function Tabs<T extends string>({
         return <button key={item.value} type="button" role="tab" id={item.tabId ?? `${generatedId}-${item.value}-tab`}
           aria-controls={item.panelId} aria-selected={selected} disabled={item.disabled}
           tabIndex={selected ? 0 : -1} ref={(node) => { refs.current[index] = node }}
-          className={`ui-tabs__tab ${selected ? 'is-active' : ''}`}
+          className={`ui-tabs__tab ${selected ? 'is-active' : ''} ${item.tone ? `is-tone-${item.tone}` : ''}`}
           onKeyDown={(event) => handleKeyDown(event, item)} onClick={() => onChange(item.value)}>
           <strong>{item.label}</strong>{item.meta && <small>{item.meta}</small>}
         </button>
@@ -87,25 +89,31 @@ export function SearchField({
   value,
   onChange,
   onSearch,
+  onClear,
   label,
   clearable = true,
+  size = 'md',
   inputRef: externalInputRef,
   className = '',
   onKeyDown,
   ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'size'> & {
   value: string
   onChange: (value: string) => void
   onSearch?: (value: string) => void
+  /** 点击内置清空按钮时调用（先于 onChange('')/onSearch('')），页面需要自定义清空行为时使用。 */
+  onClear?: () => void
   label: string
   clearable?: boolean
+  /** sm：紧凑高度，用于与 sm 按钮同行的工具栏。 */
+  size?: 'md' | 'sm'
   inputRef?: RefObject<HTMLInputElement | null>
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   const resolvedInputRef = externalInputRef ?? inputRef
 
-  return <label className={`ui-search-field ${className}`}>
+  return <label className={`ui-search-field ${size === 'sm' ? 'ui-search-field--sm' : ''} ${className}`}>
     <span className="visually-hidden">{label}</span>
     <Icon name="search" />
     <input
@@ -125,6 +133,7 @@ export function SearchField({
     />
     {clearable && value && <button type="button" aria-label={`清空${label}`} title={`清空${label}`}
       onClick={() => {
+        onClear?.()
         onChange('')
         onSearch?.('')
         resolvedInputRef.current?.focus()

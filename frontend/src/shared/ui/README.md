@@ -14,8 +14,8 @@
 | `AnchoredPanel` | 非模态参考浮层 | Portal、视口定位、点击外部 / Esc 关闭；`anchorElement` 允许触发器自行切换开关 |
 | `PageHeader` | 一级页面标题区 | 眉题、唯一 H1、描述、操作区；PC 维护页支持紧凑模式 |
 | `Panel` / `PanelHead` | 任务或信息集合 | 统一表面、标题层级、元数据位置 |
-| `Tabs` | 页面或工作区页签 | 线性、工作区和卡片三种规范变体；自动处理 ARIA、方向键、Home/End 与焦点移动 |
-| `SearchField` | 列表和主数据检索 | 统一搜索图标、清空操作、焦点状态与可访问名称 |
+| `Tabs` | 页面或工作区页签 | 线性、工作区、卡片、pills 与 segmented（紧凑分段控件，`meta` 显示为数量徽标，`tone: 'success'` 让终态页签选中为成功色）变体；自动处理 ARIA、方向键、Home/End 与焦点移动 |
+| `SearchField` | 列表和主数据检索 | 统一搜索图标、清空操作、焦点状态与可访问名称；`size="sm"` 为与 sm 按钮同行的紧凑高度，`onClear` 在点击内置清空按钮时回调 |
 | `SplitWorkspace` | 左侧目录、右侧详情的主从页面 | 统一最小尺寸、间距和溢出边界，业务仅配置列宽 |
 | `TableShell` / `DataTable` | 数据列表与表格 | 统一滚动容器、表头、行密度、悬停、列语义对齐和底部统计区 |
 | `EditableTable` / `EditableRow` / `EditableCell` | 连续行录入列表 | 聚焦行进入编辑、离开行恢复阅读、统一控件尺寸、回车跳格及末格追加行 |

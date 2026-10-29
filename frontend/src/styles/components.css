@@ -224,6 +224,12 @@
 .ui-search-field > button { width: var(--control-height-sm); height: var(--control-height-sm); padding: 0; display: grid; flex: none; place-items: center; border: 0; border-radius: var(--radius-sm); color: var(--color-text-disabled); background: transparent; }
 .ui-search-field > button:hover, .ui-search-field > button:focus-visible { color: var(--color-brand-primary); outline: 0; background: var(--color-brand-soft); }
 .ui-search-field > button .ui-icon { width: .875rem; height: .875rem; }
+.ui-search-field--sm { height: var(--control-height-sm); padding: 0 var(--space-2); gap: var(--space-1); }
+.ui-search-field--sm > .ui-icon { width: var(--font-size-body); height: var(--font-size-body); }
+.ui-search-field--sm input { height: auto; font-size: var(--font-size-small); }
+.ui-search-field--sm > button { width: calc(var(--font-size-body) + var(--space-1)); height: calc(var(--font-size-body) + var(--space-1)); }
+/* 紧凑工具栏搜索框：聚焦时不显示光晕与品牌描边，保持静态外观（用户 2026-10-28 要求）。默认尺寸仍使用标准焦点样式。 */
+.ui-search-field--sm:focus-within { border-color: var(--color-border-strong); box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent); }
 
 .ui-tabs { min-width: 0; display: flex; align-items: stretch; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
 .ui-tabs__items { min-width: 0; display: flex; flex: 1; align-items: stretch; overflow-x: auto; scrollbar-width: none; }
@@ -328,37 +334,50 @@
 .ui-tabs--pills .ui-tabs__tab small { font-size: 0.75rem; opacity: 0.85; margin-left: 2px; }
 .ui-tabs--pills .ui-tabs__tab.is-active small { color: var(--color-brand-strong); }
 
+/* segmented：紧凑分段控件，与同行 sm 控件等高；meta 以徽标显示数量。 */
 .ui-tabs--segmented {
-  border-bottom: 0;
-  background: var(--color-surface-subtle);
-  padding: 2px;
-  border-radius: var(--radius-md);
+  height: var(--control-height-sm);
+  padding: calc(var(--space-1) * 0.5);
+  flex: none;
+  align-items: center;
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
 }
-.ui-tabs--segmented .ui-tabs__items { gap: 2px; }
+.ui-tabs--segmented .ui-tabs__items { flex: none; align-items: center; gap: calc(var(--space-1) * 0.5); overflow: visible; }
 .ui-tabs--segmented .ui-tabs__tab {
-  flex: 1;
   min-width: 0;
-  min-height: calc(var(--control-height-sm) - 2px);
+  min-height: 0;
+  height: calc(var(--control-height-sm) - 8px);
   padding: 0 var(--space-2);
+  gap: var(--space-1);
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
-  background: transparent;
-  border: 0;
+  white-space: nowrap;
   transition: all var(--motion-fast) var(--ease-standard);
 }
 .ui-tabs--segmented .ui-tabs__tab::after { display: none; }
-.ui-tabs--segmented .ui-tabs__tab:hover:not(:disabled) {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-border) 40%, transparent);
-}
+.ui-tabs--segmented .ui-tabs__tab strong { font-size: inherit; font-weight: inherit; }
+.ui-tabs--segmented .ui-tabs__tab:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-surface); }
 .ui-tabs--segmented .ui-tabs__tab.is-active {
-  background: var(--color-surface);
-  color: var(--color-brand-primary);
-  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-strong);
+  background: var(--color-brand-soft);
+  font-weight: var(--font-weight-semibold);
   box-shadow: var(--shadow-sm);
 }
+.ui-tabs--segmented .ui-tabs__tab.is-active.is-tone-success { color: var(--color-success); background: var(--color-success-soft); }
+.ui-tabs--segmented .ui-tabs__tab small {
+  display: inline-block;
+  padding: calc(var(--space-1) * 0.2) calc(var(--space-1) * 1.6);
+  border-radius: var(--radius-round);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+.ui-tabs--segmented .ui-tabs__tab.is-active small { color: var(--color-text-inverse); background: var(--color-brand-primary); }
+.ui-tabs--segmented .ui-tabs__tab.is-active.is-tone-success small { background: var(--color-success); }
 
 .ui-table-shell { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex: 1; }
 .ui-table-scroll { min-width: 0; min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-border-strong) 60%, transparent) transparent; }
