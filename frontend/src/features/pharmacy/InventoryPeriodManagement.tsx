@@ -6,7 +6,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import { inventoryPeriodClosePresentation } from '../../shared/presentation'
 import { inventoryKnownTotal, knownInventoryNumber } from './inventoryLedgerTruth'
 import { requireCloseDifferences, requireCloseRun, requireCloseRuns, requirePeriods } from './periodCloseTruth'
-import { Alert, Button, Dialog, EmptyState, LoadingState, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, ListItemButton, LoadingState, SelectableList, StatusBadge } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatNumber } from '../../shared/utils/precision'
 import { formatDateKey } from '../../shared/utils/dateRange'
@@ -101,12 +101,11 @@ export function InventoryPeriodManagement({ api, siteId, items, bins }: {
       : <div className="warehouse-period__workspace">
         <aside className="warehouse-period__timeline" aria-label="库存期间">
           <header><strong>会计期间</strong><span>{periods.data.length} 期</span></header>
-          <div>{periods.data.map(period => <button type="button" key={period.id}
-            className={period.id === periodId ? 'is-selected' : ''} onClick={() => setPeriodId(period.id)}>
-            <span><strong>{formatPeriod(period)}</strong><small>{period.periodFrom} 至 {period.periodTo}</small></span>
-            <StatusBadge tone={period.status === 'CLOSED' ? 'success' : period.status === 'OPEN' ? 'info' : 'warning'}>
-              {period.statusText ?? period.status}</StatusBadge>
-          </button>)}</div>
+          <SelectableList label="会计期间列表">{periods.data.map(period => <ListItemButton key={period.id}
+            selected={period.id === periodId} onSelect={() => setPeriodId(period.id)}
+            title={formatPeriod(period)} meta={`${period.periodFrom} 至 ${period.periodTo}`}
+            badge={<StatusBadge tone={period.status === 'CLOSED' ? 'success' : period.status === 'OPEN' ? 'info' : 'warning'}>
+              {period.statusText ?? period.status}</StatusBadge>} />)}</SelectableList>
         </aside>
         <div className="warehouse-period__detail">
           <PeriodHeading period={selectedPeriod} run={selectedRun} canPost={Boolean(canPost)}

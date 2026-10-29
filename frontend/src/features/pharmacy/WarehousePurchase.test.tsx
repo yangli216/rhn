@@ -402,11 +402,11 @@ it('supports backend search triggering on Enter and Search button click', async 
 
   // 1. 输入文本但未按回车/未点查询时，列表不提前触发本地实时过滤
   fireEvent.change(searchInput, { target: { value: 'VRTTMTT' } })
-  expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(2)
+  expect(document.querySelectorAll('.warehouse-queue-list .ui-list-item')).toHaveLength(2)
 
   // 2. 回车触发检索（命中验收单特有单号，左侧队列仅展示匹配的1张单据）
   fireEvent.keyDown(searchInput, { key: 'Enter', code: 'Enter' })
-  expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(1)
+  expect(document.querySelectorAll('.warehouse-queue-list .ui-list-item')).toHaveLength(1)
   expect(screen.getAllByText('GR20260918074333VRTTMTT').length).toBeGreaterThanOrEqual(1)
 
   // 3. 点击重置按钮恢复全部单据（左侧队列恢复为2张单据）
@@ -414,12 +414,12 @@ it('supports backend search triggering on Enter and Search button click', async 
   fireEvent.click(resetBtn)
   await waitFor(() => expect(screen.queryByRole('button', { name: '重置' })).not.toBeInTheDocument())
   await waitFor(() => expect(searchBtn).toBeEnabled())
-  expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(2)
+  expect(document.querySelectorAll('.warehouse-queue-list .ui-list-item')).toHaveLength(2)
 
   // 4. 输入新关键字并点击【查询】按钮触发检索
   fireEvent.change(searchInput, { target: { value: '不存在的单号' } })
   fireEvent.click(searchBtn)
-  await waitFor(() => expect(document.querySelectorAll('.warehouse-doc-card')).toHaveLength(0))
+  await waitFor(() => expect(document.querySelectorAll('.warehouse-queue-list .ui-list-item')).toHaveLength(0))
   expect(screen.getByText('当前筛选条件下暂无单据，请切换过滤或搜索条件。')).toBeInTheDocument()
 })
 

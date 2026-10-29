@@ -6,7 +6,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
 import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
-import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Pagination, RemoteSearchSelect, Select, StatusBadge, Tag, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Pagination, RemoteSearchSelect, ListItemButton, Select, SelectableList, StatusBadge, Tag, UnitNumberInput, tableCellClass } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import {
@@ -485,38 +485,23 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                 当前筛选条件下暂无单据，请切换过滤或搜索条件。
               </p>
             )}
-            {pagedQueueItems.map(item => {
-              const isSelected = activeItem?.id === item.id && activeItem?.kind === item.kind
-              return (
-                <div
-                  key={`${item.kind}-${item.id}`}
-                  className={`warehouse-doc-card ${isSelected ? 'is-selected' : ''}`}
-                  onClick={() => { setSelectedDocId(item.id); setSelectedDocKind(item.kind); }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="warehouse-doc-card__head">
-                    <div className="warehouse-doc-card__identity">
-                      <Tag tone={item.kind === 'order' ? 'info' : 'success'}>{item.kind === 'order' ? '采购单' : '验收单'}</Tag>
-                      <span className="warehouse-doc-card__no" title={item.docNo}>{item.docNo}</span>
-                    </div>
-                    <StatusBadge tone={statusTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
-                  </div>
-                  <div className="warehouse-doc-card__meta">
-                    <span className="warehouse-doc-card__detail" title={`${item.supplierName} · ${item.countText}${item.date ? ` · ${item.date}` : ''}`}>
-                      <strong className="warehouse-doc-card__supplier">{item.supplierName}</strong>
-                      <span className="warehouse-doc-card__dot">·</span>
-                      <span className="warehouse-doc-card__items">{item.countText}</span>
-                      {item.date && <>
-                        <span className="warehouse-doc-card__dot">·</span>
-                        <span className="warehouse-doc-card__date">{item.date.includes(' ') ? item.date.split(' ')[0] : item.date}</span>
-                      </>}
-                    </span>
-                    <strong className="warehouse-doc-card__amount">{formatRecordedMoney(item.amount)}</strong>
-                  </div>
-                </div>
-              )
-            })}
+            {pagedQueueItems.length > 0 && <SelectableList label="单据队列">
+              {pagedQueueItems.map(item => {
+                const isSelected = activeItem?.id === item.id && activeItem?.kind === item.kind
+                const dateText = item.date ? (item.date.includes(' ') ? item.date.split(' ')[0] : item.date) : ''
+                return (
+                  <ListItemButton
+                    key={`${item.kind}-${item.id}`}
+                    selected={isSelected}
+                    onSelect={() => { setSelectedDocId(item.id); setSelectedDocKind(item.kind) }}
+                    title={<><Tag tone={item.kind === 'order' ? 'info' : 'success'}>{item.kind === 'order' ? '采购单' : '验收单'}</Tag> <span title={item.docNo}>{item.docNo}</span></>}
+                    badge={<StatusBadge tone={statusTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>}
+                    meta={`${item.supplierName} · ${item.countText}${dateText ? ` · ${dateText}` : ''}`}
+                    aside={<strong>{formatRecordedMoney(item.amount)}</strong>}
+                  />
+                )
+              })}
+            </SelectableList>}
           </div>
           {queueItems.length > 0 && (
             <div className="warehouse-queue-footer ui-table-footer">

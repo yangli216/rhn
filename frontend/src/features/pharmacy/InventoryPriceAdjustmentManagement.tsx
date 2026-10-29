@@ -5,7 +5,7 @@ import type {
 } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, ListItemButton, LoadingState, Select, SelectableList, StatusBadge } from '../../shared/ui'
 import { inventoryPriceAdjustmentPresentation } from '../../shared/presentation'
 import { inventoryAverageCost, knownInventoryNumber } from './inventoryLedgerTruth'
 import { hasAdjustmentSnapshot, hasAdjustmentTotals, requirePriceAdjustment, requirePriceAdjustments, validAdjustmentTargets } from './priceAdjustmentTruth'
@@ -92,13 +92,12 @@ function AdjustmentList({ rows, selectedId, onSelect }: {
   rows: InventoryPriceAdjustment[]; selectedId?: string; onSelect: (id: string) => void
 }) {
   return <aside className="warehouse-price__list"><header><strong>调价单据</strong><span>{rows.length} 单</span></header>
-    <div>{rows.map(row => <button type="button" key={row.id} className={row.id === selectedId ? 'is-selected' : ''}
-      onClick={() => onSelect(row.id)}><span className="warehouse-price__list-main"><span><strong title={row.adjustmentNo}>{row.adjustmentNo}</strong>
-        <StatusBadge tone={inventoryPriceAdjustmentPresentation(row.status).tone}>{inventoryPriceAdjustmentPresentation(row.status).label}</StatusBadge></span>
-        <small>{row.adjustmentTypeText ?? row.adjustmentType} · {row.businessDate}</small></span>
-      <span className="warehouse-price__list-summary"><small>{row.lineCount} 个经营项目</small>
-        <strong className={row.totalAdjustmentAmount < 0 ? 'is-negative' : ''}>{hasAdjustmentTotals(row) ? signedMoney(row.totalAdjustmentAmount, row.currencyCode) : '尚未预检'}</strong></span>
-    </button>)}</div></aside>
+    <SelectableList label="调价单据列表">{rows.map(row => <ListItemButton key={row.id}
+      selected={row.id === selectedId} onSelect={() => onSelect(row.id)}
+      title={<span title={row.adjustmentNo}>{row.adjustmentNo}</span>}
+      badge={<StatusBadge tone={inventoryPriceAdjustmentPresentation(row.status).tone}>{inventoryPriceAdjustmentPresentation(row.status).label}</StatusBadge>}
+      meta={`${row.adjustmentTypeText ?? row.adjustmentType} · ${row.businessDate} · ${row.lineCount} 个经营项目`}
+      aside={<strong className={row.totalAdjustmentAmount < 0 ? 'warehouse-price__amount is-negative' : 'warehouse-price__amount'}>{hasAdjustmentTotals(row) ? signedMoney(row.totalAdjustmentAmount, row.currencyCode) : '尚未预检'}</strong>} />)}</SelectableList></aside>
 }
 
 function AdjustmentDetail({ value, items, bins, busy, onSubmit, onApprove, onPost, onCancel }: {

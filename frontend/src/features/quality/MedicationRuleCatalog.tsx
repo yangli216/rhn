@@ -10,7 +10,7 @@ import type {
   RuleCatalogEntry,
   RuleDeployment
 } from '../../shared/api/medicationWorkbenchApi'
-import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge, Tag } from '../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, ListItemButton, LoadingState, SearchField, Select, SelectableList, StatusBadge, Tag } from '../../shared/ui'
 import './medication-rule-catalog.css'
 import { MedicationKnowledgePublicationDialog } from './MedicationKnowledgePublicationDialog'
 import { MedicationKnowledgeDeploymentDialog } from './MedicationKnowledgeDeploymentDialog'
@@ -271,33 +271,21 @@ export function MedicationRuleCatalog({
               <span>共 <strong>{visible.length}</strong>{visible.length !== (data?.rules.length ?? 0) ? ` / ${data?.rules.length ?? 0}` : ''} 条</span>
             </div>
             <div className="qmed-governance__list">
-              {visible.map(r => {
-                const ruleSummary = summary(r)
-                const statusTone = getRuleStatusTone(r)
-                const isSelected = r.key === selected
-
-                return (
-                  <button
-                    type="button"
+              {visible.length > 0 && <SelectableList label="规则目录">
+                {visible.map(r => (
+                  <ListItemButton
                     key={r.key}
-                    className={`qmed-governance__rule ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => {
+                    selected={r.key === selected}
+                    onSelect={() => {
                       setSelected(r.key)
                       setVersionId('')
                     }}
-                  >
-                    <div className="qmed-governance__rule-head">
-                      <strong>{r.name}</strong>
-                      <StatusBadge tone={statusTone}>{ruleSummary}</StatusBadge>
-                    </div>
-                    {r.origin !== 'BUILTIN' && (
-                      <div className="qmed-governance__rule-code-row">
-                        <Tag tone={r.origin === 'AI' ? 'brand' : 'neutral'}>{originName[r.origin] ?? r.origin}</Tag>
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
+                    title={<span title={r.name}>{r.name}</span>}
+                    badge={<StatusBadge tone={getRuleStatusTone(r)}>{summary(r)}</StatusBadge>}
+                    meta={r.origin !== 'BUILTIN' ? <Tag tone={r.origin === 'AI' ? 'brand' : 'neutral'}>{originName[r.origin] ?? r.origin}</Tag> : undefined}
+                  />
+                ))}
+              </SelectableList>}
               {!visible.length && (
                 <div className="qmed-empty-state">
                   <Icon name="search" />
