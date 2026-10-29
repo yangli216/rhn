@@ -125,3 +125,14 @@ test('buttons beside field controls must use the default size so they match the 
   assert.deepEqual(rows('const a = <td><Select value="" /><Button size="sm">改</Button></td>'), [])
   assert.deepEqual(rows('const a = <tr><td><div><Select value="" /><Button size="sm">改</Button></div></td></tr>'), [])
 })
+
+test('business css must not override the height of shared input and button controls', () => {
+  const css = 'features/demo/demo.css'
+  const rows = source => rules(scanSource(css, source))
+  assert.deepEqual(rows('.demo .ui-button { min-height: 2.1rem }'), ['control-height-override'])
+  assert.deepEqual(rows('.demo .ui-select__trigger { height: var(--control-height-sm) }'), ['control-height-override'])
+  assert.deepEqual(rows('.demo .ui-field__control { height: 32px }'), ['control-height-override'])
+  assert.deepEqual(rows('.demo .ui-button { min-height: var(--control-height-default) }'), [])
+  assert.deepEqual(rows('.demo textarea.ui-field__control { min-height: 4.25rem }'), [])
+  assert.deepEqual(rows('.demo .my-button { min-height: 2.1rem }'), [])
+})

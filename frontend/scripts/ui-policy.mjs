@@ -17,6 +17,7 @@ export const ruleMessages = {
   'css-scrollbar-gutter': '滚动容器不得预留滚动条空间，使用 scrollbar-gutter: auto',
   'shared-appearance': '不得在业务 CSS 中覆盖共享组件外观',
   'mobile-breakpoint': '默认只适配 PC，不新增手机专属断点',
+  'control-height-override': '业务 CSS 不得改写共享输入框/按钮的高度；高度由 --control-height-default 统一，紧凑场景用 size="sm"',
   'control-size-mismatch': '与输入框/下拉框同行的按钮使用默认尺寸（不写 size="sm"），保证同高；紧凑型只用于表格行内',
 }
 
@@ -24,6 +25,9 @@ const nativeComponents = { button: 'shared-button', select: 'shared-select', tab
 // 同一父元素内出现这些控件时，旁边的 Button 必须与其同高（默认尺寸）；表格行内的紧凑场景除外。
 const fieldControls = new Set(['input', 'FormField', 'SearchField', 'Select', 'DictionarySelect', 'FormSelect', 'DatePicker', 'DateRangePicker', 'RemoteSearchSelect', 'ClinicalResourceSearch', 'UnitNumberInput', 'GridAddressInput'])
 const compactTableScopes = new Set(['td', 'th', 'tr', 'EditableRow', 'EditableCell', 'EditableTable', 'DataTable', 'TableShell'])
+// 共享输入/按钮控件：业务 CSS 改写它们的高度会让同行控件不齐。
+const sharedControlTarget = /\.ui-(?:button|icon-button|search-field|field__control|select[\w-]*|date[\w-]*)(?![\w-])[^\s>+~]*$/
+const heightProperties = /^(?:height|min-height|max-height)$/
 const appearance = /^(?:color|background(?:-.+)?|border(?:-.+)?|outline(?:-.+)?|box-shadow|font(?:-.+)?|line-height|letter-spacing|text-shadow)$/
 const tokenProperties = /^(?:color|background-color|border(?:-(?:top|right|bottom|left))?-color|border(?:-(?:top|bottom)-(?:left|right))?-radius|box-shadow|font-size|font-family|font-weight|line-height|letter-spacing|z-index|(?:padding|margin)(?:-.+)?|(?:row-|column-)?gap)$/
 const neutralValue = /^(?:0(?:[a-z%]+)?|auto|none|normal|inherit|initial|unset|revert|transparent|currentcolor)(?:\s+(?:0|auto))*$/i
@@ -147,6 +151,10 @@ export function scanSource(file, source) {
       const hasLiteralSize = /(?:\d*\.)?\d+(?:px|rem|em|vh|vw|pt)\b/.test(withoutVariables(decl.value))
       if (tokenProperties.test(decl.prop) && !neutralValue.test(decl.value) && (hasLiteralSize || !/var\(\s*--/.test(decl.value))) {
         report('css-token', line, code)
+      }
+      if (heightProperties.test(decl.prop) && !neutralValue.test(decl.value) && decl.value.trim() !== 'var(--control-height-default)'
+        && context(decl).split(' / ').pop().split(',').some(part => !/\btextarea\b/.test(part) && sharedControlTarget.test(part.trim()))) {
+        report('control-height-override', line, code)
       }
       if (appearance.test(decl.prop) && targetsSharedComponent(context(decl))) report('shared-appearance', line, code)
     })
