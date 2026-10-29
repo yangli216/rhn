@@ -106,6 +106,7 @@ npm run build
 | DedicatedWaitingWorkspace（医生站候诊） | 紧凑工具栏（分段页签、搜索 + 查询）、候诊表格；`/ui-samples.html` 虚构数据，`ui:visual` 含 darwin 截图基线 | 2026-10-28 迁移到共享 Tabs/SearchField/DataTable 并以改前基线逐张比对；基线冻结现状，非视觉认可，待人工确认 |
 | PharmacyWorkspace | 查询、配药/发药、打印菜单的共享交互 | 业务回归通过仍需人工确认 |
 | PharmacyQueryPanel / BillingQueryWorkspace | 横向筛选栏的有限搜索宽度、紧凑日期和下拉框、紧随条件的操作组 | 用户于 2026-10-12 查看认可，并指定为全局默认；不代表整页验收 |
+| 挂号查询 / 门诊医生站 / 库房管理 / 药品知识与目录 | 四个页面整体的布局、密度与组件用法；不一致处以共享组件为准（StatChips、EmptyState inline、Tag、DescriptionList 等从这些页面抽取） | 用户于 2026-10-28 口头确认“总体符合预期”，并授权在符合总体风格前提下由维护者决定不一致处；视口与字号逐格验收仍待确认，暂无页面级截图基线 |
 
 已认可筛选栏的源码记录见主目录 `.runtime/verification/query-filter-pilot-integration.json`；认可视口及字号未提供，以下六格不据此补记通过。其他页面在新增或调整查询栏时按 UI 规范第 5.5 节迁移。
 
