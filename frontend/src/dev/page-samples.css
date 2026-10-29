@@ -1,2 +1,9 @@
 /* 业务页面样板的演示容器：复现医生站主内容区的高度链，页面本身的样式不在此处定义。 */
 .waiting-sample { height: 100dvh; min-width: 1280px; padding: var(--layout-workspace-gutter); display: flex; flex-direction: column; overflow: hidden; background: var(--color-canvas); }
+/* ui-allow: 演示容器需要与应用主内容区相同的画布底色 */
+.component-samples { min-width: 1280px; padding: var(--layout-workspace-gutter); display: flex; flex-direction: column; gap: var(--space-5); background: var(--color-canvas); }
+.component-samples h2 { margin: 0 0 var(--space-2); }
+.component-samples__toolbar, .component-samples__row { display: flex; align-items: center; gap: var(--space-2); }
+.component-samples__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.component-samples__list { max-width: 28rem; }
+.component-samples__toolbar .ui-search-field { width: 19rem; }
