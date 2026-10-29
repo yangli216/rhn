@@ -107,14 +107,15 @@ export function StatChips({ items, className = '' }: { items: StatChipItem[]; cl
 export type TagTone = 'neutral' | 'brand' | 'info' | 'success' | 'warning' | 'danger'
 
 /** 方角小标签：类型、编码、来源等分类信息。状态（启用/停用/异常）用 StatusBadge，不要用 Tag。 */
-export function Tag({ tone = 'neutral', mono = false, className = '', children }: {
+export function Tag({ tone = 'neutral', mono = false, className = '', title, children }: {
   tone?: TagTone
   /** 编码、批号等用等宽字体。 */
   mono?: boolean
   className?: string
+  title?: string
   children: ReactNode
 }) {
-  return <span className={`ui-tag ui-tag--${tone} ${mono ? 'ui-tag--mono' : ''} ${className}`.trim()}>{children}</span>
+  return <span className={`ui-tag ui-tag--${tone} ${mono ? 'ui-tag--mono' : ''} ${className}`.trim()} title={title}>{children}</span>
 }
 
 export type DescriptionItem = {

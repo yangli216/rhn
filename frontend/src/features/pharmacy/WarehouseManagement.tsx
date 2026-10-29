@@ -7,7 +7,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel,
   Pagination, SearchField, Select, StatusBadge, TableShell, TreePanel, tableCellClass, useSystemEnum,
-  StatChips,
+  StatChips, DescriptionList, Tag,
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import '../../styles/features/pharmacy-warehouse.css'
@@ -242,13 +242,13 @@ function BinSection({ bins, selected, selectedId, loading, onSelect, onAdd, isOp
       copy="查看库位用途和作业权限；也可以从左侧新增根库区或下级货位。" /> : <>
       <header><div><span>{selected.binTypeText ?? selected.binType}</span><h3>{selected.name}</h3><code>{selected.code}</code></div>
         <StatusBadge tone={selected.active ? 'success' : 'neutral'}>{selected.active ? '启用' : '停用'}</StatusBadge></header>
-      <dl className="warehouse-facts">
-        <div><dt>默认库存状态</dt><dd>{selected.stockDefaultText ?? selected.stockDefault}</dd></div>
-        <div><dt>同级排序</dt><dd>{selected.sortOrder}</dd></div>
-        <div><dt>允许收货</dt><dd>{selected.receiveAllowed ? '是' : '否'}</dd></div>
-        <div><dt>允许拣货</dt><dd>{selected.pickAllowed ? '是' : '否'}</dd></div>
-        <div><dt>允许盘点</dt><dd>{selected.countAllowed ? '是' : '否'}</dd></div>
-      </dl>
+      <DescriptionList className="warehouse-facts" items={[
+        { label: '默认库存状态', value: selected.stockDefaultText ?? selected.stockDefault },
+        { label: '同级排序', value: selected.sortOrder },
+        { label: '允许收货', value: selected.receiveAllowed ? '是' : '否' },
+        { label: '允许拣货', value: selected.pickAllowed ? '是' : '否' },
+        { label: '允许盘点', value: selected.countAllowed ? '是' : '否' },
+      ]} />
       <Button variant="secondary" size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={() => onAdd(selected.id)}>新增下级库位</Button>
     </>}</div>
   </div>
@@ -269,9 +269,9 @@ function ItemSection({ items, loading, onAdd, onInspect, isOperator = true }: {
         <td><strong>{item.productName}</strong><code>{item.productCode}</code></td>
         <td>{item.packageSpec || item.packageUnitName}<small>1 {item.packageUnitName} = {item.packageFactor} {item.baseUnitCode}</small></td>
         <td>{item.issuePolicyText ?? item.issuePolicy}</td>
-        <td><div className="warehouse-tags">{item.lotRequired && <span>批号</span>}{item.traceRequired && <span>追溯</span>}
-          {item.splitAllowed && <span>可拆零</span>}{item.coldChain && <span>冷链</span>}{item.controlled && <span>受控</span>}
-          {item.highAlert && <span>高警示</span>}</div></td>
+        <td><div className="warehouse-tags">{item.lotRequired && <Tag tone="brand">批号</Tag>}{item.traceRequired && <Tag tone="brand">追溯</Tag>}
+          {item.splitAllowed && <Tag tone="brand">可拆零</Tag>}{item.coldChain && <Tag tone="brand">冷链</Tag>}{item.controlled && <Tag tone="brand">受控</Tag>}
+          {item.highAlert && <Tag tone="brand">高警示</Tag>}</div></td>
         <td><StatusBadge tone={item.status === 'ACTIVE' ? 'success' : 'neutral'}>{item.status === 'ACTIVE' ? '启用' : item.status}</StatusBadge></td>
         <td><Button variant="text" size="sm" onClick={() => onInspect(item.id)}>看库存</Button></td>
       </tr>)}</tbody></table></div>}

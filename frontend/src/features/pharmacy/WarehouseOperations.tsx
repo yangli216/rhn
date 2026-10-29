@@ -6,7 +6,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
 import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
-import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Pagination, RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Pagination, RemoteSearchSelect, Select, StatusBadge, Tag, UnitNumberInput, tableCellClass } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import {
@@ -497,9 +497,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
                 >
                   <div className="warehouse-doc-card__head">
                     <div className="warehouse-doc-card__identity">
-                      <span className={`warehouse-doc-card__type ${item.kind === 'order' ? 'warehouse-doc-card__type--po' : 'warehouse-doc-card__type--gr'}`}>
-                        {item.kind === 'order' ? '采购单' : '验收单'}
-                      </span>
+                      <Tag tone={item.kind === 'order' ? 'info' : 'success'}>{item.kind === 'order' ? '采购单' : '验收单'}</Tag>
                       <span className="warehouse-doc-card__no" title={item.docNo}>{item.docNo}</span>
                     </div>
                     <StatusBadge tone={statusTone(item.status)}>{item.statusText ?? item.status}</StatusBadge>
@@ -552,7 +550,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           return <div className="warehouse-detail-pane">
             <div className="warehouse-detail-pane__head">
               <div className="warehouse-detail-pane__title">
-                <span className="warehouse-doc-card__type warehouse-doc-card__type--po">采购订单</span>
+                <Tag tone="info">采购订单</Tag>
                 <h3>{order.orderNo}</h3>
                 <StatusBadge tone={statusTone(order.status)}>{order.statusText ?? order.status}</StatusBadge>
               </div>
@@ -702,7 +700,7 @@ export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperat
           return <div className="warehouse-detail-pane">
             <div className="warehouse-detail-pane__head">
               <div className="warehouse-detail-pane__title">
-                <span className="warehouse-doc-card__type warehouse-doc-card__type--gr">到货验收单</span>
+                <Tag tone="success">到货验收单</Tag>
                 <h3>{receipt.receiptNo}</h3>
                 <StatusBadge tone={statusTone(receipt.status)}>{receipt.statusText ?? receipt.status}</StatusBadge>
               </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { errorMessage, type RhnApi, type StandardMedicationDetail, type StandardMedicationSpecification } from '../../shared/rhnApi'
-import { DataTable, Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { DataTable, Alert, Button, EmptyState, LoadingState, Pagination, SearchField, Select, StatusBadge, Tag } from '../../shared/ui'
 import './standard-medication-catalog.css'
 import { StandardCatalogSourceReviewDialog } from './StandardCatalogSourceReviewDialog'
 import { MedicationStandardImpactDialog } from './MedicationStandardImpactDialog'
@@ -333,7 +333,7 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
                       △ 需专科指导
                     </span>
                   ) : (
-                    <span className="standard-medication__tag-subtle">标准品种</span>
+                    <Tag>标准品种</Tag>
                   )}
                   <Button
                     variant="secondary"

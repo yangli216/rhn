@@ -174,36 +174,6 @@
   white-space: nowrap;
 }
 
-.qmed-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  padding: 1px var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-neutral-soft);
-  color: var(--color-text-secondary);
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.qmed-chip--brand {
-  background: var(--color-brand-soft);
-  color: var(--color-brand-primary);
-}
-
-.qmed-chip--ai {
-  background: var(--color-violet-soft);
-  color: var(--color-violet);
-}
-
-.qmed-chip--param {
-  background: var(--color-info-soft);
-  color: var(--color-info);
-  border: 1px solid var(--color-info-border);
-}
-
 .qmed-governance__rule-foot {
   display: flex;
   align-items: center;

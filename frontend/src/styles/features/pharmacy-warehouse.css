@@ -23,10 +23,7 @@
 .warehouse-bin-detail > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
 .warehouse-bin-detail > header span:first-child { color: var(--color-brand-primary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .warehouse-bin-detail h3 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
-.warehouse-facts { margin: var(--space-5) 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
-.warehouse-facts > div { min-height: 4.25rem; padding: var(--space-3); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
-.warehouse-facts dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.warehouse-facts dd { margin: var(--space-1) 0 0; font-weight: var(--font-weight-semibold); }
+.warehouse-facts { margin: var(--space-5) 0; }
 .warehouse-section { min-width: 0; }
 .warehouse-section__toolbar, .warehouse-inventory-toolbar { min-height: 3rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--color-border); }
 .warehouse-section__toolbar > strong { font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
@@ -42,7 +39,6 @@
 .warehouse-table td > small { margin-top: var(--space-1); color: var(--color-text-secondary); }
 .warehouse-table th:last-child, .warehouse-table td:last-child { text-align: right; }
 .warehouse-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.warehouse-tags span { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-small); white-space: nowrap; }
 .warehouse-inventory-filters { min-height: 3.25rem; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
 .warehouse-inventory-filters:not(.ui-query-filters) { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .warehouse-inventory-list { min-height: 28rem; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -196,9 +192,6 @@
 .warehouse-accuracy__card > header > strong { font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
 .warehouse-accuracy__card > header > div > * { display: block; }
 .warehouse-accuracy__card > header span:not(.ui-badge) { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.warehouse-reconciliation-facts { margin: 0; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.warehouse-reconciliation-facts dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.warehouse-reconciliation-facts dd { margin: var(--space-1) 0 0; font-weight: var(--font-weight-semibold); }
 .warehouse-accuracy__card .ui-empty-state { min-height: 16rem; }
 .warehouse-accuracy__table { min-width: 42rem; }
 .warehouse-period__actions { display: flex; align-items: center; gap: var(--space-2); }
@@ -344,7 +337,7 @@
   .warehouse-price-form__catalog > header, .warehouse-price-form__catalog > header > div:last-child { align-items: stretch; flex-direction: column; }
   .warehouse-price-form__catalog > header input { width: 100%; }
   .warehouse-trace-filters, .warehouse-trace-summary { grid-template-columns: 1fr; }
-  .warehouse-count-mode, .warehouse-reconciliation-facts { grid-template-columns: 1fr; }
+  .warehouse-count-mode { grid-template-columns: 1fr; }
 }
 
 /* Procurement uses workstation width and stable height; narrow desktops scroll the detail grid instead of squeezing dialog. */
@@ -599,23 +592,6 @@
   gap: var(--space-1);
   min-width: 0;
   flex: 1;
-}
-.warehouse-doc-card__type {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  padding: 0.1rem var(--space-1);
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.02em;
-  flex: none;
-  line-height: var(--line-height-small);
-}
-.warehouse-doc-card__type--po {
-  background: color-mix(in srgb, var(--color-info) 12%, transparent);
-  color: var(--color-info-strong);
-}
-.warehouse-doc-card__type--gr {
-  background: color-mix(in srgb, var(--color-success) 14%, transparent);
-  color: var(--color-success-strong);
 }
 .warehouse-doc-card__no {
   font-family: var(--font-family-mono);

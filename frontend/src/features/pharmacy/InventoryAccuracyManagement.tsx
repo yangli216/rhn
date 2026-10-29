@@ -9,7 +9,7 @@ import { formatLocaleDateTime } from '../../shared/format'
 import { formatNumber } from '../../shared/utils/precision'
 import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
-  StatChips,
+  StatChips, DescriptionList,
 } from '../../shared/ui'
 
 export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
@@ -80,12 +80,12 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
             {last && <StatusBadge tone={inventoryReconciliationPresentation(last.status).tone}>
               {inventoryReconciliationPresentation(last.status).label}</StatusBadge>}
           </header>
-          {last && <dl className="warehouse-reconciliation-facts">
-            <div><dt>运行方式</dt><dd>{last.runType === 'MANUAL' ? '人工执行' : last.runType === 'SCHEDULED' ? '定时任务' : '运行方式未知'}</dd></div>
-            <div><dt>业务日期</dt><dd>{last.businessDate}</dd></div>
-            <div><dt>执行人</dt><dd>{last.runBy ?? (last.runType === 'SCHEDULED' ? '系统任务' : '未记录')}</dd></div>
-            <div><dt>耗时</dt><dd>{last.completedAt ? formatDuration(last.startedAt, last.completedAt) : last.status === 'RUNNING' ? '执行中' : '完成时间未记录'}</dd></div>
-          </dl>}
+          {last && <DescriptionList columns={4} items={[
+            { label: '运行方式', value: last.runType === 'MANUAL' ? '人工执行' : last.runType === 'SCHEDULED' ? '定时任务' : '运行方式未知' },
+            { label: '业务日期', value: last.businessDate },
+            { label: '执行人', value: last.runBy ?? (last.runType === 'SCHEDULED' ? '系统任务' : '未记录') },
+            { label: '耗时', value: last.completedAt ? formatDuration(last.startedAt, last.completedAt) : last.status === 'RUNNING' ? '执行中' : '完成时间未记录' },
+          ]} />}
           {readingResult ? <LoadingState label={reconcile.isPending ? '正在执行库存校验…' : '正在读取账目校验结果…'} />
             : resultError ? <EmptyState icon="pharmacy" title="库存校验结果读取失败" copy={errorMessage(resultError)}
                 action={<Button variant="secondary" onClick={retryResult}>重新读取校验结果</Button>} />

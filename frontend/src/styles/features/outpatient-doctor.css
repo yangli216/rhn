@@ -368,9 +368,7 @@
 .doctor-structured-note-read > header small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-structured-note-read > section { margin-top: var(--space-3); }
 .doctor-structured-note-read h4 { margin: 0 0 var(--space-2); color: var(--color-brand-strong); font-size: var(--font-size-small); }
-.doctor-structured-note-read dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.doctor-structured-note-read dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-structured-note-read dd { margin: calc(var(--space-1) * 0.8) 0 0; line-height: var(--line-height-body); white-space: pre-wrap; }
+.doctor-structured-note-read dd { white-space: pre-wrap; }
 .doctor-record-actions { grid-column: 1 / -1; margin-top: var(--space-2); padding-top: var(--space-2); display: flex; justify-content: flex-end; gap: var(--space-2); border-top: 1px solid var(--color-border); }
 .doctor-clinical-aside { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); align-content: start; gap: var(--layout-panel-gap); }
 .doctor-clinical-cockpit.is-editing .doctor-clinical-aside { grid-template-rows: auto minmax(0, 1fr); align-content: stretch; }
@@ -1701,7 +1699,6 @@
   .doctor-physical-exam > .ui-field__message { grid-column: 1; }
   .doctor-record-actions { grid-column: auto; }
   .doctor-record-read { padding-inline: var(--space-3); }
-  .doctor-structured-note-read dl { grid-template-columns: 1fr; }
   .doctor-context-actions { width: 100%; flex-wrap: wrap; }
   .doctor-context-actions .ui-status-badge { margin-right: auto; }
   .doctor-context-actions .ui-button { width: auto; flex: 1; }

@@ -1,5 +1,5 @@
 import type { OutpatientNoteForm, OutpatientNoteFormField } from '../../../shared/api/outpatientNoteFormsApi'
-import { FormField, StatusBadge } from '../../../shared/ui'
+import { DescriptionList, FormField, StatusBadge } from '../../../shared/ui'
 import type { RecordForm } from './clinicalRecordDraft'
 import type { RecordChanges, TraceableRecordField } from './useRecordChangeTrace'
 
@@ -43,9 +43,7 @@ function StructuredNoteReadView({ form, values }: {
     <header><strong>{form.name}</strong><small>{form.formCode} · V{form.version}</small></header>
     {form.sections.map((section) => <section key={section.code}>
       <h4>{section.title}</h4>
-      <dl>{section.fields.map((field) => <div key={field.code}>
-        <dt>{field.label}</dt><dd>{structuredNoteReadValue(field, values[field.code])}</dd>
-      </div>)}</dl>
+      <DescriptionList variant="plain" items={section.fields.map((field) => ({ label: field.label, value: structuredNoteReadValue(field, values[field.code]) }))} />
     </section>)}
   </section>
 }

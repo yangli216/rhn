@@ -10,7 +10,7 @@ import type {
   RuleCatalogEntry,
   RuleDeployment
 } from '../../shared/api/medicationWorkbenchApi'
-import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge, Tag } from '../../shared/ui'
 import './medication-rule-catalog.css'
 import { MedicationKnowledgePublicationDialog } from './MedicationKnowledgePublicationDialog'
 import { MedicationKnowledgeDeploymentDialog } from './MedicationKnowledgeDeploymentDialog'
@@ -292,9 +292,7 @@ export function MedicationRuleCatalog({
                     </div>
                     {r.origin !== 'BUILTIN' && (
                       <div className="qmed-governance__rule-code-row">
-                        <span className={`qmed-chip ${r.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
-                          {originName[r.origin] ?? r.origin}
-                        </span>
+                        <Tag tone={r.origin === 'AI' ? 'brand' : 'neutral'}>{originName[r.origin] ?? r.origin}</Tag>
                       </div>
                     )}
                   </button>
@@ -319,9 +317,7 @@ export function MedicationRuleCatalog({
                     <div className="qmed-detail-hero__title-box">
                       <h3>{rule.name}</h3>
                       {rule.origin !== 'BUILTIN' && (
-                        <span className={`qmed-chip ${rule.origin === 'AI' ? 'qmed-chip--ai' : ''}`}>
-                          {originName[rule.origin] ?? rule.origin}
-                        </span>
+                        <Tag tone={rule.origin === 'AI' ? 'brand' : 'neutral'}>{originName[rule.origin] ?? rule.origin}</Tag>
                       )}
                       <div className="qmed-detail-hero__badges">
                         {version.builtin ? (
