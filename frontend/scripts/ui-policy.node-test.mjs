@@ -156,3 +156,13 @@ test('added business css lines may only carry layout properties', () => {
   assert.deepEqual(check('.a {\n  /* ui-allow: 状态色 */\n  color: red;\n}', [2, 3]), [])
   assert.deepEqual(check('.a {\n  color: blue;\n}', [2], ['color']), [])
 })
+
+test('css must not reference custom properties that are defined nowhere', () => {
+  const css = 'features/demo/demo.css'
+  const rows = source => rules(scanSource(css, source))
+  assert.deepEqual(rows('.a { padding: var(--space-0-5) var(--space-2) }'), ['undefined-token'])
+  assert.deepEqual(rows('.a { font-size: var(--font-size-tiny) }'), ['undefined-token'])
+  assert.deepEqual(rows('.a { padding: var(--space-2) }'), [])
+  assert.deepEqual(rows('.a { padding: var(--space-0-5, 2px) }'), [])
+  assert.deepEqual(rows('.a { --local: 4px; margin: var(--local) }'), [])
+})

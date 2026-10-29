@@ -19,6 +19,7 @@ export const ruleMessages = {
   'mobile-breakpoint': '默认只适配 PC，不新增手机专属断点',
   'control-height-override': '业务 CSS 不得改写共享输入框/按钮的高度；高度由 --control-height-default 统一，紧凑场景用 size="sm"',
   'css-layout-only': '新增的业务 CSS 只写布局属性（grid/flex/尺寸/间距/溢出）；颜色、背景、边框、字体由共享组件和模板承担。确需例外，在该声明的上一行或同行加 /* ui-allow: 原因 */',
+  'undefined-token': '引用了未定义的自定义属性（如 --space-0-5、--font-size-tiny、--color-text-muted）；该声明实际不生效。只使用 styles/tokens.css 中存在的令牌',
   'control-size-mismatch': '与输入框/下拉框同行的按钮使用默认尺寸（不写 size="sm"），保证同高；紧凑型只用于表格行内',
 }
 
@@ -66,6 +67,22 @@ function withoutVariables(value) {
     result += 'TOKEN'
   }
   return result
+}
+
+let definedProperties
+// 全部在 src 下 CSS/TSX 中声明过的自定义属性（含局部变量与内联 style 变量）；只缓存一次。
+function customPropertiesInSource() {
+  if (definedProperties) return definedProperties
+  definedProperties = new Set()
+  const walk = dir => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) { walk(new URL(`${entry.name}/`, dir)); continue }
+      if (!/\.(?:css|tsx?)$/.test(entry.name)) continue
+      for (const match of readFileSync(new URL(entry.name, dir), 'utf8').matchAll(/['"]?(--[\w-]+)['"]?\s*:/g)) definedProperties.add(match[1])
+    }
+  }
+  walk(new URL('../src/', import.meta.url))
+  return definedProperties
 }
 
 export function scanSource(file, source) {
@@ -148,6 +165,9 @@ export function scanSource(file, source) {
       const line = decl.source.start.line
       const code = `${context(decl)} { ${decl.prop}: ${decl.value}${decl.important ? ' !important' : ''} }`
       if (decl.important) report('css-important', line, code)
+      for (const match of decl.value.matchAll(/var\(\s*(--[\w-]+)\s*([,)])/g)) {
+        if (match[2] === ')' && !customPropertiesInSource().has(match[1]) && !new RegExp(`${match[1]}\\s*:`).test(source)) { report('undefined-token', line, `${code} /* ${match[1]} */`); break }
+      }
       if (decl.prop === 'scrollbar-gutter' && decl.value !== 'auto') report('css-scrollbar-gutter', line, code)
       const hasLiteralSize = /(?:\d*\.)?\d+(?:px|rem|em|vh|vw|pt)\b/.test(withoutVariables(decl.value))
       // 发丝线补偿（1px/2px）、正圆（50%）与局部叠放（z-index 1–9）不属于需要令牌的设计取值。

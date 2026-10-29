@@ -53,6 +53,7 @@
 | 弹窗、抽屉 | `Dialog`（抽屉 `presentation="drawer"`） | `<dialog>` 或自写遮罩 |
 | 日期、数量、金额显示 | `shared/format.ts`、`utils/dateRange.ts`、`utils/precision.ts` | `toLocaleString`、`new Intl.*` |
 
+- 令牌只用 `styles/tokens.css` 里真实存在的（间距 `--space-1…16`、字号 `--font-size-small/compact/body/h3…`）；别自创 `--space-0-5`、`--font-size-tiny`、`--color-text-muted`，门禁 `undefined-token` 会拦。
 - 新写的业务 CSS 只放布局（grid/flex/宽高/间距/溢出）；要改颜色、背景、边框、字体，先找共享组件或模板。必须自己写时，在声明上方加 `/* ui-allow: 原因 */`，门禁 `css-layout-only` 才会放行。
 
 ## 4. 正反例
