@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { inPolicyScope, newFindings, scanSource, validateBaseline } from './ui-policy.mjs'
+import { inPolicyScope, newFindings, scanAddedCssLayout, scanSource, validateBaseline } from './ui-policy.mjs'
 import { inspectStandardsFile } from './ui-standards-rules.mjs'
 
 const sourceRoot = fileURLToPath(new URL('../src/', import.meta.url))
@@ -28,6 +28,21 @@ function targets() {
     .map(name => ({ path: resolve(top, name), read: () => git(['show', `:${name}`]) }))
 }
 
+// 新增行号：暂存模式比较索引与 HEAD，否则比较工作区与 HEAD；HEAD 中不存在的文件视为全部新增。
+function addedLines(item, source) {
+  let tracked = true
+  try { git(['cat-file', '-e', `HEAD:${relative(resolve(git(['rev-parse', '--show-toplevel']).trim()), item.path).replaceAll('\\', '/')}`]) } catch { tracked = false }
+  if (!tracked) return { added: new Set(source.split('\n').map((_, index) => index + 1)), removedProps: new Set() }
+  const diff = git(['diff', ...(staged ? ['--cached'] : ['HEAD']), '-U0', '--', item.path])
+  const added = new Set()
+  const removedProps = new Set([...diff.matchAll(/^-\s*([a-z-]+)\s*:/gm)].map(match => match[1]))
+  for (const match of diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const start = Number(match[1]); const count = match[2] === undefined ? 1 : Number(match[2])
+    for (let line = start; line < start + count; line++) added.add(line)
+  }
+  return { added, removedProps }
+}
+
 try {
   const files = targets()
     .map(item => ({ ...item, file: relative(sourceRoot, item.path).replaceAll('\\', '/') }))
@@ -43,6 +58,10 @@ try {
     const source = item.read()
     for (const finding of inspectStandardsFile(item.file, source)) violations.push(`${item.file}:${finding.line} [${finding.rule}] ${finding.value}`)
     if (inPolicyScope(item.file)) policyFindings.push(...scanSource(item.file, source))
+    const { added, removedProps } = item.file.endsWith('.css') ? addedLines(item, source) : { added: new Set(), removedProps: new Set() }
+    for (const finding of scanAddedCssLayout(item.file, source, added, removedProps)) {
+      violations.push(`${item.file}:${finding.line} [${finding.rule}] ${finding.message}\n  ${finding.code}`)
+    }
   }
   for (const item of newFindings(policyFindings, baseline, exceptions)) {
     violations.push(`${item.file}:${item.line} [${item.rule}] ${item.message}\n  指纹 ${item.fingerprint}：${item.code}`)

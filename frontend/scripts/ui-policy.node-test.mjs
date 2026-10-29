@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { newFindings, scanSource, validateBaseline, validateExceptions } from './ui-policy.mjs'
+import { newFindings, scanAddedCssLayout, scanSource, validateBaseline, validateExceptions } from './ui-policy.mjs'
 import { inspectStandardsFile, inspectUiLiterals } from './ui-standards-rules.mjs'
 
 const file = 'features/example/Example.tsx'
@@ -144,4 +144,15 @@ test('hairline spacing, circles and local stacking are not token violations', ()
   assert.deepEqual(rows('.a { padding: 5px }'), ['css-token'])
   assert.deepEqual(rows('.a { z-index: 25 }'), ['css-token'])
   assert.deepEqual(rows('.a { border-radius: 7px }'), ['css-token'])
+})
+
+test('added business css lines may only carry layout properties', () => {
+  const css = 'features/demo/demo.css'
+  const check = (source, lines, removed) => scanAddedCssLayout(css, source, new Set(lines), new Set(removed)).map(item => item.code)
+  assert.deepEqual(check('.a { display: flex; color: red }', [1]), ['.a { color: red }'])
+  assert.deepEqual(check('.a { display: flex; gap: var(--space-2) }', [1]), [])
+  assert.deepEqual(check('.a {\n  border: 0;\n  background: none;\n}', [2, 3]), [])
+  assert.deepEqual(check('.a {\n  color: red;\n}', [], []), [])
+  assert.deepEqual(check('.a {\n  /* ui-allow: 状态色 */\n  color: red;\n}', [2, 3]), [])
+  assert.deepEqual(check('.a {\n  color: blue;\n}', [2], ['color']), [])
 })

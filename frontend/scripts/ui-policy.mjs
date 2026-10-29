@@ -18,6 +18,7 @@ export const ruleMessages = {
   'shared-appearance': '不得在业务 CSS 中覆盖共享组件外观',
   'mobile-breakpoint': '默认只适配 PC，不新增手机专属断点',
   'control-height-override': '业务 CSS 不得改写共享输入框/按钮的高度；高度由 --control-height-default 统一，紧凑场景用 size="sm"',
+  'css-layout-only': '新增的业务 CSS 只写布局属性（grid/flex/尺寸/间距/溢出）；颜色、背景、边框、字体由共享组件和模板承担。确需例外，在该声明的上一行或同行加 /* ui-allow: 原因 */',
   'control-size-mismatch': '与输入框/下拉框同行的按钮使用默认尺寸（不写 size="sm"），保证同高；紧凑型只用于表格行内',
 }
 
@@ -233,4 +234,25 @@ export function newFindings(findings, baseline, exceptions = []) {
     const exception = exceptions.find(entry => entry.file === item.file && entry.rule === item.rule && entry.fingerprint === item.fingerprint)?.count ?? 0
     return count > historical + exception
   })
+}
+
+const visualProperties = /^(?:color|background(?:-.+)?|border(?:-(?:top|right|bottom|left))?(?:-(?:color|style|width))?|outline(?:-.+)?|box-shadow|font-size|font-weight|font-family|font-style|line-height|letter-spacing|text-shadow)$/
+const resetValue = /^(?:none|0|transparent|inherit|currentcolor|unset|initial|revert)$/i
+
+/** 只检查本次新增的 CSS 行（工作区或暂存区相对 HEAD 的新增）：存量不计，所以不进历史基线。 */
+export function scanAddedCssLayout(file, source, addedLines, removedProps = new Set()) {
+  if (!inPolicyScope(file) || !file.endsWith('.css') || !addedLines.size) return []
+  const lines = source.split('\n')
+  const findings = []
+  postcss.parse(source, { from: file }).walkDecls(decl => {
+    const line = decl.source.start.line
+    if (!addedLines.has(line) || !visualProperties.test(decl.prop) || resetValue.test(decl.value.trim())) return
+    if (removedProps.has(decl.prop)) return // 同一属性在旧版本中就存在：属于修改既有声明，不算新增
+    if (/\/\*\s*ui-allow:\s*\S/.test(lines[line - 1]) || /\/\*\s*ui-allow:\s*\S/.test(lines[line - 2] ?? '')) return
+    const parents = []
+    for (let parent = decl.parent; parent && parent.type !== 'root'; parent = parent.parent) parents.unshift(parent.type === 'rule' ? parent.selector : `@${parent.name} ${parent.params}`)
+    const code = `${parents.join(' / ')} { ${decl.prop}: ${decl.value} }`
+    findings.push({ file, rule: 'css-layout-only', line, code, message: ruleMessages['css-layout-only'], fingerprint: '' })
+  })
+  return findings
 }

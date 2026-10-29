@@ -53,6 +53,8 @@
 | 弹窗、抽屉 | `Dialog`（抽屉 `presentation="drawer"`） | `<dialog>` 或自写遮罩 |
 | 日期、数量、金额显示 | `shared/format.ts`、`utils/dateRange.ts`、`utils/precision.ts` | `toLocaleString`、`new Intl.*` |
 
+- 新写的业务 CSS 只放布局（grid/flex/宽高/间距/溢出）；要改颜色、背景、边框、字体，先找共享组件或模板。必须自己写时，在声明上方加 `/* ui-allow: 原因 */`，门禁 `css-layout-only` 才会放行。
+
 ## 4. 正反例
 
 ```css
