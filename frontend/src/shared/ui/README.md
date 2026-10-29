@@ -22,6 +22,8 @@
 | `DatePicker` | 日期和药品效期录入 | 聚焦展开、失焦收起、日期格式化、效期快捷选项及不受表格裁剪的日历浮层 |
 | `Pagination` | 长列表分页 | 上一页、下一页、页码播报和边界禁用状态 |
 | `StatChips` | 统计胶囊行 | 筛选栏/标题栏右侧的“标签 + 数值”汇总；`items=[{label,value,note?,warn?}]`，高度与 sm 控件一致，不要再写 `*-metric-chip` |
+| `Tag` | 方角分类标签 | 类型/编码/来源，`tone` 与 `mono`；状态用 StatusBadge。不要再写 `*-chip/-pill/-tag` 业务类 |
+| `DescriptionList` | 字段网格 | `items=[{label,value,span?}]`，`bordered` 详情卡/`plain` 行内信息，空值显示“—”；不要再手写 `<dl>` 样式 |
 | `FormField` | 表单字段 | 标签绑定、错误关联、提示和统一控件样式；`size="sm"` 用于紧凑工具栏/行内编辑，与同行 sm 按钮、下拉同高 |
 | `Select` | 通用下拉选择 | 单选、多选、名称/值/拼音首字母检索、清空、键盘操作、表单提交 |
 | `DictionarySelect` | 字典下拉选择 | 按字典编码或 ID 加载启用项、名称/编码/拼音检索、编码展示、缓存及单选/多选 |

@@ -224,6 +224,21 @@
 .ui-search-field > button { width: var(--control-height-sm); height: var(--control-height-sm); padding: 0; display: grid; flex: none; place-items: center; border: 0; border-radius: var(--radius-sm); color: var(--color-text-disabled); background: transparent; }
 .ui-search-field > button:hover, .ui-search-field > button:focus-visible { color: var(--color-brand-primary); outline: 0; background: var(--color-brand-soft); }
 .ui-search-field > button .ui-icon { width: .875rem; height: .875rem; }
+.ui-tag { max-width: 100%; padding: 0 var(--space-1); display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: var(--radius-xs); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); line-height: var(--line-height-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-tag--mono { font-family: var(--font-family-mono); font-weight: var(--font-weight-medium); }
+.ui-tag--neutral { color: var(--color-text-secondary); background: var(--color-surface-subtle); border-color: var(--color-border); }
+.ui-tag--brand { color: var(--color-brand-strong); background: var(--color-brand-soft); }
+.ui-tag--info { color: var(--color-info-strong); background: var(--color-info-soft); }
+.ui-tag--success { color: var(--color-success-strong); background: var(--color-success-soft); }
+.ui-tag--warning { color: var(--color-warning-strong); background: var(--color-warning-soft); }
+.ui-tag--danger { color: var(--color-danger-strong); background: var(--color-danger-soft); }
+.ui-description-list { margin: 0; display: grid; }
+.ui-description-list > div { min-width: 0; }
+.ui-description-list dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.ui-description-list dd { margin: var(--space-1) 0 0; min-width: 0; font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
+.ui-description-list--bordered { border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
+.ui-description-list--bordered > div { min-height: 4.25rem; padding: var(--space-3); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.ui-description-list--plain { gap: var(--space-3) var(--space-4); }
 .ui-stat-chips { display: flex; align-items: center; gap: var(--space-2); flex: none; }
 .ui-stat-chip { height: var(--control-height-sm); display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .ui-stat-chip strong { color: var(--color-brand-primary); font-weight: var(--font-weight-bold); }

@@ -104,6 +104,42 @@ export function StatChips({ items, className = '' }: { items: StatChipItem[]; cl
   </div>
 }
 
+export type TagTone = 'neutral' | 'brand' | 'info' | 'success' | 'warning' | 'danger'
+
+/** 方角小标签：类型、编码、来源等分类信息。状态（启用/停用/异常）用 StatusBadge，不要用 Tag。 */
+export function Tag({ tone = 'neutral', mono = false, className = '', children }: {
+  tone?: TagTone
+  /** 编码、批号等用等宽字体。 */
+  mono?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  return <span className={`ui-tag ui-tag--${tone} ${mono ? 'ui-tag--mono' : ''} ${className}`.trim()}>{children}</span>
+}
+
+export type DescriptionItem = {
+  label: ReactNode
+  value: ReactNode
+  /** 占几列，默认 1。 */
+  span?: number
+}
+
+/** 字段网格：小号次要色标签 + 半粗正文值。bordered 为带格线的详情卡，plain 为无框的行内信息。空值显示“—”。 */
+export function DescriptionList({ items, columns = 2, variant = 'bordered', className = '' }: {
+  items: DescriptionItem[]
+  columns?: 2 | 3 | 4
+  variant?: 'bordered' | 'plain'
+  className?: string
+}) {
+  const empty = (value: ReactNode) => value === undefined || value === null || value === '' || value === false
+  return <dl className={`ui-description-list ui-description-list--${variant} ${className}`.trim()} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+    {items.map((item, index) => <div key={index} style={item.span && item.span > 1 ? { gridColumn: `span ${Math.min(item.span, columns)}` } : undefined}>
+      <dt>{item.label}</dt>
+      <dd>{empty(item.value) ? '—' : item.value}</dd>
+    </div>)}
+  </dl>
+}
+
 export function SearchField({
   value,
   onChange,
