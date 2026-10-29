@@ -141,6 +141,35 @@ export function DescriptionList({ items, columns = 2, variant = 'bordered', clas
   </dl>
 }
 
+/** 可选中列表（单据、期间、规则目录等）：上下方向键在条目间移动焦点，条目用 ListItemButton。 */
+export function SelectableList({ label, className = '', children }: { label: string; className?: string; children: ReactNode }) {
+  function move(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('.ui-list-item:not(:disabled)')]
+    const index = items.indexOf(document.activeElement as HTMLButtonElement)
+    if (index < 0) return
+    event.preventDefault()
+    items[Math.min(items.length - 1, Math.max(0, index + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus()
+  }
+  return <div className={`ui-selectable-list ${className}`.trim()} role="group" aria-label={label} onKeyDown={move}>{children}</div>
+}
+
+/** 两行目录条目：第一行标题（可省略）+ 右侧徽标，第二行次要信息 + 右侧补充（如金额）。选中为品牌描边 + 左侧标记。 */
+export function ListItemButton({ title, badge, meta, aside, selected = false, onSelect, disabled }: {
+  title: ReactNode
+  badge?: ReactNode
+  meta?: ReactNode
+  aside?: ReactNode
+  selected?: boolean
+  onSelect: () => void
+  disabled?: boolean
+}) {
+  return <button type="button" className={`ui-list-item ${selected ? 'is-selected' : ''}`.trim()} aria-current={selected ? 'true' : undefined} disabled={disabled} onClick={onSelect}>
+    <span className="ui-list-item__row"><strong className="ui-list-item__title">{title}</strong>{badge}</span>
+    {(meta || aside) && <span className="ui-list-item__row ui-list-item__row--meta"><small>{meta}</small>{aside}</span>}
+  </button>
+}
+
 export function SearchField({
   value,
   onChange,
