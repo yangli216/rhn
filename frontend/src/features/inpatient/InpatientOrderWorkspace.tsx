@@ -284,7 +284,7 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
         onChange={(event) => setDosage(event.target.value)} /></FormField>
       <FormField label="单位" required><input aria-label="住院医嘱剂量单位" value={dosageUnit} maxLength={64}
         onChange={(event) => setDosageUnit(event.target.value)} /></FormField>
-      <FormField label="给药途径" required><Select aria-label="住院医嘱给药途径" value={route}
+      <FormField label="给药途径" required><Select size="sm" aria-label="住院医嘱给药途径" value={route}
         onChange={setRoute} showValue loading={routes.isPending} placeholder="请选择给药途径"
         options={routeOptions} /></FormField>
       <FormField label="频次"><input aria-label="住院医嘱频次" value={frequency} maxLength={64} placeholder="如 QD、BID"

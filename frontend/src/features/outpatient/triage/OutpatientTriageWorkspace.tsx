@@ -1166,6 +1166,7 @@ export function OutpatientTriageWorkspace({
                     <span>意识</span>
                   </div>
                   <Select
+                    size="sm"
                     aria-label="意识状态"
                     placeholder="未评估"
                     options={CONSCIOUSNESS_OPTIONS}

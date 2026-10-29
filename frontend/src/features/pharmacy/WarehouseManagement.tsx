@@ -327,8 +327,8 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
   return <section className="warehouse-section warehouse-inventory-list">
     <div className="warehouse-inventory-filters ui-query-filters">
       <div className="ui-query-filters__group">
-        <SearchField label="搜索库存" value={query} onChange={setQuery} placeholder="搜索药品名称、编码或批号" />
-        <Select value={stockFilter} onChange={setStockFilter} showValue options={[
+        <SearchField size="sm" label="搜索库存" value={query} onChange={setQuery} placeholder="搜索药品名称、编码或批号" />
+        <Select size="sm" value={stockFilter} onChange={setStockFilter} showValue options={[
           { value: 'ALL', label: '全部库存' }, { value: 'IN_STOCK', label: '有库存' },
           { value: 'ZERO', label: '零库存' }, { value: 'ATTENTION', label: '需关注' },
         ]} />

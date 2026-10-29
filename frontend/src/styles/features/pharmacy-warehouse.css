@@ -45,8 +45,6 @@
 .warehouse-tags span { padding: .15rem .4rem; border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: .75rem; white-space: nowrap; }
 .warehouse-inventory-filters { min-height: 3.25rem; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
 .warehouse-inventory-filters:not(.ui-query-filters) { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.warehouse-inventory-filters .ui-search-field {    height: var(--control-height-sm); }
-.warehouse-inventory-filters .ui-select__trigger { height: var(--control-height-sm); min-height: var(--control-height-sm); font-size: var(--font-size-small); padding: 0 var(--space-3); }
 .warehouse-metrics-inline { display: flex; align-items: center; gap: var(--space-2); flex: none; }
 .warehouse-metric-chip { height: var(--control-height-sm); display: inline-flex; align-items: center; gap: 0.25rem; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border); font-size: var(--font-size-small); color: var(--color-text-secondary); white-space: nowrap; }
 .warehouse-metric-chip strong { color: var(--color-brand-primary); font-weight: var(--font-weight-bold); }

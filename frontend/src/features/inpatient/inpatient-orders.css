@@ -23,8 +23,6 @@
 .inpatient-order-composer__footer { display: grid; grid-template-columns: minmax(20rem, 1fr) auto; align-items: end; gap: var(--space-3); }
 .inpatient-order-composer .ui-field { min-width: 0; margin: 0; }
 .inpatient-order-composer .ui-field__control { min-width: 0; height: var(--control-height-sm); margin-top: var(--space-1); padding: 0 var(--space-2); font-size: var(--font-size-small); }
-.inpatient-order-composer .ui-select__trigger,
-.inpatient-order-composer .ui-remote-search__trigger { min-height: var(--control-height-sm); }
 .inpatient-order-composer .is-resource { min-width: 20rem; }
 .inpatient-order-list { display: grid; }
 .inpatient-order-row { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(13rem, 1.15fr) minmax(13rem, 1.15fr) 6rem minmax(12rem, auto); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }

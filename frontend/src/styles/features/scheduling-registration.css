@@ -637,7 +637,7 @@
 .registration-history-panel > summary::-webkit-details-marker { display: none; }
 .registration-history-panel > summary strong { color: var(--color-text-primary); }
 .registration-history-summary-actions { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-brand-primary); white-space: nowrap; }
-.registration-history-summary-actions > .ui-button { min-height: 1.75rem; padding: 0 var(--space-1); }
+.registration-history-summary-actions > .ui-button { padding: 0 var(--space-1); }
 .registration-history-toggle { display: inline-flex; align-items: center; gap: var(--space-1); }
 .registration-history-toggle .ui-icon { width: 1rem; height: 1rem; transition: transform var(--motion-fast) var(--ease-standard); }
 .registration-history-panel[open] .registration-history-toggle .ui-icon { transform: rotate(180deg); }
@@ -658,7 +658,6 @@
 .registration-form-group-head { grid-column: 1 / -1; margin: 0; padding-top: var(--space-1); border-bottom: 1px solid var(--color-border); }
 .registration-form-group-head + * { margin-top: var(--space-2); }
 .registration-form-group-actions { display: inline-flex; align-items: center; gap: var(--space-2); }
-.registration-form-group-actions > .ui-button { min-height: 1.5rem; padding: 0 var(--space-1); }
 .registration-patient-identity { min-width: 0; min-height: 4.5rem; padding: var(--space-2) 0; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); align-content: center; align-items: center; gap: 0 var(--space-2); border-bottom: 1px solid var(--color-border); }
 .registration-patient-identity > div { min-width: 0; display: grid; gap: .125rem; }
 .registration-patient-identity > div strong, .registration-patient-identity > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -10,7 +10,6 @@
 .inpatient-admission-diagnoses__list article > span strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inpatient-admission-diagnoses__list article > div { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 .inpatient-admission-diagnoses__list .ui-select { min-width: 8.5rem; }
-.inpatient-admission-diagnoses__list .ui-select__trigger { min-height: var(--control-height-sm); }
 .inpatient-admission-diagnoses.is-summary .inpatient-admission-diagnoses__list { grid-template-columns: 1fr; }
 .inpatient-admission-diagnoses.is-summary .inpatient-admission-diagnoses__list article { min-height: 3.5rem; }
 .inpatient-admission-diagnoses.is-summary > .ui-empty-state { min-height: 12rem; }

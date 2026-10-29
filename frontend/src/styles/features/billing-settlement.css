@@ -534,13 +534,13 @@
 /* 金额重点区：个人自付/缴款/找零紧邻，数字放大加粗；快捷面额换到输入框下一行，让金额框占满宽度。 */
 .settlement-payment-panel__pay-card { gap: var(--space-2); }
 .settlement-payment-panel__pay-card .settlement-payment-panel__inline-field:first-child { margin-bottom: var(--space-1); padding-bottom: var(--space-3); border-bottom: 1px dashed var(--color-border); }
-.settlement-payment-panel__pay-card { --payment-amount-height: 2.5rem; }
+.settlement-payment-panel__pay-card { --payment-amount-height: var(--control-height-default); }
 .settlement-payment-panel__pay-card .cash-payment-calc { gap: var(--space-2); }
 .settlement-payment-panel__pay-card .cash-payment-row { grid-template-columns: var(--payment-label-col) minmax(0, 1fr); row-gap: var(--space-1); }
 .settlement-payment-panel__pay-card .cash-payment-presets { grid-column: 2; justify-self: end; }
 .settlement-payment-panel__pay-card .cash-payment-label,
 .settlement-payment-panel__pay-card .settlement-payment-panel__card-title { font-weight: var(--font-weight-semibold); }
-.settlement-payment-panel__pay-card .settlement-payment-panel__inline-field:not(:first-child) .ui-field__control { height: var(--payment-amount-height); min-height: var(--payment-amount-height); }
+.settlement-payment-panel__pay-card .settlement-payment-panel__inline-field:not(:first-child) .ui-field__control { height: var(--control-height-default); }
 .settlement-payment-panel__pay-card .cash-payment-input-wrap { --cash-control-height: var(--payment-amount-height); }
 .settlement-payment-panel__pay-card .cash-payment-input-wrap:not(.is-readonly) { border-color: var(--color-brand-primary); background: var(--color-surface); }
 .settlement-payment-panel__pay-card .cash-payment-input,

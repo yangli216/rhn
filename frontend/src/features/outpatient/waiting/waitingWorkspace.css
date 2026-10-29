@@ -453,12 +453,6 @@
   flex-shrink: 0;
 }
 
-/* 搜索、读卡、刷新与标签栏同高，避免默认 40px 控件把工具区撑高 */
-.waiting-filter-tools .ui-icon-button {
-  width: var(--control-height-sm);
-  height: var(--control-height-sm);
-}
-
 .waiting-filter-tools .ui-search-field {
   width: 19rem;
 }

@@ -561,13 +561,6 @@
   line-height: 1rem;
 }
 
-.triage-vital-input-card .ui-select__trigger {
-  height: 32px;
-  min-height: 32px;
-  padding-inline: var(--space-2);
-  font-size: var(--font-size-small);
-}
-
 /* 流行病与发热筛查（内联紧凑条） */
 .triage-screening-box {
   display: flex;

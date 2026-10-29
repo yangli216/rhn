@@ -61,7 +61,7 @@
 .inpatient-compact-field { min-width: 0; display: grid; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .inpatient-compact-field > input, .inpatient-compact-field > select { width: 100%; min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--font-size-small); }
 .inpatient-compact-field > .ui-select { width: 100%; min-width: 0; }
-.inpatient-compact-field > .ui-select .ui-select__trigger { min-height: var(--control-height-sm); font-size: var(--font-size-small); }
+.inpatient-compact-field > .ui-select .ui-select__trigger { font-size: var(--font-size-small); }
 .inpatient-compact-field.is-pressure > span:last-child { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-1); }
 .inpatient-compact-field.is-pressure input { width: 100%; min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-1); font-size: var(--font-size-small); }
 .inpatient-compact-field.is-pressure b { color: var(--color-text-secondary); }

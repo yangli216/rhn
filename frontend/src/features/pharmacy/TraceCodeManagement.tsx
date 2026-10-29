@@ -59,6 +59,7 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
     <div className="warehouse-inventory-filters ui-query-filters">
       <div className="ui-query-filters__group">
         <SearchField
+          size="sm"
           label="搜索追溯码台账"
           value={keyword}
           onChange={setKeyword}
@@ -66,6 +67,7 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
           placeholder="搜索追溯码、药品编码、名称或批号（回车或点击查询）"
         />
         <Select
+          size="sm"
           value={status}
           onChange={(val) => { setStatus(val); setPage(0) }}
           placeholder="全部状态"

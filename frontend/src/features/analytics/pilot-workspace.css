@@ -48,7 +48,7 @@
 .ap-result-summary .ap-muted { flex-basis:100%; }
 .ap-chart-wrap { flex:1; display:flex; flex-direction:column; min-height:240px; padding:var(--space-3); }
 .ap-chart-actions { padding:0 var(--space-2); display:flex; justify-content:space-between; align-items:center; }
-.ap-switch .ui-button { height:30px; padding-inline:var(--space-2); font-size:12px; }
+.ap-switch .ui-button { padding-inline:var(--space-2); font-size:12px; }
 .ap-chart { display:block; width:100%; min-height:210px; flex:1; }
 .ap-gridline { stroke:var(--color-border); stroke-dasharray:3 5; }
 .ap-axis { fill:var(--color-text-secondary); font-size:12px; }
@@ -71,7 +71,7 @@
 .ap-field { display:flex; flex-direction:column; gap:var(--space-2); margin:var(--space-4) 0; font-size:12px; font-weight:600; }
 .ap-field select,.ap-field input { width:100%; min-width:0; height:36px; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:0 var(--space-2); color:inherit; background:var(--color-surface); font:inherit; font-size:13px; }
 .ap-date-presets { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-1); }
-.ap-date-presets .ui-button { font-size:12px; padding:var(--space-1); height:30px; border:1px solid var(--color-border); }
+.ap-date-presets .ui-button { font-size:12px; padding:var(--space-1); border:1px solid var(--color-border); }
 .ap-run { width:100%; margin:var(--space-2) 0 var(--space-4); }
 .ap-definition,.ap-selection { border-top:1px solid var(--color-border); padding-top:var(--space-3); font-size:12px; line-height:1.8; }
 .ap-definition h3,.ap-selection h3 { margin:var(--space-2) 0; font-size:13px; }
