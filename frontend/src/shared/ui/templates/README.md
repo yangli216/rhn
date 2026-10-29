@@ -56,7 +56,7 @@ import { ListPage } from '../../shared/ui/templates/PageTemplates'
 </MasterDetailPage>
 ```
 
-默认 `detailScroll="pane"` 适用于说明、表单和普通详情；示例用 `content` 将滚动交给 TableShell，外层只负责高度分配。并列列表/辅助区可组合导出的 `WorkspacePane`，支持 `label`、`header`、`footer`、`scroll`、`resetScrollKey`。只保留两层面板表面，更多分组用标题和分隔线。复位 key 应包含真正改变阅读对象的表、页签、筛选或页码，不包含保存状态/加载状态；复位不会卸载子组件或清空草稿。
+默认 `detailScroll="pane"` 适用于说明、表单和普通详情；示例用 `content` 将滚动交给 TableShell，外层只负责高度分配。并列列表/辅助区可组合导出的 `WorkspacePane`；非标准列数（如 退费/收费 的三列）用 `WorkspaceColumns columns="…"` 包若干 `WorkspacePane`：它占满页头以下的剩余高度，各列等高，滚动只在各列正文内，业务页不自行写 grid、`align-items: start`、视口高度或页面内边距。支持 `label`、`header`、`footer`、`scroll`、`resetScrollKey`。只保留两层面板表面，更多分组用标题和分隔线。复位 key 应包含真正改变阅读对象的表、页签、筛选或页码，不包含保存状态/加载状态；复位不会卸载子组件或清空草稿。
 
 密度：相邻面板和页面标题到正文默认间距 8px，表单业务分组间距 12px，分别复用 `--layout-panel-gap` / `--layout-section-gap`；父容器 gap 与标题 margin 不叠加。面板正文默认上下 8px、左右 12px；首个 PanelHead 的留白不与正文叠加。标题标准档最小高度 36px、大字档 40px，操作按钮和多行文字可自动撑高；表单区块间隔 12px、字段垂直外边距 8px。该密度随模板复用，不在新页面重复覆盖标题高度。
 

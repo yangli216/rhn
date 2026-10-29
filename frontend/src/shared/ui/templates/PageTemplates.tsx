@@ -32,6 +32,20 @@ export function PaneBody({ label, children, className = '' }: { label: string; c
   return <div className={`ui-page-template__pane-body ${className}`} role="region" aria-label={label} tabIndex={0}>{children}</div>
 }
 
+/**
+ * 自定义列数的作业区：占满 PageHeader 以下的剩余高度，列之间用统一面板间距，滚动只发生在各列的 WorkspacePane 正文内。
+ * 业务页不要自己写 grid + align-items: start，也不要自己设置内边距或视口高度。
+ */
+export function WorkspaceColumns({ columns, label, children, className = '' }: {
+  /** grid-template-columns 的值，例如 "19rem minmax(0, 1fr) 22rem"。 */
+  columns: string
+  label?: string
+  children: ReactNode
+  className?: string
+}) {
+  return <div className={`ui-workspace-columns ${className}`.trim()} style={{ gridTemplateColumns: columns }} role={label ? 'group' : undefined} aria-label={label}>{children}</div>
+}
+
 function PageFrame({ children, feedback, compact = true, ...header }: PageProps & { children: ReactNode }) {
   return <section className="ui-page-template" aria-label={header.title}>
     <PageHeader {...header} compact={compact} />
