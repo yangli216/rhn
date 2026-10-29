@@ -258,16 +258,23 @@ export function Pagination({
   </nav>
 }
 
-export function EmptyState({ icon, title, copy, action }: {
-  icon: IconName
+export function EmptyState({ icon, glyph, title, copy, action, size = 'default' }: {
+  icon?: IconName
+  /** 无合适图标时用的单字符标记，如校验通过的“✓”。 */
+  glyph?: string
   title: string
-  copy: string
+  copy?: string
   action?: ReactNode
+  /** inline 为图标在左、文字在右的横排紧凑块，用于面板内的“已通过/无差异”等结论。 */
+  size?: 'default' | 'inline'
 }) {
-  return <div className="ui-empty-state">
-    <span className="ui-empty-state__icon"><Icon name={icon} /></span>
-    <strong>{title}</strong>
-    <p>{copy}</p>
+  const mark = icon ? <Icon name={icon} /> : glyph
+  return <div className={`ui-empty-state ${size === 'inline' ? 'ui-empty-state--inline' : ''}`.trim()}>
+    {mark && <span className="ui-empty-state__icon" aria-hidden={glyph ? true : undefined}>{mark}</span>}
+    {size === 'inline' ? <div><strong>{title}</strong>{copy && <p>{copy}</p>}</div> : <>
+      <strong>{title}</strong>
+      {copy && <p>{copy}</p>}
+    </>}
     {action}
   </div>
 }

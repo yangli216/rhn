@@ -421,6 +421,9 @@
 .ui-empty-state strong { color: var(--color-text-primary); font-size: var(--font-size-body); }
 .ui-empty-state p { max-width: 32rem; margin: var(--space-2) 0 0; font-size: var(--font-size-small); }
 .ui-empty-state .ui-button { margin-top: var(--space-4); }
+.ui-empty-state--inline { min-height: 10rem; padding: var(--space-5); flex-direction: row; gap: var(--space-4); text-align: left; }
+.ui-empty-state--inline .ui-empty-state__icon { width: 3rem; height: 3rem; margin-bottom: 0; flex: none; font-size: var(--font-size-h1); font-weight: var(--font-weight-bold); }
+.ui-empty-state--inline p { margin-top: var(--space-1); }
 
 .ui-alert { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); display: flex; align-items: flex-start; gap: var(--space-3); border: 1px solid; border-radius: var(--radius-md); font-size: var(--font-size-small); line-height: var(--line-height-small); }
 .ui-alert__icon { margin-top: 0.125rem; font-weight: var(--font-weight-bold); }

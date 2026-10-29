@@ -186,8 +186,8 @@ function DifferenceTable({ run, canPost, loading, error, onRetry, rows, items, b
   if (run.status === 'RUNNING') return <LoadingState label="月结预检尚未完成，暂不能确认结论。" />
   if (run.status === 'POSTED') return <EmptyState icon="pharmacy" title="本批次已正式月结" copy="本批次月结结果已保存。" />
   if (run.status !== 'VALIDATED') return <EmptyState icon="pharmacy" title="无法确认月结状态" copy={`返回状态：${run.status}`} />
-  if (run.differenceCount === 0) return <div className="warehouse-period__passed"><span aria-hidden="true">✓</span><div>
-    <strong>本次预检未发现差异</strong><p>{canPost ? '当前期间允许正式月结，提交时会再次核对库存版本。' : '这是已保存的预检结果；当前期间不允许正式月结。'}</p></div></div>
+  if (run.differenceCount === 0) return <EmptyState size="inline" glyph="✓" title="本次预检未发现差异"
+    copy={canPost ? '当前期间允许正式月结，提交时会再次核对库存版本。' : '这是已保存的预检结果；当前期间不允许正式月结。'} />
   if (loading) return <LoadingState label="正在读取差异明细…" />
   if (error) return <EmptyState icon="pharmacy" title="月结差异明细读取失败" copy={errorMessage(error)}
     action={<Button variant="secondary" onClick={onRetry}>重新读取月结差异</Button>} />

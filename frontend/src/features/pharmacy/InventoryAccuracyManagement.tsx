@@ -92,8 +92,7 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
             : !last ? <EmptyState icon="pharmacy" title="尚未执行库存校验" copy="点击“立即校验”，系统将比对库存账目。" />
             : last.status === 'PASSED' ? last.dimensionCount === 0
               ? <EmptyState icon="pharmacy" title="本次没有可校验的库存维度" copy="本次校验已结束，未返回可比对的库存维度。" />
-              : <div className="warehouse-accuracy__passed"><span aria-hidden="true">✓</span>
-                  <div><strong>本次账目校验通过</strong><p>本次已校验维度内未发现账目差异，不替代实物盘点。</p></div></div>
+              : <EmptyState size="inline" glyph="✓" title="本次账目校验通过" copy="本次已校验维度内未发现账目差异，不替代实物盘点。" />
             : last.status === 'RUNNING' ? <LoadingState label="库存校验尚在执行，暂不能确认结论。" />
             : last.status === 'FAILED' ? <EmptyState icon="pharmacy" title="库存校验未成功完成" copy="不能据此确认账目一致，请重新执行校验。" />
             : last.status !== 'ISSUES' ? <EmptyState icon="pharmacy" title="无法确认库存校验结论" copy={`返回状态：${last.status}`} />
