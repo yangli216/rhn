@@ -1,5 +1,5 @@
 import { useFontSizePreference } from '../shared/preferences/useFontSizePreference'
-import { Button, DescriptionList, EmptyState, ListItemButton, SearchField, SelectableList, StatChips, StatusBadge, Tag } from '../shared/ui'
+import { Button, DescriptionList, EmptyState, PanelHead, ListItemButton, SearchField, SelectableList, StatChips, StatusBadge, Tag } from '../shared/ui'
 
 /** 从已认可页面抽取的组合组件的展示页（虚构数据），供截图基线使用。 */
 export function ComponentSamples() {
@@ -15,6 +15,19 @@ export function ComponentSamples() {
           { label: '批次', value: 342, note: '（临期 6）', warn: true },
           { label: '本期记账', value: 57 },
         ]} />
+      </div>
+    </section>
+    <section aria-label="区块标题">
+      <h2>区块标题</h2>
+      <div className="component-samples__grid">
+        <div>
+          <PanelHead level="section" title="库房经营目录" meta="共 128 项" actions={<Button size="sm" variant="secondary">导出</Button>} />
+          <PanelHead level="section" title="差异明细" description="处理差异后需重新执行预检" />
+        </div>
+        <div>
+          <PanelHead title="患者信息" meta="3 项" />
+          <PanelHead title="预检与关账记录" description="每次预检均保留独立快照" actions={<Button size="sm">刷新</Button>} />
+        </div>
       </div>
     </section>
     <section aria-label="标签">

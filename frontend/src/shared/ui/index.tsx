@@ -168,16 +168,20 @@ export function PageHeader({ eyebrow, title, description, actions, compact = fal
   </header>
 }
 
-export function PanelHead({ title, meta, actions, className = '', icon }: {
-  title: string
+export function PanelHead({ title, description, meta, actions, className = '', icon, level = 'panel' }: {
+  title: ReactNode
+  /** 标题下方的一行说明（次要色小字）。 */
+  description?: ReactNode
   icon?: IconName
   meta?: ReactNode
   actions?: ReactNode
   className?: string
+  /** panel 为面板主标题（16px）；section 为面板内的分区标题（14px，更矮），用于工具条式分区。 */
+  level?: 'panel' | 'section'
 }) {
-  return <header className={`ui-panel__head ${actions ? 'has-actions' : ''} ${className}`}>
+  return <header className={`ui-panel__head ${level === 'section' ? 'ui-panel__head--section' : ''} ${actions ? 'has-actions' : ''} ${className}`}>
     {icon && <span className="ui-panel__icon" aria-hidden="true"><Icon name={icon} /></span>}
-    <h2>{title}</h2>
+    {description ? <div className="ui-panel__titles"><h2>{title}</h2><small>{description}</small></div> : <h2>{title}</h2>}
     {meta && <span className="ui-panel__meta">{meta}</span>}
     {actions}
   </header>

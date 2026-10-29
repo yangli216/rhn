@@ -13,7 +13,7 @@
 | `IconActionButton` / `IconActionGroup` | 标题栏、分组头里的图标操作 | 紧凑文字按钮高度（不撑高标题栏）、品牌色 20px 图标、统一线宽、并排零间隙；传入任意图标节点；`count` 显示正数角标，含义由调用方提供可访问描述 |
 | `AnchoredPanel` | 非模态参考浮层 | Portal、视口定位、点击外部 / Esc 关闭；`anchorElement` 允许触发器自行切换开关 |
 | `PageHeader` | 一级页面标题区 | 眉题、唯一 H1、描述、操作区；PC 维护页支持紧凑模式 |
-| `Panel` / `PanelHead` | 任务或信息集合 | 统一表面、标题层级、元数据位置 |
+| `Panel` / `PanelHead` | 任务或信息集合 | 统一表面、标题层级、元数据位置；`description` 为标题下说明，`level="section"` 为面板内更矮的分区标题（14px），不要再手写 `<header><strong>…</strong><span>…</span></header>` |
 | `Tabs` | 页面或工作区页签 | 线性、工作区、卡片、pills 与 segmented（紧凑分段控件，`meta` 显示为数量徽标，`tone: 'success'` 让终态页签选中为成功色）变体；自动处理 ARIA、方向键、Home/End 与焦点移动 |
 | `SearchField` | 列表和主数据检索 | 统一搜索图标、清空操作、焦点状态与可访问名称；`size="sm"` 为与 sm 按钮同行的紧凑高度，`onClear` 在点击内置清空按钮时回调 |
 | `SplitWorkspace` | 左侧目录、右侧详情的主从页面 | 统一最小尺寸、间距和溢出边界，业务仅配置列宽 |
