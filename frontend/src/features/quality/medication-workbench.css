@@ -1979,9 +1979,7 @@
 
 .qmed-inline-field .ui-field__control,
 .qmed-inline-field .ui-select__trigger {
-  height: 32px;
   margin-top: 4px;
-  padding-inline: 8px;
 }
 
 .qmed-med-picker-col .ui-select,

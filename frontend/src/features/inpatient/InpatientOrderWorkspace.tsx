@@ -280,21 +280,21 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
             onChange={(event) => setNursingName(event.target.value)} />}</FormField>
     </div>
     {category === 'MEDICATION' && <div className="inpatient-order-composer__usage">
-      <FormField label="剂量" required><input aria-label="住院医嘱剂量" type="number" min="0.01" step="0.01" value={dosage}
+      <FormField size="sm" label="剂量" required><input aria-label="住院医嘱剂量" type="number" min="0.01" step="0.01" value={dosage}
         onChange={(event) => setDosage(event.target.value)} /></FormField>
-      <FormField label="单位" required><input aria-label="住院医嘱剂量单位" value={dosageUnit} maxLength={64}
+      <FormField size="sm" label="单位" required><input aria-label="住院医嘱剂量单位" value={dosageUnit} maxLength={64}
         onChange={(event) => setDosageUnit(event.target.value)} /></FormField>
-      <FormField label="给药途径" required><Select size="sm" aria-label="住院医嘱给药途径" value={route}
+      <FormField size="sm" label="给药途径" required><Select size="sm" aria-label="住院医嘱给药途径" value={route}
         onChange={setRoute} showValue loading={routes.isPending} placeholder="请选择给药途径"
         options={routeOptions} /></FormField>
-      <FormField label="频次"><input aria-label="住院医嘱频次" value={frequency} maxLength={64} placeholder="如 QD、BID"
+      <FormField size="sm" label="频次"><input aria-label="住院医嘱频次" value={frequency} maxLength={64} placeholder="如 QD、BID"
         onChange={(event) => setFrequency(event.target.value)} /></FormField>
     </div>}
     <div className="inpatient-order-composer__footer">
-      <FormField className="is-instructions" label="执行说明"><input aria-label="住院医嘱执行说明" value={instructions}
+      <FormField size="sm" className="is-instructions" label="执行说明"><input aria-label="住院医嘱执行说明" value={instructions}
         maxLength={2000} placeholder="可选：部位、注意事项或执行要求"
         onChange={(event) => setInstructions(event.target.value)} /></FormField>
-      <Button type="submit" busy={busy}>保存草稿</Button>
+      <Button type="submit" size="sm" busy={busy}>保存草稿</Button>
     </div>
   </form>
 }

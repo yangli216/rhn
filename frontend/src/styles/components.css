@@ -619,6 +619,12 @@
   font-weight: var(--font-weight-regular);
   transition: all var(--motion-fast) var(--ease-standard);
 }
+.ui-field--sm > .ui-field__control:not(textarea) {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+}
 textarea.ui-field__control { min-height: 6rem; padding-top: var(--space-3); padding-bottom: var(--space-3); resize: vertical; }
 .ui-field__control:hover:not(:disabled):not([readonly]) { border-color: var(--color-text-disabled); }
 .ui-field__control:focus-visible {

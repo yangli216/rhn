@@ -372,15 +372,15 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   </div>
                 </div>
                 <div className="qmed-patient-sim-fields">
-                  <FormField label="患者姓名" className="qmed-inline-field"><input value={simPatientName} onChange={e => setSimPatientName(e.target.value)} /></FormField>
-                  <FormField label="性别" className="qmed-inline-field">
-                    <Select value={simPatientGender} options={genderOptions} searchable={false} clearable={false} onChange={setSimPatientGender} />
+                  <FormField size="sm" label="患者姓名" className="qmed-inline-field"><input value={simPatientName} onChange={e => setSimPatientName(e.target.value)} /></FormField>
+                  <FormField size="sm" label="性别" className="qmed-inline-field">
+                    <Select size="sm" value={simPatientGender} options={genderOptions} searchable={false} clearable={false} onChange={setSimPatientGender} />
                   </FormField>
-                  <FormField label="年龄（岁）" className="qmed-inline-field">
+                  <FormField size="sm" label="年龄（岁）" className="qmed-inline-field">
                     <input type="number" min="0" max="120" value={simPatientAge} onChange={e => { setSimPatientAge(e.target.value === '' ? '' : Number(e.target.value)); setActiveSandboxRun(null) }} />
                   </FormField>
-                  <FormField label="就诊科室" className="qmed-inline-field"><input value={simDepartment} onChange={e => setSimDepartment(e.target.value)} /></FormField>
-                  <FormField label="药物过敏史" className="qmed-inline-field"><input value={simAllergy} onChange={e => { setSimAllergy(e.target.value); setActiveSandboxRun(null) }} /></FormField>
+                  <FormField size="sm" label="就诊科室" className="qmed-inline-field"><input value={simDepartment} onChange={e => setSimDepartment(e.target.value)} /></FormField>
+                  <FormField size="sm" label="药物过敏史" className="qmed-inline-field"><input value={simAllergy} onChange={e => { setSimAllergy(e.target.value); setActiveSandboxRun(null) }} /></FormField>
                 </div>
               </div>
 

@@ -687,7 +687,7 @@ function FieldHint({ label, hint, hintId }: { label: ReactNode; hint: string; hi
   </span>
 }
 
-export function FormField({ label, error, hint, required = false, className = '', appearance = 'default', children }: {
+export function FormField({ label, error, hint, required = false, className = '', appearance = 'default', size = 'md', children }: {
   label: ReactNode
   error?: string
   hint?: string
@@ -695,6 +695,8 @@ export function FormField({ label, error, hint, required = false, className = ''
   className?: string
   children: ReactElement<FormControlProps>
   appearance?: 'default' | 'document'
+  /** sm 用于紧凑工具栏/行内编辑，与同行 size="sm" 的按钮、下拉同高；默认 md。 */
+  size?: 'md' | 'sm'
 }) {
   const generatedId = useId()
   const child = Children.only(children)
@@ -710,7 +712,7 @@ export function FormField({ label, error, hint, required = false, className = ''
     'aria-describedby': describedBy,
   }) : child
 
-  return <div className={`ui-field ${appearance === 'document' ? 'ui-field--document' : ''} ${error ? 'is-invalid' : ''} ${className}`}>
+  return <div className={`ui-field ${appearance === 'document' ? 'ui-field--document' : ''} ${size === 'sm' ? 'ui-field--sm' : ''} ${error ? 'is-invalid' : ''} ${className}`}>
     <div className="ui-field__label-row">
       <label className="ui-field__label" htmlFor={controlId}>{label}
         {required && <span className="ui-field__required" aria-hidden="true">*</span>}
