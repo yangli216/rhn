@@ -4,7 +4,7 @@ import type { Resident } from '../../../shared/model'
 import { InsuranceMediaButtons, useInsuranceMediaReader } from '../../../shared/billing/insuranceMedia'
 import type { ClinicalContext } from '../../../shared/clinical/workContext'
 import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
-import { Button, DataTable, EmptyState, Icon, SearchField, StatusBadge, Switch, Tabs } from '../../../shared/ui'
+import { Button, DataTable, EmptyState, Icon, SearchField, SegmentedControl, StatusBadge, Switch, Tabs } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
 import { formatLocaleDateTime } from '../../../shared/format'
@@ -243,18 +243,13 @@ export function DedicatedWaitingWorkspace({
 
           <span className="waiting-bar-divider" aria-hidden="true" />
 
-          <div className="queue-scope-control" role="group" aria-label="患者数据视角">
-            {([
-              ['PERSONAL', '本人'],
-              ['DEPARTMENT', '本科室'],
-              ['ORGANIZATION', '本院'],
-            ] as const).map(([value, label]) => (
-              <button key={value} type="button"
-                className={queueScope === value ? 'is-active' : ''}
-                aria-pressed={queueScope === value}
-                onClick={() => onQueueScopeChange?.(value)}>{label}</button>
-            ))}
-          </div>
+          <SegmentedControl label="患者数据视角" value={queueScope}
+            onChange={(value) => onQueueScopeChange?.(value)}
+            items={[
+              { value: 'PERSONAL', label: '本人' },
+              { value: 'DEPARTMENT', label: '本科室' },
+              { value: 'ORGANIZATION', label: '本院' },
+            ]} />
 
           <span className="waiting-bar-divider" aria-hidden="true" />
 

@@ -49,37 +49,6 @@
   gap: var(--space-2);
 }
 
-.queue-scope-control {
-  display: inline-grid;
-  grid-template-columns: repeat(3, minmax(3.5rem, 1fr));
-  align-items: center;
-  height: var(--control-height-sm);
-  padding: calc(var(--space-1) * 0.75);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-subtle);
-  flex-shrink: 0;
-}
-
-.queue-scope-control button {
-  height: calc(var(--control-height-sm) - 8px);
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.queue-scope-control button.is-active {
-  background: var(--color-surface);
-  color: var(--color-brand-strong);
-  font-weight: var(--font-weight-semibold);
-  box-shadow: var(--shadow-sm);
-}
-
 .topbar-chip {
   display: inline-flex;
   align-items: center;

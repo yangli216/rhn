@@ -362,8 +362,8 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
-    expect(screen.getByRole('button', { name: '全天' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('radio', { name: '全天' }))
+    expect(screen.getByRole('radio', { name: '全天' })).toHaveAttribute('aria-checked', 'true')
 
     // Registration desks see all departments and sessions when viewing all day.
     expect(await screen.findByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
@@ -386,12 +386,12 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 
     // Filter by '👑 专家/名医号'
-    await userEvent.click(screen.getByRole('button', { name: /专家\/名医号/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /专家\/名医号/ }))
     expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /全科门诊/ })).not.toBeInTheDocument()
 
     // Filter by '🏢 普通门诊'
-    await userEvent.click(screen.getByRole('button', { name: /普通门诊/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /普通门诊/ }))
     expect(screen.getByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /王专家/ })).not.toBeInTheDocument()
   })
@@ -419,15 +419,15 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: '夜间门诊' })).toHaveAttribute('aria-pressed', 'true'))
+    await waitFor(() => expect(screen.getByRole('radio', { name: '夜间门诊' })).toHaveAttribute('aria-checked', 'true'))
     for (const [index, [, label]] of dayParts.entries()) {
-      const button = await screen.findByRole('button', { name: label })
+      const button = await screen.findByRole('radio', { name: label })
       await userEvent.click(button)
-      expect(button).toHaveAttribute('aria-pressed', 'true')
+      expect(button).toHaveAttribute('aria-checked', 'true')
       expect(screen.getByRole('button', { name: new RegExp(`诊疗班次${index}`) })).toBeInTheDocument()
       expect(document.querySelectorAll('.registration-schedule-card-compact')).toHaveLength(1)
     }
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+    await userEvent.click(screen.getByRole('radio', { name: '全天' }))
     expect(document.querySelectorAll('.registration-schedule-card-compact')).toHaveLength(4)
   })
 
@@ -456,7 +456,7 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+    await userEvent.click(screen.getByRole('radio', { name: '全天' }))
     await userEvent.click(await screen.findByRole('button', { name: new RegExp(serviceName) }))
     const header = document.querySelector('.registration-cashier .cashier-panel__head')
     expect(header).toHaveTextContent(expected)
@@ -487,7 +487,7 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+    await userEvent.click(screen.getByRole('radio', { name: '全天' }))
     await screen.findByRole('button', { name: /全科门诊/ })
     const cardGeneral = screen.getByRole('button', { name: /全科门诊/ })
     const cardInternal = await screen.findByRole('button', { name: /王专家/ })
@@ -628,7 +628,7 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+    await userEvent.click(screen.getByRole('radio', { name: '全天' }))
     await userEvent.click(await screen.findByRole('button', { name: /全科门诊/ }))
     await userEvent.click(await screen.findByRole('button', { name: '补打凭条' }))
     expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
@@ -1031,7 +1031,7 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // Confirm that the linked appointment alert shows up
     expect(await screen.findByText(/正在办理预约/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: sdDayPartText })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('radio', { name: sdDayPartText })).toHaveAttribute('aria-checked', 'true')
 
     // Confirm registration
     const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })

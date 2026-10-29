@@ -18,7 +18,7 @@ import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { CashPaymentCalculator, PaymentAmountReadonlyRow, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
 import { PaymentMethodSelector } from '../../shared/billing/PaymentMethodSelector'
 import { Alert, Button, DataTable, DatePicker, Dialog, DictionarySelect, SearchField, tableCellClass, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
-  PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
+  PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, SegmentedControl, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import { requireCoverageFacts } from '../../shared/validation/coverageFacts'
@@ -1472,26 +1472,14 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   }
                 }} />
               <div className="registration-filter-track">
-                <div className="registration-filter-seg">
-                  {CLINIC_TYPE_OPTIONS.map((opt) => (
-                    <Button size="sm" key={opt.key} type="button"
-                      variant={selectedClinicType === opt.key ? 'secondary' : 'text'} aria-pressed={selectedClinicType === opt.key}
-                      onClick={() => setSelectedClinicType(opt.key)}>
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-                <span className="registration-filter-divider" aria-hidden="true" />
-                <div className="registration-filter-seg">
-                  {dayPartOptions.map((dp) => (
-                    <Button size="sm" key={dp.key} type="button"
-                      variant={selectedDayPart === dp.key ? 'secondary' : 'text'} aria-pressed={selectedDayPart === dp.key}
-                      onClick={() => {
-                        setDayPartManuallyChanged(true)
-                        setSelectedDayPart(dp.key)
-                      }}>{dp.label}</Button>
-                  ))}
-                </div>
+                <SegmentedControl label="号源类型" value={selectedClinicType} onChange={setSelectedClinicType}
+                  items={CLINIC_TYPE_OPTIONS.map((opt) => ({ value: opt.key, label: opt.label }))} />
+                <SegmentedControl label="出诊时段" value={selectedDayPart}
+                  onChange={(value) => {
+                    setDayPartManuallyChanged(true)
+                    setSelectedDayPart(value)
+                  }}
+                  items={dayPartOptions.map((dp) => ({ value: dp.key, label: dp.label }))} />
               </div>
             </div>
           </div>
