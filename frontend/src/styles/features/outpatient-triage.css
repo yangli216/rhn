@@ -3,175 +3,47 @@
    遵循 PC 宽屏（1280px~1920px+）与 RHN 语义设计令牌规范
    ========================================================================== */
 
-.triage-workspace {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  background-color: var(--color-canvas);
-  color: var(--color-text-primary);
-  overflow: hidden;
-}
+/* 三栏骨架、面板头、统计胶囊、页签、选择胶囊均由 WorkspaceColumns / WorkspacePane / PanelHead / StatChips / Tabs / ChoiceChip 提供；
+   这里只保留业务内容的内部布局。 */
 
-/* 顶部统计指标卡片栏（紧凑单行） */
-.triage-metrics-bar {
+/* 统计条：StatChips 靠左，当前单号靠右 */
+.triage-stats-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  flex: none;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin: var(--space-2) var(--space-3);
-  flex-shrink: 0;
-  min-height: 38px;
-}
-
-.triage-metrics-grid {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  flex-wrap: nowrap;
-}
-
-.triage-metric-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
-  font-size: var(--font-size-small);
-  white-space: nowrap;
-}
-
-.triage-metric-card--danger {
-  background-color: var(--color-danger-soft);
-  border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
-  color: var(--color-danger-strong);
-}
-
-.triage-metric-card--warning {
-  background-color: var(--color-warning-soft);
-  border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
-  color: var(--color-warning);
-}
-
-.triage-metric-card--info {
-  background-color: var(--color-info-soft);
-  border-color: color-mix(in srgb, var(--color-info) 30%, transparent);
-  color: var(--color-info);
-}
-
-.triage-metric-card--success {
-  background-color: var(--color-success-soft);
-  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
-  color: var(--color-success);
-}
-
-.triage-metric-card__value {
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-bold);
-  line-height: 1;
-}
-
-.triage-metrics-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-}
-
-/* 主三栏工作台布局 */
-.triage-main-layout {
-  display: grid;
-  grid-template-columns: clamp(230px, 15vw, 280px) minmax(520px, 1fr) clamp(276px, 18vw, 320px);
-  gap: var(--space-2);
-  padding: 0 var(--space-3) var(--space-3);
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* 左侧栏：工作队列与患者列表 */
-.triage-left-pane {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  gap: var(--space-3);
-  overflow: hidden;
-}
-
-.triage-left-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  flex-shrink: 0;
-}
-
-.triage-left-search-box {
   min-width: 0;
 }
 
-/* 队列视图使用单行四段式切换；短标签配数字徽标，减少纵向跳转成本。 */
-.triage-queue-tabs.ui-tabs--workspace {
-  min-height: var(--control-height-md);
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+/* 左栏固定头：搜索框 + 队列分段页签；四段平分宽度，数量徽标放在页签 meta */
+.triage-queue-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.triage-queue-tabs {
+  width: 100%;
 }
 
 .triage-queue-tabs .ui-tabs__items {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow: visible;
+  width: 100%;
 }
 
 .triage-queue-tabs .ui-tabs__tab {
-  min-width: 0;
-  min-height: var(--control-height-md);
-  padding: 0 var(--space-1);
-}
-
-.triage-queue-tabs .ui-tabs__tab:last-child {
-  border-right: 0;
-}
-
-.triage-queue-tab-label {
-  display: inline-flex;
-  align-items: center;
+  flex: 1 1 auto;
   justify-content: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-small);
-  white-space: nowrap;
+  padding-inline: var(--space-1);
 }
 
-.triage-queue-tabs .ui-tabs__tab .triage-queue-tab-label small {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-round);
-  background-color: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  line-height: 1;
-}
-
+/* 队列正文由 WorkspacePane 滚动 */
 .triage-queue-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1-5);
+  gap: var(--space-2);
 }
 
 .triage-flow-guide {
@@ -204,9 +76,7 @@
 }
 
 .triage-queue-card:focus-visible,
-.triage-level-card:focus-visible,
-.triage-symptom-chip:focus-visible,
-.triage-green-channel-btn:focus-visible {
+.triage-level-card:focus-visible {
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 1px;
 }
@@ -256,52 +126,32 @@
 }
 
 /* 中间主作业区：紧凑高密度布局 */
-.triage-center-pane {
+/* 患者基本身份紧凑卡片 */
+/* 中栏正文：各分区（Panel + 分区 PanelHead）纵向堆叠；作为容器供下方 @container 判断中栏宽度 */
+.triage-center-stack {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  padding: var(--space-3);
-  gap: var(--space-3);
-  background-color: var(--color-canvas);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  gap: var(--layout-section-gap);
   container-name: triage-center;
   container-type: inline-size;
 }
 
-.triage-center-pane .ui-panel {
+.triage-section-body {
   padding: var(--space-3);
-  margin-bottom: 0;
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  box-shadow: var(--shadow-sm);
 }
 
-.triage-center-pane .ui-panel__head {
-  padding-bottom: var(--space-2);
-  margin-bottom: 0;
+/* 患者条放在中栏固定头里，不随正文滚动；头部作为容器，窄宽时重排未调入态 */
+.triage-patient-header {
+  container-name: triage-strip;
+  container-type: inline-size;
 }
 
-.triage-center-pane .ui-panel__head h2 {
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-semibold);
-}
-
-/* 患者基本身份紧凑卡片 */
 .triage-patient-strip {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  min-height: 56px;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
 }
 
 .triage-patient-strip__profile {
@@ -314,7 +164,7 @@
 
 .triage-patient-strip__profile.triage-patient-placeholder {
   flex: 1 1 auto;
-  min-width: 230px;
+  min-width: 15rem;
   min-height: var(--control-height-md);
   padding: var(--space-1) var(--space-3);
   border: 1px dashed var(--color-border-strong);
@@ -323,8 +173,8 @@
 }
 
 .triage-patient-placeholder__avatar {
-  width: 30px;
-  height: 30px;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
   flex: none;
   border-radius: var(--radius-round);
   background: var(--color-surface-muted);
@@ -357,8 +207,8 @@
 }
 
 .triage-patient-strip__avatar {
-  width: 32px;
-  height: 32px;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
   border-radius: var(--radius-round);
   background-color: var(--color-brand-soft);
   color: var(--color-brand-primary);
@@ -402,7 +252,7 @@
 }
 
 .triage-patient-strip__arrival > .ui-select {
-  width: 120px;
+  width: 7.5rem;
 }
 
 .triage-patient-strip__arrival > .ui-button {
@@ -440,7 +290,7 @@
 }
 
 /* 中栏收窄时仅重排未调入患者态，避免检索控件侵入右侧辅助栏。 */
-@container triage-center (max-width: 980px) {
+@container triage-strip (max-width: 980px) {
   .triage-patient-strip--empty {
     display: grid;
     grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.2fr);
@@ -495,8 +345,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  min-height: 82px;
-  padding: var(--space-2) var(--space-2);
+  padding: var(--space-2);
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -527,21 +376,21 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 32px;
 }
 
+/* 体征输入与同卡片里的 size="sm" 下拉同高（--control-height-sm） */
 .triage-vital-field {
   flex: 1;
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
-  border: none;
-  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
   color: var(--color-text-primary);
-  outline: none;
   width: 100%;
-  padding: 0;
-  min-height: 32px;
-  line-height: 32px;
+  min-width: 0;
+  padding: 0 var(--space-2);
+  height: var(--control-height-sm);
 }
 
 .triage-vital-field::placeholder {
@@ -558,7 +407,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-disabled);
   min-height: 1rem;
-  line-height: 1rem;
+  line-height: var(--line-height-small);
 }
 
 /* 流行病与发热筛查（内联紧凑条） */
@@ -599,7 +448,7 @@
 }
 
 .triage-fever-checks label {
-  min-height: 28px;
+  min-height: var(--control-height-sm);
   gap: var(--space-1);
   cursor: pointer;
   white-space: nowrap;
@@ -613,7 +462,7 @@
 .triage-fever-history-input,
 .triage-chief-complaint-input {
   width: 100%;
-  min-height: 36px;
+  height: var(--control-height-sm);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -672,41 +521,9 @@
 .triage-symptom-chips {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5);
+  gap: var(--space-2);
   flex-wrap: wrap;
   min-width: 0;
-}
-
-.triage-symptom-chip {
-  min-height: 28px;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-  line-height: 1.35;
-  transition: all 0.15s ease;
-}
-
-.triage-symptom-chip:hover {
-  border-color: var(--color-brand-primary);
-  color: var(--color-brand-primary);
-}
-
-.triage-symptom-chip--active {
-  background-color: var(--color-brand-strong);
-  border-color: var(--color-brand-strong);
-  color: var(--color-text-inverse);
-  font-weight: var(--font-weight-semibold);
-}
-
-.triage-symptom-chip--active:hover,
-.triage-symptom-chip--active:focus-visible {
-  background-color: color-mix(in srgb, var(--color-brand-strong) 88%, var(--color-shadow-ink));
-  border-color: color-mix(in srgb, var(--color-brand-strong) 88%, var(--color-shadow-ink));
-  color: var(--color-text-inverse);
 }
 
 /* 四级急慢分诊定级（单行紧凑胶囊卡片） */
@@ -722,10 +539,10 @@
   gap: var(--space-2);
   padding: var(--space-2) var(--space-2);
   border-radius: var(--radius-sm);
-  border: 2px solid var(--color-border);
+  border: 1px solid var(--color-border);
   background-color: var(--color-surface);
   cursor: pointer;
-  min-height: 46px;
+  min-height: var(--control-height-md);
   min-width: 0;
   transition: all 0.15s ease;
   color: var(--color-text-primary);
@@ -763,9 +580,9 @@
   justify-content: center;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-bold);
-  min-width: 28px;
-  min-height: 24px;
-  padding: var(--space-1) var(--space-1);
+  min-width: var(--space-6);
+  min-height: var(--space-6);
+  padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
   color: var(--color-text-inverse);
   flex-shrink: 0;
@@ -785,47 +602,16 @@
   white-space: nowrap;
 }
 
-.triage-level-card__desc {
-  display: none;
-}
-
 /* 绿色通道选择器 */
 .triage-green-channel-chips {
   display: flex;
-  gap: var(--space-1-5);
+  gap: var(--space-2);
   flex-wrap: wrap;
-}
-
-.triage-green-channel-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 30px;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-round);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  line-height: 1.3;
-}
-
-.triage-green-channel-btn:hover {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.triage-green-channel-btn--active {
-  background-color: var(--color-danger-soft);
-  border-color: var(--color-danger);
-  color: var(--color-danger-strong);
-  font-weight: var(--font-weight-semibold);
 }
 
 .triage-routing-grid {
   display: grid;
-  grid-template-columns: 180px minmax(320px, 1.2fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(10rem, 0.6fr) minmax(0, 1.4fr) minmax(0, 1fr);
   gap: var(--space-3);
   margin-top: var(--space-2);
 }
@@ -843,7 +629,7 @@
 
 .triage-routing-reason {
   width: 100%;
-  min-height: 36px;
+  height: var(--control-height-sm);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -855,16 +641,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 52px;
   padding: var(--space-2) var(--space-3);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  flex-shrink: 0;
+  /* ui-allow: WorkspacePane 的 footer 槽没有顶部分隔线，保存/重置操作栏需要与滚动正文分隔 */
+  border-top: 1px solid var(--color-border);
 }
 
 .triage-action-bar__left {
@@ -879,31 +658,30 @@
   gap: var(--space-2);
 }
 
-/* 右侧栏：智能导医看板与凭条预览 */
-.triage-right-pane {
+/* 右栏：决策辅助 pane（占满剩余高度、内滚动）+ 凭条 pane（自然高度） */
+.triage-assist-column {
   display: flex;
   flex-direction: column;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow-y: auto;
-  padding: var(--space-3);
+  gap: var(--layout-panel-gap);
+  min-width: 0;
+  min-height: 0;
+}
+
+.triage-decision-pane {
+  flex: 1 1 0;
+}
+
+.triage-ticket-pane {
+  flex: none;
+}
+
+/* 决策辅助正文：各小节纵向排列；作为容器供下方 @container 判断右栏宽度 */
+.triage-decision-stack {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   container-name: triage-assist;
   container-type: inline-size;
-}
-
-.triage-right-pane .ui-panel {
-  margin: 0;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  box-shadow: none;
-}
-
-.triage-decision-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .triage-decision-summary {
@@ -1119,13 +897,6 @@
   color: var(--color-brand-strong);
 }
 
-.triage-recommendation-card__source {
-  margin-left: var(--space-2);
-  color: var(--color-primary-600);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-}
-
 .triage-recommendation-card__score {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
@@ -1178,11 +949,6 @@
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
 }
-
-.triage-reference__level--red { color: var(--color-danger); }
-.triage-reference__level--orange { color: var(--color-warning); }
-.triage-reference__level--yellow { color: var(--color-info); }
-.triage-reference__level--green { color: var(--color-success); }
 
 .triage-ticket-summary {
   color: var(--color-text-secondary);
@@ -1249,7 +1015,7 @@
   }
 
   .triage-routing-grid {
-    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-columns: minmax(10rem, 0.5fr) minmax(0, 1fr);
   }
 
   .triage-routing-field:last-child {
@@ -1258,10 +1024,6 @@
 }
 
 @media (max-width: 1320px) {
-  .triage-main-layout {
-    grid-template-columns: 200px minmax(500px, 1fr) 250px;
-  }
-
   .triage-patient-strip {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1298,7 +1060,7 @@
 
   .triage-action-bar {
     gap: var(--space-1);
-    padding-inline: var(--space-1-5);
+    padding-inline: var(--space-2);
   }
 
   .triage-action-bar__left,
@@ -1307,7 +1069,7 @@
   }
 
   .triage-action-bar .ui-button {
-    padding-inline: var(--space-1-5);
+    padding-inline: var(--space-2);
   }
 }
 

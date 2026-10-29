@@ -500,7 +500,7 @@ describe('OutpatientTriageWorkspace', () => {
 
     // 胸痛中心按钮应当处于激活状态
     await waitFor(() => {
-      expect(chestPainBtn.closest('.triage-green-channel-btn')).toHaveClass('triage-green-channel-btn--active')
+      expect(chestPainBtn.closest('button')).toHaveAttribute('aria-pressed', 'true')
     })
   })
 

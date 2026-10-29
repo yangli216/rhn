@@ -21,6 +21,7 @@ import type { RhnApi } from '../../../shared/rhnApi'
 import {
   Alert,
   Button,
+  ChoiceChip,
   EmptyState,
   Icon,
   LoadingState,
@@ -30,10 +31,13 @@ import {
   PatientIdentitySearch,
   SearchField,
   Select,
+  StatChips,
   StatusBadge,
   Switch,
   Tabs,
+  Tag,
 } from '../../../shared/ui'
+import { WorkspaceColumns, WorkspacePane } from '../../../shared/ui/templates/PageTemplates'
 import '../../../styles/features/outpatient-triage.css'
 import { TriageTicketModal } from './TriageTicketModal'
 import { TriageDecisionAdvice } from './TriageDecisionAdvice'
@@ -675,15 +679,14 @@ export function OutpatientTriageWorkspace({
   const hasPatientIdentity = patientName.trim().length > 0
 
   return (
-    <div className="triage-workspace">
-      {/* 顶部指标与控制栏 */}
+    <>
       <PageHeader
         compact
         eyebrow="门诊服务"
         title="门诊预检分诊"
         description="采集生命体征、发热筛查、急慢四级定级与智能导医分流。"
         actions={
-          <div className="triage-metrics-actions">
+          <>
             <Button size="sm" variant="secondary" onClick={startArrivalScreening}>
               <Icon name="add" />
               <span>到院初筛</span>
@@ -700,49 +703,25 @@ export function OutpatientTriageWorkspace({
               <Icon name="refresh" />
               <span>刷新队列</span>
             </Button>
-          </div>
+          </>
         }
       />
 
-      {/* 统计指标浮动条 */}
-      <section className="triage-metrics-bar" aria-label="今日分诊统计看板">
-        <div className="triage-metrics-grid">
-          <div className="triage-metric-card">
-            <span>今日评估次数</span>
-            <span className="triage-metric-card__value">{stats?.totalCount ?? 0}</span>
-          </div>
-          <div className="triage-metric-card triage-metric-card--danger">
-            <span>Ⅰ级 濒危(红)</span>
-            <span className="triage-metric-card__value">{stats?.level1CriticalCount ?? 0}</span>
-          </div>
-          <div className="triage-metric-card triage-metric-card--warning">
-            <span>Ⅱ级 危重(橙)</span>
-            <span className="triage-metric-card__value">{stats?.level2UrgentCount ?? 0}</span>
-          </div>
-          <div className="triage-metric-card triage-metric-card--info">
-            <span>Ⅲ级 急症(黄)</span>
-            <span className="triage-metric-card__value">{stats?.level3RoutineUrgentCount ?? 0}</span>
-          </div>
-          <div className="triage-metric-card triage-metric-card--success">
-            <span>Ⅳ级 非急症(绿)</span>
-            <span className="triage-metric-card__value">{stats?.level4NonUrgentCount ?? 0}</span>
-          </div>
-          <div className="triage-metric-card triage-metric-card--warning">
-            <span>发热预警</span>
-            <span className="triage-metric-card__value">{stats?.feverCount ?? 0}</span>
-          </div>
-          <div className="triage-metric-card triage-metric-card--danger">
-            <span>绿色通道</span>
-            <span className="triage-metric-card__value">{stats?.greenChannelCount ?? 0}</span>
-          </div>
-        </div>
-
-        {activeTriageNo && (
-          <div className="triage-metrics-meta">
-            <StatusBadge tone="info">当前单号：{activeTriageNo}</StatusBadge>
-          </div>
-        )}
-      </section>
+      {/* 今日统计：StatChips 的 tone 表达级别语义色 */}
+      <div className="triage-stats-row">
+        <StatChips
+          items={[
+            { label: '今日评估次数', value: stats?.totalCount ?? 0 },
+            { label: 'Ⅰ级 濒危(红)', value: stats?.level1CriticalCount ?? 0, tone: 'danger' },
+            { label: 'Ⅱ级 危重(橙)', value: stats?.level2UrgentCount ?? 0, tone: 'warning' },
+            { label: 'Ⅲ级 急症(黄)', value: stats?.level3RoutineUrgentCount ?? 0, tone: 'info' },
+            { label: 'Ⅳ级 非急症(绿)', value: stats?.level4NonUrgentCount ?? 0, tone: 'success' },
+            { label: '发热预警', value: stats?.feverCount ?? 0, tone: 'warning' },
+            { label: '绿色通道', value: stats?.greenChannelCount ?? 0, tone: 'danger' },
+          ]}
+        />
+        {activeTriageNo && <StatusBadge tone="info">当前单号：{activeTriageNo}</StatusBadge>}
+      </div>
 
       {/* 全局反馈提示 */}
       {feedback && (
@@ -751,53 +730,55 @@ export function OutpatientTriageWorkspace({
         </Alert>
       )}
 
-      {/* 主三栏工作台 */}
-      <main className="triage-main-layout">
-        {/* ========================================================================= */}
-        {/* 左栏：分诊工作队列 (320px)                                              */}
-        {/* ========================================================================= */}
-        <aside className="triage-left-pane">
-          <div className="triage-left-toolbar">
-            <div className="triage-left-search-box">
+      {/* 主三栏工作台：占满页头以下剩余高度，三栏各自独立滚动 */}
+      <WorkspaceColumns columns="clamp(14.5rem, 15vw, 17rem) minmax(0, 1fr) clamp(16rem, 17vw, 19rem)" label="分诊作业">
+        {/* 左栏：分诊工作队列；搜索与队列页签固定，队列正文内滚动 */}
+        <WorkspacePane
+          label="分诊队列"
+          resetScrollKey={`${queueTab}:${queueSearchQuery}`}
+          header={
+            <div className="triage-queue-header">
               <SearchField
                 label="搜索队列患者"
                 placeholder="搜索姓名、就诊号或电话"
                 value={queueSearchQuery}
                 onChange={setQueueSearchQuery}
               />
+              <Tabs
+                label="分诊队列类型切换"
+                variant="segmented"
+                className="triage-queue-tabs"
+                items={[
+                  {
+                    value: 'ARRIVAL',
+                    label: <><span aria-hidden="true">初筛</span><span className="visually-hidden">到院初筛</span></>,
+                  },
+                  {
+                    value: 'PENDING',
+                    label: <><span aria-hidden="true">待分</span><span className="visually-hidden">待分诊</span></>,
+                    meta: String(filteredPendingList.length),
+                  },
+                  {
+                    value: 'OBSERVATION',
+                    label: <><span aria-hidden="true">候诊</span><span className="visually-hidden">候诊观察</span></>,
+                    meta: String(filteredObservationList.length),
+                  },
+                  {
+                    value: 'HISTORY',
+                    label: <><span aria-hidden="true">记录</span><span className="visually-hidden">分诊记录</span></>,
+                    meta: String(filteredTriagedList.length),
+                  },
+                ]}
+                value={queueTab}
+                onChange={(val) => {
+                  const next = val as TriageQueueTab
+                  if (next === 'ARRIVAL') startArrivalScreening()
+                  else setQueueTab(next)
+                }}
+              />
             </div>
-
-            <Tabs
-              label="分诊队列类型切换"
-              variant="workspace"
-              className="triage-queue-tabs"
-              items={[
-                {
-                  value: 'ARRIVAL',
-                  label: <span className="triage-queue-tab-label"><span aria-hidden="true">初筛</span><span className="visually-hidden">到院初筛</span></span>,
-                },
-                {
-                  value: 'PENDING',
-                  label: <span className="triage-queue-tab-label"><span aria-hidden="true">待分</span><span className="visually-hidden">待分诊</span><small aria-hidden="true">{filteredPendingList.length}</small></span>,
-                },
-                {
-                  value: 'OBSERVATION',
-                  label: <span className="triage-queue-tab-label"><span aria-hidden="true">候诊</span><span className="visually-hidden">候诊观察</span><small aria-hidden="true">{filteredObservationList.length}</small></span>,
-                },
-                {
-                  value: 'HISTORY',
-                  label: <span className="triage-queue-tab-label"><span aria-hidden="true">记录</span><span className="visually-hidden">分诊记录</span><small aria-hidden="true">{filteredTriagedList.length}</small></span>,
-                },
-              ]}
-              value={queueTab}
-              onChange={(val) => {
-                const next = val as TriageQueueTab
-                if (next === 'ARRIVAL') startArrivalScreening()
-                else setQueueTab(next)
-              }}
-            />
-          </div>
-
+          }
+        >
           <div className="triage-queue-list">
             {queueTab === 'ARRIVAL' && (
               <div className="triage-flow-guide">
@@ -937,13 +918,16 @@ export function OutpatientTriageWorkspace({
               </>
             )}
           </div>
-        </aside>
+        </WorkspacePane>
 
         {/* ========================================================================= */}
         {/* 中栏：临床主评估作业区 (minmax 560px, 1fr)                                */}
         {/* ========================================================================= */}
-        <section className="triage-center-pane">
-          {/* 1. 患者身份与到院方式 */}
+        <WorkspacePane
+          label="分诊评估"
+          resetScrollKey={activeEncounterId ?? activeTriageId ?? activeResidentId ?? queueTab}
+          header={
+            <div className="triage-patient-header">
           <section className={`triage-patient-strip ${hasPatientIdentity ? '' : 'triage-patient-strip--empty'}`} aria-label="当前分诊患者">
               {hasPatientIdentity ? (
                 <div className="triage-patient-strip__profile">
@@ -998,15 +982,64 @@ export function OutpatientTriageWorkspace({
                 </Button>
               </div>
           </section>
+            </div>
+          }
+          footer={
+          <div className="triage-action-bar">
+            <div className="triage-action-bar__left">
+              <Button size="md" variant="secondary" onClick={queueTab === 'ARRIVAL' ? startArrivalScreening : resetForm}>
+                <Icon name="close" />
+                <span>重置</span>
+              </Button>
+            </div>
 
+            <div className="triage-action-bar__right">
+              <Button
+                size="md"
+                variant="secondary"
+                busy={saveMutation.isPending}
+                disabled={!canEdit}
+                onClick={() => saveMutation.mutate(false)}
+              >
+                <Icon name="check" />
+                <span>{queueTab === 'OBSERVATION' ? '保存复评' : (queueTab === 'ARRIVAL' ? '保存初筛' : '保存')}</span>
+              </Button>
+              <Button
+                size="md"
+                variant="primary"
+                busy={saveMutation.isPending}
+                disabled={!canEdit}
+                onClick={() => saveMutation.mutate(true)}
+              >
+                <Icon name="print" />
+                <span>保存并打印</span>
+              </Button>
+              {queueTab === 'ARRIVAL' && !activeRegistrationId && (
+                <Button
+                  size="md"
+                  variant="primary"
+                  onClick={handleNavigateToRegistration}
+                  disabled={!activeTriageId}
+                  title="带入推荐科室直接跳转门诊挂号台"
+                >
+                  <Icon name="chevron-right" />
+                  <span>直通挂号</span>
+                </Button>
+              )}
+            </div>
+          </div>
+          }
+        >
+          <div className="triage-center-stack">
           {/* 2. 生命体征采集与流行病发热排查（超紧凑一体化） */}
           <Panel>
             <PanelHead
+              level="section"
               title="生命体征采集与早期越界预警"
               meta={!vitalsAssessment.hasData ? '尚未采集，待评估' : vitalsAssessment.hasCritical ? '存在危象体征' : (vitalsAssessment.hasWarning ? '存在预警体征' : '已采集项目未触发预警')}
             />
 
-            <div className="triage-vitals-container">
+            <div className="triage-vitals-container triage-section-body">
               {vitalsAssessment.hasCritical && (
                 <div className="triage-vitals-alert" role="alert">
                   <Icon name="warning" />
@@ -1184,6 +1217,7 @@ export function OutpatientTriageWorkspace({
                     <span>疼痛</span>
                   </div>
                   <Select
+                    size="sm"
                     aria-label="疼痛评分"
                     placeholder="未评估"
                     options={PAIN_SCORE_OPTIONS}
@@ -1244,10 +1278,11 @@ export function OutpatientTriageWorkspace({
           {/* 3. 主诉问诊与高频症状矩阵（紧凑） */}
           <Panel>
             <PanelHead
+              level="section"
               title="主诉问诊与症状快捷录入"
               meta={`已选 ${selectedSymptomTags.length} 项症状`}
             />
-            <div className="triage-symptoms-section">
+            <div className="triage-symptoms-section triage-section-body">
               <input
                 type="text"
                 placeholder="例如：突发胸痛胸闷伴大汗2小时；发热咳嗽咳黄痰3天等"
@@ -1264,15 +1299,9 @@ export function OutpatientTriageWorkspace({
                       {cat.tags.map((tag) => {
                         const isSelected = selectedSymptomTags.includes(tag)
                         return (
-                          <button
-                            key={tag}
-                            type="button"
-                            className={`triage-symptom-chip ${isSelected ? 'triage-symptom-chip--active' : ''}`}
-                            onClick={() => handleToggleSymptomChip(tag)}
-                            aria-pressed={isSelected}
-                          >
+                          <ChoiceChip key={tag} selected={isSelected} onToggle={() => handleToggleSymptomChip(tag)}>
                             {tag}
-                          </button>
+                          </ChoiceChip>
                         )
                       })}
                     </div>
@@ -1285,10 +1314,12 @@ export function OutpatientTriageWorkspace({
           {/* 4. 急慢四级定级、绿通与去向流向（紧凑单行胶囊 + 三列栅格） */}
           <Panel>
             <PanelHead
+              level="section"
               title="急慢分诊定级与去向判定"
               meta={`${assessmentSourceLabel} ${suggestedLevelText}`}
             />
 
+            <div className="triage-section-body">
             {/* 四级定级单行卡片 */}
             <div className="triage-level-cards">
               {Object.values(TRIAGE_LEVEL_DEFINITIONS).map((def) => {
@@ -1319,6 +1350,8 @@ export function OutpatientTriageWorkspace({
                   分诊处置去向
                 </span>
                 <Select
+                  size="sm"
+                  aria-label="分诊处置去向"
                   options={DISPOSITION_OPTIONS}
                   value={disposition}
                   onChange={(v) => setDisposition(v as TriageDisposition)}
@@ -1333,17 +1366,11 @@ export function OutpatientTriageWorkspace({
                   {GREEN_CHANNEL_OPTIONS.map((gc) => {
                     const isSelected = greenChannel === gc.key
                     return (
-                      <button
-                        key={gc.key}
-                        type="button"
-                        className={`triage-green-channel-btn ${isSelected ? 'triage-green-channel-btn--active' : ''}`}
-                        onClick={() => setGreenChannel(gc.key)}
-                        title={gc.desc}
-                        aria-pressed={isSelected}
-                      >
-                        <Icon name={gc.icon} />
-                        <span>{gc.label}</span>
-                      </button>
+                      <span key={gc.key} title={gc.desc}>
+                        <ChoiceChip selected={isSelected} onToggle={() => setGreenChannel(gc.key)} icon={<Icon name={gc.icon} />}>
+                          {gc.label}
+                        </ChoiceChip>
+                      </span>
                     )
                   })}
                 </div>
@@ -1362,61 +1389,25 @@ export function OutpatientTriageWorkspace({
                 />
               </div>
             </div>
+            </div>
           </Panel>
-
-          {/* 底部操作工具条 */}
-          <footer className="triage-action-bar">
-            <div className="triage-action-bar__left">
-              <Button size="md" variant="secondary" onClick={queueTab === 'ARRIVAL' ? startArrivalScreening : resetForm}>
-                <Icon name="close" />
-                <span>重置</span>
-              </Button>
-            </div>
-
-            <div className="triage-action-bar__right">
-              <Button
-                size="md"
-                variant="secondary"
-                busy={saveMutation.isPending}
-                disabled={!canEdit}
-                onClick={() => saveMutation.mutate(false)}
-              >
-                <Icon name="check" />
-                <span>{queueTab === 'OBSERVATION' ? '保存复评' : (queueTab === 'ARRIVAL' ? '保存初筛' : '保存')}</span>
-              </Button>
-              <Button
-                size="md"
-                variant="primary"
-                busy={saveMutation.isPending}
-                disabled={!canEdit}
-                onClick={() => saveMutation.mutate(true)}
-              >
-                <Icon name="print" />
-                <span>保存并打印</span>
-              </Button>
-              {queueTab === 'ARRIVAL' && !activeRegistrationId && (
-                <Button
-                  size="md"
-                  variant="primary"
-                  onClick={handleNavigateToRegistration}
-                  disabled={!activeTriageId}
-                  title="带入推荐科室直接跳转门诊挂号台"
-                >
-                  <Icon name="chevron-right" />
-                  <span>直通挂号</span>
-                </Button>
-              )}
-            </div>
-          </footer>
-        </section>
+          </div>
+        </WorkspacePane>
 
         {/* 右栏：分诊决策辅助与结果 */}
-        <aside className="triage-right-pane">
-          <Panel className="triage-decision-panel">
-            <PanelHead
-              title={assistTitle}
-              meta={assessmentUpdating ? `${assessmentSourceLabel}更新中` : assessmentSourceLabel}
-            />
+        <div className="triage-assist-column">
+          <WorkspacePane
+            label="分级决策辅助"
+            className="triage-decision-pane"
+            resetScrollKey={`${activeEncounterId ?? activeTriageId ?? ''}:${queueTab}`}
+            header={
+              <PanelHead
+                title={assistTitle}
+                meta={assessmentUpdating ? `${assessmentSourceLabel}更新中` : assessmentSourceLabel}
+              />
+            }
+          >
+            <div className="triage-decision-stack">
             <div className={`triage-decision-summary triage-decision-summary--${TRIAGE_LEVEL_DEFINITIONS[triageLevel].colorName}`}>
               {queueTab === 'OBSERVATION' ? (
                 <>
@@ -1499,7 +1490,7 @@ export function OutpatientTriageWorkspace({
                       <div className="triage-recommendation-card__header">
                         <span className="triage-recommendation-card__title">
                           {rec.departmentName}
-                          {rec.source === 'AI' && <small className="triage-recommendation-card__source">AI增强</small>}
+                          {rec.source === 'AI' && <Tag tone="info">AI增强</Tag>}
                         </span>
                         <span className="triage-recommendation-card__score">{rec.source === 'AI' ? 'AI参考分' : '规则参考分'} {rec.score}</span>
                       </div>
@@ -1579,40 +1570,46 @@ export function OutpatientTriageWorkspace({
               <summary>国家四级分诊指征速查</summary>
               <div className="triage-reference__content">
               <div>
-                <strong className="triage-reference__level triage-reference__level--red">Ⅰ级 (濒危·红)：</strong>
+                <Tag tone="danger">Ⅰ级 (濒危·红)</Tag>
                 <span>心跳呼吸骤停、重度窒息、深昏迷、严重休克。0分钟立即抢救。</span>
               </div>
               <div>
-                <strong className="triage-reference__level triage-reference__level--orange">Ⅱ级 (危重·橙)：</strong>
+                <Tag tone="warning">Ⅱ级 (危重·橙)</Tag>
                 <span>急性胸痛、突发口角歪斜偏瘫、高热惊厥、SBP≥180且剧烈头痛。10分钟优先接诊。</span>
               </div>
               <div>
-                <strong className="triage-reference__level triage-reference__level--yellow">Ⅲ级 (急症·黄)：</strong>
+                <Tag tone="info">Ⅲ级 (急症·黄)</Tag>
                 <span>急性高热、急性中重度腹痛、中度外伤骨折扭伤。30分钟内接诊。</span>
               </div>
               <div>
-                <strong className="triage-reference__level triage-reference__level--green">Ⅳ级 (非急症·绿)：</strong>
+                <Tag tone="success">Ⅳ级 (非急症·绿)</Tag>
                 <span>慢性病复查配药、轻度咽痛鼻塞、体征平稳。常规门诊排队。</span>
               </div>
               </div>
             </details>
-          </Panel>
+            </div>
+          </WorkspacePane>
 
-          <Panel className="triage-ticket-panel">
-            <PanelHead
-              title="分诊凭条"
-              actions={
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={!activeTriageId && !savedTicketRecord}
-                  onClick={() => setTicketModalOpen(true)}
-                >
-                  <Icon name="print" />
-                  <span>预览与打印</span>
-                </Button>
-              }
-            />
+          <WorkspacePane
+            label="分诊凭条"
+            className="triage-ticket-pane"
+            header={
+              <PanelHead
+                title="分诊凭条"
+                actions={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!activeTriageId && !savedTicketRecord}
+                    onClick={() => setTicketModalOpen(true)}
+                  >
+                    <Icon name="print" />
+                    <span>预览与打印</span>
+                  </Button>
+                }
+              />
+            }
+          >
             <div className="triage-ticket-summary">
               {savedTicketRecord ? (
                 <div className="triage-ticket-summary__grid">
@@ -1628,9 +1625,9 @@ export function OutpatientTriageWorkspace({
                 </div>
               )}
             </div>
-          </Panel>
-        </aside>
-      </main>
+          </WorkspacePane>
+        </div>
+      </WorkspaceColumns>
 
       {/* 分诊小票打印弹窗 */}
       {ticketModalOpen && (
@@ -1641,6 +1638,6 @@ export function OutpatientTriageWorkspace({
           onClose={() => setTicketModalOpen(false)}
         />
       )}
-    </div>
+    </>
   )
 }
