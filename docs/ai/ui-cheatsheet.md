@@ -48,6 +48,9 @@
 | 输入框旁的按钮（查询、添加、重置） | `Button`，**不写 `size`**，与输入框同高 | `size="sm"`（会比输入框矮，门禁 `control-size-mismatch` 会拦截）；业务 CSS 里给输入框或按钮另设高度（门禁 `control-height-override` 会拦截） |
 | 标题栏、表格行内的操作 | `Button size="sm"` | 在标题栏/表格行里用默认大小撑高行 |
 | 紧凑工具栏里的搜索框 + 按钮（如候诊栏） | `SearchField size="sm"` + `Button size="sm"`（成对，同为 32px）；清空要联动页面状态时用 `onClear` | 只把按钮改 sm、输入框保持默认高度 |
+| 页面/工作区主切换（一级） | `Tabs variant="workspace"`，每页一组，紧贴页头下方 | 在面板里再放 workspace；自写 `role="tab"` |
+| 面板/详情内分区（二级） | `Tabs`（默认 `line`），放在所属面板内 | 与一级页签并排；嵌套第三层页签 |
+| 只改变筛选值的单选组（时间范围、视图模式） | `SegmentedControl`（2–5 项） | `button` + `aria-pressed` 自拼样式；用 `Tabs` 却不切换内容 |
 | 带数量的紧凑分段页签 | `Tabs variant="segmented"`，数量放进 `meta`（字符串），完成类页签加 `tone: 'success'` | 自写 `role="tab"` 的 button 和数量角标 |
 | 空/加载/失败 | `EmptyState` / `LoadingState` / `Alert` | 自写提示块 |
 | 弹窗、抽屉 | `Dialog`（抽屉 `presentation="drawer"`） | `<dialog>` 或自写遮罩 |

@@ -85,6 +85,45 @@ export function Tabs<T extends string>({
   </div>
 }
 
+/**
+ * 紧凑分段单选组：只改变筛选/显示选项的值，不切换内容区（切换内容区用 Tabs）。
+ * 外观与 Tabs 的 segmented 变体一致，语义是 radiogroup，方向键移动并选中。
+ */
+export function SegmentedControl<T extends string>({ value, items, onChange, label, className = '' }: {
+  value: T
+  items: Array<{ value: T; label: ReactNode; meta?: ReactNode; disabled?: boolean }>
+  onChange: (value: T) => void
+  label: string
+  className?: string
+}) {
+  const refs = useRef<Array<HTMLButtonElement | null>>([])
+  const enabled = items.map((item, index) => ({ item, index })).filter(entry => !entry.item.disabled)
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, current: number) {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) || !enabled.length) return
+    event.preventDefault()
+    const position = Math.max(0, enabled.findIndex(entry => entry.index === current))
+    const target = event.key === 'Home' ? 0 : event.key === 'End' ? enabled.length - 1
+      : (position + (event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1) + enabled.length) % enabled.length
+    onChange(enabled[target].item.value)
+    refs.current[enabled[target].index]?.focus()
+  }
+
+  return <div className={`ui-tabs ui-tabs--segmented ${className}`.trim()} role="radiogroup" aria-label={label}>
+    <div className="ui-tabs__items">
+      {items.map((item, index) => {
+        const selected = item.value === value
+        return <button key={item.value} type="button" role="radio" aria-checked={selected} disabled={item.disabled}
+          tabIndex={selected ? 0 : -1} ref={node => { refs.current[index] = node }}
+          className={`ui-tabs__tab ${selected ? 'is-active' : ''}`}
+          onKeyDown={event => handleKeyDown(event, index)} onClick={() => onChange(item.value)}>
+          <strong>{item.label}</strong>{item.meta && <small>{item.meta}</small>}
+        </button>
+      })}
+    </div>
+  </div>
+}
+
 export type StatChipItem = {
   label: ReactNode
   value: ReactNode

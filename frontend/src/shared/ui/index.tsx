@@ -59,6 +59,7 @@ export {
 export {
   DataTable,
   SearchField,
+  SegmentedControl,
   SplitWorkspace,
   DescriptionList,
   type DescriptionItem,
