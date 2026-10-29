@@ -224,7 +224,7 @@ export function DiagnosisPanel({ encounterId, api, diagnoses, setDiagnoses, edit
               }}>
               <span className="doctor-diag-col-type">
                 <div className="doctor-diag-composer-domain">
-                  <Select aria-label="诊断类型" value={diagnosisDomainFilter} clearable={false} searchable={false}
+                  <Select size="sm" aria-label="诊断类型" value={diagnosisDomainFilter} clearable={false} searchable={false}
                     disabled={signed}
                     placeholder="全部类型"
                     options={[

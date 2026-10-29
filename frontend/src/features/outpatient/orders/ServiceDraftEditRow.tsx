@@ -72,7 +72,7 @@ export function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, encount
           onKeyDown={(event) => continueDraftOnEnter(event, `draft-service-note-${value.id}`)} /><small>{value.unitCode || '项'}</small></div>
       </div>
       <div className="doctor-inline-order-field doctor-inline-order-dept">
-        <Select aria-label="编辑执行科室" value={departmentId} onChange={setDepartmentId}
+        <Select size="sm" aria-label="编辑执行科室" value={departmentId} onChange={setDepartmentId}
           disabled={departments.isPending || departments.isError}
           placeholder={departments.isPending ? '加载科室…' : '请选择执行科室'}
           options={(departments.data || []).map(department => ({ value: department.id, label: department.name }))} />

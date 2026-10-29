@@ -214,6 +214,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
             {(executionType === 'INFUSION' || Boolean(administrationGroupKey)) && (
               <div className="doctor-draft-group-selector">
                 <Select
+                  size="sm"
                   id={`draft-group-${value.id}`}
                   aria-label="编辑输液分组"
                   value={administrationGroupKey || ''}
@@ -261,6 +262,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
           </div>
           <div className="doctor-inline-order-field doctor-inline-order-route">
             <Select
+              size="sm"
               id={`draft-route-${value.id}`}
               aria-label="编辑给药途径"
               value={routeCode}
@@ -279,6 +281,7 @@ export function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, 
           </div>
           <div className="doctor-inline-order-field doctor-inline-order-frequency">
             <Select
+              size="sm"
               id={`draft-frequency-${value.id}`}
               aria-label="编辑频次"
               value={frequencyCode}

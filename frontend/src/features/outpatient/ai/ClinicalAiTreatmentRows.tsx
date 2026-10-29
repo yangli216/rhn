@@ -220,11 +220,11 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
                   : <small>{details.doseUnit}</small>}</div>
             </div>
             <div className="doctor-inline-order-field doctor-inline-order-route">
-              <Select aria-label="途径" value={details.routeCode ?? ''} disabled={disabled} showValue placeholder="途径"
+              <Select size="sm" aria-label="途径" value={details.routeCode ?? ''} disabled={disabled} showValue placeholder="途径"
                 options={routeOptions} onChange={(routeCode) => change({ routeCode })} />
             </div>
             <div className="doctor-inline-order-field doctor-inline-order-frequency">
-              <Select aria-label="频次" value={details.frequencyCode ?? ''} disabled={disabled} showValue placeholder="频次"
+              <Select size="sm" aria-label="频次" value={details.frequencyCode ?? ''} disabled={disabled} showValue placeholder="频次"
                 options={frequencyOptions} onChange={(frequencyCode) => change({ frequencyCode })} />
             </div>
             <div className="doctor-inline-order-field doctor-inline-order-duration" title="天数，可不填">
@@ -238,7 +238,7 @@ export function ClinicalAiTreatmentRows({ items, api, encounter, disabled, onRev
           {medication ? <div className="doctor-inline-order-static doctor-inline-order-dept doctor-ai-order-dept-text">
             {resolved?.stockSiteName || '发药药房待确认'}</div>
             : <div className="doctor-inline-order-field doctor-inline-order-dept">
-              <Select aria-label="执行科室" value={details.performerDepartmentId || ''}
+              <Select size="sm" aria-label="执行科室" value={details.performerDepartmentId || ''}
                 disabled={disabled || departments.isPending || departments.isError}
                 placeholder={departments.isPending ? '加载科室…' : '执行科室'}
                 options={(departments.data || []).map(value => ({ value: value.id, label: value.name }))}

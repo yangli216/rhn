@@ -40,7 +40,7 @@ export function OrderComposerResource({
   return <>
     <div className="doctor-inline-order-field doctor-inline-order-type">
       <div className="doctor-composer-type-wrap">
-        <Select disabled={disabled} id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
+        <Select size="sm" disabled={disabled} id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
           options={[
             { value: 'ALL', label: '全部' },
             { value: 'WESTERN', label: '西药' },

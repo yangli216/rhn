@@ -58,7 +58,7 @@ const exemptionReasons = ['周期内已有阴性结果（有效时间内）', '�
 
 export function SkinTestExemptionReasonSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const reasons = value && !exemptionReasons.includes(value) ? [value, ...exemptionReasons] : exemptionReasons
-  return <Select aria-label="免试原因" placeholder="请选择免试原因" value={value}
+  return <Select size="sm" aria-label="免试原因" placeholder="请选择免试原因" value={value}
     options={reasons.map((reason) => ({ value: reason, label: reason }))}
     searchable={false} clearable={false} onChange={onChange} />
 }

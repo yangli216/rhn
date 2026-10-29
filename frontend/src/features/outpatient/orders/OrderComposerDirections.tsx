@@ -83,7 +83,7 @@ export function OrderComposerDirections({
           </div>
 
           <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="给药途径">
-            <Select id="doctor-unified-route" aria-label="给药途径" value={medicationEntry.routeCode}
+            <Select size="sm" id="doctor-unified-route" aria-label="给药途径" value={medicationEntry.routeCode}
               disabled={!hasEnteredOrder}
               onChange={updateRoute}
               openOnFocus
@@ -93,7 +93,7 @@ export function OrderComposerDirections({
           </div>
 
           <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="执行频次">
-            <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
+            <Select size="sm" id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
               disabled={!hasEnteredOrder}
               onChange={(value) => updateMedication('frequencyCode', value)}
               openOnFocus
