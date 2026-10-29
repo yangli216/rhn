@@ -606,10 +606,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.waiting-card-container > .ui-empty-state {
-  border: none;
-}
-
 /* 患者表格：表头固定，操作列固定在右侧，滚动只发生在表格内部 */
 .waiting-table {
   width: 100%;
@@ -618,7 +614,7 @@
   min-width: 64rem;
   /* 字号遵循《用户界面设计与开发规范》4.2：表格内容 table，时间与状态等辅助信息 small */
   font-size: var(--font-size-table);
-  line-height: 1.6;
+  line-height: var(--line-height-body);
 }
 
 .waiting-table .patient-name,
@@ -639,7 +635,7 @@
 .waiting-table th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-sticky);
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface-subtle);
   border-bottom: 1px solid var(--color-border);
@@ -684,7 +680,7 @@
 }
 
 .waiting-row.has-critical-vitals td:first-child {
-  box-shadow: inset 4px 0 0 var(--color-danger);
+  box-shadow: inset var(--space-1) 0 0 var(--color-danger);
 }
 
 /* 排队号：号码与序号上下居中，作为每行的视觉锚点 */
@@ -765,13 +761,13 @@
 .waiting-table__actions-col {
   position: sticky;
   right: 0;
-  z-index: 1;
+  z-index: var(--z-content);
   white-space: nowrap;
   text-align: right;
 }
 
 .waiting-table th.waiting-table__actions-col {
-  z-index: 3;
+  z-index: calc(var(--z-sticky) + 1);
   text-align: right;
 }
 

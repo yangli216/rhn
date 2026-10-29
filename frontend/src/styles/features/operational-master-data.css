@@ -1517,7 +1517,7 @@
 /* 表单分组统一规范：竖条标题 + 紧随说明 + 右侧可选操作 */
 .master-data-form-section > header { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-3); min-height: 1.75rem; }
 .master-data-form-section > header h3 {
-  margin: 0; padding-left: var(--space-2); border-left: 3px solid var(--color-brand-primary); line-height: 1.125rem;
+  margin: 0; padding-left: var(--space-2); border-left: 3px solid var(--color-brand-primary); line-height: var(--line-height-h1);
   color: var(--color-text-primary); font-size: var(--font-size-body); font-weight: var(--font-weight-bold); white-space: nowrap;
 }
 .master-data-form-section > header p { flex: 1; min-width: 0; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: left; }
@@ -3199,7 +3199,7 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .alias-tag-editor__tag {
   display: inline-flex; align-items: center; gap: calc(var(--space-1) * 0.5);
   padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border); font-size: var(--font-size-small); line-height: 1.5rem;
+  border: 1px solid var(--color-border); font-size: var(--font-size-small); line-height: var(--line-height-small); min-height: 1.625rem;
 }
 .alias-tag-editor__tag button { min-height: 0; padding: 0 var(--space-1); }
 .alias-tag-editor > input {

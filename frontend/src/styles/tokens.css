@@ -129,6 +129,7 @@
   --shadow-modal: 0 20px 50px -8px rgba(15, 23, 42, 0.22), 0 0 1px rgba(15, 23, 42, 0.08);
   --shadow-focus: 0 0 0 2px var(--color-focus-ring);
   --shadow-selection-marker: inset 3px 0 0 var(--color-brand-primary);
+  --shadow-divider-bottom: inset 0 -1px 0 var(--color-border);
   --shadow-inset: inset 0 1px 2px color-mix(in srgb, var(--color-shadow-ink) 8%, transparent);
 
   --control-height-sm: 2rem;

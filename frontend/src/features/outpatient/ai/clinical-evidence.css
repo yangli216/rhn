@@ -707,57 +707,57 @@
 }
 
 .medical-insert-callout-caution {
-  border-left-color: #ef4444;
-  background: #fef2f2;
-  color: #7f1d1d;
+  border-left-color: var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
 }
 
 .medical-insert-callout-caution h4,
 .medical-insert-callout-caution strong {
-  color: #991b1b;
+  color: var(--color-danger-strong);
 }
 
 .medical-insert-callout-warning {
-  border-left-color: #f59e0b;
-  background: #fffbeb;
-  color: #78350f;
+  border-left-color: var(--color-warning);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-strong);
 }
 
 .medical-insert-callout-warning h4,
 .medical-insert-callout-warning strong {
-  color: #92400e;
+  color: var(--color-warning-strong);
 }
 
 .medical-insert-callout-note,
 .medical-insert-callout-info {
-  border-left-color: #3b82f6;
-  background: #eff6ff;
-  color: #1e3a8a;
+  border-left-color: var(--color-info);
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
 }
 
 .medical-insert-callout-note h4,
 .medical-insert-callout-note strong {
-  color: #1d4ed8;
+  color: var(--color-info-strong);
 }
 
 .medical-insert-callout-tip {
-  border-left-color: #10b981;
-  background: #f0fdf4;
-  color: #064e3b;
+  border-left-color: var(--color-success);
+  background: var(--color-success-soft);
+  color: var(--color-success-strong);
 }
 
 .medical-insert-callout-tip h4,
 .medical-insert-callout-tip strong {
-  color: #047857;
+  color: var(--color-success-strong);
 }
 
 .medical-insert-callout-important {
-  border-left-color: #8b5cf6;
-  background: #f5f3ff;
-  color: #4c1d95;
+  border-left-color: var(--color-violet);
+  background: var(--color-violet-soft);
+  color: var(--color-violet-strong);
 }
 
 .medical-insert-callout-important h4,
 .medical-insert-callout-important strong {
-  color: #6d28d9;
+  color: var(--color-violet-strong);
 }
