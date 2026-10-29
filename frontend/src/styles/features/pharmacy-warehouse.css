@@ -197,12 +197,6 @@
 .warehouse-period__heading h3 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
 .warehouse-period__heading p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .warehouse-period__heading > div:last-child { display: flex; align-items: center; gap: var(--space-2); }
-.warehouse-period__metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); overflow: hidden; }
-.warehouse-period__metrics > div { min-width: 0; min-height: 6.25rem; padding: var(--space-3); display: grid; align-content: center; gap: var(--space-1); border-right: 1px solid var(--color-border); }
-.warehouse-period__metrics > div:last-child { border-right: 0; }
-.warehouse-period__metrics span, .warehouse-period__metrics small { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
-.warehouse-period__metrics strong { overflow: hidden; font-size: var(--font-size-h3); text-overflow: ellipsis; white-space: nowrap; }
-.warehouse-period__metrics .is-warning strong { color: var(--color-danger); }
 .warehouse-period__formula { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .warehouse-period__formula span { display: grid; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
 .warehouse-period__formula strong { color: var(--color-text-primary); font-size: var(--font-size-small); }
@@ -223,12 +217,6 @@
 .warehouse-price__heading h3 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
 .warehouse-price__heading p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .warehouse-price__heading > div:last-child { display: flex; align-items: center; gap: var(--space-2); }
-.warehouse-price__metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
-.warehouse-price__metrics > div { min-height: 5.5rem; padding: var(--space-3) var(--space-4); display: grid; align-content: center; gap: var(--space-1); border-right: 1px solid var(--color-border); }
-.warehouse-price__metrics > div:last-child { border-right: 0; }
-.warehouse-price__metrics span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.warehouse-price__metrics strong { overflow: hidden; font-size: var(--font-size-h3); text-overflow: ellipsis; white-space: nowrap; }
-.warehouse-price__metrics .is-emphatic strong { color: var(--color-brand-primary); }
 .warehouse-price__lines { margin-top: var(--space-3); overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .warehouse-price__lines table { min-width: 64rem; }
 .warehouse-price-form { display: grid; gap: var(--space-4); }
@@ -254,13 +242,7 @@
   .warehouse-ledger-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .warehouse-accuracy__grid { grid-template-columns: 1fr; }
   .warehouse-period__workspace { grid-template-columns: 13rem minmax(0, 1fr); }
-  .warehouse-period__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .warehouse-period__metrics > div:nth-child(3) { border-right: 0; }
-  .warehouse-period__metrics > div:nth-child(-n+3) { border-bottom: 1px solid var(--color-border); }
   .warehouse-price__workspace { grid-template-columns: 15rem minmax(0, 1fr); }
-  .warehouse-price__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .warehouse-price__metrics > div:nth-child(2) { border-right: 0; }
-  .warehouse-price__metrics > div:nth-child(-n+2) { border-bottom: 1px solid var(--color-border); }
   .warehouse-price-form__meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

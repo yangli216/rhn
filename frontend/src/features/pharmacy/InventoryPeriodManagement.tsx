@@ -6,7 +6,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import { inventoryPeriodClosePresentation } from '../../shared/presentation'
 import { inventoryKnownTotal, knownInventoryNumber } from './inventoryLedgerTruth'
 import { requireCloseDifferences, requireCloseRun, requireCloseRuns, requirePeriods } from './periodCloseTruth'
-import { Alert, Button, Dialog, EmptyState, ListItemButton, LoadingState, PanelHead, SelectableList, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, ListItemButton, LoadingState, MetricStrip, PanelHead, SelectableList, StatusBadge } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatNumber } from '../../shared/utils/precision'
 import { formatDateKey } from '../../shared/utils/dateRange'
@@ -115,16 +115,15 @@ export function InventoryPeriodManagement({ api, siteId, items, bins }: {
             ? <EmptyState icon="pharmacy" title="本期尚未执行月结预检"
               copy="预检会锁定一份只读快照，核对每个药品、批次、库位的数量和成本，但不会立即关账。" />
             : <>
-              <div className="warehouse-period__metrics">
-                <Metric label="期初成本" value={money(total?.openingValue, total?.currencyCode)} note={total?.currencyCode ?? '币种未取得'} />
-                <Metric label="本期业务变动" value={signedMoney(total?.movementAmount, total?.currencyCode)} note="入库、出库及盘点" />
-                <Metric label="调价与尾差" value={signedMoney(adjustment, total?.currencyCode)}
-                  note="独立价值调整" />
-                <Metric label="计算期末" value={money(total?.closingValue, total?.currencyCode)} note="期间账面结果" />
-                <Metric label="实时库存" value={money(total?.balanceValue, total?.currencyCode)} note="余额 × 平均成本" />
-                <Metric label="账面差异" value={signedMoney(total?.valueDifference, total?.currencyCode)} note={`${selectedRun.differenceCount} 个异常维度`}
-                  warning={selectedRun.differenceCount > 0} />
-              </div>
+              <MetricStrip items={[
+                { label: '期初成本', value: money(total?.openingValue, total?.currencyCode), note: total?.currencyCode ?? '币种未取得' },
+                { label: '本期业务变动', value: signedMoney(total?.movementAmount, total?.currencyCode), note: '入库、出库及盘点' },
+                { label: '调价与尾差', value: signedMoney(adjustment, total?.currencyCode), note: '独立价值调整' },
+                { label: '计算期末', value: money(total?.closingValue, total?.currencyCode), note: '期间账面结果' },
+                { label: '实时库存', value: money(total?.balanceValue, total?.currencyCode), note: '余额 × 平均成本' },
+                { label: '账面差异', value: signedMoney(total?.valueDifference, total?.currencyCode), note: `${selectedRun.differenceCount} 个异常维度`,
+                  tone: selectedRun.differenceCount > 0 ? 'warning' : undefined },
+              ]} />
               <div className="warehouse-period__formula" aria-label="月结勾稽关系">
                 <span>期初 <strong>{money(total?.openingValue, total?.currencyCode)}</strong></span><b>+</b>
                 <span>业务变动 <strong>{signedMoney(total?.movementAmount, total?.currencyCode)}</strong></span><b>+</b>
@@ -159,10 +158,6 @@ function PeriodHeading({ period, run, canPost, busy, onPost }: {
     <div>{run && <StatusBadge tone={inventoryPeriodClosePresentation(run.status).tone}>
       {inventoryPeriodClosePresentation(run.status).label}</StatusBadge>}
       <Button size="sm" disabled={!canPost} busy={busy} onClick={onPost}>正式月结</Button></div></header>
-}
-
-function Metric({ label, value, note, warning = false }: { label: string; value: string; note: string; warning?: boolean }) {
-  return <div className={warning ? 'is-warning' : ''}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
 }
 
 function RunHistory({ runs, selectedId, onSelect }: { runs: PeriodCloseRun[]; selectedId: string; onSelect: (id: string) => void }) {

@@ -1,5 +1,5 @@
 import { useFontSizePreference } from '../shared/preferences/useFontSizePreference'
-import { Button, DescriptionList, EmptyState, PanelHead, ListItemButton, SearchField, SelectableList, StatChips, StatusBadge, Tag } from '../shared/ui'
+import { Button, DescriptionList, EmptyState, PanelHead, ListItemButton, MetricStrip, SearchField, SelectableList, StatChips, StatusBadge, Tag } from '../shared/ui'
 
 /** 从已认可页面抽取的组合组件的展示页（虚构数据），供截图基线使用。 */
 export function ComponentSamples() {
@@ -29,6 +29,15 @@ export function ComponentSamples() {
           <PanelHead title="预检与关账记录" description="每次预检均保留独立快照" actions={<Button size="sm">刷新</Button>} />
         </div>
       </div>
+    </section>
+    <section aria-label="指标条">
+      <h2>指标条</h2>
+      <MetricStrip label="示例汇总" items={[
+        { label: '期初库存', value: '¥128,000.00', note: '上期结转' },
+        { label: '本期业务变动', value: '+¥12,300.00', note: '入库、出库及盘点' },
+        { label: '计算期末', value: '¥140,300.00', note: '期间账面结果' },
+        { label: '账面差异', value: '¥3.00', note: '2 个异常维度', tone: 'warning' },
+      ]} />
     </section>
     <section aria-label="标签">
       <h2>标签</h2>

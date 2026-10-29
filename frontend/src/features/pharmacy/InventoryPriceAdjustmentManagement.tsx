@@ -5,7 +5,7 @@ import type {
 } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, ListItemButton, LoadingState, PanelHead, Select, SelectableList, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, ListItemButton, LoadingState, MetricStrip, PanelHead, Select, SelectableList, StatusBadge } from '../../shared/ui'
 import { inventoryPriceAdjustmentPresentation } from '../../shared/presentation'
 import { inventoryAverageCost, knownInventoryNumber } from './inventoryLedgerTruth'
 import { hasAdjustmentSnapshot, hasAdjustmentTotals, requirePriceAdjustment, requirePriceAdjustments, validAdjustmentTargets } from './priceAdjustmentTruth'
@@ -113,11 +113,12 @@ function AdjustmentDetail({ value, items, bins, busy, onSubmit, onApprove, onPos
         <Button size="sm" busy={busy} onClick={onApprove}>审核通过</Button></>}
       {value.status === 'APPROVED' && <Button size="sm" busy={busy} onClick={onPost}>正式记账</Button>}
     </div></header>
-    <div className="warehouse-price__metrics"><Metric label="调前库存价值" value={hasAdjustmentTotals(value) ? money(value.totalValueBefore, value.currencyCode) : '预检后确认'} />
-      <Metric label="调后库存价值" value={hasAdjustmentTotals(value) ? money(value.totalValueAfter, value.currencyCode) : '预检后确认'} />
-      <Metric label="价值调整" value={hasAdjustmentTotals(value) ? signedMoney(value.totalAdjustmentAmount, value.currencyCode) : '预检后确认'} emphatic />
-      <Metric label="影响范围" value={`${value.lineCount} 个经营项目`} />
-    </div>
+    <MetricStrip items={[
+      { label: '调前库存价值', value: hasAdjustmentTotals(value) ? money(value.totalValueBefore, value.currencyCode) : '预检后确认' },
+      { label: '调后库存价值', value: hasAdjustmentTotals(value) ? money(value.totalValueAfter, value.currencyCode) : '预检后确认' },
+      { label: '价值调整', value: hasAdjustmentTotals(value) ? signedMoney(value.totalAdjustmentAmount, value.currencyCode) : '预检后确认' },
+      { label: '影响范围', value: `${value.lineCount} 个经营项目` },
+    ]} />
     <section className="warehouse-price__lines"><PanelHead level="section" title="调价明细" meta="数量统一按基本单位展示" />
       <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>经营项目</th><th>现存数量</th>
         <th>调前价格</th><th>调后价格</th><th>调前价值</th><th>调后价值</th><th>调整金额</th><th>批次 / 库位</th></tr></thead>
@@ -204,9 +205,6 @@ function CreateAdjustmentDialog({ items, balances, siteId, busy, error, onClose,
   </Dialog>
 }
 
-function Metric({ label, value, emphatic = false }: { label: string; value: string; emphatic?: boolean }) {
-  return <div className={emphatic ? 'is-emphatic' : ''}><span>{label}</span><strong>{value}</strong></div>
-}
 function itemBalance(itemId: string, balances: InventoryBalance[]) {
   const rows = balances.filter(value => value.stockItemId === itemId && value.quantityOnHand > 0)
   const quantityValue = rows.reduce((sum, value) => sum + value.quantityOnHand, 0)
