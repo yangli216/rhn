@@ -8,31 +8,7 @@
   background: var(--color-background);
 }
 
-/* 顶部紧凑标题与指标胶囊 */
-.standard-medication__header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-.standard-medication__title-group {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-1) * 0.5);
-}
-.standard-medication__title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.standard-medication__title-row h2 {
-  margin: 0;
-  font-size: var(--font-size-h3);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  line-height: var(--line-height-body);
-}
+/* 指标胶囊 */
 .standard-medication__version-tag {
   display: inline-flex;
   align-items: center;
@@ -43,13 +19,8 @@
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
 }
-.standard-medication__subtitle {
-  margin: 0;
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-body);
-}
 .standard-medication__stats-bar {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -78,6 +49,12 @@
 }
 
 /* 工具栏与来源说明 */
+.standard-medication__query-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
 .standard-medication__toolbar-row {
   display: flex;
   flex-direction: column;

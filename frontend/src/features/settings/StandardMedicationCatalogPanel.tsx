@@ -180,73 +180,72 @@ export function StandardMedicationCatalogPanel({ api, organizationId, onSetup, s
         setInitialPdfLocation(detail.data?.pdfLocations?.[0]?.location)
         setPdfOpen(true)
       }} />}
-    <div className="standard-medication__header">
-      <div className="standard-medication__stats-bar">
-        <span className="standard-medication__version-tag">版本 {summary.data?.catalogVersion ?? '—'}</span>
-        {[
-          ['目录条目', stats?.entries],
-          ['独立剂型规格', stats?.specifications],
-          ['范围条目', stats?.scopeEntries],
-          ['待核验项', stats?.issues],
-        ].map(([label, value]) => (
-          <div key={label} className="standard-medication__stat-pill">
-            <span className="stat-label">{label}</span>
-            <strong className="stat-value">{value ?? '—'}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-
     <div className="standard-medication__toolbar-row">
-      <form
-        className="ui-query-filters"
-        onSubmit={(e) => {
-          e.preventDefault()
-          handleSearch()
-        }}
-      >
-        <SearchField
-          label="搜索标准药品"
-          value={inputQuery}
-          onChange={setInputQuery}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              handleSearch()
-            }
+      <div className="standard-medication__query-row">
+        <form
+          className="ui-query-filters"
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSearch()
           }}
-          placeholder="通用名、英文名、拼音、分类或规格（回车或点击查询）"
-        />
-        <Select
-          value={type}
-          onChange={(val) => {
-            setType(val)
-            setPage(0)
-          }}
-          placeholder="全部类型"
-          options={[
-            { value: 'WESTERN', label: '化学药品和生物制品' },
-            { value: 'CHINESE_PATENT', label: '中成药' },
-          ]}
-        />
-        <Select
-          value={state}
-          onChange={(val) => {
-            setState(val)
-            setPage(0)
-          }}
-          placeholder="全部条目"
-          options={[
-            { value: 'STRUCTURED', label: '已有独立规格' },
-            { value: 'REVIEW', label: '有待核验项' },
-            { value: 'SCOPE', label: '范围条目' },
-          ]}
-        />
-        <div className="ui-query-filters__actions">
-          <Button variant="primary" type="submit" aria-label="查询标准药品">查询</Button>
-          <Button variant="secondary" type="button" onClick={handleReset} aria-label="重置查询">重置</Button>
+        >
+          <SearchField
+            label="搜索标准药品"
+            value={inputQuery}
+            onChange={setInputQuery}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleSearch()
+              }
+            }}
+            placeholder="通用名、英文名、拼音、分类或规格（回车或点击查询）"
+          />
+          <Select
+            value={type}
+            onChange={(val) => {
+              setType(val)
+              setPage(0)
+            }}
+            placeholder="全部类型"
+            options={[
+              { value: 'WESTERN', label: '化学药品和生物制品' },
+              { value: 'CHINESE_PATENT', label: '中成药' },
+            ]}
+          />
+          <Select
+            value={state}
+            onChange={(val) => {
+              setState(val)
+              setPage(0)
+            }}
+            placeholder="全部条目"
+            options={[
+              { value: 'STRUCTURED', label: '已有独立规格' },
+              { value: 'REVIEW', label: '有待核验项' },
+              { value: 'SCOPE', label: '范围条目' },
+            ]}
+          />
+          <div className="ui-query-filters__actions">
+            <Button variant="primary" type="submit" aria-label="查询标准药品">查询</Button>
+            <Button variant="secondary" type="button" onClick={handleReset} aria-label="重置查询">重置</Button>
+          </div>
+        </form>
+    <div className="standard-medication__stats-bar">
+      <span className="standard-medication__version-tag">版本 {summary.data?.catalogVersion ?? '—'}</span>
+      {[
+        ['目录条目', stats?.entries],
+        ['独立剂型规格', stats?.specifications],
+        ['范围条目', stats?.scopeEntries],
+        ['待核验项', stats?.issues],
+      ].map(([label, value]) => (
+        <div key={label} className="standard-medication__stat-pill">
+          <span className="stat-label">{label}</span>
+          <strong className="stat-value">{value ?? '—'}</strong>
         </div>
-      </form>
+      ))}
+    </div>
+      </div>
       <p className="standard-medication__notice" role="note">
         来源：{summary.data?.source.title ?? '用户提供目录'}。
         已通过目录准入核对；具体规格及临床知识仍须分别核对。{summary.data?.source.publicationNumber && <>官方发布信息：{summary.data.source.publicationNumber}，{summary.data.source.effectiveFrom} 施行。<a href={summary.data.source.officialUrl} target="_blank" rel="noreferrer">查看官方通知</a>。</>}
