@@ -61,6 +61,7 @@ export {
   SearchField,
   SegmentedControl,
   SplitWorkspace,
+  ChoiceChip,
   DescriptionList,
   type DescriptionItem,
   ListItemButton,

@@ -1,5 +1,5 @@
 import { useFontSizePreference } from '../shared/preferences/useFontSizePreference'
-import { Button, DescriptionList, EmptyState, PanelHead, ListItemButton, MetricStrip, SearchField, SelectableList, StatChips, StatusBadge, Tag } from '../shared/ui'
+import { Button, ChoiceChip, DescriptionList, EmptyState, PanelHead, ListItemButton, MetricStrip, SearchField, SelectableList, StatChips, StatusBadge, Tag } from '../shared/ui'
 
 /** 从已认可页面抽取的组合组件的展示页（虚构数据），供截图基线使用。 */
 export function ComponentSamples() {
@@ -14,6 +14,9 @@ export function ComponentSamples() {
           { label: '品种', value: 128 },
           { label: '批次', value: 342, note: '（临期 6）', warn: true },
           { label: '本期记账', value: 57 },
+        ]} />
+        <StatChips items={[
+          { label: 'I级 濒危', value: 2, tone: 'danger' }, { label: '发热预警', value: 5, tone: 'warning' }, { label: '绿色通道', value: 1, tone: 'success' },
         ]} />
       </div>
     </section>
@@ -44,6 +47,13 @@ export function ComponentSamples() {
       <div className="component-samples__row">
         <Tag>标准品种</Tag><Tag tone="brand">冷链</Tag><Tag tone="info">采购单</Tag><Tag tone="success">验收单</Tag>
         <Tag tone="warning">高警示</Tag><Tag tone="danger">受控</Tag><Tag mono>B20260101</Tag><Tag tone="brand" mono>I10.x00</Tag>
+      </div>
+    </section>
+    <section aria-label="选择胶囊">
+      <h2>选择胶囊</h2>
+      <div className="component-samples__row">
+        <ChoiceChip selected onToggle={() => undefined}>发热/发烧</ChoiceChip><ChoiceChip selected={false} onToggle={() => undefined}>咳嗽咳痰</ChoiceChip>
+        <ChoiceChip selected={false} onToggle={() => undefined}>胸闷胸痛</ChoiceChip><ChoiceChip selected={false} disabled onToggle={() => undefined}>不可选</ChoiceChip>
       </div>
     </section>
     <section aria-label="字段网格">

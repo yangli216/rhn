@@ -124,6 +124,19 @@ export function SegmentedControl<T extends string>({ value, items, onChange, lab
   </div>
 }
 
+/** 可开关的选择胶囊（症状标签、绿色通道等多选/单选项）；选中态为品牌描边与浅底，aria-pressed 表达状态。 */
+export function ChoiceChip({ selected, onToggle, disabled, icon, children }: {
+  selected: boolean
+  onToggle: () => void
+  disabled?: boolean
+  icon?: ReactNode
+  children: ReactNode
+}) {
+  return <button type="button" className={`ui-choice-chip ${selected ? 'is-selected' : ''}`.trim()} aria-pressed={selected} disabled={disabled} onClick={onToggle}>
+    {icon}{children}
+  </button>
+}
+
 export type StatChipItem = {
   label: ReactNode
   value: ReactNode
@@ -131,12 +144,14 @@ export type StatChipItem = {
   note?: ReactNode
   /** 说明需要引起注意（如临期、需核查）时用警示色。 */
   warn?: boolean
+  /** 整个胶囊的语义色（如分诊的危急/危重/急症），默认中性。 */
+  tone?: 'danger' | 'warning' | 'info' | 'success'
 }
 
 /** 一行“标签 + 数值”的统计胶囊，用于筛选栏/标题栏右侧的汇总；高度与同行 sm 控件一致。 */
 export function StatChips({ items, className = '' }: { items: StatChipItem[]; className?: string }) {
   return <div className={`ui-stat-chips ${className}`.trim()}>
-    {items.map((item, index) => <span className="ui-stat-chip" key={index}>
+    {items.map((item, index) => <span className={`ui-stat-chip ${item.tone ? `ui-stat-chip--${item.tone}` : ''}`.trim()} key={index}>
       {item.label} <strong>{item.value}</strong>
       {item.note !== undefined && item.note !== null && item.note !== false && <small className={item.warn ? 'ui-stat-chip__warn' : undefined}>{item.note}</small>}
     </span>)}

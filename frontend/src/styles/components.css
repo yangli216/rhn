@@ -262,6 +262,15 @@
 .ui-description-list--plain { gap: var(--space-3) var(--space-4); }
 .ui-stat-chips { display: flex; align-items: center; gap: var(--space-2); flex: none; }
 .ui-stat-chip { height: var(--control-height-sm); display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.ui-stat-chip--danger { color: var(--color-danger-strong); border-color: var(--color-danger-border); background: var(--color-danger-soft); }
+.ui-stat-chip--warning { color: var(--color-warning-strong); border-color: var(--color-warning-border); background: var(--color-warning-soft); }
+.ui-stat-chip--info { color: var(--color-info-strong); border-color: var(--color-info-border); background: var(--color-info-soft); }
+.ui-stat-chip--success { color: var(--color-success-strong); border-color: var(--color-success-border); background: var(--color-success-soft); }
+.ui-stat-chip--danger strong, .ui-stat-chip--warning strong, .ui-stat-chip--info strong, .ui-stat-chip--success strong { color: inherit; }
+.ui-choice-chip { min-height: calc(var(--control-height-sm) - var(--space-1)); padding: 0 var(--space-2); display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-primary); font-size: var(--font-size-small); cursor: pointer; white-space: nowrap; transition: border-color var(--motion-fast), background-color var(--motion-fast); }
+.ui-choice-chip:hover:not(:disabled) { border-color: var(--color-brand-primary); background: var(--color-surface-subtle); }
+.ui-choice-chip.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-semibold); }
+.ui-choice-chip:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
 .ui-stat-chip strong { color: var(--color-brand-primary); font-weight: var(--font-weight-bold); }
 .ui-stat-chip__warn { color: var(--color-warning); font-weight: var(--font-weight-medium); }
 .ui-search-field--sm { height: var(--control-height-sm); padding: 0 var(--space-2); gap: var(--space-1); }

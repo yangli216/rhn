@@ -22,11 +22,12 @@
 | `EditableTable` / `EditableRow` / `EditableCell` | 连续行录入列表 | 聚焦行进入编辑、离开行恢复阅读、统一控件尺寸、回车跳格及末格追加行 |
 | `DatePicker` | 日期和药品效期录入 | 聚焦展开、失焦收起、日期格式化、效期快捷选项及不受表格裁剪的日历浮层 |
 | `Pagination` | 长列表分页 | 上一页、下一页、页码播报和边界禁用状态 |
-| `StatChips` | 统计胶囊行 | 筛选栏/标题栏右侧的“标签 + 数值”汇总；`items=[{label,value,note?,warn?}]`，高度与 sm 控件一致，不要再写 `*-metric-chip` |
+| `StatChips` | 统计胶囊行 | 筛选栏/标题栏右侧的“标签 + 数值”汇总；`items=[{label,value,note?,warn?,tone?}]`（`tone` 给整个胶囊语义色，如分诊级别计数），高度与 sm 控件一致，不要再写 `*-metric-chip` |
 | `Tag` | 方角分类标签 | 类型/编码/来源，`tone` 与 `mono`；状态用 StatusBadge。不要再写 `*-chip/-pill/-tag` 业务类 |
 | `DescriptionList` | 字段网格 | `items=[{label,value,span?}]`，`bordered` 详情卡/`plain` 行内信息，空值显示“—”；不要再手写 `<dl>` 样式 |
 | `SelectableList` / `ListItemButton` | 可选中的两行目录条目 | 单据/期间/规则目录；标题 + 徽标，次要信息 + 金额；选中为品牌描边与左侧标记，方向键移动焦点。不要再手写 `*-card.is-selected` |
 | `MetricStrip` | 合并格线指标条 | 面板顶部并列的“标签/数值/说明”汇总，`items=[{label,value,note?,tone?}]`；不要再写本地 `Metric` 组件和 `*__metrics` 网格 |
+| `ChoiceChip` | 可开关的选择胶囊 | 症状标签、绿色通道等多选/单选项；`selected` + `onToggle`，aria-pressed。圆角 sm、高度略低于 sm 控件；不要再写 `*-chip--active` |
 | `FormField` | 表单字段 | 标签绑定、错误关联、提示和统一控件样式；`size="sm"` 用于紧凑工具栏/行内编辑，与同行 sm 按钮、下拉同高 |
 | `Select` | 通用下拉选择 | 单选、多选、名称/值/拼音首字母检索、清空、键盘操作、表单提交 |
 | `DictionarySelect` | 字典下拉选择 | 按字典编码或 ID 加载启用项、名称/编码/拼音检索、编码展示、缓存及单选/多选 |
