@@ -12,7 +12,7 @@
 .print-pane-heading span { font-size: 12px; color: var(--color-text-disabled); }
 .print-template-list__scroll, .print-property-scroll { min-height: 0; overflow: auto; }
 .print-template-list__scroll section { padding: 10px var(--space-2) 2px; }
-.print-template-list__scroll h2 { margin: 0 6px 6px; font-size: 12px; font-weight: 700; color: var(--color-text-disabled); }
+.print-template-list__scroll h2 { margin: 0 6px 6px; font-size: 12px; font-weight: var(--font-weight-bold); color: var(--color-text-disabled); }
 .print-template-row { width: 100%; min-height: 54px; padding: var(--space-2); border: 0; border-left: 3px solid transparent; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); text-align: left; cursor: pointer; }
 .print-template-row:hover { background: var(--color-surface-subtle); }
 .print-template-row.is-active { border-left-color: var(--color-brand-primary); background: var(--color-brand-soft); }
@@ -69,14 +69,14 @@
 .print-property-scroll .ui-field { margin-bottom: var(--space-3); }
 .print-property-scroll input, .print-property-scroll select, .print-property-scroll textarea { width: 100%; }
 .print-element-properties { margin: var(--space-4) -2px 0; padding: var(--space-3); border: 1px solid var(--color-border); }
-.print-element-properties legend { padding: 0 6px; font-size: 12px; font-weight: 700; color: var(--color-text-primary); }
+.print-element-properties legend { padding: 0 6px; font-size: 12px; font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .print-coordinate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--space-2); }
 .print-format-switches { min-height: 34px; margin: 2px 0 10px; display: flex; align-items: center; gap: 18px; }
 .print-block-order-actions { margin: 2px 0 var(--space-2); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .print-block-order-actions .ui-button { justify-content: center; }
 .print-delete-element { width: 100%; justify-content: center; margin-top: var(--space-1); }
 .print-advanced-config { margin-top: 14px; border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
-.print-advanced-config summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); }
+.print-advanced-config summary { cursor: pointer; font-size: 12px; font-weight: var(--font-weight-bold); color: var(--color-text-secondary); }
 .print-advanced-config textarea { height: 210px; margin-top: var(--space-2); resize: vertical; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .print-review-actions { position: sticky; bottom: -12px; margin: var(--space-4) -12px -12px; padding: 10px var(--space-3); border-top: 1px solid var(--color-border); background: var(--color-surface); justify-content: flex-end; }
 .print-pdf-preview { width: min(780px, 100%); height: 100%; min-height: 620px; border: 0; background: var(--color-surface); }
@@ -144,7 +144,7 @@
 .print-business-task strong, .print-business-task small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .print-business-task strong { font-size: 13px; color: var(--color-text-primary); }
 .print-business-task small { font-size: 12px; color: var(--color-text-disabled); }
-.print-business-task i, .print-resolution-trace i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: 12px; font-style: normal; font-weight: 700; }
+.print-business-task i, .print-resolution-trace i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: 12px; font-style: normal; font-weight: var(--font-weight-bold); }
 .print-business-resolution__body, .print-business-editor__body { padding: 14px; }
 .print-business-contract { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 14px; border: 1px solid var(--color-border); }
 .print-business-contract > div { min-width: 0; padding: 10px; border-right: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-1); }

@@ -33,7 +33,7 @@
 .sw-header-title h2 {
   margin: 0;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -88,7 +88,7 @@
 .sw-tab-btn {
   padding: 6px 14px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   border-radius: var(--radius-sm);
   border: none;
   background: transparent;
@@ -148,7 +148,7 @@
 
 .sw-group-label {
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   text-transform: uppercase;
   padding: var(--space-1) 6px;
@@ -187,7 +187,7 @@
 
 .sw-node-item-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .sw-node-tag {
@@ -299,7 +299,7 @@
 
 .sw-card-node-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -354,7 +354,7 @@
 .sw-inspector-header h3 {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .sw-inspector-scroll {
@@ -394,7 +394,7 @@
 /* 维度属性与字典展示 */
 .sw-section-subtitle {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   margin: 0 0 10px;
   display: flex;
   align-items: center;
@@ -419,7 +419,7 @@
 
 .sw-attr-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-brand-primary);
 }
 
@@ -448,7 +448,7 @@
 
 .sw-val-key {
   font-family: monospace;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-success);
 }
 

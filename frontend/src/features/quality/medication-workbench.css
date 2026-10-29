@@ -43,7 +43,7 @@
   align-items: center;
   gap: var(--space-1);
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-brand-primary);
   text-decoration: none;
   padding: var(--space-1) var(--space-2);
@@ -86,12 +86,12 @@
 
 .qmed-kpi-label {
   color: var(--color-text-secondary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .qmed-kpi-val {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .qmed-kpi-val.text-accent {
@@ -112,7 +112,7 @@
 .qmed-tag {
   display: inline-block;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   padding: 2px var(--space-2);
   border-radius: 4px;
   line-height: 1.4;
@@ -129,7 +129,7 @@
 .qmed-dec-badge {
   display: inline-block;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   padding: 3px var(--space-2);
   border-radius: 4px;
 }
@@ -229,14 +229,14 @@
 .qmed-rule-ver {
   margin-left: auto;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
 }
 
 .qmed-rule-card-title {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   line-height: 1.4;
 }
@@ -437,7 +437,7 @@
 .qmed-active-rule-cases .qmed-case-header small {
   color: var(--color-text-secondary);
   font-size: 12px;
-  font-weight: 400;
+  font-weight: var(--font-weight-regular);
 }
 
 .qmed-detail-title-group h2 {
@@ -483,7 +483,7 @@
 
 .qmed-param-card .val {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -496,7 +496,7 @@
 
 .qmed-section-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 18px 0 10px;
   display: flex;
@@ -526,7 +526,7 @@
 
 .qmed-evidence-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-info-strong);
 }
 
@@ -634,7 +634,7 @@
   z-index: 10;
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   padding: 10px 14px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -688,7 +688,7 @@
 .qmed-med-select-header h4 {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   display: flex;
   align-items: center;
@@ -780,7 +780,7 @@
 
 .qmed-med-name {
   font-size: var(--font-size-table);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -907,7 +907,7 @@
 
 .qmed-check-item.is-ready {
   color: var(--color-text-primary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .qmed-actions-row {
@@ -934,7 +934,7 @@
 .qmed-pane-subhead h4 {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   display: flex;
   align-items: center;
@@ -994,7 +994,7 @@
 .qmed-hero-content h4 {
   margin: 0 0 var(--space-1);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-brand-primary);
 }
 
@@ -1016,7 +1016,7 @@
 .qmed-hero-scenarios-head h5 {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -1129,7 +1129,7 @@
 .qmed-standards-pipeline h5 {
   margin: 0;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -1151,7 +1151,7 @@
 
 .qmed-pipe-step .step-num {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-brand-primary);
 }
 
@@ -1208,7 +1208,7 @@
 .qmed-sandbox-panel h4 {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   display: flex;
   align-items: center;
@@ -1300,7 +1300,7 @@
   background: var(--color-brand-primary);
   color: var(--color-text-inverse);
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   padding: 2px 6px;
   border-radius: 3px;
   letter-spacing: 0.2px;
@@ -1316,7 +1316,7 @@
 
 .qmed-decision-tag {
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   padding: 2px 6px;
   border-radius: 3px;
 }
@@ -1469,7 +1469,7 @@
 .qmed-rx-table-header h5 {
   margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -1584,7 +1584,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   margin-bottom: 6px;
 }
 
@@ -1595,7 +1595,7 @@
 
 .qmed-case-badge {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   padding: 3px var(--space-2);
   border-radius: 4px;
 }
@@ -1686,7 +1686,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-success-strong);
 }
 
@@ -1774,7 +1774,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .qmed-row-del-btn {
@@ -1855,7 +1855,7 @@
   margin-bottom: var(--space-2);
   color: var(--color-text-primary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .qmed-patient-sim-title .title-left {
