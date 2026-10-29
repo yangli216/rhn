@@ -7,7 +7,7 @@
   background: var(--color-surface);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -17,17 +17,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-subtle);
   flex-shrink: 0;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .sw-header-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .sw-header-title h2 {
@@ -36,12 +36,12 @@
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .sw-badge-asset {
   font-size: var(--font-size-small);
-  padding: 3px 8px;
+  padding: 3px var(--space-2);
   border-radius: 4px;
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
@@ -62,7 +62,7 @@
   align-items: center;
   gap: 5px;
   background: var(--color-surface);
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border-radius: 20px;
   border: 1px solid var(--color-border);
 }
@@ -78,10 +78,10 @@
 
 .sw-header-tabs {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
   background: var(--color-surface);
   padding: 3px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
 }
 
@@ -89,7 +89,7 @@
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
@@ -122,7 +122,7 @@
 }
 
 .sw-search-box {
-  padding: 12px 14px;
+  padding: var(--space-3) 14px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -132,7 +132,7 @@
   padding: 7px 10px;
   font-size: 12px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-subtle);
   color: inherit;
 }
@@ -143,7 +143,7 @@
   padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .sw-group-label {
@@ -151,16 +151,16 @@
   font-weight: 600;
   color: var(--color-text-secondary);
   text-transform: uppercase;
-  padding: 4px 6px;
+  padding: var(--space-1) 6px;
   letter-spacing: 0.5px;
 }
 
 .sw-node-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: var(--space-1);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   cursor: pointer;
@@ -219,7 +219,7 @@
 
 .sw-node-item-counts {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   margin-top: 2px;
@@ -238,7 +238,7 @@
   flex: 1;
   position: relative;
   overflow: auto;
-  padding: 24px;
+  padding: var(--space-6);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -255,7 +255,7 @@
 .sw-topology-grid {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: var(--space-10);
   width: 100%;
   max-width: 900px;
 }
@@ -263,12 +263,12 @@
 .sw-topology-tier {
   display: flex;
   justify-content: space-around;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .sw-card-node {
   width: 220px;
-  padding: 14px 16px;
+  padding: 14px var(--space-4);
   border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -307,7 +307,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-family: monospace;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   word-break: break-all;
 }
 
@@ -324,14 +324,14 @@
 .sw-fanout-banner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: var(--space-2);
+  padding: var(--space-2) 14px;
   background: var(--color-warning-soft);
   border: 1px solid var(--color-warning-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   color: var(--color-warning-strong);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 /* 右侧栏：规则详情与人机共建 Copilot */
@@ -360,7 +360,7 @@
 .sw-inspector-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 18px;
+  padding: var(--space-4) 18px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -369,11 +369,11 @@
 .sw-meta-card {
   padding: 14px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-surface-subtle);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 12px;
 }
 
@@ -403,8 +403,8 @@
 
 .sw-attribute-card {
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
@@ -435,14 +435,14 @@
   gap: 6px;
   font-size: 12px;
   background: var(--color-surface-subtle);
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-sm);
 }
 
 .sw-val-item {
   display: grid;
   grid-template-columns: 100px 1fr;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: baseline;
 }
 
@@ -455,7 +455,7 @@
 .sw-val-aliases {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .sw-alias-pill {
@@ -468,8 +468,8 @@
 
 /* 指标默认过滤展示 */
 .sw-metric-filter-item {
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-brand-primary);
   background: var(--color-surface-subtle);
   font-size: 12px;
@@ -477,13 +477,13 @@
 
 .sw-metric-filter-item strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 /* 人机共建 Copilot 面板 */
 .sw-copilot-box {
   border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 14px;
   background: var(--color-surface-subtle);
   display: flex;
@@ -495,9 +495,9 @@
   width: 100%;
   box-sizing: border-box;
   min-height: 80px;
-  padding: 8px 10px;
+  padding: var(--space-2) 10px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-family: inherit;
   resize: vertical;
@@ -507,7 +507,7 @@
   background: var(--color-text-primary);
   color: var(--color-border);
   padding: 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-family: monospace;
   font-size: var(--font-size-small);
   overflow-x: auto;
@@ -518,8 +518,8 @@
 .sw-probe-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: var(--space-4);
+  padding: var(--space-5);
   width: 100%;
   box-sizing: border-box;
 }
@@ -534,17 +534,17 @@
   padding: 10px 14px;
   font-size: 13px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .sw-probe-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .sw-preset-chip {
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border-radius: 20px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -560,19 +560,19 @@
 
 .sw-probe-result {
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-surface);
-  padding: 16px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .sw-probe-sql {
   background: var(--color-text-primary);
   color: var(--color-info);
-  padding: 12px;
-  border-radius: 6px;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
   font-family: monospace;
   font-size: 12px;
   overflow-x: auto;

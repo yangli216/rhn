@@ -82,7 +82,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.25rem 0.75rem;
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full, 9999px);
   background: var(--color-surface);
@@ -198,7 +198,7 @@
 .skin-test-filters {
   padding: 0.35rem var(--space-2);
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-subtle);
 }
@@ -420,7 +420,7 @@
   font-weight: var(--font-weight-bold);
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .skin-test-queue-item__footer {
@@ -848,7 +848,7 @@
 
 .skin-test-emergency-alert-box ol {
   margin: 0;
-  padding-left: 1.25rem;
+  padding-left: var(--space-5);
   font-size: var(--font-size-small);
   line-height: 1.5;
 }
@@ -1099,7 +1099,7 @@
 }
 
 .skin-test-verification-seal {
-  padding: 0.1rem 0.5rem;
+  padding: 0.1rem var(--space-2);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-brand-primary);
   color: var(--color-brand-primary);
@@ -1220,7 +1220,7 @@
 .skin-test-sidecar-tab-btn {
   flex: 1;
   min-height: 2.15rem;
-  padding: 0 0.5rem;
+  padding: 0 var(--space-2);
   display: flex;
   align-items: center;
   justify-content: center;

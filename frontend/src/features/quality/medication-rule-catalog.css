@@ -19,7 +19,7 @@
 .qmed-governance__filters {
   align-items: center;
   min-height: 42px;
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -314,8 +314,8 @@
 .qmed-action-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   border-radius: var(--radius-sm);
@@ -438,7 +438,7 @@
 .qmed-med-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   font-size: var(--font-size-small);
   border-radius: var(--radius-round);
   background: var(--color-brand-soft);
@@ -459,7 +459,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   background: var(--color-text-primary);
   border-bottom: 1px solid var(--color-text-primary);
   font-size: var(--font-size-small);
@@ -800,7 +800,7 @@
   font-size: 12px;
   color: var(--color-text-primary);
   background: var(--color-surface-subtle);
-  padding: 3px 8px;
+  padding: 3px var(--space-2);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
 }

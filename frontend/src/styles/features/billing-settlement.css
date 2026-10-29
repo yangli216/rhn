@@ -328,7 +328,7 @@
 .billing-patient-identity__content {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -349,7 +349,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   background: var(--color-surface);
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   white-space: nowrap;
@@ -357,10 +357,10 @@
 .billing-patient-identity__mode-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-medium);
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem var(--space-2);
   border-radius: var(--radius-full);
   white-space: nowrap;
 }
@@ -379,13 +379,13 @@
 .billing-patient-identity__senior-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--font-size-table, 0.8125rem);
   font-weight: var(--font-weight-medium);
   color: var(--color-warning);
   background: color-mix(in srgb, var(--color-warning-soft) 85%, var(--color-surface));
   border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem var(--space-2);
   border-radius: var(--radius-full);
   white-space: nowrap;
 }

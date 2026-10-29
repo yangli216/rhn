@@ -15,14 +15,14 @@
 .qmed-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-header-meta {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  margin-right: 4px;
+  gap: var(--space-3);
+  margin-right: var(--space-1);
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
@@ -30,7 +30,7 @@
 .qmed-header-meta__item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
 }
 
@@ -41,12 +41,12 @@
 .qmed-header-actions .qmed-link-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 12.5px;
   font-weight: 500;
   color: var(--color-brand-primary);
   text-decoration: none;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }
@@ -65,7 +65,7 @@
   padding: 3px 10px;
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
 }
 
@@ -113,7 +113,7 @@
   display: inline-block;
   font-size: var(--font-size-small);
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: 4px;
   line-height: 1.4;
 }
@@ -130,7 +130,7 @@
   display: inline-block;
   font-size: var(--font-size-small);
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 3px var(--space-2);
   border-radius: 4px;
 }
 
@@ -148,7 +148,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: 380px 1fr;
-  gap: 16px;
+  gap: var(--space-4);
   overflow: hidden;
 }
 
@@ -171,7 +171,7 @@
 }
 
 .qmed-catalog-list-header h3 {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
   font-size: 14px;
   color: var(--color-text-primary);
 }
@@ -196,8 +196,8 @@
 .qmed-rule-card {
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--color-text-disabled);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   background: var(--color-surface);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -245,7 +245,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--font-size-small);
 }
 
@@ -257,7 +257,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  padding: 20px;
+  padding: var(--space-5);
   box-shadow: var(--shadow-sm);
   box-sizing: border-box;
 }
@@ -266,10 +266,10 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: var(--space-4);
   border-bottom: 1px solid var(--color-surface-muted);
   padding-bottom: 14px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .qmed-detail-heading {
@@ -284,15 +284,15 @@
 
 .qmed-detail-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex: 0 0 auto;
 }
 
 .qmed-runtime-note {
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   padding: 9px 11px;
   border: 1px solid var(--color-info-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-info-soft);
   color: var(--color-text-secondary);
   font-size: 12px;
@@ -307,7 +307,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   overflow: hidden;
 }
 
@@ -388,7 +388,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(720px, 1fr) 430px;
-  gap: 12px;
+  gap: var(--space-3);
   overflow: hidden;
 }
 
@@ -399,7 +399,7 @@
   box-sizing: border-box;
   padding: 14px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
@@ -413,7 +413,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   padding-bottom: 10px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -421,7 +421,7 @@
 .qmed-active-rule-cases {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-active-rule-cases .qmed-case {
@@ -449,36 +449,36 @@
 .qmed-detail-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   font-size: 12px;
   color: var(--color-text-secondary);
 }
 
 .qmed-detail-badges {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
 .qmed-param-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .qmed-param-card {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-surface-muted);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
 }
 
 .qmed-param-card label {
   display: block;
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .qmed-param-card .val {
@@ -501,18 +501,18 @@
   margin: 18px 0 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-evidence-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .qmed-evidence-card {
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 14px;
   background: var(--color-surface-subtle);
 }
@@ -520,8 +520,8 @@
 .qmed-evidence-card-top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .qmed-evidence-title {
@@ -531,8 +531,8 @@
 }
 
 .qmed-evidence-quote {
-  margin: 8px 0 10px;
-  padding: 8px 12px;
+  margin: var(--space-2) 0 10px;
+  padding: var(--space-2) var(--space-3);
   background: var(--color-surface-muted);
   border-left: 3px solid var(--color-info);
   font-size: 12px;
@@ -542,7 +542,7 @@
 
 .qmed-evidence-footer {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
@@ -550,7 +550,7 @@
 .qmed-rule-tech-box {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 14px;
   font-size: 12px;
 }
@@ -587,7 +587,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  padding: 16px;
+  padding: var(--space-4);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   box-sizing: border-box;
@@ -598,11 +598,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .qmed-eval-header h3 {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
   font-size: 15px;
   color: var(--color-text-primary);
 }
@@ -618,7 +618,7 @@
   min-height: 0;
   overflow-y: auto; /* 仅表格区域内部滚动 */
   border: 1px solid var(--color-surface-muted);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .qmed-table {
@@ -660,7 +660,7 @@
 .qmed-empty-cell {
   text-align: center;
   color: var(--color-text-disabled);
-  padding: 40px !important;
+  padding: var(--space-10) !important;
 }
 
 .qmed-title-with-help {
@@ -710,7 +710,7 @@
   width: 100%;
   padding: 6px 10px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   box-sizing: border-box;
   outline: none;
@@ -726,8 +726,8 @@
   max-height: 190px;
   overflow-y: auto;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 4px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -738,8 +738,8 @@
 .qmed-med-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -811,7 +811,7 @@
 .qmed-med-code {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   background: var(--color-surface-subtle);
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   border-radius: 3px;
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
@@ -845,17 +845,17 @@
 .qmed-generation-action-box {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  padding: 10px var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-ai-status-alert {
   font-size: 12px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-sm);
   line-height: 1.45;
 }
 
@@ -874,7 +874,7 @@
 .qmed-checklist {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   margin: 2px 0;
@@ -928,7 +928,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 4px;
+  padding-top: var(--space-1);
 }
 
 .qmed-pane-subhead h4 {
@@ -950,9 +950,9 @@
 .qmed-saved button {
   width: 100%;
   text-align: left;
-  padding: 8px 10px;
+  padding: var(--space-2) 10px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   cursor: pointer;
   transition: all 0.12s ease;
@@ -979,9 +979,9 @@
 .qmed-hero-banner {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
   background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-primary) 6%, transparent) 0%, color-mix(in srgb, var(--color-brand-primary) 2%, transparent) 100%);
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
 }
@@ -992,7 +992,7 @@
 }
 
 .qmed-hero-content h4 {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
   font-size: 14px;
   font-weight: 600;
   color: var(--color-brand-primary);
@@ -1117,8 +1117,8 @@
 
 .qmed-standards-pipeline {
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) 14px;
   background: var(--color-surface-subtle);
   display: flex;
   flex-direction: column;
@@ -1136,17 +1136,17 @@
 .qmed-pipeline-steps {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-pipe-step {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) 10px;
 }
 
 .qmed-pipe-step .step-num {
@@ -1173,11 +1173,11 @@
 .qmed-candidate-card {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-cand-top-bar {
@@ -1202,7 +1202,7 @@
 .qmed-sandbox-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .qmed-sandbox-panel h4 {
@@ -1218,12 +1218,12 @@
 .qmed-cases-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-case-card {
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 10px;
   font-size: 12px;
   background: var(--color-surface);
@@ -1245,32 +1245,32 @@
 
 .qmed-case-details {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   font-size: var(--font-size-small);
   background: var(--color-surface-subtle);
-  padding: 6px 8px;
+  padding: 6px var(--space-2);
   border-radius: 4px;
 }
 
 .qmed-shadow-box {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 12px;
 }
 
 .qmed-shadow-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
 }
 
 .qmed-shadow-row input {
-  padding: 5px 8px;
+  padding: 5px var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 12px;
@@ -1282,7 +1282,7 @@
    ==================================================================== */
 .qmed-rule-expression-card {
   background: var(--color-text-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
   border: 1px solid var(--color-text-primary);
   box-shadow: var(--shadow-sm);
@@ -1291,7 +1291,7 @@
 .qmed-expr-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-bottom: 6px;
   flex-wrap: wrap;
 }
@@ -1342,7 +1342,7 @@
 }
 
 .qmed-cand-expr-snippet {
-  margin: 4px 0;
+  margin: var(--space-1) 0;
   background: var(--color-surface-muted);
   padding: 3px 6px;
   border-radius: 4px;
@@ -1366,7 +1366,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  padding-bottom: 8px;
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -1378,18 +1378,18 @@
 
 .qmed-cabin-quick-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* 虚拟患者画像卡片 */
 .qmed-patient-sim-card {
   background: linear-gradient(180deg, var(--color-surface-subtle) 0%, var(--color-surface-muted) 100%);
   border: 1px solid var(--color-border-strong);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  padding: 10px var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-age-quick-chips {
@@ -1406,8 +1406,8 @@
 .qmed-quick-age-btn {
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
-  border-radius: 12px;
-  padding: 2px 8px;
+  border-radius: var(--radius-lg);
+  padding: 2px var(--space-2);
   font-size: var(--font-size-small);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -1440,7 +1440,7 @@
 
 .qmed-field-group input,
 .qmed-field-group select {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   font-size: 12px;
   border: 1px solid var(--color-border-strong);
   border-radius: 4px;
@@ -1450,12 +1450,12 @@
 /* 模拟开方表格 */
 .qmed-rx-table-wrap {
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-rx-table-header {
@@ -1463,7 +1463,7 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .qmed-rx-table-header h5 {
@@ -1506,7 +1506,7 @@
 .qmed-select-med {
   flex: 2;
   min-width: 180px;
-  padding: 4px 6px;
+  padding: var(--space-1) 6px;
   font-size: 12px;
   border: 1px solid var(--color-border-strong);
   border-radius: 4px;
@@ -1529,7 +1529,7 @@
 
 .qmed-days-input-wrap input {
   width: 50px;
-  padding: 4px 6px;
+  padding: var(--space-1) 6px;
   font-size: 12px;
   border: 1px solid var(--color-border-strong);
   border-radius: 4px;
@@ -1547,7 +1547,7 @@
   color: var(--color-text-disabled);
   font-size: 16px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   line-height: 1;
 }
 
@@ -1558,18 +1558,18 @@
 .qmed-rx-add-actions {
   display: flex;
   justify-content: flex-start;
-  padding-top: 4px;
+  padding-top: var(--space-1);
 }
 
 /* 审查触发操作栏 */
 .qmed-sim-trigger-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 10px 14px;
   background: var(--color-info-soft);
   border: 1px solid var(--color-info-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 /* 审查判定报告卡片 */
@@ -1577,7 +1577,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .qmed-case-header {
@@ -1596,7 +1596,7 @@
 .qmed-case-badge {
   font-size: 12px;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px var(--space-2);
   border-radius: 4px;
 }
 
@@ -1643,7 +1643,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   background: var(--color-surface-subtle);
-  padding: 4px 6px;
+  padding: var(--space-1) 6px;
   border-radius: 4px;
   border: 1px solid var(--color-border);
 }
@@ -1661,7 +1661,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border-strong);
   background: var(--color-surface-subtle);
 }
@@ -1705,7 +1705,7 @@
 .qmed-kpi-loading {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   color: var(--color-brand-primary);
   font-size: var(--font-size-small);
   opacity: 0.85;
@@ -1715,14 +1715,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 36px 16px;
+  gap: var(--space-2);
+  padding: 36px var(--space-4);
   color: var(--color-text-secondary);
   font-size: 13px;
   background: var(--color-surface-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px dashed var(--color-border-strong);
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 
 @keyframes qmed-spin {
@@ -1734,7 +1734,7 @@
 .qmed-control-input,
 .qmed-control-select {
   height: 30px;
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   font-size: 12px;
   color: var(--color-text-primary);
   background-color: var(--color-surface);
@@ -1759,7 +1759,7 @@
 
 .qmed-age-input {
   width: 64px;
-  padding-right: 20px;
+  padding-right: var(--space-5);
 }
 
 .qmed-unit {
@@ -1903,9 +1903,9 @@
 .qmed-trial-row {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: var(--space-2) !important;
   padding: 6px 10px !important;
-  border-radius: 6px !important;
+  border-radius: var(--radius-sm) !important;
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
 }
@@ -1917,14 +1917,14 @@
 .custom-input-section {
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  border-radius: 6px !important;
+  border-radius: var(--radius-sm) !important;
   padding: 10px 14px !important;
 }
 
 .qmed-dialog-footer-actions {
   display: flex !important;
   justify-content: flex-end !important;
-  gap: 8px !important;
+  gap: var(--space-2) !important;
   width: 100% !important;
 }
 
@@ -1979,7 +1979,7 @@
 
 .qmed-inline-field .ui-field__control,
 .qmed-inline-field .ui-select__trigger {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .qmed-med-picker-col .ui-select,
@@ -2077,7 +2077,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: 360px 1fr;
-  gap: var(--space-4, 16px);
+  gap: var(--space-4, var(--space-4));
   overflow: hidden;
 }
 

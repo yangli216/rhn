@@ -1656,7 +1656,7 @@
 .doctor-prescription-grid__entry .ui-button { padding-inline: .45rem; }
 .doctor-herbal-total { display: flex; align-items: center; padding: 0 calc(var(--space-1) * 1.4); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .doctor-prescription-row-action { justify-content: space-between; gap: calc(var(--space-1) * 0.4); }
-.doctor-prescription-row-action .ui-button { padding-inline: .25rem; }
+.doctor-prescription-row-action .ui-button { padding-inline: var(--space-1); }
 .doctor-prescription-row-action .ui-status-badge { flex: none; min-height: 1.3rem; padding-inline: .3rem; }
 .doctor-prescription-actions { min-height: 2.25rem; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .doctor-prescription-actions > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }

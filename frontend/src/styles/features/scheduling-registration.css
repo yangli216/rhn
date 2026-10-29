@@ -80,7 +80,7 @@
 .registration-pending-appointment-content { display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: var(--space-3); }
 .registration-pending-appointment-text { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); }
 .registration-pending-appointment-text strong { font-weight: var(--font-weight-semibold); }
-.appointment-future-hint { display: inline-flex; align-items: center; padding: 2px 8px; font-size: var(--font-size-small); color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px dashed var(--color-border); border-radius: var(--radius-sm); user-select: none; }
+.appointment-future-hint { display: inline-flex; align-items: center; padding: 2px var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px dashed var(--color-border); border-radius: var(--radius-sm); user-select: none; }
 @media (max-width: 68rem) { .registration-workspace-layout { grid-template-columns: 1fr; min-width: 0; gap: var(--layout-panel-gap); } }
 .registration-col-patient { min-width: 0; }
 .registration-intake-form-v2 { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
@@ -126,7 +126,7 @@
 }
 
 .registration-schedule-card-compact {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -188,7 +188,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .schedule-card-compact__title {
@@ -221,7 +221,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-1);
   margin-top: auto;
 }
 
@@ -365,7 +365,7 @@
 .thermal-receipt-queue-section { text-align: center; padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border-strong); }
 .thermal-receipt-queue-section span { font-size: 0.8125rem; color: var(--color-text-secondary); }
 .thermal-receipt-queue-section strong { display: block; font-size: 2.5rem; font-weight: 900; color: var(--color-text-primary); letter-spacing: 2px; }
-.thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3); font-size: 0.8125rem; margin: 0; padding: 0; }
+.thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: 0.8125rem; margin: 0; padding: 0; }
 .thermal-receipt-dl dt { color: var(--color-text-secondary); }
 .thermal-receipt-dl dd { margin: 0; font-weight: 600; text-align: right; }
 .thermal-receipt-guidance { text-align: center; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
@@ -444,7 +444,7 @@
 .registration-patient-identity__content {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -465,7 +465,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   background: var(--color-surface);
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   white-space: nowrap;
@@ -516,10 +516,10 @@
 .registration-channel-tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -544,7 +544,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   border-left: 1px solid var(--color-border);
-  padding-left: 0.25rem;
+  padding-left: var(--space-1);
   margin-left: 0.125rem;
 }
 
@@ -558,10 +558,10 @@
 .registration-smart-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
-  padding: 0.25rem 0.5rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   white-space: nowrap;
   flex-shrink: 0;

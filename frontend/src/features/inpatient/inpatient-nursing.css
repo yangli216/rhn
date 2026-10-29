@@ -24,10 +24,10 @@
 }
 .inpatient-nursing__assessment-facts span {
   border-radius: 999px; background: var(--color-surface-subtle); color: var(--color-text-secondary);
-  font-size: 12px; padding: 4px 8px;
+  font-size: 12px; padding: var(--space-1) var(--space-2);
 }
 .inpatient-nursing__assessments p { margin: var(--space-3) 0 0; }
-.inpatient-nursing__assessments small { display: inline-block; margin: 6px 12px 0 0; }
+.inpatient-nursing__assessments small { display: inline-block; margin: 6px var(--space-3) 0 0; }
 .inpatient-nursing__assessments footer { margin-top: 6px; color: var(--color-text-muted); font-size: 12px; }
 
 .inpatient-nursing__head { align-items: flex-end; margin-bottom: var(--space-4); }
@@ -37,13 +37,13 @@
 .inpatient-nursing__head span,
 .inpatient-nursing__toolbar span,
 .inpatient-nursing small { color: var(--color-text-muted); }
-.inpatient-nursing__head nav { display: flex; gap: 4px; margin-top: var(--space-2); }
+.inpatient-nursing__head nav { display: flex; gap: var(--space-1); margin-top: var(--space-2); }
 .inpatient-nursing__head nav button {
   border: 0; border-radius: var(--radius-sm); background: var(--color-surface-subtle);
-  color: var(--color-text-secondary); cursor: pointer; padding: 7px 12px;
+  color: var(--color-text-secondary); cursor: pointer; padding: 7px var(--space-3);
 }
 .inpatient-nursing__head nav button.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); }
-.inpatient-nursing__head nav small { margin-left: 4px; }
+.inpatient-nursing__head nav small { margin-left: var(--space-1); }
 .inpatient-nursing__head .ui-tabs { margin-top: var(--space-2); }
 
 .inpatient-nursing__toolbar { min-height: 36px; margin-bottom: var(--space-3); }
@@ -71,7 +71,7 @@
 .inpatient-nursing__timeline header { justify-content: flex-start; }
 .inpatient-nursing__timeline p { margin: 5px 0 0; color: var(--color-text-secondary); line-height: 1.55; }
 .inpatient-nursing__timeline p b { color: var(--color-text-primary); }
-.inpatient-nursing__timeline small { display: inline-block; margin: 6px 12px 0 0; }
+.inpatient-nursing__timeline small { display: inline-block; margin: 6px var(--space-3) 0 0; }
 .inpatient-nursing__timeline footer { margin-top: 6px; color: var(--color-text-muted); font-size: 12px; }
 .inpatient-nursing .is-risk { color: var(--color-danger); }
 
@@ -79,7 +79,7 @@
 .inpatient-nursing__handoffs article { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); }
 .inpatient-nursing__handoffs article > header > div { display: grid; gap: 2px; }
 .inpatient-nursing__handoffs p { margin: var(--space-3) 0 var(--space-2); }
-.inpatient-nursing__handoffs small { display: block; margin-top: 4px; }
+.inpatient-nursing__handoffs small { display: block; margin-top: var(--space-1); }
 .inpatient-nursing__handoffs article > footer { align-items: flex-end; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-border); }
 .inpatient-nursing__handoffs article > footer > span { color: var(--color-text-secondary); font-size: 12px; }
 

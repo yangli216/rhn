@@ -517,7 +517,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   line-height: 1.35;
@@ -526,7 +526,7 @@
 .triage-vital-input-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 32px;
 }
 
@@ -983,7 +983,7 @@
 .triage-assist-status {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-regular);
 }
@@ -1120,7 +1120,7 @@
 }
 
 .triage-recommendation-card__source {
-  margin-left: 8px;
+  margin-left: var(--space-2);
   color: var(--color-primary-600);
   font-size: 12px;
   font-weight: 600;
