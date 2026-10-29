@@ -118,6 +118,9 @@ test('buttons beside field controls must use the default size so they match the 
   assert.deepEqual(rows('const a = <div><FormField label="x"><input /></FormField><Button size={"sm"}>加</Button></div>'), ['control-size-mismatch'])
   assert.deepEqual(rows('const a = <div><SearchField label="s" /><Button variant="secondary">查询</Button></div>'), [])
   assert.deepEqual(rows('const a = <div><Button size="sm">改</Button><Button size="sm">删</Button></div>'), [])
+  // 紧凑工具栏：搜索框与按钮都是 sm 时同高。
+  assert.deepEqual(rows('const a = <div><SearchField size="sm" label="s" /><Button size="sm">查询</Button></div>'), [])
+  assert.deepEqual(rows('const a = <div><SearchField label="s" /><Button size="sm">查询</Button></div>'), ['control-size-mismatch'])
   assert.deepEqual(rows('const a = <div><input type="checkbox" /><Button size="sm">改</Button></div>'), [])
   assert.deepEqual(rows('const a = <td><Select value="" /><Button size="sm">改</Button></td>'), [])
   assert.deepEqual(rows('const a = <tr><td><div><Select value="" /><Button size="sm">改</Button></div></td></tr>'), [])

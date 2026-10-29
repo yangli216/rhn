@@ -91,7 +91,8 @@ export function scanSource(file, source) {
     function visit(node) {
       if (ts.isJsxElement(node) && !insideCompactTable(node)) {
         const children = node.children.filter(child => jsxName(child))
-        const hasField = children.some(child => fieldControls.has(jsxName(child)) && !['checkbox', 'radio', 'hidden'].includes(jsxText(child, 'type')))
+        // 紧凑工具栏：输入类控件本身也是 size="sm" 时与 sm 按钮同高，不算不匹配。
+        const hasField = children.some(child => fieldControls.has(jsxName(child)) && jsxText(child, 'size') !== 'sm' && !['checkbox', 'radio', 'hidden'].includes(jsxText(child, 'type')))
         if (hasField) {
           for (const child of children) {
             if (jsxName(child) === 'Button' && jsxText(child, 'size') === 'sm') {

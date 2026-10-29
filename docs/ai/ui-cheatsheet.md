@@ -47,6 +47,8 @@
 | 按钮 | `Button variant`；标题栏图标 `IconActionButton` | `<button>`，或业务 CSS 改按钮外观 |
 | 输入框旁的按钮（查询、添加、重置） | `Button`，**不写 `size`**，与输入框同高 | `size="sm"`（会比输入框矮，门禁 `control-size-mismatch` 会拦截）；业务 CSS 里给输入框或按钮另设高度 |
 | 标题栏、表格行内的操作 | `Button size="sm"` | 在标题栏/表格行里用默认大小撑高行 |
+| 紧凑工具栏里的搜索框 + 按钮（如候诊栏） | `SearchField size="sm"` + `Button size="sm"`（成对，同为 32px）；清空要联动页面状态时用 `onClear` | 只把按钮改 sm、输入框保持默认高度 |
+| 带数量的紧凑分段页签 | `Tabs variant="segmented"`，数量放进 `meta`（字符串），完成类页签加 `tone: 'success'` | 自写 `role="tab"` 的 button 和数量角标 |
 | 空/加载/失败 | `EmptyState` / `LoadingState` / `Alert` | 自写提示块 |
 | 弹窗、抽屉 | `Dialog`（抽屉 `presentation="drawer"`） | `<dialog>` 或自写遮罩 |
 | 日期、数量、金额显示 | `shared/format.ts`、`utils/dateRange.ts`、`utils/precision.ts` | `toLocaleString`、`new Intl.*` |
