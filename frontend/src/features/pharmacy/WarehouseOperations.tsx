@@ -6,7 +6,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { inventoryKnownTotal, requireInventoryList } from './inventoryLedgerTruth'
 import { procurementPackage, receiptAcceptedAmount, receiptAcceptedTotal, requireGoodsReceipts, requirePurchaseOrders } from './procurementTruth'
-import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Pagination, RemoteSearchSelect, ListItemButton, Select, SelectableList, StatusBadge, Tag, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, PanelHead, Pagination, RemoteSearchSelect, ListItemButton, Select, SelectableList, StatusBadge, Tag, UnitNumberInput, tableCellClass } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatAmount, formatNumber } from '../../shared/utils/precision'
 import {
@@ -94,7 +94,7 @@ function Worklist({ title, action, loading, empty, children }: {
   title: string; copy?: string; action?: ReactNode; loading: boolean; empty: boolean; children: ReactNode
 }) {
   return <section className="warehouse-section warehouse-operation">
-    <header className="warehouse-section__toolbar"><strong>{title}</strong>{action}</header>
+    <PanelHead level="section" title={title} actions={action} />
     {loading ? <LoadingState label="正在加载作业单据…" /> : empty
       ? <EmptyState icon="pharmacy" title="暂无作业单据" copy="可从右上角发起新的业务单据。" /> : children}
   </section>

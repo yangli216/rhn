@@ -8,7 +8,7 @@ import { requireOpenPackages, requireReconciliation } from './inventoryAccuracyT
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatNumber } from '../../shared/utils/precision'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
+  Alert, Button, Dialog, EmptyState, FormField, LoadingState, PanelHead, Pagination, Select, StatusBadge,
   StatChips, DescriptionList,
 } from '../../shared/ui'
 
@@ -75,11 +75,9 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
     {lots.isError && <Alert duration={null}>批次资料读取失败：{errorMessage(lots.error)}</Alert>}
       <div className="warehouse-accuracy__grid">
         <article className="warehouse-accuracy__card">
-          <header>
-            <div><strong>账目校验结果</strong>{last && <span>单号 {last.runNo}</span>}</div>
-            {last && <StatusBadge tone={inventoryReconciliationPresentation(last.status).tone}>
-              {inventoryReconciliationPresentation(last.status).label}</StatusBadge>}
-          </header>
+          <PanelHead level="section" title="账目校验结果" description={last ? `单号 ${last.runNo}` : undefined}
+            actions={last && <StatusBadge tone={inventoryReconciliationPresentation(last.status).tone}>
+              {inventoryReconciliationPresentation(last.status).label}</StatusBadge>} />
           {last && <DescriptionList columns={4} items={[
             { label: '运行方式', value: last.runType === 'MANUAL' ? '人工执行' : last.runType === 'SCHEDULED' ? '定时任务' : '运行方式未知' },
             { label: '业务日期', value: last.businessDate },
@@ -109,10 +107,8 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
               </tr>)}</tbody></table></div>}
         </article>
         <article className="warehouse-accuracy__card">
-          <header>
-            <strong>拆零包装台账</strong>
-            <StatusBadge tone="info">{packages.isSuccess ? `${total} 条` : '数量未取得'}</StatusBadge>
-          </header>
+          <PanelHead level="section" title="拆零包装台账"
+            actions={<StatusBadge tone="info">{packages.isSuccess ? `${total} 条` : '数量未取得'}</StatusBadge>} />
           {packages.isPending ? <LoadingState label="正在读取拆零包装台账…" />
             : packages.isError ? <EmptyState icon="pharmacy" title="拆零包装台账读取失败" copy={errorMessage(packages.error)}
                 action={<Button variant="secondary" onClick={() => void packages.refetch()}>重新读取拆零台账</Button>} />

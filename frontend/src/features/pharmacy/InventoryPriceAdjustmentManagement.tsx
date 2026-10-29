@@ -5,7 +5,7 @@ import type {
 } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, ListItemButton, LoadingState, Select, SelectableList, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, ListItemButton, LoadingState, PanelHead, Select, SelectableList, StatusBadge } from '../../shared/ui'
 import { inventoryPriceAdjustmentPresentation } from '../../shared/presentation'
 import { inventoryAverageCost, knownInventoryNumber } from './inventoryLedgerTruth'
 import { hasAdjustmentSnapshot, hasAdjustmentTotals, requirePriceAdjustment, requirePriceAdjustments, validAdjustmentTargets } from './priceAdjustmentTruth'
@@ -58,9 +58,8 @@ export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, b
   const reload = () => { submit.reset(); approve.reset(); post.reset(); cancel.reset(); void adjustments.refetch() }
 
   return <section className="warehouse-section warehouse-price">
-    <header className="warehouse-section__toolbar"><div><strong>库存调价</strong>
-      <span>销售调价与成本重估分单管理；预检锁定库存快照，正式记账不改库存数量</span></div>
-      <Button size="sm" onClick={() => { create.reset(); setCreateOpen(true) }}>新建调价单</Button></header>
+    <PanelHead level="section" title="库存调价" description="销售调价与成本重估分单管理；预检锁定库存快照，正式记账不改库存数量"
+      actions={<Button size="sm" onClick={() => { create.reset(); setCreateOpen(true) }}>新建调价单</Button>} />
     {unavailable ? <EmptyState icon="pharmacy" title="调价结果不可用" copy={errorMessage(adjustments.error || actionError)}
       action={<Button size="sm" onClick={reload}>重新读取调价单</Button>} /> : adjustments.isPending ? <LoadingState label="正在读取库存调价单…" /> : !adjustments.data?.length
       ? <EmptyState icon="pharmacy" title="尚无库存调价单" copy="可批量选择经营项目发起成本重估或销售调价，系统将完整保留调前、调后和差额。"
@@ -91,7 +90,7 @@ export function InventoryPriceAdjustmentManagement({ api, siteId, items, bins, b
 function AdjustmentList({ rows, selectedId, onSelect }: {
   rows: InventoryPriceAdjustment[]; selectedId?: string; onSelect: (id: string) => void
 }) {
-  return <aside className="warehouse-price__list"><header><strong>调价单据</strong><span>{rows.length} 单</span></header>
+  return <aside className="warehouse-price__list"><PanelHead level="section" title="调价单据" meta={`${rows.length} 单`} />
     <SelectableList label="调价单据列表">{rows.map(row => <ListItemButton key={row.id}
       selected={row.id === selectedId} onSelect={() => onSelect(row.id)}
       title={<span title={row.adjustmentNo}>{row.adjustmentNo}</span>}
@@ -119,7 +118,7 @@ function AdjustmentDetail({ value, items, bins, busy, onSubmit, onApprove, onPos
       <Metric label="价值调整" value={hasAdjustmentTotals(value) ? signedMoney(value.totalAdjustmentAmount, value.currencyCode) : '预检后确认'} emphatic />
       <Metric label="影响范围" value={`${value.lineCount} 个经营项目`} />
     </div>
-    <section className="warehouse-price__lines"><header><strong>调价明细</strong><span>数量统一按基本单位展示</span></header>
+    <section className="warehouse-price__lines"><PanelHead level="section" title="调价明细" meta="数量统一按基本单位展示" />
       <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>经营项目</th><th>现存数量</th>
         <th>调前价格</th><th>调后价格</th><th>调前价值</th><th>调后价值</th><th>调整金额</th><th>批次 / 库位</th></tr></thead>
         <tbody>{value.lines.map(line => <LineRow key={line.id} line={line} type={value.adjustmentType} currency={value.currencyCode} items={items} bins={bins} />)}</tbody>

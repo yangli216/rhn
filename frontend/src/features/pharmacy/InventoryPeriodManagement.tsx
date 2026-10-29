@@ -6,7 +6,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import { inventoryPeriodClosePresentation } from '../../shared/presentation'
 import { inventoryKnownTotal, knownInventoryNumber } from './inventoryLedgerTruth'
 import { requireCloseDifferences, requireCloseRun, requireCloseRuns, requirePeriods } from './periodCloseTruth'
-import { Alert, Button, Dialog, EmptyState, ListItemButton, LoadingState, SelectableList, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, ListItemButton, LoadingState, PanelHead, SelectableList, StatusBadge } from '../../shared/ui'
 import { formatLocaleDateTime } from '../../shared/format'
 import { formatNumber } from '../../shared/utils/precision'
 import { formatDateKey } from '../../shared/utils/dateRange'
@@ -85,14 +85,13 @@ export function InventoryPeriodManagement({ api, siteId, items, bins }: {
     && selectedRun.differenceCount === 0
 
   return <section className="warehouse-section warehouse-period">
-    <header className="warehouse-section__toolbar"><div><strong>库存月结</strong>
-      <span>按会计期间固化数量与成本，形成“期初 + 业务变动 + 调整 = 期末 = 实时库存”的可追溯账链</span></div>
-      <div className="warehouse-period__actions">
+    <PanelHead level="section" title="库存月结" description="按会计期间固化数量与成本，形成“期初 + 业务变动 + 调整 = 期末 = 实时库存”的可追溯账链"
+      actions={<div className="warehouse-period__actions">
         {periods.isSuccess && !periods.data.length && <Button size="sm" variant="secondary" busy={createPeriod.isPending}
           onClick={() => createPeriod.mutate()}>启用本月期间</Button>}
         <Button size="sm" busy={prepare.isPending} disabled={!selectedPeriod || selectedPeriod.status !== 'OPEN' || periods.isFetching || runs.isFetching}
           onClick={() => prepare.mutate()}>{runs.data?.length ? '重新预检' : '执行月结预检'}</Button>
-      </div></header>
+      </div>} />
     {Boolean(error) && <Alert duration={null}>{errorMessage(error)}</Alert>}
     {periods.isError ? <EmptyState icon="pharmacy" title="库存期间读取失败" copy={errorMessage(periods.error)}
       action={<Button variant="secondary" onClick={() => void periods.refetch()}>重新读取库存期间</Button>} /> : periods.isPending ? <LoadingState label="正在读取库存期间…" /> : !periods.data?.length
@@ -100,7 +99,7 @@ export function InventoryPeriodManagement({ api, siteId, items, bins }: {
         copy="启用本月期间后，库存流水会归集到对应月份，并可在月末执行预检和正式月结。" />
       : <div className="warehouse-period__workspace">
         <aside className="warehouse-period__timeline" aria-label="库存期间">
-          <header><strong>会计期间</strong><span>{periods.data.length} 期</span></header>
+          <PanelHead level="section" title="会计期间" meta={`${periods.data.length} 期`} />
           <SelectableList label="会计期间列表">{periods.data.map(period => <ListItemButton key={period.id}
             selected={period.id === periodId} onSelect={() => setPeriodId(period.id)}
             title={formatPeriod(period)} meta={`${period.periodFrom} 至 ${period.periodTo}`}
@@ -167,7 +166,7 @@ function Metric({ label, value, note, warning = false }: { label: string; value:
 }
 
 function RunHistory({ runs, selectedId, onSelect }: { runs: PeriodCloseRun[]; selectedId: string; onSelect: (id: string) => void }) {
-  return <section className="warehouse-period__runs"><header><strong>预检与关账记录</strong><span>每次预检均保留独立快照</span></header>
+  return <section className="warehouse-period__runs"><PanelHead level="section" title="预检与关账记录" meta="每次预检均保留独立快照" />
     <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>批次</th><th>执行时间</th><th>核对维度</th><th>差异</th><th>状态</th></tr></thead>
       <tbody>{runs.map(run => <tr key={run.id} className={run.id === selectedId ? 'is-selected' : undefined}
         onClick={() => onSelect(run.id)}><td><button className="warehouse-inline-action" type="button" onClick={() => onSelect(run.id)}>{run.runNo}</button></td>
@@ -191,7 +190,7 @@ function DifferenceTable({ run, canPost, loading, error, onRetry, rows, items, b
   if (error) return <EmptyState icon="pharmacy" title="月结差异明细读取失败" copy={errorMessage(error)}
     action={<Button variant="secondary" onClick={onRetry}>重新读取月结差异</Button>} />
   if (!rows.length) return <EmptyState icon="pharmacy" title="差异明细未取得" copy={`本批次记录了 ${run.differenceCount} 个差异维度，不能据此确认无差异。`} />
-  return <section className="warehouse-period__differences"><header><strong>差异明细</strong><span>处理差异后需重新执行预检</span></header>
+  return <section className="warehouse-period__differences"><PanelHead level="section" title="差异明细" meta="处理差异后需重新执行预检" />
     <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>药品 / 库位</th><th>状态 / 批次</th><th>期初数量</th><th>业务变动</th><th>计算期末</th><th>实时库存</th><th>数量差异</th><th>价值差异</th></tr></thead>
       <tbody>{rows.map(row => <tr key={`${row.snapshotId}-${row.valuationBasis}`}><td><strong>{itemName(items, row.stockItemId)}</strong><small>{binName(bins, row.stockBinId)}</small></td>
         <td><strong>{row.stockStatusText ?? row.stockStatus}</strong><small>批号 {row.lotNo}</small></td>

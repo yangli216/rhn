@@ -5,7 +5,7 @@ import type { InventoryBalanceSummary, StockBin, StockItem } from '../../shared/
 import type { RhnApi, MedicationProduct } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
-  Alert, Button, DataTable, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel,
+  Alert, Button, DataTable, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel, PanelHead,
   Pagination, SearchField, Select, StatusBadge, TableShell, TreePanel, tableCellClass, useSystemEnum,
   StatChips, DescriptionList, Tag,
 } from '../../shared/ui'
@@ -258,8 +258,8 @@ function ItemSection({ items, loading, onAdd, onInspect, isOperator = true }: {
   items: StockItem[]; loading: boolean; onAdd: () => void; onInspect: (id: string) => void; isOperator?: boolean
 }) {
   return <section className="warehouse-section">
-    <header className="warehouse-section__toolbar"><strong>库房经营目录</strong>
-      <Button size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={onAdd}>批量调入</Button></header>
+    <PanelHead level="section" title="库房经营目录" actions={
+      <Button size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={onAdd}>批量调入</Button>} />
     {loading ? <LoadingState label="正在加载经营项目…" /> : !items.length
       ? <EmptyState icon="pharmacy" title="尚未配置经营项目" copy="从机构已启用的药品产品中批量选择包装调入当前科室。"
         action={<Button size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={onAdd}>批量调入</Button>} />
