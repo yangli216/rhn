@@ -40,6 +40,9 @@
 | 工作台主作业/辅助区正文 | `PanelHead` + `PaneBody` | 把正文直接放进外框（会贴边、不能滚动） |
 | 并列列表/辅助区 | `WorkspacePane label header footer` | 嵌套第二层滚动容器 |
 | 横向查询栏 | `ui-query-filters` + `SearchField` + `FormField` + `ui-query-filters__actions` | 业务 CSS 定义搜索框宽度或用 `margin-left: auto` 推远按钮 |
+| 表格行高/边距 | `DataTable` 默认值：表头 40px，单行约 40px，单元格上下 8px 左右 16px；不要覆盖 padding/height | 自己给 td/th 写 padding、height、斑马纹 |
+| 名称+编码、日期+时区等成对信息 | `CellStack primary secondary mono`，同一列两行（约 56px） | 拆成两个窄列；自写两层 div |
+| 表格里的状态 | `StatusBadge`，状态列居中不换行 | 纯文字“可用/停用” |
 | 表格 | `TableShell` + `DataTable` + `tableCellClass('numeric' / 'status' / 'actions' / 'control')` | `<table>`，或用 `nth-child` 对齐列 |
 | 连续录入 | `EditableTable` | 自写行编辑 |
 | 状态 | `shared/presentation` 映射 → `StatusBadge tone` | 在组件里按状态拼颜色 |

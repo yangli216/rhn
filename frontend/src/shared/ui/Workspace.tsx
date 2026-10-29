@@ -331,7 +331,16 @@ export function TableShell({ children, footer, className = '', scrollClassName =
   </div>
 }
 
-export function DataTable({ className = '', compact = false, ...props }:
+/** 表格默认即紧凑密度（表头 40px、单行约 40px）；`compact` 仅为兼容旧调用，不再有区别。 */
+export function DataTable({ className = '', compact: _compact, ...props }:
   TableHTMLAttributes<HTMLTableElement> & { compact?: boolean }) {
-  return <table className={`ui-data-table ${compact ? 'is-compact' : ''} ${className}`} {...props} />
+  return <table className={`ui-data-table ${className}`.trim()} {...props} />
+}
+
+/** 复合单元格：主信息（正文）+ 辅助信息（12px 次要色，可等宽）。名称/编码、日期/时区等成对信息用它，不要自写两层 div。 */
+export function CellStack({ primary, secondary, mono = false }: { primary: ReactNode; secondary?: ReactNode; mono?: boolean }) {
+  return <span className="ui-cell-stack">
+    <span className="ui-cell-stack__primary">{primary}</span>
+    {secondary !== undefined && secondary !== null && secondary !== false && <small className={`ui-cell-stack__secondary ${mono ? 'is-mono' : ''}`.trim()}>{secondary}</small>}
+  </span>
 }

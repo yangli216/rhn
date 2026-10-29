@@ -61,6 +61,7 @@ export {
   SearchField,
   SegmentedControl,
   SplitWorkspace,
+  CellStack,
   ChoiceChip,
   DescriptionList,
   type DescriptionItem,
