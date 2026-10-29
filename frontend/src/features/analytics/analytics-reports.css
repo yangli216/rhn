@@ -53,11 +53,11 @@
 .analytics-filter-tabs {
   margin-left: auto;
   display: inline-flex;
-  padding: 3px;
+  padding: var(--space-1);
   background: var(--color-surface-subtle);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .analytics-view-tab {

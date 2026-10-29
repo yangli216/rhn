@@ -6,10 +6,10 @@
 .qmed-governance {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
   min-height: 0;
   height: 100%;
-  padding: 2px 0 0;
+  padding: var(--space-1) 0 0;
   box-sizing: border-box;
   background: var(--color-canvas);
   overflow: hidden;
@@ -19,7 +19,7 @@
 .qmed-governance__filters {
   align-items: center;
   min-height: 42px;
-  padding: var(--space-1) 10px;
+  padding: var(--space-1) var(--space-2);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -167,7 +167,7 @@
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -177,10 +177,10 @@
 .qmed-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--color-neutral-soft);
   color: var(--color-text-secondary);
@@ -315,7 +315,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   border-radius: var(--radius-sm);
@@ -438,7 +438,7 @@
 .qmed-med-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-small);
   border-radius: var(--radius-round);
   background: var(--color-brand-soft);
@@ -459,7 +459,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-1) 10px;
+  padding: var(--space-1) var(--space-2);
   background: var(--color-text-primary);
   border-bottom: 1px solid var(--color-text-primary);
   font-size: var(--font-size-small);
@@ -570,7 +570,7 @@
   height: 14px;
   color: var(--color-brand-primary);
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 
 .qmed-review-stamp {
@@ -644,7 +644,7 @@
 .qmed-release-row__info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -666,7 +666,7 @@
   font-family: ui-monospace, monospace;
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-small);
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   background: var(--color-neutral-soft);
   border-radius: var(--radius-sm);
   color: var(--color-text-primary);
@@ -677,7 +677,7 @@
   color: var(--color-text-secondary);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-sm);
 }
 
@@ -711,7 +711,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: 6px 10px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
@@ -763,14 +763,14 @@
   height: 7px;
   border-radius: 50%;
   background: var(--color-brand-primary);
-  margin-top: 6px;
+  margin-top: var(--space-1);
   flex-shrink: 0;
 }
 
 .qmed-history-item__content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -790,7 +790,7 @@
 
 .qmed-ver-chip {
   font-size: var(--font-size-small);
-  padding: 0 5px;
+  padding: 0 var(--space-1);
   background: var(--color-neutral-soft);
   border-radius: var(--radius-sm);
 }
@@ -800,14 +800,14 @@
   font-size: var(--font-size-small);
   color: var(--color-text-primary);
   background: var(--color-surface-subtle);
-  padding: 3px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
 }
 
 .qmed-count-chip {
   font-size: var(--font-size-small);
-  padding: 1px 7px;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-round);
   background: var(--color-neutral-soft);
   color: var(--color-text-secondary);
@@ -874,7 +874,7 @@
   gap: var(--space-2);
   font-size: var(--font-size-small);
   cursor: pointer;
-  padding: 3px 6px;
+  padding: var(--space-1) var(--space-1);
   border-radius: var(--radius-sm);
 }
 

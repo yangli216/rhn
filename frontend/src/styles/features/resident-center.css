@@ -18,7 +18,7 @@
 .resident-roster-panel > .ui-table-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .resident-table th { white-space: nowrap; }
 .resident-table-row:hover { background: var(--color-surface-subtle); }
-.resident-cell-name { display: flex; align-items: center; gap: var(--space-2-5, 0.625rem); }
+.resident-cell-name { display: flex; align-items: center; gap: var(--space-2-5, var(--space-2)); }
 .resident-cell-name strong { font-weight: var(--font-weight-bold); font-size: var(--font-size-body); }
 .resident-cell-name .resident-avatar { flex-shrink: 0; }
 .resident-birth-sub { display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -86,7 +86,7 @@
 .resident-profile-id-badge {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   padding-right: var(--space-4);
   border-right: 1px solid var(--color-border);
 }
@@ -158,7 +158,7 @@
 .resident-registered-card__body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .resident-registered-card__number {

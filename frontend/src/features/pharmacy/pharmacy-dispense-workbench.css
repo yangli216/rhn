@@ -847,7 +847,7 @@
 }
 
 .pharmacy-patient-banner__badge {
-  padding: 2px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
@@ -1191,7 +1191,7 @@
 .pharmacy-med-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -1221,7 +1221,7 @@
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-small);
   font-variant-numeric: tabular-nums;
-  padding: 2px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }

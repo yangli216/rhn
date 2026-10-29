@@ -1,5 +1,5 @@
 /* Primary-care scheduling mode switcher in header actions */
-.scheduling-mode-switch { display: inline-flex; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 2px; gap: 2px; box-shadow: var(--shadow-sm); }
+.scheduling-mode-switch { display: inline-flex; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: var(--space-1); gap: var(--space-1); box-shadow: var(--shadow-sm); }
 .scheduling-mode-btn { height: var(--control-height-sm); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1-5); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); white-space: nowrap; }
 .scheduling-mode-btn:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-surface-subtle); }
 .scheduling-mode-btn.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-sm); }
@@ -80,7 +80,7 @@
 .registration-pending-appointment-content { display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: var(--space-3); }
 .registration-pending-appointment-text { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); }
 .registration-pending-appointment-text strong { font-weight: var(--font-weight-semibold); }
-.appointment-future-hint { display: inline-flex; align-items: center; padding: 2px var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px dashed var(--color-border); border-radius: var(--radius-sm); user-select: none; }
+.appointment-future-hint { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px dashed var(--color-border); border-radius: var(--radius-sm); user-select: none; }
 @media (max-width: 68rem) { .registration-workspace-layout { grid-template-columns: 1fr; min-width: 0; gap: var(--layout-panel-gap); } }
 .registration-col-patient { min-width: 0; }
 .registration-intake-form-v2 { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
@@ -91,7 +91,7 @@
 .registration-patient-reset { align-self: center; white-space: nowrap; }
 .registration-intake-params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); width: 100%; box-sizing: border-box; }
 .registration-intake-meta-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); padding: var(--space-1) var(--space-2); background: var(--color-surface-subtle); border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: var(--font-size-small); }
-.registration-intake-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.registration-intake-meta-item { display: flex; flex-direction: column; gap: var(--space-1); }
 .registration-intake-meta-item span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .registration-intake-meta-item strong { color: var(--color-text-primary); font-size: var(--font-size-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .registration-settlement-total { display: inline-flex; align-items: baseline; gap: var(--space-1); color: var(--color-text-secondary); }
@@ -106,13 +106,13 @@
   .registration-intake-form-v2 { padding: var(--space-2) var(--space-4); gap: var(--space-2); }
   .registration-patient-identity.registration-patient-identity--compact { min-height: 2.75rem; padding: 0; }
   .registration-intake-params-grid .ui-field__control { height: 2.25rem; margin-top: var(--space-1); }
-  .registration-intake-meta-row { padding-top: 2px; padding-bottom: 2px; }
+  .registration-intake-meta-row { padding-top: var(--space-1); padding-bottom: var(--space-1); }
   .registration-intake-meta-item { min-width: 0; flex-direction: row; align-items: baseline; gap: var(--space-1); }
   .registration-intake-meta-item span { flex: none; }
   .registration-settlement-section { padding-top: var(--space-1); gap: var(--space-2); padding: var(--space-2) var(--space-3); }
   .registration-payment-chip { height: 2rem; }
   .registration-cash-calculator { padding: var(--space-1) var(--space-2); gap: var(--space-1); }
-  .registration-cash-change-box { min-height: 2rem; padding-top: 2px; padding-bottom: 2px; }
+  .registration-cash-change-box { min-height: 2rem; padding-top: var(--space-1); padding-bottom: var(--space-1); }
   .registration-settlement-options { min-height: 1.5rem; }
   .registration-selection-hint { display: none; }
 }
@@ -133,7 +133,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 5px;
+  gap: var(--space-1);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -204,7 +204,7 @@
 .schedule-card-compact__badges {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   flex-shrink: 0;
 }
 
@@ -228,7 +228,7 @@
 .schedule-card-compact__time {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
@@ -242,7 +242,7 @@
 .schedule-card-compact__metrics {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   flex-shrink: 0;
 }
 
@@ -258,7 +258,7 @@
 }
 
 .schedule-badge-slots {
-  padding: 1px 5px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
@@ -296,7 +296,7 @@
 }
 
 .schedule-badge-daypart {
-  padding: 1px 5px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
@@ -305,7 +305,7 @@
 }
 
 .schedule-badge-direct {
-  padding: 1px 5px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--color-info-soft);
   color: var(--color-info);
@@ -314,7 +314,7 @@
 }
 
 .schedule-badge-clinic {
-  padding: 1px 5px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
 }
@@ -361,7 +361,7 @@
 .thermal-receipt-paper { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-panel); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: var(--color-text-primary); display: flex; flex-direction: column; gap: var(--space-3); }
 .thermal-receipt-paper header { text-align: center; border-bottom: 1px dashed var(--color-border-strong); padding-bottom: var(--space-3); }
 .thermal-receipt-paper header h3 { font-size: var(--font-size-h2); font-weight: var(--font-weight-bold); margin: 0; }
-.thermal-receipt-paper header p { margin: 2px 0 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.thermal-receipt-paper header p { margin: var(--space-1) 0 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .thermal-receipt-queue-section { text-align: center; padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border-strong); }
 .thermal-receipt-queue-section span { font-size: 0.8125rem; color: var(--color-text-secondary); }
 .thermal-receipt-queue-section strong { display: block; font-size: 2.5rem; font-weight: 900; color: var(--color-text-primary); letter-spacing: 2px; }
@@ -370,7 +370,7 @@
 .thermal-receipt-dl dd { margin: 0; font-weight: var(--font-weight-semibold); text-align: right; }
 .thermal-receipt-guidance { text-align: center; font-size: var(--font-size-small); color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
 .registration-shortcuts-hint { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
-.registration-shortcuts-hint kbd { padding: 1px 5px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--font-size-small); color: var(--color-text-primary); }
+.registration-shortcuts-hint kbd { padding: 1px var(--space-1); background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--font-size-small); color: var(--color-text-primary); }
 
 .thermal-receipt-feedback { font-size: var(--font-size-small); color: var(--color-brand-primary); margin-right: auto; }
 
@@ -465,7 +465,7 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   background: var(--color-surface);
-  padding: 0.125rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   white-space: nowrap;
@@ -483,7 +483,7 @@
 .registration-patient-identity__meta span {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.125rem;
+  gap: var(--space-1);
 }
 .registration-patient-identity__meta small {
   color: var(--color-text-disabled);
@@ -519,7 +519,7 @@
   gap: var(--space-1);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
-  padding: 0.125rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -545,7 +545,7 @@
   color: var(--color-text-secondary);
   border-left: 1px solid var(--color-border);
   padding-left: var(--space-1);
-  margin-left: 0.125rem;
+  margin-left: var(--space-1);
 }
 
 .registration-coverage-select-wrap {
@@ -659,7 +659,7 @@
 .registration-form-group-head + * { margin-top: var(--space-2); }
 .registration-form-group-actions { display: inline-flex; align-items: center; gap: var(--space-2); }
 .registration-patient-identity { min-width: 0; min-height: 4.5rem; padding: var(--space-2) 0; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); align-content: center; align-items: center; gap: 0 var(--space-2); border-bottom: 1px solid var(--color-border); }
-.registration-patient-identity > div { min-width: 0; display: grid; gap: .125rem; }
+.registration-patient-identity > div { min-width: 0; display: grid; gap: var(--space-1); }
 .registration-patient-identity > div strong, .registration-patient-identity > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .registration-patient-identity > div span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .registration-flat-field { min-width: 0; min-height: 4.5rem; padding: var(--space-2) 0; display: grid; align-content: center; gap: var(--space-1); border-bottom: 1px solid var(--color-border); }
@@ -678,7 +678,7 @@
 .registration-schedule-card:disabled:not(.is-selected) { color: var(--color-text-disabled); background: var(--color-surface-muted); }
 .registration-schedule-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .registration-schedule-card__top b { color: var(--color-brand-primary); }
-.registration-schedule-card__top small { padding: .125rem var(--space-1); border-radius: var(--radius-sm); color: var(--color-success); background: var(--color-success-soft); font-size: var(--font-size-small); }
+.registration-schedule-card__top small { padding: var(--space-1) var(--space-1); border-radius: var(--radius-sm); color: var(--color-success); background: var(--color-success-soft); font-size: var(--font-size-small); }
 .registration-schedule-card > strong { margin: var(--space-1) 0; font-size: var(--font-size-h3); font-variant-numeric: tabular-nums; }
 .registration-schedule-card > span:not(.registration-schedule-card__top) { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .registration-schedule-card > footer { min-width: 0; margin-top: var(--space-2); padding-top: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--font-size-small); }

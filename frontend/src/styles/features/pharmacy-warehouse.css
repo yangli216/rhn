@@ -42,11 +42,11 @@
 .warehouse-table td > small { margin-top: var(--space-1); color: var(--color-text-secondary); }
 .warehouse-table th:last-child, .warehouse-table td:last-child { text-align: right; }
 .warehouse-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.warehouse-tags span { padding: .15rem .4rem; border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-small); white-space: nowrap; }
+.warehouse-tags span { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-small); white-space: nowrap; }
 .warehouse-inventory-filters { min-height: 3.25rem; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
 .warehouse-inventory-filters:not(.ui-query-filters) { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .warehouse-metrics-inline { display: flex; align-items: center; gap: var(--space-2); flex: none; }
-.warehouse-metric-chip { height: var(--control-height-sm); display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border); font-size: var(--font-size-small); color: var(--color-text-secondary); white-space: nowrap; }
+.warehouse-metric-chip { height: var(--control-height-sm); display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border); font-size: var(--font-size-small); color: var(--color-text-secondary); white-space: nowrap; }
 .warehouse-metric-chip strong { color: var(--color-brand-primary); font-weight: var(--font-weight-bold); }
 .warehouse-metric-chip__warn { color: var(--color-warning); font-weight: var(--font-weight-medium); }
 .warehouse-inventory-list { min-height: 28rem; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -99,7 +99,7 @@
 .warehouse-check-grid input { width: 1rem; height: 1rem; accent-color: var(--color-brand-primary); }
 .warehouse-batch-toolbar { margin-bottom: var(--space-3);    }
 .warehouse-batch-toolbar > label:first-child > span { display: block; margin-bottom: var(--space-1); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
-.warehouse-batch-toolbar > span { padding-bottom: .65rem; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.warehouse-batch-toolbar > span { padding-bottom: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .warehouse-batch-select-all { min-height: var(--control-height-default); display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); cursor: pointer; }
 .warehouse-batch-select-all input, .warehouse-batch-table input { width: 1rem; height: 1rem; accent-color: var(--color-brand-primary); }
 .warehouse-batch-table-wrap { max-height: min(24rem, 42vh); overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
@@ -133,9 +133,9 @@
 .warehouse-entry-spec strong { display: block; font-size: var(--font-size-small); color: var(--color-text-primary); }
 .warehouse-entry-spec small { display: block; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .warehouse-entry-placeholder { font-size: var(--font-size-small); color: var(--color-text-disabled); }
-.warehouse-entry-conv { display: block; margin-top: 2px; font-size: var(--font-size-small); color: var(--color-brand-primary); }
+.warehouse-entry-conv { display: block; margin-top: var(--space-1); font-size: var(--font-size-small); color: var(--color-brand-primary); }
 .warehouse-entry-amount { font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.warehouse-purchase-mode-tabs { display: inline-flex; align-items: center; background: var(--color-surface-subtle); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--color-border); gap: 2px; margin-bottom: var(--space-2); }
+.warehouse-purchase-mode-tabs { display: inline-flex; align-items: center; background: var(--color-surface-subtle); padding: var(--space-1); border-radius: var(--radius-md); border: 1px solid var(--color-border); gap: var(--space-1); margin-bottom: var(--space-2); }
 .warehouse-purchase-mode-tab { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); font-size: var(--font-size-small); border-radius: var(--radius-sm); border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-weight: var(--font-weight-medium); transition: all .15s ease; }
 .warehouse-purchase-mode-tab.is-active { background: var(--color-surface); color: var(--color-brand-primary); font-weight: var(--font-weight-semibold); box-shadow: var(--shadow-sm); }
 .warehouse-header-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--space-3); align-items: flex-end; background: var(--color-surface-subtle); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: var(--space-2); }
@@ -178,7 +178,7 @@
 .warehouse-trace-summary > div > * { display: block; }
 .warehouse-trace-summary span { margin-bottom: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .warehouse-trace-summary small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.warehouse-trace-timeline { margin: 0; padding: 0 0 0 1.1rem; list-style: none; border-left: 2px solid var(--color-border); }
+.warehouse-trace-timeline { margin: 0; padding: 0 0 0 var(--space-4); list-style: none; border-left: 2px solid var(--color-border); }
 .warehouse-trace-timeline li { position: relative; padding: 0 0 var(--space-4) var(--space-4); }
 .warehouse-trace-timeline li::before { position: absolute; left: -.43rem; top: .35rem; width: .7rem; height: .7rem; border: 2px solid var(--color-surface); border-radius: 50%; background: var(--color-brand-primary); content: ''; }
 .warehouse-trace-timeline li > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
@@ -453,7 +453,7 @@
   white-space: nowrap;
   display: inline-flex;
   align-items: baseline;
-  gap: var(--space-0-5, 0.125rem);
+  gap: var(--space-0-5, var(--space-1));
   flex: none;
 }
 .warehouse-kpi-unit {
@@ -503,7 +503,7 @@
   padding-bottom: var(--space-2);
 }
 .warehouse-queue-tab {
-  padding: var(--space-1) 0.6rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
   border: 0;
@@ -530,7 +530,7 @@
 }
 .warehouse-queue-stage-btn {
   font-size: var(--font-size-small);
-  padding: 0.15rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface-subtle);
@@ -567,7 +567,7 @@
   gap: var(--space-2);
 }
 .warehouse-queue-footer {
-  padding: var(--space-1-5, 0.375rem) var(--space-2);
+  padding: var(--space-1-5, var(--space-1)) var(--space-2);
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-subtle);
   display: flex;
@@ -584,7 +584,7 @@
   transition: all 0.12s ease;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1-5, 0.375rem);
+  gap: var(--space-1-5, var(--space-1));
   text-align: left;
 }
 .warehouse-doc-card:hover {
@@ -613,7 +613,7 @@
 .warehouse-doc-card__type {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
-  padding: 0.1rem 0.35rem;
+  padding: 0.1rem var(--space-1);
   border-radius: var(--radius-sm);
   letter-spacing: 0.02em;
   flex: none;
@@ -734,7 +734,7 @@
 }
 .warehouse-meta-item strong {
   display: block;
-  margin-top: 0.15rem;
+  margin-top: var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-text-primary);
   overflow: hidden;
@@ -862,9 +862,9 @@
 .warehouse-guide-toggle-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   font-size: var(--font-size-small);
-  padding: 0.2rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: 9999px;
   background: color-mix(in srgb, var(--color-info) 8%, transparent);
   color: var(--color-info-strong);

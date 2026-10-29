@@ -19,7 +19,7 @@
 .ward-medication-return-requests > article > p, .ward-medication-return-requests__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .ward-medication-return-requests > article > p { margin: 0; }
 .ward-medication-return-requests__lines { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.ward-medication-return-requests__lines > span { min-width: 12rem; padding: var(--space-2); display: grid; gap: .125rem; border-radius: var(--radius-sm); background: var(--color-surface-subtle); }
+.ward-medication-return-requests__lines > span { min-width: 12rem; padding: var(--space-2); display: grid; gap: var(--space-1); border-radius: var(--radius-sm); background: var(--color-surface-subtle); }
 .ward-medication-return-requests__handover { display: grid; grid-template-columns: minmax(16rem, 1fr) auto; gap: var(--space-2); }
 
 @media (max-width: 82rem) {

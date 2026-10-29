@@ -6,7 +6,7 @@
 .inpatient-station-context__picker { display: grid; grid-template-columns: auto minmax(16rem, 1fr); align-items: center; gap: var(--space-2); }
 .inpatient-station-context__picker > span { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .inpatient-station-context__summary { display: grid; grid-template-columns: minmax(10rem, 1.2fr) repeat(2, minmax(9rem, 1fr)) auto; align-items: center; gap: var(--space-4); margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
-.inpatient-station-context__summary > span { display: grid; gap: 2px; }
+.inpatient-station-context__summary > span { display: grid; gap: var(--space-1); }
 .inpatient-station-context__summary small { color: var(--color-text-muted); }
 .inpatient-station-tabs { margin-bottom: var(--space-2); }
 .inpatient-station-tabs .ui-tabs__items { overflow-x: auto; }
@@ -48,9 +48,9 @@
 .inpatient-handover__identity b, .inpatient-handover__summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inpatient-handover__identity small, .inpatient-handover__summary, .inpatient-handover__counts small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-handover__counts { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.inpatient-handover__counts small { padding: .15rem .4rem; border-radius: var(--radius-sm); background: var(--color-surface-muted); }
+.inpatient-handover__counts small { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface-muted); }
 .inpatient-toolbar { margin-bottom: var(--space-3);     }
-.inpatient-toolbar nav { padding: .2rem; display: flex; border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.inpatient-toolbar nav { padding: var(--space-1); display: flex; border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .inpatient-toolbar nav button { min-height: 2rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
 .inpatient-toolbar nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); font-weight: var(--font-weight-semibold); }
 .inpatient-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(19rem, .82fr); align-items: start; gap: var(--space-3); }
@@ -166,7 +166,7 @@
 .inpatient-admission-selected-bed {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .inpatient-admission-bed-code {
@@ -506,7 +506,7 @@
   top: 0;
   right: 0;
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
   text-align: left;
   background: var(--color-surface-subtle);
   padding: var(--space-2) var(--space-3);
@@ -862,7 +862,7 @@
   background: transparent;
   border: 1px solid var(--color-brand-border);
   border-radius: var(--radius-sm);
-  padding: 1px 6px;
+  padding: 1px var(--space-1);
   cursor: pointer;
   transition: all 0.2s ease;
 }

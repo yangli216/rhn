@@ -3,7 +3,7 @@
 .inpatient-orders__head h2 { margin: var(--space-1) 0 0; font-size: var(--font-size-h2); }
 .inpatient-orders__head p, .inpatient-orders__head > div:first-child > span { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-orders__head > div:last-child { display: flex; align-items: center; gap: var(--space-3); }
-.inpatient-orders__head nav { padding: .2rem; display: flex; gap: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.inpatient-orders__head nav { padding: var(--space-1); display: flex; gap: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .inpatient-orders__head nav button { min-height: var(--control-height-sm); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; cursor: pointer; font-weight: var(--font-weight-semibold); }
 .inpatient-orders__head nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); }
 .inpatient-orders__head nav small { margin-left: var(--space-1); color: inherit; }
@@ -12,7 +12,7 @@
 .inpatient-order-section-head > div { min-width: 0; }
 .inpatient-order-section-head strong, .inpatient-order-section-head span { display: block; }
 .inpatient-order-section-head span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.inpatient-order-section-head nav { padding: .15rem; display: flex; gap: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.inpatient-order-section-head nav { padding: var(--space-1); display: flex; gap: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .inpatient-order-section-head nav button { min-height: 1.75rem; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; font-size: var(--font-size-small); cursor: pointer; }
 .inpatient-order-section-head nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); font-weight: var(--font-weight-semibold); }
 .inpatient-orders__readonly { margin: var(--space-3) var(--space-4); }
@@ -62,7 +62,7 @@
 .inpatient-ward-delivery__summary > div > *, .inpatient-ward-delivery__lines > div > * { display: block; }
 .inpatient-ward-delivery__summary span, .inpatient-ward-delivery__lines span, .inpatient-ward-delivery__lines small,
 .inpatient-ward-delivery__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.inpatient-ward-delivery__summary span { margin-top: .125rem; }
+.inpatient-ward-delivery__summary span { margin-top: var(--space-1); }
 .inpatient-ward-delivery__lines { min-width: 0; display: grid; gap: var(--space-1); }
 .inpatient-ward-delivery__lines > div { min-width: 0; }
 .inpatient-ward-delivery__lines strong, .inpatient-ward-delivery__lines span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -93,7 +93,7 @@
 .inpatient-task-row > time small, .inpatient-task-row__identity span, .inpatient-task-row__identity small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-task-row__identity > * { display: block; }
 .inpatient-task-row__identity strong, .inpatient-task-row__identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inpatient-task-row__fulfillment { min-width: 0; padding-left: var(--space-2); display: grid; gap: .125rem; border-left: .1875rem solid var(--color-border-strong); }
+.inpatient-task-row__fulfillment { min-width: 0; padding-left: var(--space-2); display: grid; gap: var(--space-1); border-left: .1875rem solid var(--color-border-strong); }
 .inpatient-task-row__fulfillment > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inpatient-task-row__fulfillment > span, .inpatient-task-row__fulfillment > small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-task-row__fulfillment.is-fulfilled { border-left-color: var(--color-success); }

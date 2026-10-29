@@ -36,10 +36,10 @@
 }
 
 .inpatient-patient-pool__view {
-  padding: .2rem;
+  padding: var(--space-1);
   display: flex;
   align-items: center;
-  gap: .15rem;
+  gap: var(--space-1);
   border-radius: var(--radius-md);
   background: var(--color-surface-muted);
 }
@@ -153,7 +153,7 @@
 }
 .inpatient-patient-card__identity small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-patient-card__identity > b {
-  padding: 0.15rem 0.55rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-round);
   color: var(--color-brand-strong);
   background: var(--color-brand-soft);
@@ -170,7 +170,7 @@
   gap: var(--space-2) var(--space-3);
 }
 
-.inpatient-patient-card__facts > span { min-width: 0; display: grid; gap: 2px; }
+.inpatient-patient-card__facts > span { min-width: 0; display: grid; gap: var(--space-1); }
 .inpatient-patient-card__facts small { color: var(--color-text-muted); font-size: .7rem; }
 .inpatient-patient-card__facts b {
   overflow: hidden;
@@ -316,7 +316,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
 }
-.inpatient-patient-context__facts > div { min-width: 0; display: grid; gap: 2px; }
+.inpatient-patient-context__facts > div { min-width: 0; display: grid; gap: var(--space-1); }
 .inpatient-patient-context__facts dt { color: var(--color-text-muted); font-size: .68rem; }
 .inpatient-patient-context__facts dd {
   margin: 0;

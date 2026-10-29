@@ -4,7 +4,7 @@
 .rule-intake p, .rule-intake li, .rule-intake__source { line-height: 1.6; overflow-wrap: anywhere; }
 .rule-intake textarea { width: 100%; }
 .rule-intake__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
-.rule-intake__history { width: 100%; display: grid; gap: 6px; padding: var(--space-3); margin: var(--space-2) 0; text-align: left; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
+.rule-intake__history { width: 100%; display: grid; gap: var(--space-1); padding: var(--space-3); margin: var(--space-2) 0; text-align: left; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
 .rule-intake__history strong { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .rule-intake small { font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .rule-intake__intents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-3) 0; }

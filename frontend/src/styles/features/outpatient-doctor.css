@@ -433,7 +433,7 @@
 .doctor-diag-subtle-dash { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 
 .doctor-diag-col-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
-.doctor-diag-col-actions .ui-button { padding-inline: .45rem; font-size: var(--font-size-small); }
+.doctor-diag-col-actions .ui-button { padding-inline: var(--space-2); font-size: var(--font-size-small); }
 .doctor-diag-col-actions .ui-button:has(.ui-icon) { width: 1.85rem; padding: 0; }
 .doctor-table-wrap {
   position: relative;
@@ -459,15 +459,15 @@
 .doctor-diagnosis-row.is-active-composer { min-height: 3.75rem; background: color-mix(in srgb, var(--color-brand-soft) 16%, var(--color-surface)); border-top: 2px solid color-mix(in srgb, var(--color-brand-primary) 50%, var(--color-border)); }
 .doctor-diagnosis-row.is-active-composer:hover { background: color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface)); }
 .doctor-diag-composer-type { width: 100%; }
-.doctor-diag-composer-type .ui-select__trigger { font-size: var(--font-size-small); font-weight: var(--font-weight-medium); padding-inline: .4rem; }
+.doctor-diag-composer-type .ui-select__trigger { font-size: var(--font-size-small); font-weight: var(--font-weight-medium); padding-inline: var(--space-2); }
 .doctor-diagnosis-row.is-active-composer .doctor-diag-col-type { width: 100%; min-width: 0; }
 .doctor-diag-col-composer-main { grid-column: span 2; min-width: 0; }
 .doctor-diag-composer-domain { width: 100%; min-width: 0; }
 .doctor-diag-composer-domain .ui-select { width: 100%; min-width: 0; }
-.doctor-diag-composer-domain .ui-select__trigger { font-size: var(--font-size-small); padding-inline: .4rem; }
+.doctor-diag-composer-domain .ui-select__trigger { font-size: var(--font-size-small); padding-inline: var(--space-2); }
 .doctor-diag-composer-search { width: 100%; min-width: 0; }
 .doctor-diag-composer-search .ui-remote-search { width: 100%; min-width: 0; }
-.doctor-diag-composer-search .ui-remote-search__trigger { height: 2.1rem; min-height: 2.1rem; font-size: var(--font-size-body); padding-inline: .55rem; background: var(--color-surface); }
+.doctor-diag-composer-search .ui-remote-search__trigger { height: 2.1rem; min-height: 2.1rem; font-size: var(--font-size-body); padding-inline: var(--space-2); background: var(--color-surface); }
 .doctor-diag-col-composer-hint { grid-column: span 2; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .doctor-diag-hint { font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .doctor-diag-hint.is-required { color: var(--color-warning-strong); font-weight: var(--font-weight-medium); }
@@ -853,7 +853,7 @@
 .doctor-unified-order-row.is-draft .doctor-unified-order-actions { background-color: color-mix(in srgb, var(--color-warning-soft) 40%, var(--color-surface)); }
 .doctor-unified-order-row.is-draft:hover .doctor-unified-order-actions { background-color: color-mix(in srgb, var(--color-warning-soft) 65%, var(--color-surface)); }
 .doctor-unified-inline-composer .doctor-inline-order-actions { background-color: color-mix(in srgb, var(--color-brand-soft) 14%, var(--color-surface)); }
-.doctor-unified-order-actions .ui-button { padding-inline: .45rem; font-size: var(--font-size-small); white-space: nowrap; flex-shrink: 0; }
+.doctor-unified-order-actions .ui-button { padding-inline: var(--space-2); font-size: var(--font-size-small); white-space: nowrap; flex-shrink: 0; }
 
 .doctor-order-name-with-action {
   display: inline-flex;
@@ -1034,7 +1034,7 @@
 .doctor-inline-order-field > input, .doctor-inline-order-field .doctor-entry-input-unit > input { min-width: 0; height: 1.85rem; border: 0; outline: 0; background: transparent; color: var(--color-text-primary); font: inherit; font-size: var(--font-size-body); }
 .doctor-inline-order-field > input:focus-visible, .doctor-inline-order-field .doctor-entry-input-unit > input:focus-visible { box-shadow: none; outline: 0; }
 .doctor-inline-order-field .ui-select, .doctor-inline-order-field .ui-remote-search { width: 100%; min-width: 0; }
-.doctor-inline-order-field .ui-select__trigger, .doctor-inline-order-field .ui-remote-search__trigger { padding-inline: .3rem; border: 0; background: transparent; box-shadow: none; font-size: var(--font-size-body); }
+.doctor-inline-order-field .ui-select__trigger, .doctor-inline-order-field .ui-remote-search__trigger { padding-inline: var(--space-1); border: 0; background: transparent; box-shadow: none; font-size: var(--font-size-body); }
 
 /* 9 列网格精确映射（类型/药品与项目/用法用量与执行要求/总量/执行科室/嘱托与说明/单价/状态/操作） */
 .doctor-inline-order-type { grid-column: 1; display: flex; align-items: center; gap: calc(var(--space-1) * 1.2); overflow: visible; }
@@ -1154,7 +1154,7 @@
   min-width: 4.2rem;
 }
 .doctor-draft-group-selector .ui-select__trigger {
-  padding-inline: .35rem;
+  padding-inline: var(--space-1);
   font-weight: var(--font-weight-medium);
 }
 .doctor-draft-resource-text {
@@ -1190,7 +1190,7 @@
   white-space: nowrap;
 }
 .doctor-composer-type-wrap { flex: 1; min-width: 0; }
-.doctor-composer-type-wrap .ui-select__trigger { border: 0; font-size: var(--font-size-small); font-weight: var(--font-weight-medium); padding-inline: .45rem; }
+.doctor-composer-type-wrap .ui-select__trigger { border: 0; font-size: var(--font-size-small); font-weight: var(--font-weight-medium); padding-inline: var(--space-2); }
 .doctor-entry-input-unit {
   width: 100%;
   height: 100%;
@@ -1264,7 +1264,7 @@
   box-shadow: 0 0 0 calc(var(--space-1) * 0.5) var(--color-focus-ring);
 }
 .doctor-inline-order-actions { grid-column: 9; min-height: 100%; padding: calc(var(--space-1) * 1.6) calc(var(--space-1) * 1.4); }
-.doctor-inline-order-actions .ui-button { min-width: 2.1rem; padding: 0 .45rem; display: inline-grid; place-items: center; }
+.doctor-inline-order-actions .ui-button { min-width: 2.1rem; padding: 0 var(--space-2); display: inline-grid; place-items: center; }
 .doctor-unified-inline-composer.is-draft-editor .doctor-inline-order-actions,
 .doctor-unified-inline-composer.is-service-draft-editor .doctor-inline-order-actions { background: color-mix(in srgb, var(--color-warning-soft) 55%, var(--color-surface)); }
 .doctor-unified-entry-add-btn { min-width: 2.1rem; height: 2.1rem; display: inline-grid; place-items: center; border-radius: var(--radius-sm); padding: 0 calc(var(--space-1) * 2.4); }
@@ -1624,8 +1624,8 @@
 .doctor-prescription-splits { min-height: 1.8rem; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-prescription-splits > span { padding: calc(var(--space-1) * 0.8) calc(var(--space-1) * 1.6); display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); }
 .doctor-prescription-splits strong { color: var(--color-text-primary); }
-.doctor-prescription-splits .ui-status-badge { min-height: 1.25rem; padding-inline: .35rem; }
-.doctor-prescription-splits .ui-button { padding-inline: .4rem; }
+.doctor-prescription-splits .ui-status-badge { min-height: 1.25rem; padding-inline: var(--space-1); }
+.doctor-prescription-splits .ui-button { padding-inline: var(--space-2); }
 .doctor-herbal-summary { display: grid; grid-template-columns: 5.5rem minmax(8rem, 1fr) 10rem; gap: var(--space-2); }
 .doctor-herbal-summary label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .doctor-herbal-summary input { min-width: 0; min-height: 2rem; padding: 0 calc(var(--space-1) * 1.6); }
@@ -1648,16 +1648,16 @@
 .doctor-prescription-grid__entry { min-height: 2.65rem; padding: calc(var(--space-1) * 0.6); gap: calc(var(--space-1) * 0.4); border-top: 1px solid var(--color-border-strong); background: color-mix(in srgb, var(--color-brand-soft) 35%, var(--color-surface)); }
 .doctor-prescription-grid__entry > * { min-width: 0; }
 .doctor-prescription-grid__entry input { inline-size: 100%; min-height: 2.2rem; padding: 0 calc(var(--space-1) * 1.4); font-size: var(--font-size-small); }
-.doctor-prescription-grid__entry .ui-remote-search__trigger { min-height: 2.2rem; padding: 0 .4rem; }
+.doctor-prescription-grid__entry .ui-remote-search__trigger { min-height: 2.2rem; padding: 0 var(--space-2); }
 .doctor-prescription-grid__entry .ui-select, .doctor-prescription-grid__entry .ui-select__trigger { width: 100%; min-width: 0; }
-.doctor-prescription-grid__entry .ui-select__trigger { padding: 0 .35rem; }
+.doctor-prescription-grid__entry .ui-select__trigger { padding: 0 var(--space-1); }
 .doctor-herbal-summary .ui-select { min-width: 0; width: 100%; }
-.doctor-herbal-summary .ui-select__trigger { padding-inline: .4rem; }
-.doctor-prescription-grid__entry .ui-button { padding-inline: .45rem; }
+.doctor-herbal-summary .ui-select__trigger { padding-inline: var(--space-2); }
+.doctor-prescription-grid__entry .ui-button { padding-inline: var(--space-2); }
 .doctor-herbal-total { display: flex; align-items: center; padding: 0 calc(var(--space-1) * 1.4); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .doctor-prescription-row-action { justify-content: space-between; gap: calc(var(--space-1) * 0.4); }
 .doctor-prescription-row-action .ui-button { padding-inline: var(--space-1); }
-.doctor-prescription-row-action .ui-status-badge { flex: none; min-height: 1.3rem; padding-inline: .3rem; }
+.doctor-prescription-row-action .ui-status-badge { flex: none; min-height: 1.3rem; padding-inline: var(--space-1); }
 .doctor-prescription-actions { min-height: 2.25rem; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .doctor-prescription-actions > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-prescription-list-editor .doctor-medication-safety { margin: 0; padding: var(--space-2); gap: var(--space-1); }

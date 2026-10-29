@@ -4,13 +4,13 @@
 .knowledge-test__pane h4 { margin: var(--space-2) 0; }
 .knowledge-test p, .knowledge-test li { line-height: 1.6; overflow-wrap: anywhere; }
 .knowledge-test small { display: block; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.knowledge-test__item { display: grid; gap: 6px; text-align: left; width: 100%; margin-top: 10px; padding: var(--space-2); cursor: pointer; color: var(--color-text); border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-sm); }
+.knowledge-test__item { display: grid; gap: var(--space-1); text-align: left; width: 100%; margin-top: var(--space-2); padding: var(--space-2); cursor: pointer; color: var(--color-text); border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-sm); }
 .knowledge-test__editor { display: grid; gap: var(--space-3); }
-.knowledge-test__editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 10px; }
-.knowledge-test__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.knowledge-test__editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--space-2); }
+.knowledge-test__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .knowledge-test__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
-.knowledge-test__row { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px; display: grid; gap: var(--space-2); }
-.knowledge-test__check { display: inline-flex; align-items: center; gap: 6px; margin-right: var(--space-4); }
+.knowledge-test__row { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2); display: grid; gap: var(--space-2); }
+.knowledge-test__check { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-4); }
 .knowledge-test__check input { width: auto; }
-.knowledge-test__execute { display: grid; grid-template-columns: minmax(200px, 1fr) auto; align-items: end; gap: 10px; }
-.knowledge-test summary { cursor: pointer; margin: 10px 0; }
+.knowledge-test__execute { display: grid; grid-template-columns: minmax(200px, 1fr) auto; align-items: end; gap: var(--space-2); }
+.knowledge-test summary { cursor: pointer; margin: var(--space-2) 0; }

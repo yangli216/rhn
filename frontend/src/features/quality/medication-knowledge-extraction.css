@@ -1,13 +1,13 @@
-.knowledge-extraction-columns { display: grid; grid-template-columns: minmax(280px, .95fr) minmax(350px, 1.25fr) minmax(260px, .9fr); gap: 14px; align-items: start; }
-.knowledge-extraction-pane { min-width: 0; max-height: 68vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; }
-.knowledge-extraction-pane fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; }
+.knowledge-extraction-columns { display: grid; grid-template-columns: minmax(280px, .95fr) minmax(350px, 1.25fr) minmax(260px, .9fr); gap: var(--space-4); align-items: start; }
+.knowledge-extraction-pane { min-width: 0; max-height: 68vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); }
+.knowledge-extraction-pane fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .knowledge-extraction-pane input:not([type=checkbox]), .knowledge-extraction-pane textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2); font: inherit; }
 .knowledge-extraction-pane textarea { resize: vertical; }
 .knowledge-extraction-pane h4 { margin: 0 0 var(--space-3); }
 .knowledge-extraction-citation { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
-.knowledge-extraction-citation blockquote { margin: var(--space-2) 0; padding: var(--space-2) 10px; border-left: 3px solid var(--color-info); background: var(--color-info-soft); white-space: pre-wrap; }
+.knowledge-extraction-citation blockquote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-2); border-left: 3px solid var(--color-info); background: var(--color-info-soft); white-space: pre-wrap; }
 .knowledge-extraction-meta { display: block; margin-top: var(--space-3); overflow-wrap: anywhere; color: var(--color-text-secondary); }
-.knowledge-extraction-confirm { display: flex; gap: var(--space-2); align-items: flex-start; margin: 14px 0; }
+.knowledge-extraction-confirm { display: flex; gap: var(--space-2); align-items: flex-start; margin: var(--space-4) 0; }
 .knowledge-extraction-pane li { margin: var(--space-2) 0; }
 .knowledge-extraction-pane pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--font-size-small); }
 .knowledge-extraction-pane > button { margin-bottom: var(--space-2); }
