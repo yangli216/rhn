@@ -150,7 +150,7 @@
 
 .analytics-kpi-sub {
   margin: 0;
-  font-size: .75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   line-height: 1.4;
 }
@@ -210,7 +210,7 @@
 }
 
 .analytics-box-meta {
-  font-size: .75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
@@ -283,7 +283,7 @@
 }
 
 .analytics-bar-date {
-  font-size: .75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   margin-top: var(--space-1);
 }
@@ -294,7 +294,7 @@
   justify-content: center;
   gap: var(--space-4);
   padding: var(--space-2) 0 0;
-  font-size: .75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 

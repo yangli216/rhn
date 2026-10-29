@@ -2617,7 +2617,7 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 
 .master-data-qualification-field .ui-status-badge {
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   padding: 0.125rem var(--space-2);
 }
 

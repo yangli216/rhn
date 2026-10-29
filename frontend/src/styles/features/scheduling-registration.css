@@ -360,15 +360,15 @@
 .thermal-receipt-container { max-width: 22rem; margin: 0 auto; padding: var(--space-3) 0; }
 .thermal-receipt-paper { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-panel); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: var(--color-text-primary); display: flex; flex-direction: column; gap: var(--space-3); }
 .thermal-receipt-paper header { text-align: center; border-bottom: 1px dashed var(--color-border-strong); padding-bottom: var(--space-3); }
-.thermal-receipt-paper header h3 { font-size: 1.125rem; font-weight: var(--font-weight-bold); margin: 0; }
-.thermal-receipt-paper header p { margin: 2px 0 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.thermal-receipt-paper header h3 { font-size: var(--font-size-h2); font-weight: var(--font-weight-bold); margin: 0; }
+.thermal-receipt-paper header p { margin: 2px 0 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .thermal-receipt-queue-section { text-align: center; padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border-strong); }
 .thermal-receipt-queue-section span { font-size: 0.8125rem; color: var(--color-text-secondary); }
 .thermal-receipt-queue-section strong { display: block; font-size: 2.5rem; font-weight: 900; color: var(--color-text-primary); letter-spacing: 2px; }
 .thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: 0.8125rem; margin: 0; padding: 0; }
 .thermal-receipt-dl dt { color: var(--color-text-secondary); }
 .thermal-receipt-dl dd { margin: 0; font-weight: var(--font-weight-semibold); text-align: right; }
-.thermal-receipt-guidance { text-align: center; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
+.thermal-receipt-guidance { text-align: center; font-size: var(--font-size-small); color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
 .registration-shortcuts-hint { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .registration-shortcuts-hint kbd { padding: 1px 5px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: var(--font-size-small); color: var(--color-text-primary); }
 

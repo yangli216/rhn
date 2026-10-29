@@ -4,18 +4,18 @@
 .al-header p { margin:6px 0 0; color:var(--color-text-secondary); font-size:13px; }
 .al-layout { display:grid; grid-template-columns:240px minmax(0,1fr); gap:var(--space-4); align-items:start; }
 .al-catalog { position:sticky; top:0; max-height:calc(100vh - 180px); overflow:auto; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); padding:var(--space-4); }
-.al-catalog h2 { font-size:16px; margin:0 0 14px; }
-.al-catalog h3 { font-size:12px; color:var(--color-text-secondary); margin:22px 0 10px; }
+.al-catalog h2 { font-size:var(--font-size-h3); margin:0 0 14px; }
+.al-catalog h3 { font-size:var(--font-size-small); color:var(--color-text-secondary); margin:22px 0 10px; }
 .al-catalog input { width:100%; min-width:0; padding:var(--space-2); border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text-primary); }
 .al-node { width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:var(--space-3) var(--space-2); border:1px solid transparent; border-radius:var(--radius-md); background:transparent; color:var(--color-text-primary); cursor:pointer; }
 .al-node:hover,.al-node.is-active { background:var(--color-brand-soft); border-color:var(--color-border-strong); }
 .al-node span { min-width:0; }
 .al-node strong { display:block; font-size:13px; overflow-wrap:anywhere; }
 .al-node small { display:block; margin-top:5px; font-size:var(--font-size-small); color:var(--color-text-secondary); }
-.al-note { font-size:12px; color:var(--color-text-secondary); border-top:1px solid var(--color-border); padding-top:var(--space-4); line-height:1.7; }
+.al-note { font-size:var(--font-size-small); color:var(--color-text-secondary); border-top:1px solid var(--color-border); padding-top:var(--space-4); line-height:1.7; }
 .al-content { min-width:0; }
 .al-workspace.analytics-pilot { height:auto; min-height:680px; }
-.al-workspace .ap-header h2 { margin:0; font-size:18px; }
+.al-workspace .ap-header h2 { margin:0; font-size:var(--font-size-h2); }
 .al-workspace .ap-layout { grid-template-columns:minmax(280px,1fr) 210px; align-items:start; }
 .al-workspace .ap-left { grid-column:1 / -1; }
 .al-workspace .ap-assistant > .ap-section-label,.al-workspace .ap-assistant > h2,.al-workspace .ap-assistant > .ap-muted,.al-workspace .ap-assistant > textarea,.al-workspace .ap-assistant > .ui-button { grid-column:1; }

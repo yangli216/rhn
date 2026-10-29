@@ -53,7 +53,7 @@
 }
 
 .standard-mapping-kpi-card__hint {
-  font-size: var(--font-size-micro, 0.75rem);
+  font-size: var(--font-size-micro, var(--font-size-small));
   color: var(--color-text-tertiary);
 }
 
@@ -281,6 +281,6 @@
 }
 
 .standard-mapping-skeleton-feature-item span {
-  font-size: var(--font-size-micro, 0.75rem);
+  font-size: var(--font-size-micro, var(--font-size-small));
   color: var(--color-text-secondary);
 }

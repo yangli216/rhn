@@ -75,4 +75,4 @@
 .care-steps li.is-current i { border-color: var(--color-brand-primary); color: white; background: var(--color-brand-primary); }
 .care-steps div { display: grid; gap: var(--space-1); }
 .care-steps strong { font-size: var(--font-size-small); }
-.care-steps span { color: var(--color-text-secondary); font-size: .75rem; line-height: var(--line-height-small); }
+.care-steps span { color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }

@@ -392,7 +392,7 @@
 }
 
 .pharmacy-query-drug-generic {
-  font-size: .75rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-normal);
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -812,7 +812,7 @@
   border-radius: 50%;
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
-  font-size: 1.125rem;
+  font-size: var(--font-size-h2);
   flex-shrink: 0;
 }
 
@@ -1449,12 +1449,12 @@
 }
 
 .pharmacy-cancel-title-eyebrow {
-  font-size: var(--font-size-xs, 0.75rem);
+  font-size: var(--font-size-xs, var(--font-size-small));
   color: var(--color-text-secondary);
 }
 
 .pharmacy-cancel-title-heading {
-  font-size: var(--font-size-md, 1rem);
+  font-size: var(--font-size-md, var(--font-size-h3));
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
@@ -1464,7 +1464,7 @@
 }
 
 .pharmacy-cancel-count-badge {
-  font-size: var(--font-size-xs, 0.75rem);
+  font-size: var(--font-size-xs, var(--font-size-small));
   color: var(--color-text-secondary);
 }
 
@@ -1474,7 +1474,7 @@
 }
 
 .pharmacy-cancel-item-time {
-  font-size: var(--font-size-xs, 0.75rem);
+  font-size: var(--font-size-xs, var(--font-size-small));
   color: var(--color-text-secondary);
   white-space: nowrap;
 }

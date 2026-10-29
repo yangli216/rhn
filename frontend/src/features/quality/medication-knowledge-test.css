@@ -3,7 +3,7 @@
 .knowledge-test__pane { min-width: 0; max-height: 66vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-3); }
 .knowledge-test__pane h4 { margin: var(--space-2) 0; }
 .knowledge-test p, .knowledge-test li { line-height: 1.6; overflow-wrap: anywhere; }
-.knowledge-test small { display: block; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: 12px; }
+.knowledge-test small { display: block; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .knowledge-test__item { display: grid; gap: 6px; text-align: left; width: 100%; margin-top: 10px; padding: var(--space-2); cursor: pointer; color: var(--color-text); border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-sm); }
 .knowledge-test__editor { display: grid; gap: var(--space-3); }
 .knowledge-test__editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 10px; }

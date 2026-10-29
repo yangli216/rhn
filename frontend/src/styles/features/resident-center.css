@@ -97,7 +97,7 @@
 }
 
 .resident-profile-id-badge__label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
 }
@@ -169,7 +169,7 @@
 }
 
 .resident-registered-card__status {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 

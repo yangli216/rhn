@@ -1122,7 +1122,7 @@
 .triage-recommendation-card__source {
   margin-left: var(--space-2);
   color: var(--color-primary-600);
-  font-size: 12px;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
 }
 

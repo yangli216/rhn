@@ -475,7 +475,7 @@
   margin: 0;
   padding: var(--space-2) var(--space-3);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
   color: var(--color-border);
   white-space: pre-wrap;
@@ -797,7 +797,7 @@
 
 .qmed-history-reason {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-small);
   color: var(--color-text-primary);
   background: var(--color-surface-subtle);
   padding: 3px var(--space-2);
@@ -872,7 +872,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 12px;
+  font-size: var(--font-size-small);
   cursor: pointer;
   padding: 3px 6px;
   border-radius: var(--radius-sm);

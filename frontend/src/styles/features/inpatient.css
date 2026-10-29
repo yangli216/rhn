@@ -170,7 +170,7 @@
 }
 
 .inpatient-admission-bed-code {
-  font-size: 1.25rem;
+  font-size: var(--font-size-h1);
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-bold);
 }
@@ -274,7 +274,7 @@
   transform: translateY(-1px);
 }
 .inpatient-billing__summary span { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
-.inpatient-billing__summary strong { font-size: 1.25rem; font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.inpatient-billing__summary strong { font-size: var(--font-size-h1); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
 .inpatient-billing__summary .is-warning {
   border-left: 3px solid var(--color-warning);
   background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning-soft) 35%, var(--color-surface)), var(--color-surface));
@@ -483,7 +483,7 @@
 }
 
 .fiscal-emblem-icon {
-  font-size: 1rem;
+  font-size: var(--font-size-h3);
 }
 
 .fiscal-title {
@@ -512,7 +512,7 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
 }
 
 .fiscal-element-row {
@@ -617,7 +617,7 @@
 }
 
 .fiscal-figure-amount {
-  font-size: 1.25rem;
+  font-size: var(--font-size-h1);
   font-weight: var(--font-weight-bold);
   color: var(--color-brand-primary);
   font-variant-numeric: tabular-nums;
@@ -653,7 +653,7 @@
 }
 
 .fiscal-breakdown-num {
-  font-size: 1.125rem;
+  font-size: var(--font-size-h2);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
@@ -699,7 +699,7 @@
 }
 
 .fiscal-qr-hint {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
@@ -742,7 +742,7 @@
 }
 
 .fiscal-seal-star {
-  font-size: 0.875rem;
+  font-size: var(--font-size-body);
   line-height: 1;
 }
 
@@ -761,7 +761,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
@@ -840,7 +840,7 @@
 
 .fiscal-receipt-entry-banner__left p {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 
@@ -857,7 +857,7 @@
 }
 
 .billing-timeline__view-btn {
-  font-size: 0.75rem;
+  font-size: var(--font-size-small);
   color: var(--color-brand-primary);
   background: transparent;
   border: 1px solid var(--color-brand-border);

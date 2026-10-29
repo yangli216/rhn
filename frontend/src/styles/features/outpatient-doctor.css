@@ -2322,7 +2322,7 @@
   border-color: color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
 }
 .doctor-formula-edit-hint {
-  font-size: var(--font-size-tiny, 0.75rem);
+  font-size: var(--font-size-tiny, var(--font-size-small));
   color: var(--color-brand-primary);
   opacity: 0.8;
   margin-left: var(--space-1);
