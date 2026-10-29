@@ -1,5 +1,5 @@
 .standard-impact { display: grid; gap: var(--space-3); min-width: 0; }
-.standard-impact p, .standard-impact small { color: var(--color-text-secondary); line-height: 1.6; }
+.standard-impact p, .standard-impact small { color: var(--color-text-secondary); line-height: var(--line-height-body); }
 .standard-impact__toolbar { display: grid; grid-template-columns: minmax(280px, 1.6fr) minmax(150px, .8fr) auto auto; align-items: center; gap: var(--space-3); }
 .standard-impact__toolbar label { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-size-small); }
 .standard-impact__metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); }

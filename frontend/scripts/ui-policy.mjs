@@ -149,7 +149,10 @@ export function scanSource(file, source) {
       if (decl.important) report('css-important', line, code)
       if (decl.prop === 'scrollbar-gutter' && decl.value !== 'auto') report('css-scrollbar-gutter', line, code)
       const hasLiteralSize = /(?:\d*\.)?\d+(?:px|rem|em|vh|vw|pt)\b/.test(withoutVariables(decl.value))
-      if (tokenProperties.test(decl.prop) && !neutralValue.test(decl.value) && (hasLiteralSize || !/var\(\s*--/.test(decl.value))) {
+      // 发丝线补偿（1px/2px）、正圆（50%）与局部叠放（z-index 1–9）不属于需要令牌的设计取值。
+      const hairline = /^(?:padding|margin)(?:-.+)?$|^(?:row-|column-)?gap$/.test(decl.prop) && /^(?:\s*(?:-?[12]px|0|auto|var\([^)]*\)))+\s*$/.test(decl.value)
+      const localValue = (decl.prop === 'z-index' && /^-?[1-9]$/.test(decl.value.trim())) || (/radius/.test(decl.prop) && decl.value.trim() === '50%')
+      if (!hairline && !localValue && tokenProperties.test(decl.prop) && !neutralValue.test(decl.value) && (hasLiteralSize || !/var\(\s*--/.test(decl.value))) {
         report('css-token', line, code)
       }
       if (heightProperties.test(decl.prop) && !neutralValue.test(decl.value) && decl.value.trim() !== 'var(--control-height-default)'

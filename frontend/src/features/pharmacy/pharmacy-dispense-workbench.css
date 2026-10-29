@@ -139,7 +139,7 @@
 .pharmacy-scan-search input:focus {
   background: var(--color-surface);
   border-color: var(--color-brand-primary);
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
   outline: none;
 }
 
@@ -229,7 +229,7 @@
 
 .pharmacy-query-field__input:focus-within {
   border-color: var(--color-brand-primary);
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
 }
 
 .pharmacy-query-field__input .ui-icon {
@@ -379,7 +379,7 @@
 .pharmacy-query-table__quantity small {
   margin-top: var(--space-1);
   color: var(--color-text-secondary);
-  font-size: .72rem;
+  font-size: var(--font-size-small);
 }
 
 /* 药品品规主标题与通用名辅助 */
@@ -671,7 +671,7 @@
 .pharmacy-queue-item.is-selected {
   border-color: color-mix(in srgb, var(--color-brand-primary) 48%, var(--color-border));
   background: var(--color-brand-soft);
-  box-shadow: inset 3px 0 var(--color-brand-primary);
+  box-shadow: var(--shadow-selection-marker);
 }
 
 .pharmacy-queue-item__main {
@@ -895,7 +895,7 @@
 }
 
 .pharmacy-patient-banner__allergy-tag:hover {
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
 }
 
 .pharmacy-patient-banner__allergy-tag.is-risk {
@@ -1246,7 +1246,7 @@
 
 .pharmacy-prescription-table tbody tr.is-scan-target {
   background: var(--color-brand-soft);
-  box-shadow: inset 3px 0 var(--color-brand-primary);
+  box-shadow: var(--shadow-selection-marker);
 }
 
 .pharmacy-scan-action-btn {

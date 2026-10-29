@@ -19,7 +19,7 @@
 .care-queue-list { max-height: calc(100vh - var(--layout-topbar-height) - 13rem); overflow-y: auto; border-top: 1px solid var(--color-border); }
 .care-queue-list > button { width: 100%; padding: var(--space-4); display: grid; gap: var(--space-2); border: 0; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; cursor: pointer; }
 .care-queue-list > button:hover { background: var(--color-surface-subtle); }
-.care-queue-list > button.is-active { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.care-queue-list > button.is-active { box-shadow: var(--shadow-selection-marker); background: var(--color-brand-soft); }
 .care-queue-list > button > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .care-queue-list strong, .care-queue-list span, .care-queue-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .care-queue-list span, .care-queue-list small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -60,7 +60,7 @@
 .care-evidence-table td { padding: var(--space-3); border-top: 1px solid var(--color-border); vertical-align: top; font-size: var(--font-size-small); }
 .care-evidence-table td:nth-child(4) { display: grid; gap: var(--space-1); }
 .care-evidence-table td:nth-child(4) span { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
-.care-evidence-table code { color: var(--color-text-secondary); font-size: .6875rem; }
+.care-evidence-table code { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .care-side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-4); }
 .care-safety-card { padding: var(--space-5); border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border)); background: color-mix(in srgb, var(--color-warning-soft) 45%, var(--color-surface)); }
 .care-safety-card__icon { width: 2.5rem; height: 2.5rem; display: grid; place-items: center; border-radius: 50%; color: var(--color-warning); background: var(--color-surface); }
@@ -70,7 +70,7 @@
 .care-steps { margin: 0; padding: var(--space-4); display: grid; gap: var(--space-4); list-style: none; }
 .care-steps li { position: relative; display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: var(--space-3); }
 .care-steps li:not(:last-child)::after { content: ''; position: absolute; top: 1.75rem; bottom: calc(-1 * var(--space-4)); left: .875rem; width: 1px; background: var(--color-border); }
-.care-steps i { position: relative; z-index: 1; width: 1.75rem; height: 1.75rem; display: grid; place-items: center; border: 1px solid var(--color-border-strong); border-radius: 50%; color: var(--color-text-secondary); background: var(--color-surface); font-size: .6875rem; font-style: normal; }
+.care-steps i { position: relative; z-index: 1; width: 1.75rem; height: 1.75rem; display: grid; place-items: center; border: 1px solid var(--color-border-strong); border-radius: 50%; color: var(--color-text-secondary); background: var(--color-surface); font-size: var(--font-size-small); font-style: normal; }
 .care-steps li.is-done i { border-color: var(--color-success); color: white; background: var(--color-success); }
 .care-steps li.is-current i { border-color: var(--color-brand-primary); color: white; background: var(--color-brand-primary); }
 .care-steps div { display: grid; gap: var(--space-1); }

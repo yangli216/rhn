@@ -89,7 +89,7 @@
   transition: background var(--motion-normal) var(--ease-standard), box-shadow var(--motion-normal) var(--ease-standard);
 }
 .billing-queue-list > button:hover { background: var(--color-surface-subtle); }
-.billing-queue-list > button.is-active { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.billing-queue-list > button.is-active { box-shadow: var(--shadow-selection-marker); background: var(--color-brand-soft); }
 .billing-queue-list > button.is-highlighted { box-shadow: inset var(--space-1) 0 0 var(--color-border-strong); background: var(--color-surface-subtle); }
 .billing-queue-hint { margin: 0; padding: var(--space-1) var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); opacity: 0.8; border-bottom: 1px solid var(--color-border); }
 .billing-queue-list > button > div, .billing-queue-item__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
@@ -230,7 +230,7 @@
 .aggregated-payment-scan-pane { display: grid; gap: var(--space-3); }
 .aggregated-payment-scan-box { display: grid; gap: var(--space-3); }
 .aggregated-payment-input-wrap { position: relative; }
-.aggregated-payment-input { width: 100%; height: 3rem; padding: 0 var(--space-4); border: 2px solid var(--color-brand-primary); border-radius: var(--radius-lg); font-size: var(--font-size-h2); font-family: monospace; letter-spacing: 0.05em; background: var(--color-surface); color: var(--color-text-primary); box-shadow: var(--shadow-sm); outline: none; }
+.aggregated-payment-input { width: 100%; height: 3rem; padding: 0 var(--space-4); border: 2px solid var(--color-brand-primary); border-radius: var(--radius-lg); font-size: var(--font-size-h2); font-family: var(--font-family-mono); letter-spacing: 0.05em; background: var(--color-surface); color: var(--color-text-primary); box-shadow: var(--shadow-sm); outline: none; }
 .aggregated-payment-input:focus { border-color: var(--color-brand-hover); box-shadow: 0 0 0 3px var(--color-brand-soft); }
 .aggregated-payment-scan-actions { display: flex; justify-content: flex-end; }
 .aggregated-payment-loading { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-3); background: var(--color-surface-subtle); border-radius: var(--radius-md); color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -676,7 +676,7 @@
 .billing-collaboration-notice {
   padding: var(--space-3) var(--space-4);
   font-size: var(--font-size-small);
-  line-height: 1.5;
+  line-height: var(--line-height-small);
   border-bottom: 1px solid var(--color-border);
 }
 .billing-collaboration-notice--blocked {
@@ -766,7 +766,7 @@
 .billing-table--payments .billing-refund-sub { max-width: none; }
 .billing-table--payments tbody tr { cursor: pointer; }
 .billing-table--payments tbody tr:hover { background: var(--color-surface-subtle); }
-.billing-table--payments tbody tr.is-selected { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.billing-table--payments tbody tr.is-selected { box-shadow: var(--shadow-selection-marker); background: var(--color-brand-soft); }
 .billing-recon-summary { padding: var(--space-4); display: grid; gap: var(--space-3); }
 .billing-recon-summary > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .billing-recon-summary span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -798,7 +798,7 @@
 .billing-close-list { max-height: 20rem; overflow-y: auto; }
 .billing-close-list > button { width: 100%; padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-1); border: 0; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; cursor: pointer; }
 .billing-close-list > button:hover { background: var(--color-surface-subtle); }
-.billing-close-list > button.is-active { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.billing-close-list > button.is-active { box-shadow: var(--shadow-selection-marker); background: var(--color-brand-soft); }
 .billing-close-list > button > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .billing-close-list span, .billing-close-list small { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .billing-close-detail { min-width: 72rem; margin-top: var(--space-4); }

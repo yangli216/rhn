@@ -42,11 +42,11 @@
 .sw-badge-asset {
   font-size: var(--font-size-small);
   padding: var(--space-1) var(--space-2);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--color-brand-soft);
   color: var(--color-brand-primary);
   border: 1px solid var(--color-border-strong);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .sw-header-stats {
@@ -186,7 +186,7 @@
 }
 
 .sw-node-item-name {
-  font-size: 13px;
+  font-size: var(--font-size-compact);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -214,7 +214,7 @@
 .sw-node-item-meta {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .sw-node-item-counts {
@@ -306,7 +306,7 @@
 .sw-card-table {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   margin-bottom: var(--space-2);
   word-break: break-all;
 }
@@ -388,12 +388,12 @@
 }
 
 .sw-meta-row strong {
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* 维度属性与字典展示 */
 .sw-section-subtitle {
-  font-size: 13px;
+  font-size: var(--font-size-compact);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--space-2);
   display: flex;
@@ -418,7 +418,7 @@
 }
 
 .sw-attr-name {
-  font-size: 13px;
+  font-size: var(--font-size-compact);
   font-weight: var(--font-weight-semibold);
   color: var(--color-brand-primary);
 }
@@ -426,7 +426,7 @@
 .sw-attr-col {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .sw-val-map {
@@ -447,7 +447,7 @@
 }
 
 .sw-val-key {
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-weight: var(--font-weight-semibold);
   color: var(--color-success);
 }
@@ -463,7 +463,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   padding: 1px var(--space-1);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 /* 指标默认过滤展示 */
@@ -508,7 +508,7 @@
   color: var(--color-border);
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-size: var(--font-size-small);
   overflow-x: auto;
   white-space: pre-wrap;
@@ -532,7 +532,7 @@
 .sw-probe-input-bar input {
   flex: 1;
   padding: var(--space-2) var(--space-4);
-  font-size: 13px;
+  font-size: var(--font-size-compact);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
@@ -573,7 +573,7 @@
   color: var(--color-info);
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-size: var(--font-size-small);
   overflow-x: auto;
   white-space: pre-wrap;

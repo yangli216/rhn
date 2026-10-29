@@ -1,7 +1,7 @@
 .al-library { display:flex; flex-direction:column; gap:var(--space-4); min-width:0; }
 .al-header { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); }
 .al-header h1 { margin:0; font-size:22px; }
-.al-header p { margin:var(--space-1) 0 0; color:var(--color-text-secondary); font-size:13px; }
+.al-header p { margin:var(--space-1) 0 0; color:var(--color-text-secondary); font-size:var(--font-size-compact); }
 .al-layout { display:grid; grid-template-columns:240px minmax(0,1fr); gap:var(--space-4); align-items:start; }
 .al-catalog { position:sticky; top:0; max-height:calc(100vh - 180px); overflow:auto; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); padding:var(--space-4); }
 .al-catalog h2 { font-size:var(--font-size-h3); margin:0 0 var(--space-4); }
@@ -10,7 +10,7 @@
 .al-node { width:100%; display:flex; align-items:center; gap:var(--space-2); text-align:left; padding:var(--space-3) var(--space-2); border:1px solid transparent; border-radius:var(--radius-md); background:transparent; color:var(--color-text-primary); cursor:pointer; }
 .al-node:hover,.al-node.is-active { background:var(--color-brand-soft); border-color:var(--color-border-strong); }
 .al-node span { min-width:0; }
-.al-node strong { display:block; font-size:13px; overflow-wrap:anywhere; }
+.al-node strong { display:block; font-size:var(--font-size-compact); overflow-wrap:anywhere; }
 .al-node small { display:block; margin-top:var(--space-1); font-size:var(--font-size-small); color:var(--color-text-secondary); }
 .al-note { font-size:var(--font-size-small); color:var(--color-text-secondary); border-top:1px solid var(--color-border); padding-top:var(--space-4); line-height:1.7; }
 .al-content { min-width:0; }

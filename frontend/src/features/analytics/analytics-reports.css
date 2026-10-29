@@ -47,7 +47,7 @@
 
 .analytics-select-control:focus {
   border-color: var(--color-brand-primary);
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
 }
 
 .analytics-filter-tabs {
@@ -269,7 +269,7 @@
 .analytics-bar-num {
   position: absolute;
   top: -1.25rem;
-  font-size: .7rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -345,7 +345,7 @@
   border-radius: var(--radius-full);
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-size: .7rem;
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
 }
 

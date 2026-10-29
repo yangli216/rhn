@@ -136,3 +136,12 @@ test('business css must not override the height of shared input and button contr
   assert.deepEqual(rows('.demo textarea.ui-field__control { min-height: 4.25rem }'), [])
   assert.deepEqual(rows('.demo .my-button { min-height: 2.1rem }'), [])
 })
+
+test('hairline spacing, circles and local stacking are not token violations', () => {
+  const css = 'features/demo/demo.css'
+  const rows = source => rules(scanSource(css, source))
+  assert.deepEqual(rows('.a { padding: 1px var(--space-1); gap: 2px; border-radius: 50%; z-index: 2 }'), [])
+  assert.deepEqual(rows('.a { padding: 5px }'), ['css-token'])
+  assert.deepEqual(rows('.a { z-index: 25 }'), ['css-token'])
+  assert.deepEqual(rows('.a { border-radius: 7px }'), ['css-token'])
+})

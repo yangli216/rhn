@@ -17,7 +17,7 @@
 .print-template-row:hover { background: var(--color-surface-subtle); }
 .print-template-row.is-active { border-left-color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .print-template-row__main, .print-published-row__main > span { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.print-template-row__main strong, .print-published-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--color-text-primary); }
+.print-template-row__main strong, .print-published-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-compact); color: var(--color-text-primary); }
 .print-template-row__main small, .print-published-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .print-published-list { margin-top: var(--space-2); border-top: 1px solid var(--color-border); }
 .print-published-row { min-height: 52px; padding: var(--space-1) var(--space-1); border-left: 3px solid transparent; display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
@@ -109,7 +109,7 @@
 .print-device-row__icon .ui-icon { width: 17px; height: 17px; }
 .print-device-row > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .print-device-row strong, .print-device-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.print-device-row strong { font-size: 13px; color: var(--color-text-primary); }
+.print-device-row strong { font-size: var(--font-size-compact); color: var(--color-text-primary); }
 .print-device-row small { font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .print-device-form { padding: var(--space-4); }
 .print-device-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--space-4); }
@@ -142,7 +142,7 @@
 .print-business-task.is-active { border-left-color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .print-business-task > span { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .print-business-task strong, .print-business-task small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.print-business-task strong { font-size: 13px; color: var(--color-text-primary); }
+.print-business-task strong { font-size: var(--font-size-compact); color: var(--color-text-primary); }
 .print-business-task small { font-size: var(--font-size-small); color: var(--color-text-disabled); }
 .print-business-task i, .print-resolution-trace i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: var(--font-size-small); font-style: normal; font-weight: var(--font-weight-bold); }
 .print-business-resolution__body, .print-business-editor__body { padding: var(--space-4); }

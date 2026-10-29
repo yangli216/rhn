@@ -1314,7 +1314,7 @@
 }
 .frequency-workbench-dialog .master-data-dialog-form { margin-top: 0; }
 .frequency-workbench-dialog .ui-dialog__head { margin-bottom: var(--space-2); }
-.frequency-workbench-dialog .ui-dialog__description { margin: 0 0 var(--space-3); font-size: 0.8125rem; }
+.frequency-workbench-dialog .ui-dialog__description { margin: 0 0 var(--space-3); font-size: var(--font-size-compact); }
 .frequency-workbench {
   display: grid;
   grid-template-columns: 17rem minmax(0, 1.2fr) minmax(0, 1.1fr);

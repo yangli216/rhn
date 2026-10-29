@@ -183,7 +183,7 @@
   background: var(--color-brand-soft);
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
-  line-height: 1.6;
+  line-height: var(--line-height-body);
 }
 
 .triage-flow-guide svg,

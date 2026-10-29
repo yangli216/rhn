@@ -358,14 +358,14 @@
 .registration-receipt-ticket { font-size: 1.75rem; font-weight: var(--font-weight-bold); color: var(--color-brand-strong); }
 .quick-resident-form { display: grid; gap: var(--space-4); padding: var(--space-2) 0; }
 .thermal-receipt-container { max-width: 22rem; margin: 0 auto; padding: var(--space-3) 0; }
-.thermal-receipt-paper { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-panel); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: var(--color-text-primary); display: flex; flex-direction: column; gap: var(--space-3); }
+.thermal-receipt-paper { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-panel); font-family: var(--font-family-mono); color: var(--color-text-primary); display: flex; flex-direction: column; gap: var(--space-3); }
 .thermal-receipt-paper header { text-align: center; border-bottom: 1px dashed var(--color-border-strong); padding-bottom: var(--space-3); }
 .thermal-receipt-paper header h3 { font-size: var(--font-size-h2); font-weight: var(--font-weight-bold); margin: 0; }
 .thermal-receipt-paper header p { margin: var(--space-1) 0 0; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .thermal-receipt-queue-section { text-align: center; padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border-strong); }
-.thermal-receipt-queue-section span { font-size: 0.8125rem; color: var(--color-text-secondary); }
+.thermal-receipt-queue-section span { font-size: var(--font-size-compact); color: var(--color-text-secondary); }
 .thermal-receipt-queue-section strong { display: block; font-size: 2.5rem; font-weight: 900; color: var(--color-text-primary); letter-spacing: 2px; }
-.thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: 0.8125rem; margin: 0; padding: 0; }
+.thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--font-size-compact); margin: 0; padding: 0; }
 .thermal-receipt-dl dt { color: var(--color-text-secondary); }
 .thermal-receipt-dl dd { margin: 0; font-weight: var(--font-weight-semibold); text-align: right; }
 .thermal-receipt-guidance { text-align: center; font-size: var(--font-size-small); color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
@@ -418,7 +418,7 @@
 .registration-intake-strip .registration-patient-search .ui-patient-search__results > div { max-height: 18rem; padding: 0; gap: 0; }
 .registration-intake-strip .registration-patient-search .ui-patient-search__results button { min-height: 4rem; padding: var(--space-2) var(--space-3); border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; }
 .registration-intake-strip .registration-patient-search .ui-patient-search__results button:last-child { border-bottom: 0; }
-.registration-intake-strip .registration-patient-search .ui-patient-search__results button.is-keyboard-focused { border-color: transparent; box-shadow: inset 3px 0 var(--color-brand-primary); }
+.registration-intake-strip .registration-patient-search .ui-patient-search__results button.is-keyboard-focused { border-color: transparent; box-shadow: var(--shadow-selection-marker); }
 .registration-intake-strip__identity { min-width: 0; display: flex; align-items: center; }
 .registration-intake-strip .registration-patient-identity {
   display: flex;
@@ -672,8 +672,8 @@
 .registration-selection-field .ui-field { margin: 0; }
 .registration-schedule-grid { padding: var(--space-3); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
 .registration-schedule-card { min-width: 0; min-height: 9rem; padding: var(--space-3); display: grid; align-content: start; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text-primary); background: var(--color-surface); font: inherit; text-align: left; cursor: pointer; }
-.registration-schedule-card:hover:not(:disabled), .registration-schedule-card:focus-visible { border-color: var(--color-brand-primary); outline: 0; background: var(--color-brand-soft); box-shadow: 0 0 0 2px var(--color-focus-ring); }
-.registration-schedule-card.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); box-shadow: inset 3px 0 var(--color-brand-primary); }
+.registration-schedule-card:hover:not(:disabled), .registration-schedule-card:focus-visible { border-color: var(--color-brand-primary); outline: 0; background: var(--color-brand-soft); box-shadow: var(--shadow-focus); }
+.registration-schedule-card.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); box-shadow: var(--shadow-selection-marker); }
 .registration-schedule-card:disabled { cursor: default; }
 .registration-schedule-card:disabled:not(.is-selected) { color: var(--color-text-disabled); background: var(--color-surface-muted); }
 .registration-schedule-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
@@ -694,7 +694,7 @@
 .registration-resident-list { max-height: 20rem; overflow-y: auto; border-top: 1px solid var(--color-border); }
 .registration-resident-list > button { width: 100%; min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 1rem; align-items: center; gap: var(--space-3); border: 0; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; }
 .registration-resident-list > button:hover { background: var(--color-surface-subtle); }
-.registration-resident-list > button.is-selected { box-shadow: inset 3px 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.registration-resident-list > button.is-selected { box-shadow: var(--shadow-selection-marker); background: var(--color-brand-soft); }
 .registration-resident-list > button > span:nth-child(2) { min-width: 0; display: grid; gap: var(--space-1); }
 .registration-resident-list strong, .registration-resident-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .registration-resident-list small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
@@ -1955,7 +1955,7 @@
 .encounter-today-list article > div { min-width: 0; }
 .encounter-today-list article strong, .encounter-today-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .encounter-today-list article small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.encounter-no-cell { color: var(--color-brand-primary); font-family: monospace; font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.encounter-no-cell { color: var(--color-brand-primary); font-family: var(--font-family-mono); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
 .encounter-diagnosis-tag { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; }
 .encounter-bp-tag { display: inline-block; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .registration-dept-search { flex: 1 1 18rem; min-width: 0; }

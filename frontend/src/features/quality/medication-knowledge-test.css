@@ -2,7 +2,7 @@
 .knowledge-test__layout { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(480px, 2.5fr) minmax(240px, 1fr); gap: var(--space-3); align-items: start; }
 .knowledge-test__pane { min-width: 0; max-height: 66vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-3); }
 .knowledge-test__pane h4 { margin: var(--space-2) 0; }
-.knowledge-test p, .knowledge-test li { line-height: 1.6; overflow-wrap: anywhere; }
+.knowledge-test p, .knowledge-test li { line-height: var(--line-height-body); overflow-wrap: anywhere; }
 .knowledge-test small { display: block; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .knowledge-test__item { display: grid; gap: var(--space-1); text-align: left; width: 100%; margin-top: var(--space-2); padding: var(--space-2); cursor: pointer; color: var(--color-text); border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-sm); }
 .knowledge-test__editor { display: grid; gap: var(--space-3); }

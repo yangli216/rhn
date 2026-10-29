@@ -111,7 +111,7 @@
 }
 
 .resident-profile-id-badge__hint {
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
 

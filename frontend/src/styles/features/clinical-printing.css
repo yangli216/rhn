@@ -25,7 +25,7 @@
   gap: var(--space-2);
   padding: 0 var(--space-3) 0 var(--space-1);
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: var(--color-text-secondary);
   background: transparent;
   font-weight: 650;
@@ -56,7 +56,7 @@
   gap: var(--space-2);
   padding: 0 var(--space-2);
   border: 1px solid var(--color-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--color-surface);
 }
 .clinical-print-search .ui-icon { width: 16px; color: var(--color-text-disabled); }
@@ -92,7 +92,7 @@
   cursor: pointer;
 }
 .clinical-print-candidate:hover { background: var(--color-surface-muted); }
-.clinical-print-candidate.is-selected { box-shadow: inset 3px 0 var(--color-brand-primary); background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-surface)); }
+.clinical-print-candidate.is-selected { box-shadow: var(--shadow-selection-marker); background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-surface)); }
 .clinical-print-candidate.is-disabled { cursor: not-allowed; opacity: .72; }
 .clinical-print-candidate input { margin-top: var(--space-2); }
 .clinical-print-patient-mark {
@@ -103,14 +103,14 @@
   border-radius: 50%;
   color: var(--color-text-inverse);
   background: var(--color-brand-primary);
-  font-size: 13px;
+  font-size: var(--font-size-compact);
   font-weight: var(--font-weight-bold);
 }
 .clinical-print-candidate-main { min-width: 0; display: grid; gap: var(--space-1); }
 .clinical-print-candidate-main > span { display: flex; align-items: center; gap: var(--space-1); }
 .clinical-print-candidate-main strong, .clinical-print-candidate-main b,
 .clinical-print-candidate-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.clinical-print-candidate-main strong { font-size: 13px; }
+.clinical-print-candidate-main strong { font-size: var(--font-size-compact); }
 .clinical-print-candidate-main b { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .clinical-print-candidate-main small { color: var(--color-text-disabled); font-size: var(--font-size-small); }
 .clinical-print-candidate-main i, .clinical-print-repeat {

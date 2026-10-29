@@ -54,7 +54,7 @@
 .announcement-management__list, .announcement-management__detail { min-height: 0; overflow: hidden; }
 .announcement-management__list { align-content: start; }
 .announcement-management__list > button { width: 100%; padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-2); border: 0; border-top: 1px solid var(--color-border); color: var(--color-text-primary); background: var(--color-surface); text-align: left; }
-.announcement-management__list > button:hover, .announcement-management__list > button:focus-visible, .announcement-management__list > button.is-selected { outline: 0; background: var(--color-brand-soft); box-shadow: inset 3px 0 var(--color-brand-primary); }
+.announcement-management__list > button:hover, .announcement-management__list > button:focus-visible, .announcement-management__list > button.is-selected { outline: 0; background: var(--color-brand-soft); box-shadow: var(--shadow-selection-marker); }
 .announcement-management__list > button > span, .announcement-management__list > button > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .announcement-management__list > button p { margin: 0; display: -webkit-box; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .announcement-management__list > button small, .announcement-management__list > button footer { color: var(--color-text-secondary); font-size: var(--font-size-small); }

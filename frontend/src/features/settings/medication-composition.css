@@ -8,6 +8,6 @@
 .med-composition-history li { display:grid; gap:var(--space-1); padding:var(--space-2) 0; border-bottom:1px solid var(--color-border); }
 .med-composition-history time, .med-composition-history small { color:var(--color-text-secondary); font-size:var(--font-size-small); }
 .med-composition-fields .ui-field { min-width:0; margin:0; }
-.med-composition-main > p, .med-composition-side p { color:var(--color-text-secondary); font-size:13px; line-height:1.6; }
+.med-composition-main > p, .med-composition-side p { color:var(--color-text-secondary); font-size:var(--font-size-compact); line-height:var(--line-height-body); }
 .med-composition-layout h3 { margin:0 0 var(--space-3); font-size:15px; }
 .med-composition-fields > .ui-button { justify-self:start; }
